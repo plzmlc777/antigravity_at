@@ -17,3 +17,6 @@ coverage/
 
 # System
 thumbs.db
+
+# Logs
+*.log

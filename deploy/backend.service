@@ -1,0 +1,15 @@
+[Unit]
+Description=Auto Trading Backend
+After=network.target
+
+[Service]
+Type=simple
+User=admin-ubuntu
+WorkingDirectory=/home/admin-ubuntu/ai/antigravity/auto_trading/backend
+# Check for venv activation if needed, but per analysis running directly seems standard for this env
+ExecStart=/home/admin-ubuntu/.local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

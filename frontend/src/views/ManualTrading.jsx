@@ -1,23 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import Diagram from '../components/Diagram';
+import ManualTrade from '../components/ManualTrade';
 import SymbolSelector from '../components/SymbolSelector';
 import TradingInfoPanel from '../components/TradingInfoPanel';
 import ApiLogPanel from '../components/ApiLogPanel';
 
-const Dashboard = () => {
-    // Symbol State Management
+const ManualTrading = () => {
+    // Symbol State Management (Shared Logic with Dashboard via LocalStorage)
     const [currentSymbol, setCurrentSymbol] = useState(() =>
         localStorage.getItem('lastSymbol') || '005930'
     );
 
     const [savedSymbols, setSavedSymbols] = useState(() => {
         const saved = localStorage.getItem('savedSymbols');
-        // Default init
         if (!saved) return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-
         try {
             const parsed = JSON.parse(saved);
-            // Migration logic: convert strings to objects
             return parsed.map(item => {
                 if (typeof item === 'string') return { code: item, name: '' };
                 return item;
@@ -34,7 +31,6 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-6">
-            {/* Symbol Selection Area */}
             <SymbolSelector
                 currentSymbol={currentSymbol}
                 setCurrentSymbol={setCurrentSymbol}
@@ -48,14 +44,18 @@ const Dashboard = () => {
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
-                    <div>
-                        <h2 className="text-lg font-semibold mb-4 text-white/80">Process Visualization</h2>
-                        <Diagram />
+                <div className="lg:col-span-2">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-md">
+                        <h2 className="text-xl font-bold text-blue-300 mb-2">Manual Trading Execution</h2>
+                        <p className="text-gray-400 mb-6">
+                            Execute buy and sell orders manually using Limit or Market prices.
+                        </p>
+                        <div className="max-w-xl">
+                            <ManualTrade defaultSymbol={currentSymbol} />
+                        </div>
                     </div>
                 </div>
-
-                <div className="space-y-6">
+                <div>
                     <ApiLogPanel />
                 </div>
             </div>
@@ -63,4 +63,4 @@ const Dashboard = () => {
     );
 };
 
-export default Dashboard;
+export default ManualTrading;

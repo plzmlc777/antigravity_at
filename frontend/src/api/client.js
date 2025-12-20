@@ -82,3 +82,8 @@ export const placeSellOrder = async (order) => {
     const { data } = await api.post('/order/sell', order);
     return data;
 };
+
+export const placeManualOrder = async (order) => {
+    const { data } = await api.post('/order/manual', order);
+    return data;
+};

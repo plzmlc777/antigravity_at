@@ -40,7 +40,14 @@ class KiwoomMockAdapter(ExchangeInterface):
 
     async def place_buy_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
         await asyncio.sleep(0.2)
-        cost = price * quantity
+        
+        # Handle Market Order (Price = 0)
+        executed_price = price
+        if executed_price == 0:
+            price_info = await self.get_current_price(symbol)
+            executed_price = price_info["price"]
+
+        cost = executed_price * quantity
         if self.balance["KRW"] < cost:
             return {"status": "failed", "message": "Insufficient funds"}
         
@@ -51,16 +58,23 @@ class KiwoomMockAdapter(ExchangeInterface):
             "order_id": f"ORD-{random.randint(1000, 9999)}",
             "symbol": symbol,
             "side": "buy",
-            "price": price,
+            "price": executed_price,
             "quantity": quantity
         }
 
     async def place_sell_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
         await asyncio.sleep(0.2)
+        
+        # Handle Market Order (Price = 0)
+        executed_price = price
+        if executed_price == 0:
+            price_info = await self.get_current_price(symbol)
+            executed_price = price_info["price"]
+
         if self.holdings.get(symbol, 0) < quantity:
             return {"status": "failed", "message": "Insufficient holdings"}
             
-        revenue = price * quantity
+        revenue = executed_price * quantity
         self.holdings[symbol] -= quantity
         if self.holdings[symbol] == 0:
             del self.holdings[symbol]
@@ -71,6 +85,6 @@ class KiwoomMockAdapter(ExchangeInterface):
             "order_id": f"ORD-{random.randint(1000, 9999)}",
             "symbol": symbol,
             "side": "sell",
-            "price": price,
+            "price": executed_price,
             "quantity": quantity
         }
