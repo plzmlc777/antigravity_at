@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# JavaScript/Node
+node_modules/
+dist/
+coverage/
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# System
+thumbs.db
