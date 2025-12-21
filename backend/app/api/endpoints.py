@@ -142,3 +142,45 @@ async def manual_order(order: ManualOrderRequest, adapter: ExchangeInterface = D
         raise HTTPException(status_code=400, detail=result.get("message"))
         
     return result
+
+@router.post("/auto/start")
+async def start_auto_trading(
+    config: Dict[str, Any], 
+    adapter: ExchangeInterface = Depends(get_exchange_adapter)
+):
+    """
+    Start a new trading bot.
+    config needs: symbol, strategy, interval(seconds), amount(KRW), strategy_config
+    """
+    from ..core.bot_manager import bot_manager
+    
+    # Validation
+    if 'symbol' not in config:
+        raise HTTPException(status_code=400, detail="Symbol is required")
+    if 'strategy' not in config:
+        raise HTTPException(status_code=400, detail="Strategy is required")
+        
+    try:
+        bot_id = bot_manager.start_bot(config)
+        return {"status": "success", "message": "Bot started", "bot_id": bot_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/auto/stop/{bot_id}")
+async def stop_auto_trading(bot_id: str):
+    from ..core.bot_manager import bot_manager
+    bot_manager.stop_bot(bot_id)
+    return {"status": "success", "message": f"Bot {bot_id} stopped"}
+
+@router.delete("/auto/{bot_id}")
+async def delete_bot(bot_id: str):
+    from ..core.bot_manager import bot_manager
+    bot_manager.remove_bot(bot_id)
+    return {"status": "success", "message": f"Bot {bot_id} removed"}
+
+@router.get("/auto/status")
+async def get_auto_trading_status():
+    from ..core.bot_manager import bot_manager
+    return bot_manager.get_status()
