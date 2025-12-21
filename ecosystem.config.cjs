@@ -2,10 +2,9 @@ module.exports = {
     apps: [
         {
             name: "at-backend",
-            script: "uvicorn",
+            script: "./venv/bin/uvicorn",
             args: "app.main:app --host 0.0.0.0 --port 8000",
             cwd: "./backend",
-            interpreter: "../venv/bin/python", // Uses the virtual environment python
             env: {
                 PYTHONPATH: "."
             }
