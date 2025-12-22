@@ -80,7 +80,64 @@ const Settings = () => {
     };
 
     return (
+    const [systemMode, setSystemMode] = useState('UNKNOWN');
+
+    useEffect(() => {
+        // Fetch current system mode
+        import('../api/client').then(client => {
+            client.getSystemStatus().then(status => {
+                setSystemMode(status.mode);
+            });
+        });
+    }, []);
+
+    const handleModeSwitch = async (newMode) => {
+        if (newMode === 'REAL') {
+            if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
+        } else {
+            if (!confirm("Switch to MOCK mode?")) return;
+        }
+
+        try {
+            const client = await import('../api/client');
+            await client.setSystemMode(newMode);
+            window.location.reload();
+        } catch (error) {
+            alert("Failed to switch mode");
+            console.error(error);
+        }
+    };
+
+    return (
         <div className="container mx-auto max-w-4xl">
+            {/* System Mode Section */}
+            <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                <div>
+                    <h2 className="text-lg font-bold text-white mb-1">System Mode</h2>
+                    <p className="text-xs text-gray-400">Select the trading environment for the entire system.</p>
+                </div>
+                <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
+                    <button
+                        onClick={() => handleModeSwitch('MOCK')}
+                        className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${systemMode === 'MOCK'
+                                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        MOCK
+                    </button>
+                    <button
+                        onClick={() => handleModeSwitch('REAL')}
+                        className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${systemMode === 'REAL'
+                                ? 'bg-green-500 text-black shadow-lg shadow-green-500/20'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        REAL
+                    </button>
+                </div>
+            </div>
+
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Exchange Accounts</h1>
                 <button
