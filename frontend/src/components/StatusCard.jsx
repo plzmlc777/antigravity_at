@@ -1,6 +1,13 @@
 import React from 'react';
 
-const StatusCard = ({ title, value, subtext, type = 'neutral' }) => {
+const StatusCard = ({ title, value, subtext, type = 'neutral', status }) => {
+    // If 'status' object is passed (from App.jsx), derive values from it
+    if (status) {
+        title = status.exchange || "Exchange";
+        value = status.status?.toUpperCase() || "OFFLINE";
+        type = status.status === 'online' ? 'success' : 'danger';
+    }
+
     const colors = {
         neutral: 'bg-white/5 border-white/10',
         success: 'bg-green-500/10 border-green-500/20 text-green-400',
@@ -9,7 +16,7 @@ const StatusCard = ({ title, value, subtext, type = 'neutral' }) => {
     };
 
     return (
-        <div className={`border rounded-xl p-4 ${colors[type]}`}>
+        <div className={`border rounded-xl p-4 min-w-[140px] ${colors[type]}`}>
             <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
             <div className="text-2xl font-mono font-semibold">{value}</div>
 
