@@ -16,7 +16,7 @@ const StatusCard = ({ title, value, subtext, type = 'neutral', status }) => {
     };
 
     return (
-        <div className={`border rounded-lg px-3 py-1 min-w-[120px] h-10 ${colors[type]} flex flex-col justify-center`}>
+        <div className={`border rounded-lg px-3 py-2 min-w-[120px] ${colors[type]} flex flex-col justify-center`}>
             <div className="flex items-center justify-between gap-2">
                 <h3 className="text-[10px] uppercase tracking-wider text-gray-400 leading-none">{title}</h3>
                 {(status?.account_name && status.account_name !== 'Unknown') && (

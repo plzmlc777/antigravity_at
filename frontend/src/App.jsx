@@ -63,7 +63,7 @@ function AppContent() {
         <div className="min-h-screen bg-[#0a0a0f] text-white selection:bg-blue-500/30">
             {/* Navbar */}
             <nav className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-8">
                         <div className="font-bold text-xl tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
                             Antigravity
@@ -87,8 +87,8 @@ function AppContent() {
                                     }
                                 }}
                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'MOCK'
-                                        ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
-                                        : 'text-gray-400 hover:text-white'
+                                    ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
+                                    : 'text-gray-400 hover:text-white'
                                     }`}
                             >
                                 MOCK
@@ -102,8 +102,8 @@ function AppContent() {
                                     }
                                 }}
                                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'REAL'
-                                        ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
-                                        : 'text-gray-400 hover:text-white'
+                                    ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
+                                    : 'text-gray-400 hover:text-white'
                                     }`}
                             >
                                 REAL
