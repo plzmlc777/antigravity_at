@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+from pydantic import model_validator, ValidationError
 
 class Settings(BaseSettings):
     # App Config
@@ -11,10 +12,23 @@ class Settings(BaseSettings):
     HCP_KIWOOM_SECRET_KEY: Optional[str] = None
     HCP_KIWOOM_ACCOUNT_NO: Optional[str] = None
     
-    # Trading Mode (MOCK / REAL)
-    TRADING_MODE: str = "MOCK"
+    # Trading Mode (MOCK / REAL) - REQUIRED NO DEFAULT
+    TRADING_MODE: str 
+
+    @model_validator(mode='after')
+    def validate_config(self):
+        if self.TRADING_MODE.upper() == "REAL":
+            missing = []
+            if not self.HCP_KIWOOM_APP_KEY: missing.append("HCP_KIWOOM_APP_KEY")
+            if not self.HCP_KIWOOM_SECRET_KEY: missing.append("HCP_KIWOOM_SECRET_KEY")
+            if not self.HCP_KIWOOM_ACCOUNT_NO: missing.append("HCP_KIWOOM_ACCOUNT_NO")
+            
+            if missing:
+                raise ValueError(f"REAL Mode requires environment variables: {', '.join(missing)}")
+        return self
 
     class Config:
         env_file = ".env"
 
 settings = Settings()
+
