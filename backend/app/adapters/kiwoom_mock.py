@@ -16,6 +16,9 @@ class KiwoomMockAdapter(ExchangeInterface):
     def get_name(self) -> str:
         return "KIWOOM (MOCK)"
 
+    def get_account_name(self) -> str:
+        return "MOCK_ACCOUNT"
+
     async def get_current_price(self, symbol: str) -> Dict[str, Any]:
         # Simulate network delay
         await asyncio.sleep(0.1)

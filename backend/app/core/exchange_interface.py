@@ -13,6 +13,11 @@ class ExchangeInterface(ABC):
         pass
 
     @abstractmethod
+    def get_account_name(self) -> str:
+        """Return the user-defined alias/name of the active account"""
+        pass
+
+    @abstractmethod
     async def get_current_price(self, symbol: str) -> Dict[str, Any]:
         """Get the current market price and name for a given symbol"""
         pass

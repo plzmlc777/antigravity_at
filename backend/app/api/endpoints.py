@@ -31,7 +31,8 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
                 return KiwoomRealAdapter(
                     app_key=decrypted_app,
                     secret_key=decrypted_secret,
-                    account_no=active_account.account_number
+                    account_no=active_account.account_number,
+                    account_name=active_account.account_name
                 )
             except Exception as e:
                 # Log error and fallback (or fail)
@@ -63,7 +64,8 @@ async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter))
     return {
         "exchange": adapter.get_name(), 
         "status": "online",
-        "mode": settings.TRADING_MODE
+        "mode": settings.TRADING_MODE,
+        "account_name": adapter.get_account_name()
     }
 
 class SystemModeRequest(BaseModel):
