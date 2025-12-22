@@ -20,6 +20,23 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, [token]);
 
+    // Setup Axios Interceptor for 401s
+    useEffect(() => {
+        const interceptor = axios.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response && error.response.status === 401) {
+                    logout();
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        return () => {
+            axios.interceptors.response.eject(interceptor);
+        };
+    }, []);
+
     const login = async (email, password, remember = true) => {
         const formData = new FormData();
         formData.append('username', email);
