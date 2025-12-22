@@ -1,10 +1,13 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './views/Dashboard';
 import ManualTrading from './views/ManualTrading';
 import AutoTrading from './views/AutoTrading';
+import Login from './views/Login';
+import Settings from './views/Settings';
 import StatusCard from './components/StatusCard';
 import { useState, useEffect } from 'react';
 import { getSystemStatus } from './api/client';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 const NavLink = ({ to, children }) => {
     const location = useLocation();
@@ -23,8 +26,24 @@ const NavLink = ({ to, children }) => {
     );
 };
 
-function App() {
-    const [status, setStatus] = useState({ exchange: 'Unknown', status: 'offline' });
+// Protected Route Component
+const RequireAuth = ({ children }) => {
+    const { token, loading } = useAuth();
+    if (loading) return null; // Or a loading spinner
+
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
+    return children;
+};
+
+function AppContent() {
+    const [status, setStatus] = useState({ exchange: 'Unknown', status: 'offline', mode: 'UNKNOWN' });
+    const { logout, user } = useAuth();
+    const location = useLocation();
+
+    // Hide Navbar on Login page
+    if (location.pathname === '/login') return null;
 
     useEffect(() => {
         const fetchStatus = async () => {
@@ -32,7 +51,7 @@ function App() {
                 const data = await getSystemStatus();
                 setStatus(data);
             } catch (error) {
-                setStatus({ exchange: 'Error', status: 'offline' });
+                setStatus({ exchange: 'Error', status: 'offline', mode: 'ERROR' });
             }
         };
         fetchStatus();
@@ -41,69 +60,83 @@ function App() {
     }, []);
 
     return (
-        <Router>
-            <div className="min-h-screen bg-[#0a0a0f] text-white selection:bg-blue-500/30">
-                {/* Navbar */}
-                <nav className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-                    <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                        <div className="flex items-center gap-8">
-                            <div className="font-bold text-xl tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
-                                Antigravity
-                            </div>
-                            <div className="flex gap-2">
-                                <NavLink to="/">Dashboard</NavLink>
-                                <NavLink to="/manual">Manual</NavLink>
-                                <NavLink to="/auto">Auto Strategy</NavLink>
-                            </div>
+        <div className="min-h-screen bg-[#0a0a0f] text-white selection:bg-blue-500/30">
+            {/* Navbar */}
+            <nav className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-8">
+                        <div className="font-bold text-xl tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+                            Antigravity
                         </div>
-                        <div className="flex items-center gap-4">
-                            {/* Mode Toggle */}
-                            <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-                                <button
-                                    onClick={async () => {
-                                        if (status.mode !== 'MOCK') {
-                                            if (!confirm("Switch to MOCK mode?")) return;
-                                            await import('./api/client').then(m => m.setSystemMode('MOCK'));
-                                            window.location.reload();
-                                        }
-                                    }}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'MOCK'
-                                            ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
-                                            : 'text-gray-400 hover:text-white'
-                                        }`}
-                                >
-                                    MOCK
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (status.mode !== 'REAL') {
-                                            if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
-                                            await import('./api/client').then(m => m.setSystemMode('REAL'));
-                                            window.location.reload();
-                                        }
-                                    }}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'REAL'
-                                            ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
-                                            : 'text-gray-400 hover:text-white'
-                                        }`}
-                                >
-                                    REAL
-                                </button>
-                            </div>
-                            <StatusCard status={status} />
+                        <div className="flex gap-2">
+                            <NavLink to="/">Dashboard</NavLink>
+                            <NavLink to="/manual">Manual</NavLink>
+                            <NavLink to="/auto">Auto Strategy</NavLink>
+                            <NavLink to="/settings">Settings</NavLink>
                         </div>
                     </div>
-                </nav>
+                    <div className="flex items-center gap-4">
+                        {/* Mode Toggle */}
+                        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+                            <button
+                                onClick={async () => {
+                                    if (status.mode !== 'MOCK') {
+                                        if (!confirm("Switch to MOCK mode?")) return;
+                                        await import('./api/client').then(m => m.setSystemMode('MOCK'));
+                                        window.location.reload();
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'MOCK'
+                                        ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
+                                        : 'text-gray-400 hover:text-white'
+                                    }`}
+                            >
+                                MOCK
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (status.mode !== 'REAL') {
+                                        if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
+                                        await import('./api/client').then(m => m.setSystemMode('REAL'));
+                                        window.location.reload();
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'REAL'
+                                        ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
+                                        : 'text-gray-400 hover:text-white'
+                                    }`}
+                            >
+                                REAL
+                            </button>
+                        </div>
+                        <StatusCard status={status} />
+                        <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
+                    </div>
+                </div>
+            </nav>
 
-                {/* Main Content */}
-                <main className="max-w-7xl mx-auto px-6 py-8">
-                    <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/manual" element={<ManualTrading />} />
-                        <Route path="/auto" element={<AutoTrading />} />
-                    </Routes>
-                </main>
-            </div>
+            {/* Main Content */}
+            <main className="max-w-7xl mx-auto px-6 py-8">
+                <Routes>
+                    <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                    <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
+                    <Route path="/auto" element={<RequireAuth><AutoTrading /></RequireAuth>} />
+                    <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                </Routes>
+            </main>
+        </div>
+    );
+}
+
+function App() {
+    return (
+        <Router>
+            <AuthProvider>
+                <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/*" element={<AppContent />} />
+                </Routes>
+            </AuthProvider>
         </Router>
     );
 }

@@ -12,4 +12,4 @@ fi
 cp ../.env .env
 
 # Run Uvicorn
-/home/admin-ubuntu/.local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+/home/admin-ubuntu/.local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
