@@ -19,7 +19,8 @@ const Settings = () => {
 
     const fetchAccounts = async () => {
         try {
-            const response = await axios.get('/api/v1/accounts', {
+            // Note: Trailing slash is important to avoid 307 Redirect which strips Auth header
+            const response = await axios.get('/api/v1/accounts/', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAccounts(response.data);
@@ -37,7 +38,7 @@ const Settings = () => {
     const handleAddAccount = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/api/v1/accounts', formData, {
+            await axios.post('/api/v1/accounts/', formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setIsAdding(false);
