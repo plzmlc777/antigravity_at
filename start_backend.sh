@@ -7,8 +7,5 @@ cd backend
 # Ensure .env exists for the backend
 cp ../.env .env
 
-# Add user-site bin to PATH to ensure uvicorn is found
-export PATH=$PATH:$HOME/.local/bin
-
-# Run Uvicorn using python3 (user installed packages)
+# Add user-site bin to PATH to# Run Uvicorn directly (dependencies installed globally/user-wide)
 python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getBalance, getPrice } from '../api/client';
 import { ChevronDown, ChevronUp, RefreshCw, Wallet, TrendingUp, DollarSign } from 'lucide-react';
+import Card from './common/Card';
 
 const AccountStatusPanel = () => {
     const [balanceData, setBalanceData] = useState(null);
@@ -78,9 +79,10 @@ const AccountStatusPanel = () => {
 
     return (
         <div className="max-w-7xl mx-auto px-6 mb-8 mt-4">
-            <div className="bg-gradient-to-r from-gray-900 to-gray-800 border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+
+            <Card>
                 {/* Main Status Bar */}
-                <div className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
 
                     {/* Key Metrics */}
                     <div className="flex flex-wrap items-center gap-6 md:gap-12 flex-1">
@@ -137,7 +139,7 @@ const AccountStatusPanel = () => {
 
                 {/* Expanded Details Panel */}
                 {expanded && (
-                    <div className="border-t border-white/5 bg-black/20 p-4 animate-in slide-in-from-top-2 duration-200">
+                    <div className="mt-4 pt-4 border-t border-white/5 animate-in slide-in-from-top-2 duration-200">
                         <h4 className="text-sm font-semibold text-gray-300 mb-3">Current Holdings</h4>
                         {holdingsDetails.length === 0 ? (
                             <div className="text-gray-500 text-sm py-2">No active holdings.</div>
@@ -161,7 +163,7 @@ const AccountStatusPanel = () => {
                         )}
                     </div>
                 )}
-            </div>
+            </Card>
         </div>
     );
 };

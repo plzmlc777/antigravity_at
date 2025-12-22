@@ -133,8 +133,7 @@ const ManualTrade = ({ defaultSymbol }) => {
     };
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-md">
-            <h2 className="text-lg font-semibold mb-4 text-blue-300">Manual Trade</h2>
+        <div className="p-1">
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
