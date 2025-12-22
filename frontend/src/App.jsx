@@ -77,38 +77,7 @@ function AppContent() {
                     </div>
                     <div className="flex items-center gap-4">
                         {/* Mode Toggle */}
-                        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-                            <button
-                                onClick={async () => {
-                                    if (status.mode !== 'MOCK') {
-                                        if (!confirm("Switch to MOCK mode?")) return;
-                                        await import('./api/client').then(m => m.setSystemMode('MOCK'));
-                                        window.location.reload();
-                                    }
-                                }}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'MOCK'
-                                    ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
-                                    : 'text-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                MOCK
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (status.mode !== 'REAL') {
-                                        if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
-                                        await import('./api/client').then(m => m.setSystemMode('REAL'));
-                                        window.location.reload();
-                                    }
-                                }}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'REAL'
-                                    ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
-                                    : 'text-gray-400 hover:text-white'
-                                    }`}
-                            >
-                                REAL
-                            </button>
-                        </div>
+                        {/* Mode Toggle Moved to Settings */}
                         <StatusCard status={status} />
                         <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
                     </div>
