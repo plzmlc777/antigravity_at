@@ -22,3 +22,4 @@ backend/sql_app.db
 
 # Logs
 *.log
+tools/node/bin/pm2*
