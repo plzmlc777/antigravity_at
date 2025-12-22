@@ -32,15 +32,26 @@ This workflow defines the standard operating procedure for developing, testing, 
     pm2 logs
     ```
 
-## 2. Pushing Changes
+## 2. Checkpoints & Pushing Changes
 
-Once local verification is complete:
+**CRITICAL RULE**: Before starting *any* new major task or after completing a significant feature/fix, YOU MUST CREATE A GIT TAG.
 
-1.  **Commit & Push**:
+1.  **Commit Changes**:
     ```bash
     git add .
     git commit -m "Description of changes"
+    ```
+
+2.  **Create Tag (Rollback Point)**:
+    ```bash
+    # Format: v[Major].[Minor].[Patch]-[feature]-[status]
+    git tag -a v1.x.x-feature-name -m "Validated checkpoint"
+    ```
+
+3.  **Push Code & Tags**:
+    ```bash
     git push
+    git push --tags
     ```
 
 ## 3. Remote Server Deployment
