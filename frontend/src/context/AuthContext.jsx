@@ -44,25 +44,33 @@ export const AuthProvider = ({ children }) => {
             await axios.post('/api/v1/auth/register', { email, password });
             return await login(email, password);
         } catch (error) {
-            return {
-                success: false,
-                message: error.response?.data?.detail || 'Registration failed'
+            const message = error.response?.data?.detail || error.message || 'Registration failed';
+            const register = async (email, password) => {
+                try {
+                    await axios.post('/api/v1/auth/register', { email, password });
+                    return await login(email, password, true);
+                } catch (error) {
+                    const message = error.response?.data?.detail || error.message || 'Registration failed';
+                    return {
+                        success: false,
+                        message: message
+                    };
+                }
+            }
+
+            const logout = () => {
+                localStorage.removeItem('token');
+                sessionStorage.removeItem('token');
+                setToken(null);
+                setUser(null);
+                window.location.href = '/login';
             };
-        }
-    }
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        setToken(null);
-        setUser(null);
-        window.location.href = '/login';
-    };
+            return (
+                <AuthContext.Provider value={{ user, token, login, logout, register, loading }}>
+                    {!loading && children}
+                </AuthContext.Provider>
+            );
+        };
 
-    return (
-        <AuthContext.Provider value={{ user, token, login, logout, register, loading }}>
-            {!loading && children}
-        </AuthContext.Provider>
-    );
-};
-
-export const useAuth = () => useContext(AuthContext);
+        export const useAuth = () => useContext(AuthContext);
