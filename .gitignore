@@ -17,6 +17,8 @@ coverage/
 
 # System
 thumbs.db
+*.db
+backend/sql_app.db
 
 # Logs
 *.log
