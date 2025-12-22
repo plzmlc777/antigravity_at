@@ -96,3 +96,22 @@ export const setSystemMode = async (mode) => {
     return data;
 };
 
+export const setAuthToken = (token) => {
+    if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+        delete api.defaults.headers.common['Authorization'];
+    }
+};
+
+export const setupInterceptors = (onUnauth) => {
+    api.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response && error.response.status === 401) {
+                if (onUnauth) onUnauth();
+            }
+            return Promise.reject(error);
+        }
+    )
+};

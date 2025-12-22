@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { setAuthToken, setupInterceptors } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -11,17 +11,20 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            setAuthToken(token); // Update client.js instance as well
             // Optionally fetch user profile info here if you have an endpoint
             setUser({ email: 'user@example.com' }); // Placeholder or decode JWT
         } else {
             delete axios.defaults.headers.common['Authorization'];
+            setAuthToken(null);
             setUser(null);
         }
         setLoading(false);
     }, [token]);
 
-    // Setup Axios Interceptor for 401s
+    // Setup Axios Interceptor for 401s (Global & Client)
     useEffect(() => {
+        // 1. Global Axios
         const interceptor = axios.interceptors.response.use(
             (response) => response,
             (error) => {
@@ -31,6 +34,9 @@ export const AuthProvider = ({ children }) => {
                 return Promise.reject(error);
             }
         );
+
+        // 2. Client.js Instance
+        setupInterceptors(() => logout());
 
         return () => {
             axios.interceptors.response.eject(interceptor);
