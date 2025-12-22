@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from ..db.base import Base
 
@@ -13,6 +13,9 @@ class ExchangeAccount(Base):
     # Encrypted fields
     encrypted_access_key = Column(String)
     encrypted_secret_key = Column(String)
+    
+    # Status
+    is_active = Column(Boolean, default=False)
     
     # Kiwoom specific (optional)
     account_number = Column(String, nullable=True) # Usually not secret, but can be encrypted if desired

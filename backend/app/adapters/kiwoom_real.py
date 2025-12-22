@@ -13,13 +13,16 @@ class KiwoomRealAdapter(ExchangeInterface):
     Implemented based on 'Kiwoom REST API Documentation'.
     """
     
-    def __init__(self):
+    def __init__(self, app_key: str = None, secret_key: str = None, account_no: str = None):
         # Base URL from docs: https://api.kiwoom.com (Production)
         # But we respect the config if user wants to override (e.g. mock server)
         self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
-        self.app_key = settings.HCP_KIWOOM_APP_KEY
-        self.secret_key = settings.HCP_KIWOOM_SECRET_KEY
-        self.account_no = settings.HCP_KIWOOM_ACCOUNT_NO
+        
+        # Priority: Passed args > Settings (Env)
+        self.app_key = app_key or settings.HCP_KIWOOM_APP_KEY
+        self.secret_key = secret_key or settings.HCP_KIWOOM_SECRET_KEY
+        self.account_no = account_no or settings.HCP_KIWOOM_ACCOUNT_NO
+        
         self.access_token: Optional[str] = None
         self._common_headers = {
             "Content-Type": "application/json;charset=UTF-8"

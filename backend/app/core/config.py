@@ -26,10 +26,12 @@ class Settings(BaseSettings):
             missing = []
             if not self.HCP_KIWOOM_APP_KEY: missing.append("HCP_KIWOOM_APP_KEY")
             if not self.HCP_KIWOOM_SECRET_KEY: missing.append("HCP_KIWOOM_SECRET_KEY")
-            if not self.HCP_KIWOOM_ACCOUNT_NO: missing.append("HCP_KIWOOM_ACCOUNT_NO")
+            # if not self.HCP_KIWOOM_ACCOUNT_NO: missing.append("HCP_KIWOOM_ACCOUNT_NO") # Account No might be needed or verified later
             
             if missing:
-                raise ValueError(f"REAL Mode requires environment variables: {', '.join(missing)}")
+                # We now allow missing keys because they might be provided via DB.
+                # Just log a warning or pass.
+                pass 
         return self
 
     def set_mode(self, mode: str):

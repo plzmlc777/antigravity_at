@@ -22,6 +22,7 @@ class AccountOut(BaseModel):
     exchange_name: str
     account_name: str
     account_number: Optional[str] = None
+    is_active: bool = False
     
     class Config:
         orm_mode = True
@@ -73,3 +74,29 @@ def delete_account(
     db.delete(account)
     db.commit()
     return {"status": "success"}
+
+@router.put("/{account_id}/activate")
+def activate_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Verify account ownership
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.id == account_id,
+        ExchangeAccount.user_id == current_user.id
+    ).first()
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+        
+    # 2. Deactivate all other accounts for this user
+    db.query(ExchangeAccount).filter(
+        ExchangeAccount.user_id == current_user.id
+    ).update({"is_active": False})
+    
+    # 3. Activate target account
+    account.is_active = True
+    db.commit()
+    
+    return {"status": "success", "message": f"Account {account.account_name} activated"}

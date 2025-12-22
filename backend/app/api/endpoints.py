@@ -4,14 +4,43 @@ from ..adapters.kiwoom_mock import KiwoomMockAdapter
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
+from ..db.session import get_db
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 router = APIRouter()
 
 # Dependency Injection for Exchange Adapter
-def get_exchange_adapter() -> ExchangeInterface:
+# Dependency Injection for Exchange Adapter
+def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
     if settings.TRADING_MODE.upper() == "REAL":
+        # Fetch active account for current user/system
+        # Note: In a multi-user system, we'd need current_user here. 
+        # But since Trading Bot often runs in background, we might need a 'System User' or just the first active account.
+        # For this MVP, we pick the first active account found in DB.
+        
+        from ..models.account import ExchangeAccount
+        from ..core import security
+        
+        active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+        
+        if active_account:
+            try:
+                decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
+                decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
+                return KiwoomRealAdapter(
+                    app_key=decrypted_app,
+                    secret_key=decrypted_secret,
+                    account_no=active_account.account_number
+                )
+            except Exception as e:
+                # Log error and fallback (or fail)
+                print(f"Error decrypting keys: {e}")
+                pass
+                
+        # Fallback to .env if DB lookup fails or no active account
         return KiwoomRealAdapter()
+        
     return KiwoomMockAdapter()
 
 class OrderRequest(BaseModel):
