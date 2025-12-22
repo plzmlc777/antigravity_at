@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
+    const [token, setToken] = useState(localStorage.getItem('token') || sessionStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, [token]);
 
-    const login = async (email, password) => {
+    const login = async (email, password, remember = true) => {
         const formData = new FormData();
         formData.append('username', email);
         formData.append('password', password);
@@ -28,13 +28,22 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await axios.post('/api/v1/auth/token', formData);
             const { access_token } = response.data;
-            localStorage.setItem('token', access_token);
+
+            if (remember) {
+                localStorage.setItem('token', access_token);
+                sessionStorage.removeItem('token');
+            } else {
+                sessionStorage.setItem('token', access_token);
+                localStorage.removeItem('token');
+            }
+
             setToken(access_token);
             return { success: true };
         } catch (error) {
+            const message = error.response?.data?.detail || error.message || 'Login failed';
             return {
                 success: false,
-                message: error.response?.data?.detail || 'Login failed'
+                message: message
             };
         }
     };
@@ -42,35 +51,29 @@ export const AuthProvider = ({ children }) => {
     const register = async (email, password) => {
         try {
             await axios.post('/api/v1/auth/register', { email, password });
-            return await login(email, password);
+            return await login(email, password, true); // Auto-login after register (default remember=true)
         } catch (error) {
             const message = error.response?.data?.detail || error.message || 'Registration failed';
-            const register = async (email, password) => {
-                try {
-                    await axios.post('/api/v1/auth/register', { email, password });
-                    return await login(email, password, true);
-                } catch (error) {
-                    const message = error.response?.data?.detail || error.message || 'Registration failed';
-                    return {
-                        success: false,
-                        message: message
-                    };
-                }
-            }
-
-            const logout = () => {
-                localStorage.removeItem('token');
-                sessionStorage.removeItem('token');
-                setToken(null);
-                setUser(null);
-                window.location.href = '/login';
+            return {
+                success: false,
+                message: message
             };
+        }
+    }
 
-            return (
-                <AuthContext.Provider value={{ user, token, login, logout, register, loading }}>
-                    {!loading && children}
-                </AuthContext.Provider>
-            );
-        };
+    const logout = () => {
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+        window.location.href = '/login';
+    };
 
-        export const useAuth = () => useContext(AuthContext);
+    return (
+        <AuthContext.Provider value={{ user, token, login, logout, register, loading }}>
+            {!loading && children}
+        </AuthContext.Provider>
+    );
+};
+
+export const useAuth = () => useContext(AuthContext);
