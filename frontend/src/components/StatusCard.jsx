@@ -16,20 +16,22 @@ const StatusCard = ({ title, value, subtext, type = 'neutral', status }) => {
     };
 
     return (
-        <div className={`border rounded-xl p-4 min-w-[140px] ${colors[type]}`}>
-            <h3 className="text-sm text-gray-400 mb-1">{title}</h3>
-            <div className="text-2xl font-mono font-semibold">{value}</div>
+        <div className={`border rounded-lg px-3 py-1 min-w-[120px] h-10 ${colors[type]} flex flex-col justify-center`}>
+            <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[10px] uppercase tracking-wider text-gray-400 leading-none">{title}</h3>
+                {(status?.account_name && status.account_name !== 'Unknown') && (
+                    <div className="flex items-center gap-1 bg-black/20 px-1.5 py-0.5 rounded-full">
+                        <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
+                        <span className="text-[9px] font-medium text-gray-300 max-w-[60px] truncate leading-none">
+                            {status.account_name}
+                        </span>
+                    </div>
+                )}
+            </div>
 
-            {(status?.account_name && status.account_name !== 'Unknown') && (
-                <div className="flex items-center gap-1.5 mt-2 bg-black/20 px-2 py-1 rounded">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
-                    <span className="text-xs font-medium text-gray-300">
-                        {status.account_name}
-                    </span>
-                </div>
-            )}
+            <div className="text-sm font-mono font-bold leading-none mt-1">{value}</div>
 
-            {subtext && <div className="text-xs text-gray-500 mt-2">{subtext}</div>}
+            {subtext && <div className="text-[10px] text-gray-500 leading-none">{subtext}</div>}
         </div>
     );
 };
