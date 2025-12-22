@@ -5,6 +5,7 @@ import AutoTrading from './views/AutoTrading';
 import Login from './views/Login';
 import Settings from './views/Settings';
 import StatusCard from './components/StatusCard';
+import AccountStatusPanel from './components/AccountStatusPanel';
 import { useState, useEffect } from 'react';
 import { getSystemStatus } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -83,6 +84,9 @@ function AppContent() {
                     </div>
                 </div>
             </nav>
+
+            {/* Account Status Panel */}
+            <AccountStatusPanel />
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8">

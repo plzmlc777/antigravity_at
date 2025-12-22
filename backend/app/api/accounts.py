@@ -25,7 +25,7 @@ class AccountOut(BaseModel):
     is_active: bool = False
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @router.get("/", response_model=List[AccountOut])
 def get_accounts(
