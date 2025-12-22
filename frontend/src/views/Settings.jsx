@@ -19,7 +19,9 @@ const Settings = () => {
 
     const fetchAccounts = async () => {
         try {
-            const response = await axios.get('/api/v1/accounts');
+            const response = await axios.get('/api/v1/accounts', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setAccounts(response.data);
         } catch (error) {
             console.error(error);
@@ -29,13 +31,15 @@ const Settings = () => {
     };
 
     useEffect(() => {
-        fetchAccounts();
-    }, []);
+        if (token) fetchAccounts();
+    }, [token]);
 
     const handleAddAccount = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/api/v1/accounts', formData);
+            await axios.post('/api/v1/accounts', formData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setIsAdding(false);
             setFormData({
                 exchange_name: 'Kiwoom',
@@ -53,7 +57,9 @@ const Settings = () => {
     const handleDelete = async (id) => {
         if (!confirm('Are you sure you want to delete this account?')) return;
         try {
-            await axios.delete(`/api/v1/accounts/${id}`);
+            await axios.delete(`/api/v1/accounts/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchAccounts();
         } catch (error) {
             console.error(error);
@@ -62,7 +68,9 @@ const Settings = () => {
 
     const handleActivate = async (id) => {
         try {
-            await axios.put(`/api/v1/accounts/${id}/activate`);
+            await axios.put(`/api/v1/accounts/${id}/activate`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             fetchAccounts();
         } catch (error) {
             console.error(error);
@@ -154,8 +162,8 @@ const Settings = () => {
 
                 {accounts.map(acc => (
                     <div key={acc.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${acc.is_active
-                            ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
-                            : 'bg-white/5 border-white/10 hover:border-white/20'
+                        ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                        : 'bg-white/5 border-white/10 hover:border-white/20'
                         }`}>
                         <div className="flex items-center gap-4">
                             <div className={`h-10 w-10 flex items-center justify-center rounded-lg ${acc.is_active ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-400'
