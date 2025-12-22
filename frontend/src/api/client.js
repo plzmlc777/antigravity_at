@@ -85,7 +85,14 @@ export const placeSellOrder = async (order) => {
     return data;
 };
 
+
 export const placeManualOrder = async (order) => {
     const { data } = await api.post('/order/manual', order);
     return data;
 };
+
+export const setSystemMode = async (mode) => {
+    const { data } = await api.post('/system/mode', { mode });
+    return data;
+};
+

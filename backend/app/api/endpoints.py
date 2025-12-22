@@ -31,7 +31,22 @@ class ManualOrderRequest(BaseModel):
 
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
-    return {"exchange": adapter.get_name(), "status": "online"}
+    return {
+        "exchange": adapter.get_name(), 
+        "status": "online",
+        "mode": settings.TRADING_MODE
+    }
+
+class SystemModeRequest(BaseModel):
+    mode: str # REAL or MOCK
+
+@router.post("/system/mode")
+async def set_system_mode(request: SystemModeRequest):
+    try:
+        settings.set_mode(request.mode)
+        return {"status": "success", "mode": settings.TRADING_MODE}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/price/{symbol}")
 async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchange_adapter)):

@@ -14,8 +14,8 @@ const NavLink = ({ to, children }) => {
         <Link
             to={to}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
         >
             {children}
@@ -56,7 +56,42 @@ function App() {
                                 <NavLink to="/auto">Auto Strategy</NavLink>
                             </div>
                         </div>
-                        <StatusCard status={status} />
+                        <div className="flex items-center gap-4">
+                            {/* Mode Toggle */}
+                            <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+                                <button
+                                    onClick={async () => {
+                                        if (status.mode !== 'MOCK') {
+                                            if (!confirm("Switch to MOCK mode?")) return;
+                                            await import('./api/client').then(m => m.setSystemMode('MOCK'));
+                                            window.location.reload();
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'MOCK'
+                                            ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
+                                            : 'text-gray-400 hover:text-white'
+                                        }`}
+                                >
+                                    MOCK
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (status.mode !== 'REAL') {
+                                            if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
+                                            await import('./api/client').then(m => m.setSystemMode('REAL'));
+                                            window.location.reload();
+                                        }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${status.mode === 'REAL'
+                                            ? 'bg-green-500/20 text-green-500 shadow-sm shadow-green-500/20'
+                                            : 'text-gray-400 hover:text-white'
+                                        }`}
+                                >
+                                    REAL
+                                </button>
+                            </div>
+                            <StatusCard status={status} />
+                        </div>
                     </div>
                 </nav>
 

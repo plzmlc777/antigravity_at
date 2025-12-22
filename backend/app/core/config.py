@@ -27,6 +27,11 @@ class Settings(BaseSettings):
                 raise ValueError(f"REAL Mode requires environment variables: {', '.join(missing)}")
         return self
 
+    def set_mode(self, mode: str):
+        self.TRADING_MODE = mode.upper()
+        # Re-validate
+        self.validate_config()
+
     class Config:
         env_file = ".env"
 
