@@ -17,6 +17,34 @@ const Settings = () => {
         account_number: ''
     });
 
+    const [systemMode, setSystemMode] = useState('UNKNOWN');
+
+    useEffect(() => {
+        // Fetch current system mode
+        import('../api/client').then(client => {
+            client.getSystemStatus().then(status => {
+                setSystemMode(status.mode);
+            });
+        });
+    }, []);
+
+    const handleModeSwitch = async (newMode) => {
+        if (newMode === 'REAL') {
+            if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
+        } else {
+            if (!confirm("Switch to MOCK mode?")) return;
+        }
+
+        try {
+            const client = await import('../api/client');
+            await client.setSystemMode(newMode);
+            window.location.reload();
+        } catch (error) {
+            alert("Failed to switch mode");
+            console.error(error);
+        }
+    };
+
     const fetchAccounts = async () => {
         try {
             // Note: Trailing slash is important to avoid 307 Redirect which strips Auth header
@@ -79,34 +107,7 @@ const Settings = () => {
         }
     };
 
-    return (
-    const [systemMode, setSystemMode] = useState('UNKNOWN');
 
-    useEffect(() => {
-        // Fetch current system mode
-        import('../api/client').then(client => {
-            client.getSystemStatus().then(status => {
-                setSystemMode(status.mode);
-            });
-        });
-    }, []);
-
-    const handleModeSwitch = async (newMode) => {
-        if (newMode === 'REAL') {
-            if (!confirm("⚠️ Switch to REAL mode? Real money will be used!")) return;
-        } else {
-            if (!confirm("Switch to MOCK mode?")) return;
-        }
-
-        try {
-            const client = await import('../api/client');
-            await client.setSystemMode(newMode);
-            window.location.reload();
-        } catch (error) {
-            alert("Failed to switch mode");
-            console.error(error);
-        }
-    };
 
     return (
         <div className="container mx-auto max-w-4xl">
@@ -120,8 +121,8 @@ const Settings = () => {
                     <button
                         onClick={() => handleModeSwitch('MOCK')}
                         className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${systemMode === 'MOCK'
-                                ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         MOCK
@@ -129,8 +130,8 @@ const Settings = () => {
                     <button
                         onClick={() => handleModeSwitch('REAL')}
                         className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${systemMode === 'REAL'
-                                ? 'bg-green-500 text-black shadow-lg shadow-green-500/20'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-green-500 text-black shadow-lg shadow-green-500/20'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         REAL
