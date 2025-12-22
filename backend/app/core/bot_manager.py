@@ -135,22 +135,96 @@ class BotManager:
     def __init__(self):
         self.bots: Dict[str, TradingBot] = {}
         self.adapter = KiwoomRealAdapter()
+        self._load_bots_from_db()
+
+    def _load_bots_from_db(self):
+        from ..db.session import SessionLocal
+        from ..models.bot import TradingBotModel
+        
+        db = SessionLocal()
+        try:
+            saved_bots = db.query(TradingBotModel).all()
+            for db_bot in saved_bots:
+                logger.info(f"Restoring bot {db_bot.id} from DB...")
+                # Reconstruct bot
+                bot = TradingBot(db_bot.id, db_bot.config, adapter=self.adapter)
+                self.bots[db_bot.id] = bot
+                
+                # If it was running when server died, restart it
+                # (Or user might prefer manual restart? For now auto-restart if 'is_running' was true)
+                if db_bot.is_running:
+                    asyncio.create_task(bot.run_loop())
+        except Exception as e:
+            logger.error(f"Failed to load bots from DB: {e}")
+        finally:
+            db.close()
 
     def start_bot(self, config: Dict[str, Any]) -> str:
+        from ..db.session import SessionLocal
+        from ..models.bot import TradingBotModel
+
         bot_id = str(uuid.uuid4())[:8]
+        
+        # 1. Create Bot Instance
         bot = TradingBot(bot_id, config, adapter=self.adapter)
         self.bots[bot_id] = bot
+        
+        # 2. Start Loop
         asyncio.create_task(bot.run_loop())
+        
+        # 3. Save to DB
+        db = SessionLocal()
+        try:
+            db_bot = TradingBotModel(
+                id=bot_id,
+                symbol=config['symbol'],
+                strategy=config['strategy'],
+                config=config,
+                is_running=True
+            )
+            db.add(db_bot)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to save bot to DB: {e}")
+        finally:
+            db.close()
+            
         return bot_id
 
     def stop_bot(self, bot_id: str):
         if bot_id in self.bots:
             self.bots[bot_id].stop()
+            
+            # Update DB
+            from ..db.session import SessionLocal
+            from ..models.bot import TradingBotModel
+            db = SessionLocal()
+            try:
+                db_bot = db.query(TradingBotModel).filter(TradingBotModel.id == bot_id).first()
+                if db_bot:
+                    db_bot.is_running = False
+                    db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update bot status in DB: {e}")
+            finally:
+                db.close()
     
     def remove_bot(self, bot_id: str):
         if bot_id in self.bots:
             self.bots[bot_id].stop()
             del self.bots[bot_id]
+
+            # Delete from DB
+            from ..db.session import SessionLocal
+            from ..models.bot import TradingBotModel
+            db = SessionLocal()
+            try:
+                db.query(TradingBotModel).filter(TradingBotModel.id == bot_id).delete()
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to delete bot from DB: {e}")
+            finally:
+                db.close()
 
     def get_status(self) -> List[Dict]:
         return [{

@@ -4,6 +4,7 @@ from .api import endpoints
 
 from .api import endpoints, auth, accounts
 from .db.base import Base
+from .models.bot import TradingBotModel # Ensure table creation
 from .db.session import engine
 
 # Create tables
