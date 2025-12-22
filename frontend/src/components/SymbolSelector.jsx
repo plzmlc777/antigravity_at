@@ -28,7 +28,7 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
     };
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
             <form onSubmit={handleAddSymbol} className="flex gap-2">
                 <input
                     type="text"

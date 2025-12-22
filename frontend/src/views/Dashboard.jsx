@@ -3,6 +3,7 @@ import Diagram from '../components/Diagram';
 import SymbolSelector from '../components/SymbolSelector';
 import TradingInfoPanel from '../components/TradingInfoPanel';
 import ApiLogPanel from '../components/ApiLogPanel';
+import Card from '../components/common/Card';
 
 const Dashboard = () => {
     // Symbol State Management
@@ -35,32 +36,39 @@ const Dashboard = () => {
     return (
         <div className="space-y-6">
             {/* Symbol Selection Area */}
-            <SymbolSelector
-                currentSymbol={currentSymbol}
-                setCurrentSymbol={setCurrentSymbol}
-                savedSymbols={savedSymbols}
-                setSavedSymbols={setSavedSymbols}
-            />
+            <Card title="Watchlist & Search">
+                <SymbolSelector
+                    currentSymbol={currentSymbol}
+                    setCurrentSymbol={setCurrentSymbol}
+                    savedSymbols={savedSymbols}
+                    setSavedSymbols={setSavedSymbols}
+                />
+            </Card>
 
-            <TradingInfoPanel
-                currentSymbol={currentSymbol}
-                setSavedSymbols={setSavedSymbols}
-            />
+            <Card title="Market Overview">
+                <TradingInfoPanel
+                    currentSymbol={currentSymbol}
+                    setSavedSymbols={setSavedSymbols}
+                />
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <div>
-                        <h2 className="text-lg font-semibold mb-4 text-white/80">Process Visualization</h2>
+                    <Card title="Process Visualization">
                         <Diagram />
-                    </div>
+                    </Card>
                 </div>
 
                 <div className="space-y-6">
-                    <ApiLogPanel />
+                    <Card title="System Logs">
+                        <ApiLogPanel />
+                    </Card>
                 </div>
             </div>
         </div>
     );
+
+
 };
 
 export default Dashboard;

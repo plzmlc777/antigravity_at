@@ -3,6 +3,7 @@ import ManualTrade from '../components/ManualTrade';
 import SymbolSelector from '../components/SymbolSelector';
 import TradingInfoPanel from '../components/TradingInfoPanel';
 import ApiLogPanel from '../components/ApiLogPanel';
+import Card from '../components/common/Card';
 
 const ManualTrading = () => {
     // Symbol State Management (Shared Logic with Dashboard via LocalStorage)
@@ -31,32 +32,37 @@ const ManualTrading = () => {
 
     return (
         <div className="space-y-6">
-            <SymbolSelector
-                currentSymbol={currentSymbol}
-                setCurrentSymbol={setCurrentSymbol}
-                savedSymbols={savedSymbols}
-                setSavedSymbols={setSavedSymbols}
-            />
+            <Card title="Market Selection">
+                <SymbolSelector
+                    currentSymbol={currentSymbol}
+                    setCurrentSymbol={setCurrentSymbol}
+                    savedSymbols={savedSymbols}
+                    setSavedSymbols={setSavedSymbols}
+                />
+            </Card>
 
-            <TradingInfoPanel
-                currentSymbol={currentSymbol}
-                setSavedSymbols={setSavedSymbols}
-            />
+            <Card title="Market Overview">
+                <TradingInfoPanel
+                    currentSymbol={currentSymbol}
+                    setSavedSymbols={setSavedSymbols}
+                />
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-md">
-                        <h2 className="text-xl font-bold text-blue-300 mb-2">Manual Trading Execution</h2>
-                        <p className="text-gray-400 mb-6">
+                    <Card title="Manual Trading Execution">
+                        <p className="text-gray-400 mb-6 text-sm">
                             Execute buy and sell orders manually using Limit or Market prices.
                         </p>
                         <div className="max-w-xl">
                             <ManualTrade defaultSymbol={currentSymbol} />
                         </div>
-                    </div>
+                    </Card>
                 </div>
                 <div>
-                    <ApiLogPanel />
+                    <Card title="System Logs">
+                        <ApiLogPanel />
+                    </Card>
                 </div>
             </div>
         </div>

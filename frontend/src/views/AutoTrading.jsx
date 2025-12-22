@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import SymbolSelector from '../components/SymbolSelector';
 import BotFlowChart from '../components/BotFlowChart';
+import Card from '../components/common/Card';
 
 const AutoTrading = () => {
     // --- State ---
@@ -130,16 +131,17 @@ const AutoTrading = () => {
         <div className="space-y-6">
             {!activeBot ? (
                 /* 1. Configuration Section (Only shown when no bot is active) */
-                <div className="max-w-2xl mx-auto">
-                    <SymbolSelector
-                        currentSymbol={currentSymbol}
-                        setCurrentSymbol={setCurrentSymbol}
-                        savedSymbols={savedSymbols}
-                        setSavedSymbols={setSavedSymbols}
-                    />
+                <div className="max-w-2xl mx-auto space-y-6">
+                    <Card title="Strategy Target">
+                        <SymbolSelector
+                            currentSymbol={currentSymbol}
+                            setCurrentSymbol={setCurrentSymbol}
+                            savedSymbols={savedSymbols}
+                            setSavedSymbols={setSavedSymbols}
+                        />
+                    </Card>
 
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-8 backdrop-blur-md mt-6 shadow-2xl">
-                        <h2 className="text-2xl font-bold text-blue-300 mb-6 text-center">Auto Trading Setup</h2>
+                    <Card title="Auto Trading Setup" className="shadow-2xl">
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-sm text-gray-400 mb-2">Strategy</label>
@@ -198,78 +200,78 @@ const AutoTrading = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
             ) : (
                 /* 2. Active Bot View (Single Mode) */
                 <div className="space-y-6 animate-fade-in">
                     {/* Header / Controls */}
-                    <div className="flex flex-col md:flex-row justify-between items-center bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-md">
-                        <div>
-                            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                                {activeBot.symbol}
-                                <span className={`text-xs px-2 py-1 rounded font-bold ${activeBot.is_running ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                    {activeBot.is_running ? 'RUNNING' : 'PAUSED'}
-                                </span>
-                                {activeBot.sim_mode && (
-                                    <span className="text-xs px-2 py-1 rounded font-bold bg-purple-500/20 text-purple-300">
-                                        {activeBot.sim_mode === 'random' ? 'RANDOM SIM' : 'VIRTUAL SIM'}
+                    <Card>
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                                    {activeBot.symbol}
+                                    <span className={`text-xs px-2 py-1 rounded font-bold ${activeBot.is_running ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                        {activeBot.is_running ? 'RUNNING' : 'PAUSED'}
                                     </span>
+                                    {activeBot.sim_mode && (
+                                        <span className="text-xs px-2 py-1 rounded font-bold bg-purple-500/20 text-purple-300">
+                                            {activeBot.sim_mode === 'random' ? 'RANDOM SIM' : 'VIRTUAL SIM'}
+                                        </span>
+                                    )}
+                                </h2>
+                                <div className="text-gray-400 text-sm mt-1">
+                                    Strategy: <span className="text-white">{activeBot.strategy}</span> | Interval: <span className="text-white">{activeBot.interval}s</span> | Amount: <span className="text-white">{Number(activeBot.amount).toLocaleString()} KRW</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                {activeBot.is_running ? (
+                                    <button
+                                        onClick={() => handleStopBot(activeBot.id)}
+                                        className="px-6 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-bold rounded-lg border border-yellow-500/30 transition-all"
+                                    >
+                                        Pause
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleResumeBot(activeBot)}
+                                        className="px-6 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 font-bold rounded-lg border border-green-500/30 transition-all"
+                                    >
+                                        Resume
+                                    </button>
                                 )}
-                            </h2>
-                            <div className="text-gray-400 text-sm mt-1">
-                                Strategy: <span className="text-white">{activeBot.strategy}</span> | Interval: <span className="text-white">{activeBot.interval}s</span> | Amount: <span className="text-white">{Number(activeBot.amount).toLocaleString()} KRW</span>
+
+                                <button
+                                    onClick={() => handleRemoveBot(activeBot.id)}
+                                    className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold rounded-lg border border-red-500/30 transition-all"
+                                >
+                                    Stop & Exit
+                                </button>
                             </div>
                         </div>
-
-                        <div className="flex gap-3 mt-4 md:mt-0">
-                            {activeBot.is_running ? (
-                                <button
-                                    onClick={() => handleStopBot(activeBot.id)}
-                                    className="px-6 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-bold rounded-lg border border-yellow-500/30 transition-all"
-                                >
-                                    Pause
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => handleResumeBot(activeBot)}
-                                    className="px-6 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 font-bold rounded-lg border border-green-500/30 transition-all"
-                                >
-                                    Resume
-                                </button>
-                            )}
-
-                            <button
-                                onClick={() => handleRemoveBot(activeBot.id)}
-                                className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold rounded-lg border border-red-500/30 transition-all"
-                            >
-                                Stop & Exit
-                            </button>
-                        </div>
-                    </div>
+                    </Card>
 
                     {/* Flow Chart */}
-                    <BotFlowChart bot={activeBot} />
+                    <Card title="Strategy Flow">
+                        <BotFlowChart bot={activeBot} />
+                    </Card>
 
                     {/* Logs */}
-                    <div className="bg-black/40 border border-white/10 rounded-xl p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold text-white">Execution Logs</h2>
-                            <span className="text-xs text-gray-500">Auto-refreshing</span>
-                        </div>
+                    <Card title="Execution Logs" headerAction={<span className="text-xs text-gray-500">Auto-refreshing</span>}>
                         <div className="bg-black rounded p-4 h-[300px] overflow-y-auto font-mono text-sm space-y-1 scrollbar-thin scrollbar-thumb-white/20">
                             {activeBot.logs.map((log, idx) => (
                                 <div key={idx} className={`border-b border-white/5 pb-1 ${log.is_error ? 'text-red-400'
-                                        : log.message.includes('BUY EXECUTED') ? 'text-red-400 font-bold bg-red-500/5'
-                                            : log.message.includes('SELL EXECUTED') ? 'text-blue-400 font-bold bg-blue-500/5'
-                                                : log.message.includes('Signal') ? 'text-yellow-300'
-                                                    : 'text-gray-400'}`}>
+                                    : log.message.includes('BUY EXECUTED') ? 'text-red-400 font-bold bg-red-500/5'
+                                        : log.message.includes('SELL EXECUTED') ? 'text-blue-400 font-bold bg-blue-500/5'
+                                            : log.message.includes('Signal') ? 'text-yellow-300'
+                                                : 'text-gray-400'}`}>
                                     <span className="text-gray-600 mr-3">[{log.timestamp}]</span>
                                     {log.message}
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </Card>
                 </div>
             )}
         </div>
