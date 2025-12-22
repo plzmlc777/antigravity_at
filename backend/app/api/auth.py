@@ -30,14 +30,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     try:
         payload = security.jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
+        print(f"DEBUG: Token decoded. Subject/Email: {email}") # DEBUG
         if email is None:
+            print("DEBUG: Email is None in token") # DEBUG
             raise credentials_exception
-    except security.jwt.JWTError:
+    except security.jwt.JWTError as e:
+        print(f"DEBUG: JWT Error: {e}") # DEBUG
         raise credentials_exception
     
+    print(f"DEBUG: Querying user for email: {email}") # DEBUG
     user = db.query(User).filter(User.email == email).first()
     if user is None:
+        print("DEBUG: User not found in DB") # DEBUG
         raise credentials_exception
+    print(f"DEBUG: User found: {user.email}") # DEBUG
     return user
 
 @router.post("/register", response_model=Token)
