@@ -61,7 +61,7 @@ install_service() {
              # Escape slashes for sed
              ESCAPED_NPM=$(echo "$DEFAULT_NPM" | sed 's|/|\\/|g')
              # Replace the specific local path pattern we know
-             sed -i "s|.*npm |$ESCAPED_NPM |g" "$DEST"
+             sed -i "s|ExecStart=.*npm |ExecStart=$ESCAPED_NPM |g" "$DEST"
         fi
     fi
 }
