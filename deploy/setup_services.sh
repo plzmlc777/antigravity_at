@@ -46,6 +46,24 @@ install_service() {
         # Also generic python3
         sed -i "s|/usr/bin/python3|$PROJECT_ROOT/venv/bin/python3|g" "$DEST"
     fi
+
+    # Heuristic: Fix npm path (Frontend)
+    # Check if the hardcoded local path exists. If not, use system npm.
+    if [[ "$DEST" == *"frontend"* ]]; then
+        # Check standard system npm location for the target user
+        # We can't easily run 'which' for the target user specifically without sudo complexity,
+        # so we check common locations.
+        DEFAULT_NPM=$(which npm || echo "/usr/bin/npm")
+        
+        # If the script refers to the 'tools/node' path and it doesn't exist, replace with system npm
+        if ! [ -f "$PROJECT_ROOT/tools/node/bin/npm" ]; then
+             echo "  - Custom node path not found. Replacing with system npm: $DEFAULT_NPM"
+             # Escape slashes for sed
+             ESCAPED_NPM=$(echo "$DEFAULT_NPM" | sed 's|/|\\/|g')
+             # Replace the specific local path pattern we know
+             sed -i "s|.*npm |$ESCAPED_NPM |g" "$DEST"
+        fi
+    fi
 }
 
 install_service "deploy/backend.service" "/etc/systemd/system/auto_trading_backend.service"
