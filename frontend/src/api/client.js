@@ -97,8 +97,13 @@ export const placeSellOrder = async (order) => {
 };
 
 
-export const placeManualOrder = async (order) => {
-    const { data } = await api.post('/order/manual', order);
+export const placeManualOrder = async (order, options = {}) => {
+    const { data } = await api.post('/order/manual', order, options);
+    return data;
+};
+
+export const placeConditionalOrder = async (order, options = {}) => {
+    const { data } = await api.post('/order/conditional', order, options);
     return data;
 };
 

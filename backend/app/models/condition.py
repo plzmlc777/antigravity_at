@@ -4,9 +4,11 @@ from ..db.base import Base
 import enum
 
 class ConditionType(str, enum.Enum):
-    STOP_LOSS = "STOP_LOSS" # 손절 (가격 이하 하락 시)
-    TAKE_PROFIT = "TAKE_PROFIT" # 익절 (가격 이상 상승 시)
+    STOP_LOSS = "STOP_LOSS" # 손절 (가격 이하 하락 시 매도)
+    TAKE_PROFIT = "TAKE_PROFIT" # 익절 (가격 이상 상승 시 매도)
     TRAILING_STOP = "TRAILING_STOP" # 트레일링 스탑 (고점 대비 하락 시)
+    BUY_STOP = "BUY_STOP" # 돌파 매수 (가격 이상 상승 시 매수)
+    BUY_LIMIT = "BUY_LIMIT" # 저점 매수 (가격 이하 하락 시 매수)
 
 class ConditionStatus(str, enum.Enum):
     PENDING = "PENDING"     # 감시 중

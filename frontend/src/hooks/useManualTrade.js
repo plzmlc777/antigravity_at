@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { placeManualOrder } from '../api/client';
+import { placeManualOrder, placeConditionalOrder } from '../api/client';
 
 export const useManualTrade = (defaultSymbol) => {
     const [symbol, setSymbol] = useState(defaultSymbol || '');
@@ -8,10 +8,25 @@ export const useManualTrade = (defaultSymbol) => {
     }, [defaultSymbol]);
 
     const [price, setPrice] = useState('');
+    const [currentPrice, setCurrentPrice] = useState(null); // New State
     const [orderType, setOrderType] = useState('buy');
     const [priceType, setPriceType] = useState('limit'); // 'limit' or 'market'
     const [mode, setMode] = useState('quantity');
     const [value, setValue] = useState('');
+
+    // Watch Order States
+    const [watchOrderType, setWatchOrderType] = useState('buy'); // 'buy' or 'sell'
+    const [conditionType, setConditionType] = useState('BUY_STOP'); // Default
+    const [triggerPrice, setTriggerPrice] = useState('');
+
+    // Effect to set default condition when type changes
+    useEffect(() => {
+        if (watchOrderType === 'buy') {
+            setConditionType('BUY_STOP');
+        } else {
+            setConditionType('STOP_LOSS'); // Default for sell
+        }
+    }, [watchOrderType]);
 
     // Advanced Options (Stop Loss / Take Profit)
     const [stopLoss, setStopLoss] = useState({ enabled: false, percent: 3.0 });
@@ -114,6 +129,39 @@ export const useManualTrade = (defaultSymbol) => {
         }
     };
 
+    const handleWatchSubmit = async (e) => {
+        e.preventDefault();
+        setOrderStatus('processing');
+        setErrorMessage(null);
+        setOrderDetails(null);
+
+        try {
+            const payload = {
+                symbol: symbol,
+                condition_type: conditionType,
+                trigger_price: parseFloat(triggerPrice),
+                order_type: watchOrderType, // 'buy' or 'sell'
+                price_type: 'market', // Trigger -> Market for certainty
+                mode: mode,
+                quantity: mode === 'quantity' ? parseFloat(value) : null,
+                amount: mode === 'amount' ? parseFloat(value) : null,
+            };
+
+            const data = await placeConditionalOrder(payload);
+
+            setOrderDetails({
+                message: data.message,
+                id: data.id || 'N/A'
+            });
+            setOrderStatus('success');
+
+        } catch (error) {
+            const msg = error.response?.data?.detail || error.message || 'Watch Order Failed';
+            setErrorMessage(msg);
+            setOrderStatus('error');
+        }
+    };
+
     const handleSimulation = async () => {
         setOrderStatus('processing');
         setErrorMessage(null);
@@ -144,11 +192,36 @@ export const useManualTrade = (defaultSymbol) => {
         }
     };
 
+    const fetchPrice = async () => {
+        if (!symbol) return;
+        try {
+            // Dynamic import to avoid circular dep issues if any, though client is safe
+            const { getPrice } = await import('../api/client');
+            const data = await getPrice(symbol);
+            if (data && data.price) {
+                setCurrentPrice(data.price);
+                return data.price;
+            }
+        } catch (e) {
+            console.error("Failed to fetch price", e);
+            setCurrentPrice(null);
+        }
+        return null;
+    };
+
     const resetStatus = () => setOrderStatus('idle');
+
+    // Auto-fetch price when symbol changes (debounced ideally, but simple effect for now)
+    // For now, we rely on manual refresh to avoid API spam, or simple effect
+    useEffect(() => {
+        if (symbol && symbol.length >= 6) {
+            fetchPrice();
+        }
+    }, [symbol]);
 
     return {
         // State
-        symbol,
+        symbol, setSymbol,
         price, setPrice,
         orderType, setOrderType,
         priceType, setPriceType,
@@ -160,10 +233,18 @@ export const useManualTrade = (defaultSymbol) => {
         errorMessage,
         orderDetails,
 
+        // Watch Specific
+        conditionType, setConditionType,
+        triggerPrice, setTriggerPrice,
+        watchOrderType, setWatchOrderType,
+
         // Actions
         handleSubmit,
+        handleWatchSubmit,
         handleCancel,
         handleSimulation,
-        resetStatus
+        resetStatus,
+        fetchPrice,
+        currentPrice
     };
 };

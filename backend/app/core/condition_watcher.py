@@ -102,6 +102,16 @@ class ConditionWatcher:
                     triggered = True
                     logger.info(f"TAKE PROFIT Triggered for {cond.symbol}: Price {current_price} >= {cond.trigger_price}")
 
+            elif cond.condition_type == ConditionType.BUY_STOP:
+                if current_price >= cond.trigger_price:
+                    triggered = True
+                    logger.info(f"BUY STOP Triggered for {cond.symbol}: Price {current_price} >= {cond.trigger_price}")
+            
+            elif cond.condition_type == ConditionType.BUY_LIMIT:
+                if current_price <= cond.trigger_price:
+                    triggered = True
+                    logger.info(f"BUY LIMIT Triggered for {cond.symbol}: Price {current_price} <= {cond.trigger_price}")
+
             # 3. Execute Order if Triggered
             if triggered:
                 # Update Status to TRIGGERED first to prevent double firing
@@ -112,11 +122,14 @@ class ConditionWatcher:
                 logger.info(f"Executing {cond.order_type} order for {cond.symbol}")
                 
                 # Execute Order
+                exec_price = 0 if cond.price_type.lower() == "market" else cond.order_price
+                
                 if cond.order_type.lower() == "sell":
-                    # Determine price: 0 for Market, specific for Limit
-                    exec_price = 0 if cond.price_type.lower() == "market" else cond.order_price
-                    
                     result = await self.adapter.place_sell_order(cond.symbol, exec_price, cond.quantity)
+                elif cond.order_type.lower() == "buy":
+                    result = await self.adapter.place_buy_order(cond.symbol, exec_price, cond.quantity)
+                else:
+                    result = {"status": "failed", "message": f"Unknown trigger order type: {cond.order_type}"}
                     
                     if result.get("status") == "success":
                         cond.status = ConditionStatus.COMPLETED

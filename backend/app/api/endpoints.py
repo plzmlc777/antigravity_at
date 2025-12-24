@@ -61,6 +61,17 @@ class ManualOrderRequest(BaseModel):
     stop_loss: float | None = None # Percent (e.g. 3.0 for 3%)
     take_profit: float | None = None # Percent (e.g. 5.0 for 5%)
 
+class ConditionalOrderRequest(BaseModel):
+    symbol: str
+    condition_type: str # BUY_STOP, BUY_LIMIT
+    trigger_price: float
+    order_type: str = "buy" # Usually buy for entry
+    price_type: str = "market" # market or limit
+    order_price: float = 0
+    mode: str # quantity, amount
+    quantity: float | None = None
+    amount: float | None = None
+
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
     return {
@@ -264,6 +275,77 @@ async def manual_order(
             # We don't fail the main order if conditional registration fails, but we should log it.
         
     return result
+
+@router.post("/order/conditional")
+async def conditional_order(
+    order: ConditionalOrderRequest,
+    adapter: ExchangeInterface = Depends(get_exchange_adapter),
+    db: Session = Depends(get_db)
+):
+    # Validation
+    if order.trigger_price <= 0:
+        raise HTTPException(status_code=400, detail="Trigger price must be > 0")
+
+    # Calculate Quantity based on trigger price as default expectation
+    quantity = 0
+    calculated_price = order.order_price if order.price_type.lower() == "limit" else order.trigger_price
+    if calculated_price <= 0: calculated_price = order.trigger_price # Safety
+
+    if order.mode == "quantity":
+         if not order.quantity or order.quantity <= 0:
+             raise HTTPException(status_code=400, detail="Quantity required")
+         quantity = order.quantity
+         
+    elif order.mode == "amount":
+         if not order.amount or order.amount <= 0:
+             raise HTTPException(status_code=400, detail="Amount required")
+         
+         quantity = int(order.amount // calculated_price)
+    
+    if quantity <= 0:
+        raise HTTPException(status_code=400, detail="Calculated quantity is 0")
+
+    # Register to DB
+    try:
+        from ..models.condition import ConditionalOrder, ConditionType
+        
+        # Determine strict mapping
+        allowed_buy = ["BUY_STOP", "BUY_LIMIT"]
+        allowed_sell = ["STOP_LOSS", "TAKE_PROFIT"] # Stop Loss = Sell Stop, Take Profit = Sell Limit
+
+        if order.order_type.lower() == "buy":
+             if order.condition_type not in allowed_buy:
+                  raise HTTPException(status_code=400, detail=f"Invalid condition {order.condition_type} for BUY order")
+        elif order.order_type.lower() == "sell":
+             if order.condition_type not in allowed_sell:
+                  raise HTTPException(status_code=400, detail=f"Invalid condition {order.condition_type} for SELL order")
+        else:
+             raise HTTPException(status_code=400, detail="Invalid order type")
+
+
+        cond_order = ConditionalOrder(
+            symbol=order.symbol,
+            condition_type=order.condition_type,
+            trigger_price=order.trigger_price,
+            order_type=order.order_type,
+            price_type=order.price_type,
+            order_price=order.order_price,
+            quantity=quantity,
+            status="PENDING"
+        )
+        db.add(cond_order)
+        db.commit()
+        db.refresh(cond_order)
+        
+        return {
+            "status": "success", 
+            "message": f"Watch Order Registered: {order.order_type.toUpperCase()} {order.condition_type} at {order.trigger_price}",
+            "id": cond_order.id
+        }
+        
+    except Exception as e:
+        print(f"Error registering conditional order: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/auto/start")
 async def start_auto_trading(
