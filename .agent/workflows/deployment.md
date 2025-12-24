@@ -63,7 +63,12 @@ On the remote server:
     ```bash
     ./deploy_with_pm2.sh
     ```
-    
+
+    > [!WARNING]
+    > **Do NOT use Systemd directly.**
+    > The old `setup_services.sh` method is **DEPRECATED**. We have standardized on PM2. 
+    > Using Systemd services directly will cause configuration conflicts.
+
     **What this script does:**
     - `git pull`: Fetches latest code.
     - Checks/Installs `pm2`.
