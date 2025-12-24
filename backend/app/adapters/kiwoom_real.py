@@ -246,3 +246,98 @@ class KiwoomRealAdapter(ExchangeInterface):
             except Exception as e:
                 logger.error(f"Order placement failed: {e}")
                 return {"status": "failed", "message": str(e)}
+
+    async def get_outstanding_orders(self) -> list:
+        """
+        Get Outstanding Orders using TR: ka10075 (미체결요청)
+        """
+        await self._ensure_token()
+        
+        url = f"{self.base_url}/api/dostk/acnt"
+        headers = self._get_auth_headers(tr_id="ka10075")
+        
+        # Request All (0), Buy/Sell All (0), Integrated Exchange (0)
+        payload = {
+            "all_stk_tp": "0", 
+            "trde_tp": "0",
+            "stk_cd": "", 
+            "stex_tp": "0" 
+        }
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                
+                # 'oso' list contains outstanding orders
+                orders_data = data.get("oso", [])
+                
+                outstanding_orders = []
+                for item in orders_data:
+                    # Clean up data
+                    def clean(v): return str(v).strip()
+                    def safe_int(v): return int(str(v).replace("+","").replace("-","")) if v else 0
+                    def safe_float(v): return float(str(v).replace("+","").replace("-","")) if v else 0.0
+
+                    outstanding_orders.append({
+                        "order_no": clean(item.get("ord_no")),
+                        "origin_order_no": clean(item.get("orig_ord_no")), # For cancel reference
+                        "symbol": clean(item.get("stk_cd")),
+                        "name": clean(item.get("stk_nm")),
+                        "order_type": clean(item.get("trde_tp")), # e.g '시장가', '보통'
+                        "side": clean(item.get("io_tp_nm")), # e.g '매수', '매도'
+                        "order_price": safe_float(item.get("ord_pric")),
+                        "order_qty": safe_int(item.get("ord_qty")),
+                        "unfilled_qty": safe_int(item.get("oso_qty")), # 미체결수량
+                        "time": clean(item.get("tm"))
+                    })
+                    
+                return outstanding_orders
+
+            except Exception as e:
+                logger.error(f"Error fetching outstanding orders: {e}")
+                return []
+
+    async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
+        """
+        Cancel Order using TR: kt10003 (주식 취소주문)
+        Note: API docs say 'orig_ord_no' is required. Usually this is the order_id we want to cancel.
+        """
+        await self._ensure_token()
+        
+        url = f"{self.base_url}/api/dostk/ordr"
+        headers = self._get_auth_headers(tr_id="kt10003")
+        
+        # origin_order_id typically IS the order_id in Kiwoom logic for cancellation, 
+        # or the 'orig_ord_no' field from the outstanding list.
+        target_oid = origin_order_id if origin_order_id else order_id
+
+        payload = {
+            "dmst_stex_tp": "KRX",
+            "orig_ord_no": target_oid,
+            "stk_cd": symbol,
+            "cncl_qty": str(quantity) # '0' for all
+        }
+        
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                
+                if data.get("return_code") == 0:
+                    return {
+                        "status": "success",
+                        "message": "Cancel order submitted",
+                        "cancel_order_no": data.get("ord_no")
+                    }
+                else:
+                    return {
+                        "status": "failed",
+                        "message": data.get("return_msg", "Unknown Error")
+                    }
+
+            except Exception as e:
+                logger.error(f"Cancel order failed: {e}")
+                return {"status": "failed", "message": str(e)}

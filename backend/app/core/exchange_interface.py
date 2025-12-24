@@ -39,3 +39,13 @@ class ExchangeInterface(ABC):
     async def place_sell_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
         """Place a sell order"""
         pass
+
+    @abstractmethod
+    async def get_outstanding_orders(self) -> list:
+        """Get list of outstanding (unfilled) orders"""
+        pass
+
+    @abstractmethod
+    async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
+        """Cancel an order"""
+        pass

@@ -107,6 +107,16 @@ export const placeConditionalOrder = async (order, options = {}) => {
     return data;
 };
 
+export const getOutstandingOrders = async () => {
+    const { data } = await api.get('/orders/outstanding');
+    return data;
+};
+
+export const cancelOrder = async (orderData) => {
+    const { data } = await api.post('/orders/cancel', orderData);
+    return data;
+};
+
 export const setSystemMode = async (mode) => {
     const { data } = await api.post('/system/mode', { mode });
     return data;

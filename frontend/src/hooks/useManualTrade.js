@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { placeManualOrder, placeConditionalOrder } from '../api/client';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { placeManualOrder, placeConditionalOrder, getOutstandingOrders, cancelOrder } from '../api/client';
 
 export const useManualTrade = (defaultSymbol) => {
     const [symbol, setSymbol] = useState(defaultSymbol || '');
@@ -36,6 +36,10 @@ export const useManualTrade = (defaultSymbol) => {
     const [orderStatus, setOrderStatus] = useState('idle');
     const [errorMessage, setErrorMessage] = useState(null);
     const [orderDetails, setOrderDetails] = useState(null);
+
+    // Outstanding Orders
+    const [outstandingOrders, setOutstandingOrders] = useState([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
     // Refs for cancellation
     const abortControllerRef = useRef(null);
@@ -192,6 +196,36 @@ export const useManualTrade = (defaultSymbol) => {
         }
     };
 
+    const fetchOutstanding = useCallback(async () => {
+        setIsLoadingOrders(true);
+        try {
+            const data = await getOutstandingOrders();
+            setOutstandingOrders(data || []);
+        } catch (e) {
+            console.error("Failed to fetch outstanding orders", e);
+        } finally {
+            setIsLoadingOrders(false);
+        }
+    }, []);
+
+    const handleCancelOrder = async (order) => {
+        if (!confirm(`Cancel order ${order.order_no} (${order.name})?`)) return;
+
+        try {
+            await cancelOrder({
+                order_no: order.order_no,
+                symbol: order.symbol,
+                quantity: order.unfilled_qty, // Usually cancel all remaining
+                origin_order_no: order.origin_order_no
+            });
+            // Refresh list
+            fetchOutstanding();
+        } catch (e) {
+            console.error("Cancel failed", e);
+            alert(e.response?.data?.detail || "Failed to cancel order");
+        }
+    };
+
     const fetchPrice = async () => {
         if (!symbol) return;
         try {
@@ -245,6 +279,12 @@ export const useManualTrade = (defaultSymbol) => {
         handleSimulation,
         resetStatus,
         fetchPrice,
-        currentPrice
+        currentPrice,
+
+        // Outstanding Order Exports
+        outstandingOrders,
+        fetchOutstanding,
+        handleCancelOrder,
+        isLoadingOrders
     };
 };

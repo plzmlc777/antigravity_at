@@ -91,3 +91,24 @@ class KiwoomMockAdapter(ExchangeInterface):
             "price": executed_price,
             "quantity": quantity
         }
+
+    async def get_outstanding_orders(self) -> list:
+        # Return a fake outstanding order for testing UI
+        return [
+            {
+                "order_no": "8888",
+                "origin_order_no": "8888",
+                "symbol": "005930",
+                "name": "Samsung Elec (Mock)",
+                "order_type": "보통",
+                "side": "매수",
+                "order_price": 60000,
+                "order_qty": 10,
+                "unfilled_qty": 5,
+                "time": "10:30:00"
+            }
+        ]
+
+    async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
+        await asyncio.sleep(0.5)
+        return {"status": "success", "message": f"Mock Order {order_id} cancelled"}

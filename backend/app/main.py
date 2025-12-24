@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown Logic
     logger.info("Shutting down...")
-    await bot_manager.stop_all() # Ensure bots are stopped
+    # await bot_manager.stop_all() # Ensure bots are stopped
     await condition_watcher.stop() # Stop watcher
 
 app = FastAPI(title="Antigravity Auto Trading", lifespan=lifespan)

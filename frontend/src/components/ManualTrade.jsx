@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import OrderProgress from './OrderProgress';
+import OutstandingOrders from './OutstandingOrders';
 import { useManualTrade } from '../hooks/useManualTrade';
 
 const ManualTrade = ({ defaultSymbol }) => {
@@ -26,11 +27,19 @@ const ManualTrade = ({ defaultSymbol }) => {
         triggerPrice, setTriggerPrice,
         watchOrderType, setWatchOrderType,
 
-        currentPrice, fetchPrice
+        currentPrice, fetchPrice,
+        outstandingOrders, fetchOutstanding, handleCancelOrder, isLoadingOrders
     } = useManualTrade(defaultSymbol);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [activeTab, setActiveTab] = useState('instant'); // 'instant' or 'watch'
+    const [activeTab, setActiveTab] = useState('instant'); // 'instant', 'watch', 'outstanding'
+
+    // Auto refresh outstanding when tab active
+    React.useEffect(() => {
+        if (activeTab === 'outstanding') {
+            fetchOutstanding();
+        }
+    }, [activeTab, fetchOutstanding]);
 
     return (
         <div className="p-1">
@@ -46,7 +55,13 @@ const ManualTrade = ({ defaultSymbol }) => {
                     onClick={() => setActiveTab('watch')}
                     className={`pb-1 px-2 ${activeTab === 'watch' ? 'text-purple-400 border-b-2 border-purple-400 font-bold' : 'text-gray-400 hover:text-white'}`}
                 >
-                    Watch Order (Conditional)
+                    Watch Order
+                </button>
+                <button
+                    onClick={() => setActiveTab('outstanding')}
+                    className={`pb-1 px-2 ${activeTab === 'outstanding' ? 'text-yellow-400 border-b-2 border-yellow-400 font-bold' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Outstanding
                 </button>
             </div>
 
@@ -259,8 +274,7 @@ const ManualTrade = ({ defaultSymbol }) => {
                         </div>
                     )}
                 </form>
-            ) : (
-                /* Watch Order Form (Placeholder for now) */
+            ) : activeTab === 'watch' ? (
                 /* Watch Order Form */
                 <form onSubmit={handleWatchSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -381,10 +395,10 @@ const ManualTrade = ({ defaultSymbol }) => {
                         />
                     </div>
 
-                    {/* Reuse Stop Loss / Take Profit UI? 
-                        Currently ConditionalOrderRequest doesn't support SL/TP on Entry (chained conditions), 
-                        but we can add 'Coming Soon' or hide it. 
-                        Let's hide it for simplicity in MVP to avoid complexity overload. 
+                    {/* Reuse Stop Loss / Take Profit UI?
+                        Currently ConditionalOrderRequest doesn't support SL/TP on Entry (chained conditions),
+                        but we can add 'Coming Soon' or hide it.
+                        Let's hide it for simplicity in MVP to avoid complexity overload.
                     */}
 
                     <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
@@ -406,8 +420,27 @@ const ManualTrade = ({ defaultSymbol }) => {
                         )}
                     </div>
                 </form>
+            ) : (
+                /* Outstanding Orders Tab */
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold text-gray-300">Outstanding Orders</h3>
+                        <button
+                            onClick={fetchOutstanding}
+                            disabled={isLoadingOrders}
+                            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                        >
+                            <span className={isLoadingOrders ? "animate-spin" : ""}>↻</span> Refresh
+                        </button>
+                    </div>
+                    <OutstandingOrders
+                        orders={outstandingOrders}
+                        onCancel={handleCancelOrder}
+                        isLoading={isLoadingOrders}
+                    />
+                </div>
             )}
-        </div>
+        </div >
     );
 };
 

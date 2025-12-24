@@ -61,6 +61,12 @@ class ManualOrderRequest(BaseModel):
     stop_loss: float | None = None # Percent (e.g. 3.0 for 3%)
     take_profit: float | None = None # Percent (e.g. 5.0 for 5%)
 
+class CancelOrderRequest(BaseModel):
+    order_no: str
+    symbol: str
+    quantity: int = 0
+    origin_order_no: str = ""
+
 class ConditionalOrderRequest(BaseModel):
     symbol: str
     condition_type: str # BUY_STOP, BUY_LIMIT
@@ -114,6 +120,18 @@ async def sell_order(order: OrderRequest, adapter: ExchangeInterface = Depends(g
     if result.get("status") == "failed":
         raise HTTPException(status_code=400, detail=result.get("message"))
     return result
+
+@router.get("/orders/outstanding")
+async def get_outstanding_orders(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+    return await adapter.get_outstanding_orders()
+
+@router.post("/orders/cancel")
+async def cancel_order(req: CancelOrderRequest, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+    result = await adapter.cancel_order(req.order_no, req.symbol, req.quantity, req.origin_order_no)
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=400, detail=result.get("message"))
+    return result
+
 
 @router.post("/order/manual")
 async def manual_order(
