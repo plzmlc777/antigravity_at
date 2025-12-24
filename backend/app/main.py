@@ -1,16 +1,36 @@
+from contextlib import asynccontextmanager
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import endpoints
-
 from .api import endpoints, auth, accounts
 from .db.base import Base
-from .models.bot import TradingBotModel # Ensure table creation
 from .db.session import engine
+from .core.bot_manager import bot_manager
+from .core.condition_watcher import condition_watcher
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Antigravity Auto Trading")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup Logic
+    logger.info("Starting up...")
+    
+    # Create Tables
+    Base.metadata.create_all(bind=engine)
+    
+    # Start Services
+    await condition_watcher.start()
+    
+    yield
+    
+    # Shutdown Logic
+    logger.info("Shutting down...")
+    await bot_manager.stop_all() # Ensure bots are stopped
+    await condition_watcher.stop() # Stop watcher
+
+app = FastAPI(title="Antigravity Auto Trading", lifespan=lifespan)
 
 # CORS Configuration
 app.add_middleware(

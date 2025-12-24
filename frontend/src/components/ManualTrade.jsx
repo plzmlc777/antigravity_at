@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import OrderProgress from './OrderProgress';
 import { useManualTrade } from '../hooks/useManualTrade';
 
@@ -10,6 +10,8 @@ const ManualTrade = ({ defaultSymbol }) => {
         priceType, setPriceType,
         mode, setMode,
         value, setValue,
+        stopLoss, setStopLoss,
+        takeProfit, setTakeProfit,
         orderStatus,
         errorMessage,
         orderDetails,
@@ -18,6 +20,8 @@ const ManualTrade = ({ defaultSymbol }) => {
         handleSimulation,
         resetStatus
     } = useManualTrade(defaultSymbol);
+
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     return (
         <div className="p-1">
@@ -110,6 +114,71 @@ const ManualTrade = ({ defaultSymbol }) => {
                         placeholder="Value"
                         required
                     />
+                </div>
+
+                <div className="pt-2 border-t border-white/5">
+                    <button
+                        type="button"
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors w-full py-1"
+                    >
+                        <span className={`transform transition-transform ${showAdvanced ? 'rotate-90' : ''}`}>▶</span>
+                        Advanced Options (Stop Loss / Take Profit)
+                    </button>
+
+                    {showAdvanced && (
+                        <div className="grid grid-cols-2 gap-4 mt-2 mb-4 pl-2 bg-black/20 p-2 rounded">
+                            {/* Stop Loss */}
+                            <div className="space-y-1">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={stopLoss.enabled}
+                                        onChange={(e) => setStopLoss({ ...stopLoss, enabled: e.target.checked })}
+                                        className="rounded border-gray-600 bg-black/20 text-red-500 focus:ring-0"
+                                    />
+                                    <span className="text-xs text-gray-300">Stop Loss</span>
+                                </label>
+                                <div className="flex items-center gap-2 relative">
+                                    <span className="absolute left-2 text-gray-500 text-xs">-</span>
+                                    <input
+                                        type="number"
+                                        value={stopLoss.percent}
+                                        onChange={(e) => setStopLoss({ ...stopLoss, percent: parseFloat(e.target.value) || 0 })}
+                                        disabled={!stopLoss.enabled}
+                                        className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${stopLoss.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'
+                                            }`}
+                                    />
+                                    <span className="text-xs text-gray-500 w-4">%</span>
+                                </div>
+                            </div>
+
+                            {/* Take Profit */}
+                            <div className="space-y-1">
+                                <label className="flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={takeProfit.enabled}
+                                        onChange={(e) => setTakeProfit({ ...takeProfit, enabled: e.target.checked })}
+                                        className="rounded border-gray-600 bg-black/20 text-green-500 focus:ring-0"
+                                    />
+                                    <span className="text-xs text-gray-300">Take Profit</span>
+                                </label>
+                                <div className="flex items-center gap-2 relative">
+                                    <span className="absolute left-2 text-gray-500 text-xs">+</span>
+                                    <input
+                                        type="number"
+                                        value={takeProfit.percent}
+                                        onChange={(e) => setTakeProfit({ ...takeProfit, percent: parseFloat(e.target.value) || 0 })}
+                                        disabled={!takeProfit.enabled}
+                                        className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${takeProfit.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'
+                                            }`}
+                                    />
+                                    <span className="text-xs text-gray-500 w-4">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-3">

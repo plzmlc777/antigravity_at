@@ -58,6 +58,8 @@ class ManualOrderRequest(BaseModel):
     quantity: float | None = None
     amount: float | None = None  # target amount in KRW
     percent: float | None = None  # 0.0 to 1.0
+    stop_loss: float | None = None # Percent (e.g. 3.0 for 3%)
+    take_profit: float | None = None # Percent (e.g. 5.0 for 5%)
 
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
@@ -103,7 +105,11 @@ async def sell_order(order: OrderRequest, adapter: ExchangeInterface = Depends(g
     return result
 
 @router.post("/order/manual")
-async def manual_order(order: ManualOrderRequest, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+async def manual_order(
+    order: ManualOrderRequest, 
+    adapter: ExchangeInterface = Depends(get_exchange_adapter),
+    db: Session = Depends(get_db)
+):
     quantity = 0
     calculated_price = order.price
 
@@ -191,6 +197,71 @@ async def manual_order(order: ManualOrderRequest, adapter: ExchangeInterface = D
 
     if result.get("status") == "failed":
         raise HTTPException(status_code=400, detail=result.get("message"))
+
+    # 3. Register Conditional Orders (Stop Loss / Take Profit)
+    # Only valid for BUY orders for now (as we are setting exit conditions)
+    if order.order_type.lower() == "buy" and (order.stop_loss or order.take_profit):
+        try:
+            from ..models.condition import ConditionalOrder, ConditionType
+            
+            # Use executed price if available, else usage current price logic
+            # For simplicity, if it was a Market Buy, we use the current price fetched earlier or estimate
+            base_price = calculated_price
+            if base_price <= 0: # Market order case
+                 # Ideally we should get the filled price from result, but result structure varies.
+                 # We fallback to current market price for calculation base
+                 price_info = await adapter.get_current_price(order.symbol)
+                 base_price = price_info.get("price", 0)
+            
+            if base_price > 0:
+                # Stop Loss
+                if order.stop_loss:
+                    trigger_price = base_price * (1 - (order.stop_loss / 100))
+                    
+                    # Validation: Stop Loss must be LOWER than current price for BUY
+                    if trigger_price >= base_price:
+                         print(f"Warning: Invalid Stop Loss {trigger_price} >= Base {base_price}")
+                         # We could raise error, but since the main order is done, we just skip SL
+                    else:
+                        sl_order = ConditionalOrder(
+                            symbol=order.symbol,
+                            condition_type=ConditionType.STOP_LOSS,
+                            trigger_price=trigger_price,
+                            order_type="sell", # Exit
+                            price_type="market", # Panic sell
+                            quantity=quantity, # Full exit
+                            status="PENDING"
+                        )
+                        db.add(sl_order)
+                        print(f"Registered STOP_LOSS for {order.symbol} at {trigger_price}")
+
+                # Take Profit
+                if order.take_profit:
+                    trigger_price = base_price * (1 + (order.take_profit / 100))
+                    
+                    # Validation: Take Profit must be HIGHER than current price for BUY
+                    if trigger_price <= base_price:
+                         print(f"Warning: Invalid Take Profit {trigger_price} <= Base {base_price}")
+                    else:
+                        tp_order = ConditionalOrder(
+                            symbol=order.symbol,
+                            condition_type=ConditionType.TAKE_PROFIT,
+                            trigger_price=trigger_price,
+                            order_type="sell", # Exit
+                            price_type="limit", # Profit taking usually limit, but market for simplicity now
+                            # For limits, we might want trigger_price or slightly lower to ensure fill
+                            order_price=trigger_price, 
+                            quantity=quantity,
+                            status="PENDING"
+                        )
+                        db.add(tp_order)
+                        print(f"Registered TAKE_PROFIT for {order.symbol} at {trigger_price}")
+            
+                db.commit()
+                
+        except Exception as e:
+            print(f"Failed to register conditional orders: {e}")
+            # We don't fail the main order if conditional registration fails, but we should log it.
         
     return result
 

@@ -13,6 +13,10 @@ export const useManualTrade = (defaultSymbol) => {
     const [mode, setMode] = useState('quantity');
     const [value, setValue] = useState('');
 
+    // Advanced Options (Stop Loss / Take Profit)
+    const [stopLoss, setStopLoss] = useState({ enabled: false, percent: 3.0 });
+    const [takeProfit, setTakeProfit] = useState({ enabled: false, percent: 5.0 });
+
     // Status for logical flow: 'idle', 'processing', 'success', 'error', 'cancelled'
     const [orderStatus, setOrderStatus] = useState('idle');
     const [errorMessage, setErrorMessage] = useState(null);
@@ -68,7 +72,9 @@ export const useManualTrade = (defaultSymbol) => {
                 mode: mode,
                 quantity: mode === 'quantity' ? parseFloat(value) : null,
                 amount: mode === 'amount' ? parseFloat(value) : null,
-                percent: (mode === 'percent_cash' || mode === 'percent_holding') ? parseFloat(value) / 100 : null
+                percent: (mode === 'percent_cash' || mode === 'percent_holding') ? parseFloat(value) / 100 : null,
+                stop_loss: stopLoss.enabled ? stopLoss.percent : undefined,
+                take_profit: takeProfit.enabled ? takeProfit.percent : undefined
             };
 
             const data = await placeManualOrder(payload, { signal: controller.signal });
@@ -148,6 +154,8 @@ export const useManualTrade = (defaultSymbol) => {
         priceType, setPriceType,
         mode, setMode,
         value, setValue,
+        stopLoss, setStopLoss,
+        takeProfit, setTakeProfit,
         orderStatus,
         errorMessage,
         orderDetails,
