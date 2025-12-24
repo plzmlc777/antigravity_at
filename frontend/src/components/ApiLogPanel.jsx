@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { apiLogger } from '../utils/eventBus';
+import { getApiLogger } from '../utils/eventBus';
 
 const ApiLogPanel = () => {
     const [logs, setLogs] = useState([]);
 
     useEffect(() => {
-        const unsubscribe = apiLogger.subscribe((log) => {
+        const logger = typeof window !== 'undefined' && window.__apiLogger ? window.__apiLogger : getApiLogger();
+        const unsubscribe = logger.subscribe((log) => {
             setLogs((prev) => {
                 const newLogs = [log, ...prev].slice(0, 50);
                 return newLogs;

@@ -13,4 +13,15 @@ class EventBus {
     }
 }
 
-export const apiLogger = new EventBus();
+const apiLogger = new EventBus();
+
+// Ensure singleton instance across chunks/bundles by attaching to window
+if (typeof window !== 'undefined') {
+    if (!window.__apiLogger) {
+        window.__apiLogger = apiLogger;
+    }
+}
+
+export { apiLogger };
+// Also export the window instance as default or fallback
+export const getApiLogger = () => (typeof window !== 'undefined' ? window.__apiLogger : apiLogger);

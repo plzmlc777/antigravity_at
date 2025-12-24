@@ -1,5 +1,10 @@
 import axios from 'axios';
-import { apiLogger } from '../utils/eventBus';
+import { getApiLogger } from '../utils/eventBus';
+
+const getLogger = () => {
+    if (typeof window !== 'undefined' && window.__apiLogger) return window.__apiLogger;
+    return getApiLogger();
+};
 
 const api = axios.create({
     baseURL: '/api/v1',
@@ -11,7 +16,7 @@ api.interceptors.request.use((config) => {
     const logId = Date.now();
     config.metadata = { logId, startTime: Date.now() };
 
-    apiLogger.publish({
+    getLogger().publish({
         id: logId,
         type: 'req',
         method: config.method.toUpperCase(),
@@ -32,7 +37,7 @@ api.interceptors.response.use(
         const { logId, startTime } = response.config.metadata || {};
         const duration = startTime ? Date.now() - startTime : 0;
 
-        apiLogger.publish({
+        getLogger().publish({
             id: logId || Date.now(),
             type: 'res',
             method: response.config.method.toUpperCase(),
@@ -48,7 +53,7 @@ api.interceptors.response.use(
         const { config, response } = error;
         const logId = config?.metadata?.logId || Date.now();
 
-        apiLogger.publish({
+        getLogger().publish({
             id: logId,
             type: 'err',
             method: config?.method?.toUpperCase() || 'UNKNOWN',
