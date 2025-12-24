@@ -55,9 +55,9 @@ class ManualOrderRequest(BaseModel):
     price_type: str = "limit" # "limit" or "market"
     price: float = 0 # Optional for market
     mode: str  # "quantity", "amount", "percent_cash", "percent_holding"
-    quantity: float = None
-    amount: float = None  # target amount in KRW
-    percent: float = None  # 0.0 to 1.0
+    quantity: float | None = None
+    amount: float | None = None  # target amount in KRW
+    percent: float | None = None  # 0.0 to 1.0
 
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
@@ -148,7 +148,12 @@ async def manual_order(order: ManualOrderRequest, adapter: ExchangeInterface = D
         cash_data = balance_info.get("cash", {})
         current_cash = cash_data.get("KRW", 0)
         
-        target_amount = current_cash * order.percent
+        # Determine Safety Margin
+        # Market Order: Requires margin based on Upper Limit Price (+30%), so we use conservative 0.75
+        # Limit Order: Based on specific price, so we use 0.98 for fees
+        margin = 0.75 if order.price_type.lower() == "market" else 0.98
+        
+        target_amount = current_cash * order.percent * margin
         
         calc_basis_price = current_price if order.price_type.lower() == "market" else order.price
         if calc_basis_price <= 0:

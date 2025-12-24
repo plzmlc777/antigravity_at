@@ -73,10 +73,14 @@ export const useManualTrade = (defaultSymbol) => {
 
             const data = await placeManualOrder(payload, { signal: controller.signal });
 
+            if (!data) {
+                throw new Error("No response data received from server");
+            }
+
             setOrderDetails({
-                filled: data.quantity,
-                total: data.quantity,
-                avgPrice: data.price
+                filled: data.quantity || 0,
+                total: data.quantity || 0,
+                avgPrice: data.price || 0
             });
 
             await new Promise(r => {
@@ -91,7 +95,11 @@ export const useManualTrade = (defaultSymbol) => {
             if (error.name === 'CanceledError' || error.name === 'AbortError') {
                 setOrderStatus('cancelled');
             } else {
-                const msg = error.response?.data?.detail || error.message || 'Order failed';
+                const msg = error.response?.data?.detail
+                    ? (typeof error.response.data.detail === 'object'
+                        ? JSON.stringify(error.response.data.detail)
+                        : error.response.data.detail)
+                    : error.message || 'Order failed';
                 setErrorMessage(msg);
                 setOrderStatus('error');
             }

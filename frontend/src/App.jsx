@@ -10,6 +10,8 @@ import { useState, useEffect } from 'react';
 import { getSystemStatus } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
+import { MarketDataProvider } from './context/MarketDataContext';
+
 const NavLink = ({ to, children }) => {
     const location = useLocation();
     const isActive = location.pathname === to;
@@ -39,26 +41,11 @@ const RequireAuth = ({ children }) => {
 };
 
 function AppContent() {
-    const [status, setStatus] = useState({ exchange: 'Unknown', status: 'offline', mode: 'UNKNOWN' });
     const { logout, user } = useAuth();
     const location = useLocation();
 
     // Hide Navbar on Login page
     if (location.pathname === '/login') return null;
-
-    useEffect(() => {
-        const fetchStatus = async () => {
-            try {
-                const data = await getSystemStatus();
-                setStatus(data);
-            } catch (error) {
-                setStatus({ exchange: 'Error', status: 'offline', mode: 'ERROR' });
-            }
-        };
-        fetchStatus();
-        const interval = setInterval(fetchStatus, 30000);
-        return () => clearInterval(interval);
-    }, []);
 
     return (
         <div className="min-h-screen bg-[#0a0a0f] text-white selection:bg-blue-500/30">
@@ -79,7 +66,7 @@ function AppContent() {
                     <div className="flex items-center gap-4">
                         {/* Mode Toggle */}
                         {/* Mode Toggle Moved to Settings */}
-                        <StatusCard status={status} />
+                        <StatusCard />
                         <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
                     </div>
                 </div>
@@ -105,10 +92,12 @@ function App() {
     return (
         <Router>
             <AuthProvider>
-                <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/*" element={<AppContent />} />
-                </Routes>
+                <MarketDataProvider>
+                    <Routes>
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/*" element={<AppContent />} />
+                    </Routes>
+                </MarketDataProvider>
             </AuthProvider>
         </Router>
     );

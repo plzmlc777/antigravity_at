@@ -139,6 +139,10 @@ class KiwoomRealAdapter(ExchangeInterface):
                 # 'dbst_bal': Deposit Balance (Cash)
                 # 'day_bal_rt': List of holdings
                 
+                # DEBUG: Log fields to find correct keys
+                if len(data.get("day_bal_rt", [])) > 0:
+                     print(f"DEBUG HOLDING ITEM: {data['day_bal_rt'][0]}", flush=True)
+                
                 # Helper for safe float/int conversion
                 def safe_float(v):
                     if not v: return 0.0
@@ -156,7 +160,13 @@ class KiwoomRealAdapter(ExchangeInterface):
                     code = item.get("stk_cd")
                     qty = safe_int(item.get("rmnd_qty", "0"))
                     if code and qty > 0:
-                        holdings[code] = qty
+                        holdings[code] = {
+                            "quantity": qty,
+                            "avg_price": safe_float(item.get("buy_uv", "0")),        # Corrected Field
+                            "current_price": safe_float(item.get("cur_prc", "0")),
+                            "profit_rate": safe_float(item.get("prft_rt", "0")),     # Corrected Field
+                            "profit_amount": safe_float(item.get("evltv_prft", "0")) # Corrected Field
+                        }
                 
                 return {
                     "cash": {"KRW": cash_balance},

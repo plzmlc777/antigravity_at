@@ -19,17 +19,21 @@ api.interceptors.request.use((config) => {
         timestamp: new Date().toLocaleTimeString(),
         status: 'pending'
     });
+
+    // Debug console log
+    console.log(`[API Log] Req: ${config.method.toUpperCase()} ${config.url}`);
+
     return config;
 });
 
 // Response Interceptor
 api.interceptors.response.use(
     (response) => {
-        const { logId, startTime } = response.config.metadata;
-        const duration = Date.now() - startTime;
+        const { logId, startTime } = response.config.metadata || {};
+        const duration = startTime ? Date.now() - startTime : 0;
 
         apiLogger.publish({
-            id: logId,
+            id: logId || Date.now(),
             type: 'res',
             method: response.config.method.toUpperCase(),
             url: response.config.url,
@@ -54,6 +58,8 @@ api.interceptors.response.use(
             timestamp: new Date().toLocaleTimeString(),
             isError: true
         });
+
+        console.error(`[API Error]`, error);
         return Promise.reject(error);
     }
 );

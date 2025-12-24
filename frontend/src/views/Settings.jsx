@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
+import { getSystemStatus, setSystemMode as apiSetSystemMode } from '../api/client';
+
 const Settings = () => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,10 +23,8 @@ const Settings = () => {
 
     useEffect(() => {
         // Fetch current system mode
-        import('../api/client').then(client => {
-            client.getSystemStatus().then(status => {
-                setSystemMode(status.mode);
-            });
+        getSystemStatus().then(status => {
+            setSystemMode(status.mode);
         });
     }, []);
 
@@ -36,8 +36,7 @@ const Settings = () => {
         }
 
         try {
-            const client = await import('../api/client');
-            await client.setSystemMode(newMode);
+            await apiSetSystemMode(newMode);
             window.location.reload();
         } catch (error) {
             alert("Failed to switch mode");

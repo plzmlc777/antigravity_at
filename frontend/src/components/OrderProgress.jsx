@@ -60,7 +60,7 @@ const OrderProgress = ({ status, error, details }) => {
         step2 = 'completed';
         step3 = 'completed';
         if (details) {
-            resultDetails = `Avg: ${details.avgPrice?.toLocaleString()} KRW\nQty: ${details.filled}`;
+            resultDetails = `Avg: ${details.avgPrice?.toLocaleString()}\nQty: ${details.filled}`;
         }
     } else if (status === 'error') {
         step1 = 'completed';
@@ -85,7 +85,7 @@ const OrderProgress = ({ status, error, details }) => {
                     <div className="font-bold">Order Executed Successfully!</div>
                     {details && (
                         <div className="text-xs opacity-80">
-                            Filled {details.filled} shares at average {details.avgPrice?.toLocaleString()} KRW
+                            Filled {details.filled} shares at average {details.avgPrice?.toLocaleString()}
                         </div>
                     )}
                 </div>
