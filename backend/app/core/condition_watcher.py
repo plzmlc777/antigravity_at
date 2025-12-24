@@ -112,6 +112,23 @@ class ConditionWatcher:
                     triggered = True
                     logger.info(f"BUY LIMIT Triggered for {cond.symbol}: Price {current_price} <= {cond.trigger_price}")
 
+            elif cond.condition_type == ConditionType.TRAILING_STOP:
+                # Update High Water Mark
+                if cond.highest_price is None or current_price > cond.highest_price:
+                    old_high = cond.highest_price
+                    cond.highest_price = current_price
+                    db.commit() # Persist new high immediately
+                    logger.info(f"Trailing Stop {cond.symbol}: New Highest Price {current_price} (was {old_high})")
+                
+                # Check for Pullback trigger
+                # Stop Price = Highest Price * (1 - trailing_percent)
+                trailing_percent = cond.trailing_percent or 0.03 # Default 3% safety
+                stop_price = cond.highest_price * (1 - trailing_percent)
+                
+                if current_price <= stop_price:
+                    triggered = True
+                    logger.info(f"TRAILING STOP Triggered for {cond.symbol}: Price {current_price} <= Stop Price {stop_price:.0f} (High: {cond.highest_price})")
+
             # 3. Execute Order if Triggered
             if triggered:
                 # Update Status to TRIGGERED first to prevent double firing
@@ -131,13 +148,13 @@ class ConditionWatcher:
                 else:
                     result = {"status": "failed", "message": f"Unknown trigger order type: {cond.order_type}"}
                     
-                    if result.get("status") == "success":
-                        cond.status = ConditionStatus.COMPLETED
-                        logger.info(f"Order Executed Successfully: {result}")
-                    else:
-                        cond.status = ConditionStatus.FAILED
-                        logger.error(f"Order Execution Failed: {result}")
-                        # Ideally, we might want to retry or alert user
+                if result.get("status") == "success":
+                    cond.status = ConditionStatus.COMPLETED
+                    logger.info(f"Order Executed Successfully: {result}")
+                else:
+                    cond.status = ConditionStatus.FAILED
+                    logger.error(f"Order Execution Failed: {result}")
+                    # Ideally, we might want to retry or alert user
                 
                 db.commit()
                 

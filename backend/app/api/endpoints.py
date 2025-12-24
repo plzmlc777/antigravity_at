@@ -69,7 +69,7 @@ class CancelOrderRequest(BaseModel):
 
 class ConditionalOrderRequest(BaseModel):
     symbol: str
-    condition_type: str # BUY_STOP, BUY_LIMIT
+    condition_type: str # BUY_STOP, BUY_LIMIT, STOP_LOSS, TAKE_PROFIT, TRAILING_STOP
     trigger_price: float
     order_type: str = "buy" # Usually buy for entry
     price_type: str = "market" # market or limit
@@ -77,6 +77,7 @@ class ConditionalOrderRequest(BaseModel):
     mode: str # quantity, amount
     quantity: float | None = None
     amount: float | None = None
+    trailing_percent: float | None = None # Required for TRAILING_STOP
 
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
@@ -329,7 +330,7 @@ async def conditional_order(
         
         # Determine strict mapping
         allowed_buy = ["BUY_STOP", "BUY_LIMIT"]
-        allowed_sell = ["STOP_LOSS", "TAKE_PROFIT"] # Stop Loss = Sell Stop, Take Profit = Sell Limit
+        allowed_sell = ["STOP_LOSS", "TAKE_PROFIT", "TRAILING_STOP"] # Stop Loss = Sell Stop, Take Profit = Sell Limit
 
         if order.order_type.lower() == "buy":
              if order.condition_type not in allowed_buy:
@@ -339,17 +340,24 @@ async def conditional_order(
                   raise HTTPException(status_code=400, detail=f"Invalid condition {order.condition_type} for SELL order")
         else:
              raise HTTPException(status_code=400, detail="Invalid order type")
-
-
+             
+        # Validation for Trailing Stop
+        if order.condition_type == "TRAILING_STOP":
+            if not order.trailing_percent or order.trailing_percent <= 0:
+                raise HTTPException(status_code=400, detail="Trailing percent is required for TRAILING_STOP")
+                
         cond_order = ConditionalOrder(
             symbol=order.symbol,
             condition_type=order.condition_type,
-            trigger_price=order.trigger_price,
+            trigger_price=order.trigger_price, # Initial activation price (optional for TS? usually immediate or specific level)
             order_type=order.order_type,
             price_type=order.price_type,
             order_price=order.order_price,
             quantity=quantity,
-            status="PENDING"
+            status="PENDING",
+            # Trailing Stop specific
+            trailing_percent=order.trailing_percent if order.condition_type == "TRAILING_STOP" else None,
+            highest_price=order.trigger_price if order.condition_type == "TRAILING_STOP" else None # Initialize High Water Mark
         )
         db.add(cond_order)
         db.commit()
@@ -357,7 +365,7 @@ async def conditional_order(
         
         return {
             "status": "success", 
-            "message": f"Watch Order Registered: {order.order_type.toUpperCase()} {order.condition_type} at {order.trigger_price}",
+            "message": f"Watch Order Registered: {order.order_type.upper()} {order.condition_type}",
             "id": cond_order.id
         }
         

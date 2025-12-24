@@ -28,7 +28,8 @@ const ManualTrade = ({ defaultSymbol }) => {
         watchOrderType, setWatchOrderType,
 
         currentPrice, fetchPrice,
-        outstandingOrders, fetchOutstanding, handleCancelOrder, isLoadingOrders
+        outstandingOrders, fetchOutstanding, handleCancelOrder, isLoadingOrders,
+        trailingPercent, setTrailingPercent
     } = useManualTrade(defaultSymbol);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -72,11 +73,10 @@ const ManualTrade = ({ defaultSymbol }) => {
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 flex justify-between">
                                 Symbol
-                                {currentPrice && (
-                                    <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer" onClick={fetchPrice}>
-                                        {currentPrice.toLocaleString()} KRW ↻
-                                    </span>
-                                )}
+                                Symbol
+                                <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer hover:text-blue-300" onClick={fetchPrice}>
+                                    {currentPrice !== null ? `${currentPrice.toLocaleString()} KRW` : 'Get Price'} ↻
+                                </span>
                             </label>
                             <input
                                 type="text"
@@ -281,11 +281,9 @@ const ManualTrade = ({ defaultSymbol }) => {
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 flex justify-between">
                                 Symbol
-                                {currentPrice && (
-                                    <span className="text-xs text-purple-400 font-mono flex items-center gap-1 cursor-pointer" onClick={fetchPrice}>
-                                        {currentPrice.toLocaleString()} KRW ↻
-                                    </span>
-                                )}
+                                <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer hover:text-blue-300" onClick={fetchPrice}>
+                                    {currentPrice !== null ? `${currentPrice.toLocaleString()} KRW` : 'Get Price'} ↻
+                                </span>
                             </label>
                             <input
                                 type="text"
@@ -349,13 +347,13 @@ const ManualTrade = ({ defaultSymbol }) => {
                             </button>
                         </div>
                     ) : (
-                        <div className="flex bg-black/40 p-1 rounded">
+                        <div className="flex bg-black/40 p-1 rounded gap-1">
                             <button
                                 type="button"
                                 onClick={() => setConditionType('STOP_LOSS')}
-                                className={`flex-1 py-2 rounded text-xs font-medium transition-colors flex flex-col items-center gap-1 ${conditionType === 'STOP_LOSS' ? 'bg-blue-500/80 text-white' : 'text-gray-400 hover:text-white'}`}
+                                className={`flex-1 py-2 rounded text-xs font-medium transition-colors flex flex-col items-center gap-1 ${conditionType === 'STOP_LOSS' ? 'bg-red-500/80 text-white' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <span className="text-sm font-bold">🛡️ Stop Loss (Sell Stop)</span>
+                                <span className="text-sm font-bold">🛡️ Stop Loss</span>
                                 <span className="opacity-70">Price &le; Trigger</span>
                             </button>
                             <button
@@ -363,9 +361,39 @@ const ManualTrade = ({ defaultSymbol }) => {
                                 onClick={() => setConditionType('TAKE_PROFIT')}
                                 className={`flex-1 py-2 rounded text-xs font-medium transition-colors flex flex-col items-center gap-1 ${conditionType === 'TAKE_PROFIT' ? 'bg-green-500/80 text-white' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <span className="text-sm font-bold">💰 Take Profit (Sell Limit)</span>
+                                <span className="text-sm font-bold">💰 Take Profit</span>
                                 <span className="opacity-70">Price &ge; Trigger</span>
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setConditionType('TRAILING_STOP')}
+                                className={`flex-1 py-2 rounded text-xs font-medium transition-colors flex flex-col items-center gap-1 ${conditionType === 'TRAILING_STOP' ? 'bg-yellow-500/80 text-white' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                <span className="text-sm font-bold">📉 Trailing Stop</span>
+                                <span className="opacity-70">Follow High</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Trailing Percent Input */}
+                    {conditionType === 'TRAILING_STOP' && (
+                        <div className="mt-2">
+                            <label className="block text-sm text-yellow-400 mb-1">Trailing Percent (%)</label>
+                            <div className="flex items-center gap-2 relative">
+                                <span className="absolute left-3 text-gray-500 text-sm">-</span>
+                                <input
+                                    type="number"
+                                    value={trailingPercent}
+                                    onChange={(e) => setTrailingPercent(e.target.value)}
+                                    className="w-full bg-black/40 border border-yellow-500/50 rounded p-2 pl-6 text-white focus:outline-none focus:border-yellow-500"
+                                    placeholder="e.g. 3.0"
+                                    required
+                                />
+                                <span className="text-sm text-gray-400">%</span>
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-1">
+                                * Sell if price drops by X% from the highest price reached.
+                            </p>
                         </div>
                     )}
 
