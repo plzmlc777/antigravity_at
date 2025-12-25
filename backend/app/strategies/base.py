@@ -1,25 +1,51 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
+from datetime import datetime
 
-class BaseStrategy(ABC):
-    def __init__(self, config: Dict[str, Any]):
-        """
-        Initialize the strategy with configuration.
-        config: Dictionary containing strategy parameters (e.g., periods, thresholds).
-        """
-        self.config = config
+class IContext(ABC):
+    """
+    Interface for the execution context (Live or Backtest).
+    Strategies interact with the market through this interface.
+    """
+    @abstractmethod
+    def get_current_price(self, symbol: str) -> float:
+        pass
 
     @abstractmethod
-    def calculate_signals(self, market_data: Dict[str, Any]) -> str:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+        pass
+    
+    @abstractmethod
+    def log(self, message: str):
+        pass
+
+    @abstractmethod
+    def get_time(self) -> datetime:
+        pass
+
+class BaseStrategy(ABC):
+    """
+    Abstract Base Class for all strategies.
+    """
+    def __init__(self, context: IContext, config: Dict[str, Any] = None):
+        self.context = context
+        self.config = config or {}
+
+    @abstractmethod
+    def initialize(self):
         """
-        Analyze market data and return a signal.
-        market_data: Dictionary containing prices, volumes, etc.
-        Return: 'buy', 'sell', or 'hold'
+        Called once at the beginning.
         """
         pass
 
-    @property
     @abstractmethod
-    def name(self) -> str:
-        """Return the strategy name."""
+    def on_data(self, data: Dict[str, Any]):
+        """
+        Called on every data update (e.g., every minute or tick).
+        :param data: Dictionary containing 'symbol', 'open', 'high', 'low', 'close', 'volume', 'timestamp'
+        """
         pass

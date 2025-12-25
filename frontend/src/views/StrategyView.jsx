@@ -65,8 +65,8 @@ const StrategyView = () => {
                                 key={strat.id}
                                 onClick={() => { setSelectedStrategy(strat); setBacktestResult(null); }}
                                 className={`p-4 rounded-lg cursor-pointer transition-all border ${selectedStrategy?.id === strat.id
-                                        ? 'bg-blue-500/20 border-blue-500 text-white'
-                                        : 'bg-white/5 border-transparent hover:bg-white/10 text-gray-400'
+                                    ? 'bg-blue-500/20 border-blue-500 text-white'
+                                    : 'bg-white/5 border-transparent hover:bg-white/10 text-gray-400'
                                     }`}
                             >
                                 <div className="font-bold">{strat.name}</div>
@@ -146,6 +146,19 @@ const StrategyView = () => {
                                                 <span className="text-gray-400">Max Drawdown</span>
                                                 <span className="text-red-400 font-bold text-xl">{backtestResult.max_drawdown}</span>
                                             </div>
+                                            {/* Logs Preview */}
+                                            {backtestResult.logs && (
+                                                <div className="mt-4 pt-4 border-t border-white/10">
+                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs</h4>
+                                                    <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
+                                                        {backtestResult.logs.map((log, i) => (
+                                                            <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
+                                                                {log}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </Card>
                                     <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform">

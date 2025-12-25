@@ -15,6 +15,13 @@ class Strategy(BaseModel):
 
 MOCK_STRATEGIES = [
     Strategy(
+        id="time_momentum",
+        name="Time Momentum (User Req)",
+        description="Wait Delay -> Check % Jump -> Buy -> Trailing Stop",
+        code="[Real Engine] Logic implemented in backend/strategies/time_momentum.py",
+        tags=["Momentum", "Timed Entry"]
+    ),
+    Strategy(
         id="rsi_strategy",
         name="RSI Swing Master",
         description="Buys when RSI < 30 and Sells when RSI > 70. Classic mean reversion.",
@@ -55,23 +62,30 @@ async def generate_strategy_code(prompt: Dict[str, str]):
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str):
-    # Mock Backtest Calculation Delay
-    time.sleep(1.0)
+    from ..core.backtest_engine import BacktestEngine
     
-    # Generate random equity curve
-    dates = []
-    equity = []
-    current_eq = 1000000
-    for i in range(30):
-        dates.append(f"2024-12-{i+1:02d}")
-        change = random.uniform(-0.02, 0.03)
-        current_eq *= (1 + change)
-        equity.append({"date": dates[-1], "equity": int(current_eq)})
-        
+    # Select Strategy Class
+    strategy_class = None
+    if strategy_id == "time_momentum":
+        from ..strategies.time_momentum import TimeMomentumStrategy
+        strategy_class = TimeMomentumStrategy
+    else:
+        # Fallback for others (or use a Default)
+        from ..strategies.base import BaseStrategy
+        class MockStrategy(BaseStrategy):
+             def initialize(self): pass
+             def on_data(self, data): pass
+        strategy_class = MockStrategy
+
+    # Run Engine
+    engine = BacktestEngine(strategy_class)
+    result = engine.run(duration_minutes=120) # Test 2 hours
+    
     return {
         "strategy_id": strategy_id,
-        "total_return": f"{(current_eq/1000000 - 1) * 100:.2f}%",
-        "win_rate": f"{random.randint(40, 70)}%",
-        "max_drawdown": f"-{random.randint(5, 20)}%",
-        "chart_data": equity
+        "total_return": result['total_return'],
+        "win_rate": result['win_rate'],
+        "max_drawdown": result['max_drawdown'],
+        "chart_data": result['chart_data'],
+        "logs": result['logs']
     }
