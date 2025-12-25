@@ -20,6 +20,13 @@ if ! python3 -m pip --version &> /dev/null; then
     exit 1
 fi
 
+# Check for libpq-dev (Required for psycopg2)
+if ! dpkg -s libpq-dev >/dev/null 2>&1; then
+    echo "Error: libpq-dev is not installed."
+    echo "Please run: sudo apt install -y libpq-dev"
+    exit 1
+fi
+
 # Install PM2 globally if not installed
 if ! command -v pm2 &> /dev/null; then
     echo "PM2 not found. Installing global PM2..."
