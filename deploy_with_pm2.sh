@@ -28,7 +28,7 @@ fi
 # Install dependencies if needed (optional but good practice)
 echo "Installing backend dependencies..."
 # Backend: system python
-pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || pip install -r backend/requirements.txt
+python3 -m pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || python3 -m pip install -r backend/requirements.txt
 
 echo "Installing frontend dependencies..."
 cd frontend && npm install && cd ..
