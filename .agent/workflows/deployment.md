@@ -8,8 +8,16 @@ This workflow defines the standard operating procedure for developing, testing, 
 
 ## 1. Local Development & Testing
 
-1.  **Start Services**:
-    Always use PM2 to manage services locally to match the server environment.
+1.  **Start Services (Unified Script)**:
+    Use the provided script which handles everything (installation, updates, starting).
+    ```bash
+    ./deploy_with_pm2.sh
+    ```
+    *   **Features**:
+        *   Automatically uses local `tools/node` if global `npm` is missing.
+        *   Installs/Updates `pm2` automatically.
+    
+    *   **Manual Start (Alternative)**:
     ```bash
     pm2 start ecosystem.config.cjs
     ```

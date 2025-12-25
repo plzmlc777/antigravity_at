@@ -4,6 +4,9 @@
 echo "Updating code from git..."
 git pull
 
+# Add local tools to PATH if they exist
+export PATH="$(pwd)/tools/node/bin:$PATH"
+
 # Check for npm
 if ! command -v npm &> /dev/null; then
     echo "Error: npm is not installed. Please install Node.js and npm."

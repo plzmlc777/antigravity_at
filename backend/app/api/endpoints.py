@@ -357,7 +357,9 @@ async def conditional_order(
             status="PENDING",
             # Trailing Stop specific
             trailing_percent=order.trailing_percent if order.condition_type == "TRAILING_STOP" else None,
-            highest_price=order.trigger_price if order.condition_type == "TRAILING_STOP" else None # Initialize High Water Mark
+            highest_price=order.trigger_price if order.condition_type == "TRAILING_STOP" else None, # Initialize High Water Mark
+            # System Mode
+            mode=settings.TRADING_MODE.upper()
         )
         db.add(cond_order)
         db.commit()
@@ -414,3 +416,30 @@ async def delete_bot(bot_id: str):
 async def get_auto_trading_status():
     from ..core.bot_manager import bot_manager
     return bot_manager.get_status()
+
+@router.get("/orders/conditions/active")
+async def get_active_conditions(db: Session = Depends(get_db)):
+    from ..models.condition import ConditionalOrder, ConditionStatus
+    try:
+        # Filter by both Status AND System Mode
+        conditions = db.query(ConditionalOrder).filter(
+            ConditionalOrder.status == ConditionStatus.PENDING,
+            ConditionalOrder.mode == settings.TRADING_MODE.upper()
+        ).order_by(ConditionalOrder.created_at.desc()).all()
+        return conditions
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/orders/conditions/{condition_id}")
+async def cancel_condition(condition_id: int, db: Session = Depends(get_db)):
+    from ..models.condition import ConditionalOrder, ConditionStatus
+    try:
+        condition = db.query(ConditionalOrder).filter(ConditionalOrder.id == condition_id).first()
+        if not condition:
+            raise HTTPException(status_code=404, detail="Condition not found")
+            
+        condition.status = ConditionStatus.CANCELLED
+        db.commit()
+        return {"status": "success", "message": f"Condition {condition_id} cancelled"}
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))

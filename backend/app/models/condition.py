@@ -45,3 +45,6 @@ class ConditionalOrder(Base):
     # For Trailing Stop (Optional)
     highest_price = Column(Float, nullable=True) # 감시 시작 후 도달한 최고가
     trailing_percent = Column(Float, nullable=True) # 고점 대비 하락 퍼센트
+
+    # System Mode Isolation
+    mode = Column(String, default="MOCK") # REAL or MOCK

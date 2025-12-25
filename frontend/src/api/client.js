@@ -130,6 +130,16 @@ export const setAuthToken = (token) => {
     }
 };
 
+export const getConditionalOrders = async () => {
+    const { data } = await api.get('/orders/conditions/active');
+    return data;
+};
+
+export const cancelConditionalOrder = async (id) => {
+    const { data } = await api.delete(`/orders/conditions/${id}`);
+    return data;
+};
+
 export const setupInterceptors = (onUnauth) => {
     api.interceptors.response.use(
         (response) => response,

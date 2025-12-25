@@ -2,79 +2,53 @@
 description: Safe Database Migration Protocol (PREVENT DATA LOSS)
 ---
 
-# Safe Database Migration Workflow
+# Safe Database Migration Protocol
 
-> [!CAUTION]
-> **NEVER DELETE** the database file (`sql_app.db`) to apply schema changes (e.g., adding columns) if it contains critical user data like **API Keys** or **Trading History**.
-> Doing so will wipe the `exchange_accounts` table and break the application (Error 1501).
+**CRITICAL RULE**: NEVER DELETE, RESET, OR OVERWRITE AN EXISTING DATABASE FILE (`.db`, `.sqlite`, etc.) TO APPLY SCHEMA CHANGES. DATA LOSS IS UNACCEPTABLE.
 
-Follow these steps when you modify the backend `models` and need to update the DB schema.
+## 1. Pre-Migration Safety Check
+Before making ANY changes to the database structure (models):
+1.  **Identify Critical Data**: Check what important data exists (User Accounts, API Keys, Order History).
+    ```bash
+    # Example Check
+    sqlite3 backend/sql_app.db "SELECT count(*) FROM exchange_accounts;"
+    ```
+2.  **Create Backup**: Always create a timestamped backup.
+    ```bash
+    cp backend/sql_app.db backend/sql_app.db.bak_$(date +%s)
+    ```
 
-## 1. Check for Critical Data
-Before making any changes, check if the database contains production data.
-```bash
-sqlite3 backend/sql_app.db "SELECT count(*) FROM exchange_accounts;"
-```
-If count > 0, **DO NOT DELETE THE FILE.**
+## 2. Migration Valid Paths
+Choose one of the following methods. **DO NOT DELETE THE DB.**
 
-## 2. Apply Schema Changes SAFELY
+### Option A: SQL `ALTER TABLE` (Preferred for simple additions)
+If you just need to add a column:
+1.  Connect to the DB.
+2.  Execute the `ALTER TABLE` command.
+    ```python
+    # Example Script
+    from sqlalchemy import create_engine, text
+    engine = create_engine("sqlite:///backend/sql_app.db")
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE table_name ADD COLUMN new_column_name VARCHAR DEFAULT 'default_value'"))
+    ```
 
-### Option A: Use SQL ALTER TABLE (Recommended for simple additions)
-If you just added a new column (e.g., `trailing_percent`), add it manually.
+### Option B: Python Migration Script
+If `ALTER` is complex, write a script to:
+1.  Rename old table (`ALTER TABLE x RENAME TO x_old`).
+2.  Create new table with new schema (`CREATE TABLE x ...`).
+3.  Copy data from old to new (`INSERT INTO x SELECT ... FROM x_old`).
+4.  Drop old table (Only after verification).
 
-1. Open DB shell:
-   ```bash
-   sqlite3 backend/sql_app.db
-   ```
-2. Check existing schema:
-   ```sql
-   .schema conditional_orders
-   ```
-3. Add the new column:
-   ```sql
-   ALTER TABLE conditional_orders ADD COLUMN trailing_percent FLOAT;
-   ALTER TABLE conditional_orders ADD COLUMN highest_price FLOAT;
-   ```
-4. Verify:
-   ```sql
-   .schema conditional_orders
-   ```
-5. Exit:
-   ```sql
-   .quit
-   ```
+## 3. Post-Migration Verification
+1.  **Verify Schema**: Ensure new columns exist.
+2.  **Verify Data**: Ensure OLD data (API keys, etc.) still exists.
+    ```bash
+    sqlite3 backend/sql_app.db "SELECT * FROM exchange_accounts LIMIT 1;"
+    ```
 
-### Option B: Use Migration Tool (Alembic) - *If Configured*
-If Alembic is set up in the project:
-1. Generate migration script:
-   ```bash
-   alembic revision --autogenerate -m "add trailing_percent"
-   ```
-2. Apply migration:
-   ```bash
-   alembic upgrade head
-   ```
-
-## 3. Emergency Reset (Only if strictly necessary)
-If you MUST reset the DB (e.g., unrecoverable schema mismatch), you **MUST BACKUP** the keys first.
-
-1. Export Accounts:
-   ```bash
-   sqlite3 backend/sql_app.db ".mode csv" ".headers on" ".output accounts_backup.csv" "select * from exchange_accounts;" ".quit"
-   ```
-2. Reset DB:
-   ```bash
-   rm backend/sql_app.db
-   # Restart backend to recreate tables
-   ```
-3. Restore Accounts:
-   ```bash
-   sqlite3 backend/sql_app.db ".mode csv" ".import accounts_backup.csv exchange_accounts"
-   ```
-
-## 4. Verify Application State
-After any DB change, verify the status allows trading:
-```bash
-curl http://localhost:8001/api/v1/status
-```
-Ensure specific keys are present and not returning "API ID Null" errors.
+## 4. Emergency Recovery
+If data is lost:
+1.  **Stop Services**: `pm2 stop all`
+2.  **Restore Backup**: `cp backend/sql_app.db.bak_... backend/sql_app.db`
+3.  **Report**: Inform the user immediately.

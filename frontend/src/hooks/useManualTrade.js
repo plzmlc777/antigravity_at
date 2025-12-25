@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { placeManualOrder, placeConditionalOrder, getOutstandingOrders, cancelOrder, getPrice } from '../api/client';
+import {
+    placeManualOrder,
+    placeConditionalOrder,
+    getOutstandingOrders,
+    cancelOrder,
+    getPrice,
+    getConditionalOrders, // New
+    cancelConditionalOrder // New
+} from '../api/client';
 
 export const useManualTrade = (defaultSymbol) => {
+    // ... (Existing State) ...
     const [symbol, setSymbol] = useState(defaultSymbol || '');
     useEffect(() => {
         if (defaultSymbol) setSymbol(defaultSymbol);
@@ -10,55 +19,50 @@ export const useManualTrade = (defaultSymbol) => {
     const [price, setPrice] = useState('');
     const [currentPrice, setCurrentPrice] = useState(null);
     const [orderType, setOrderType] = useState('buy');
-    const [priceType, setPriceType] = useState('limit'); // 'limit' or 'market'
+    const [priceType, setPriceType] = useState('limit');
     const [mode, setMode] = useState('quantity');
     const [value, setValue] = useState('');
 
-    // Watch Order States
-    const [watchOrderType, setWatchOrderType] = useState('buy'); // 'buy' or 'sell'
-    const [conditionType, setConditionType] = useState('BUY_STOP'); // Default
+    // Watch Order States - Conditions
+    const [watchOrderType, setWatchOrderType] = useState('buy');
+    const [conditionType, setConditionType] = useState('BUY_STOP');
     const [triggerPrice, setTriggerPrice] = useState('');
-    const [trailingPercent, setTrailingPercent] = useState(''); // New State for TS
+    const [trailingPercent, setTrailingPercent] = useState('');
 
-    // Effect to set default condition when type changes
+    // Watch Order List State
+    const [watchOrders, setWatchOrders] = useState([]);
+    const [isLoadingWatchOrders, setIsLoadingWatchOrders] = useState(false);
+
+    // ... (Effects) ...
     useEffect(() => {
         if (watchOrderType === 'buy') {
             setConditionType('BUY_STOP');
         } else {
-            setConditionType('STOP_LOSS'); // Default for sell
+            setConditionType('STOP_LOSS');
         }
     }, [watchOrderType]);
 
-    // Advanced Options (Stop Loss / Take Profit)
     const [stopLoss, setStopLoss] = useState({ enabled: false, percent: 3.0 });
     const [takeProfit, setTakeProfit] = useState({ enabled: false, percent: 5.0 });
 
-    // Status for logical flow: 'idle', 'processing', 'success', 'error', 'cancelled'
     const [orderStatus, setOrderStatus] = useState('idle');
     const [errorMessage, setErrorMessage] = useState(null);
     const [orderDetails, setOrderDetails] = useState(null);
 
-    // Outstanding Orders
     const [outstandingOrders, setOutstandingOrders] = useState([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
-    // Refs for cancellation
     const abortControllerRef = useRef(null);
     const simulationTimeoutsRef = useRef([]);
 
     const handleCancel = (e) => {
         if (e) e.preventDefault();
-
-        // Cancel Real Order
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
             abortControllerRef.current = null;
         }
-
-        // Cancel Simulation
         simulationTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
         simulationTimeoutsRef.current = [];
-
         setOrderStatus('cancelled');
     };
 
@@ -67,21 +71,15 @@ export const useManualTrade = (defaultSymbol) => {
         setOrderStatus('processing');
         setErrorMessage(null);
         setOrderDetails(null);
-
-        // Abort previous request if any
         if (abortControllerRef.current) abortControllerRef.current.abort();
-
-        // Create new controller
         const controller = new AbortController();
         abortControllerRef.current = controller;
 
         try {
-            // Simulate a small delay
             await new Promise(r => {
                 const id = setTimeout(r, 800);
                 simulationTimeoutsRef.current.push(id);
             });
-
             if (controller.signal.aborted) return;
 
             const payload = {
@@ -98,10 +96,7 @@ export const useManualTrade = (defaultSymbol) => {
             };
 
             const data = await placeManualOrder(payload, { signal: controller.signal });
-
-            if (!data) {
-                throw new Error("No response data received from server");
-            }
+            if (!data) throw new Error("No response data");
 
             setOrderDetails({
                 filled: data.quantity || 0,
@@ -114,19 +109,12 @@ export const useManualTrade = (defaultSymbol) => {
                 simulationTimeoutsRef.current.push(id);
             });
 
-            if (!controller.signal.aborted) {
-                setOrderStatus('success');
-            }
+            if (!controller.signal.aborted) setOrderStatus('success');
         } catch (error) {
             if (error.name === 'CanceledError' || error.name === 'AbortError') {
                 setOrderStatus('cancelled');
             } else {
-                const msg = error.response?.data?.detail
-                    ? (typeof error.response.data.detail === 'object'
-                        ? JSON.stringify(error.response.data.detail)
-                        : error.response.data.detail)
-                    : error.message || 'Order failed';
-                setErrorMessage(msg);
+                setErrorMessage(error.response?.data?.detail || error.message || 'Order failed');
                 setOrderStatus('error');
             }
         } finally {
@@ -145,8 +133,8 @@ export const useManualTrade = (defaultSymbol) => {
                 symbol: symbol,
                 condition_type: conditionType,
                 trigger_price: parseFloat(triggerPrice),
-                order_type: watchOrderType, // 'buy' or 'sell'
-                price_type: 'market', // Trigger -> Market for certainty
+                order_type: watchOrderType,
+                price_type: 'market',
                 mode: mode,
                 quantity: mode === 'quantity' ? parseFloat(value) : null,
                 amount: mode === 'amount' ? parseFloat(value) : null,
@@ -154,16 +142,14 @@ export const useManualTrade = (defaultSymbol) => {
             };
 
             const data = await placeConditionalOrder(payload);
-
-            setOrderDetails({
-                message: data.message,
-                id: data.id || 'N/A'
-            });
+            setOrderDetails({ message: data.message, id: data.id || 'N/A' });
             setOrderStatus('success');
 
+            // Refresh Watch List if available
+            fetchWatchOrders();
+
         } catch (error) {
-            const msg = error.response?.data?.detail || error.message || 'Watch Order Failed';
-            setErrorMessage(msg);
+            setErrorMessage(error.response?.data?.detail || error.message || 'Watch Order Failed');
             setOrderStatus('error');
         }
     };
@@ -171,30 +157,17 @@ export const useManualTrade = (defaultSymbol) => {
     const handleSimulation = async () => {
         setOrderStatus('processing');
         setErrorMessage(null);
-        setOrderDetails({ filled: 0, total: 100, avgPrice: 0 }); // Init
-
-        simulationTimeoutsRef.current = []; // Reset timeouts
-
+        setOrderDetails({ filled: 0, total: 100, avgPrice: 0 });
+        simulationTimeoutsRef.current = [];
         const steps = [
             { delay: 1000, action: () => setOrderDetails({ filled: 30, total: 100, avgPrice: 75000 }) },
             { delay: 1000, action: () => setOrderDetails({ filled: 80, total: 100, avgPrice: 75200 }) },
-            {
-                delay: 1000, action: () => {
-                    setOrderDetails({ filled: 100, total: 100, avgPrice: 75100 });
-                    setOrderStatus('success');
-                }
-            }
+            { delay: 1000, action: () => { setOrderDetails({ filled: 100, total: 100, avgPrice: 75100 }); setOrderStatus('success'); } }
         ];
-
-        // Execute steps sequentially, checking for cancellation implicitly via timeouts clearing
         let accumulatedDelay = 0;
         for (const step of steps) {
             accumulatedDelay += step.delay;
-            const timeoutId = setTimeout(() => {
-                // If this runs, it means it wasn't cleared (cancelled)
-                step.action();
-            }, accumulatedDelay);
-            simulationTimeoutsRef.current.push(timeoutId);
+            simulationTimeoutsRef.current.push(setTimeout(step.action, accumulatedDelay));
         }
     };
 
@@ -210,21 +183,41 @@ export const useManualTrade = (defaultSymbol) => {
         }
     }, []);
 
+    const fetchWatchOrders = useCallback(async () => {
+        setIsLoadingWatchOrders(true);
+        try {
+            const data = await getConditionalOrders();
+            setWatchOrders(data || []);
+        } catch (e) {
+            console.error("Failed to fetch watch orders", e);
+        } finally {
+            setIsLoadingWatchOrders(false);
+        }
+    }, []);
+
     const handleCancelOrder = async (order) => {
         if (!confirm(`Cancel order ${order.order_no} (${order.name})?`)) return;
-
         try {
             await cancelOrder({
                 order_no: order.order_no,
                 symbol: order.symbol,
-                quantity: order.unfilled_qty, // Usually cancel all remaining
+                quantity: order.unfilled_qty,
                 origin_order_no: order.origin_order_no
             });
-            // Refresh list
             fetchOutstanding();
         } catch (e) {
-            console.error("Cancel failed", e);
             alert(e.response?.data?.detail || "Failed to cancel order");
+        }
+    };
+
+    const handleCancelWatchOrder = async (id) => {
+        if (!confirm(`Cancel Watch Order #${id}?`)) return;
+        try {
+            await cancelConditionalOrder(id);
+            fetchWatchOrders();
+        } catch (e) {
+            console.error("Failed to cancel watch order", e);
+            alert(e.response?.data?.detail || "Failed to cancel watch order");
         }
     };
 
@@ -232,29 +225,23 @@ export const useManualTrade = (defaultSymbol) => {
         if (!symbol) return;
         try {
             const data = await getPrice(symbol);
-            console.log("Fetched Price:", data); // Debug
             if (data && typeof data.price === 'number') {
                 setCurrentPrice(data.price);
                 return data.price;
             }
         } catch (e) {
-            console.error("Failed to fetch price", e);
             setCurrentPrice(null);
         }
-        return null; // Return null if failed or no price
+        return null;
     };
 
     const resetStatus = () => setOrderStatus('idle');
 
-    // Auto-fetch price when symbol changes
     useEffect(() => {
-        if (symbol && symbol.length >= 6) {
-            fetchPrice();
-        }
+        if (symbol && symbol.length >= 6) fetchPrice();
     }, [symbol]);
 
     return {
-        // State
         symbol, setSymbol,
         price, setPrice,
         orderType, setOrderType,
@@ -266,14 +253,17 @@ export const useManualTrade = (defaultSymbol) => {
         orderStatus,
         errorMessage,
         orderDetails,
-
-        // Watch Specific
         conditionType, setConditionType,
         triggerPrice, setTriggerPrice,
         watchOrderType, setWatchOrderType,
         trailingPercent, setTrailingPercent,
 
-        // Actions
+        // Watch List Exports
+        watchOrders,
+        isLoadingWatchOrders,
+        fetchWatchOrders,
+        handleCancelWatchOrder,
+
         handleSubmit,
         handleWatchSubmit,
         handleCancel,
@@ -281,8 +271,6 @@ export const useManualTrade = (defaultSymbol) => {
         resetStatus,
         fetchPrice,
         currentPrice,
-
-        // Outstanding Order Exports
         outstandingOrders,
         fetchOutstanding,
         handleCancelOrder,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import OrderProgress from './OrderProgress';
 import OutstandingOrders from './OutstandingOrders';
+import WatchList from './WatchList';
 import { useManualTrade } from '../hooks/useManualTrade';
 
 const ManualTrade = ({ defaultSymbol }) => {
@@ -26,41 +27,52 @@ const ManualTrade = ({ defaultSymbol }) => {
         conditionType, setConditionType,
         triggerPrice, setTriggerPrice,
         watchOrderType, setWatchOrderType,
+        trailingPercent, setTrailingPercent,
 
         currentPrice, fetchPrice,
         outstandingOrders, fetchOutstanding, handleCancelOrder, isLoadingOrders,
-        trailingPercent, setTrailingPercent
+
+        // Watch List Exports
+        watchOrders, fetchWatchOrders, handleCancelWatchOrder, isLoadingWatchOrders
     } = useManualTrade(defaultSymbol);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [activeTab, setActiveTab] = useState('instant'); // 'instant', 'watch', 'outstanding'
+    const [activeTab, setActiveTab] = useState('instant'); // 'instant', 'watch', 'watchlist', 'outstanding'
 
-    // Auto refresh outstanding when tab active
+    // Auto refresh lists when tab active
     React.useEffect(() => {
         if (activeTab === 'outstanding') {
             fetchOutstanding();
+        } else if (activeTab === 'watchlist') {
+            fetchWatchOrders();
         }
-    }, [activeTab, fetchOutstanding]);
+    }, [activeTab, fetchOutstanding, fetchWatchOrders]);
 
     return (
         <div className="p-1">
             {/* Tabs */}
-            <div className="flex space-x-4 mb-4 border-b border-white/10 pb-2">
+            <div className="flex space-x-4 mb-4 border-b border-white/10 pb-2 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('instant')}
-                    className={`pb-1 px-2 ${activeTab === 'instant' ? 'text-blue-400 border-b-2 border-blue-400 font-bold' : 'text-gray-400 hover:text-white'}`}
+                    className={`pb-1 px-2 whitespace-nowrap ${activeTab === 'instant' ? 'text-blue-400 border-b-2 border-blue-400 font-bold' : 'text-gray-400 hover:text-white'}`}
                 >
                     Instant Order
                 </button>
                 <button
                     onClick={() => setActiveTab('watch')}
-                    className={`pb-1 px-2 ${activeTab === 'watch' ? 'text-purple-400 border-b-2 border-purple-400 font-bold' : 'text-gray-400 hover:text-white'}`}
+                    className={`pb-1 px-2 whitespace-nowrap ${activeTab === 'watch' ? 'text-purple-400 border-b-2 border-purple-400 font-bold' : 'text-gray-400 hover:text-white'}`}
                 >
-                    Watch Order
+                    Register Watch
+                </button>
+                <button
+                    onClick={() => setActiveTab('watchlist')}
+                    className={`pb-1 px-2 whitespace-nowrap ${activeTab === 'watchlist' ? 'text-green-400 border-b-2 border-green-400 font-bold' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Watch List
                 </button>
                 <button
                     onClick={() => setActiveTab('outstanding')}
-                    className={`pb-1 px-2 ${activeTab === 'outstanding' ? 'text-yellow-400 border-b-2 border-yellow-400 font-bold' : 'text-gray-400 hover:text-white'}`}
+                    className={`pb-1 px-2 whitespace-nowrap ${activeTab === 'outstanding' ? 'text-yellow-400 border-b-2 border-yellow-400 font-bold' : 'text-gray-400 hover:text-white'}`}
                 >
                     Outstanding
                 </button>
@@ -72,7 +84,6 @@ const ManualTrade = ({ defaultSymbol }) => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 flex justify-between">
-                                Symbol
                                 Symbol
                                 <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer hover:text-blue-300" onClick={fetchPrice}>
                                     {currentPrice !== null ? `${currentPrice.toLocaleString()} KRW` : 'Get Price'} ↻
@@ -194,8 +205,7 @@ const ManualTrade = ({ defaultSymbol }) => {
                                             value={stopLoss.percent}
                                             onChange={(e) => setStopLoss({ ...stopLoss, percent: parseFloat(e.target.value) || 0 })}
                                             disabled={!stopLoss.enabled}
-                                            className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${stopLoss.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'
-                                                }`}
+                                            className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${stopLoss.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'}`}
                                         />
                                         <span className="text-xs text-gray-500 w-4">%</span>
                                     </div>
@@ -219,8 +229,7 @@ const ManualTrade = ({ defaultSymbol }) => {
                                             value={takeProfit.percent}
                                             onChange={(e) => setTakeProfit({ ...takeProfit, percent: parseFloat(e.target.value) || 0 })}
                                             disabled={!takeProfit.enabled}
-                                            className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${takeProfit.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'
-                                                }`}
+                                            className={`w-full bg-black/20 border text-right px-2 pl-4 py-1.5 text-xs rounded transition-colors ${takeProfit.enabled ? 'border-gray-600 text-white' : 'border-transparent text-gray-600 cursor-not-allowed'}`}
                                         />
                                         <span className="text-xs text-gray-500 w-4">%</span>
                                     </div>
@@ -448,6 +457,25 @@ const ManualTrade = ({ defaultSymbol }) => {
                         )}
                     </div>
                 </form>
+            ) : activeTab === 'watchlist' ? (
+                /* Watch List Tab */
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-bold text-gray-300">Active Watch Orders</h3>
+                        <button
+                            onClick={fetchWatchOrders}
+                            disabled={isLoadingWatchOrders}
+                            className="text-xs text-green-400 hover:text-green-300 flex items-center gap-1"
+                        >
+                            <span className={isLoadingWatchOrders ? "animate-spin" : ""}>↻</span> Refresh
+                        </button>
+                    </div>
+                    <WatchList
+                        orders={watchOrders}
+                        onCancel={handleCancelWatchOrder}
+                        isLoading={isLoadingWatchOrders}
+                    />
+                </div>
             ) : (
                 /* Outstanding Orders Tab */
                 <div className="space-y-4">
