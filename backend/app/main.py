@@ -7,6 +7,7 @@ from .db.base import Base
 from .db.session import engine
 from .core.bot_manager import bot_manager
 from .core.condition_watcher import condition_watcher
+from .models.bot import TradingBotModel # Register Model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     
     # Start Services
+    bot_manager.initialize() # Load bots after DB creation
     await condition_watcher.start()
     
     yield

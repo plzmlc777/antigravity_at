@@ -135,10 +135,14 @@ class BotManager:
     def __init__(self):
         self.bots: Dict[str, TradingBot] = {}
         self.adapter = KiwoomRealAdapter()
-        self._load_bots_from_db()
+        # self._load_bots_from_db() # Removed to prevent early DB access
 
-    def _load_bots_from_db(self):
+    def initialize(self):
+        """
+        Load bots from DB. Should be called after app startup and table creation.
+        """
         from ..db.session import SessionLocal
+
         from ..models.bot import TradingBotModel
         
         db = SessionLocal()
