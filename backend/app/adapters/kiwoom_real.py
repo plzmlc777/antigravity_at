@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
+from ..core.token_manager import KiwoomTokenManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,36 +38,15 @@ class KiwoomRealAdapter(ExchangeInterface):
 
     async def _ensure_token(self):
         """
-        Fetch Access Token using TR: au10001
+        Fetch Access Token using TokenManager (Singleton)
         """
-        if self.access_token:
-            return
-
-        url = f"{self.base_url}/oauth2/token"
+        # Delegate to Singleton Manager
+        self.access_token = await KiwoomTokenManager.get_instance().get_token(
+            self.app_key, self.secret_key
+        )
         
-        headers = {
-            **self._common_headers,
-            "api-id": "au10001"
-        }
-        
-        payload = {
-            "grant_type": "client_credentials",
-            "appkey": self.app_key,
-            "secretkey": self.secret_key
-        }
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                self.access_token = data.get("token")
-                logger.info("Kiwoom Access Token acquired successfully")
-            except Exception as e:
-                logger.error(f"Failed to get Kiwoom Token: {e}")
-                # We do not raise here to avoid crashing app startup, 
-                # but subsequent calls will fail.
+        if not self.access_token:
+             logger.error("Failed to acquire token from TokenManager")
 
     def _get_auth_headers(self, tr_id: str) -> Dict[str, str]:
         if not self.access_token:
