@@ -73,6 +73,11 @@ def delete_account(
         
     db.delete(account)
     db.commit()
+    
+    # Invalidate Cache
+    from ..core.account_cache import AccountCache
+    AccountCache.get_instance().invalidate(current_user.id)
+    
     return {"status": "success"}
 
 @router.put("/{account_id}/activate")
@@ -98,5 +103,9 @@ def activate_account(
     # 3. Activate target account
     account.is_active = True
     db.commit()
+    
+    # Invalidate Cache
+    from ..core.account_cache import AccountCache
+    AccountCache.get_instance().invalidate(current_user.id)
     
     return {"status": "success", "message": f"Account {account.account_name} activated"}

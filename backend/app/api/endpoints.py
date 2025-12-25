@@ -14,20 +14,43 @@ router = APIRouter()
 # Dependency Injection for Exchange Adapter
 def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
     if settings.TRADING_MODE.upper() == "REAL":
-        # Fetch active account for current user/system
-        # Note: In a multi-user system, we'd need current_user here. 
-        # But since Trading Bot often runs in background, we might need a 'System User' or just the first active account.
-        # For this MVP, we pick the first active account found in DB.
+        # 0. Check Cache First (Using a default user_id=1 for single-user system MVP)
+        # In multi-user, we'd extract user_id from token/request
+        SYSTEM_USER_ID = 1 
         
+        from ..core.account_cache import AccountCache
+        cache = AccountCache.get_instance()
+        cached_config = cache.get_active_account_config(SYSTEM_USER_ID)
+        
+        if cached_config:
+            return KiwoomRealAdapter(
+                app_key=cached_config['app_key'],
+                secret_key=cached_config['secret_key'],
+                account_no=cached_config['account_no'],
+                account_name=cached_config['account_name']
+            )
+
+        # 1. Fetch active account from DB
         from ..models.account import ExchangeAccount
         from ..core import security
         
+        # Assume user_id=1 for now, or pick first active
         active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
         
         if active_account:
             try:
                 decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
                 decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
+                
+                # 2. Update Cache
+                config = {
+                    'app_key': decrypted_app,
+                    'secret_key': decrypted_secret,
+                    'account_no': active_account.account_number,
+                    'account_name': active_account.account_name
+                }
+                cache.set_active_account_config(SYSTEM_USER_ID, config)
+                
                 return KiwoomRealAdapter(
                     app_key=decrypted_app,
                     secret_key=decrypted_secret,
