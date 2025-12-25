@@ -178,64 +178,29 @@ async def manual_order(
         # Limit Order
         current_price = order.price # Use input price for calculation
     
-    # 1. Calculate Quantity based on Mode
-    if order.mode == "quantity":
-        if order.quantity is None or order.quantity <= 0:
-             raise HTTPException(status_code=400, detail="Quantity is required for 'quantity' mode")
-        quantity = order.quantity
-        
-    elif order.mode == "amount":
-        if order.amount is None or order.amount <= 0:
-            raise HTTPException(status_code=400, detail="Amount is required for 'amount' mode")
-        
-        calc_basis_price = current_price if order.price_type.lower() == "market" else order.price
-        
-        if calc_basis_price <= 0:
-             raise HTTPException(status_code=400, detail="Price must be > 0 for calculation")
-             
-        quantity = int(order.amount // calc_basis_price)
-        
-    elif order.mode == "percent_cash":
-        # Only valid for BUY
-        if order.order_type.lower() != "buy":
-             raise HTTPException(status_code=400, detail="'percent_cash' is only valid for BUY orders")
-             
-        if order.percent is None or not (0 < order.percent <= 1):
-             raise HTTPException(status_code=400, detail="Percent must be between 0 and 1")
-             
-        balance_info = await adapter.get_balance()
-        cash_data = balance_info.get("cash", {})
-        current_cash = cash_data.get("KRW", 0)
-        
-        # Determine Safety Margin
-        # Market Order: Requires margin based on Upper Limit Price (+30%), so we use conservative 0.75
-        # Limit Order: Based on specific price, so we use 0.98 for fees
-        margin = 0.75 if order.price_type.lower() == "market" else 0.98
-        
-        target_amount = current_cash * order.percent * margin
-        
-        calc_basis_price = current_price if order.price_type.lower() == "market" else order.price
-        if calc_basis_price <= 0:
-             raise HTTPException(status_code=400, detail="Price must be > 0 for calculation")
-             
-        quantity = int(target_amount // calc_basis_price)
-        
-    elif order.mode == "percent_holding":
-        # Only valid for SELL
-        if order.order_type.lower() != "sell":
-             raise HTTPException(status_code=400, detail="'percent_holding' is only valid for SELL orders")
+    # 1. Calculate Quantity using OrderService
+    from ..services.order_service import OrderService
+    
+    # Check if balance info is needed
+    balance_info = None
+    if order.mode in ["percent_cash", "percent_holding"]:
+         balance_info = await adapter.get_balance()
 
-        if order.percent is None or not (0 < order.percent <= 1):
-             raise HTTPException(status_code=400, detail="Percent must be between 0 and 1")
-             
-        balance_info = await adapter.get_balance()
-        holdings = balance_info.get("holdings", {})
-        current_qty = holdings.get(order.symbol, 0)
-        
-        quantity = int(current_qty * order.percent)
-        
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown mode: {order.mode}")
+    try:
+        quantity = OrderService.calculate_quantity(
+            mode=order.mode,
+            current_price=current_price,
+            balance_info=balance_info,
+            order_price=order.price,
+            price_type=order.price_type,
+            quantity=order.quantity,
+            amount=order.amount,
+            percent=order.percent,
+            order_type=order.order_type,
+            symbol=order.symbol
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Calculated quantity is 0 or invalid")
