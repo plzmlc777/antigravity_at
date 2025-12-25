@@ -23,3 +23,4 @@ backend/sql_app.db
 # Logs
 *.log
 tools/node/bin/pm2*
+*.db.pre_pg_migration
