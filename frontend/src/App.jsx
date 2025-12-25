@@ -3,6 +3,7 @@ import Dashboard from './views/Dashboard';
 import ManualTrading from './views/ManualTrading';
 import AutoTrading from './views/AutoTrading';
 import Login from './views/Login';
+import StrategyView from './views/StrategyView';
 import Settings from './views/Settings';
 import StatusCard from './components/StatusCard';
 import AccountStatusPanel from './components/AccountStatusPanel';
@@ -81,6 +82,7 @@ function AppContent() {
                     <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/auto" element={<RequireAuth><AutoTrading /></RequireAuth>} />
+                    <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} /> {/* New Route */}
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                 </Routes>
             </main>

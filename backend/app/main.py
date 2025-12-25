@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import endpoints, auth, accounts
+from .api import endpoints, auth, accounts, mock_strategies
 from .db.base import Base
 from .db.session import engine
 from .core.bot_manager import bot_manager
@@ -58,3 +58,4 @@ async def health_check():
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["accounts"])
 app.include_router(endpoints.router, prefix="/api/v1", tags=["trading"])
+app.include_router(mock_strategies.router, prefix="/api/v1/strategies", tags=["strategies"])
