@@ -8,6 +8,7 @@ from .db.session import engine
 from .core.bot_manager import bot_manager
 from .core.condition_watcher import condition_watcher
 from .models.bot import TradingBotModel # Register Model
+from .core.http_client import HttpClientManager # New Import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     
     # Start Services
+    await HttpClientManager.get_instance().start() # Global Client
     bot_manager.initialize() # Load bots after DB creation
     await condition_watcher.start()
     
@@ -29,6 +31,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown Logic
     logger.info("Shutting down...")
+    await HttpClientManager.get_instance().stop() # Close Global Client
     # await bot_manager.stop_all() # Ensure bots are stopped
     await condition_watcher.stop() # Stop watcher
 

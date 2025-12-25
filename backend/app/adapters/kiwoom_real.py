@@ -1,4 +1,4 @@
-import httpx
+from ..core.http_client import HttpClientManager
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -71,27 +71,27 @@ class KiwoomRealAdapter(ExchangeInterface):
             "stk_cd": symbol
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                # 'cur_prc' maps to Current Price
-                price_str = data.get("cur_prc", "0").replace("+", "").replace("-", "")
-                
-                return {
-                    "symbol": symbol,
-                    "price": float(price_str),
-                    "name": data.get("stk_nm", symbol) # Return name or code if missing
-                }
-            except Exception as e:
-                logger.error(f"Error fetching price for {symbol}: {e}")
-                return {
-                    "symbol": symbol,
-                    "price": 0.0,
-                    "name": "Unknown"
-                }
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            # 'cur_prc' maps to Current Price
+            price_str = data.get("cur_prc", "0").replace("+", "").replace("-", "")
+            
+            return {
+                "symbol": symbol,
+                "price": float(price_str),
+                "name": data.get("stk_nm", symbol) # Return name or code if missing
+            }
+        except Exception as e:
+            logger.error(f"Error fetching price for {symbol}: {e}")
+            return {
+                "symbol": symbol,
+                "price": 0.0,
+                "name": "Unknown"
+            }
 
     async def get_balance(self) -> Dict[str, Any]:
         """
@@ -102,59 +102,52 @@ class KiwoomRealAdapter(ExchangeInterface):
         url = f"{self.base_url}/api/dostk/acnt"
         headers = self._get_auth_headers(tr_id="ka01690")
         
-        # Date format: YYYYMMDD
         today_str = datetime.now().strftime("%Y%m%d")
         
         payload = {
             "qry_dt": today_str
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                # Parse Response
-                # 'dbst_bal': Deposit Balance (Cash)
-                # 'day_bal_rt': List of holdings
-                
-                # DEBUG: Log fields to find correct keys
-                if len(data.get("day_bal_rt", [])) > 0:
-                     print(f"DEBUG HOLDING ITEM: {data['day_bal_rt'][0]}", flush=True)
-                
-                # Helper for safe float/int conversion
-                def safe_float(v):
-                    if not v: return 0.0
-                    return float(str(v).replace("+", "").replace("-", ""))
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Parse Response logic (omitted for brevity, assume similar structure)
+            # 'dbst_bal': Deposit Balance (Cash)
+            
+            def safe_float(v):
+                if not v: return 0.0
+                return float(str(v).replace("+", "").replace("-", ""))
 
-                def safe_int(v):
-                    if not v: return 0
-                    return int(str(v).replace("+", "").replace("-", ""))
-                
-                cash_balance = safe_float(data.get("dbst_bal", "0"))
-                holdings_data = data.get("day_bal_rt", [])
-                
-                holdings = {}
-                for item in holdings_data:
-                    code = item.get("stk_cd")
-                    qty = safe_int(item.get("rmnd_qty", "0"))
-                    if code and qty > 0:
-                        holdings[code] = {
-                            "quantity": qty,
-                            "avg_price": safe_float(item.get("buy_uv", "0")),        # Corrected Field
-                            "current_price": safe_float(item.get("cur_prc", "0")),
-                            "profit_rate": safe_float(item.get("prft_rt", "0")),     # Corrected Field
-                            "profit_amount": safe_float(item.get("evltv_prft", "0")) # Corrected Field
-                        }
-                
-                return {
-                    "cash": {"KRW": cash_balance},
-                    "holdings": holdings
-                }
-            except Exception as e:
-                logger.error(f"Error fetching balance: {e}")
-                return {"cash": {"KRW": 0}, "holdings": {}}
+            def safe_int(v):
+                if not v: return 0
+                return int(str(v).replace("+", "").replace("-", ""))
+            
+            cash_balance = safe_float(data.get("dbst_bal", "0"))
+            holdings_data = data.get("day_bal_rt", [])
+            
+            holdings = {}
+            for item in holdings_data:
+                code = item.get("stk_cd")
+                qty = safe_int(item.get("rmnd_qty", "0"))
+                if code and qty > 0:
+                    holdings[code] = {
+                        "quantity": qty,
+                        "avg_price": safe_float(item.get("buy_uv", "0")),
+                        "current_price": safe_float(item.get("cur_prc", "0")),
+                        "profit_rate": safe_float(item.get("prft_rt", "0")),
+                        "profit_amount": safe_float(item.get("evltv_prft", "0"))
+                    }
+            
+            return {
+                "cash": {"KRW": cash_balance},
+                "holdings": holdings
+            }
+        except Exception as e:
+            logger.error(f"Error fetching balance: {e}")
+            return {"cash": {"KRW": 0}, "holdings": {}}
 
     async def place_buy_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
         """
@@ -189,7 +182,7 @@ class KiwoomRealAdapter(ExchangeInterface):
         # If price is 0, assume Market Order (trade_type '3')
         if price == 0:
             trade_type = "3"
-            price_str = "" # Market order doesn't need price
+            price_str = "" 
         else:
             price_str = str(int(price))
 
@@ -202,41 +195,40 @@ class KiwoomRealAdapter(ExchangeInterface):
             "cond_uv": ""
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                if data.get("return_code") == 0:
-                     return {
-                        "status": "success",
-                        "order_id": data.get("ord_no"),
-                        "symbol": symbol,
-                        "side": "buy" if tr_id == "kt10000" else "sell",
-                        "price": price,
-                        "quantity": quantity
-                    }
-                else:
-                    return {
-                        "status": "failed",
-                        "message": data.get("return_msg", "Unknown Error")
-                    }
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("return_code") == 0:
+                 return {
+                    "status": "success",
+                    "order_id": data.get("ord_no"),
+                    "symbol": symbol,
+                    "side": "buy" if tr_id == "kt10000" else "sell",
+                    "price": price,
+                    "quantity": quantity
+                }
+            else:
+                return {
+                    "status": "failed",
+                    "message": data.get("return_msg", "Unknown Error")
+                }
 
-            except Exception as e:
-                logger.error(f"Order placement failed: {e}")
-                return {"status": "failed", "message": str(e)}
+        except Exception as e:
+            logger.error(f"Order placement failed: {e}")
+            return {"status": "failed", "message": str(e)}
 
     async def get_outstanding_orders(self) -> list:
         """
-        Get Outstanding Orders using TR: ka10075 (미체결요청)
+        Get Outstanding Orders using TR: ka10075
         """
         await self._ensure_token()
         
         url = f"{self.base_url}/api/dostk/acnt"
         headers = self._get_auth_headers(tr_id="ka10075")
         
-        # Request All (0), Buy/Sell All (0), Integrated Exchange (0)
         payload = {
             "all_stk_tp": "0", 
             "trde_tp": "0",
@@ -244,40 +236,38 @@ class KiwoomRealAdapter(ExchangeInterface):
             "stex_tp": "0" 
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                # 'oso' list contains outstanding orders
-                orders_data = data.get("oso", [])
-                
-                outstanding_orders = []
-                for item in orders_data:
-                    # Clean up data
-                    def clean(v): return str(v).strip()
-                    def safe_int(v): return int(str(v).replace("+","").replace("-","")) if v else 0
-                    def safe_float(v): return float(str(v).replace("+","").replace("-","")) if v else 0.0
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            orders_data = data.get("oso", [])
+            
+            outstanding_orders = []
+            for item in orders_data:
+                def clean(v): return str(v).strip()
+                def safe_int(v): return int(str(v).replace("+","").replace("-","")) if v else 0
+                def safe_float(v): return float(str(v).replace("+","").replace("-","")) if v else 0.0
 
-                    outstanding_orders.append({
-                        "order_no": clean(item.get("ord_no")),
-                        "origin_order_no": clean(item.get("orig_ord_no")), # For cancel reference
-                        "symbol": clean(item.get("stk_cd")),
-                        "name": clean(item.get("stk_nm")),
-                        "order_type": clean(item.get("trde_tp")), # e.g '시장가', '보통'
-                        "side": clean(item.get("io_tp_nm")), # e.g '매수', '매도'
-                        "order_price": safe_float(item.get("ord_pric")),
-                        "order_qty": safe_int(item.get("ord_qty")),
-                        "unfilled_qty": safe_int(item.get("oso_qty")), # 미체결수량
-                        "time": clean(item.get("tm"))
-                    })
-                    
-                return outstanding_orders
+                outstanding_orders.append({
+                    "order_no": clean(item.get("ord_no")),
+                    "origin_order_no": clean(item.get("orig_ord_no")),
+                    "symbol": clean(item.get("stk_cd")),
+                    "name": clean(item.get("stk_nm")),
+                    "order_type": clean(item.get("trde_tp")),
+                    "side": clean(item.get("io_tp_nm")),
+                    "order_price": safe_float(item.get("ord_pric")),
+                    "order_qty": safe_int(item.get("ord_qty")),
+                    "unfilled_qty": safe_int(item.get("oso_qty")),
+                    "time": clean(item.get("tm"))
+                })
+                
+            return outstanding_orders
 
-            except Exception as e:
-                logger.error(f"Error fetching outstanding orders: {e}")
-                return []
+        except Exception as e:
+            logger.error(f"Error fetching outstanding orders: {e}")
+            return []
 
     async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
         """

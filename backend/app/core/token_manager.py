@@ -37,6 +37,11 @@ class KiwoomTokenManager:
         return await self._fetch_new_token(app_key, secret_key)
         
     async def _fetch_new_token(self, app_key: str, secret_key: str) -> Optional[str]:
+        # Import inside method to avoid circular import if needed, 
+        # or use the one imported at top if safe.
+        # Assuming http_client.py is in same package or accessible.
+        from .http_client import HttpClientManager
+        
         url = f"{self.base_url}/oauth2/token"
         headers = {
             "Content-Type": "application/json;charset=UTF-8",
@@ -49,21 +54,22 @@ class KiwoomTokenManager:
             "secretkey": secret_key
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                self.access_token = data.get("token")
-                expires_in = int(data.get("expires_in", 86400)) # Default 24h
-                
-                # Set expiry with a buffer (e.g. 60 seconds earlier)
-                self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)
-                
-                logger.info(f"Kiwoom Access Token acquired successfully. Expires in {expires_in} seconds.")
-                return self.access_token
-                
-            except Exception as e:
-                logger.error(f"Failed to get Kiwoom Token: {e}")
-                return None
+        # Use Shared Client
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            self.access_token = data.get("token")
+            expires_in = int(data.get("expires_in", 86400)) # Default 24h
+            
+            # Set expiry with a buffer (e.g. 60 seconds earlier)
+            self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)
+            
+            logger.info(f"Kiwoom Access Token acquired successfully. Expires in {expires_in} seconds.")
+            return self.access_token
+            
+        except Exception as e:
+            logger.error(f"Failed to get Kiwoom Token: {e}")
+            return None
