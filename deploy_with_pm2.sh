@@ -13,18 +13,19 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
-# Check for python3-pip
+# Check and Install python3-pip
 if ! python3 -m pip --version &> /dev/null; then
-    echo "Error: python3-pip is not installed."
-    echo "Please run: sudo apt update && sudo apt install -y python3-pip"
-    exit 1
+    echo "python3-pip not found. Installing..."
+    sudo apt update && sudo apt install -y python3-pip
 fi
 
-# Check for libpq-dev (Required for psycopg2)
-if ! dpkg -s libpq-dev >/dev/null 2>&1; then
-    echo "Error: libpq-dev is not installed."
-    echo "Please run: sudo apt install -y libpq-dev"
-    exit 1
+# Check and Install PostgreSQL & libpq-dev (Idempotent)
+echo "Checking PostgreSQL and libraries..."
+if ! dpkg -s postgresql >/dev/null 2>&1 || ! dpkg -s libpq-dev >/dev/null 2>&1; then
+    echo "Installing PostgreSQL and libpq-dev..."
+    sudo apt update && sudo apt install -y postgresql postgresql-contrib libpq-dev
+else
+    echo "PostgreSQL and libpq-dev are already installed."
 fi
 
 # Install PM2 globally if not installed
