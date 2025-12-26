@@ -9,21 +9,21 @@ const TradingInfoPanel = ({ currentSymbol, setSavedSymbols }) => {
     const { data: status } = useQuery({
         queryKey: ['status'],
         queryFn: getStatus,
-        refetchInterval: 5000
+        refetchInterval: 30000 // 30s
     });
 
     // Price Query
     const { data: price } = useQuery({
         queryKey: ['price', currentSymbol],
         queryFn: () => getPrice(currentSymbol),
-        refetchInterval: 2000
+        refetchInterval: 5000 // 5s
     });
 
     // Balance Query
     const { data: balance } = useQuery({
         queryKey: ['balance'],
         queryFn: getBalance,
-        refetchInterval: 5000
+        refetchInterval: 10000 // 10s
     });
 
     // Auto-update name in saved list if fetched from API and setSavedSymbols is provided

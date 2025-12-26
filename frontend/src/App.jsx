@@ -60,7 +60,8 @@ function AppContent() {
                         <div className="flex gap-2">
                             <NavLink to="/">Dashboard</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
-                            <NavLink to="/auto">Auto Strategy</NavLink>
+                            <NavLink to="/auto">Simple Auto</NavLink>
+                            <NavLink to="/strategies">Pro Strategies</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                         </div>
                     </div>

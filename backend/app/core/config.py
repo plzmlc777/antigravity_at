@@ -3,8 +3,9 @@ from typing import Optional
 from pydantic import model_validator, ValidationError
 
 class Settings(BaseSettings):
-    # App Config
     APP_ENV: str = "dev"
+    BACKEND_PORT: int = 8001
+    FRONTEND_PORT: int = 5173
     
     # Kiwoom API Config (User: HCP)
     HCP_KIWOOM_API_URL: str = "https://api.kiwoom.com"

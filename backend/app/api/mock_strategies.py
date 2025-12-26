@@ -60,12 +60,22 @@ async def generate_strategy_code(prompt: Dict[str, str]):
         "tags": ["AI-Generated"]
     }
 
+from pydantic import BaseModel
+class BacktestRequest(BaseModel):
+    symbol: str = "TEST"
+    start_hour: int = 9
+    delay_minutes: int = 10
+    target_percent: float = 0.02
+    safety_stop_percent: float = -0.03
+
 @router.post("/{strategy_id}/backtest")
-async def run_mock_backtest(strategy_id: str):
+async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     from ..core.backtest_engine import BacktestEngine
     
     # Select Strategy Class
     strategy_class = None
+    config = request.dict()
+
     if strategy_id == "time_momentum":
         from ..strategies.time_momentum import TimeMomentumStrategy
         strategy_class = TimeMomentumStrategy
@@ -78,8 +88,9 @@ async def run_mock_backtest(strategy_id: str):
         strategy_class = MockStrategy
 
     # Run Engine
-    engine = BacktestEngine(strategy_class)
-    result = engine.run(duration_minutes=120) # Test 2 hours
+    engine = BacktestEngine(strategy_class, config)
+    # Run for 2 days to simulate more data
+    result = await engine.run(symbol=request.symbol, duration_days=2) 
     
     return {
         "strategy_id": strategy_id,

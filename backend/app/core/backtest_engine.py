@@ -121,14 +121,21 @@ class BacktestEngine:
         self.strategy_class = strategy_class
         self.config = config or {}
 
-    def run(self, duration_minutes=60):
-        # 1. Generate Data
-        data_feed = SyntheticDataGenerator.generate_ohlcv(minutes=duration_minutes)
+    async def run(self, symbol: str = "TEST", duration_days: int = 1):
+        # 1. Fetch Data (Async)
+        from ..services.market_data import MarketDataService
+        data_service = MarketDataService()
+        data_feed = await data_service.get_minute_candles(symbol, days=duration_days)
         
+        if not data_feed:
+            return {"logs": ["No data collected"]}
+
         # 2. Setup Context
         context = BacktestContext(data_feed)
         
         # 3. Initialize Strategy
+        # Inject Symbol into config if needed
+        self.config['symbol'] = symbol
         strategy = self.strategy_class(context, self.config)
         strategy.initialize()
         
@@ -139,6 +146,9 @@ class BacktestEngine:
             context.update_equity()
             
         # 5. Calculate Stats
+        if not context.equity_curve:
+             return {"logs": context.logs, "total_return": "0%", "win_rate": "0%", "max_drawdown": "0%", "chart_data": []}
+
         final_equity = context.equity_curve[-1]['equity']
         initial_equity = context.equity_curve[0]['equity']
         total_return = (final_equity - initial_equity) / initial_equity * 100

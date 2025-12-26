@@ -122,14 +122,50 @@ async def set_system_mode(request: SystemModeRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+import time
+
+# Simple In-Memory Cache
+PRICE_CACHE = {} # { symbol: { 'data': ..., 'ts': ... } }
+BALANCE_CACHE = { 'data': None, 'ts': 0 }
+
 @router.get("/price/{symbol}")
 async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
     # Returns { "symbol": "...", "price": 100, "name": "Samsung" }
-    return await adapter.get_current_price(symbol)
+    current_time = time.time()
+    
+    # 1. Check Cache (TTL 1.0s)
+    if symbol in PRICE_CACHE:
+        entry = PRICE_CACHE[symbol]
+        if current_time - entry['ts'] < 1.0:
+            return entry['data']
+
+    # 2. Fetch Real
+    data = await adapter.get_current_price(symbol)
+    
+    # 3. Update Cache
+    PRICE_CACHE[symbol] = {
+        'data': data,
+        'ts': current_time
+    }
+    
+    return data
 
 @router.get("/balance")
 async def get_balance(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
-    return await adapter.get_balance()
+    current_time = time.time()
+    
+    # 1. Check Cache (TTL 2.0s)
+    if BALANCE_CACHE['data'] and (current_time - BALANCE_CACHE['ts'] < 2.0):
+        return BALANCE_CACHE['data']
+        
+    # 2. Fetch Real
+    data = await adapter.get_balance()
+    
+    # 3. Update Cache
+    BALANCE_CACHE['data'] = data
+    BALANCE_CACHE['ts'] = current_time
+    
+    return data
 
 @router.post("/order/buy")
 async def buy_order(order: OrderRequest, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
