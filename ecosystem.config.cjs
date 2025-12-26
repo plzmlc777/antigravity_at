@@ -2,7 +2,7 @@ module.exports = {
     apps: [
         {
             name: "at-backend",
-            script: "./venv/bin/python",
+            script: "./backend/venv/bin/python",
             args: "-m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload",
             cwd: "./backend",
             env: {
