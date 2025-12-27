@@ -78,3 +78,18 @@ async def fetch_market_data(symbol: str, req: FetchRequest):
         "message": f"Fetched {req.interval} data for {symbol}",
         "added": added_count
     }
+
+@router.delete("/reset")
+def reset_market_data(db: Session = Depends(get_db)):
+    """
+    Delete ALL OHLCV data from the database.
+    This creates a fresh start for charts.
+    """
+    try:
+        # Delete all records
+        num = db.query(OHLCV).delete()
+        db.commit()
+        return {"status": "success", "message": f"Successfully deleted {num} market data records."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
