@@ -71,8 +71,19 @@ class MarketDataService:
         # Note: In explicit usage, user triggers 'fetch_history' manually.
         # But here checking 'if empty' is good UX.
         if count == 0:
-            print(f"No data for {symbol} {interval}. Fetching automatically...")
-            await self.fetch_history(symbol, interval, days)
+            # Calculate required limit for fetch
+            minutes_per_day = 1440
+            if interval.endswith("m"):
+                minutes = int(interval.replace("m", ""))
+                minutes_per_day = 1440 // minutes
+            elif interval == "1h":
+                 minutes_per_day = 24
+            
+            # Ensure limit is enough for days requested
+            fetch_limit = max(100000, days * minutes_per_day * 2) # Safety multiplier
+            
+            print(f"No data for {symbol} {interval}. Fetching automatically (Limit: {fetch_limit})...")
+            await self.fetch_history(symbol, interval, days, limit=fetch_limit)
             # Re-read from DB
             return await self.get_candles(symbol, interval, days, limit)
             
@@ -288,8 +299,8 @@ class MarketDataService:
                 
                 await asyncio.sleep(0.2)
                 
-                # Check 10,000 limit during fetch
-                if total_fetched >= 10000:
+                # Check limit during fetch
+                if total_fetched >= limit:
                     break
                 
                 # INCREMENTAL FETCH LOGIC:
@@ -320,7 +331,7 @@ class MarketDataService:
                     break
                     
             # Auto-Prune after fetch
-            self._prune_data(db, symbol, interval, limit=100000)
+            self._prune_data(db, symbol, interval, limit=limit)
             
             return total_fetched
             
