@@ -167,7 +167,7 @@ class BacktestEngine:
         return {
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
-            "chart_data": context.equity_curve,
+            "chart_data": [], # Disabled to prevent high payload crash
             "logs": context.logs[-50:], # Return last 50 logs
             **self._analyze_trades(context.trades) # Inject detailed trade stats
         }
