@@ -1,6 +1,14 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 from pydantic import model_validator, ValidationError
+import os
+from dotenv import load_dotenv
+
+# Explicitly load .env files to ensure Environment Variables are set
+# Check paths relative to current working directory (backend) or root
+load_dotenv(".env")            # strict local
+load_dotenv("../.env")         # parent (root)
+load_dotenv("backend/.env")    # child (if running from root)
 
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
