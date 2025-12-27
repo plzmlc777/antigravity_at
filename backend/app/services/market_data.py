@@ -17,7 +17,7 @@ class MarketDataService:
         self.token_manager = KiwoomTokenManager.get_instance()
         self.http_manager = HttpClientManager.get_instance()
 
-    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 10000) -> List[Dict]:
+    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 100000) -> List[Dict]:
         """
         Main entry point for getting candle data.
         Supported intervals: 1m, 3m, 5m, 10m, 15m, 30m, 1h (60m), 4h, 1d, 1w.
@@ -299,7 +299,7 @@ class MarketDataService:
                 # If the *newest* candle in this page is older than DB's max_ts, we completely overlap -> Stop.
                 # If the page *contains* max_ts, we found the cut-off -> Stop after this page.
                 
-                if last_ts:
+                if last_ts: # Only optimize for short updates (< 3 years)
                     # page_candles is trusted to be sorted? 
                     # Kiwoom usually sends Newest first (index 0) to Oldest (index -1).
                     # Let's verify by sorting page_candles by time desc just to be safe or check min/max.
@@ -313,14 +313,14 @@ class MarketDataService:
                         logger.info(f"Overlap check: Page Min: {min_page_ts}, Last DB: {last_ts}")
                     
                     if min_page_ts and min_page_ts <= last_ts:
-                        logger.info(f"Incremental fetch: Found overlap with existing data (Last: {last_ts}, Page Min: {min_page_ts}). Stopping.")
+                        logger.info(f"Incremental fetch: Found overlap (Last: {last_ts}, Page Min: {min_page_ts}). Stopping.")
                         break
                     
                 if cont_yn != "Y":
                     break
                     
             # Auto-Prune after fetch
-            self._prune_data(db, symbol, interval, limit=10000)
+            self._prune_data(db, symbol, interval, limit=100000)
             
             return total_fetched
             

@@ -107,6 +107,7 @@ const StrategyView = () => {
     const [isFetchingData, setIsFetchingData] = useState(false);
     const [currentInterval, setCurrentInterval] = useState(() => localStorage.getItem('lastInterval') || "1m");
     const [fetchMessage, setFetchMessage] = useState(null);
+    const [fromDate, setFromDate] = useState(""); // Backtest Start Date
 
     // Persistence Effects
     useEffect(() => {
@@ -131,6 +132,18 @@ const StrategyView = () => {
                 params: { interval: currentInterval }
             });
             setDataStatus(res.data);
+
+            // Auto-set Start Date to Data Start
+            if (res.data.start_date) {
+                // Server returns YY.MM.DD -> Convert to YYYY-MM-DD for input type="date"
+                const parts = res.data.start_date.split('.');
+                if (parts.length === 3) {
+                    const yyyy = `20${parts[0]}`;
+                    const mm = parts[1];
+                    const dd = parts[2];
+                    setFromDate(`${yyyy}-${mm}-${dd}`);
+                }
+            }
         } catch (e) {
             console.error("Failed to check data status", e);
         }
@@ -142,7 +155,7 @@ const StrategyView = () => {
         try {
             const res = await axios.post(`/api/v1/market-data/fetch/${currentSymbol}`, {
                 interval: currentInterval,
-                days: 365
+                days: 3650 // Request ~10 years to hit 10k limit
             });
 
             const added = res.data.added;
@@ -225,11 +238,11 @@ const StrategyView = () => {
                                 {/* Status Badge */}
                                 {!dataStatus.is_fresh ? (
                                     <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
-                                        Data Stale ({dataStatus.count})
+                                        Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
                                     </span>
                                 ) : (
                                     <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
-                                        Data Fresh ({dataStatus.count})
+                                        Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
                                     </span>
                                 )}
 
@@ -249,10 +262,21 @@ const StrategyView = () => {
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 items-center">
+                            {/* Start Date Input */}
+                            <div className="relative">
+                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                                <input
+                                    type="date"
+                                    value={fromDate}
+                                    onChange={(e) => setFromDate(e.target.value)}
+                                    className="bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
+                                />
+                            </div>
+
                             <button
                                 onClick={() => runBacktest(selectedStrategy?.id)}
-                                disabled={isLoading || !selectedStrategy || !dataStatus.is_fresh}
+                                disabled={isLoading || !selectedStrategy || !dataStatus.count}
                                 className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
                             >
                                 {isLoading ? 'Running...' : 'Run Backtest'}
@@ -364,17 +388,39 @@ const StrategyView = () => {
                                 <div className="space-y-6">
                                     <Card title="Performance Stats">
                                         <div className="space-y-4">
-                                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                                <span className="text-gray-400">Total Return</span>
-                                                <span className="text-green-400 font-bold text-xl">{backtestResult.total_return}</span>
-                                            </div>
-                                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                                <span className="text-gray-400">Win Rate</span>
-                                                <span className="text-blue-400 font-bold text-xl">{backtestResult.win_rate}</span>
-                                            </div>
-                                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                                <span className="text-gray-400">Max Drawdown</span>
-                                                <span className="text-red-400 font-bold text-xl">{backtestResult.max_drawdown}</span>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Total Return</div>
+                                                    <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                        {backtestResult.total_return}
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Win Rate</div>
+                                                    <div className="text-xl font-bold text-blue-400">{backtestResult.win_rate}</div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Total Trades</div>
+                                                    <div className="text-xl font-bold text-white">{backtestResult.total_trades}</div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Avg PnL</div>
+                                                    <div className={`text-xl font-bold ${parseFloat(backtestResult.avg_pnl) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                        {backtestResult.avg_pnl}
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Max Profit</div>
+                                                    <div className="text-xl font-bold text-green-400">{backtestResult.max_profit}</div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Max Loss</div>
+                                                    <div className="text-xl font-bold text-red-400">{backtestResult.max_loss}</div>
+                                                </div>
+                                                <div className="col-span-2 p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Max Drawdown</div>
+                                                    <div className="text-xl font-bold text-red-400">{backtestResult.max_drawdown}</div>
+                                                </div>
                                             </div>
                                             {/* Logs Preview */}
                                             {backtestResult.logs && (

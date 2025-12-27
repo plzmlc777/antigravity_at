@@ -60,13 +60,15 @@ async def generate_strategy_code(prompt: Dict[str, str]):
         "tags": ["AI-Generated"]
     }
 
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
 class BacktestRequest(BaseModel):
     symbol: str = "TEST"
     start_hour: int = 9
     delay_minutes: int = 10
     target_percent: float = 0.02
     safety_stop_percent: float = -0.03
+    from_date: Optional[str] = None
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
@@ -89,14 +91,18 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
 
     # Run Engine
     engine = BacktestEngine(strategy_class, config)
-    # Run for 2 days to simulate more data
-    result = await engine.run(symbol=request.symbol, duration_days=2) 
+    # Run for 10 years (effectively 'Max Available')
+    result = await engine.run(symbol=request.symbol, duration_days=3650, from_date=request.from_date) 
     
     return {
         "strategy_id": strategy_id,
         "total_return": result['total_return'],
         "win_rate": result['win_rate'],
         "max_drawdown": result['max_drawdown'],
+        "total_trades": result.get('total_trades', 0),
+        "avg_pnl": result.get('avg_pnl', "0%"),
+        "max_profit": result.get('max_profit', "0%"),
+        "max_loss": result.get('max_loss', "0%"),
         "chart_data": result['chart_data'],
         "logs": result['logs']
     }

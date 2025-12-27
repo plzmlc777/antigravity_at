@@ -26,7 +26,13 @@ This script will:
 - **Local**: http://localhost:5173
 - **Server**: http://[YOUR_SERVER_IP]:5173
 
-## 📂 Project Structure
+## ⚠️ Known Limitations
+- **Market Data Availability (Kiwoom API)**:
+    - **Daily/Weekly/Monthly**: Available for 10+ years.
+    - **Intraday (Minute/Hour)**: Limited to approximately **1 year** (recent ~4000 candles). This is an API policy restriction, not a system error.
+- **Systemd vs PM2**: Do not enable `systemd` services alongside `pm2`. Use `pm2` for all process management.
+
+## 📁 Directory Structure
 - `backend/`: API Server and Trading Logic using Kiwoom API.
 - `frontend/`: React Dashboard.
 - `tools/`: Local Node.js binaries for portable execution.

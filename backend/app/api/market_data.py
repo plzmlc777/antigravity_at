@@ -43,9 +43,17 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
     
     is_fresh = (now - last_ts) < timedelta(days=1)
 
+    first_record = db.query(OHLCV.timestamp).filter(
+        OHLCV.symbol == symbol,
+        OHLCV.time_frame == interval
+    ).order_by(OHLCV.timestamp.asc()).first()
+    
+    start_date = first_record[0].strftime("%y.%m.%d") if first_record else None
+
     return {
         "symbol": symbol,
         "last_updated": last_ts.strftime("%Y-%m-%d %H:%M:%S"),
+        "start_date": start_date,
         "is_fresh": is_fresh,
         "count": count
     }
