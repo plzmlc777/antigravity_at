@@ -12,9 +12,10 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            setAuthToken(token); // Update client.js instance as well
-            // Optionally fetch user profile info here if you have an endpoint
-            setUser({ email: 'user@example.com' }); // Placeholder or decode JWT
+            setAuthToken(token);
+
+            const storedIsAdmin = localStorage.getItem('is_admin') === 'true' || sessionStorage.getItem('is_admin') === 'true';
+            setUser({ email: 'user@example.com', is_admin: storedIsAdmin });
         } else {
             delete axios.defaults.headers.common['Authorization'];
             setAuthToken(null);
@@ -51,17 +52,22 @@ export const AuthProvider = ({ children }) => {
 
         try {
             const response = await axios.post('/api/v1/auth/token', formData);
-            const { access_token } = response.data;
+            const { access_token, is_admin } = response.data;
 
             if (remember) {
                 localStorage.setItem('token', access_token);
+                localStorage.setItem('is_admin', is_admin ? 'true' : 'false');
                 sessionStorage.removeItem('token');
+                sessionStorage.removeItem('is_admin');
             } else {
                 sessionStorage.setItem('token', access_token);
+                sessionStorage.setItem('is_admin', is_admin ? 'true' : 'false');
                 localStorage.removeItem('token');
+                localStorage.removeItem('is_admin');
             }
 
             setToken(access_token);
+            setUser({ email, is_admin });
             return { success: true };
         } catch (error) {
             const message = error.response?.data?.detail || error.message || 'Login failed';
@@ -87,7 +93,9 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('is_admin');
         sessionStorage.removeItem('token');
+        sessionStorage.removeItem('is_admin');
         setToken(null);
         setUser(null);
         window.location.href = '/login';

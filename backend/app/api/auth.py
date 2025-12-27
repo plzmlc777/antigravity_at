@@ -19,6 +19,7 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    is_admin: bool = False
 
 # Dependency to get current user
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -46,6 +47,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     print(f"DEBUG: User found: {user.email}") # DEBUG
     return user
 
+async def get_current_active_admin(current_user: User = Depends(get_current_user)):
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return current_user
+
 @router.post("/register", response_model=Token)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
@@ -67,5 +76,11 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Ses
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
+    # We could include is_admin in the token payload if we want, 
+    # but for now we'll just return it in the response if the model allows it.
     access_token = security.create_access_token(subject=user.email)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "is_admin": user.is_admin
+    }

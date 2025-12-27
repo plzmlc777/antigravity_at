@@ -138,31 +138,6 @@ const Settings = () => {
                 </div>
             </div>
 
-            {/* Data Management Section */}
-            <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-bold text-white mb-1">Chart Data</h2>
-                    <p className="text-xs text-gray-400">Manage stored OHLCV price data.</p>
-                </div>
-                <div>
-                    <button
-                        onClick={async () => {
-                            if (confirm("⚠️ Are you sure? This will delete ALL stored chart data.")) {
-                                try {
-                                    const res = await axios.delete('/api/v1/market-data/reset');
-                                    alert(res.data.message);
-                                } catch (e) {
-                                    alert("Failed to reset data");
-                                }
-                            }
-                        }}
-                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
-                    >
-                        Reset Chart Data
-                    </button>
-                </div>
-            </div>
-
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Exchange Accounts</h1>
                 <button

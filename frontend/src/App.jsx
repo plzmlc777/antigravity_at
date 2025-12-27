@@ -5,6 +5,7 @@ import AutoTrading from './views/AutoTrading';
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
 import Settings from './views/Settings';
+import AdminView from './views/AdminView';
 import StatusCard from './components/StatusCard';
 import AccountStatusPanel from './components/AccountStatusPanel';
 import { useState, useEffect } from 'react';
@@ -41,6 +42,17 @@ const RequireAuth = ({ children }) => {
     return children;
 };
 
+// Admin Only Route Component
+const RequireAdmin = ({ children }) => {
+    const { user, token, loading } = useAuth();
+    if (loading) return null;
+
+    if (!token) return <Navigate to="/login" replace />;
+    if (!user?.is_admin) return <Navigate to="/" replace />;
+
+    return children;
+};
+
 function AppContent() {
     const { logout, user } = useAuth();
     const location = useLocation();
@@ -63,6 +75,7 @@ function AppContent() {
                             <NavLink to="/auto">Simple Auto</NavLink>
                             <NavLink to="/strategies">Pro Strategies</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
+                            {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -85,6 +98,7 @@ function AppContent() {
                     <Route path="/auto" element={<RequireAuth><AutoTrading /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} /> {/* New Route */}
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                    <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>
             </main>
         </div>

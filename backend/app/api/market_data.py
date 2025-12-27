@@ -4,6 +4,7 @@ from typing import Dict, Any
 from ..db.session import get_db
 from ..services.market_data import MarketDataService
 from ..models.ohlcv import OHLCV
+from .auth import get_current_active_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -80,7 +81,10 @@ async def fetch_market_data(symbol: str, req: FetchRequest):
     }
 
 @router.delete("/reset")
-def reset_market_data(db: Session = Depends(get_db)):
+def reset_market_data(
+    db: Session = Depends(get_db),
+    admin_user=Depends(get_current_active_admin)
+):
     """
     Delete ALL OHLCV data from the database.
     This creates a fresh start for charts.
