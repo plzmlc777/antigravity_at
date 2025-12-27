@@ -1,0 +1,17 @@
+{
+    "name": "auto-trading-root",
+    "version": "1.0.0",
+    "description": "Unified control scripts for Auto Trading System",
+    "scripts": {
+        "pm2": "./tools/node/bin/pm2",
+        "start": "./tools/node/bin/pm2 start ecosystem.config.cjs",
+        "restart": "./tools/node/bin/pm2 restart all",
+        "stop": "./tools/node/bin/pm2 stop all",
+        "delete": "./tools/node/bin/pm2 delete all",
+        "logs": "./tools/node/bin/pm2 logs",
+        "monit": "./tools/node/bin/pm2 monit",
+        "status": "./tools/node/bin/pm2 list"
+    },
+    "author": "Antigravity",
+    "license": "ISC"
+}
