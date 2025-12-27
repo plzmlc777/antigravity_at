@@ -56,12 +56,10 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # Install dependencies if needed (optional but good practice)
-echo "Installing backend dependencies..."
-# Backend: system python
+echo "Updating backend dependencies (pip)..."
 python3 -m pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || python3 -m pip install -r backend/requirements.txt
 
-echo "Installing frontend dependencies..."
-echo "Installing frontend dependencies..."
+echo "Updating frontend dependencies (npm)..."
 (cd frontend && npm install) || { echo "❌ Frontend install failed"; exit 1; }
 
 # Start PM2
