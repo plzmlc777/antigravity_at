@@ -59,6 +59,7 @@ async def health_check():
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["accounts"])
 app.include_router(endpoints.router, prefix="/api/v1", tags=["trading"])
-from .api import market_data
+from .api import market_data, admin
 app.include_router(market_data.router, prefix="/api/v1/market-data", tags=["market-data"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(mock_strategies.router, prefix="/api/v1/strategies", tags=["strategies"])
