@@ -310,7 +310,7 @@ class MarketDataService:
                 # If the *newest* candle in this page is older than DB's max_ts, we completely overlap -> Stop.
                 # If the page *contains* max_ts, we found the cut-off -> Stop after this page.
                 
-                if last_ts and days < 100: # Only optimize for short updates (< 100 days)
+                if last_ts: # Only optimize for short updates (< 3 years)
                     # page_candles is trusted to be sorted? 
                     # Kiwoom usually sends Newest first (index 0) to Oldest (index -1).
                     # Let's verify by sorting page_candles by time desc just to be safe or check min/max.
