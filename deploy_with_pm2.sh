@@ -7,10 +7,25 @@ git pull
 # Add local tools to PATH if they exist
 export PATH="$(pwd)/tools/node/bin:$PATH"
 
-# Check for npm
-if ! command -v npm &> /dev/null; then
-    echo "Error: npm is not installed. Please install Node.js and npm."
-    exit 1
+# Function to install Node.js locally
+install_node() {
+    echo "⬇️  Installing Node.js v20.10.0..."
+    rm -rf tools/node
+    mkdir -p tools/node
+    # Download and extract (requires tar and xz)
+    if curl -L https://nodejs.org/dist/v20.10.0/node-v20.10.0-linux-x64.tar.xz | tar xJ -C tools/node --strip-components=1; then
+        echo "✅ Node.js installed successfully."
+    else
+        echo "❌ Failed to install Node.js."
+        exit 1
+    fi
+    export PATH="$(pwd)/tools/node/bin:$PATH"
+}
+
+# Check for npm health
+if ! command -v npm &> /dev/null || ! npm --version &> /dev/null; then
+    echo "⚠️  npm is corrupted or missing. Attempting auto-repair..."
+    install_node
 fi
 
 # Check and Install python3-pip
@@ -46,7 +61,8 @@ echo "Installing backend dependencies..."
 python3 -m pip install -r backend/requirements.txt --break-system-packages 2>/dev/null || python3 -m pip install -r backend/requirements.txt
 
 echo "Installing frontend dependencies..."
-cd frontend && npm install && cd ..
+echo "Installing frontend dependencies..."
+(cd frontend && npm install) || { echo "❌ Frontend install failed"; exit 1; }
 
 # Start PM2
 echo "Starting services with PM2..."
