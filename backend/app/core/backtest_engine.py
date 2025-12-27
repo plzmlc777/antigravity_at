@@ -125,7 +125,7 @@ class BacktestEngine:
         # 1. Fetch Data (Async)
         from ..services.market_data import MarketDataService
         data_service = MarketDataService()
-        data_feed = await data_service.get_minute_candles(symbol, days=duration_days)
+        data_feed = await data_service.get_candles(symbol, interval="1m", days=duration_days)
         
         if not data_feed:
             return {"logs": ["No data collected"]}
