@@ -25,3 +25,15 @@ backend/sql_app.db
 *.log
 tools/node/bin/pm2*
 *.db.pre_pg_migration
+db_backup_pre_cleanup.sql
+
+# Temporary Debug Scripts
+debug_log.py
+debug_log_search.py
+
+# Node Modules (Frontend)
+frontend/node_modules/
+
+# Utils
+tools/cleanup_ohlcv.py
+
