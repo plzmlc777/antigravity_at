@@ -141,7 +141,7 @@ const Settings = () => {
             {/* Data Management Section */}
             <div className="mb-8 p-6 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-bold text-white mb-1">Market Data</h2>
+                    <h2 className="text-lg font-bold text-white mb-1">Chart Data</h2>
                     <p className="text-xs text-gray-400">Manage stored OHLCV price data.</p>
                 </div>
                 <div>
@@ -158,7 +158,7 @@ const Settings = () => {
                         }}
                         className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-sm font-medium transition-colors"
                     >
-                        Reset Data
+                        Reset Chart Data
                     </button>
                 </div>
             </div>
