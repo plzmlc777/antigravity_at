@@ -6,7 +6,8 @@ venv/
 .env
 
 # JavaScript/Node
-node_modules/
+# tools/node/bin/pm2* (Commented out to allow tracking)
+!tools/node/lib/node_modules/
 dist/
 coverage/
 .DS_Store
