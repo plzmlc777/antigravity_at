@@ -89,7 +89,7 @@ class MarketDataService:
             
         return []
 
-    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 365):
+    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 100000):
         """
         Fetch historical data from Kiwoom API and save to DB.
         Support Minutes (1,3,5,10,15,30,60) and Day/Week/Month.
