@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector'; // Import
 
@@ -26,6 +26,10 @@ const StrategyView = () => {
 
     // Dynamic Config State
     const [config, setConfig] = useState({});
+
+    // Backtest Settings
+    const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
+    const [initialCapital, setInitialCapital] = useState(10000000); // Default 10M KRW
 
     // Save to LocalStorage
     useEffect(() => {
@@ -71,17 +75,35 @@ const StrategyView = () => {
         }
     };
 
+    const [backtestStatus, setBacktestStatus] = useState({ status: 'idle', message: 'Ready to Backtest' });
+
     const runBacktest = async (strategyId) => {
         setIsLoading(true);
+        setBacktestStatus({ status: 'running', message: 'Initializing Strategy...' });
+        setBacktestResult(null); // Clear previous results
+
         try {
             const payload = {
                 symbol: currentSymbol,
+                from_date: fromDate,
                 ...config
             };
+
+            setBacktestStatus({ status: 'running', message: `Running Backtest on ${currentSymbol}...` });
+
             const res = await axios.post(`/api/v1/strategies/${strategyId}/backtest`, payload);
             setBacktestResult(res.data);
+            setBacktestStatus({ status: 'success', message: 'Backtest Completed' });
+
         } catch (e) {
-            alert("Backtest failed");
+            console.error(e);
+            let errorMsg = "Backtest Failed";
+            if (e.response && e.response.data && e.response.data.detail) {
+                errorMsg = `Error: ${e.response.data.detail}`;
+            } else if (e.message) {
+                errorMsg = `Error: ${e.message}`;
+            }
+            setBacktestStatus({ status: 'error', message: errorMsg });
         } finally {
             setIsLoading(false);
         }
@@ -102,12 +124,25 @@ const StrategyView = () => {
         }
     };
 
+    // ... (Data Management logic stays here) ...
+    // Note: Implicitly preserving the gap where lines 106-175 were, but current ReplaceFileContent needs context.
+    // The previous block ended at handleAiGenerate (around line 103). 
+    // I need to be careful not to overwrite the data management hooks if I use a large range.
+    // So I will only replace runBacktest and the render part separately? 
+    // No, I can replace runBacktest first, then the render part.
+
+    // WAIT, I need to insert the state definition too. 
+    // It's safer to do 2 chunks: one for state+function, one for render.
+    // Let's split this tool call into 2 chunks.
+
+
     // 5. Data Management & Persistence State
     const [dataStatus, setDataStatus] = useState({ is_fresh: false, last_updated: null, count: 0 });
     const [isFetchingData, setIsFetchingData] = useState(false);
     const [currentInterval, setCurrentInterval] = useState(() => localStorage.getItem('lastInterval') || "1m");
     const [fetchMessage, setFetchMessage] = useState(null);
-    const [fromDate, setFromDate] = useState(""); // Backtest Start Date
+    // fromDate state moved to top
+
 
     // Persistence Effects
     useEffect(() => {
@@ -263,6 +298,17 @@ const StrategyView = () => {
 
                         {/* Right: Actions */}
                         <div className="flex gap-3 items-center">
+                            {/* Initial Capital Input */}
+                            <div className="relative w-32">
+                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                <input
+                                    type="number"
+                                    value={initialCapital}
+                                    onChange={(e) => setInitialCapital(parseInt(e.target.value))}
+                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
+                                />
+                            </div>
+
                             {/* Start Date Input */}
                             <div className="relative">
                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
@@ -322,13 +368,19 @@ const StrategyView = () => {
                                         {selectedStrategy.id === 'time_momentum' ? (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Start Hour (0-23)</label>
-                                                    <input
-                                                        type="number"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={config.start_hour || 9}
-                                                        onChange={(e) => handleConfigChange('start_hour', parseInt(e.target.value))}
-                                                    />
+                                                    <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
+                                                    <select
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                        value={config.start_time || "09:00"}
+                                                        onChange={(e) => handleConfigChange('start_time', e.target.value)}
+                                                    >
+                                                        {Array.from({ length: 48 }).map((_, i) => {
+                                                            const h = Math.floor(i / 2);
+                                                            const m = i % 2 === 0 ? "00" : "30";
+                                                            const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                            return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                        })}
+                                                    </select>
                                                 </div>
                                                 <div>
                                                     <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
@@ -340,22 +392,66 @@ const StrategyView = () => {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Target Pump % (e.g. 0.02)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Direction</label>
+                                                    <select
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                        value={config.direction || "rise"}
+                                                        onChange={(e) => handleConfigChange('direction', e.target.value)}
+                                                    >
+                                                        <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
+                                                        <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip % (e.g. 0.02)</label>
                                                     <input
-                                                        type="number" step="0.01"
+                                                        type="number" step="0.01" min="0"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={config.target_percent || 0.02}
+                                                        value={Math.abs(config.target_percent || 0.02)}
                                                         onChange={(e) => handleConfigChange('target_percent', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Stop Loss % (e.g. -0.03)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Stop Loss % (e.g. 0.03 = 3%)</label>
+                                                    <input
+                                                        type="number" step="0.01" min="0"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        value={Math.abs(config.safety_stop_percent || 0.03)}
+                                                        onChange={(e) => handleConfigChange('safety_stop_percent', parseFloat(e.target.value))}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Start % (e.g. 0.05)</label>
                                                     <input
                                                         type="number" step="0.01"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={config.safety_stop_percent || -0.03}
-                                                        onChange={(e) => handleConfigChange('safety_stop_percent', parseFloat(e.target.value))}
+                                                        value={config.trailing_start_percent || 0.05}
+                                                        onChange={(e) => handleConfigChange('trailing_start_percent', parseFloat(e.target.value))}
                                                     />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Drop % (e.g. 0.02)</label>
+                                                    <input
+                                                        type="number" step="0.01"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        value={config.trailing_stop_drop || 0.02}
+                                                        onChange={(e) => handleConfigChange('trailing_stop_drop', parseFloat(e.target.value))}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
+                                                    <select
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                        value={config.stop_time || "15:00"}
+                                                        onChange={(e) => handleConfigChange('stop_time', e.target.value)}
+                                                    >
+                                                        {Array.from({ length: 48 }).map((_, i) => {
+                                                            const h = Math.floor(i / 2);
+                                                            const m = i % 2 === 0 ? "00" : "30";
+                                                            const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                            return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                        })}
+                                                    </select>
                                                 </div>
                                             </div>
                                         ) : (
@@ -388,20 +484,43 @@ const StrategyView = () => {
                                 <div className="space-y-6">
                                     <Card title="Performance Stats">
                                         <div className="space-y-4">
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                 <div className="p-3 bg-white/5 rounded-lg">
                                                     <div className="text-xs text-gray-400">Total Return</div>
                                                     <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
                                                         {backtestResult.total_return}
                                                     </div>
                                                 </div>
+                                                <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                                                    <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
+                                                    <div className="text-xl font-bold text-white">{backtestResult.profit_factor || "0.00"}</div>
+                                                </div>
                                                 <div className="p-3 bg-white/5 rounded-lg">
                                                     <div className="text-xs text-gray-400">Win Rate</div>
-                                                    <div className="text-xl font-bold text-blue-400">{backtestResult.win_rate}</div>
+                                                    <div className="text-xl font-bold text-white">{backtestResult.win_rate}</div>
                                                 </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Sharpe Ratio</div>
+                                                    <div className="text-xl font-bold text-yellow-400">{backtestResult.sharpe_ratio || "0.00"}</div>
+                                                </div>
+
                                                 <div className="p-3 bg-white/5 rounded-lg">
                                                     <div className="text-xs text-gray-400">Total Trades</div>
                                                     <div className="text-xl font-bold text-white">{backtestResult.total_trades}</div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Stability (R²)</div>
+                                                    <div className="text-xl font-bold text-purple-400">{backtestResult.stability_score || "0.00"}</div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Profit Accel</div>
+                                                    <div className={`text-xl font-bold ${parseFloat(backtestResult.acceleration_score) >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                        {backtestResult.acceleration_score ? `${backtestResult.acceleration_score}x` : "0.00x"}
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Activity Rate</div>
+                                                    <div className="text-xl font-bold text-blue-400">{backtestResult.activity_rate || "0%"}</div>
                                                 </div>
                                                 <div className="p-3 bg-white/5 rounded-lg">
                                                     <div className="text-xs text-gray-400">Avg PnL</div>
@@ -409,6 +528,11 @@ const StrategyView = () => {
                                                         {backtestResult.avg_pnl}
                                                     </div>
                                                 </div>
+                                                <div className="p-3 bg-white/5 rounded-lg">
+                                                    <div className="text-xs text-gray-400">Avg Holding</div>
+                                                    <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time || "0m"}</div>
+                                                </div>
+
                                                 <div className="p-3 bg-white/5 rounded-lg">
                                                     <div className="text-xs text-gray-400">Max Profit</div>
                                                     <div className="text-xl font-bold text-green-400">{backtestResult.max_profit}</div>
@@ -422,6 +546,94 @@ const StrategyView = () => {
                                                     <div className="text-xl font-bold text-red-400">{backtestResult.max_drawdown}</div>
                                                 </div>
                                             </div>
+
+                                            {/* Monthly Analysis Chart */}
+                                            {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
+                                                <div className="mt-4 pt-4 border-t border-white/10">
+                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
+                                                    <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
+                                                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+
+                                                                {/* Custom X-Axis with Multi-Row Data */}
+                                                                <XAxis
+                                                                    dataKey="block"
+                                                                    stroke="#666"
+                                                                    tickLine={false}
+                                                                    interval={0}
+                                                                    tick={({ x, y, payload, index }) => {
+                                                                        const data = backtestResult.decile_stats[index];
+                                                                        return (
+                                                                            <g transform={`translate(${x},${y})`}>
+                                                                                {/* Row 1: Month */}
+                                                                                <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
+                                                                                    {payload.value}
+                                                                                </text>
+                                                                                {/* Row 2: Trade Count */}
+                                                                                <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
+                                                                                    {data.count}
+                                                                                </text>
+                                                                                {/* Row 3: Win Rate */}
+                                                                                <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
+                                                                                    {data.win_rate}%
+                                                                                </text>
+                                                                                {/* Row 4: Realized PnL */}
+                                                                                <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
+                                                                                    {data.total_pnl}%
+                                                                                </text>
+                                                                            </g>
+                                                                        );
+                                                                    }}
+                                                                />
+
+                                                                <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
+                                                                <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
+
+                                                                <Tooltip
+                                                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
+                                                                    itemStyle={{ color: '#fff' }}
+                                                                    formatter={(value, name) => {
+                                                                        if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
+                                                                        return [value, name];
+                                                                    }}
+                                                                    labelFormatter={(label) => `Month: ${label}`}
+                                                                />
+                                                                <ReferenceLine yAxisId="left" y={0} stroke="#666" />
+
+                                                                <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
+                                                                    {backtestResult.decile_stats.map((entry, index) => (
+                                                                        <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
+                                                                    ))}
+                                                                </Bar>
+                                                            </ComposedChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                    <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
+                                                            <span>Profit</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
+                                                            <span>Loss</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-blue-400 font-bold">12</span>
+                                                            <span>= Count</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
+                                                            <span>= Win Rate</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-green-400 font-bold">5.2%</span>
+                                                            <span>= Realized PnL</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Logs Preview */}
                                             {backtestResult.logs && (
                                                 <div className="mt-4 pt-4 border-t border-white/10">
@@ -445,8 +657,23 @@ const StrategyView = () => {
                         ) : (
                             <div className="flex items-center justify-center border-2 border-dashed border-white/10 rounded-xl h-[200px] bg-black/20">
                                 <div className="text-center text-gray-500">
-                                    <p className="text-lg">Ready to Backtest</p>
-                                    <p className="text-sm mt-2">Configure parameters above and click Run Backtest</p>
+                                    {backtestStatus.status === 'running' ? (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-lg text-blue-400 font-bold">{backtestStatus.message}</p>
+                                        </div>
+                                    ) : backtestStatus.status === 'error' ? (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="text-4xl">⚠️</div>
+                                            <p className="text-lg text-red-500 font-bold">{backtestStatus.message}</p>
+                                            <p className="text-sm">Check logs or try a different date range.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className="text-lg">Ready to Backtest</p>
+                                            <p className="text-sm mt-2">Configure parameters above and click Run Backtest</p>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         )}

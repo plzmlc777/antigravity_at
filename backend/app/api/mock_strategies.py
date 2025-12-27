@@ -64,11 +64,12 @@ from typing import List, Dict, Any, Optional
 
 class BacktestRequest(BaseModel):
     symbol: str = "TEST"
-    start_hour: int = 9
-    delay_minutes: int = 10
-    target_percent: float = 0.02
-    safety_stop_percent: float = -0.03
-    from_date: Optional[str] = None
+    interval: str = "1m"
+    days: int = 365
+    from_date: Optional[str] = None # Or start_date
+    start_date: Optional[str] = None # Aliases
+    initial_capital: int = 10000000
+    config: Dict[str, Any] = {} # Nested config from frontend strategy selector
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
@@ -76,8 +77,13 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     
     # Select Strategy Class
     strategy_class = None
-    config = request.dict()
-
+    
+    # Use nested config as the strategy config
+    config = request.config
+    
+    # Also inject root-level params into config if needed (or keep separate)
+    # Strategy might need start_date? Usually not, just "on_data".
+    
     if strategy_id == "time_momentum":
         from ..strategies.time_momentum import TimeMomentumStrategy
         strategy_class = TimeMomentumStrategy
@@ -90,9 +96,23 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         strategy_class = MockStrategy
 
     # Run Engine
+    # Initialize engine with Strategy Class and Strategy Config
     engine = BacktestEngine(strategy_class, config)
-    # Run for 10 years (effectively 'Max Available')
-    result = await engine.run(symbol=request.symbol, duration_days=3650, from_date=request.from_date) 
+    
+    # Run
+    # Pass initial_capital to run() or set it before running?
+    # BacktestEngine needs to support initial_capital argument in run() or init.
+    # We will pass it to run().
+    
+    start_date = request.start_date or request.from_date
+    
+    result = await engine.run(
+        symbol=request.symbol, 
+        interval=request.interval,
+        duration_days=request.days, 
+        from_date=start_date,
+        initial_capital=request.initial_capital
+    ) 
     
     return {
         "strategy_id": strategy_id,
@@ -103,6 +123,13 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "avg_pnl": result.get('avg_pnl', "0%"),
         "max_profit": result.get('max_profit', "0%"),
         "max_loss": result.get('max_loss', "0%"),
+        "profit_factor": result.get('profit_factor', "0.00"),
+        "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
+        "activity_rate": result.get('activity_rate', "0%"),
+        "avg_holding_time": result.get('avg_holding_time', "0m"),
+        "decile_stats": result.get('decile_stats', []),
+        "stability_score": result.get('stability_score', "0.00"),
+        "acceleration_score": result.get('acceleration_score', "0.00"),
         "chart_data": result['chart_data'],
         "logs": result['logs']
     }
