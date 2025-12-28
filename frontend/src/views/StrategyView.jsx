@@ -31,7 +31,10 @@ const StrategyView = () => {
 
     // Backtest Settings
     const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
-    const [initialCapital, setInitialCapital] = useState(10000000); // Default 10M KRW
+    const [initialCapital, setInitialCapital] = useState(() => {
+        const saved = localStorage.getItem('initialCapital');
+        return saved ? parseInt(saved, 10) : 10000000;
+    });
 
     // Save to LocalStorage
     useEffect(() => {
@@ -41,6 +44,33 @@ const StrategyView = () => {
     useEffect(() => {
         localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
     }, [savedSymbols]);
+
+    useEffect(() => {
+        localStorage.setItem('initialCapital', initialCapital.toString());
+    }, [initialCapital]);
+
+    // Load Strategy Config on Selection
+    useEffect(() => {
+        if (selectedStrategy) {
+            const savedConfig = localStorage.getItem(`strategyConfig_${selectedStrategy.id}`);
+            if (savedConfig) {
+                try {
+                    setConfig(JSON.parse(savedConfig));
+                } catch {
+                    setConfig({});
+                }
+            } else {
+                setConfig({});
+            }
+        }
+    }, [selectedStrategy]);
+
+    // Save Strategy Config on Change
+    useEffect(() => {
+        if (selectedStrategy && Object.keys(config).length > 0) {
+            localStorage.setItem(`strategyConfig_${selectedStrategy.id}`, JSON.stringify(config));
+        }
+    }, [config, selectedStrategy]);
 
     const handleConfigChange = (key, value) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -321,38 +351,38 @@ const StrategyView = () => {
                                                     </select>
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip % (e.g. 0.02)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
                                                     <input
-                                                        type="number" step="0.01" min="0"
+                                                        type="number" step="0.1" min="0"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={Math.abs(config.target_percent || 0.02)}
+                                                        value={Math.abs(config.target_percent || 2)}
                                                         onChange={(e) => handleConfigChange('target_percent', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Stop Loss % (e.g. 0.03 = 3%)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
                                                     <input
-                                                        type="number" step="0.01" min="0"
+                                                        type="number" step="0.1" min="0"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={Math.abs(config.safety_stop_percent || 0.03)}
+                                                        value={Math.abs(config.safety_stop_percent || 3)}
                                                         onChange={(e) => handleConfigChange('safety_stop_percent', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Start % (e.g. 0.05)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
                                                     <input
-                                                        type="number" step="0.01"
+                                                        type="number" step="0.1"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={config.trailing_start_percent || 0.05}
+                                                        value={config.trailing_start_percent || 5}
                                                         onChange={(e) => handleConfigChange('trailing_start_percent', parseFloat(e.target.value))}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Drop % (e.g. 0.02)</label>
+                                                    <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
                                                     <input
-                                                        type="number" step="0.01"
+                                                        type="number" step="0.1"
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
-                                                        value={config.trailing_stop_drop || 0.02}
+                                                        value={config.trailing_stop_drop || 2}
                                                         onChange={(e) => handleConfigChange('trailing_stop_drop', parseFloat(e.target.value))}
                                                     />
                                                 </div>
