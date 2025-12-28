@@ -334,7 +334,7 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
                                                     <input
                                                         type="number"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         value={config.delay_minutes || 10}
                                                         onChange={(e) => handleConfigChange('delay_minutes', parseInt(e.target.value))}
                                                     />
@@ -354,7 +354,7 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
                                                     <input
                                                         type="number" step="0.1" min="0"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         value={Math.abs(config.target_percent || 2)}
                                                         onChange={(e) => handleConfigChange('target_percent', parseFloat(e.target.value))}
                                                     />
@@ -363,7 +363,7 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
                                                     <input
                                                         type="number" step="0.1" min="0"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         value={Math.abs(config.safety_stop_percent || 3)}
                                                         onChange={(e) => handleConfigChange('safety_stop_percent', parseFloat(e.target.value))}
                                                     />
@@ -372,7 +372,7 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
                                                     <input
                                                         type="number" step="0.1"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         value={config.trailing_start_percent || 5}
                                                         onChange={(e) => handleConfigChange('trailing_start_percent', parseFloat(e.target.value))}
                                                     />
@@ -381,7 +381,7 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
                                                     <input
                                                         type="number" step="0.1"
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors"
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                                         value={config.trailing_stop_drop || 2}
                                                         onChange={(e) => handleConfigChange('trailing_stop_drop', parseFloat(e.target.value))}
                                                     />
