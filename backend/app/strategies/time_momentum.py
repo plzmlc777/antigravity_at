@@ -24,16 +24,17 @@ class TimeMomentumStrategy(BaseStrategy):
         # Direction Logic: 'rise' (Momentum) or 'fall' (Dip)
         self.direction = self.config.get("direction", "rise")  
         
-        # User input is now expected to be positive magnitude (e.g. 0.02)
-        raw_target = float(self.config.get("target_percent", 0.02))
-        self.target_percent = abs(raw_target) # Force positive first
+        # User input is expected to be integer percentage (e.g. 2 for 2%)
+        # standardizing input: float(val) / 100.0
+        raw_target = float(self.config.get("target_percent", 2.0))
+        self.target_percent = abs(raw_target) / 100.0 # Force positive
         
-        # User input is positive magnitude (e.g. 0.03 for 3% loss)
-        raw_stop = float(self.config.get("safety_stop_percent", 0.03))
-        self.safety_stop_percent = -abs(raw_stop) # Force negative
+        # User input is positive percentage (e.g. 3 for 3% loss)
+        raw_stop = float(self.config.get("safety_stop_percent", 3.0))
+        self.safety_stop_percent = -(abs(raw_stop) / 100.0) # Force negative
         
-        self.trailing_start_percent = float(self.config.get("trailing_start_percent", 0.05)) 
-        self.trailing_stop_drop = float(self.config.get("trailing_stop_drop", 0.02)) 
+        self.trailing_start_percent = float(self.config.get("trailing_start_percent", 5.0)) / 100.0
+        self.trailing_stop_drop = float(self.config.get("trailing_stop_drop", 2.0)) / 100.0 
         
         # State Variables
         self.reference_price = None
