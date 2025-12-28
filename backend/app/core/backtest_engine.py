@@ -36,23 +36,21 @@ class BacktestContext(IContext):
         exec_price = price if price > 0 else self.get_current_price(symbol)
         cost = exec_price * quantity
         
-        if self.cash >= cost:
-            self.cash -= cost
-            self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
-            
-            trade = {
-                "type": "buy",
-                "symbol": symbol,
-                "price": exec_price,
-                "quantity": quantity,
-                "time": self.get_time().isoformat()
-            }
-            self.trades.append(trade)
-            self.log(f"BUY EXECUTED: {quantity} @ {exec_price}")
-            return trade
-        else:
-            self.log("BUY FAILED: Insufficient Funds")
-            return {"status": "failed", "reason": "Insufficient Funds"}
+        # Simulation Mode: Allow negative cash to support "Fixed Betting" regardless of drawdown
+        # if self.cash >= cost: 
+        self.cash -= cost
+        self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
+        
+        trade = {
+            "type": "buy",
+            "symbol": symbol,
+            "price": exec_price,
+            "quantity": quantity,
+            "time": self.get_time().isoformat()
+        }
+        self.trades.append(trade)
+        self.log(f"BUY EXECUTED: {quantity} @ {exec_price}")
+        return trade
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
         current_qty = self.holdings.get(symbol, 0)
@@ -148,8 +146,9 @@ class BacktestEngine:
         context = BacktestContext(data_feed, initial_capital=initial_capital)
         
         # 3. Initialize Strategy
-        # Inject Symbol into config if needed
+        # Inject Symbol and Initial Capital into config
         self.config['symbol'] = symbol
+        self.config['initial_capital'] = initial_capital
         strategy = self.strategy_class(context, self.config)
         strategy.initialize()
         
@@ -200,8 +199,10 @@ class BacktestEngine:
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": f"{activity_rate:.1f}% ({traded_count}/{total_days} days)",
-            "chart_data": [], # Disabled to prevent high payload crash
+            "chart_data": self._resample_equity(context.equity_curve, 2000), # Resampled Equity for LineChart
+            "ohlcv_data": self._resample_ohlcv(data_feed, 2000), # Resampled Candles for VisualBacktestChart
             "logs": context.logs[-50:], # Return last 50 logs
+            "trades": context.trades, # List of trades for visual markers
             **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp']) # Inject detailed trade stats
         }
 
@@ -317,7 +318,7 @@ class BacktestEngine:
         end_dt = parse_ts(end_ts)
         
         days = (end_dt - start_dt).days
-        activity_rate = f"{total_count / days:.1f}/day" if days > 0 else "0/day"
+        activity_rate = f"{total_count / days * 100:.1f}%" if days > 0 else "0%"
 
         # Calculate Monthly Stats & Stability
         decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
@@ -450,6 +451,58 @@ class BacktestEngine:
             "stability_score": float(f"{stability_score:.2f}"),
             "acceleration_score": float(f"{acceleration_score:.2f}")
         }
+
+    def _resample_ohlcv(self, data: List[Dict], target_count: int = 2000) -> List[Dict]:
+        if not data: return []
+        if len(data) <= target_count:
+            return [{
+                "time": d['timestamp'][:10] if 'T' in d['timestamp'] and len(d['timestamp']) > 10 else d['timestamp'], # Simple ISO date for day interval, or full string? Lightweight charts handles string dates well. 
+                # Actually, for intraday, it needs Unix Timestamp or specific format. ISO string works for daily. 
+                # Let's keep original format and let frontend handle parsing if needed, or convert to unix.
+                # Use raw string for now, lightweight-charts supports string '2018-12-22' or unix timestamp.
+                # Ideally unix timestamp is safest for intraday.
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            } for d in data]
+            
+        # Simple interval sampling
+        import math
+        step = math.ceil(len(data) / target_count)
+        resampled = []
+        
+        for i in range(0, len(data), step):
+            chunk = data[i:i+step]
+            if not chunk: continue
+            
+            # Aggregate chunk
+            o = chunk[0]['open']
+            c = chunk[-1]['close']
+            h = max(x['high'] for x in chunk)
+            l = min(x['low'] for x in chunk)
+            t = chunk[0]['timestamp']
+            
+            resampled.append({
+                "time": t,
+                "open": o,
+                "high": h,
+                "low": l,
+                "close": c
+            })
+            
+        return resampled
+
+    def _resample_equity(self, data: List[Dict], target_count: int = 2000) -> List[Dict]:
+        if not data: return []
+        if len(data) <= target_count: return data
+        
+        import math
+        step = math.ceil(len(data) / target_count)
+        resampled = []
+        for i in range(0, len(data), step):
+            resampled.append(data[i])
+        return resampled
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return "0%"

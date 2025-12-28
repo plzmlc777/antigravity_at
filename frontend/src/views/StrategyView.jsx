@@ -3,6 +3,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector'; // Import
+import VisualBacktestChart from '../components/VisualBacktestChart';
 
 const StrategyView = () => {
     // Symbol State
@@ -23,6 +24,7 @@ const StrategyView = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [aiPrompt, setAiPrompt] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
 
     // Dynamic Config State
     const [config, setConfig] = useState({});
@@ -81,12 +83,15 @@ const StrategyView = () => {
         setIsLoading(true);
         setBacktestStatus({ status: 'running', message: 'Initializing Strategy...' });
         setBacktestResult(null); // Clear previous results
+        setShowChart(false);
 
         try {
             const payload = {
                 symbol: currentSymbol,
                 from_date: fromDate,
-                ...config
+                initial_capital: initialCapital,
+                interval: currentInterval,
+                config: config
             };
 
             setBacktestStatus({ status: 'running', message: `Running Backtest on ${currentSymbol}...` });
@@ -244,10 +249,9 @@ const StrategyView = () => {
                         )}
                     </div>
 
-                    {/* Row 2: All Buttons (Data + Actions) */}
+                    {/* Row 2: Data Controls */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full border-t border-white/5 pt-4">
-                        {/* Left: Data Status & Interval */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 w-full md:w-auto">
                             {/* Interval Selector */}
                             <div className="relative w-24">
                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
@@ -268,9 +272,7 @@ const StrategyView = () => {
                                 </select>
                             </div>
 
-                            {/* Data Status & Update Button (Side by Side) */}
-                            <div className="flex items-center gap-3">
-                                {/* Status Badge */}
+                            <div className="flex items-center gap-3 flex-1 md:flex-none">
                                 {!dataStatus.is_fresh ? (
                                     <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
                                         Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
@@ -281,7 +283,6 @@ const StrategyView = () => {
                                     </span>
                                 )}
 
-                                {/* Update Button - Always Visible */}
                                 <button
                                     onClick={handleFetchData}
                                     disabled={isFetchingData}
@@ -295,42 +296,58 @@ const StrategyView = () => {
                                 </button>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Right: Actions */}
-                        <div className="flex gap-3 items-center">
-                            {/* Initial Capital Input */}
-                            <div className="relative w-32">
-                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
-                                <input
-                                    type="number"
-                                    value={initialCapital}
-                                    onChange={(e) => setInitialCapital(parseInt(e.target.value))}
-                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
-                                />
-                            </div>
-
-                            {/* Start Date Input */}
-                            <div className="relative">
-                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
-                                <input
-                                    type="date"
-                                    value={fromDate}
-                                    onChange={(e) => setFromDate(e.target.value)}
-                                    className="bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
-                                />
-                            </div>
-
-                            <button
-                                onClick={() => runBacktest(selectedStrategy?.id)}
-                                disabled={isLoading || !selectedStrategy || !dataStatus.count}
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                            >
-                                {isLoading ? 'Running...' : 'Run Backtest'}
-                            </button>
-                            <button className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold transition-all whitespace-nowrap">
-                                Edit Code
-                            </button>
+                    {/* Row 3: Backtest Config Inputs */}
+                    <div className="flex flex-wrap items-center gap-3 w-full border-t border-white/5 pt-4">
+                        {/* Initial Capital */}
+                        <div className="relative flex-1 min-w-[120px]">
+                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                            <input
+                                type="text"
+                                value={initialCapital.toLocaleString()}
+                                onChange={(e) => {
+                                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                    setInitialCapital(rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                }}
+                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
+                            />
                         </div>
+
+                        {/* Start Date */}
+                        <div className="relative flex-1 min-w-[140px]">
+                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                            <input
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => setFromDate(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
+                            />
+                        </div>
+
+                        {/* Betting Strategy */}
+                        <div className="relative w-28">
+                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting</label>
+                            <select
+                                value={config.betting_strategy || "fixed"}
+                                onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px] appearance-none cursor-pointer"
+                            >
+                                <option value="fixed">Fixed</option>
+                                <option value="compound">Compound</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Row 4: Run Backtest Button (Full Width) */}
+                    <div className="w-full pt-2">
+                        <button
+                            onClick={() => runBacktest(selectedStrategy?.id)}
+                            disabled={isLoading || !selectedStrategy || !dataStatus.count}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                        >
+                            {isLoading ? 'Running Backtest...' : 'Run Backtest'}
+                        </button>
                     </div>
                 </div>
             </Card>
@@ -465,20 +482,93 @@ const StrategyView = () => {
                         {/* Backtest Results */}
                         {backtestResult ? (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                <Card className="lg:col-span-2" title="Equity Curve">
+                                <Card
+                                    className="lg:col-span-2"
+                                    title={showChart ? "Visual Backtest Chart" : "Equity Curve"}
+                                    headerAction={
+                                        <button
+                                            onClick={() => setShowChart(!showChart)}
+                                            className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors font-bold shadow-lg shadow-blue-900/20"
+                                        >
+                                            {showChart ? "Show Equity" : "Show Visual Chart"}
+                                        </button>
+                                    }
+                                >
                                     <div className="h-[300px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={backtestResult.chart_data}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                <XAxis dataKey="date" stroke="#666" />
-                                                <YAxis stroke="#666" domain={['auto', 'auto']} />
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                    itemStyle={{ color: '#fff' }}
-                                                />
-                                                <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
-                                            </LineChart>
-                                        </ResponsiveContainer>
+                                        {showChart && backtestResult.ohlcv_data ? (
+                                            <VisualBacktestChart
+                                                data={backtestResult.ohlcv_data}
+                                                trades={backtestResult.trades}
+                                            />
+                                        ) : (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={backtestResult.chart_data}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        stroke="#666"
+                                                        height={50}
+                                                        ticks={(() => {
+                                                            // Generate ticks only for month changes
+                                                            if (!backtestResult.chart_data) return [];
+                                                            const ticks = [];
+                                                            let lastMonth = -1;
+                                                            backtestResult.chart_data.forEach(d => {
+                                                                const date = new Date(d.date);
+                                                                const month = date.getMonth();
+                                                                if (month !== lastMonth) {
+                                                                    ticks.push(d.date);
+                                                                    lastMonth = month;
+                                                                }
+                                                            });
+                                                            return ticks;
+                                                        })()}
+                                                        interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
+                                                        tick={({ x, y, payload, index }) => {
+                                                            const dateStr = payload.value;
+                                                            if (!dateStr) return null;
+                                                            const date = new Date(dateStr);
+                                                            const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
+                                                            const year = date.getFullYear();
+
+                                                            // Show Year if it's Jan (Month 0) OR it's the very first tick
+                                                            const isJan = date.getMonth() === 0;
+                                                            const showYear = index === 0 || isJan;
+
+                                                            return (
+                                                                <g transform={`translate(${x},${y})`}>
+                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
+                                                                        {monthStr}
+                                                                    </text>
+                                                                    {showYear && (
+                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
+                                                                            {year}
+                                                                        </text>
+                                                                    )}
+                                                                </g>
+                                                            );
+                                                        }}
+                                                    />
+                                                    <YAxis
+                                                        stroke="#666"
+                                                        domain={['auto', 'auto']}
+                                                        tickFormatter={(value) => {
+                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
+                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                                            return value;
+                                                        }}
+                                                        width={60}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                        itemStyle={{ color: '#fff' }}
+                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
+                                                    />
+                                                    <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        )}
                                     </div>
                                 </Card>
                                 <div className="space-y-6">

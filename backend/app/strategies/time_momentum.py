@@ -78,22 +78,36 @@ class TimeMomentumStrategy(BaseStrategy):
                      should_buy = True
             
             if should_buy:
-                # Dynamic Position Sizing: Use 99% of available cash
+                # Betting Strategy
+                betting_mode = self.config.get("betting_strategy", "fixed")
+                initial_capital = self.config.get("initial_capital", 10000000)
+                
                 cash = self.context.cash
-                # Safety check for cash
-                if cash > 0:
-                    quantity = int((cash * 0.99) / current_price)
-                    if quantity > 0:
-                        self.context.buy(symbol, quantity)
-                        self.has_bought = True
-                        self.peak_price = current_price
-                        self.last_trade_date = current_time.date() # Mark as traded today
-                        target_display = -self.target_percent if self.direction == "fall" else self.target_percent
-                        self.context.log(f"Entry Triggered ({self.direction})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
-                    else:
-                        self.context.log("Entry Signal, but insufficient cash for 1 unit.")
+                quantity = 0
+                
+                if betting_mode == "fixed":
+                    # Fixed Betting: Always use 99% of Initial Capital
+                    # We allow negative cash (Margin) in BacktestEngine to support this strict simulation
+                    bet_amount = initial_capital * 0.99
+                    quantity = int(bet_amount / current_price)
                 else:
-                    self.context.log("Entry Signal, but 0 cash available.")
+                    # Compound (Default): Use 99% of Current Cash
+                    # If cash < 0 (from previous fixed bets?), this might break. 
+                    # But Compound usually implies we rely on what we have.
+                    # If we switch modes mid-way it's weird, but for single run it's fine.
+                    # Safety: If cash is negative, quantity becomes negative? 
+                    # We should clamp to 0.
+                    quantity = int((max(0, cash) * 0.99) / current_price)
+
+                if quantity > 0:
+                    self.context.buy(symbol, quantity)
+                    self.has_bought = True
+                    self.peak_price = current_price
+                    self.last_trade_date = current_time.date() # Mark as traded today
+                    target_display = -self.target_percent if self.direction == "fall" else self.target_percent
+                    self.context.log(f"Entry Triggered ({self.direction} | {betting_mode})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
+                else:
+                    self.context.log("Entry Signal, but insufficient cash (or 0 qty).")
 
         # 3. Manage Position (If bought)
         if self.has_bought:
