@@ -456,11 +456,7 @@ class BacktestEngine:
         if not data: return []
         if len(data) <= target_count:
             return [{
-                "time": d['timestamp'][:10] if 'T' in d['timestamp'] and len(d['timestamp']) > 10 else d['timestamp'], # Simple ISO date for day interval, or full string? Lightweight charts handles string dates well. 
-                # Actually, for intraday, it needs Unix Timestamp or specific format. ISO string works for daily. 
-                # Let's keep original format and let frontend handle parsing if needed, or convert to unix.
-                # Use raw string for now, lightweight-charts supports string '2018-12-22' or unix timestamp.
-                # Ideally unix timestamp is safest for intraday.
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp for Intraday support
                 "open": d['open'],
                 "high": d['high'],
                 "low": d['low'],
@@ -484,7 +480,7 @@ class BacktestEngine:
             t = chunk[0]['timestamp']
             
             resampled.append({
-                "time": t,
+                "time": int(datetime.fromisoformat(t).timestamp()), # Use Unix Timestamp
                 "open": o,
                 "high": h,
                 "low": l,

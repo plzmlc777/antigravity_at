@@ -131,5 +131,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "stability_score": result.get('stability_score', "0.00"),
         "acceleration_score": result.get('acceleration_score', "0.00"),
         "chart_data": result['chart_data'],
+        "ohlcv_data": result.get('ohlcv_data', []),
+        "trades": result.get('trades', []),
         "logs": result['logs']
     }

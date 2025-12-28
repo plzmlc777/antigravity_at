@@ -215,7 +215,7 @@ const StrategyView = () => {
     };
 
     return (
-        <div className="flex flex-col gap-6 h-[calc(100vh-100px)]">
+        <div className="flex flex-col gap-6 pb-10">
             {/* Top Bar: Selector & Actions */}
             <Card className="shrink-0 z-20">
                 <div className="flex flex-col gap-4">
@@ -249,111 +249,12 @@ const StrategyView = () => {
                         )}
                     </div>
 
-                    {/* Row 2: Data Controls */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full border-t border-white/5 pt-4">
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                            {/* Interval Selector */}
-                            <div className="relative w-24">
-                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
-                                <select
-                                    value={currentInterval}
-                                    onChange={(e) => setCurrentInterval(e.target.value)}
-                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="1m">1 Min</option>
-                                    <option value="3m">3 Min</option>
-                                    <option value="5m">5 Min</option>
-                                    <option value="10m">10 Min</option>
-                                    <option value="15m">15 Min</option>
-                                    <option value="30m">30 Min</option>
-                                    <option value="60m">1 Hour</option>
-                                    <option value="1d">1 Day</option>
-                                    <option value="1w">1 Week</option>
-                                </select>
-                            </div>
 
-                            <div className="flex items-center gap-3 flex-1 md:flex-none">
-                                {!dataStatus.is_fresh ? (
-                                    <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
-                                        Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
-                                    </span>
-                                ) : (
-                                    <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
-                                        Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
-                                    </span>
-                                )}
-
-                                <button
-                                    onClick={handleFetchData}
-                                    disabled={isFetchingData}
-                                    className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
-                                        fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
-                                            "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
-                                        }`}
-                                >
-                                    {isFetchingData ? 'Fetching...' :
-                                        fetchMessage ? fetchMessage : 'Update Data'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Row 3: Backtest Config Inputs */}
-                    <div className="flex flex-wrap items-center gap-3 w-full border-t border-white/5 pt-4">
-                        {/* Initial Capital */}
-                        <div className="relative flex-1 min-w-[120px]">
-                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
-                            <input
-                                type="text"
-                                value={initialCapital.toLocaleString()}
-                                onChange={(e) => {
-                                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                                    setInitialCapital(rawValue === '' ? 0 : parseInt(rawValue, 10));
-                                }}
-                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
-                            />
-                        </div>
-
-                        {/* Start Date */}
-                        <div className="relative flex-1 min-w-[140px]">
-                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
-                            <input
-                                type="date"
-                                value={fromDate}
-                                onChange={(e) => setFromDate(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px]"
-                            />
-                        </div>
-
-                        {/* Betting Strategy */}
-                        <div className="relative w-28">
-                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting</label>
-                            <select
-                                value={config.betting_strategy || "fixed"}
-                                onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-blue-500 outline-none h-[36px] appearance-none cursor-pointer"
-                            >
-                                <option value="fixed">Fixed</option>
-                                <option value="compound">Compound</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Row 4: Run Backtest Button (Full Width) */}
-                    <div className="w-full pt-2">
-                        <button
-                            onClick={() => runBacktest(selectedStrategy?.id)}
-                            disabled={isLoading || !selectedStrategy || !dataStatus.count}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                        >
-                            {isLoading ? 'Running Backtest...' : 'Run Backtest'}
-                        </button>
-                    </div>
                 </div>
             </Card>
 
-            {/* Main Scrollable Area */}
-            <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar pb-20">
+            {/* Main Content Area (No Scroll Container) */}
+            <div className="space-y-6 pb-20">
                 {selectedStrategy ? (
                     <>
                         {/* Configuration Panel - Full Width & Prominent */}
@@ -479,96 +380,219 @@ const StrategyView = () => {
                             </div>
                         </Card>
 
+                        {/* Backtest Controls (Relocated) */}
+                        <Card title="Backtest Settings & Execution" className="border-t-4 border-t-blue-500">
+                            <div className="flex flex-col gap-4">
+                                {/* Row 1: Data Interval & Status */}
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+                                    <div className="flex items-center gap-4 w-full md:w-auto">
+                                        <div className="relative w-32">
+                                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
+                                            <select
+                                                value={currentInterval}
+                                                onChange={(e) => setCurrentInterval(e.target.value)}
+                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                            >
+                                                <option value="1m">1 Min</option>
+                                                <option value="3m">3 Min</option>
+                                                <option value="5m">5 Min</option>
+                                                <option value="10m">10 Min</option>
+                                                <option value="15m">15 Min</option>
+                                                <option value="30m">30 Min</option>
+                                                <option value="60m">1 Hour</option>
+                                                <option value="1d">1 Day</option>
+                                                <option value="1w">1 Week</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            {!dataStatus.is_fresh ? (
+                                                <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
+                                                    Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                </span>
+                                            ) : (
+                                                <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
+                                                    Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                </span>
+                                            )}
+                                            <button
+                                                onClick={handleFetchData}
+                                                disabled={isFetchingData}
+                                                className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
+                                                    fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
+                                                        "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
+                                                    }`}
+                                            >
+                                                {isFetchingData ? 'Fetching...' :
+                                                    fetchMessage ? fetchMessage : 'Update Data'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Row 2: Capital & Date & Strategy */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
+                                    <div className="relative">
+                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                        <input
+                                            type="text"
+                                            value={initialCapital.toLocaleString()}
+                                            onChange={(e) => {
+                                                const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                                setInitialCapital(rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                            }}
+                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                                        <input
+                                            type="date"
+                                            value={fromDate}
+                                            onChange={(e) => setFromDate(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
+                                        <select
+                                            value={config.betting_strategy || "fixed"}
+                                            onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                        >
+                                            <option value="fixed">Fixed Amount</option>
+                                            <option value="compound">Compound Interest</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Action Buttons */}
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <button
+                                        onClick={() => setShowChart(!showChart)}
+                                        disabled={!backtestResult}
+                                        className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
+                                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                            : showChart
+                                                ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
+                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                            }`}
+                                    >
+                                        {showChart ? "🙈 Hide Visual Chart" : "📊 Visual Analysis"}
+                                    </button>
+                                    <button
+                                        onClick={() => runBacktest(selectedStrategy?.id)}
+                                        disabled={isLoading || !selectedStrategy || !dataStatus.count}
+                                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Running...
+                                            </>
+                                        ) : (
+                                            <>🚀 Run Backtest</>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* VISUAL CHART SECTION (Dedicated) */}
+                        {showChart && backtestResult && (
+                            <div className="mb-6 animate-fade-in-down">
+                                <Card title="Visual Backtest Analysis">
+                                    {backtestResult.ohlcv_data ? (
+                                        <VisualBacktestChart
+                                            data={backtestResult.ohlcv_data}
+                                            trades={backtestResult.trades}
+                                        />
+                                    ) : (
+                                        <div className="h-[200px] flex items-center justify-center text-gray-500">
+                                            No visual data available.
+                                        </div>
+                                    )}
+                                </Card>
+                            </div>
+                        )}
+
                         {/* Backtest Results */}
                         {backtestResult ? (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 <Card
                                     className="lg:col-span-2"
-                                    title={showChart ? "Visual Backtest Chart" : "Equity Curve"}
-                                    headerAction={
-                                        <button
-                                            onClick={() => setShowChart(!showChart)}
-                                            className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded transition-colors font-bold shadow-lg shadow-blue-900/20"
-                                        >
-                                            {showChart ? "Show Equity" : "Show Visual Chart"}
-                                        </button>
-                                    }
+                                    title="Equity Curve"
                                 >
-                                    <div className="h-[300px] w-full">
-                                        {showChart && backtestResult.ohlcv_data ? (
-                                            <VisualBacktestChart
-                                                data={backtestResult.ohlcv_data}
-                                                trades={backtestResult.trades}
-                                            />
-                                        ) : (
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={backtestResult.chart_data}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        stroke="#666"
-                                                        height={50}
-                                                        ticks={(() => {
-                                                            // Generate ticks only for month changes
-                                                            if (!backtestResult.chart_data) return [];
-                                                            const ticks = [];
-                                                            let lastMonth = -1;
-                                                            backtestResult.chart_data.forEach(d => {
-                                                                const date = new Date(d.date);
-                                                                const month = date.getMonth();
-                                                                if (month !== lastMonth) {
-                                                                    ticks.push(d.date);
-                                                                    lastMonth = month;
-                                                                }
-                                                            });
-                                                            return ticks;
-                                                        })()}
-                                                        interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
-                                                        tick={({ x, y, payload, index }) => {
-                                                            const dateStr = payload.value;
-                                                            if (!dateStr) return null;
-                                                            const date = new Date(dateStr);
-                                                            const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
-                                                            const year = date.getFullYear();
+                                    <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={backtestResult.chart_data}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    stroke="#666"
+                                                    height={50}
+                                                    ticks={(() => {
+                                                        // Generate ticks only for month changes
+                                                        if (!backtestResult.chart_data) return [];
+                                                        const ticks = [];
+                                                        let lastMonth = -1;
+                                                        backtestResult.chart_data.forEach(d => {
+                                                            const date = new Date(d.date);
+                                                            const month = date.getMonth();
+                                                            if (month !== lastMonth) {
+                                                                ticks.push(d.date);
+                                                                lastMonth = month;
+                                                            }
+                                                        });
+                                                        return ticks;
+                                                    })()}
+                                                    interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
+                                                    tick={({ x, y, payload, index }) => {
+                                                        const dateStr = payload.value;
+                                                        if (!dateStr) return null;
+                                                        const date = new Date(dateStr);
+                                                        const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
+                                                        const year = date.getFullYear();
 
-                                                            // Show Year if it's Jan (Month 0) OR it's the very first tick
-                                                            const isJan = date.getMonth() === 0;
-                                                            const showYear = index === 0 || isJan;
+                                                        // Show Year if it's Jan (Month 0) OR it's the very first tick
+                                                        const isJan = date.getMonth() === 0;
+                                                        const showYear = index === 0 || isJan;
 
-                                                            return (
-                                                                <g transform={`translate(${x},${y})`}>
-                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
-                                                                        {monthStr}
+                                                        return (
+                                                            <g transform={`translate(${x},${y})`}>
+                                                                <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
+                                                                    {monthStr}
+                                                                </text>
+                                                                {showYear && (
+                                                                    <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
+                                                                        {year}
                                                                     </text>
-                                                                    {showYear && (
-                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
-                                                                            {year}
-                                                                        </text>
-                                                                    )}
-                                                                </g>
-                                                            );
-                                                        }}
-                                                    />
-                                                    <YAxis
-                                                        stroke="#666"
-                                                        domain={['auto', 'auto']}
-                                                        tickFormatter={(value) => {
-                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
-                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                                            return value;
-                                                        }}
-                                                        width={60}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                        itemStyle={{ color: '#fff' }}
-                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
-                                                    />
-                                                    <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        )}
+                                                                )}
+                                                            </g>
+                                                        );
+                                                    }}
+                                                />
+                                                <YAxis
+                                                    stroke="#666"
+                                                    domain={['auto', 'auto']}
+                                                    tickFormatter={(value) => {
+                                                        if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
+                                                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                                        if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                                        return value;
+                                                    }}
+                                                    width={60}
+                                                />
+                                                <Tooltip
+                                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                    itemStyle={{ color: '#fff' }}
+                                                    formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
+                                                />
+                                                <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
                                     </div>
                                 </Card>
                                 <div className="space-y-6">
@@ -804,7 +828,7 @@ const StrategyView = () => {
                     </button>
                 </div>
             </Card>
-        </div>
+        </div >
     );
 };
 
