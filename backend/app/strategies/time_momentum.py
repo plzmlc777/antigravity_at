@@ -41,15 +41,26 @@ class TimeMomentumStrategy(BaseStrategy):
         self.peak_price = 0
         self.trailing_active = False
         self.last_trade_date = None
+        self.checked_today = False # Fix: Ensure we only check trigger ONCE per day
 
     def on_data(self, data: Dict[str, Any]):
         current_time = self.context.get_time()
         current_price = data['close']
         symbol = "TEST" # Configurable in real scenario
+        
+        # Reset daily state on new day
+        if self.last_trade_date != current_time.date() and self.last_trade_date is not None:
+             # If we moved to a new day, reset checks (unless we handle this via last_trade_date check below)
+             # Better: Detect date change to reset 'checked_today'
+             pass
 
+        # Since on_data runs sequential, we can detect new day easily
+        # But simplify: We store 'checked_date'.
+        
         # 1. Establish Reference Price (Start Time)
         if current_time.time() == self.start_time:
             self.reference_price = current_price
+            self.checked_today = False # Reset for new day
             self.context.log(f"Market Start. Reference Price: {self.reference_price}")
 
         # 2. Check Entry Condition (Start Time + Delay)
@@ -61,43 +72,41 @@ class TimeMomentumStrategy(BaseStrategy):
         if self.last_trade_date == current_time.date():
              already_traded = True
         
-        if not self.has_bought and not already_traded and self.reference_price and current_time >= trigger_time:
-            # Check price change from Start Time
-            change = (current_price - self.reference_price) / self.reference_price
-            
-            should_buy = False
-            
-            if self.direction == "fall":
-                # Dip Buying: Buy if price dropped MORE than target (e.g. change <= -0.02)
-                # Use negative(target_percent) as threshold
-                if change <= -self.target_percent:
-                     should_buy = True
-            else:
-                # Rise Buying (Momentum): Buy if price rose MORE than target (e.g. >= 0.02)
-                if change >= self.target_percent:
-                     should_buy = True
-            
-            if should_buy:
-                # Betting Strategy
-                betting_mode = self.config.get("betting_strategy", "fixed")
-                initial_capital = self.config.get("initial_capital", 10000000)
+        # STRICT SNAPSHOT CHECK:
+        # Buy ONLY if current_time >= trigger_time AND we haven't checked yet today.
+        # This ensures we don't buy at 14:00 if condition was met late.
+        if not self.has_bought and not already_traded and self.reference_price:
+             if current_time >= trigger_time and not self.checked_today:
                 
-                cash = self.context.cash
-                quantity = 0
+                self.checked_today = True # Mark as checked immediately
                 
-                if betting_mode == "fixed":
-                    # Fixed Betting: Always use 99% of Initial Capital
-                    # We allow negative cash (Margin) in BacktestEngine to support this strict simulation
-                    bet_amount = initial_capital * 0.99
-                    quantity = int(bet_amount / current_price)
+                # Check price change from Start Time
+                change = (current_price - self.reference_price) / self.reference_price
+                
+                should_buy = False
+                
+                if self.direction == "fall":
+                    # Dip Buying: Buy if price dropped MORE than target (e.g. change <= -0.02)
+                    if change <= -self.target_percent:
+                        should_buy = True
                 else:
-                    # Compound (Default): Use 99% of Current Cash
-                    # If cash < 0 (from previous fixed bets?), this might break. 
-                    # But Compound usually implies we rely on what we have.
-                    # If we switch modes mid-way it's weird, but for single run it's fine.
-                    # Safety: If cash is negative, quantity becomes negative? 
-                    # We should clamp to 0.
-                    quantity = int((max(0, cash) * 0.99) / current_price)
+                    # Rise Buying (Momentum): Buy if price rose MORE than target (e.g. >= 0.02)
+                    if change >= self.target_percent:
+                        should_buy = True
+                
+                if should_buy:
+                    # Betting Strategy
+                    betting_mode = self.config.get("betting_strategy", "fixed")
+                    initial_capital = self.config.get("initial_capital", 10000000)
+                    
+                    cash = self.context.cash
+                    quantity = 0
+                    
+                    if betting_mode == "fixed":
+                        bet_amount = initial_capital * 0.99
+                        quantity = int(bet_amount / current_price)
+                    else:
+                        quantity = int((max(0, cash) * 0.99) / current_price)
 
                 if quantity > 0:
                     self.context.buy(symbol, quantity)
