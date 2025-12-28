@@ -94,13 +94,14 @@ class TimeMomentumStrategy(BaseStrategy):
                     if change >= self.target_percent:
                         should_buy = True
                 
+                quantity = 0
+
                 if should_buy:
                     # Betting Strategy
                     betting_mode = self.config.get("betting_strategy", "fixed")
                     initial_capital = self.config.get("initial_capital", 10000000)
                     
                     cash = self.context.cash
-                    quantity = 0
                     
                     if betting_mode == "fixed":
                         bet_amount = initial_capital * 0.99
