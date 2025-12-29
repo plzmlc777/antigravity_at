@@ -17,4 +17,4 @@ fi
 PORT=${BACKEND_PORT:-8001}
 
 # Add user-site bin to PATH to# Run Uvicorn directly (dependencies installed globally/user-wide)
-nohup python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT --reload > ../backend.log 2>&1 &
+nohup python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT --reload >> ../backend.log 2>&1 &

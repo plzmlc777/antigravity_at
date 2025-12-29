@@ -11,30 +11,47 @@ class TimeMomentumStrategy(BaseStrategy):
     4. Force Sell at Stop Time or if Stop Loss hit.
     """
     def initialize(self):
+        # Helper for robust parsing
+        def get_param(key, default, cast_type=float):
+            val = self.config.get(key)
+            if val is None or val == "":
+                return default
+            try:
+                return cast_type(val)
+            except (ValueError, TypeError):
+                return default
+
         # Parameters from config
-        self.start_time_str = self.config.get("start_time", "09:00")
-        self.stop_time_str = self.config.get("stop_time", "15:00")
+        self.start_time_str = self.config.get("start_time") or "09:00"
+        self.stop_time_str = self.config.get("stop_time") or "15:00"
         
         # Parse times
-        self.start_time = datetime.strptime(self.start_time_str, "%H:%M").time()
-        self.stop_time = datetime.strptime(self.stop_time_str, "%H:%M").time()
+        try:
+            self.start_time = datetime.strptime(self.start_time_str, "%H:%M").time()
+        except ValueError:
+             self.start_time = datetime.strptime("09:00", "%H:%M").time()
+             
+        try:
+            self.stop_time = datetime.strptime(self.stop_time_str, "%H:%M").time()
+        except ValueError:
+             self.stop_time = datetime.strptime("15:00", "%H:%M").time()
         
-        self.delay_minutes = int(self.config.get("delay_minutes", 10)) # e.g., 10 mins
+        self.delay_minutes = get_param("delay_minutes", 10, int)
         
         # Direction Logic: 'rise' (Momentum) or 'fall' (Dip)
         self.direction = self.config.get("direction", "rise")  
         
         # User input is expected to be integer percentage (e.g. 2 for 2%)
         # standardizing input: float(val) / 100.0
-        raw_target = float(self.config.get("target_percent", 2.0))
+        raw_target = get_param("target_percent", 2.0, float)
         self.target_percent = abs(raw_target) / 100.0 # Force positive
         
         # User input is positive percentage (e.g. 3 for 3% loss)
-        raw_stop = float(self.config.get("safety_stop_percent", 3.0))
+        raw_stop = get_param("safety_stop_percent", 3.0, float)
         self.safety_stop_percent = -(abs(raw_stop) / 100.0) # Force negative
         
-        self.trailing_start_percent = float(self.config.get("trailing_start_percent", 5.0)) / 100.0
-        self.trailing_stop_drop = float(self.config.get("trailing_stop_drop", 2.0)) / 100.0 
+        self.trailing_start_percent = get_param("trailing_start_percent", 5.0, float) / 100.0
+        self.trailing_stop_drop = get_param("trailing_stop_drop", 2.0, float) / 100.0 
         
         # State Variables
         self.reference_price = None

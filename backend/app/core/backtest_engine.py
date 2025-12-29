@@ -129,7 +129,25 @@ class BacktestEngine:
         data_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
         
         if not data_feed:
-            return {"logs": ["No data collected"]}
+            return {
+                "logs": ["No data collected"],
+                "total_return": "0%",
+                "win_rate": "0%",
+                "max_drawdown": "0%",
+                "activity_rate": "0%",
+                "total_trades": 0,
+                "score": 0,
+                "avg_pnl": "0%",
+                "max_profit": "0%",
+                "max_loss": "0%",
+                "profit_factor": "0.00",
+                "sharpe_ratio": "0.00",
+                "avg_holding_time": "0m",
+                "stability_score": "0.00",
+                "acceleration_score": "0.00",
+                "chart_data": [],
+                "ohlcv_data": []
+            }
 
         # Filter by Start Date
         if from_date:
@@ -161,7 +179,24 @@ class BacktestEngine:
         # 5. Calculate Stats
         # 5. Calculate Stats
         if not context.equity_curve:
-             return {"logs": context.logs, "total_return": "0%", "win_rate": "0%", "max_drawdown": "0%", "chart_data": [], "activity_rate": "0%"}
+             return {
+                 "logs": context.logs, 
+                 "total_return": "0%", 
+                 "win_rate": "0%", 
+                 "max_drawdown": "0%", 
+                 "activity_rate": "0%",
+                 "total_trades": 0,
+                 "avg_pnl": "0%",
+                 "max_profit": "0%",
+                 "max_loss": "0%",
+                 "profit_factor": "0.00",
+                 "sharpe_ratio": "0.00",
+                 "avg_holding_time": "0m",
+                 "stability_score": "0.00",
+                 "acceleration_score": "0.00",
+                 "chart_data": [],
+                 "ohlcv_data": []
+             }
 
         final_equity = context.equity_curve[-1]['equity']
         initial_equity = context.equity_curve[0]['equity']
@@ -213,7 +248,14 @@ class BacktestEngine:
                 "win_rate": "0%",
                 "avg_pnl": "0%",
                 "max_profit": "0%",
-                "max_loss": "0%"
+                "max_loss": "0%",
+                "profit_factor": "0.00",
+                "sharpe_ratio": "0.00",
+                "avg_holding_time": "0m",
+                "stability_score": "0.00",
+                "acceleration_score": "0.00",
+                "decile_stats": [],
+                "activity_rate": "0%"
             }
 
         # FIFO Trade Matching

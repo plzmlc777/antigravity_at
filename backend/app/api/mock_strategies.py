@@ -3,6 +3,189 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 import random
 import time
+import itertools
+import functools
+from concurrent.futures import ProcessPoolExecutor
+from ..schemas.optimization import OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus
+
+import logging
+
+logger = logging.getLogger("optimization")
+logger.setLevel(logging.INFO)
+
+# Removed file logging function in favor of direct print/file write in exception block
+
+
+# Global Task Registry
+OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
+
+import uuid
+
+# Helper for Parallel Execution
+# Must be top-level for pickling
+def _run_backtest_wrapper(args):
+    strategy_cls, config, symbol, interval, days, from_date, initial_capital = args
+    from ..core.backtest_engine import BacktestEngine
+    
+    # Initialize implementation of run
+    engine = BacktestEngine(strategy_cls, config)
+    try:
+        # Run simplified backtest (we don't need charts for optimization, just metrics)
+        # But BacktestEngine.run might be heavy. 
+        # Ideally, we should add a 'lite' mode to run() to skip chart generation.
+        # For now, we just run it.
+        result = engine.run_sync( # Assuming valid sync method or using asyncio.run in wrapper if needed.
+             # Wait, engine.run is async? 
+             # If engine.run is async, we can't easily call it from ProcessPool without new event loop.
+             # Let's check imports. BacktestEngine is usually sync or has sync wrapper?
+             # Based on previous usage: result = await engine.run(...)
+             # If it's async, we should use ThreadPool or run_in_executor with loop.
+             # BUT Backtest is CPU bound.
+             # We should probably run it synchronously in the process.
+             # Let's assume we can call the core logic synchronously or use asyncio.run(engine.run(...))
+             symbol, interval, days, from_date, initial_capital
+        )
+        return config, result
+    except Exception as e:
+        return config, {"error": str(e)}
+
+def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital):
+    # Force close inherited DB connections to prevent SSL/OperationalError in worker process
+    try:
+        from ..db.session import engine
+        engine.dispose()
+    except Exception as e:
+        print(f"Warning: Failed to dispose engine in worker: {e}")
+
+    import asyncio
+    from ..core.backtest_engine import BacktestEngine
+    
+    engine = BacktestEngine(strategy_cls, config)
+    # create new loop for this process
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    result = loop.run_until_complete(engine.run(
+        symbol=symbol, 
+        interval=interval, 
+        duration_days=days, 
+        from_date=from_date,
+        initial_capital=initial_capital
+    ))
+    return config, result
+
+def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
+    """
+    Background wrapper that runs the sync process pool and updates Global Status.
+    """
+    try:
+        results = []
+        failures = []
+        
+        # Update Status to Running
+        OPTIMIZATION_TASKS[task_id]["status"] = "running"
+        OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
+        
+        # Use max_workers=4
+        with ProcessPoolExecutor(max_workers=4) as executor:
+            # We want to iterate as they complete to update progress?
+            # executor.map returns iterator.
+            # zip(*run_args) unzips
+            
+            # NOTE: list(executor.map(...)) blocks until all are done.
+            # To get progress, we use enumerate on the iterator or submit individually and use as_completed.
+            # For simplicity with map, we can't get granular progress easily unless we chunk it or wrap the iterator.
+            # Let's switch to submit + as_completed for progress updates.
+            from concurrent.futures import as_completed
+            
+            futures = [executor.submit(_run_sync_in_process, *args) for args in run_args]
+            
+            for i, future in enumerate(as_completed(futures)):
+                try:
+                    config, res = future.result()
+                    
+                    if "error" in res:
+                        err_msg = str(res['error'])
+                        if len(failures) < 10:
+                             failures.append(f"Config failed: {err_msg}")
+                        # logger.error(f"Config failed: {err_msg}")
+                    else:
+                        # Calculate Score
+                        ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
+                        wr = float(str(res['win_rate']).replace('%', ''))
+                        trades = int(res.get('total_trades', 0))
+                        
+                        score = ret * (wr / 100.0)
+                        
+                        results.append(OptimizationResultItem(
+                            rank=0,
+                            config=config,
+                            total_return=ret,
+                            win_rate=wr,
+                            total_trades=trades,
+                            score=round(score, 2),
+                            metrics={
+                                "max_drawdown": res.get("max_drawdown"),
+                                "profit_factor": res.get("profit_factor"),
+                                "avg_pnl": res.get("avg_pnl"),
+                                "sharpe_ratio": res.get("sharpe_ratio"),
+                                "avg_holding_time": res.get("avg_holding_time"),
+                                "stability_score": res.get("stability_score"),
+                                "activity_rate": res.get("activity_rate")
+                            }
+                        ))
+                except Exception as e:
+                    logger.error(f"Future Result Error: {e}")
+                    failures.append(str(e))
+                
+                # Update Progress
+                OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+        
+        # Finished
+        results.sort(key=lambda x: x.score, reverse=True)
+        for i, item in enumerate(results):
+            item.rank = i + 1
+            
+        execution_time = time.time() - start_time
+        
+        response = OptimizationResponse(
+            strategy_id=strategy_id,
+            best_config=results[0].config if results else {},
+            results=results[:50],
+            failures=failures,
+            total_combinations=total_combos,
+            elapsed_time=execution_time,
+            task_id=task_id,
+            status="completed"
+        )
+        
+        OPTIMIZATION_TASKS[task_id]["status"] = "completed"
+        OPTIMIZATION_TASKS[task_id]["result"] = response
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        msg = f"CRITICAL FAILURE: {e}\n{tb}"
+        
+        # Log to stdout for Docker/Shell capture
+        print(f"\n[OPTIMIZATION ERROR] {msg}\n", flush=True)
+        
+        # Log to simple file
+        try:
+            with open("optimization_crash.log", "a") as f:
+                f.write(f"{time.ctime()}\n{msg}\n")
+        except:
+            pass
+
+        logger.error(f"Background Task Failed: {e}")
+        OPTIMIZATION_TASKS[task_id]["status"] = "failed"
+        OPTIMIZATION_TASKS[task_id]["message"] = str(e)
+
+# Removed old _optimize_sync_wrapper as it is replaced by _optimize_background_task logic
+
 
 router = APIRouter()
 
@@ -135,3 +318,114 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "trades": result.get('trades', []),
         "logs": result['logs']
     }
+
+@router.post("/{strategy_id}/optimize", response_model=OptimizationResponse)
+async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
+    start_time = time.time()
+    
+    # 1. Select Strategy Class
+    strategy_class = None
+    if strategy_id == "time_momentum":
+        from ..strategies.time_momentum import TimeMomentumStrategy
+        strategy_class = TimeMomentumStrategy
+    else:
+        # Optimization only supported for TimeMomentum for now or generic?
+        # Fallback to generic if possible, but we need class logic.
+        from ..strategies.base import BaseStrategy
+        class MockStrategy(BaseStrategy):
+             def initialize(self): pass
+             def on_data(self, data): pass
+        strategy_class = MockStrategy
+
+    # 2. Generate Cartesian Product
+    keys = list(request.parameter_ranges.keys())
+    values = list(request.parameter_ranges.values())
+    combinations = list(itertools.product(*values))
+    
+    # Limit max combinations to avoid DOS
+    if len(combinations) > 500:
+         # raise HTTPException(status_code=400, detail="Too many combinations. Max 500.")
+         combinations = combinations[:500] 
+
+    logger.info(f"[Optimization] Running {len(combinations)} combinations for {strategy_id}")
+
+    # 3. Prepare Tasks
+    tasks = []
+    base_config = request.base_config.copy()
+    
+    run_args = []
+    for combo in combinations:
+        # Merge combo into config
+        current_config = base_config.copy()
+        for i, key in enumerate(keys):
+            current_config[key] = combo[i]
+            
+        run_args.append((
+            strategy_class,
+            current_config,
+            request.symbol,
+            request.interval,
+            request.days,
+            request.from_date,
+            request.initial_capital
+        ))
+
+    # 4. Async Execution (Fire and Forget)
+    task_id = str(uuid.uuid4())
+    
+    OPTIMIZATION_TASKS[task_id] = {
+        "status": "initializing",
+        "progress_current": 0,
+        "progress_total": len(combinations),
+        "message": "Initializing...",
+        "result": None,
+        "task_id": task_id
+    }
+    
+    # Run in Thread (to allow Thread to manage ProcessPool and updates)
+    import asyncio
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(
+        None, 
+        _optimize_background_task, 
+        task_id, 
+        run_args, 
+        strategy_id, 
+        start_time, 
+        len(combinations)
+    )
+    
+    # Return Immediate Response
+    return OptimizationResponse(
+        strategy_id=strategy_id,
+        best_config={},
+        results=[],
+        failures=[],
+        total_combinations=len(combinations),
+        elapsed_time=0,
+        task_id=task_id,
+        status="running"
+    )
+
+@router.get("/optimize/status/{task_id}", response_model=OptimizationStatus)
+async def get_optimization_status(task_id: str):
+    from ..schemas.optimization import OptimizationStatus
+    task = OPTIMIZATION_TASKS.get(task_id)
+    if not task:
+        # Fallback for invalid ID
+        return OptimizationStatus(
+            task_id=task_id,
+            status="not_found",
+            progress_current=0,
+            progress_total=0,
+            message="Task not found"
+        )
+        
+    return OptimizationStatus(
+        task_id=task_id,
+        status=task["status"],
+        progress_current=task.get("progress_current", 0),
+        progress_total=task.get("progress_total", 0),
+        message=task.get("message", ""),
+        result=task.get("result")
+    )

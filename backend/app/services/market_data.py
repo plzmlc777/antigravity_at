@@ -85,7 +85,26 @@ class MarketDataService:
             print(f"No data for {symbol} {interval}. Fetching automatically (Limit: {fetch_limit})...")
             await self.fetch_history(symbol, interval, days, limit=fetch_limit)
             # Re-read from DB
-            return await self.get_candles(symbol, interval, days, limit)
+            # Re-read from DB
+            db = SessionLocal()
+            try:
+                db_candles = db.query(OHLCV).filter(
+                    OHLCV.symbol == symbol, 
+                    OHLCV.time_frame == interval
+                ).order_by(OHLCV.timestamp.asc()).all()
+                
+                if len(db_candles) > 0:
+                    print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (After Fetch)")
+                    return [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume
+                        }
+                        for c in db_candles
+                    ][-limit:]
+            finally:
+                db.close()
+            return []
             
         return []
 
@@ -117,6 +136,8 @@ class MarketDataService:
 
         # 1. Fetch Credentials from DB (Active Account)
         from ..db.session import SessionLocal
+        # Ensure User model is loaded for relationship resolution in worker process
+        from ..models.user import User 
         from ..models.account import ExchangeAccount
         from ..core import security
         
