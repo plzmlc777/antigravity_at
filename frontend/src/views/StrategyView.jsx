@@ -1309,7 +1309,9 @@ const StrategyView = () => {
                                                                     { key: 'profit_factor', label: 'P.Factor' },
                                                                     { key: 'sharpe_ratio', label: 'Sharpe' },
                                                                     { key: 'avg_pnl', label: 'Avg PnL' },
+                                                                    { key: 'avg_pnl', label: 'Avg PnL' },
                                                                     { key: 'stability_score', label: 'Stability' },
+                                                                    { key: 'acceleration_score', label: 'Profit Accel' },
                                                                     { key: 'trades', label: 'Trades' },
                                                                     { key: 'score', label: 'Score' }
                                                                 ].map((col) => (
@@ -1365,6 +1367,7 @@ const StrategyView = () => {
                                                                         <td className="p-3 text-white">{res.sharpe_ratio ?? '-'}</td>
                                                                         <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{res.avg_pnl ?? '-'}</td>
                                                                         <td className="p-3 text-white">{res.stability_score ?? '-'}</td>
+                                                                        <td className="p-3 text-white">{res.acceleration_score ?? '-'}</td>
                                                                         <td className="p-3 text-gray-400">{res.trades}</td>
                                                                         <td className="p-3 text-blue-400 font-bold">{res.score}</td>
                                                                         <td className="p-3 text-center">
