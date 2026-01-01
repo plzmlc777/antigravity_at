@@ -137,7 +137,6 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             acceleration_score=str(res.get("acceleration_score", "-")),
                             activity_rate=str(res.get("activity_rate", "-")),
                             total_days=int(res.get("total_days", 0)),
-                            total_days=int(res.get("total_days", 0)),
                             metrics={
                                 # Frontend relies on 'metrics' spread, so we must populate these!
                                 "max_drawdown": res.get("max_drawdown", "-"),
