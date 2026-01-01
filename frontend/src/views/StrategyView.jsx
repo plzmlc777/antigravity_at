@@ -279,6 +279,8 @@ const StrategyView = () => {
         setOptValues(prev => ({ ...prev, [key]: value }));
     };
 
+    const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
+
     // Sorting State
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
@@ -297,6 +299,21 @@ const StrategyView = () => {
             const num = parseFloat(trimmed);
             return isNaN(num) ? trimmed : num;
         }).filter(v => v !== "");
+    };
+
+    const [isCancelling, setIsCancelling] = useState(false);
+
+    const cancelOptimization = async (taskId) => {
+        if (!taskId) return;
+        setIsCancelling(true);
+        try {
+            await axios.post(`/api/v1/strategies/optimize/cancel/${taskId}`);
+            // UI update handled by polling
+        } catch (e) {
+            console.error("Cancellation failed", e);
+            setOptError("Failed to cancel optimization");
+            setIsCancelling(false);
+        }
     };
 
     const runOptimization = async () => {
@@ -323,6 +340,7 @@ const StrategyView = () => {
         }
 
         setIsOptimizing(true);
+        setIsCancelling(false);
         setOptResults([]);
         setOptError(null);
         setOptProgress({ current: 0, total: 0 }); // Reset
@@ -358,6 +376,12 @@ const StrategyView = () => {
 
                 // 2. Poll for Status
                 let isComplete = false;
+                // Store taskId in ref or use local var for cancel button if we want to extract it
+                // For now, cancel button needs access to current taskId. 
+                // We'll rely on a state for currentTaskId or pass it? 
+                // Better: set a state `currentOptTaskId`
+                setCurrentOptTaskId(taskId);
+
                 while (!isComplete) {
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
 
@@ -370,8 +394,8 @@ const StrategyView = () => {
                             total: statusData.progress_total
                         });
 
-                        if (statusData.status === 'completed') {
-                            // Finished
+                        if (statusData.status === 'completed' || statusData.status === 'cancelled') {
+                            // Finished (or Cancelled)
                             const resultData = statusData.result;
                             if (resultData && resultData.results && resultData.results.length > 0) {
                                 const formattedResults = resultData.results.map(item => ({
@@ -385,9 +409,17 @@ const StrategyView = () => {
                                     ...item.metrics // Flatten metrics
                                 }));
                                 setOptResults(formattedResults);
+
+                                if (statusData.status === 'cancelled') {
+                                    setOptError("Optimization Cancelled by User (Partial Results Shown Below)");
+                                }
                             } else {
-                                const failureMsg = resultData.failures ? resultData.failures.join('\n') : "";
-                                setOptError(`Optimization completed but resulted in 0 valid backtests.\n\nBackend Failures:\n${failureMsg}`);
+                                if (statusData.status === 'cancelled') {
+                                    setOptError("Optimization Cancelled by User (No Results)");
+                                } else {
+                                    const failureMsg = resultData.failures ? resultData.failures.join('\n') : "";
+                                    setOptError(`Optimization completed but resulted in 0 valid backtests.\n\nBackend Failures:\n${failureMsg}`);
+                                }
                             }
                             isComplete = true;
                         } else if (statusData.status === 'failed') {
@@ -414,6 +446,8 @@ const StrategyView = () => {
             console.error(error);
         } finally {
             setIsOptimizing(false);
+            setIsCancelling(false);
+            setCurrentOptTaskId(null);
         }
     };
 
@@ -1185,34 +1219,56 @@ const StrategyView = () => {
                                         </div>
 
                                         {/* Action */}
-                                        <button
-                                            onClick={runOptimization}
-                                            className="w-full bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2"
-                                        >
-                                            {isOptimizing ? (
-                                                <>
-                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    {optProgress.total > 0
-                                                        ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                        : "Initializing..."}
-                                                </>
-                                            ) : (
-                                                <>🧪 Start Optimization Analysis ({Object.values(optEnabled).filter(Boolean).length} Params)</>
-                                            )}
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={runOptimization}
+                                                disabled={isOptimizing}
+                                                className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isOptimizing ? 'cursor-not-allowed opacity-80' : ''}`}
+                                            >
+                                                {isOptimizing ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        {optProgress.total > 0
+                                                            ? `Processing (${optProgress.current}/${optProgress.total})...`
+                                                            : "Initializing..."}
+                                                    </>
+                                                ) : (
+                                                    <>🧪 Start Optimization Analysis ({Object.values(optEnabled).filter(Boolean).length} Params)</>
+                                                )}
+                                            </button>
 
-                                        {/* Error Display (Replaces Alerts) */}
+                                            {isOptimizing && (
+                                                <button
+                                                    onClick={() => cancelOptimization(currentOptTaskId)}
+                                                    disabled={isCancelling}
+                                                    className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isCancelling ? 'Stopping...' : 'Stop'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Error/Status Display */}
                                         {optError && (
-                                            <div className="mt-4 p-4 bg-red-900/20 border border-red-500/50 rounded-lg animate-fade-in text-red-300">
-                                                <div className="flex items-center gap-2 mb-2 font-bold text-red-400">
-                                                    <span className="text-xl">⚠️</span> Optimization Error
+                                            <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
+                                                ? "bg-gray-800/50 border-gray-600 text-gray-300"
+                                                : "bg-red-900/20 border-red-500/50 text-red-300"
+                                                }`}>
+                                                <div className={`flex items-center gap-2 mb-2 font-bold ${optError.includes("Cancelled") ? "text-gray-300" : "text-red-400"}`}>
+                                                    <span className="text-xl">{optError.includes("Cancelled") ? "🛑" : "⚠️"}</span>
+                                                    {optError.includes("Cancelled") ? "Optimization Stopped" : "Optimization Error"}
                                                 </div>
-                                                <pre className="whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 bg-black/30 rounded border border-red-500/10">
+                                                <pre className={`whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 rounded border ${optError.includes("Cancelled")
+                                                    ? "bg-black/30 border-gray-500/30 text-gray-400"
+                                                    : "bg-black/30 border-red-500/10"
+                                                    }`}>
                                                     {optError}
                                                 </pre>
-                                                <p className="text-xs text-red-500/70 mt-2">
-                                                    Check the error message above. You can copy it for debugging.
-                                                </p>
+                                                {!optError.includes("Cancelled") && (
+                                                    <p className="text-xs text-red-500/70 mt-2">
+                                                        Check the error message above. You can copy it for debugging.
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
 

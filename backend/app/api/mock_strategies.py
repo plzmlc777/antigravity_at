@@ -141,6 +141,15 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                     logger.error(f"Future Result Error: {e}")
                     failures.append(str(e))
                 
+                # Check for Cancellation
+                if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                    logger.info(f"Task {task_id} cancellation requested. Stopping executor.")
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                    OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                    # Break loop
+                    break
+                
                 # Update Progress
                 OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
         
@@ -151,6 +160,11 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
             
         execution_time = time.time() - start_time
         
+        # Determine final status
+        final_status = "completed"
+        if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+             final_status = "cancelled"
+        
         response = OptimizationResponse(
             strategy_id=strategy_id,
             best_config=results[0].config if results else {},
@@ -159,10 +173,10 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
             total_combinations=total_combos,
             elapsed_time=execution_time,
             task_id=task_id,
-            status="completed"
+            status=final_status
         )
         
-        OPTIMIZATION_TASKS[task_id]["status"] = "completed"
+        OPTIMIZATION_TASKS[task_id]["status"] = final_status
         OPTIMIZATION_TASKS[task_id]["result"] = response
         
     except Exception as e:
@@ -429,3 +443,19 @@ async def get_optimization_status(task_id: str):
         message=task.get("message", ""),
         result=task.get("result")
     )
+
+@router.post("/optimize/cancel/{task_id}")
+async def cancel_optimization(task_id: str):
+    task = OPTIMIZATION_TASKS.get(task_id)
+    if not task:
+        # 404
+        return {"error": "Task not found"}
+    
+    if task["status"] in ["completed", "failed", "cancelled"]:
+        return {"status": "already_finished"}
+
+    # Set Flag
+    task["cancel_requested"] = True
+    task["status"] = "cancelling" # Update status immediately for UI feedback
+    
+    return {"status": "cancellation_requested", "task_id": task_id}
