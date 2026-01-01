@@ -13,6 +13,7 @@ import { getSystemStatus } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { MarketDataProvider } from './context/MarketDataContext';
+import { APP_VERSION, COMMIT_HASH, CODE_NAME } from './version';
 
 const NavLink = ({ to, children }) => {
     const location = useLocation();
@@ -82,6 +83,10 @@ function AppContent() {
                         {/* Mode Toggle */}
                         {/* Mode Toggle Moved to Settings */}
                         <StatusCard />
+                        <div className="flex flex-col items-end mr-4">
+                            <span className="text-xs font-bold text-blue-400">{APP_VERSION}</span>
+                            <span className="text-[10px] font-mono text-gray-500">{CODE_NAME}</span>
+                        </div>
                         <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
                     </div>
                 </div>

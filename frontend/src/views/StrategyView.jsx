@@ -313,6 +313,9 @@ const StrategyView = () => {
         if (!valStr) return [];
         return valStr.split(',').map(v => {
             const trimmed = v.trim();
+            // Fix: Do not parse as number if it looks like a time string (has colon)
+            if (trimmed.includes(':')) return trimmed;
+
             const num = parseFloat(trimmed);
             return isNaN(num) ? trimmed : num;
         }).filter(v => v !== "");
