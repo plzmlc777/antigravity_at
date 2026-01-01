@@ -127,14 +127,19 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             win_rate=wr,
                             total_trades=trades,
                             score=round(score, 2),
+                            # Explicit Top-Level Promoted Fields
+                            max_drawdown=str(res.get("max_drawdown", "-")),
+                            profit_factor=str(res.get("profit_factor", "-")),
+                            avg_pnl=str(res.get("avg_pnl", "-")),
+                            sharpe_ratio=str(res.get("sharpe_ratio", "-")),
+                            avg_holding_time=str(res.get("avg_holding_time", "-")),
+                            stability_score=str(res.get("stability_score", "-")),
+                            acceleration_score=str(res.get("acceleration_score", "-")),
+                            activity_rate=str(res.get("activity_rate", "-")),
+                            total_days=int(res.get("total_days", 0)),
                             metrics={
+                                # Keep legacy metrics just in case
                                 "max_drawdown": res.get("max_drawdown"),
-                                "profit_factor": res.get("profit_factor"),
-                                "avg_pnl": res.get("avg_pnl"),
-                                "sharpe_ratio": res.get("sharpe_ratio"),
-                                "avg_holding_time": res.get("avg_holding_time"),
-                                "stability_score": res.get("stability_score"),
-                                "activity_rate": res.get("activity_rate")
                             }
                         ))
                 except Exception as e:
