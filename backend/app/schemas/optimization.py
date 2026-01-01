@@ -18,7 +18,17 @@ class OptimizationResultItem(BaseModel):
     win_rate: float
     total_trades: int
     score: float
-    metrics: Dict[str, Any] # Detailed metrics
+    # Detailed Metrics (Explicitly added to avoid stripping)
+    max_drawdown: Optional[str] = None
+    profit_factor: Optional[str] = None
+    sharpe_ratio: Optional[str] = None
+    avg_pnl: Optional[str] = None
+    stability_score: Optional[str] = None
+    acceleration_score: Optional[str] = None
+    activity_rate: Optional[str] = None
+    total_days: Optional[int] = 0
+    avg_holding_time: Optional[str] = None
+    metrics: Dict[str, Any] = {} # For any extra fields
 
 class OptimizationResponse(BaseModel):
     strategy_id: str

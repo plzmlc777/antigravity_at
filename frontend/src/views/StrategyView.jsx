@@ -1309,7 +1309,6 @@ const StrategyView = () => {
                                                                     { key: 'profit_factor', label: 'P.Factor' },
                                                                     { key: 'sharpe_ratio', label: 'Sharpe' },
                                                                     { key: 'avg_pnl', label: 'Avg PnL' },
-                                                                    { key: 'avg_pnl', label: 'Avg PnL' },
                                                                     { key: 'stability_score', label: 'Stability' },
                                                                     { key: 'acceleration_score', label: 'Profit Accel' },
                                                                     { key: 'trades', label: 'Trades' },
