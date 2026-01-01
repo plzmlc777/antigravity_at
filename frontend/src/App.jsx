@@ -83,9 +83,9 @@ function AppContent() {
                         {/* Mode Toggle */}
                         {/* Mode Toggle Moved to Settings */}
                         <StatusCard />
-                        <div className="flex flex-col items-end mr-4">
-                            <span className="text-xs font-bold text-blue-400">{APP_VERSION}</span>
-                            <span className="text-[10px] font-mono text-gray-500">{CODE_NAME}</span>
+                        <div className="flex flex-col items-end mr-4 text-right">
+                            <span className="text-xs font-bold text-blue-400 leading-tight">{APP_VERSION}</span>
+                            <span className="text-[10px] font-mono text-gray-500 leading-tight">{CODE_NAME}</span>
                         </div>
                         <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>
                     </div>
