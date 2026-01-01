@@ -323,6 +323,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "profit_factor": result.get('profit_factor', "0.00"),
         "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
         "activity_rate": result.get('activity_rate', "0%"),
+        "total_days": result.get('total_days', 0), # Expose total_days
         "avg_holding_time": result.get('avg_holding_time', "0m"),
         "decile_stats": result.get('decile_stats', []),
         "stability_score": result.get('stability_score', "0.00"),

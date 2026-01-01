@@ -8,7 +8,7 @@ from .auth import get_current_active_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from pydantic import BaseModel
-
+from ..adapters.kiwoom_real import KiwoomRealAdapter
 router = APIRouter()
 
 @router.get("/status/{symbol}")
@@ -58,6 +58,24 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
         "is_fresh": is_fresh,
         "count": count
     }
+
+@router.get("/info/{symbol}")
+async def get_symbol_info(symbol: str):
+    """
+    Get Real-time Symbol Info (Name, Price) to populate UI.
+    Uses KiwoomRealAdapter.
+    """
+    try:
+        adapter = KiwoomRealAdapter()
+        data = await adapter.get_current_price(symbol)
+        return {
+            "symbol": symbol,
+            "name": data.get("name", ""),
+            "price": data.get("price", 0)
+        }
+    except Exception as e:
+        # Fallback if adapter fails (e.g. token issue)
+        return {"symbol": symbol, "name": "", "error": str(e)}
 
 class FetchRequest(BaseModel):
     interval: str = "1m"

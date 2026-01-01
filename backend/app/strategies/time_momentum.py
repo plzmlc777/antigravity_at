@@ -59,28 +59,35 @@ class TimeMomentumStrategy(BaseStrategy):
         self.peak_price = 0
         self.trailing_active = False
         self.last_trade_date = None
+        self.entry_price = 0 # Fix: Store actual entry price
         self.checked_today = False # Fix: Ensure we only check trigger ONCE per day
+        self.current_trading_date = None # Fix: Track Date for Reset
 
     def on_data(self, data: Dict[str, Any]):
         current_time = self.context.get_time()
+        current_date_obj = current_time.date()
         current_price = data['close']
         symbol = "TEST" # Configurable in real scenario
         
         # Reset daily state on new day
-        if self.last_trade_date != current_time.date() and self.last_trade_date is not None:
-             # If we moved to a new day, reset checks (unless we handle this via last_trade_date check below)
-             # Better: Detect date change to reset 'checked_today'
-             pass
-
-        # Since on_data runs sequential, we can detect new day easily
-        # But simplify: We store 'checked_date'.
-        
-        # 1. Establish Reference Price (Start Time)
-        if current_time.time() == self.start_time:
+        if self.current_trading_date != current_date_obj:
+             self.current_trading_date = current_date_obj
+             self.reference_price = None # Reset reference
+             self.checked_today = False # Reset trigger check
+             self.entry_price = 0
+             self.has_bought = False # Ensure buy state is reset (though sell logic handles it, safety net)
+             # Note: has_bought is strictly for 'holding position'. 
+             # If we are holding over-night, we shouldn't reset has_bought?
+             # Strategy implies Intraday mostly, but if we hold overnight, we shouldn't reset has_bought.
+             # BUT 'Activity Rate' implies daily trades.
+             # If we are holding, we cannot buy again anyway due to 'if not self.has_bought'.
+             # So 'reference_price = None' is fine.
+             
+        # 1. Establish Reference Price (Start Time or First Candle After)
+        if current_time.time() >= self.start_time and self.reference_price is None:
             self.reference_price = current_price
-            self.checked_today = False # Reset for new day
-            self.context.log(f"Market Start. Reference Price: {self.reference_price}")
-
+            self.context.log(f"Market Start (or First Data). Reference Price: {self.reference_price} at {current_time.time()}")
+            
         # 2. Check Entry Condition (Start Time + Delay)
         # Construct trigger time for today
         trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
@@ -127,15 +134,30 @@ class TimeMomentumStrategy(BaseStrategy):
                     else:
                         quantity = int((max(0, cash) * 0.99) / current_price)
 
+
                 if quantity > 0:
                     self.context.buy(symbol, quantity)
                     self.has_bought = True
+                    self.entry_price = current_price # Fix: Record Actual Entry Price
                     self.peak_price = current_price
+                    self.trailing_active = False # Fix: Reset trailing state on new trade
                     self.last_trade_date = current_time.date() # Mark as traded today
                     target_display = -self.target_percent if self.direction == "fall" else self.target_percent
                     self.context.log(f"Entry Triggered ({self.direction} | {betting_mode})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
+                elif should_buy:
+                     # Only log if we WANTED to buy but couldn't (e.g. cash, or calculation error)
+                    try:
+                        mode_debug = self.config.get("betting_strategy", "fixed")
+                        cap_debug = self.config.get("initial_capital", "N/A")
+                        cash_debug = self.context.cash
+                        price_debug = current_price
+                        qty_calc = quantity
+                        self.context.log(f"Entry FAILED (Insufficient Cash?). Qty: {qty_calc}. Mode: {mode_debug}, InitCap: {cap_debug}, Cash: {cash_debug}, Price: {price_debug}")
+                    except:
+                        self.context.log("Entry Signal FAILED and Logging crashed.")
                 else:
-                    self.context.log("Entry Signal, but insufficient cash (or 0 qty).")
+                    # Log when condition failed (Negative Confirmation)
+                    self.context.log(f"Entry Condition Failed. Change: {change*100:.2f}%, TargetCond: {self.direction}, TargetPct: {self.target_percent*100:.2f}%")
 
         # 3. Manage Position (If bought)
         if self.has_bought:
@@ -144,7 +166,8 @@ class TimeMomentumStrategy(BaseStrategy):
                 self.peak_price = current_price
 
             # Check Safety Stop
-            entry_price = self.reference_price * (1 + self.target_percent) # Approximate
+            # Fix: Use stored entry_price instead of recalculating incorrectly
+            entry_price = self.entry_price if self.entry_price > 0 else self.reference_price * (1 + self.target_percent)
             current_return = (current_price - entry_price) / entry_price
             
             if current_return <= self.safety_stop_percent:
@@ -152,6 +175,7 @@ class TimeMomentumStrategy(BaseStrategy):
                  if qty > 0:
                      self.context.sell(symbol, qty)
                      self.has_bought = False
+                     self.trailing_active = False # Fix: Reset state
                      self.context.log(f"Safety Stop Hit! Sold {qty}")
                  return
 
@@ -168,13 +192,28 @@ class TimeMomentumStrategy(BaseStrategy):
                     if qty > 0:
                         self.context.sell(symbol, qty)
                         self.has_bought = False
+                        self.trailing_active = False # Fix: Reset state
                         self.context.log(f"Trailing Stop Hit! Sold {qty}")
                     return
 
-            # Time Stop (Force Sell at Stop Time)
             if current_time.time() >= self.stop_time:
                  qty = self.context.holdings.get(symbol, 0)
                  if qty > 0:
                      self.context.sell(symbol, qty)
                      self.has_bought = False
+                     self.trailing_active = False # Fix: Reset state
                      self.context.log(f"Time Stop (End of Day). Sold {qty}")
+
+        # DEBUG: Check for skipped days at market close
+        # Adjust check time to be slightly before actual end of data logic if needed, 
+        # but 15:20 is safe for Korea market (15:30 close).
+        if current_time.time() >= datetime.strptime("15:20", "%H:%M").time() and not self.checked_today:
+             # Only log once per day to avoid spam
+             if not getattr(self, "logged_skip_today", False):
+                 self.context.log(f"WARNING: Day Skipped! RefPrice: {self.reference_price}, HasBought: {self.has_bought}, CheckedToday: {self.checked_today}")
+                 self.logged_skip_today = True
+        
+        # Reset skip log flag on new day
+        if self.current_trading_date != current_date_obj:
+            self.logged_skip_today = False
+

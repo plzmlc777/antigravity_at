@@ -233,7 +233,8 @@ class BacktestEngine:
         return {
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
-            "activity_rate": f"{activity_rate:.1f}% ({traded_count}/{total_days} days)",
+            "activity_rate": f"{activity_rate:.1f}%",
+            "total_days": total_days, # Expose for UI
             "chart_data": self._resample_equity(context.equity_curve, 2000), # Resampled Equity for LineChart
             "ohlcv_data": self._resample_ohlcv(data_feed, 2000), # Resampled Candles for VisualBacktestChart
             "logs": context.logs[-50:], # Return last 50 logs
@@ -352,16 +353,6 @@ class BacktestEngine:
         else:
             sharpe = 0
 
-        # Calculate Activity Rate (Trades per Day)
-        # Parse TS if string
-        def parse_ts(t): return t if isinstance(t, datetime) else datetime.fromisoformat(str(t).replace('Z', '+00:00'))
-        
-        start_dt = parse_ts(start_ts)
-        end_dt = parse_ts(end_ts)
-        
-        days = (end_dt - start_dt).days
-        activity_rate = f"{total_count / days * 100:.1f}%" if days > 0 else "0%"
-
         # Calculate Monthly Stats & Stability
         decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
 
@@ -373,7 +364,7 @@ class BacktestEngine:
             "max_loss": f"{max_loss:.2f}%",
             "profit_factor": f"{profit_factor:.2f}",
             "sharpe_ratio": f"{sharpe:.2f}",
-            "activity_rate": activity_rate,
+            # "activity_rate": activity_rate, # Removed to prevent overwrite
             "avg_holding_time": f"{avg_holding_min}m",
             "decile_stats": decile_data['monthly_stats'],
             "stability_score": str(decile_data['stability_score']),

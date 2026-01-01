@@ -154,6 +154,23 @@ const StrategyView = () => {
         }
     };
 
+    // Auto-Fetch Symbol Name if Missing
+    useEffect(() => {
+        const target = savedSymbols.find(s => s.code === currentSymbol);
+        if (target && !target.name) {
+            // Debounce or just fetch
+            axios.get(`/api/v1/market-data/info/${currentSymbol}`)
+                .then(res => {
+                    if (res.data.name && res.data.name !== currentSymbol) {
+                        setSavedSymbols(prev => prev.map(s =>
+                            s.code === currentSymbol ? { ...s, name: res.data.name } : s
+                        ));
+                    }
+                })
+                .catch(err => console.error("Failed to fetch symbol name", err));
+        }
+    }, [currentSymbol, savedSymbols]);
+
     const [backtestStatus, setBacktestStatus] = useState({ status: 'idle', message: 'Ready to Backtest' });
 
     const runBacktest = async (strategyId) => {
@@ -964,7 +981,12 @@ const StrategyView = () => {
 
                                                     <div className="p-3 bg-white/5 rounded-lg">
                                                         <div className="text-xs text-gray-400">Total Trades</div>
-                                                        <div className="text-xl font-bold text-white">{backtestResult.total_trades}</div>
+                                                        <div className="text-xl font-bold text-white">
+                                                            {backtestResult.total_trades}
+                                                            <span className="text-sm font-normal text-gray-500 ml-2">
+                                                                ({backtestResult.total_days} days)
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                     <div className="p-3 bg-white/5 rounded-lg">
                                                         <div className="text-xs text-gray-400">Stability (R²)</div>
