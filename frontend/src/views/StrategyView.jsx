@@ -150,6 +150,38 @@ const StrategyView = () => {
         }
     }, [configList, selectedStrategy, isConfigLoaded]);
 
+    const moveRankTab = (index, direction, e) => {
+        if (e) e.stopPropagation(); // Prevent tab selection
+        if (activeTab === -1) return;
+
+        const targetIndex = index + direction;
+
+        // Boundary Checks
+        if (targetIndex < 0 || targetIndex >= configList.length) return;
+
+        // Ensure both are Active (Rank) tabs
+        // Since we sort Active First, we just need to check if target is active
+        // If target is inactive (Draft), we cannot move a Rank down into Drafts
+        if (configList[index].is_active === false || configList[targetIndex].is_active === false) return;
+
+        setConfigList(prev => {
+            const next = [...prev];
+            // Swap
+            const temp = next[index];
+            next[index] = next[targetIndex];
+            next[targetIndex] = temp;
+            return next;
+        });
+
+        // If we are moving the currently active tab, follow it
+        // If we are moving a tab other than active one, and it swaps with active one, update active
+        if (activeTab === index) {
+            setActiveTab(targetIndex);
+        } else if (activeTab === targetIndex) {
+            setActiveTab(index);
+        }
+    };
+
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
 
@@ -746,11 +778,19 @@ const StrategyView = () => {
                                             label = `Draft ${draftCount}`;
                                         }
 
+                                        const isRank = isActive;
+                                        // Check bounds for arrows
+                                        // Can move Left if this is rank 2+ (index > 0 is not enough, must check if prev is rank)
+                                        // Since ranks are sorted first, index > 0 is sufficient for ranks.
+                                        const showLeft = isRank && idx > 0;
+                                        // Can move Right if next item is also a Rank
+                                        const showRight = isRank && (idx + 1 < configList.length) && configList[idx + 1].is_active !== false;
+
                                         return (
                                             <button
                                                 key={idx}
                                                 onClick={() => setActiveTab(idx)}
-                                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
+                                                className={`group px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
                                                     ? isActive
                                                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
                                                         : 'bg-gray-600 text-white shadow-lg'
@@ -758,7 +798,28 @@ const StrategyView = () => {
                                                     }`}
                                             >
                                                 <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />
-                                                {label}
+
+                                                {/* Left Arrow */}
+                                                {showLeft && (
+                                                    <span
+                                                        onClick={(e) => moveRankTab(idx, -1, e)}
+                                                        className="hover:bg-black/20 rounded px-1 -ml-1 text-white/50 hover:text-white"
+                                                    >
+                                                        ◀
+                                                    </span>
+                                                )}
+
+                                                <span>{label}</span>
+
+                                                {/* Right Arrow */}
+                                                {showRight && (
+                                                    <span
+                                                        onClick={(e) => moveRankTab(idx, 1, e)}
+                                                        className="hover:bg-black/20 rounded px-1 -mr-1 text-white/50 hover:text-white"
+                                                    >
+                                                        ▶
+                                                    </span>
+                                                )}
                                             </button>
                                         );
                                     });
