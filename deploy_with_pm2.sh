@@ -62,8 +62,10 @@ python3 -m pip install -r backend/requirements.txt --break-system-packages 2>/de
 echo "Updating frontend dependencies (npm)..."
 (cd frontend && npm install) || { echo "❌ Frontend install failed"; exit 1; }
 
-# Start PM2
-echo "Starting services with PM2..."
+# Start/Restart PM2
+echo "Restarting services with PM2..."
+# Delete old processes to ensure new ecosystem config (interpreter change) is applied
+pm2 delete all || true
 pm2 start ecosystem.config.cjs
 pm2 save
 
