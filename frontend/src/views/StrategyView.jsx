@@ -45,7 +45,8 @@ const DEFAULT_CONFIG = {
     safety_stop_percent: 3,
     trailing_start_percent: 5,
     trailing_stop_drop: 2,
-    stop_time: "15:00"
+    stop_time: "15:00",
+    is_active: false // Default to Draft mode
 };
 
 const StrategyView = () => {
@@ -70,9 +71,11 @@ const StrategyView = () => {
     const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
     const [activeDropdown, setActiveDropdown] = useState(null); // Key of the currently open optimization dropdown
 
-    // Dynamic Config State
-    // Dynamic Config State
-    const [config, setConfig] = useState(DEFAULT_CONFIG);
+    // State for Config List (Tabs)
+    const [activeTab, setActiveTab] = useState(0); // 0 = Rank 1, -1 = Integrated
+    // configList: Array of config objects for each rank. Rank N = configList[N-1]
+    const [configList, setConfigList] = useState([]);
+
     const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
     // Backtest Settings
@@ -95,33 +98,65 @@ const StrategyView = () => {
         localStorage.setItem('initialCapital', initialCapital.toString());
     }, [initialCapital]);
 
-    // Load Strategy Config on Selection
+    // Load Strategy Config List on Selection
     useEffect(() => {
         if (selectedStrategy) {
-            const savedConfig = localStorage.getItem(`strategyConfig_${selectedStrategy.id}`);
-            if (savedConfig) {
+            // Try load LIST first
+            const savedList = localStorage.getItem(`strategyConfigList_${selectedStrategy.id}`);
+            if (savedList) {
                 try {
-                    setConfig(JSON.parse(savedConfig));
+                    setConfigList(JSON.parse(savedList));
                 } catch {
-                    setConfig(DEFAULT_CONFIG);
+                    setConfigList([DEFAULT_CONFIG]);
                 }
             } else {
-                setConfig(DEFAULT_CONFIG);
+                // Fallback: Check for old single config and migrate
+                const oldConfig = localStorage.getItem(`strategyConfig_${selectedStrategy.id}`);
+                if (oldConfig) {
+                    try {
+                        setConfigList([JSON.parse(oldConfig)]);
+                    } catch {
+                        setConfigList([DEFAULT_CONFIG]);
+                    }
+                } else {
+                    setConfigList([DEFAULT_CONFIG]);
+                }
             }
             setIsConfigLoaded(true);
         }
     }, [selectedStrategy]);
 
-    // Save Strategy Config on Change
+    // Save Strategy Config List on Change
     useEffect(() => {
-        if (isConfigLoaded && selectedStrategy && Object.keys(config).length > 0) {
-            localStorage.setItem(`strategyConfig_${selectedStrategy.id}`, JSON.stringify(config));
+        if (isConfigLoaded && selectedStrategy && configList.length > 0) {
+            localStorage.setItem(`strategyConfigList_${selectedStrategy.id}`, JSON.stringify(configList));
         }
-    }, [config, selectedStrategy, isConfigLoaded]);
+    }, [configList, selectedStrategy, isConfigLoaded]);
 
     const handleConfigChange = (key, value) => {
-        setConfig(prev => ({ ...prev, [key]: value }));
+        setConfigList(prev => {
+            const newList = [...prev];
+            if (activeTab >= 0 && activeTab < newList.length) {
+                newList[activeTab] = { ...newList[activeTab], [key]: value };
+            }
+            return newList;
+        });
     };
+
+    const addTab = () => {
+        setConfigList(prev => [...prev, { ...DEFAULT_CONFIG }]);
+        setActiveTab(prev => prev + 1);
+    };
+
+    const removeTab = (index) => {
+        if (configList.length <= 1) return; // Prevent removing last tab
+        setConfigList(prev => prev.filter((_, i) => i !== index));
+        if (activeTab >= index) setActiveTab(Math.max(0, activeTab - 1));
+    };
+
+    // Helper to get current config safely
+    const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : DEFAULT_CONFIG;
+
 
     // 4. Persistence & Initialization
     useEffect(() => {
@@ -181,12 +216,16 @@ const StrategyView = () => {
 
         try {
             // Sanitize Config: Replace empty strings with defaults
-            const cleanConfig = { ...config };
+            const cleanConfig = { ...currentConfig }; // Use currentConfig aka activeTab
             Object.keys(cleanConfig).forEach(key => {
                 if (cleanConfig[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
                     cleanConfig[key] = DEFAULT_CONFIG[key];
                 }
             });
+
+            // For now, Single Symbol Backtest uses active config
+            // If activeTab is -1 (Integrated), we might need different logic later.
+            // But for now, user requested Rank 1 (Index 0) to work exactly as before.
 
             const payload = {
                 symbol: currentSymbol,
@@ -231,18 +270,6 @@ const StrategyView = () => {
         }
     };
 
-    // ... (Data Management logic stays here) ...
-    // Note: Implicitly preserving the gap where lines 106-175 were, but current ReplaceFileContent needs context.
-    // The previous block ended at handleAiGenerate (around line 103). 
-    // I need to be careful not to overwrite the data management hooks if I use a large range.
-    // So I will only replace runBacktest and the render part separately? 
-    // No, I can replace runBacktest first, then the render part.
-
-    // WAIT, I need to insert the state definition too. 
-    // It's safer to do 2 chunks: one for state+function, one for render.
-    // Let's split this tool call into 2 chunks.
-
-
     // 5. Data Management & Persistence State
     const [dataStatus, setDataStatus] = useState({ is_fresh: false, last_updated: null, count: 0 });
     const [isFetchingData, setIsFetchingData] = useState(false);
@@ -250,14 +277,11 @@ const StrategyView = () => {
     const [fetchMessage, setFetchMessage] = useState(null);
 
     // 6. Optimization State
-
-    // 6. Optimization State
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [optResults, setOptResults] = useState(null);
     const [optProgress, setOptProgress] = useState({ current: 0, total: 0 });
     const [optError, setOptError] = useState(null);
 
-    // State for Dynamic Optimization
     // State for Dynamic Optimization
     const [optEnabled, setOptEnabled] = useState(() => {
         const saved = localStorage.getItem('optEnabled');
@@ -288,7 +312,6 @@ const StrategyView = () => {
     }, [optValues]);
 
     const handleOptEnableChange = (key, checked) => {
-        console.log(`Toggling ${key} to ${checked}`);
         setOptEnabled(prev => ({ ...prev, [key]: checked }));
     };
 
@@ -308,14 +331,17 @@ const StrategyView = () => {
         }));
     };
 
-    // Helper: Parse parameter string
+    // Helper: Parse parameter string (if not already defined above? It was defined inside render loop in original? No, helper usually outside. Let's define it here just in case, or check if it exists)
+    // Actually `parseValues` was in my viewed snippets. It was stand-alone.
+    // I need to make sure I don't duplicate it if it's already there. 
+    // In step 5429 I see `runBacktest` but not `parseValues`. It might have been deleted too if it was in that block.
+    // I'll add it here to be safe.
+
     const parseValues = (valStr) => {
         if (!valStr) return [];
         return valStr.split(',').map(v => {
             const trimmed = v.trim();
-            // Fix: Do not parse as number if it looks like a time string (has colon)
             if (trimmed.includes(':')) return trimmed;
-
             const num = parseFloat(trimmed);
             return isNaN(num) ? trimmed : num;
         }).filter(v => v !== "");
@@ -328,7 +354,6 @@ const StrategyView = () => {
         setIsCancelling(true);
         try {
             await axios.post(`/api/v1/strategies/optimize/cancel/${taskId}`);
-            // UI update handled by polling
         } catch (e) {
             console.error("Cancellation failed", e);
             setOptError("Failed to cancel optimization");
@@ -342,18 +367,13 @@ const StrategyView = () => {
             return;
         }
 
-        // Validation: Check for empty optimization inputs
         const varyingKeys = Object.keys(optEnabled).filter(k => optEnabled[k]);
-        if (varyingKeys.length === 0) {
-            // If no params, run single backtest or warn?
-            // Actually allowed (runs base config 1 time)
-        }
 
         const parameter_ranges = {};
         for (const key of varyingKeys) {
             const values = parseValues(optValues[key]);
             if (values.length === 0) {
-                setOptError(`Error: Parameter '${key}' is enabled but has no values. Please enter comma-separated values.`);
+                setOptError(`Error: Parameter '${key}' is enabled but has no values.`);
                 return;
             }
             parameter_ranges[key] = values;
@@ -363,11 +383,11 @@ const StrategyView = () => {
         setIsCancelling(false);
         setOptResults([]);
         setOptError(null);
-        setOptProgress({ current: 0, total: 0 }); // Reset
+        setOptProgress({ current: 0, total: 0 });
 
         try {
-            // Sanitize Config for Base
-            const base_config = { ...config };
+            // Sanitize Config for Base using currentConfig
+            const base_config = { ...currentConfig };
             Object.keys(base_config).forEach(key => {
                 if (base_config[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
                     base_config[key] = DEFAULT_CONFIG[key];
@@ -376,8 +396,7 @@ const StrategyView = () => {
 
             const payload = {
                 symbol: currentSymbol || "SEC",
-                interval: currentInterval, // Sync with Backtest (UI State)
-                // days: 365, // Removed to match Backtest default
+                interval: currentInterval,
                 from_date: fromDate,
                 initial_capital: initialCapital,
                 parameter_ranges: parameter_ranges,
@@ -386,24 +405,17 @@ const StrategyView = () => {
 
             const url = `/api/v1/strategies/${selectedStrategy.id}/optimize`;
 
-            // 1. Start Optimization (Async)
             const response = await axios.post(url, payload);
 
             if (response.data.task_id) {
                 const taskId = response.data.task_id;
                 const totalCombos = response.data.total_combinations;
                 setOptProgress({ current: 0, total: totalCombos });
-
-                // 2. Poll for Status
-                let isComplete = false;
-                // Store taskId in ref or use local var for cancel button if we want to extract it
-                // For now, cancel button needs access to current taskId. 
-                // We'll rely on a state for currentTaskId or pass it? 
-                // Better: set a state `currentOptTaskId`
                 setCurrentOptTaskId(taskId);
 
+                let isComplete = false;
                 while (!isComplete) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
+                    await new Promise(resolve => setTimeout(resolve, 1000));
 
                     try {
                         const statusRes = await axios.get(`/api/v1/strategies/optimize/status/${taskId}`);
@@ -415,7 +427,6 @@ const StrategyView = () => {
                         });
 
                         if (statusData.status === 'completed' || statusData.status === 'cancelled') {
-                            // Finished (or Cancelled)
                             const resultData = statusData.result;
                             if (resultData && resultData.results && resultData.results.length > 0) {
                                 const formattedResults = resultData.results.map(item => ({
@@ -426,44 +437,33 @@ const StrategyView = () => {
                                     trades: item.total_trades,
                                     score: item.score,
                                     full_config: item.config,
-                                    ...item.metrics // Flatten metrics
+                                    ...item.metrics
                                 }));
                                 setOptResults(formattedResults);
-
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (Partial Results Shown Below)");
-                                }
+                                if (statusData.status === 'cancelled') setOptError("Optimization Cancelled (Partial Results)");
                             } else {
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (No Results)");
-                                } else {
+                                if (statusData.status === 'cancelled') setOptError("Optimization Cancelled (No Results)");
+                                else {
                                     const failureMsg = resultData.failures ? resultData.failures.join('\n') : "";
-                                    setOptError(`Optimization completed but resulted in 0 valid backtests.\n\nBackend Failures:\n${failureMsg}`);
+                                    setOptError(`Optimization completed with 0 results.\n${failureMsg}`);
                                 }
                             }
                             isComplete = true;
                         } else if (statusData.status === 'failed') {
-                            setOptError(`Optimization Task Failed: ${statusData.message}`);
+                            setOptError(`Failed: ${statusData.message}`);
                             isComplete = true;
                         } else if (statusData.status === 'not_found') {
-                            setOptError("Optimization Task Lost (Server Restarted?)");
+                            setOptError("Task Lost");
                             isComplete = true;
                         }
-                    } catch (pollErr) {
-                        console.warn("Polling failed, retrying...", pollErr);
-                        // Continue Polling if network glitch? 
-                        // Maybe limit retries, but for now just continue
-                    }
+                    } catch (pollErr) { console.warn("Polling error", pollErr); }
                 }
             } else {
-                // Fallback for synchronous response (if any)
                 setOptError("Unexpected Sync Response");
             }
-
         } catch (error) {
             const msg = error.response?.data?.detail || error.message || "Unknown Error";
-            setOptError(`Optimization Request Failed: ${msg}`);
-            console.error(error);
+            setOptError(`Request Failed: ${msg}`);
         } finally {
             setIsOptimizing(false);
             setIsCancelling(false);
@@ -471,15 +471,17 @@ const StrategyView = () => {
         }
     };
 
-
-
     const applyOptParams = (result) => {
-        setConfig(result.full_config);
-        // Scroll to config
+        // Update the CONFIG for the ACTIVE TAB
+        setConfigList(prev => {
+            const newList = [...prev];
+            if (activeTab >= 0 && activeTab < newList.length) {
+                newList[activeTab] = { ...newList[activeTab], ...result.full_config };
+            }
+            return newList;
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-    // fromDate state moved to top
-
 
     // Persistence Effects
     useEffect(() => {
@@ -504,16 +506,10 @@ const StrategyView = () => {
                 params: { interval: currentInterval }
             });
             setDataStatus(res.data);
-
-            // Auto-set Start Date to Data Start
             if (res.data.start_date) {
-                // Server returns YY.MM.DD -> Convert to YYYY-MM-DD for input type="date"
                 const parts = res.data.start_date.split('.');
                 if (parts.length === 3) {
-                    const yyyy = `20${parts[0]}`;
-                    const mm = parts[1];
-                    const dd = parts[2];
-                    setFromDate(`${yyyy}-${mm}-${dd}`);
+                    setFromDate(`20${parts[0]}-${parts[1]}-${parts[2]}`);
                 }
             }
         } catch (e) {
@@ -527,17 +523,13 @@ const StrategyView = () => {
         try {
             const res = await axios.post(`/api/v1/market-data/fetch/${currentSymbol}`, {
                 interval: currentInterval,
-                days: 3650 // Request ~10 years to hit 10k limit
+                days: 3650
             });
-
             const added = res.data.added;
             setFetchMessage(null);
-
             const resultMsg = added > 0 ? `Updated (+${added})` : `Up to date (+0)`;
-
             await checkDataStatus();
             setFetchMessage(resultMsg);
-
         } catch (e) {
             setFetchMessage("Failed");
             setTimeout(() => setFetchMessage(null), 3000);
@@ -545,7 +537,6 @@ const StrategyView = () => {
             setIsFetchingData(false);
         }
     };
-
     return (
         <div className="flex flex-col gap-6 pb-10">
             {/* Top Bar: Selector & Actions */}
@@ -580,8 +571,6 @@ const StrategyView = () => {
                             </div>
                         )}
                     </div>
-
-
                 </div>
             </Card>
 
@@ -600,127 +589,223 @@ const StrategyView = () => {
                                 <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
                             </div>
 
-                            {/* Configuration Panel - Full Width & Prominent */}
-                            <Card title="Strategy Configuration" variant="major" className="border border-purple-500/50 shadow-lg shadow-purple-900/20">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* 1. Target Data */}
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</div>
-                                            Target Asset
-                                        </h4>
-                                        <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
-                                            <SymbolSelector
-                                                currentSymbol={currentSymbol}
-                                                setCurrentSymbol={setCurrentSymbol}
-                                                savedSymbols={savedSymbols}
-                                                setSavedSymbols={setSavedSymbols}
-                                            />
-                                        </div>
-                                    </div>
+                            {/* TAB NAVIGATION */}
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                                {/* Integrated Tab (Leftmost) */}
+                                <button
+                                    onClick={() => setActiveTab(-1)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all border ${activeTab === -1
+                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-lg shadow-purple-900/50'
+                                        : 'bg-black/40 text-gray-400 border-white/10 hover:bg-white/5 hover:text-white'
+                                        }`}
+                                >
+                                    Integrated Portfolio
+                                </button>
 
-                                    {/* 2. Parameters */}
-                                    <div>
-                                        <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">2</div>
-                                            Parameters
-                                        </h4>
-                                        <div className="bg-black/20 p-4 rounded-lg border border-white/5">
-                                            {selectedStrategy.id === 'time_momentum' ? (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
-                                                        <select
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                            value={config.start_time || "09:00"}
-                                                            onChange={(e) => handleConfigChange('start_time', e.target.value)}
-                                                        >
-                                                            {Array.from({ length: 48 }).map((_, i) => {
-                                                                const h = Math.floor(i / 2);
-                                                                const m = i % 2 === 0 ? "00" : "30";
-                                                                const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                            })}
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
-                                                        <input
-                                                            type="number"
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                            value={config.delay_minutes ?? ''}
-                                                            onChange={(e) => handleConfigChange('delay_minutes', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Direction</label>
-                                                        <select
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                            value={config.direction || "rise"}
-                                                            onChange={(e) => handleConfigChange('direction', e.target.value)}
-                                                        >
-                                                            <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
-                                                            <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
-                                                        </select>
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
-                                                        <input
-                                                            type="number" step="0.1" min="0"
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                            value={config.target_percent === '' ? '' : Math.abs(config.target_percent)}
-                                                            onChange={(e) => handleConfigChange('target_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
-                                                        <input
-                                                            type="number" step="0.1" min="0"
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                            value={config.safety_stop_percent === '' ? '' : Math.abs(config.safety_stop_percent)}
-                                                            onChange={(e) => handleConfigChange('safety_stop_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
-                                                        <input
-                                                            type="number" step="0.1"
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                            value={config.trailing_start_percent === '' ? '' : config.trailing_start_percent}
-                                                            onChange={(e) => handleConfigChange('trailing_start_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
-                                                        <input
-                                                            type="number" step="0.1"
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                            value={config.trailing_stop_drop === '' ? '' : config.trailing_stop_drop}
-                                                            onChange={(e) => handleConfigChange('trailing_stop_drop', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
-                                                        <select
-                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                            value={config.stop_time || "15:00"}
-                                                            onChange={(e) => handleConfigChange('stop_time', e.target.value)}
-                                                        >
-                                                            {Array.from({ length: 48 }).map((_, i) => {
-                                                                const h = Math.floor(i / 2);
-                                                                const m = i % 2 === 0 ? "00" : "30";
-                                                                const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                            })}
-                                                        </select>
-                                                    </div>
+                                <div className="w-px h-6 bg-white/10 mx-2"></div>
+
+                                {/* Rank Tabs */}
+                                {configList.map((_, index) => (
+                                    <div key={index} className="relative group">
+                                        <button
+                                            onClick={() => setActiveTab(index)}
+                                            className={`pl-4 pr-10 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${activeTab === index
+                                                ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-900/50'
+                                                : 'bg-black/40 text-gray-400 border-white/10 hover:bg-white/5 hover:text-white'
+                                                }`}
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${configList[index].is_active ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-gray-600'}`} />
+                                            Rank {index + 1}
+                                        </button>
+                                        {/* Remove Button (Only if > 1 tabs) */}
+                                        {configList.length > 1 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeTab(index);
+                                                }}
+                                                className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs w-4 h-4 rounded-full flex items-center justify-center transition-colors ${activeTab === index
+                                                    ? 'text-white/50 hover:bg-white/20 hover:text-white'
+                                                    : 'text-gray-600 hover:text-red-400'
+                                                    }`}
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Tab Button */}
+                                <button
+                                    onClick={addTab}
+                                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-green-400 transition-all ml-1"
+                                    title="Add Rank Slot"
+                                >
+                                    +
+                                </button>
+                            </div>
+
+
+                            {/* Configuration Panel - Full Width & Prominent */}
+                            <Card title={activeTab === -1 ? "Integrated Portfolio Configuration" : `Rank ${activeTab + 1} Configuration`} variant="major" className="border border-purple-500/50 shadow-lg shadow-purple-900/20">
+                                {activeTab === -1 ? (
+                                    <div className="h-[200px] flex flex-col items-center justify-center text-gray-500 space-y-4">
+                                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-3xl opacity-50">
+                                            📊
+                                        </div>
+                                        <p>Integrated Portfolio Analysis requires implementation of multi-symbol simulation engine.</p>
+                                        <p className="text-sm opacity-60">Please configure individual Ranks first.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {/* Activation Toggle Header */}
+                                        <div className={`flex justify-between items-center p-4 rounded-lg border transition-all ${currentConfig.is_active
+                                            ? 'bg-green-900/10 border-green-500/30'
+                                            : 'bg-white/5 border-white/10'
+                                            }`}>
+                                            <div>
+                                                <h3 className={`font-bold flex items-center gap-2 ${currentConfig.is_active ? 'text-green-400' : 'text-gray-400'}`}>
+                                                    <span className="text-lg">{currentConfig.is_active ? '🟢' : '⚪'}</span>
+                                                    {currentConfig.is_active ? 'Active Strategy' : 'Draft Mode'}
+                                                </h3>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {currentConfig.is_active
+                                                        ? "Included in Integrated Portfolio Analysis."
+                                                        : "Excluded from Portfolio. Use for isolated testing."}
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={!!currentConfig.is_active}
+                                                    onChange={(e) => handleConfigChange('is_active', e.target.checked)}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                            </label>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {/* 1. Target Data */}
+                                            <div>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</div>
+                                                    Target Asset
+                                                </h4>
+                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
+                                                    <SymbolSelector
+                                                        currentSymbol={currentSymbol}
+                                                        setCurrentSymbol={setCurrentSymbol}
+                                                        savedSymbols={savedSymbols}
+                                                        setSavedSymbols={setSavedSymbols}
+                                                    />
                                                 </div>
-                                            ) : (
-                                                <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
-                                            )}
+                                            </div>
+
+                                            {/* 2. Parameters */}
+                                            <div>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">2</div>
+                                                    Parameters
+                                                </h4>
+                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5">
+                                                    {selectedStrategy.id === 'time_momentum' ? (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.start_time || "09:00"}
+                                                                    onChange={(e) => handleConfigChange('start_time', e.target.value)}
+                                                                >
+                                                                    {Array.from({ length: 48 }).map((_, i) => {
+                                                                        const h = Math.floor(i / 2);
+                                                                        const m = i % 2 === 0 ? "00" : "30";
+                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.delay_minutes ?? ''}
+                                                                    onChange={(e) => handleConfigChange('delay_minutes', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Direction</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.direction || "rise"}
+                                                                    onChange={(e) => handleConfigChange('direction', e.target.value)}
+                                                                >
+                                                                    <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
+                                                                    <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1" min="0"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.target_percent === '' ? '' : Math.abs(currentConfig.target_percent)}
+                                                                    onChange={(e) => handleConfigChange('target_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1" min="0"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.safety_stop_percent === '' ? '' : Math.abs(currentConfig.safety_stop_percent)}
+                                                                    onChange={(e) => handleConfigChange('safety_stop_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.trailing_start_percent === '' ? '' : currentConfig.trailing_start_percent}
+                                                                    onChange={(e) => handleConfigChange('trailing_start_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.trailing_stop_drop === '' ? '' : currentConfig.trailing_stop_drop}
+                                                                    onChange={(e) => handleConfigChange('trailing_stop_drop', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.stop_time || "15:00"}
+                                                                    onChange={(e) => handleConfigChange('stop_time', e.target.value)}
+                                                                >
+                                                                    {Array.from({ length: 48 }).map((_, i) => {
+                                                                        const h = Math.floor(i / 2);
+                                                                        const m = i % 2 === 0 ? "00" : "30";
+                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </Card>
 
                             {/* Backtest Controls (Relocated) */}
@@ -801,7 +886,7 @@ const StrategyView = () => {
                                         <div className="relative">
                                             <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
                                             <select
-                                                value={config.betting_strategy || "fixed"}
+                                                value={currentConfig.betting_strategy || "fixed"}
                                                 onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
                                                 className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
                                             >
@@ -1230,7 +1315,7 @@ const StrategyView = () => {
                                                             className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${optEnabled[param.key]
                                                                 ? 'border-purple-500/30 text-white focus:border-purple-500'
                                                                 : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                            value={optEnabled[param.key] ? (optValues[param.key] || "") : (config[param.key] ?? "")}
+                                                            value={optEnabled[param.key] ? (optValues[param.key] || "") : (currentConfig[param.key] ?? "")}
                                                             onChange={(e) => handleOptValueChange(param.key, e.target.value)}
                                                         />
                                                     )}
