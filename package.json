@@ -1,6 +1,6 @@
 {
     "name": "auto-trading-root",
-    "version": "1.0.0",
+    "version": "1.8.1",
     "description": "Unified control scripts for Auto Trading System",
     "scripts": {
         "pm2": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2",
