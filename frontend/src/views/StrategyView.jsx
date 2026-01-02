@@ -153,13 +153,50 @@ const StrategyView = () => {
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
 
-        setConfigList(prev => {
-            const next = [...prev];
-            if (next[activeTab]) {
-                next[activeTab] = { ...next[activeTab], [key]: value };
+        const newList = [...configList];
+        const targetConfig = { ...newList[activeTab], [key]: value };
+        newList[activeTab] = targetConfig;
+
+        // Dynamic Sorting if 'is_active' changes
+        if (key === 'is_active') {
+            // Mark the item to track its new position
+            targetConfig._temp_tracking_id = Date.now();
+
+            // Sort: Active First (true or undefined), then Draft (false)
+            newList.sort((a, b) => {
+                const aActive = a.is_active !== false;
+                const bActive = b.is_active !== false;
+                if (aActive === bActive) return 0;
+                return aActive ? -1 : 1;
+            });
+
+            // Re-label Tabs
+            let rankCount = 0;
+            let draftCount = 0;
+            newList.forEach((cfg, idx) => {
+                // Clone to avoid mutating state
+                const newCfg = { ...cfg };
+                newList[idx] = newCfg;
+
+                const isActive = newCfg.is_active !== false;
+                if (isActive) {
+                    rankCount++;
+                    newCfg.tabName = `Rank ${rankCount}`;
+                } else {
+                    draftCount++;
+                    newCfg.tabName = `Draft ${draftCount}`;
+                }
+            });
+
+            // Update Active Tab Index to follow the item
+            const newIndex = newList.findIndex(item => item._temp_tracking_id === targetConfig._temp_tracking_id);
+            if (newIndex !== -1) {
+                delete newList[newIndex]._temp_tracking_id;
+                setActiveTab(newIndex);
             }
-            return next;
-        });
+        }
+
+        setConfigList(newList);
     };
 
     // Helper to get current config for UI rendering
@@ -732,7 +769,7 @@ const StrategyView = () => {
                                     <div className="flex items-center justify-between w-full">
                                         <span>Configuration</span>
                                         {activeTab !== -1 && (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-4 ml-4">
                                                 <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
                                                     {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
                                                 </span>
