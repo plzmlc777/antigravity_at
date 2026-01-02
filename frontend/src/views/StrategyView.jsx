@@ -1708,6 +1708,7 @@ const StrategyView = () => {
                                                     <table className="w-full text-left border-collapse whitespace-nowrap">
                                                         <thead>
                                                             <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
+                                                                <th className="p-3 text-center w-16">Active</th>
                                                                 {[
                                                                     { key: 'rank', label: 'Rank' },
                                                                     ...PARAM_DEFINITIONS,
@@ -1736,7 +1737,6 @@ const StrategyView = () => {
                                                                         </div>
                                                                     </th>
                                                                 ))}
-                                                                <th className="p-3 text-center">Action</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -1754,39 +1754,73 @@ const StrategyView = () => {
                                                                     if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
                                                                     return 0;
                                                                 })
-                                                                .map((res, idx) => (
-                                                                    <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${res.rank === 1 ? 'bg-green-500/10' : ''}`}>
-                                                                        <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
+                                                                .map((res, idx) => {
+                                                                    let isActiveConfig = true;
+                                                                    // Check if this result matches current configuration
+                                                                    if (currentConfig) {
+                                                                        for (const param of PARAM_DEFINITIONS) {
+                                                                            const configVal = currentConfig[param.key];
+                                                                            const resVal = res[param.key];
+                                                                            // Loose equality since API might return number vs string input
+                                                                            // eslint-disable-next-line eqeqeq
+                                                                            if (configVal != resVal) {
+                                                                                isActiveConfig = false;
+                                                                                break;
+                                                                            }
+                                                                        }
+                                                                    }
 
-                                                                        {/* Render All Params */}
-                                                                        {PARAM_DEFINITIONS.map(param => (
-                                                                            <td key={param.key} className="p-3 text-gray-300">
-                                                                                {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                    return (
+                                                                        <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${isActiveConfig ? 'bg-green-500/20' : (res.rank === 1 ? 'bg-green-500/10' : '')}`}>
+                                                                            <td className="p-3 text-center">
+                                                                                <button
+                                                                                    disabled={isActiveConfig}
+                                                                                    onClick={() => {
+                                                                                        if (window.confirm(`⚠️ Apply Optimization Config?\n\nRank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`)) {
+                                                                                            setConfigList(prev => {
+                                                                                                const next = [...prev];
+                                                                                                const configToApply = res.full_config || {};
+                                                                                                next[activeTab] = {
+                                                                                                    ...next[activeTab],
+                                                                                                    ...configToApply
+                                                                                                };
+                                                                                                return next;
+                                                                                            });
+                                                                                        }
+                                                                                    }}
+                                                                                    className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
+                                                                                        ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
+                                                                                        : 'bg-purple-900/40 hover:bg-purple-800 border border-purple-500/30 text-purple-300 hover:shadow-purple-900/20'
+                                                                                        }`}
+                                                                                >
+                                                                                    {isActiveConfig && <span className="absolute left-2 top-1.5 text-[9px] leading-3">✓</span>}
+                                                                                    {isActiveConfig ? 'Active' : 'Select'}
+                                                                                </button>
                                                                             </td>
-                                                                        ))}
+                                                                            <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
-                                                                        <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                            {res.return > 0 ? '+' : ''}{res.return}%
-                                                                        </td>
-                                                                        <td className="p-3 text-red-300">{res.max_drawdown ?? '-'}</td>
-                                                                        <td className="p-3 text-white">{res.win_rate}%</td>
-                                                                        <td className="p-3 text-white">{res.profit_factor ?? '-'}</td>
-                                                                        <td className="p-3 text-white">{res.sharpe_ratio ?? '-'}</td>
-                                                                        <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{res.avg_pnl ?? '-'}</td>
-                                                                        <td className="p-3 text-white">{res.stability_score ?? '-'}</td>
-                                                                        <td className="p-3 text-white">{res.acceleration_score ?? '-'}</td>
-                                                                        <td className="p-3 text-gray-400">{res.trades}</td>
-                                                                        <td className="p-3 text-blue-400 font-bold">{res.score}</td>
-                                                                        <td className="p-3 text-center">
-                                                                            <button
-                                                                                onClick={() => applyOptParams(res)}
-                                                                                className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-purple-300 transition-colors"
-                                                                            >
-                                                                                Apply
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
+                                                                            {/* Render All Params */}
+                                                                            {PARAM_DEFINITIONS.map(param => (
+                                                                                <td key={param.key} className="p-3 text-gray-300">
+                                                                                    {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                </td>
+                                                                            ))}
+
+                                                                            <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                                {res.return > 0 ? '+' : ''}{res.return}%
+                                                                            </td>
+                                                                            <td className="p-3 text-red-300">{res.max_drawdown ?? '-'}</td>
+                                                                            <td className="p-3 text-white">{res.win_rate}%</td>
+                                                                            <td className="p-3 text-white">{res.profit_factor ?? '-'}</td>
+                                                                            <td className="p-3 text-white">{res.sharpe_ratio ?? '-'}</td>
+                                                                            <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{res.avg_pnl ?? '-'}</td>
+                                                                            <td className="p-3 text-white">{res.stability_score ?? '-'}</td>
+                                                                            <td className="p-3 text-white">{res.acceleration_score ?? '-'}</td>
+                                                                            <td className="p-3 text-gray-400">{res.trades}</td>
+                                                                            <td className="p-3 text-blue-400 font-bold">{res.score}</td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
                                                         </tbody>
                                                     </table>
                                                 </div>
