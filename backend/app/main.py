@@ -49,7 +49,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Auto Trading System Backend is Running", "status": "active", "version": "v1.8.1"}
+    return {"message": "Auto Trading Backend API", "version": "1.8.2", "status": "running"}
 
 @app.get("/health")
 async def health_check():

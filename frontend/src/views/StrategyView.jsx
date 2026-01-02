@@ -164,7 +164,14 @@ const StrategyView = () => {
     }, [selectedStrategy]);
 
     const initDefaultList = () => {
-        setConfigList([{ ...DEFAULT_CONFIG, is_active: true, tabName: "Rank 1", uuid: generateUUID() }]);
+        setConfigList([{
+            ...DEFAULT_CONFIG,
+            is_active: true,
+            tabName: "Rank 1",
+            uuid: generateUUID(),
+            optEnabled: {},
+            optValues: { ...DEFAULT_OPT_VALUES }
+        }]);
         setActiveTab(0);
     };
 
@@ -288,9 +295,14 @@ const StrategyView = () => {
         }
 
         const targetUUID = configList[activeTab]?.uuid;
-        if (!targetUUID) return;
+        if (!targetUUID) {
+            console.warn('[Persistence] Skipping restore: No UUID for tab', activeTab);
+            return;
+        }
 
         const restoreResults = async () => {
+            console.log(`[Persistence] Restoring Results for UUID: ${targetUUID} (Tab ${activeTab})`);
+
             // Clear valid results temporarily to show transition (optional, maybe keep stale?)
             // Clearing is safer to avoid confusion.
             setBacktestResult(null);
@@ -299,21 +311,41 @@ const StrategyView = () => {
 
             try {
                 const data = await getStrategyResults(targetUUID);
+                console.log('[Persistence] Data Received:', data);
 
                 // Restore Backtest
-                if (data.backtest && data.backtest.data) {
-                    setBacktestResult(data.backtest.data);
+                if (data.backtest) {
+                    console.log('[Persistence] Restoring Backtest Data');
+                    setBacktestResult(data.backtest);
                     setBacktestStatus({ status: 'success', message: 'Result Restored' });
                 } else {
+                    console.log('[Persistence] No Backtest Data found');
                     setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
                 }
 
                 // Restore Optimization
-                if (data.optimization && data.optimization.data) {
-                    setOptResults(data.optimization.data);
+                if (data.optimization && data.optimization.results) {
+                    console.log('[Persistence] Restoring Optimization Data');
+                    const formattedResults = data.optimization.results.map(item => ({
+                        rank: item.rank,
+                        ...(item.config || {}),
+                        return: item.total_return,
+                        win_rate: item.win_rate,
+                        trades: item.total_trades,
+                        score: item.score,
+                        full_config: item.config || {},
+                        ...(item.metrics || {}) // Flatten metrics
+                    }));
+                    setOptResults(formattedResults);
+                } else if (data.optimization) {
+                    // Fallback if data structure is unexpected
+                    console.warn('[Persistence] Unexpected Opt Data Structure', data.optimization);
+                    if (Array.isArray(data.optimization)) {
+                        setOptResults(data.optimization);
+                    }
                 }
             } catch (e) {
-                console.error("Failed to restore results", e);
+                console.error("[Persistence] Failed to restore results", e);
                 setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
             }
         };
@@ -468,42 +500,46 @@ const StrategyView = () => {
     const [optError, setOptError] = useState(null);
 
     // State for Dynamic Optimization
-    // State for Dynamic Optimization
-    const [optEnabled, setOptEnabled] = useState(() => {
-        const saved = localStorage.getItem('optEnabled');
-        return saved ? JSON.parse(saved) : {};
-    });
+    // Refactored to Per-Tab Config (Legacy Global State Removed)
 
-    const [optValues, setOptValues] = useState(() => {
-        const saved = localStorage.getItem('optValues');
-        return saved ? JSON.parse(saved) : {
-            start_time: "09:00, 09:30",
-            delay_minutes: "5, 10, 15",
-            direction: "rise",
-            target_percent: "1, 2, 3, 5",
-            safety_stop_percent: "2, 3, 5",
-            trailing_start_percent: "3, 5",
-            trailing_stop_drop: "1, 2",
-            stop_time: "15:00"
-        };
-    });
-
-    // Save Optimization Config on Change
-    useEffect(() => {
-        localStorage.setItem('optEnabled', JSON.stringify(optEnabled));
-    }, [optEnabled]);
-
-    useEffect(() => {
-        localStorage.setItem('optValues', JSON.stringify(optValues));
-    }, [optValues]);
+    // DEFAULT_OPT_VALUES constant defined below...
+    const DEFAULT_OPT_VALUES = {
+        start_time: "09:00, 09:30",
+        delay_minutes: "5, 10, 15",
+        direction: "rise",
+        target_percent: "1, 2, 3, 5",
+        safety_stop_percent: "2, 3, 5",
+        trailing_start_percent: "3, 5",
+        trailing_stop_drop: "1, 2",
+        stop_time: "15:00"
+    };
 
     const handleOptEnableChange = (key, checked) => {
-        console.log(`Toggling ${key} to ${checked}`);
-        setOptEnabled(prev => ({ ...prev, [key]: checked }));
+        if (activeTab === -1 || !configList[activeTab]) return;
+
+        setConfigList(prev => {
+            const next = [...prev];
+            const currentCfg = next[activeTab];
+            next[activeTab] = {
+                ...currentCfg,
+                optEnabled: { ...(currentCfg.optEnabled || {}), [key]: checked }
+            };
+            return next;
+        });
     };
 
     const handleOptValueChange = (key, value) => {
-        setOptValues(prev => ({ ...prev, [key]: value }));
+        if (activeTab === -1 || !configList[activeTab]) return;
+
+        setConfigList(prev => {
+            const next = [...prev];
+            const currentCfg = next[activeTab];
+            next[activeTab] = {
+                ...currentCfg,
+                optValues: { ...(currentCfg.optValues || DEFAULT_OPT_VALUES), [key]: value }
+            };
+            return next;
+        });
     };
 
     const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
@@ -557,7 +593,10 @@ const StrategyView = () => {
         }
 
         // Validation: Check for empty optimization inputs
-        const varyingKeys = Object.keys(optEnabled).filter(k => optEnabled[k]);
+        const currentOptEnabled = currentConfig.optEnabled || {};
+        const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+
+        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k]);
         if (varyingKeys.length === 0) {
             // If no params, run single backtest or warn?
             // Actually allowed (runs base config 1 time)
@@ -565,7 +604,7 @@ const StrategyView = () => {
 
         const parameter_ranges = {};
         for (const key of varyingKeys) {
-            const values = parseValues(optValues[key]);
+            const values = parseValues(currentOptValues[key]);
             if (values.length === 0) {
                 setOptError(`Error: Parameter '${key}' is enabled but has no values. Please enter comma-separated values.`);
                 return;
@@ -913,7 +952,13 @@ const StrategyView = () => {
                                 {/* Add Tab Button */}
                                 <button
                                     onClick={() => {
-                                        const newConfig = { ...DEFAULT_CONFIG, is_active: false, tabName: `Draft ${configList.length + 1}`, symbol: currentSymbol };
+                                        const newConfig = {
+                                            ...DEFAULT_CONFIG,
+                                            is_active: false,
+                                            tabName: `Draft ${configList.length + 1}`,
+                                            symbol: currentSymbol,
+                                            uuid: generateUUID() // Generate UUID for new tab
+                                        };
                                         setConfigList([...configList, newConfig]);
                                         setActiveTab(configList.length);
                                     }}
@@ -1510,92 +1555,97 @@ const StrategyView = () => {
                                     <div className="space-y-6">
                                         {/* Dynamic Grid Inputs */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            {PARAM_DEFINITIONS.map((param) => (
-                                                <div key={param.key} className={`p-3 rounded-lg border transition-colors ${optEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`opt-${param.key}`}
-                                                            checked={!!optEnabled[param.key]}
-                                                            onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
-                                                            className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
-                                                        />
-                                                        <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${optEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
-                                                            {param.label}
-                                                        </label>
-                                                    </div>
-                                                    {param.type === 'select' && optEnabled[param.key] ? (
-                                                        <div className="relative">
-                                                            <div
-                                                                onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
-                                                                className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
-                                                                    }`}
-                                                            >
-                                                                <span className="truncate">
-                                                                    {optValues[param.key] || <span className="text-gray-500">Select options...</span>}
-                                                                </span>
-                                                                <span className="text-gray-400 text-xs ml-2">▼</span>
-                                                            </div>
+                                            {(() => {
+                                                const currentOptEnabled = currentConfig.optEnabled || {};
+                                                const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
 
-                                                            {/* Dropdown Menu */}
-                                                            {activeDropdown === param.key && (
-                                                                <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                                    {param.options.map(option => {
-                                                                        const currentVals = (optValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
-                                                                        const isSelected = currentVals.includes(option);
-
-                                                                        return (
-                                                                            <div
-                                                                                key={option}
-                                                                                onClick={() => {
-                                                                                    let newVals;
-                                                                                    if (isSelected) {
-                                                                                        newVals = currentVals.filter(v => v !== option);
-                                                                                    } else {
-                                                                                        // Sort logic if needed, but append is fine for now
-                                                                                        newVals = [...currentVals, option];
-                                                                                        // Try to sort times if possible? complex. Just push.
-                                                                                    }
-                                                                                    handleOptValueChange(param.key, newVals.join(', '));
-                                                                                }}
-                                                                                className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
-                                                                                    }`}
-                                                                            >
-                                                                                <span>{option}</span>
-                                                                                {isSelected && <span>✓</span>}
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Overlay to close */}
-                                                            {activeDropdown === param.key && (
-                                                                <div
-                                                                    className="fixed inset-0 z-40"
-                                                                    onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
-                                                                ></div>
-                                                            )}
+                                                return PARAM_DEFINITIONS.map((param) => (
+                                                    <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`opt-${param.key}`}
+                                                                checked={!!currentOptEnabled[param.key]}
+                                                                onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
+                                                                className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
+                                                            />
+                                                            <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${currentOptEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
+                                                                {param.label}
+                                                            </label>
                                                         </div>
-                                                    ) : (
-                                                        <input
-                                                            type="text"
-                                                            placeholder={param.placeholder}
-                                                            disabled={!optEnabled[param.key]}
-                                                            className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${optEnabled[param.key]
-                                                                ? 'border-purple-500/30 text-white focus:border-purple-500'
-                                                                : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                            value={optEnabled[param.key] ? (optValues[param.key] || "") : (currentConfig[param.key] ?? "")}
-                                                            onChange={(e) => handleOptValueChange(param.key, e.target.value)}
-                                                        />
-                                                    )}
-                                                    {optEnabled[param.key] && (
-                                                        <p className="text-[10px] text-gray-500 mt-1 truncate">
-                                                            e.g. {param.placeholder}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                        {param.type === 'select' && currentOptEnabled[param.key] ? (
+                                                            <div className="relative">
+                                                                <div
+                                                                    onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
+                                                                    className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
+                                                                        }`}
+                                                                >
+                                                                    <span className="truncate">
+                                                                        {currentOptValues[param.key] || <span className="text-gray-500">Select options...</span>}
+                                                                    </span>
+                                                                    <span className="text-gray-400 text-xs ml-2">▼</span>
+                                                                </div>
+
+                                                                {/* Dropdown Menu */}
+                                                                {activeDropdown === param.key && (
+                                                                    <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                                                        {param.options.map(option => {
+                                                                            const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
+                                                                            const isSelected = currentVals.includes(option);
+
+                                                                            return (
+                                                                                <div
+                                                                                    key={option}
+                                                                                    onClick={() => {
+                                                                                        let newVals;
+                                                                                        if (isSelected) {
+                                                                                            newVals = currentVals.filter(v => v !== option);
+                                                                                        } else {
+                                                                                            // Sort logic if needed, but append is fine for now
+                                                                                            newVals = [...currentVals, option];
+                                                                                            // Try to sort times if possible? complex. Just push.
+                                                                                        }
+                                                                                        handleOptValueChange(param.key, newVals.join(', '));
+                                                                                    }}
+                                                                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
+                                                                                        }`}
+                                                                                >
+                                                                                    <span>{option}</span>
+                                                                                    {isSelected && <span>✓</span>}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Overlay to close */}
+                                                                {activeDropdown === param.key && (
+                                                                    <div
+                                                                        className="fixed inset-0 z-40"
+                                                                        onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
+                                                                    ></div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                placeholder={param.placeholder}
+                                                                disabled={!currentOptEnabled[param.key]}
+                                                                className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
+                                                                    ? 'border-purple-500/30 text-white focus:border-purple-500'
+                                                                    : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
+                                                                value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
+                                                                onChange={(e) => handleOptValueChange(param.key, e.target.value)}
+                                                            />
+                                                        )}
+                                                        {currentOptEnabled[param.key] && (
+                                                            <p className="text-[10px] text-gray-500 mt-1 truncate">
+                                                                e.g. {param.placeholder}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ));
+                                            })()}
                                         </div>
 
                                         {/* Action */}
@@ -1613,7 +1663,7 @@ const StrategyView = () => {
                                                             : "Initializing..."}
                                                     </>
                                                 ) : (
-                                                    <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values(optEnabled).filter(Boolean).length} Params)`}</>
+                                                    <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
                                                 )}
                                             </button>
 
