@@ -731,25 +731,38 @@ const StrategyView = () => {
                                 <div className="w-px h-6 bg-white/10 mx-2" />
 
                                 {/* Rank/Draft Tabs */}
-                                {configList.map((cfg, idx) => {
-                                    const isSelected = activeTab === idx;
-                                    const isActive = cfg.is_active !== false;
-                                    return (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setActiveTab(idx)}
-                                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
-                                                ? isActive
-                                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                                                    : 'bg-gray-600 text-white shadow-lg'
-                                                : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
-                                                }`}
-                                        >
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />
-                                            {isActive ? `Rank ${idx + 1}` : `Draft ${idx + 1}`}
-                                        </button>
-                                    );
-                                })}
+                                {(() => {
+                                    let rankCount = 0;
+                                    let draftCount = 0;
+                                    return configList.map((cfg, idx) => {
+                                        const isSelected = activeTab === idx;
+                                        const isActive = cfg.is_active !== false;
+                                        let label = "";
+                                        if (isActive) {
+                                            rankCount++;
+                                            label = `Rank ${rankCount}`;
+                                        } else {
+                                            draftCount++;
+                                            label = `Draft ${draftCount}`;
+                                        }
+
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setActiveTab(idx)}
+                                                className={`px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
+                                                    ? isActive
+                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
+                                                        : 'bg-gray-600 text-white shadow-lg'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                                                    }`}
+                                            >
+                                                <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />
+                                                {label}
+                                            </button>
+                                        );
+                                    });
+                                })()}
 
                                 {/* Add Tab Button */}
                                 <button
