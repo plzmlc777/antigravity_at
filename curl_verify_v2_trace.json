@@ -1,0 +1,1 @@
+{"status":"error","message":"'max_drawdown'","traceback":"Traceback (most recent call last):\n  File \"/home/admin-ubuntu/ai/antigravity/auto_trading/backend/app/api/mock_strategies.py\", line 257, in run_integrated_backtest\n    \"max_drawdown\": result['max_drawdown'],\n                    ~~~~~~^^^^^^^^^^^^^^^^\nKeyError: 'max_drawdown'\n","logs":["CRASHED"]}

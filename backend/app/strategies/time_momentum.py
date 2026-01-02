@@ -67,7 +67,7 @@ class TimeMomentumStrategy(BaseStrategy):
         current_time = self.context.get_time()
         current_date_obj = current_time.date()
         current_price = data['close']
-        symbol = "TEST" # Configurable in real scenario
+        symbol = self.config.get("symbol", "KRW-BTC")
         
         # Reset daily state on new day
         if self.current_trading_date != current_date_obj:

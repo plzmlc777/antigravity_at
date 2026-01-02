@@ -163,3 +163,8 @@ export const setupInterceptors = (onUnauth) => {
         }
     )
 };
+
+export const runIntegratedBacktest = async (payload) => {
+    const { data } = await api.post('/strategies/integrated/v2-backtest', payload);
+    return data;
+};

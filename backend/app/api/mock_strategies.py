@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import random
 import time
@@ -216,6 +216,71 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
 
 router = APIRouter()
 
+@router.get("/debug-probe")
+async def debug_probe():
+    return {"status": "alive", "message": "Router is active"}
+
+class IntegratedBacktestRequest(BaseModel):
+    symbol: str = "TEST"
+    interval: str = "1m"
+    days: int = 365
+    from_date: Optional[str] = None
+    initial_capital: int = 10000000
+    configs: List[Dict[str, Any]] = [] # Ordered list of configs
+
+@router.post("/integrated/v2-backtest")
+async def run_integrated_backtest(request: IntegratedBacktestRequest):
+    try:
+        from ..core.backtest_engine import BacktestEngine
+        
+        # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
+        from ..strategies.base import BaseStrategy
+        class MockStrategy(BaseStrategy):
+             def initialize(self): pass
+             def on_data(self, data): pass
+        
+        engine = BacktestEngine(MockStrategy, {}) # Configs passed to run_integrated
+        
+        result = await engine.run_integrated_simulation(
+            strategies_config=request.configs,
+            symbol=request.symbol,
+            interval=request.interval,
+            duration_days=request.days,
+            from_date=request.from_date,
+            initial_capital=request.initial_capital
+        )
+        
+        return {
+            "strategy_id": "integrated_waterfall",
+            "total_return": result['total_return'],
+            "win_rate": result['win_rate'],
+            "max_drawdown": result['max_drawdown'],
+            "total_trades": result.get('total_trades', 0),
+            "avg_pnl": result.get('avg_pnl', "0%"),
+            "max_profit": result.get('max_profit', "0%"),
+            "max_loss": result.get('max_loss', "0%"),
+            "profit_factor": result.get('profit_factor', "0.00"),
+            "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
+            "activity_rate": result.get('activity_rate', "0%"),
+            "total_days": result.get('total_days', 0),
+            "avg_holding_time": result.get('avg_holding_time', "0m"),
+            "decile_stats": result.get('decile_stats', []),
+            "stability_score": result.get('stability_score', "0.00"),
+            "acceleration_score": result.get('acceleration_score', "0.00"),
+            "chart_data": result['chart_data'],
+            "ohlcv_data": result.get('ohlcv_data', []),
+            "trades": result.get('trades', []),
+            "logs": result.get('logs', [])
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc(),
+            "logs": ["CRASHED"]
+        }
+
 class Strategy(BaseModel):
     id: str
     name: str
@@ -270,7 +335,7 @@ async def generate_strategy_code(prompt: Dict[str, str]):
         "tags": ["AI-Generated"]
     }
 
-from typing import List, Dict, Any, Optional
+
 
 class BacktestRequest(BaseModel):
     symbol: str = "TEST"
@@ -458,18 +523,4 @@ async def get_optimization_status(task_id: str):
         result=task.get("result")
     )
 
-@router.post("/optimize/cancel/{task_id}")
-async def cancel_optimization(task_id: str):
-    task = OPTIMIZATION_TASKS.get(task_id)
-    if not task:
-        # 404
-        return {"error": "Task not found"}
-    
-    if task["status"] in ["completed", "failed", "cancelled"]:
-        return {"status": "already_finished"}
 
-    # Set Flag
-    task["cancel_requested"] = True
-    task["status"] = "cancelling" # Update status immediately for UI feedback
-    
-    return {"status": "cancellation_requested", "task_id": task_id}
