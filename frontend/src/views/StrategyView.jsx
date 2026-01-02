@@ -1008,6 +1008,7 @@ const StrategyView = () => {
                                         </div>
                                     )}
                                 </div>
+                                )}
                             </Card>
 
                             {/* VISUAL CHART SECTION (Dedicated) */}
