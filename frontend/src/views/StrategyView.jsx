@@ -165,6 +165,18 @@ const StrategyView = () => {
     // Helper to get current config for UI rendering
     const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : DEFAULT_CONFIG;
 
+    // Clear results when switching tabs
+    useEffect(() => {
+        setBacktestResult(null);
+        setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+        setShowChart(false);
+        setOptResults(null);
+        setOptError(null);
+        setOptProgress({ current: 0, total: 0 });
+        setIsOptimizing(false);
+        setIsCancelling(false);
+    }, [activeTab]);
+
     // 4. Persistence & Initialization
     useEffect(() => {
         fetchStrategies();
@@ -1008,7 +1020,7 @@ const StrategyView = () => {
                                         </div>
                                     )}
                                 </div>
-                                )}
+
                             </Card>
 
                             {/* VISUAL CHART SECTION (Dedicated) */}
@@ -1377,7 +1389,7 @@ const StrategyView = () => {
                                                             className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${optEnabled[param.key]
                                                                 ? 'border-purple-500/30 text-white focus:border-purple-500'
                                                                 : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                            value={optEnabled[param.key] ? (optValues[param.key] || "") : (config[param.key] ?? "")}
+                                                            value={optEnabled[param.key] ? (optValues[param.key] || "") : (currentConfig[param.key] ?? "")}
                                                             onChange={(e) => handleOptValueChange(param.key, e.target.value)}
                                                         />
                                                     )}
