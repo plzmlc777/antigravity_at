@@ -4,6 +4,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector'; // Import
 import VisualBacktestChart from '../components/VisualBacktestChart';
+import { saveStrategyResult, getStrategyResults } from '../api/client'; // Import Persistence APIs
+
+const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
 
 // Defined outside component to prevent re-creation
 const PARAM_DEFINITIONS = [
@@ -45,7 +54,8 @@ const DEFAULT_CONFIG = {
     safety_stop_percent: 3,
     trailing_start_percent: 5,
     trailing_stop_drop: 2,
-    stop_time: "15:00"
+    stop_time: "15:00",
+    uuid: null // Will be generated
 };
 
 const StrategyView = () => {
@@ -108,8 +118,23 @@ const StrategyView = () => {
                 try {
                     const parsed = JSON.parse(savedList);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        setConfigList(parsed);
+                        // Migration: Ensure UUIDs exist
+                        let needsUpdate = false;
+                        const migratedList = parsed.map(cfg => {
+                            if (!cfg.uuid) {
+                                needsUpdate = true;
+                                return { ...cfg, uuid: generateUUID() };
+                            }
+                            return cfg;
+                        });
+
+                        setConfigList(migratedList);
                         setActiveTab(0);
+                        if (needsUpdate) {
+                            setTimeout(() => { // Defer save slightly
+                                localStorage.setItem(storageKey, JSON.stringify(migratedList));
+                            }, 0);
+                        }
                     } else {
                         // Fallback if parsing failed or empty
                         initDefaultList();
@@ -124,7 +149,7 @@ const StrategyView = () => {
                     try {
                         const parsedLegacy = JSON.parse(legacy);
                         // Wrap in array, set is_active = true
-                        const migrated = [{ ...parsedLegacy, is_active: true, tabName: "Rank 1" }];
+                        const migrated = [{ ...parsedLegacy, is_active: true, tabName: "Rank 1", uuid: generateUUID() }];
                         setConfigList(migrated);
                         setActiveTab(0);
                     } catch {
@@ -139,7 +164,7 @@ const StrategyView = () => {
     }, [selectedStrategy]);
 
     const initDefaultList = () => {
-        setConfigList([{ ...DEFAULT_CONFIG, is_active: true, tabName: "Rank 1" }]);
+        setConfigList([{ ...DEFAULT_CONFIG, is_active: true, tabName: "Rank 1", uuid: generateUUID() }]);
         setActiveTab(0);
     };
 
@@ -159,22 +184,33 @@ const StrategyView = () => {
         // Boundary Checks
         if (targetIndex < 0 || targetIndex >= configList.length) return;
 
-        // Ensure both are Active (Rank) tabs
-        // Since we sort Active First, we just need to check if target is active
-        // If target is inactive (Draft), we cannot move a Rank down into Drafts
+        // Ensure both are Active (Rank) tabs. Rank tabs are always at the start.
         if (configList[index].is_active === false || configList[targetIndex].is_active === false) return;
 
         setConfigList(prev => {
             const next = [...prev];
-            // Swap
+            // Swap objects
             const temp = next[index];
             next[index] = next[targetIndex];
             next[targetIndex] = temp;
-            return next;
+
+            // Regenerate tabNames to keep them consistent with position
+            let rankCount = 0;
+            let draftCount = 0;
+            return next.map(cfg => {
+                const newCfg = { ...cfg }; // Clone
+                if (newCfg.is_active !== false) {
+                    rankCount++;
+                    newCfg.tabName = `Rank ${rankCount}`;
+                } else {
+                    draftCount++;
+                    newCfg.tabName = `Draft ${draftCount}`;
+                }
+                return newCfg;
+            });
         });
 
-        // If we are moving the currently active tab, follow it
-        // If we are moving a tab other than active one, and it swaps with active one, update active
+        // Update Active Tab to follow the moved item
         if (activeTab === index) {
             setActiveTab(targetIndex);
         } else if (activeTab === targetIndex) {
@@ -234,17 +270,56 @@ const StrategyView = () => {
     // Helper to get current config for UI rendering
     const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : DEFAULT_CONFIG;
 
-    // Clear results when switching tabs
+    // 3. Persistence: Load Results when switching tabs
     useEffect(() => {
-        setBacktestResult(null);
-        setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+        // Reset transient states
         setShowChart(false);
-        setOptResults(null);
-        setOptError(null);
-        setOptProgress({ current: 0, total: 0 });
         setIsOptimizing(false);
         setIsCancelling(false);
-    }, [activeTab]);
+
+        // If Integrated View (-1) or not loaded, just clear
+        if (activeTab === -1 || !isConfigLoaded) {
+            setBacktestResult(null);
+            setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+            setOptResults(null);
+            setOptError(null);
+            setOptProgress({ current: 0, total: 0 });
+            return;
+        }
+
+        const targetUUID = configList[activeTab]?.uuid;
+        if (!targetUUID) return;
+
+        const restoreResults = async () => {
+            // Clear valid results temporarily to show transition (optional, maybe keep stale?)
+            // Clearing is safer to avoid confusion.
+            setBacktestResult(null);
+            setOptResults(null);
+            setBacktestStatus({ status: 'idle', message: 'Restoring history...' });
+
+            try {
+                const data = await getStrategyResults(targetUUID);
+
+                // Restore Backtest
+                if (data.backtest && data.backtest.data) {
+                    setBacktestResult(data.backtest.data);
+                    setBacktestStatus({ status: 'success', message: 'Result Restored' });
+                } else {
+                    setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+                }
+
+                // Restore Optimization
+                if (data.optimization && data.optimization.data) {
+                    setOptResults(data.optimization.data);
+                }
+            } catch (e) {
+                console.error("Failed to restore results", e);
+                setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+            }
+        };
+
+        restoreResults();
+    }, [activeTab, isConfigLoaded]); // Only re-run when switching tabs, not editing config
 
     // 4. Persistence & Initialization
     useEffect(() => {
@@ -331,6 +406,11 @@ const StrategyView = () => {
             const res = await axios.post(`/api/v1/strategies/${strategyId}/backtest`, payload);
             setBacktestResult(res.data);
             setBacktestStatus({ status: 'success', message: 'Backtest Completed' });
+
+            // Persistence
+            if (currentConfig.uuid) {
+                saveStrategyResult(currentConfig.uuid, 'backtest', res.data).catch(err => console.error("Failed to save backtest result", err));
+            }
 
         } catch (e) {
             console.error(e);
@@ -563,6 +643,11 @@ const StrategyView = () => {
                                     ...item.metrics // Flatten metrics
                                 }));
                                 setOptResults(formattedResults);
+
+                                // Persistence
+                                if (currentConfig.uuid && statusData.status === 'completed') {
+                                    saveStrategyResult(currentConfig.uuid, 'optimization', resultData).catch(err => console.error("Failed to save opt result", err));
+                                }
 
                                 if (statusData.status === 'cancelled') {
                                     setOptError("Optimization Cancelled by User (Partial Results Shown Below)");

@@ -140,6 +140,18 @@ export const cancelConditionalOrder = async (id) => {
     return data;
 };
 
+// Strategy Result Persistence
+export const saveStrategyResult = async (tabId, type, resultData) => {
+    // type: 'backtest' | 'optimization'
+    const { data } = await api.post(`/strategy-results/${tabId}/${type}`, { data: resultData });
+    return data;
+};
+
+export const getStrategyResults = async (tabId) => {
+    const { data } = await api.get(`/strategy-results/${tabId}`);
+    return data;
+};
+
 export const setupInterceptors = (onUnauth) => {
     api.interceptors.response.use(
         (response) => response,
