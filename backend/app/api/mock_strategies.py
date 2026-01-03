@@ -232,6 +232,7 @@ class IntegratedBacktestRequest(BaseModel):
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
     try:
         from ..core.backtest_engine import BacktestEngine
+        from ..core.integrated_backtest_engine import IntegratedBacktestEngine
         
         # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
         from ..strategies.base import BaseStrategy
@@ -239,7 +240,7 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
              def initialize(self): pass
              def on_data(self, data): pass
         
-        engine = BacktestEngine(MockStrategy, {}) # Configs passed to run_integrated
+        engine = IntegratedBacktestEngine(MockStrategy, {}) # Use Subclass for Integrated Mode
         
         result = await engine.run_integrated_simulation(
             strategies_config=request.configs,
@@ -270,6 +271,8 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "chart_data": result['chart_data'],
             "ohlcv_data": result.get('ohlcv_data', []),
             "trades": result.get('trades', []),
+            "matched_trades": result.get('matched_trades', []),
+            "multi_ohlcv_data": result.get('multi_ohlcv_data', {}),
             "logs": result.get('logs', [])
         }
     except Exception as e:

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
-import SymbolSelector from '../components/SymbolSelector'; // Import
+import SymbolSelector from '../components/SymbolSelector';
+import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults } from '../api/client'; // Import Persistence APIs
 
@@ -1445,16 +1446,20 @@ const StrategyView = () => {
                             {/* VISUAL CHART SECTION (Dedicated) */}
                             {showChart && backtestResult && (
                                 <div className="mb-6 animate-fade-in-down">
-                                    <Card title="Visual Backtest Analysis">
-                                        {backtestResult.ohlcv_data ? (
-                                            <VisualBacktestChart
-                                                data={backtestResult.ohlcv_data}
-                                                trades={backtestResult.trades}
-                                            />
+                                    <Card title={backtestResult.strategy_id === 'integrated_waterfall' ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
+                                        {backtestResult.strategy_id === 'integrated_waterfall' ? (
+                                            <IntegratedAnalysis backtestResult={backtestResult} />
                                         ) : (
-                                            <div className="h-[200px] flex items-center justify-center text-gray-500">
-                                                No visual data available.
-                                            </div>
+                                            backtestResult.ohlcv_data ? (
+                                                <VisualBacktestChart
+                                                    data={backtestResult.ohlcv_data}
+                                                    trades={backtestResult.trades}
+                                                />
+                                            ) : (
+                                                <div className="h-[200px] flex items-center justify-center text-gray-500">
+                                                    No visual data available.
+                                                </div>
+                                            )
                                         )}
                                     </Card>
                                 </div>

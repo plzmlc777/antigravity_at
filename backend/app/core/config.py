@@ -12,7 +12,7 @@ load_dotenv("backend/.env")    # child (if running from root)
 
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
-    PROJECT_VERSION: str = "1.8.4"
+    PROJECT_VERSION: str = "1.8.5"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
