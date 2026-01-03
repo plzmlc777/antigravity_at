@@ -541,6 +541,7 @@ class BacktestEngine:
             if val > peak: peak = val
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd
+        return f"-{max_dd * 100:.2f}%"
     async def run_integrated_simulation(self, strategies_config: List[Dict], symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
         # 1. Fetch Data (Multi-Symbol Support)
         from ..services.market_data import MarketDataService

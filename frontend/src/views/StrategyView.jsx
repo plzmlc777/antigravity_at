@@ -880,15 +880,16 @@ const StrategyView = () => {
                             </div>
 
                             {/* --- New Tab Bar UI --- */}
-                            <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                            <div className="flex items-center gap-1 mb-4 overflow-x-auto p-2 scrollbar-hide">
                                 {/* Integrated Tab */}
                                 <button
                                     onClick={() => setActiveTab(-1)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === -1
-                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-purple-900/30'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -1
+                                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
+                                        : 'bg-gradient-to-r from-gray-800 to-gray-900 text-amber-500 border-amber-500/30 hover:border-amber-500 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                                         }`}
                                 >
+                                    <span className="text-lg">💎</span>
                                     <span>Integrated Portfolio</span>
                                 </button>
 
@@ -1080,6 +1081,81 @@ const StrategyView = () => {
                                                     Enable strategies in the Rank tabs to add them here.
                                                 </div>
                                             )}
+                                        </div>
+
+                                        {/* Strategy Configuration Summary Panel */}
+                                        <div className="mt-8 mb-8 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                            <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
+                                                <h3 className="font-bold text-gray-200 text-sm">Active Strategy Configurations</h3>
+                                                <span className="text-xs text-gray-400">{configList.filter(c => c.is_active !== false).length} Active</span>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="text-xs text-gray-400 bg-white/5 uppercase">
+                                                        <tr>
+                                                            <th className="px-4 py-3">Rank</th>
+                                                            <th className="px-4 py-3">Symbol</th>
+                                                            <th className="px-4 py-3">Interval</th>
+                                                            <th className="px-4 py-3">Direction</th>
+                                                            <th className="px-4 py-3">Delay</th>
+                                                            <th className="px-4 py-3">Target / Stop</th>
+                                                            <th className="px-4 py-3">Trailing</th>
+                                                            <th className="px-4 py-3 text-right">Settings</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-white/5">
+                                                        {configList.map((cfg, idx) => {
+                                                            if (cfg.is_active === false) return null;
+                                                            const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
+                                                            const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
+                                                            const isRise = (cfg.direction || 'rise') === 'rise';
+
+                                                            return (
+                                                                <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
+                                                                    <td className="px-4 py-3">
+                                                                        <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">
+                                                                            {cfg.tabName || `Rank ${idx + 1}`}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 font-medium text-white">
+                                                                        {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-gray-300">
+                                                                        {currentInterval}
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                                            {isRise ? '🚀 Rise' : '📉 Fall'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className="text-yellow-400 font-bold">{cfg.delay_minutes || 0}m</span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <div className="flex flex-col text-xs gap-1">
+                                                                            <span className="text-green-400">TP: {cfg.target_percent}%</span>
+                                                                            <span className="text-red-400">SL: {cfg.safety_stop_percent}%</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <div className="text-xs text-blue-400">
+                                                                            {cfg.trailing_start_percent}% / {cfg.trailing_stop_drop}%
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-right">
+                                                                        <button
+                                                                            onClick={() => setActiveTab(idx)}
+                                                                            className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-white transition"
+                                                                        >
+                                                                            Edit
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
 
                                         {/* Action Button & Settings */}
@@ -1607,9 +1683,11 @@ const StrategyView = () => {
                                                         <div className="text-xs text-gray-400">Max Loss</div>
                                                         <div className="text-xl font-bold text-red-400">{backtestResult.max_loss}</div>
                                                     </div>
-                                                    <div className="col-span-2 p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Max Drawdown</div>
-                                                        <div className="text-xl font-bold text-red-400">{backtestResult.max_drawdown}</div>
+                                                    <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
+                                                        <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
+                                                        <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
+                                                            {backtestResult.max_drawdown || "N/A"}
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -2036,10 +2114,10 @@ const StrategyView = () => {
                     </div>
                 )
                 }
-            </div >
+            </div>
 
             {/* AI Generator Input - Fixed Bottom */}
-            < Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]" >
+            <Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]">
                 <div className="flex gap-4">
                     <input
                         type="text"
@@ -2058,8 +2136,8 @@ const StrategyView = () => {
                         {isGenerating ? 'Generatin...' : 'Ask AI'}
                     </button>
                 </div>
-            </Card >
-        </div >
+            </Card>
+        </div>
     );
 };
 
