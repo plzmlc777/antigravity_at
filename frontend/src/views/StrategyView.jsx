@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults } from '../api/client'; // Import Persistence APIs
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client'; // Import Persistence APIs & Integrated Backtest
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -80,6 +80,11 @@ const StrategyView = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
     const [activeDropdown, setActiveDropdown] = useState(null); // Key of the currently open optimization dropdown
+
+    // Integrated Analysis State - Added for v0.8.7
+    const [showIntegratedAnalysis, setShowIntegratedAnalysis] = useState(false);
+    const [integratedResults, setIntegratedResults] = useState(null);
+    const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -1196,59 +1201,101 @@ const StrategyView = () => {
                                                 </div>
                                             </div>
 
-                                            <button
-                                                className={`px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl font-bold text-white text-lg shadow-lg shadow-blue-900/40 hover:scale-105 transition-transform flex items-center justify-center gap-3 mx-auto ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                onClick={async () => {
-                                                    // Collect Active Configs
-                                                    const activeConfigs = configList.filter(c => c.is_active !== false);
-                                                    if (activeConfigs.length === 0) {
-                                                        alert("Please activate at least one strategy.");
-                                                        return;
-                                                    }
 
-                                                    // Override Betting Strategy and Capital for all configs in Integrated Mode
-                                                    const overriddenConfigs = activeConfigs.map(cfg => ({
-                                                        ...cfg,
-                                                        betting_strategy: integratedBettingStrategy,
-                                                        initial_capital: initialCapital, // Ensure Fixed betting uses Global Capital
-                                                    }));
+                                            <div className="flex gap-4">
+                                                <button
+                                                    onClick={() => setShowIntegratedAnalysis(true)}
+                                                    disabled={!integratedResults}
+                                                    className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults
+                                                        ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                                        : 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
+                                                        }`}
+                                                >
+                                                    📊 Visual Analysis
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        setIsLoading(true);
+                                                        setBacktestStatus({ status: 'running', message: 'Initializing Integrated Simulation...' });
+                                                        setBacktestResult(null); // Clear previous
+                                                        setIntegratedResults(null);
 
-                                                    setIsLoading(true);
-                                                    setBacktestStatus({ status: 'running', message: 'Simulating Waterfall Execution...' });
-                                                    try {
-                                                        const { runIntegratedBacktest } = await import('../api/client');
-                                                        const result = await runIntegratedBacktest({
-                                                            configs: overriddenConfigs,
-                                                            symbol: currentSymbol || "KRW-BTC", // Use global or default
-                                                            interval: currentInterval, // Use selected interval
-                                                            days: 3650, // Request max history (filtered by from_date)
-                                                            from_date: fromDate,
-                                                            initial_capital: initialCapital
-                                                        });
+                                                        try {
+                                                            // Collect configurations from active configList
+                                                            // Filter only ACTIVE configs, but prioritize Rank Order
+                                                            const activeConfigs = configList.filter(c => c.is_active);
+                                                            if (activeConfigs.length === 0) {
+                                                                throw new Error("No active strategies selected.");
+                                                            }
 
-                                                        // Update Result State to Trigger Charts
-                                                        setBacktestResult(result);
-                                                        setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
+                                                            // Ensure symbol names are resolved? Backend expects code.
+                                                            // We pass full config objects.
 
-                                                    } catch (e) {
-                                                        console.error("Integrated Backtest Failed", e);
-                                                        setBacktestStatus({ status: 'error', message: "Integrated Backtest Failed: " + (e.message || "Unknown Error") });
-                                                    } finally {
-                                                        setIsLoading(false);
-                                                    }
-                                                }}
-                                                disabled={isLoading}
-                                            >
-                                                {isLoading ? (
-                                                    <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Running Simulation...</>
-                                                ) : (
-                                                    <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
-                                                )}
-                                            </button>
+                                                            // Check for overridden betting strategy
+                                                            const overriddenConfigs = activeConfigs.map(cfg => ({
+                                                                ...cfg,
+                                                                betting_strategy: currentConfig.betting_strategy || cfg.betting_strategy // Global override if set
+                                                            }));
+
+                                                            const result = await runIntegratedBacktest({
+                                                                configs: overriddenConfigs,
+                                                                symbol: currentSymbol || "KRW-BTC", // Use global or default
+                                                                interval: currentInterval, // Use selected interval
+                                                                days: 3650, // Request max history (filtered by from_date)
+                                                                from_date: fromDate,
+                                                                initial_capital: initialCapital
+                                                            });
+
+                                                            // Update Result State and Store for Visualization
+                                                            setBacktestResult(result);
+                                                            setIntegratedResults(result); // Store full result for visualization
+                                                            setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
+
+                                                        } catch (e) {
+                                                            console.error("Integrated Backtest Failed", e);
+                                                            setBacktestStatus({ status: 'error', message: "Integrated Backtest Failed: " + (e.message || "Unknown Error") });
+                                                        } finally {
+                                                            setIsLoading(false);
+                                                        }
+                                                    }}
+                                                    disabled={isLoading}
+                                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                                >
+                                                    {isLoading ? (
+                                                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Running Simulation...</>
+                                                    ) : (
+                                                        <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
+                                                    )}
+                                                </button>
+                                            </div>
                                             <p className="text-xs text-gray-500 mt-4">
                                                 * Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.
                                             </p>
                                         </div>
+
+                                        {/* Integrated Analysis Visualization Modal */}
+                                        {showIntegratedAnalysis && integratedResults && (
+                                            <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+                                                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#1e2029]">
+                                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                                        <span className="text-2xl">💎</span> Integrated Portfolio Analysis
+                                                    </h2>
+                                                    <button
+                                                        onClick={() => setShowIntegratedAnalysis(false)}
+                                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm"
+                                                    >
+                                                        Close
+                                                    </button>
+                                                </div>
+                                                <div className="flex-1 overflow-hidden relative">
+                                                    <IntegratedAnalysis
+                                                        data={integratedResults.multi_ohlcv_data || {}}
+                                                        trades={integratedResults.matched_trades || []}
+                                                        onClose={() => setShowIntegratedAnalysis(false)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

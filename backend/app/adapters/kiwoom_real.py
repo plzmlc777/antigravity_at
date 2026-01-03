@@ -290,24 +290,24 @@ class KiwoomRealAdapter(ExchangeInterface):
             "cncl_qty": str(quantity) # '0' for all
         }
         
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, headers=headers, json=payload)
-                response.raise_for_status()
-                data = response.json()
-                
-                if data.get("return_code") == 0:
-                    return {
-                        "status": "success",
-                        "message": "Cancel order submitted",
-                        "cancel_order_no": data.get("ord_no")
-                    }
-                else:
-                    return {
-                        "status": "failed",
-                        "message": data.get("return_msg", "Unknown Error")
-                    }
+        client = HttpClientManager.get_instance().get_client()
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data.get("return_code") == 0:
+                return {
+                    "status": "success",
+                    "message": "Cancel order submitted",
+                    "cancel_order_no": data.get("ord_no")
+                }
+            else:
+                return {
+                    "status": "failed",
+                    "message": data.get("return_msg", "Unknown Error")
+                }
 
-            except Exception as e:
-                logger.error(f"Cancel order failed: {e}")
-                return {"status": "failed", "message": str(e)}
+        except Exception as e:
+            logger.error(f"Cancel order failed: {e}")
+            return {"status": "failed", "message": str(e)}
