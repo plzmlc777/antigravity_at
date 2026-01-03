@@ -1,4 +1,4 @@
-export const APP_VERSION = "v1.8.4";
+export const APP_VERSION = "v1.8.5";
 export const COMMIT_HASH = "8120abc";
 export const BUILD_DATE = new Date().toISOString().split('T')[0];
 
