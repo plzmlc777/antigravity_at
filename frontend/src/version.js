@@ -1,5 +1,6 @@
-export const APP_VERSION = "v1.8.5";
-export const COMMIT_HASH = "8120abc";
+// Version is injected by Vite at build time from package.json & git
+export const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? `v${__APP_VERSION__}` : "vDev";
+export const COMMIT_HASH = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : "dev";
 export const BUILD_DATE = new Date().toISOString().split('T')[0];
 
 const MOUNTAINS = [
