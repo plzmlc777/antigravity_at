@@ -1218,14 +1218,14 @@ const StrategyView = () => {
 
                                             <div className="flex gap-4">
                                                 <button
-                                                    onClick={() => setShowIntegratedAnalysis(true)}
+                                                    onClick={() => setShowChart(!showChart)}
                                                     disabled={!integratedResults}
                                                     className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults
                                                         ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
                                                         : 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
                                                         }`}
                                                 >
-                                                    📊 Visual Analysis
+                                                    {showChart ? '📉 Hide Analysis' : '📊 Visual Analysis'}
                                                 </button>
                                                 <button
                                                     onClick={async () => {
@@ -1251,11 +1251,17 @@ const StrategyView = () => {
                                                                 betting_strategy: currentConfig.betting_strategy || cfg.betting_strategy // Global override if set
                                                             }));
 
+                                                            // Calculate days based on fromDate
+                                                            const startDate = new Date(fromDate);
+                                                            const today = new Date();
+                                                            const diffTime = Math.abs(today - startDate);
+                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
                                                             const result = await runIntegratedBacktest({
                                                                 configs: overriddenConfigs,
                                                                 symbol: currentSymbol || "KRW-BTC", // Use global or default
                                                                 interval: currentInterval, // Use selected interval
-                                                                days: 3650, // Request max history (filtered by from_date)
+                                                                days: diffDays > 0 ? diffDays : 365, // Use calculated days or default
                                                                 from_date: fromDate,
                                                                 initial_capital: initialCapital
                                                             });
@@ -1291,28 +1297,7 @@ const StrategyView = () => {
                                         </div>
 
                                         {/* Integrated Analysis Visualization Modal */}
-                                        {showIntegratedAnalysis && integratedResults && (
-                                            <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-                                                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#1e2029]">
-                                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                                        <span className="text-2xl">💎</span> Integrated Portfolio Analysis
-                                                    </h2>
-                                                    <button
-                                                        onClick={() => setShowIntegratedAnalysis(false)}
-                                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm"
-                                                    >
-                                                        Close
-                                                    </button>
-                                                </div>
-                                                <div className="flex-1 overflow-hidden relative">
-                                                    <IntegratedAnalysis
-                                                        data={integratedResults.multi_ohlcv_data || {}}
-                                                        trades={integratedResults.matched_trades || []}
-                                                        onClose={() => setShowIntegratedAnalysis(false)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
+
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1588,7 +1573,10 @@ const StrategyView = () => {
                                 <div className="mb-6 animate-fade-in-down">
                                     <Card title={backtestResult.strategy_id === 'integrated_waterfall' ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
                                         {backtestResult.strategy_id === 'integrated_waterfall' ? (
-                                            <IntegratedAnalysis backtestResult={backtestResult} />
+                                            <IntegratedAnalysis
+                                                trades={backtestResult.trades || []}
+                                                backtestResult={backtestResult}
+                                            />
                                         ) : (
                                             backtestResult.ohlcv_data ? (
                                                 <VisualBacktestChart

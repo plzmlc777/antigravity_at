@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, createSeriesMarkers, LineSeries } from 'lightweight-charts';
 
-const VisualBacktestChart = ({ data, trades }) => {
+const VisualBacktestChart = ({ data, trades, yAxisFormatter, priceScaleOptions, showOnlyPnl }) => {
     const chartContainerRef = useRef();
     const chartInstance = useRef(null);
     const seriesInstance = useRef(null);
@@ -84,31 +84,78 @@ const VisualBacktestChart = ({ data, trades }) => {
                         secondsVisible: true,
                         borderColor: '#374151',
                         rightOffset: 12,
+                        tickMarkFormatter: (time, tickMarkType, locale) => {
+                            const date = new Date(time * 1000);
+
+                            // tickMarkType: 0=Year, 1=Month, 2=DayOfMonth, 3=Time, 4=TimeWithSeconds
+                            // If Type < 3, it's a date boundary (Day/Month/Year change). Show Date.
+                            if (tickMarkType < 3) {
+                                // Date only: MM/DD
+                                return new Intl.DateTimeFormat('ko-KR', {
+                                    timeZone: 'Asia/Seoul',
+                                    month: 'numeric',
+                                    day: 'numeric',
+                                }).format(date).replace(/\. /g, '/').replace('.', '');
+                            } else {
+                                // Time only: HH:mm
+                                return new Intl.DateTimeFormat('ko-KR', {
+                                    timeZone: 'Asia/Seoul',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                }).format(date);
+                            }
+                        }
                     },
                     rightPriceScale: {
                         borderColor: '#374151',
+                        ...priceScaleOptions,
+                        // If fixedYRange is provided, use it to LOCK the Y-axis range
+                        ...(priceScaleOptions?.fixedYRange ? {
+                            autoScale: false, // Turn off generic autoscale
+                            scaleMargins: { top: 0, bottom: 0 }, // We manage margins via the range itself usually, or keep inherited. 
+                            // Actually, autoscaleInfoProvider works WITH autoScale=true usually to 'suggest' range.
+                            // But for PURE locking, we override it. 
+                            // Lightweight Charts 4.0 trick:
+                            // We might just need series.applyOptions({ autoscaleInfoProvider: ... }) ?
+                            // No, chart options don't have this. Series do.
+                        } : {}),
                     },
                     localization: {
                         timezone: 'Asia/Seoul',
                         dateFormat: 'yyyy-MM-dd',
                         timeFormatter: (timestamp) => {
-                            // Force KST display if native implementation is flaky
                             const date = new Date(timestamp * 1000);
                             return date.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' });
+                        },
+                        priceFormatter: (price) => {
+                            if (yAxisFormatter) return yAxisFormatter(price);
+                            return price.toFixed(2);
                         }
                     },
                 });
 
                 // 4. Add Series (Faded Candles)
+                // If showOnlyPnl is true, we hide the candlestick visuals (transparent)
+                const transparent = 'rgba(0, 0, 0, 0)';
                 const series = chart.addSeries(CandlestickSeries, {
-                    upColor: '#26a69a4D',
-                    downColor: '#ef53504D',
-                    borderVisible: true,
+                    upColor: showOnlyPnl ? transparent : '#26a69a4D',
+                    downColor: showOnlyPnl ? transparent : '#ef53504D',
+                    borderVisible: !showOnlyPnl,
                     borderColor: '#4b5563',
-                    wickUpColor: '#26a69a4D',
-                    wickDownColor: '#ef53504D',
-                    borderUpColor: '#26a69a80',
-                    borderDownColor: '#ef535080',
+                    wickVisible: !showOnlyPnl,
+                    wickUpColor: showOnlyPnl ? transparent : '#26a69a4D',
+                    wickDownColor: showOnlyPnl ? transparent : '#ef53504D',
+                    borderUpColor: showOnlyPnl ? transparent : '#26a69a80',
+                    borderDownColor: showOnlyPnl ? transparent : '#ef535080',
+                    autoscaleInfoProvider: priceScaleOptions?.fixedYRange
+                        ? () => ({
+                            priceRange: {
+                                minValue: priceScaleOptions.fixedYRange.min,
+                                maxValue: priceScaleOptions.fixedYRange.max,
+                            },
+                        })
+                        : undefined,
                 });
                 series.setData(validData);
                 seriesInstance.current = series;
@@ -230,6 +277,7 @@ const VisualBacktestChart = ({ data, trades }) => {
         const markers = visibleTrades.map(t => {
             if (t.type === 'buy') {
                 lastBuyPrice = t.price;
+                if (showOnlyPnl) return null; // Hide Buy Markers in Integrated Mode
                 return {
                     time: t.time,
                     price: t.price, // Exact Price
@@ -254,14 +302,15 @@ const VisualBacktestChart = ({ data, trades }) => {
                 return {
                     time: t.time,
                     price: t.price, // Exact Price
-                    position: 'atPriceTop', // Arrow sits above price, pointing DOWN
-                    color: isWin ? '#00FF00' : '#FF0055',
-                    shape: 'arrowDown',
+                    position: showOnlyPnl ? 'inBar' : 'atPriceTop', // Use inBar for Integrated (Lane), atPriceTop for Rank
+                    color: isWin ? (showOnlyPnl ? '#00FF00' : '#00FF00') : (showOnlyPnl ? '#FF0055' : '#FF0055'),
+                    shape: showOnlyPnl ? 'circle' : 'arrowDown',
                     text: pnlText,
-                    size: 1 // Reduced size for thinner look
+                    size: showOnlyPnl ? 0.5 : 1 // Smallest possible dot
                 };
             }
-        });
+        }).filter(m => m !== null); // Filter out hidden markers
+
         targetPlugin.setMarkers(markers);
     };
 
