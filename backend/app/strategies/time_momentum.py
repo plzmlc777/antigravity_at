@@ -60,8 +60,11 @@ class TimeMomentumStrategy(BaseStrategy):
         self.trailing_active = False
         self.last_trade_date = None
         self.entry_price = 0 # Fix: Store actual entry price
-        self.checked_today = False # Fix: Ensure we only check trigger ONCE per day
+        self.checked_today = False # Fix: Ensure we only check trigger ONCE per day (Snapshot)
         self.current_trading_date = None # Fix: Track Date for Reset
+        
+        # Verify Code Loading
+        self.context.log(f"DEBUG: TimeMomentumStrategy Loaded (Strict Daily Limit Active) - {datetime.now()}")
 
     def on_data(self, data: Dict[str, Any]):
         current_time = self.context.get_time()
@@ -92,10 +95,44 @@ class TimeMomentumStrategy(BaseStrategy):
         # Construct trigger time for today
         trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
         
-        # Check if we already traded today
+        # Check if we already traded today (Local State)
         already_traded = False
         if self.last_trade_date == current_time.date():
              already_traded = True
+        
+        # GLOBAL DAILY LIMIT CHECK:
+        # User requirement: "Only 1 trade per day" across the entire system.
+        # If ANY strategy has traded today (even if closed), prevent re-entry.
+        if not already_traded:
+            # Check context trades
+            # self.context.trades is a list of dicts with 'time' (datetime or timestamp)
+            # Optimization: Check implicitly via context helper if available, or iterate reverse.
+            # Since backtest trades list grows, reverse check is fast.
+            for t in reversed(self.context.trades):
+                 t_time = t.get('time')
+                 # Convert to date
+                 # Format might be datetime or str or int. Backtest engine uses generic.
+                 # Usually ISO string or datetime object.
+                 t_date = None
+                 if isinstance(t_time, datetime):
+                     t_date = t_time.date()
+                 elif isinstance(t_time, str):
+                     try:
+                         # Attempt ISO parse
+                         t_date = datetime.fromisoformat(str(t_time).replace('Z', '+00:00')).date()
+                     except:
+                         pass
+                 elif isinstance(t_time, (int, float)):
+                      # Timestamp
+                      t_date = datetime.fromtimestamp(t_time/1000 if t_time > 3000000000 else t_time).date()
+                 
+                 if t_date == current_time.date():
+                     already_traded = True
+                     break
+                 
+                 # If we hit a previous day, stop checking
+                 if t_date and t_date < current_time.date():
+                     break
         
         # STRICT SNAPSHOT CHECK:
         # Buy ONLY if current_time >= trigger_time AND we haven't checked yet today.

@@ -275,12 +275,15 @@ const VisualBacktestChart = ({ data, trades, yAxisFormatter, priceScaleOptions, 
         let lastBuyPrice = 0; // Track last buy price for PnL calc
 
         const markers = visibleTrades.map(t => {
+            // Use original_price (Asset Price) for PnL, fallback to t.price (Chart Y-Value)
+            const realPrice = t.original_price !== undefined ? t.original_price : t.price;
+
             if (t.type === 'buy') {
-                lastBuyPrice = t.price;
+                lastBuyPrice = realPrice;
                 if (showOnlyPnl) return null; // Hide Buy Markers in Integrated Mode
                 return {
                     time: t.time,
-                    price: t.price, // Exact Price
+                    price: t.price, // Plot at Chart Y (Lane or Price)
                     position: 'atPriceBottom', // Arrow sits below price, pointing UP
                     color: '#00BFFF',
                     shape: 'arrowUp',
@@ -293,7 +296,7 @@ const VisualBacktestChart = ({ data, trades, yAxisFormatter, priceScaleOptions, 
                 if (t.pnl_percent !== undefined) {
                     pnlPercent = t.pnl_percent;
                 } else if (lastBuyPrice > 0) {
-                    pnlPercent = (t.price - lastBuyPrice) / lastBuyPrice;
+                    pnlPercent = (realPrice - lastBuyPrice) / lastBuyPrice;
                 }
 
                 const isWin = pnlPercent > 0;

@@ -27,16 +27,35 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
 
     // 3. Transform Data 
     const transformedTrades = useMemo(() => {
+        // RANK INFERENCE LOGIC:
+        // Sells often lack 'strategy_rank' in the raw data.
+        // We must propagate rank from the corresponding Buy.
+        // Since trades are time-sorted, we can track "Last Rank for Symbol".
+
+        const symbolRankMap = {};
+
         return tradeList.map(t => {
+            let rank = t.strategy_rank;
+
+            // If Buy, update the map
+            if (t.type === 'buy' && rank) {
+                symbolRankMap[t.symbol] = rank;
+            }
+
+            // If Sell (or missing rank), try to infer from last known rank for this symbol
+            if (!rank) {
+                rank = symbolRankMap[t.symbol] || 1; // Default to 1 if unknown
+            }
+
             // Determine Y-Value based on Rank
             // Rank 1 (Top) -> Y = totalRanks
             // Rank N (Bottom) -> Y = 1
             // Formula: Y = (Total + 1) - Rank
-            const rank = t.strategy_rank || 1;
             const yVal = (totalRanks + 1) - rank;
 
             return {
                 ...t,
+                strategy_rank: rank, // Fill distinct rank for downstream use if needed
                 original_price: t.price,
                 price: yVal // Map to Y-Lane
             };
@@ -92,8 +111,16 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
             // Convert Y-Value back to Rank
             // Y = (Total + 1) - Rank  =>  Rank = (Total + 1) - Y
             const rank = (totalRanks + 1) - yVal;
+
             if (rank > 0 && rank <= totalRanks) {
-                return `Rank ${rank}`;
+                // Calculate count for this rank (Only calculate once or memoize ideally, but this is fast enough)
+                // We count 'Sell' markers (Results) as completed trades? Or 'Entries'?
+                // User sees Sells in chart. Let's count Sells (Results).
+                const count = transformedTrades.filter(t => t.strategy_rank === rank && t.type === 'sell').length;
+
+                // Or count Entries? "Total Trades". Usually implies pairs. 
+                // If we used 'sell' markers, let's match that count.
+                return `Rank ${rank} (${count})`;
             }
         }
         return "";
