@@ -59,6 +59,9 @@ const DEFAULT_CONFIG = {
     uuid: null // Will be generated
 };
 
+// Constant UUID for Integrated View Persistence
+const INTEGRATED_UUID = 'integrated-view-persistence-id';
+
 const StrategyView = () => {
     // Symbol State
     const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem('lastSymbol') || '005930');
@@ -298,20 +301,28 @@ const StrategyView = () => {
         setIsOptimizing(false);
         setIsCancelling(false);
 
-        // If Integrated View (-1) or not loaded, just clear
-        if (activeTab === -1 || !isConfigLoaded) {
-            setBacktestResult(null);
-            setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
-            setOptResults(null);
-            setOptError(null);
-            setOptProgress({ current: 0, total: 0 });
-            return;
+
+
+        // Restore Results on Tab Change
+
+        // If not loaded yet, wait
+        if (!isConfigLoaded) return;
+
+        let targetUUID = null;
+
+        if (activeTab === -1) {
+            targetUUID = INTEGRATED_UUID;
+        } else {
+            targetUUID = configList[activeTab]?.uuid;
         }
 
-        const targetUUID = configList[activeTab]?.uuid;
         if (!targetUUID) {
-            console.warn('[Persistence] Skipping restore: No UUID for tab', activeTab);
-            return;
+            // Should not happen for activeTab !== -1 if configList is valid
+            // But if it is -1, we use constant.
+            if (activeTab !== -1) {
+                console.warn('[Persistence] Skipping restore: No UUID for tab', activeTab);
+                return;
+            }
         }
 
         const restoreResults = async () => {
@@ -331,6 +342,9 @@ const StrategyView = () => {
                 if (data.backtest) {
                     console.log('[Persistence] Restoring Backtest Data');
                     setBacktestResult(data.backtest);
+                    if (activeTab === -1) {
+                        setIntegratedResults(data.backtest);
+                    }
                     setBacktestStatus({ status: 'success', message: 'Result Restored' });
                 } else {
                     console.log('[Persistence] No Backtest Data found');
@@ -1250,6 +1264,9 @@ const StrategyView = () => {
                                                             setBacktestResult(result);
                                                             setIntegratedResults(result); // Store full result for visualization
                                                             setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
+
+                                                            // Save Result for Persistence
+                                                            saveStrategyResult(INTEGRATED_UUID, 'backtest', result).catch(err => console.error("Failed to save Integrated Result", err));
 
                                                         } catch (e) {
                                                             console.error("Integrated Backtest Failed", e);

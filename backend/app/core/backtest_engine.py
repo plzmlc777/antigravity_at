@@ -748,9 +748,9 @@ class BacktestEngine:
             context.update_equity()
             
         # 5. Stats
-        return self._generate_stats(context, primary_feed)
+        return self._generate_stats(context, primary_feed, feeds_map=feeds)
 
-    def _generate_stats(self, context, data_feed):
+    def _generate_stats(self, context, data_feed, feeds_map=None):
         # Reusing the logic from run() but detached to be dry
         # Copy-paste the stats generation block from run() or refactor run() to use this.
         # For minimal risk, I will just duplicate the stats logic helper or call the existing long block?
