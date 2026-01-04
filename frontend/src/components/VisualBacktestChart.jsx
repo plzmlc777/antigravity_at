@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries, createSeriesMarkers, LineSeries } from 'lightweight-charts';
 
-const VisualBacktestChart = ({ data, trades, yAxisFormatter, priceScaleOptions, showOnlyPnl }) => {
+const VisualBacktestChart = ({
+    data,
+    trades,
+    yAxisFormatter,
+    priceScaleOptions,
+    showOnlyPnl,
+    onChartClick // Event Handler for Single Click
+}) => {
     const chartContainerRef = useRef();
     const chartInstance = useRef(null);
     const seriesInstance = useRef(null);
@@ -264,6 +271,28 @@ const VisualBacktestChart = ({ data, trades, yAxisFormatter, priceScaleOptions, 
             if (chartInstance.current) chartInstance.current.remove();
         };
     }, [data, trades]);
+
+    // Click Detection Logic
+    useEffect(() => {
+        if (!chartInstance.current || !seriesInstance.current || !onChartClick) return;
+
+        const clickHandler = (param) => {
+            if (!param.point || !param.time) return;
+
+            const price = seriesInstance.current.coordinateToPrice(param.point.y);
+            onChartClick({
+                time: param.time,
+                price: price
+            });
+        };
+
+        chartInstance.current.subscribeClick(clickHandler);
+        return () => {
+            if (chartInstance.current) {
+                chartInstance.current.unsubscribeClick(clickHandler);
+            }
+        };
+    }, [data, trades, onChartClick, isReady]);
 
     // Marker Logic Encapsulation
     const updateMarkersInViewLogic = (endTime, plugin = null) => {

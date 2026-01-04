@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
 const IntegratedAnalysis = ({ trades, backtestResult }) => {
@@ -10,56 +10,53 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
 
     // 2. Identify Ranks
     // User wants "Rank 1, Rank 2..." lanes.
-    // The backend provides 'strategy_rank' in the trade object.
     const { totalRanks } = useMemo(() => {
-        // Find max rank from trades or default to 1
         const maxRank = tradeList.reduce((max, t) => {
             return Math.max(max, t.strategy_rank || 1);
         }, 0);
-
-        // If no rank info, maybe just 1 lane? Or count symbols?
-        // Fallback: If MAX rank is 0 or 1 but multiple symbols exist, use symbol count.
-        // But assuming backend provides rank.
         const count = Math.max(maxRank, 1);
-
         return { totalRanks: count };
     }, [tradeList]);
 
-    // 3. Transform Data 
-    const transformedTrades = useMemo(() => {
-        // RANK INFERENCE LOGIC:
-        // Sells often lack 'strategy_rank' in the raw data.
-        // We must propagate rank from the corresponding Buy.
-        // Since trades are time-sorted, we can track "Last Rank for Symbol".
-
+    // 3. Transform Data & Build Lookup Map
+    const { transformedTrades, tradeLookupMap } = useMemo(() => {
         const symbolRankMap = {};
+        const lookup = new Map();
 
-        return tradeList.map(t => {
+        const transformed = tradeList.map(t => {
             let rank = t.strategy_rank;
 
-            // If Buy, update the map
             if (t.type === 'buy' && rank) {
                 symbolRankMap[t.symbol] = rank;
             }
 
-            // If Sell (or missing rank), try to infer from last known rank for this symbol
             if (!rank) {
-                rank = symbolRankMap[t.symbol] || 1; // Default to 1 if unknown
+                rank = symbolRankMap[t.symbol] || 1;
             }
 
-            // Determine Y-Value based on Rank
-            // Rank 1 (Top) -> Y = totalRanks
-            // Rank N (Bottom) -> Y = 1
-            // Formula: Y = (Total + 1) - Rank
             const yVal = (totalRanks + 1) - rank;
 
-            return {
+            const tradeObj = {
                 ...t,
-                strategy_rank: rank, // Fill distinct rank for downstream use if needed
+                strategy_rank: rank,
                 original_price: t.price,
-                price: yVal // Map to Y-Lane
+                price: yVal
             };
+
+            // Build Lookup Key: "MinuteTimestamp_RankY"
+            const timeMin = Math.floor(new Date(t.time).getTime() / 60000);
+            const rankY = Math.round(yVal);
+            const key = `${timeMin}_${rankY}`;
+
+            // Should we support multiple trades in same minute/rank? 
+            // For now, overwrite or simple collision handling. 
+            // Latest trade usually most relevant if overlap.
+            lookup.set(key, tradeObj);
+
+            return tradeObj;
         });
+
+        return { transformedTrades: transformed, tradeLookupMap: lookup };
     }, [tradeList, totalRanks]);
 
     const syntheticData = useMemo(() => {
@@ -72,7 +69,6 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
             const timeNum = Math.floor(timeVal);
             const yVal = trade.price;
 
-            // Simplified: Just use Close = Y-Value.
             const existing = uniqueTimeMap.get(timeNum);
 
             if (existing) {
@@ -81,7 +77,7 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
                     open: existing.open,
                     high: Math.max(existing.high, yVal),
                     low: Math.min(existing.low, yVal),
-                    close: yVal, // Latest
+                    close: yVal,
                 });
             } else {
                 uniqueTimeMap.set(timeNum, {
@@ -96,10 +92,6 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
 
         const dataArray = Array.from(uniqueTimeMap.values()).sort((a, b) => a.time - b.time);
         if (dataArray.length === 0) return [];
-
-        // Add Padder Points?
-        // Not needed if we use scaleMargins effectively, but to be safe against single-point data
-        // we can let autoScale handle it.
         return dataArray;
     }, [transformedTrades]);
 
@@ -108,37 +100,99 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
     const rankFormatter = (price) => {
         const yVal = Math.round(price);
         if (Math.abs(price - yVal) < 0.1) {
-            // Convert Y-Value back to Rank
-            // Y = (Total + 1) - Rank  =>  Rank = (Total + 1) - Y
             const rank = (totalRanks + 1) - yVal;
 
             if (rank > 0 && rank <= totalRanks) {
-                // Calculate count for this rank (Only calculate once or memoize ideally, but this is fast enough)
-                // We count 'Sell' markers (Results) as completed trades? Or 'Entries'?
-                // User sees Sells in chart. Let's count Sells (Results).
                 const count = transformedTrades.filter(t => t.strategy_rank === rank && t.type === 'sell').length;
-
-                // Or count Entries? "Total Trades". Usually implies pairs. 
-                // If we used 'sell' markers, let's match that count.
                 return `Rank ${rank} (${count})`;
             }
         }
         return "";
     };
 
-    // Force strict visual padding so Y=1 and Y=count don't touch edges
     const priceScaleOptions = {
-        // Enforce fixed range: 0.5 to Total+0.5
-        // This ensures Y=1, Y=2, Y=3... occupy equal vertical segments.
         fixedYRange: {
             min: 0.5,
             max: totalRanks + 0.5
         },
-        // We can disable autoScale explicitly here too to be safe, though Chart handles it via fixedYRange check
         autoScale: false,
     };
 
-    // 5. Render
+    // 5. Interaction
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalData, setModalData] = useState(null);
+    const [debugLogs, setDebugLogs] = useState([]);
+
+    const handleChartClick = useCallback((param) => {
+        if (!param || !param.time || !param.price) return;
+
+        const logs = [];
+        const addLog = (msg) => logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
+
+        addLog(`Clicked Time=${param.time}, Price=${param.price}`);
+
+        // O(1) Lookup Strategy
+        const clickTimeMin = Math.floor(param.time / 60);
+        const clickRankY = Math.round(param.price);
+        const lookupKey = `${clickTimeMin}_${clickRankY}`;
+
+        const clickedTrade = tradeLookupMap.get(lookupKey);
+
+        if (clickedTrade) {
+            addLog(`Trade Found (Map): ${clickedTrade.symbol} @ ${clickedTrade.time}`);
+            const symbol = clickedTrade.symbol;
+
+            // 2. Get Data
+            const allCandles = backtestResult?.multi_ohlcv_data?.[symbol] || [];
+            addLog(`Total Candles for ${symbol}: ${allCandles.length}`);
+
+            // 3. Filter using Correct Timestamp Logic
+            const tradeDate = new Date(clickedTrade.time);
+            const startOfDay = new Date(tradeDate).setHours(0, 0, 0, 0) / 1000; // Seconds
+            const endOfDay = new Date(tradeDate).setHours(23, 59, 59, 999) / 1000; // Seconds
+
+            const dailyCandles = allCandles.filter(c => {
+                // c.time is ALREADY in seconds from backend. Do not wrap in new Date()!
+                const cTime = c.time;
+                return cTime >= startOfDay && cTime <= endOfDay;
+            });
+            addLog(`Daily Candles (Filtered): ${dailyCandles.length}`);
+
+            // 4. Get ALL Trades for this Symbol & Date (to show Buys & Sells)
+            const dailyTrades = transformedTrades.filter(t => {
+                if (t.symbol !== symbol) return false;
+                const tTime = new Date(t.time).getTime() / 1000;
+                return tTime >= startOfDay && tTime <= endOfDay;
+            }).map(t => ({
+                ...t,
+                // Critical Fix: Restore 'price' to 'original_price' so it plots on the Candle Chart Y-axis
+                price: t.original_price || t.price
+            }));
+            addLog(`Daily Trades Found: ${dailyTrades.length}`);
+            dailyTrades.forEach((dt, i) => {
+                addLog(`[${i + 1}] ${dt.type.toUpperCase()}: ${dt.time} (${new Date(dt.time).toLocaleTimeString()})`);
+            });
+
+            // ALWAYS OPEN MODAL & SET STATE
+            // Reverted Resampling Logic to ensure stability
+            setModalData({
+                symbol: symbol,
+                date: tradeDate.toLocaleDateString(),
+                data: dailyCandles,
+                trades: dailyTrades // Pass the full list
+            });
+            setDebugLogs(logs);
+            setIsModalOpen(true);
+
+        } else {
+            addLog(`No matching trade found for key: ${lookupKey}`);
+            setModalData(null);
+            setDebugLogs(logs);
+            setIsModalOpen(true);
+        }
+    }, [tradeLookupMap, backtestResult, transformedTrades]);
+
+    // 6. Render
     if (!tradeList.length) {
         return (
             <div className="text-gray-500 text-center py-20 flex flex-col items-center justify-center gap-2">
@@ -149,14 +203,78 @@ const IntegratedAnalysis = ({ trades, backtestResult }) => {
     }
 
     return (
-        <div className="w-full">
+        <div className="w-full relative">
             <VisualBacktestChart
                 data={syntheticData}
                 trades={transformedTrades}
                 yAxisFormatter={rankFormatter}
                 priceScaleOptions={priceScaleOptions}
                 showOnlyPnl={true}
+                onChartClick={handleChartClick}
             />
+
+            {/* Drill-Down Modal */}
+            {isModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+                    onClick={() => setIsModalOpen(false)}
+                >
+                    <div
+                        className="bg-gray-900 border border-gray-700 w-[90vw] h-[80vh] rounded-xl shadow-2xl flex flex-col overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-bold text-white">
+                                    {modalData ? modalData.symbol : "Debug Mode"}
+                                </h3>
+                                {modalData && (
+                                    <span className="text-sm text-gray-400 bg-black/30 px-2 py-0.5 rounded">
+                                        {modalData.date}
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* Content Body: Chart + Logs */}
+                        <div className="flex-1 w-full bg-[#111827] flex flex-col relative">
+                            {/* Chart Area */}
+                            <div className="flex-1 relative border-b border-gray-800">
+                                {modalData && modalData.data.length > 0 ? (
+                                    <VisualBacktestChart
+                                        data={modalData.data}
+                                        trades={modalData.trades}
+                                        showOnlyPnl={false}
+                                    />
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+                                        {modalData ? "Chart Data Empty" : "No Trade Selected"}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Debug Console */}
+                            <div className="h-32 bg-black/90 p-3 overflow-y-auto font-mono text-xs text-green-400 border-t border-gray-700">
+                                <div className="font-bold text-gray-500 mb-2 sticky top-0 bg-black/90 pb-1 border-b border-gray-800 flex justify-between">
+                                    <span>CONSOLE LOGS (O(1) Map Lookup)</span>
+                                    <button onClick={() => setDebugLogs([])} className="hover:text-white transition-colors">Clear</button>
+                                </div>
+                                {debugLogs.map((log, i) => (
+                                    <div key={i} className="whitespace-pre-wrap mb-1 border-b border-gray-800/50 pb-0.5">{log}</div>
+                                ))}
+                                {debugLogs.length === 0 && <div className="text-gray-600 italic">Waiting for interactions...</div>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

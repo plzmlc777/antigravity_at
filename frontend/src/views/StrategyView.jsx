@@ -1576,6 +1576,7 @@ const StrategyView = () => {
                                             <IntegratedAnalysis
                                                 trades={backtestResult.trades || []}
                                                 backtestResult={backtestResult}
+                                                strategiesConfig={configList}
                                             />
                                         ) : (
                                             backtestResult.ohlcv_data ? (
