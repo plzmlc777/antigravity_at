@@ -50,11 +50,13 @@ const PARAM_DEFINITIONS = [
 
 const DEFAULT_CONFIG = {
     start_time: "09:00",
-    delay_minutes: 10,
-    direction: "rise",
-    target_percent: 2,
-    safety_stop_percent: 3,
-    trailing_start_percent: 5,
+    delay_minutes: 60,
+    direction: "fall",
+    target_percent: 0.2,
+    safety_stop_percent: 10,
+    trailing_start_percent: 1,
+    trailing_stop_percent: 0,
+    stop_time: "15:00",
     initial_capital: 10000000,
     from_date: "",
     interval: "1m",
@@ -601,13 +603,13 @@ const StrategyView = () => {
 
     // DEFAULT_OPT_VALUES constant defined below...
     const DEFAULT_OPT_VALUES = {
-        start_time: "09:00, 09:30",
-        delay_minutes: "5, 10, 15",
-        direction: "rise",
-        target_percent: "1, 2, 3, 5",
-        safety_stop_percent: "2, 3, 5",
-        trailing_start_percent: "3, 5",
-        trailing_stop_drop: "1, 2",
+        start_time: "09:00",
+        delay_minutes: "30, 60",
+        direction: "fall, rise",
+        target_percent: "0, 0.2, 1, 1.5, 3",
+        safety_stop_percent: "5, 10",
+        trailing_start_percent: "0.5, 1, 2, 4",
+        trailing_stop_drop: "0, 0.5, 1, 2",
         stop_time: "15:00"
     };
 
