@@ -17,11 +17,15 @@ const generateUUID = () => {
 };
 
 // Defined outside component to prevent re-creation
+// Defined outside component to prevent re-creation
+// [Single Source of Truth] All strategy parameters defined here.
 const PARAM_DEFINITIONS = [
     {
         key: 'start_time',
         label: 'Start Time',
         type: 'select',
+        defaultValue: "09:00",
+        defaultOptRange: "09:00, 09:30, 10:00",
         options: Array.from({ length: 14 }).map((_, i) => {
             const h = 9 + Math.floor(i / 2);
             const m = i % 2 === 0 ? "00" : "30";
@@ -29,16 +33,18 @@ const PARAM_DEFINITIONS = [
         }),
         placeholder: '09:00, 09:30'
     },
-    { key: 'delay_minutes', label: 'Delay (min)', type: 'number', placeholder: '5, 10, 15' },
-    { key: 'direction', label: 'Direction', type: 'select', options: ['rise', 'fall'], placeholder: 'rise, fall' },
-    { key: 'target_percent', label: 'Target (%)', type: 'number', placeholder: '1, 2, 3' },
-    { key: 'safety_stop_percent', label: 'Stop Loss (%)', type: 'number', placeholder: '2, 3, 5' },
-    { key: 'trailing_start_percent', label: 'Trail Start (%)', type: 'number', placeholder: '3, 5' },
-    { key: 'trailing_stop_drop', label: 'Trail Drop (%)', type: 'number', placeholder: '1, 2' },
+    { key: 'delay_minutes', label: 'Delay (min)', type: 'number', defaultValue: 60, defaultOptRange: "30, 60, 90", placeholder: '5, 10, 15' },
+    { key: 'direction', label: 'Direction', type: 'select', defaultValue: "fall", defaultOptRange: "rise, fall", options: ['rise', 'fall'], placeholder: 'rise, fall' },
+    { key: 'target_percent', label: 'Target (%)', type: 'number', defaultValue: 0.2, defaultOptRange: "0.1, 0.2, 0.3, 0.5", placeholder: '1, 2, 3' },
+    { key: 'safety_stop_percent', label: 'Stop Loss (%)', type: 'number', defaultValue: 10, defaultOptRange: "3, 5, 10", placeholder: '2, 3, 5' },
+    { key: 'trailing_start_percent', label: 'Trail Start (%)', type: 'number', defaultValue: 1, defaultOptRange: "0.5, 1.0, 1.5", placeholder: '3, 5' },
+    { key: 'trailing_stop_drop', label: 'Trail Drop (%)', type: 'number', defaultValue: 0, defaultOptRange: "0, 0.2, 0.5", placeholder: '1, 2' },
     {
         key: 'stop_time',
         label: 'Stop Time',
         type: 'select',
+        defaultValue: "15:00",
+        defaultOptRange: "14:30, 15:00, 15:20",
         options: Array.from({ length: 48 }).map((_, i) => {
             const h = Math.floor(i / 2);
             const m = i % 2 === 0 ? "00" : "30";
@@ -48,22 +54,36 @@ const PARAM_DEFINITIONS = [
     }
 ];
 
-const DEFAULT_CONFIG = {
-    start_time: "09:00",
-    delay_minutes: 60,
-    direction: "fall",
-    target_percent: 0.2,
-    safety_stop_percent: 10,
-    trailing_start_percent: 1,
-    trailing_stop_percent: 0,
-    stop_time: "15:00",
-    initial_capital: 10000000,
-    from_date: "",
-    interval: "1m",
-    symbol: "233740",
-    betting_strategy: "fixed",
-    uuid: null // Will be generated
+// Helper: Generate Defaults from Definitions
+const generateDefaultConfig = () => {
+    const config = {
+        // System Defaults (Non-Param)
+        initial_capital: 10000000,
+        from_date: "",
+        interval: "1m",
+        symbol: "233740",
+        betting_strategy: "fixed",
+        uuid: null // Will be generated
+    };
+
+    // Merge Parameter Defaults
+    PARAM_DEFINITIONS.forEach(p => {
+        config[p.key] = p.defaultValue;
+    });
+
+    return config;
 };
+
+const generateDefaultOptValues = () => {
+    const opts = {};
+    PARAM_DEFINITIONS.forEach(p => {
+        opts[p.key] = p.defaultOptRange;
+    });
+    return opts;
+};
+
+const DEFAULT_CONFIG = generateDefaultConfig();
+const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 
 // Constant UUID for Integrated View Persistence
 const INTEGRATED_UUID = 'integrated-view-persistence-id';
@@ -645,16 +665,7 @@ const StrategyView = () => {
     // Refactored to Per-Tab Config (Legacy Global State Removed)
 
     // DEFAULT_OPT_VALUES constant defined below...
-    const DEFAULT_OPT_VALUES = {
-        start_time: "09:00",
-        delay_minutes: "30, 60",
-        direction: "fall, rise",
-        target_percent: "0, 0.2, 1, 1.5, 3",
-        safety_stop_percent: "5, 10",
-        trailing_start_percent: "0.5, 1, 2, 4",
-        trailing_stop_drop: "0, 0.5, 1, 2",
-        stop_time: "15:00"
-    };
+
 
     const handleOptEnableChange = (key, checked) => {
         if (activeTab === -1 || !configList[activeTab]) return;
@@ -1002,7 +1013,13 @@ const StrategyView = () => {
 
             {/* Main Content Area (No Scroll Container) */}
             <div className="space-y-6 pb-20">
-                {selectedStrategy ? (
+                {(!isConfigLoaded || !configList || configList.length === 0) ? (
+                    <div className="flex flex-col items-center justify-center p-20 text-gray-500">
+                        <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                        <p>Loading Strategy Configuration...</p>
+                        <p className="text-xs text-gray-600 mt-2">Synchronizing with Database...</p>
+                    </div>
+                ) : selectedStrategy ? (
                     <>
 
                         {/* SECTION 1: BACKTEST SIMULATION (Config + Execution + Results) */}

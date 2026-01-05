@@ -168,3 +168,13 @@ export const runIntegratedBacktest = async (payload) => {
     const { data } = await api.post('/strategies/integrated/v2-backtest', payload);
     return data;
 };
+
+export const getStrategyConfigs = async () => {
+    const { data } = await api.get('/strategy-configs/');
+    return data;
+};
+
+export const syncStrategyConfigs = async (configs) => {
+    const { data } = await api.post('/strategy-configs/', configs);
+    return data;
+};
