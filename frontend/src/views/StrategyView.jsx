@@ -158,22 +158,45 @@ const StrategyView = () => {
                 try {
                     const parsed = JSON.parse(savedList);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        // Migration: Ensure UUIDs exist
+                        // Migration: Ensure UUIDs exist and Merge Defaults
                         let needsUpdate = false;
                         const migratedList = parsed.map(cfg => {
-                            if (!cfg.uuid) {
+                            // Merge with DEFAULT_CONFIG first
+                            let mergedCfg = { ...DEFAULT_CONFIG, ...cfg };
+                            let hasSanitized = false;
+
+                            // Sanitization: Ensure empty strings don't override defaults for numeric/select fields
+                            // Exception: from_date can be empty (uuid handled separately)
+                            Object.keys(DEFAULT_CONFIG).forEach(key => {
+                                if (key === 'from_date' || key === 'uuid') return; // Allow empty
+
+                                const val = mergedCfg[key];
+                                const defaultVal = DEFAULT_CONFIG[key];
+
+                                // If loaded value is empty string or null/undefined, and default is not, revert to default
+                                if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
+                                    mergedCfg[key] = defaultVal;
+                                    hasSanitized = true;
+                                }
+                            });
+
+                            if (!mergedCfg.uuid) {
                                 needsUpdate = true;
-                                return { ...cfg, uuid: generateUUID() };
+                                mergedCfg.uuid = generateUUID();
                             }
-                            return cfg;
+                            if (hasSanitized) {
+                                needsUpdate = true;
+                            }
+
+                            return mergedCfg;
                         });
 
                         setConfigList(migratedList);
 
                         if (needsUpdate) {
-                            setTimeout(() => { // Defer save slightly
-                                localStorage.setItem(storageKey, JSON.stringify(migratedList));
-                            }, 0);
+                            // Immediate save to correct the storage
+                            localStorage.setItem(storageKey, JSON.stringify(migratedList));
+                            console.log("Sanitized and updated config in localStorage");
                         }
                     } else {
                         // Fallback if parsing failed or empty
@@ -188,8 +211,25 @@ const StrategyView = () => {
                 if (legacy) {
                     try {
                         const parsedLegacy = JSON.parse(legacy);
-                        // Wrap in array, set is_active = true
-                        const migrated = [{ ...parsedLegacy, is_active: true, tabName: "Rank 1", uuid: generateUUID() }];
+
+                        // Merge & Sanitize Logic (Duplicate of above for safety)
+                        let mergedCfg = { ...DEFAULT_CONFIG, ...parsedLegacy };
+                        Object.keys(DEFAULT_CONFIG).forEach(key => {
+                            if (key === 'from_date' || key === 'uuid' || key === 'symbol') return;
+                            const val = mergedCfg[key];
+                            const defaultVal = DEFAULT_CONFIG[key];
+                            if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
+                                mergedCfg[key] = defaultVal;
+                            }
+                        });
+
+
+                        const migrated = [{
+                            ...mergedCfg,
+                            is_active: true,
+                            tabName: "Rank 1",
+                            uuid: generateUUID()
+                        }];
                         setConfigList(migrated);
 
                     } catch {
@@ -313,7 +353,9 @@ const StrategyView = () => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
 
         const newList = [...configList];
-        const targetConfig = { ...newList[activeTab], [key]: value };
+        // Ensure we don't start with partial object if configList[activeTab] is missing
+        const currentItem = newList[activeTab] || { ...DEFAULT_CONFIG, is_active: true, tabName: `Rank ${activeTab + 1}` };
+        const targetConfig = { ...currentItem, [key]: value };
         newList[activeTab] = targetConfig;
 
         // Dynamic Sorting if 'is_active' changes
@@ -857,13 +899,15 @@ const StrategyView = () => {
 
     // Check Data Status
     useEffect(() => {
+        if (!isConfigLoaded) return; // Prevent race condition before config loads
+
         // Use currentConfig.symbol for data status check
         const symbolToCheck = currentConfig.symbol || currentSymbol;
         if (symbolToCheck) {
             checkDataStatus(symbolToCheck);
         }
         setFetchMessage(null);
-    }, [currentConfig?.symbol, currentSymbol, currentConfig?.interval]); // Depend on currentConfig.symbol and interval
+    }, [currentConfig?.symbol, currentSymbol, currentConfig?.interval, isConfigLoaded]); // Depend on isConfigLoaded
 
     const checkDataStatus = async (symbol) => {
         try {
@@ -1260,6 +1304,8 @@ const StrategyView = () => {
                                                 </table>
                                             </div>
                                         </div>
+
+
 
                                         {/* Action Button & Settings */}
                                         <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
@@ -2079,6 +2125,10 @@ const StrategyView = () => {
                                                     ));
                                                 })()}
                                             </div>
+
+
+
+
 
                                             {/* Action */}
                                             <div className="flex gap-2">
