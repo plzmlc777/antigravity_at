@@ -94,15 +94,14 @@ const VisualBacktestChart = ({
                         tickMarkFormatter: (time, tickMarkType, locale) => {
                             const date = new Date(time * 1000);
 
-                            // tickMarkType: 0=Year, 1=Month, 2=DayOfMonth, 3=Time, 4=TimeWithSeconds
-                            // If Type < 3, it's a date boundary (Day/Month/Year change). Show Date.
+                            // tickMarkType: 0=Year, 1=Month, 2=DayOfMonth
                             if (tickMarkType < 3) {
-                                // Date only: MM/DD
-                                return new Intl.DateTimeFormat('ko-KR', {
-                                    timeZone: 'Asia/Seoul',
+                                // Emphasize Date Boundary as requested by User
+                                const d = new Intl.DateTimeFormat('ko-KR', {
                                     month: 'numeric',
                                     day: 'numeric',
-                                }).format(date).replace(/\. /g, '/').replace('.', '');
+                                }).format(date);
+                                return `[[ ${d} ]]`;
                             } else {
                                 // Time only: HH:mm
                                 return new Intl.DateTimeFormat('ko-KR', {
@@ -142,19 +141,15 @@ const VisualBacktestChart = ({
                     },
                 });
 
-                // 4. Add Series (Faded Candles)
-                // If showOnlyPnl is true, we hide the candlestick visuals (transparent)
-                const transparent = 'rgba(0, 0, 0, 0)';
+                // 4. Add Series (HIDDEN for Time Debugging)
+                // User Request: "Hide Candles and Markers" to focus on Time/Date
+                // 4. Add Series (Visible Candles)
                 const series = chart.addSeries(CandlestickSeries, {
-                    upColor: showOnlyPnl ? transparent : '#26a69a4D',
-                    downColor: showOnlyPnl ? transparent : '#ef53504D',
-                    borderVisible: !showOnlyPnl,
-                    borderColor: '#4b5563',
-                    wickVisible: !showOnlyPnl,
-                    wickUpColor: showOnlyPnl ? transparent : '#26a69a4D',
-                    wickDownColor: showOnlyPnl ? transparent : '#ef53504D',
-                    borderUpColor: showOnlyPnl ? transparent : '#26a69a80',
-                    borderDownColor: showOnlyPnl ? transparent : '#ef535080',
+                    upColor: '#26a69a',
+                    downColor: '#ef5350',
+                    borderVisible: false,
+                    wickUpColor: '#26a69a',
+                    wickDownColor: '#ef5350',
                     autoscaleInfoProvider: priceScaleOptions?.fixedYRange
                         ? () => ({
                             priceRange: {
@@ -296,6 +291,8 @@ const VisualBacktestChart = ({
 
     // Marker Logic Encapsulation
     const updateMarkersInViewLogic = (endTime, plugin = null) => {
+        // Markers Enabled
+
         const targetPlugin = plugin || markersPluginRef.current;
         if (!targetPlugin || !allTradesRef.current.length) return;
 
@@ -401,18 +398,53 @@ const VisualBacktestChart = ({
     }, [sliderValue, isReady, zoomLevel]);
 
     // ... helper ...
-    const getCurrentDate = () => {
-        if (!allDataRef.current.length) return "";
-        const total = allDataRef.current.length;
-        const minCandles = 30;
-        const targetCount = minCandles + Math.floor((sliderValue / 100) * (total - minCandles));
-        const index = Math.min(targetCount, total) - 1;
-        const item = allDataRef.current[index];
-        return item ? new Date(item.time * 1000).toLocaleDateString() : "";
-    };
+
+
+    // Debug UI State
+    const [showDebugModal, setShowDebugModal] = useState(false);
+    const [debugContent, setDebugContent] = useState("");
+
+    // ... (rest of the component)
 
     return (
         <div className="w-full flex flex-col gap-2">
+            {/* Debug Modal */}
+            {showDebugModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-gray-800 border border-gray-600 rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]">
+                        <div className="flex items-center justify-between p-3 border-b border-gray-700">
+                            <h3 className="text-gray-200 font-bold text-sm">Data Inspector</h3>
+                            <button
+                                onClick={() => setShowDebugModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-3 flex-1 overflow-hidden flex flex-col gap-2">
+                            <p className="text-xs text-gray-400">Copy the data below to verify timestamps:</p>
+                            <textarea
+                                readOnly
+                                value={debugContent}
+                                className="w-full flex-1 bg-gray-900 border border-gray-700 rounded p-2 text-xs font-mono text-green-400 resize-none focus:outline-none"
+                                onClick={(e) => e.target.select()}
+                            />
+                        </div>
+                        <div className="p-3 border-t border-gray-700 flex justify-end">
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(debugContent);
+                                    alert("Copied!");
+                                }}
+                                className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded"
+                            >
+                                Copy to Clipboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full h-[500px] relative bg-gray-900 rounded-lg overflow-hidden border border-gray-700 shadow-xl">
                 {!isReady && (
                     <div className="absolute inset-0 flex items-center justify-center z-20 bg-gray-900 text-gray-500 font-mono text-sm animate-pulse">
@@ -438,8 +470,35 @@ const VisualBacktestChart = ({
                     </button>
 
                     <div className="flex flex-col min-w-[80px] shrink-0">
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Replay</span>
-                        <span className="text-xs text-blue-300 font-mono font-bold">{getCurrentDate()}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Replay</span>
+                            {allDataRef.current.length > 1 && (
+                                <span className="text-[10px] bg-gray-700 px-1 rounded text-gray-300">
+                                    {(() => {
+                                        // Detect Interval
+                                        const d = allDataRef.current;
+                                        const diff = d[1].time - d[0].time;
+                                        const min = Math.floor(diff / 60);
+                                        return min >= 60 ? `${min / 60}h` : `${min}m`;
+                                    })()}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-xs text-blue-300 font-mono font-bold whitespace-nowrap">
+                            {(() => {
+                                // Inline Date+Time logic
+                                if (!allDataRef.current.length) return "";
+                                const total = allDataRef.current.length;
+                                const minCandles = 30;
+                                const targetCount = minCandles + Math.floor((sliderValue / 100) * (total - minCandles));
+                                const index = Math.min(targetCount, total) - 1;
+                                const item = allDataRef.current[index];
+                                return item ? new Date(item.time * 1000).toLocaleString('ko-KR', {
+                                    month: 'numeric', day: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
+                                }) : "";
+                            })()}
+                        </span>
                     </div>
 
                     <input
@@ -479,6 +538,19 @@ const VisualBacktestChart = ({
                             <option value={50}>Speed: 2x</option>
                             <option value={10}>Speed: Max</option>
                         </select>
+                        <button
+                            onClick={() => {
+                                const debugText = allDataRef.current.slice(0, 10).map(d => {
+                                    const date = new Date(d.time * 1000);
+                                    return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+                                }).join('\n');
+                                setDebugContent(debugText);
+                                setShowDebugModal(true);
+                            }}
+                            className="bg-red-600 text-white text-[10px] px-2 py-1 rounded hover:bg-red-500 font-bold shadow-lg animate-pulse"
+                        >
+                            INSPECT
+                        </button>
                     </div>
                 </div>
             )}

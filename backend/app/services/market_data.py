@@ -125,24 +125,39 @@ class MarketDataService:
             # 1. Fetch 1m Base Data
             await self.fetch_history(symbol, "1m", days, limit * 30) # Fetch enough 1m data
             
-            # 2. Load 1m Data from DB
+            # 2. Incremental Aggregation Optimization
             from ..db.session import SessionLocal
             from ..models.ohlcv import OHLCV
             
             db = SessionLocal()
             try:
-                # Load 1m candles covering the requested period
-                # Approx calculation: days * 1440 mins
-                cutoff_date = datetime.now() - timedelta(days=days + 1)
+                # Find latest existing record for target interval
+                last_target_rec = db.query(OHLCV.timestamp).filter(
+                    OHLCV.symbol == symbol, 
+                    OHLCV.time_frame == interval
+                ).order_by(OHLCV.timestamp.desc()).first()
                 
+                last_target_ts = last_target_rec[0] if last_target_rec else None
+                
+                # Determine start time for 1m data load
+                # If we have data, look back slightly (e.g. 2 x interval) to ensure boundary consistency
+                # safely look back 24 hours to cover any gaps or partial days
+                if last_target_ts:
+                    # Load 1m data starting 1 day before the last 15m candle
+                    # This ensures we re-calculate the edge but don't re-process the whole year
+                    load_start_dt = last_target_ts - timedelta(days=1)
+                else:
+                    load_start_dt = datetime.now() - timedelta(days=days + 1)
+                
+                # Load 1m candles
                 base_candles_db = db.query(OHLCV).filter(
                     OHLCV.symbol == symbol, 
                     OHLCV.time_frame == "1m",
-                    OHLCV.timestamp >= cutoff_date
+                    OHLCV.timestamp >= load_start_dt
                 ).order_by(OHLCV.timestamp.asc()).all()
                 
                 if not base_candles_db:
-                    print("No 1m base data found after fetch. Aborting aggregation.")
+                    print("No 1m base data found for aggregation.")
                     return 0
 
                 base_candles = [
@@ -153,17 +168,24 @@ class MarketDataService:
                     for c in base_candles_db
                 ]
                 
-                # 3. Aggregate to Target Interval
-                print(f"Aggregating {len(base_candles)} 1m candles to {interval}...")
+                # 3. Aggregate
                 aggregated_data = self._aggregate_candles(base_candles, interval)
                 
-                # 4. Save Aggregated Data to DB (as cache/speed optimization)
+                # 4. Save
                 if aggregated_data:
                     batch_data = []
+                    new_count = 0
+                    
                     for item in aggregated_data:
+                         ts = datetime.strptime(item["timestamp"], "%Y-%m-%d %H:%M:%S")
+                         
+                         # Count as new if it's after our previous latest
+                         if last_target_ts is None or ts > last_target_ts:
+                             new_count += 1
+                             
                          batch_data.append({
                             "symbol": symbol,
-                            "timestamp": datetime.strptime(item["timestamp"], "%Y-%m-%d %H:%M:%S"),
+                            "timestamp": ts,
                             "time_frame": interval,
                             "open": item["open"],
                             "high": item["high"],
@@ -186,8 +208,16 @@ class MarketDataService:
                     )
                     db.execute(stmt)
                     db.commit()
-                    print(f"Saved {len(batch_data)} aggregated records for {interval}.")
-                    return len(batch_data)
+                    
+                    # Return only the count of genuinely NEW records (incremental)
+                    # unless it was a fresh load (new_count == len)
+                    # If we re-processed the overlap, batch_data has overlap, but new_count tracks strictly newer.
+                    if last_target_ts:
+                         print(f"Aggregation Update: Processed {len(batch_data)} records, {new_count} new.")
+                         return new_count
+                    else:
+                         print(f"Aggregation Init: Saved {len(batch_data)} aggregated records.")
+                         return len(batch_data)
                     
             except Exception as e:
                 print(f"Aggregation Failed: {e}")
@@ -196,7 +226,6 @@ class MarketDataService:
             finally:
                 db.close()
             return 0
-            
         # Aggregation Logic for Hours (Legacy/Hours)
         if interval in ["4h", "8h", "12h"]:
              # For hours, we can base on 1h (60m)
@@ -328,8 +357,12 @@ class MarketDataService:
                             break
                             
                 if not raw_list:
+                    print("DEBUG: API returned empty list.")
                     break
                     
+                # DEBUG: Inspect First Item
+                print(f"DEBUG: Page {page} Raw Item 0: {raw_list[0]}")
+                
                 page_candles = []
                 batch_data = [] # For Bulk Insert
 
@@ -486,10 +519,13 @@ class MarketDataService:
     def _aggregate_candles(self, base_candles: List[Dict], target_interval: str) -> List[Dict]:
         """
         Aggregate base candles to target interval.
-        Supports Minutes (Nm) and Hours (Nh).
-        base_candles must be 1m (or 1h) data, sorted ASC.
+        - Robustly handles gaps (missing 1m data) by skipping empty intervals.
+        - Strictly sorts input data to prevent time-travel anomalies.
         """
         if not base_candles: return []
+        
+        # Ensure data is sorted by timestamp to prevent aggregation logic errors
+        base_candles.sort(key=lambda x: x['timestamp'])
         
         minutes = 0
         hours = 0
@@ -510,11 +546,9 @@ class MarketDataService:
         for c in base_candles:
             dt = datetime.strptime(c['timestamp'], "%Y-%m-%d %H:%M:%S")
             
-            # Determine Bucket Start
+            # Determine Bucket Start (Align to grid)
             bucket_start = None
             if minutes > 0:
-                 # Minute buckets: e.g. 5m -> 0, 5, 10
-                 # Align to hour boundary.
                  m_block = (dt.minute // minutes) * minutes
                  bucket_start = dt.replace(minute=m_block, second=0)
             elif hours > 0:
@@ -524,14 +558,19 @@ class MarketDataService:
             bucket_duration = timedelta(minutes=minutes) if minutes > 0 else timedelta(hours=hours)
             bucket_end = bucket_start + bucket_duration
             
-            # Check Alignment (New Bucket)
-            # Logic: If current_bucket is None OR dt is past the end of current bucket OR dt is before current bucket (shouldn't happen if sorted)
-            if current_bucket is None or dt >= bucket_end_time or dt < datetime.strptime(current_bucket["timestamp"], "%Y-%m-%d %H:%M:%S"):
+            # Check Alignment (New Bucket Needed?)
+            # Condition: First bucket OR Timestamp exceeds current bucket end
+            if current_bucket is None or dt >= bucket_end_time:
                 
-                # Close previous
-                if current_bucket: agg.append(current_bucket)
+                # Gap Detection Loop (Optional - just for clarity, we simply skip)
+                # If we jump from 09:00 to 10:00, we just close 09:00 and open 10:00.
+                # This leaves the in-between time "Empty" (no candle objects).
                 
-                # Start new
+                # Close previous bucket
+                if current_bucket: 
+                    agg.append(current_bucket)
+                
+                # Start new bucket at the calculated aligned start time
                 current_bucket = {
                     "timestamp": bucket_start.strftime("%Y-%m-%d %H:%M:%S"),
                     "open": c["open"],
@@ -541,13 +580,15 @@ class MarketDataService:
                     "volume": c["volume"]
                 }
                 bucket_end_time = bucket_end
+            
             else:
-                # Update current
+                # Accumulate into current bucket
                 current_bucket["high"] = max(current_bucket["high"], c["high"])
                 current_bucket["low"] = min(current_bucket["low"], c["low"])
                 current_bucket["close"] = c["close"]
                 current_bucket["volume"] += c["volume"]
                 
+        # Close final bucket
         if current_bucket: agg.append(current_bucket)
         return agg
 

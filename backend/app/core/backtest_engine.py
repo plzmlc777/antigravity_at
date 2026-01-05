@@ -127,6 +127,12 @@ class BacktestEngine:
         data_service = MarketDataService()
         data_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
         
+        print(f"DEBUG: BacktestEngine.run requested interval={interval} symbol={symbol} days={duration_days}")
+        print(f"DEBUG: Fetched {len(data_feed) if data_feed else 0} candles.")
+        if data_feed and len(data_feed) > 0:
+             print(f"DEBUG: First Candle: {data_feed[0]['timestamp']}")
+             print(f"DEBUG: Second Candle: {data_feed[1]['timestamp'] if len(data_feed) > 1 else 'N/A'}")
+        
         if not data_feed:
             return {
                 "logs": ["No data collected"],
@@ -229,13 +235,24 @@ class BacktestEngine:
         traded_count = len(traded_dates)
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
         
+        # DEBUG: Force Raw OHLCV inline
+        raw_ohlcv = [
+            {
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            } for d in data_feed
+        ]
+        
         return {
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": f"{activity_rate:.1f}%",
             "total_days": total_days, # Expose for UI
-            "chart_data": self._resample_equity(context.equity_curve, 2000), # Resampled Equity for LineChart
-            "ohlcv_data": self._resample_ohlcv(data_feed, 2000), # Resampled Candles for VisualBacktestChart
+            "chart_data": self._resample_equity(context.equity_curve, 50000), # Resampled Equity for LineChart
+            "ohlcv_data": raw_ohlcv, # Direct Raw Data
             "logs": context.logs[-50:], # Return last 50 logs
             "trades": context.trades, # List of trades for visual markers
             **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp']) # Inject detailed trade stats
@@ -484,53 +501,21 @@ class BacktestEngine:
             "acceleration_score": float(f"{acceleration_score:.2f}")
         }
 
-    def _resample_ohlcv(self, data: List[Dict], target_count: int = 2000) -> List[Dict]:
+    def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
+        # User requested to REMOVE LIMIT. Returning all data.
         if not data: return []
-        if len(data) <= target_count:
-            return [{
-                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp for Intraday support
-                "open": d['open'],
-                "high": d['high'],
-                "low": d['low'],
-                "close": d['close']
-            } for d in data]
-            
-        # Simple interval sampling
-        import math
-        step = math.ceil(len(data) / target_count)
-        resampled = []
         
-        for i in range(0, len(data), step):
-            chunk = data[i:i+step]
-            if not chunk: continue
-            
-            # Aggregate chunk
-            o = chunk[0]['open']
-            c = chunk[-1]['close']
-            h = max(x['high'] for x in chunk)
-            l = min(x['low'] for x in chunk)
-            t = chunk[0]['timestamp']
-            
-            resampled.append({
-                "time": int(datetime.fromisoformat(t).timestamp()), # Use Unix Timestamp
-                "open": o,
-                "high": h,
-                "low": l,
-                "close": c
-            })
-            
-        return resampled
+        return [{
+            "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp
+            "open": d['open'],
+            "high": d['high'],
+            "low": d['low'],
+            "close": d['close']
+        } for d in data]
 
-    def _resample_equity(self, data: List[Dict], target_count: int = 2000) -> List[Dict]:
-        if not data: return []
-        if len(data) <= target_count: return data
-        
-        import math
-        step = math.ceil(len(data) / target_count)
-        resampled = []
-        for i in range(0, len(data), step):
-            resampled.append(data[i])
-        return resampled
+    def _resample_equity(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
+        # User requested to REMOVE LIMIT. Returning all data.
+        return data
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return "0%"
