@@ -5,7 +5,8 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client'; // Import Persistence APIs & Integrated Backtest
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client';
+import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -54,8 +55,10 @@ const DEFAULT_CONFIG = {
     target_percent: 2,
     safety_stop_percent: 3,
     trailing_start_percent: 5,
-    trailing_stop_drop: 2,
-    stop_time: "15:00",
+    initial_capital: 10000000,
+    from_date: "",
+    interval: "1m",
+    symbol: "233740",
     uuid: null // Will be generated
 };
 
@@ -103,12 +106,31 @@ const StrategyView = () => {
     const [isConfigLoaded, setIsConfigLoaded] = useState(false);
 
     // Backtest Settings
-    const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
-    const [initialCapital, setInitialCapital] = useState(() => {
-        const saved = localStorage.getItem('initialCapital');
-        return saved ? parseInt(saved, 10) : 10000000;
-    });
+    // const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
+    // const [initialCapital, setInitialCapital] = useState(() => {
+    //    const saved = localStorage.getItem('initialCapital');
+    //    return saved ? parseInt(saved, 10) : 10000000;
+    // });
     const [integratedBettingStrategy, setIntegratedBettingStrategy] = useState("fixed");
+
+    // Custom Confirmation Modal State
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: null,
+        isDanger: false
+    });
+
+    const requestConfirm = (title, message, onConfirm, isDanger = false) => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm,
+            isDanger
+        });
+    };
 
     // Save to LocalStorage
     useEffect(() => {
@@ -119,9 +141,7 @@ const StrategyView = () => {
         localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
     }, [savedSymbols]);
 
-    useEffect(() => {
-        localStorage.setItem('initialCapital', initialCapital.toString());
-    }, [initialCapital]);
+    // Persistence logic removed for initialCapital
 
     // Load Strategy Config List on Selection
     useEffect(() => {
@@ -242,6 +262,50 @@ const StrategyView = () => {
         }
     };
 
+    const removeRankTab = (index, e) => {
+        if (e) e.stopPropagation();
+
+        if (configList.length <= 1) {
+            alert("At least one strategy tab is required.");
+            return;
+        }
+
+        requestConfirm(
+            "Delete Strategy Tab",
+            "Are you sure you want to delete this strategy tab? This action cannot be undone and all configuration in this tab will be lost.",
+            () => {
+                const newList = [...configList];
+                newList.splice(index, 1);
+
+                // Re-label Tabs
+                let rankCount = 0;
+                let draftCount = 0;
+                const reLabeledList = newList.map(cfg => {
+                    const newCfg = { ...cfg };
+                    if (newCfg.is_active !== false) {
+                        rankCount++;
+                        newCfg.tabName = `Rank ${rankCount}`;
+                    } else {
+                        draftCount++;
+                        newCfg.tabName = `Draft ${draftCount}`;
+                    }
+                    return newCfg;
+                });
+
+                setConfigList(reLabeledList);
+
+                // Adjust Active Tab
+                if (activeTab === index) {
+                    const newActive = Math.max(0, index - 1);
+                    setActiveTab(newActive);
+                } else if (activeTab > index) {
+                    setActiveTab(activeTab - 1);
+                }
+            },
+            true // isDanger
+        );
+    };
+
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
 
@@ -293,6 +357,11 @@ const StrategyView = () => {
 
     // Helper to get current config for UI rendering
     const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : DEFAULT_CONFIG;
+
+    // Check Symbol Validity for UI
+    const activeSymbol = currentConfig?.symbol || currentSymbol;
+    const isSymbolValid = !!activeSymbol && activeSymbol.trim().length > 0;
+
 
     // 3. Persistence: Load Results when switching tabs
     useEffect(() => {
@@ -455,9 +524,9 @@ const StrategyView = () => {
 
             const payload = {
                 symbol: currentConfig.symbol || currentSymbol, // Use config's symbol if available, else global
-                from_date: fromDate,
-                initial_capital: initialCapital,
-                interval: currentInterval,
+                from_date: currentConfig?.from_date || "",
+                initial_capital: currentConfig?.initial_capital || 10000000,
+                interval: currentConfig?.interval || "1m",
                 config: cleanConfig
             };
 
@@ -516,7 +585,7 @@ const StrategyView = () => {
     // 5. Data Management & Persistence State
     const [dataStatus, setDataStatus] = useState({ is_fresh: false, last_updated: null, count: 0 });
     const [isFetchingData, setIsFetchingData] = useState(false);
-    const [currentInterval, setCurrentInterval] = useState(() => localStorage.getItem('lastInterval') || "1m");
+    // const [currentInterval, setCurrentInterval] = useState(() => localStorage.getItem('lastInterval') || "1m");
     const [fetchMessage, setFetchMessage] = useState(null);
 
     // 6. Optimization State
@@ -657,10 +726,10 @@ const StrategyView = () => {
 
             const payload = {
                 symbol: currentConfig.symbol || currentSymbol || "SEC", // Use config's symbol if available, else global
-                interval: currentInterval, // Sync with Backtest (UI State)
+                interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
                 // days: 365, // Removed to match Backtest default
-                from_date: fromDate,
-                initial_capital: initialCapital,
+                from_date: currentConfig?.from_date || "",
+                initial_capital: currentConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config
             };
@@ -771,13 +840,11 @@ const StrategyView = () => {
         // Scroll to config
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-    // fromDate state moved to top
+    // fromDate state moved to config
 
 
     // Persistence Effects
-    useEffect(() => {
-        localStorage.setItem('lastInterval', currentInterval);
-    }, [currentInterval]);
+    // Persistence logic removed for interval
 
     useEffect(() => {
         if (selectedStrategy) {
@@ -793,12 +860,12 @@ const StrategyView = () => {
             checkDataStatus(symbolToCheck);
         }
         setFetchMessage(null);
-    }, [currentConfig.symbol, currentSymbol, currentInterval]); // Depend on currentConfig.symbol
+    }, [currentConfig?.symbol, currentSymbol, currentConfig?.interval]); // Depend on currentConfig.symbol and interval
 
     const checkDataStatus = async (symbol) => {
         try {
             const res = await axios.get(`/api/v1/market-data/status/${symbol}`, {
-                params: { interval: currentInterval }
+                params: { interval: currentConfig?.interval || "1m" }
             });
             setDataStatus(res.data);
 
@@ -810,7 +877,10 @@ const StrategyView = () => {
                     const yyyy = `20${parts[0]}`;
                     const mm = parts[1];
                     const dd = parts[2];
-                    setFromDate(`${yyyy}-${mm}-${dd}`);
+                    const newDate = `${yyyy}-${mm}-${dd}`;
+                    if (currentConfig?.from_date !== newDate) {
+                        handleConfigChange('from_date', newDate);
+                    }
                 }
             }
         } catch (e) {
@@ -824,7 +894,7 @@ const StrategyView = () => {
         const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
         try {
             const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
-                interval: currentInterval,
+                interval: currentConfig?.interval || "1m",
                 days: 3650 // Request ~10 years to hit 10k limit
             });
 
@@ -971,6 +1041,17 @@ const StrategyView = () => {
                                                         className="hover:bg-black/20 rounded px-1 -mr-1 text-white/50 hover:text-white"
                                                     >
                                                         ▶
+                                                    </span>
+                                                )}
+
+                                                {/* Delete Button */}
+                                                {configList.length > 1 && (
+                                                    <span
+                                                        onClick={(e) => removeRankTab(idx, e)}
+                                                        className="ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-black/40 text-gray-400 hover:text-red-400 transition-colors z-20"
+                                                        title="Delete Tab"
+                                                    >
+                                                        ×
                                                     </span>
                                                 )}
                                             </button>
@@ -1140,7 +1221,7 @@ const StrategyView = () => {
                                                                         {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
                                                                     </td>
                                                                     <td className="px-4 py-3 text-gray-300">
-                                                                        {currentInterval}
+                                                                        {cfg.interval || "1m"}
                                                                     </td>
                                                                     <td className="px-4 py-3">
                                                                         <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
@@ -1185,10 +1266,10 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-400 mb-1 block">Initial Capital (KRW)</label>
                                                     <input
                                                         type="text"
-                                                        value={initialCapital.toLocaleString()}
+                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
                                                         onChange={(e) => {
                                                             const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                                                            setInitialCapital(rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                                            handleConfigChange('initial_capital', rawValue === '' ? 0 : parseInt(rawValue, 10));
                                                         }}
                                                         className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center"
                                                     />
@@ -1197,8 +1278,8 @@ const StrategyView = () => {
                                                     <label className="text-xs text-gray-400 mb-1 block">Start Date</label>
                                                     <input
                                                         type="date"
-                                                        value={fromDate}
-                                                        onChange={(e) => setFromDate(e.target.value)}
+                                                        value={currentConfig?.from_date || ""}
+                                                        onChange={(e) => handleConfigChange('from_date', e.target.value)}
                                                         className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center"
                                                     />
                                                 </div>
@@ -1252,27 +1333,28 @@ const StrategyView = () => {
                                                             }));
 
                                                             // Calculate days based on fromDate
-                                                            const startDate = new Date(fromDate);
+                                                            const leaderConfig = activeConfigs[0]; // Use the first active config as the leader for global settings
+                                                            const startDate = new Date(leaderConfig?.from_date || "");
                                                             const today = new Date();
                                                             const diffTime = Math.abs(today - startDate);
                                                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                                                            const result = await runIntegratedBacktest({
+                                                            const result = await axios.post('/api/v1/strategies/integrated-backtest', {
                                                                 configs: overriddenConfigs,
                                                                 symbol: currentSymbol || "KRW-BTC", // Use global or default
-                                                                interval: currentInterval, // Use selected interval
+                                                                interval: leaderConfig?.interval || "1m", // Use selected interval
                                                                 days: diffDays > 0 ? diffDays : 365, // Use calculated days or default
-                                                                from_date: fromDate,
-                                                                initial_capital: initialCapital
+                                                                from_date: leaderConfig?.from_date || "",
+                                                                initial_capital: leaderConfig?.initial_capital || 10000000
                                                             });
 
                                                             // Update Result State and Store for Visualization
-                                                            setBacktestResult(result);
-                                                            setIntegratedResults(result); // Store full result for visualization
+                                                            setBacktestResult(result.data);
+                                                            setIntegratedResults(result.data); // Store full result for visualization
                                                             setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
 
                                                             // Save Result for Persistence
-                                                            saveStrategyResult(INTEGRATED_UUID, 'backtest', result).catch(err => console.error("Failed to save Integrated Result", err));
+                                                            saveStrategyResult(INTEGRATED_UUID, 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
 
                                                         } catch (e) {
                                                             console.error("Integrated Backtest Failed", e);
@@ -1432,8 +1514,8 @@ const StrategyView = () => {
                                                 <div className="relative w-32">
                                                     <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
                                                     <select
-                                                        value={currentInterval}
-                                                        onChange={(e) => setCurrentInterval(e.target.value)}
+                                                        value={currentConfig?.interval || "1m"}
+                                                        onChange={(e) => handleConfigChange('interval', e.target.value)}
                                                         className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
                                                     >
                                                         <option value="1m">1 Min</option>
@@ -1460,14 +1542,14 @@ const StrategyView = () => {
                                                     )}
                                                     <button
                                                         onClick={handleFetchData}
-                                                        disabled={isFetchingData}
-                                                        className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
+                                                        disabled={isFetchingData || !isSymbolValid}
+                                                        title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
+                                                        className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
                                                             fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
                                                                 "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
                                                             }`}
                                                     >
-                                                        {isFetchingData ? 'Fetching...' :
-                                                            fetchMessage ? fetchMessage : 'Update Data'}
+                                                        {fetchMessage ? fetchMessage : 'Update Data'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -1479,10 +1561,10 @@ const StrategyView = () => {
                                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
                                                 <input
                                                     type="text"
-                                                    value={initialCapital.toLocaleString()}
+                                                    value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
                                                     onChange={(e) => {
-                                                        const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                                                        setInitialCapital(rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                                        const val = parseInt(e.target.value.replace(/,/g, ''), 10);
+                                                        if (!isNaN(val)) handleConfigChange('initial_capital', val);
                                                     }}
                                                     className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                                                 />
@@ -1492,8 +1574,8 @@ const StrategyView = () => {
                                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
                                                 <input
                                                     type="date"
-                                                    value={fromDate}
-                                                    onChange={(e) => setFromDate(e.target.value)}
+                                                    value={currentConfig?.from_date || ""}
+                                                    onChange={(e) => handleConfigChange('from_date', e.target.value)}
                                                     className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
                                                 />
                                             </div>
@@ -2091,17 +2173,21 @@ const StrategyView = () => {
                                                                                     <button
                                                                                         disabled={isActiveConfig}
                                                                                         onClick={() => {
-                                                                                            if (window.confirm(`⚠️ Apply Optimization Config?\n\nRank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`)) {
-                                                                                                setConfigList(prev => {
-                                                                                                    const next = [...prev];
-                                                                                                    const configToApply = res.full_config || {};
-                                                                                                    next[activeTab] = {
-                                                                                                        ...next[activeTab],
-                                                                                                        ...configToApply
-                                                                                                    };
-                                                                                                    return next;
-                                                                                                });
-                                                                                            }
+                                                                                            requestConfirm(
+                                                                                                "Apply Optimization Config?",
+                                                                                                `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
+                                                                                                () => {
+                                                                                                    setConfigList(prev => {
+                                                                                                        const next = [...prev];
+                                                                                                        const configToApply = res.full_config || {};
+                                                                                                        next[activeTab] = {
+                                                                                                            ...next[activeTab],
+                                                                                                            ...configToApply
+                                                                                                        };
+                                                                                                        return next;
+                                                                                                    });
+                                                                                                }
+                                                                                            );
                                                                                         }}
                                                                                         className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
                                                                                             ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
@@ -2190,7 +2276,17 @@ const StrategyView = () => {
                     </button>
                 </div>
             </Card>
-        </div>
+
+            {/* Custom Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDanger={confirmModal.isDanger}
+            />
+        </div >
     );
 };
 

@@ -1,0 +1,22 @@
+[MarketData Debug] Request: Symbol=085310, Interval=30m, Days=500
+[MarketData Debug] Found 3678 candles in DB for 085310 30m
+[MarketData Debug] Request: Symbol=085310, Interval=30m, Days=500
+[MarketData Debug] Found 3678 candles in DB for 085310 30m
+[Backend Debug] _resample_ohlcv: Input Size: 3678, Interval: 1800.0s (30.0m)
+[Backend Debug] T1: 2024-12-02 09:00:00, T2: 2024-12-02 09:30:00
+[MarketData Debug] Request: Symbol=085310, Interval=30m, Days=365
+[MarketData Debug] Found 3398 candles in DB for 085310 30m
+[Backend Debug] _resample_ohlcv: Input Size: 3398, Interval: 1800.0s (30.0m)
+[Backend Debug] T1: 2025-01-02 10:00:00, T2: 2025-01-02 10:30:00
+[MarketData Debug] Request: Symbol=233740, Interval=60m, Days=365
+[MarketData Debug] Found 1699 candles in DB for 233740 60m
+[Backend Debug] _resample_ohlcv: Input Size: 1699, Interval: 3600.0s (60.0m)
+[Backend Debug] T1: 2025-01-02 10:00:00, T2: 2025-01-02 11:00:00
+[MarketData Debug] Request: Symbol=085310, Interval=30m, Days=365
+[MarketData Debug] Found 3398 candles in DB for 085310 30m
+[Backend Debug] _resample_ohlcv: Input Size: 3398, Interval: 1800.0s (30.0m)
+[Backend Debug] T1: 2025-01-02 10:00:00, T2: 2025-01-02 10:30:00
+[MarketData Debug] Request: Symbol=085310, Interval=30m, Days=365
+[MarketData Debug] Found 3398 candles in DB for 085310 30m
+[Backend Debug] _resample_ohlcv: Input Size: 3398, Interval: 1800.0s (30.0m)
+[Backend Debug] T1: 2025-01-02 10:00:00, T2: 2025-01-02 10:30:00
