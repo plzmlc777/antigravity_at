@@ -65,3 +65,5 @@ app.include_router(market_data.router, prefix="/api/v1/market-data", tags=["mark
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(mock_strategies.router, prefix="/api/v1/strategies", tags=["strategies"])
 app.include_router(strategy_results.router, prefix="/api/v1/strategy-results", tags=["strategy-results"])
+from .api import strategy_configs
+app.include_router(strategy_configs.router, prefix="/api/v1/strategy-configs", tags=["strategy-configs"])

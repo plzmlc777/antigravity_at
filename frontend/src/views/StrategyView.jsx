@@ -61,6 +61,7 @@ const DEFAULT_CONFIG = {
     from_date: "",
     interval: "1m",
     symbol: "233740",
+    betting_strategy: "fixed",
     uuid: null // Will be generated
 };
 
@@ -113,7 +114,7 @@ const StrategyView = () => {
     //    const saved = localStorage.getItem('initialCapital');
     //    return saved ? parseInt(saved, 10) : 10000000;
     // });
-    const [integratedBettingStrategy, setIntegratedBettingStrategy] = useState("fixed");
+
 
     // Custom Confirmation Modal State
     const [confirmModal, setConfirmModal] = useState({
@@ -1263,40 +1264,69 @@ const StrategyView = () => {
                                         {/* Action Button & Settings */}
                                         <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
                                             {/* Integrated Settings */}
-                                            <div className="flex justify-center gap-6 mb-8">
-                                                <div className="text-left">
-                                                    <label className="text-xs text-gray-400 mb-1 block">Initial Capital (KRW)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
-                                                        onChange={(e) => {
-                                                            const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                                                            handleConfigChange('initial_capital', rawValue === '' ? 0 : parseInt(rawValue, 10));
-                                                        }}
-                                                        className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center"
-                                                    />
-                                                </div>
-                                                <div className="text-left">
-                                                    <label className="text-xs text-gray-400 mb-1 block">Start Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={currentConfig?.from_date || ""}
-                                                        onChange={(e) => handleConfigChange('from_date', e.target.value)}
-                                                        className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center"
-                                                    />
-                                                </div>
-                                                <div className="text-left">
-                                                    <label className="text-xs text-gray-400 mb-1 block">Betting Logic</label>
-                                                    <select
-                                                        value={integratedBettingStrategy}
-                                                        onChange={(e) => setIntegratedBettingStrategy(e.target.value)}
-                                                        className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center appearance-none cursor-pointer focus:border-blue-500"
-                                                    >
-                                                        <option value="fixed">Fixed Amount</option>
-                                                        <option value="compound">Compound Interest</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                            {/* Integrated Settings */}
+                                            {(() => {
+                                                const isIntegrated = activeTab === -1;
+                                                // If Integrated, inherit from Rank 1 (index 0). Fallback to DEFAULT if empty.
+                                                const displayConfig = isIntegrated ? (configList[0] || DEFAULT_CONFIG) : currentConfig;
+
+                                                return (
+                                                    <div className="flex justify-center gap-6 mb-8">
+                                                        <div className="text-left">
+                                                            <label className="text-xs text-gray-400 mb-1 block">
+                                                                Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={(displayConfig?.initial_capital || 10000000).toLocaleString()}
+                                                                onChange={(e) => {
+                                                                    if (isIntegrated) return; // Prevent edit
+                                                                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                                                    handleConfigChange('initial_capital', rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                                                }}
+                                                                disabled={isIntegrated}
+                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <label className="text-xs text-gray-400 mb-1 block">
+                                                                Start Date {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                            </label>
+                                                            <input
+                                                                type="date"
+                                                                value={displayConfig?.from_date || ""}
+                                                                onChange={(e) => {
+                                                                    if (isIntegrated) return;
+                                                                    handleConfigChange('from_date', e.target.value);
+                                                                }}
+                                                                disabled={isIntegrated}
+                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <label className="text-xs text-gray-400 mb-1 block">
+                                                                Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                            </label>
+                                                            <select
+                                                                value={displayConfig?.betting_strategy || "fixed"}
+                                                                onChange={(e) => {
+                                                                    if (isIntegrated) return;
+                                                                    // We need to handle betting_strategy in handleConfigChange if it's not already there.
+                                                                    // Alternatively, update specific state if it was separate.
+                                                                    // But user wants inheritance, so it implies Rank 1 has this property.
+                                                                    // Let's assume handleConfigChange handles generic keys.
+                                                                    handleConfigChange('betting_strategy', e.target.value);
+                                                                }}
+                                                                disabled={isIntegrated}
+                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center appearance-none cursor-pointer focus:border-blue-500 ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <option value="fixed">Fixed Amount</option>
+                                                                <option value="compound">Compound Interest</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
 
 
                                             <div className="flex gap-4">
@@ -1325,17 +1355,20 @@ const StrategyView = () => {
                                                                 throw new Error("No active strategies selected.");
                                                             }
 
-                                                            // Ensure symbol names are resolved? Backend expects code.
-                                                            // We pass full config objects.
+                                                            // Define Leader (Rank 1) for Global Settings
+                                                            const leaderConfig = activeConfigs[0];
 
-                                                            // Check for overridden betting strategy
+                                                            // Enforce Global Settings from Leader
+                                                            // 1. Betting Logic
+                                                            const globalBettingStrategy = leaderConfig.betting_strategy || "fixed";
+
+                                                            // Apply Global Overrides
                                                             const overriddenConfigs = activeConfigs.map(cfg => ({
                                                                 ...cfg,
-                                                                betting_strategy: currentConfig.betting_strategy || cfg.betting_strategy // Global override if set
+                                                                betting_strategy: globalBettingStrategy
                                                             }));
 
                                                             // Calculate days based on fromDate
-                                                            const leaderConfig = activeConfigs[0]; // Use the first active config as the leader for global settings
                                                             const startDate = new Date(leaderConfig?.from_date || "");
                                                             const today = new Date();
                                                             const diffTime = Math.abs(today - startDate);
