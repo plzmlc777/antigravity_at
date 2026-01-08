@@ -49,7 +49,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AutoTrading Agent API v0.8.9.3", "version": "0.8.9.3", "status": "running"}
+    return {"message": "Welcome to AutoTrading Agent API v0.8.9.4", "version": "0.8.9.4", "status": "running"}
 
 @app.get("/health")
 async def health_check():

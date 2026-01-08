@@ -565,7 +565,7 @@ const StrategyView = () => {
 
     const [backtestStatus, setBacktestStatus] = useState({ status: 'idle', message: 'Ready to Backtest' });
 
-    const runBacktest = async (strategyId) => {
+    const runBacktest = async (strategyId, configOverride = null) => {
         if (!selectedStrategy) return;
         if (activeTab === -1) {
             setBacktestStatus({ status: 'error', message: 'Backtest not available for Integrated Portfolio yet.' });
@@ -578,9 +578,12 @@ const StrategyView = () => {
         setShowChart(false);
 
         try {
+            // Determine Configuration to use (Override or Current State)
+            const activeConfig = configOverride || currentConfig;
+
             // --- Single Symbol Backtest (Legacy) ---
             // Sanitize Config: Replace empty strings with defaults
-            const cleanConfig = { ...currentConfig }; // Use currentConfig aka activeTab
+            const cleanConfig = { ...activeConfig };
             Object.keys(cleanConfig).forEach(key => {
                 if (cleanConfig[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
                     cleanConfig[key] = DEFAULT_CONFIG[key];
@@ -588,22 +591,22 @@ const StrategyView = () => {
             });
 
             const payload = {
-                symbol: currentConfig.symbol || currentSymbol, // Use config's symbol if available, else global
-                from_date: currentConfig?.from_date || "",
-                initial_capital: currentConfig?.initial_capital || 10000000,
-                interval: currentConfig?.interval || "1m",
+                symbol: activeConfig.symbol || currentSymbol, // Use config's symbol if available, else global
+                from_date: activeConfig?.from_date || "",
+                initial_capital: activeConfig?.initial_capital || 10000000,
+                interval: activeConfig?.interval || "1m",
                 config: cleanConfig
             };
 
-            setBacktestStatus({ status: 'running', message: `Running Backtest on ${currentConfig.symbol || currentSymbol}...` });
+            setBacktestStatus({ status: 'running', message: `Running Backtest on ${activeConfig.symbol || currentSymbol}...` });
 
             const res = await axios.post(`/api/v1/strategies/${strategyId}/backtest`, payload);
             setBacktestResult(res.data);
             setBacktestStatus({ status: 'success', message: 'Backtest Completed' });
 
             // Persistence
-            if (currentConfig.uuid) {
-                saveStrategyResult(currentConfig.uuid, 'backtest', res.data).catch(err => console.error("Failed to save backtest result", err));
+            if (activeConfig.uuid) {
+                saveStrategyResult(activeConfig.uuid, 'backtest', res.data).catch(err => console.error("Failed to save backtest result", err));
             }
 
         } catch (e) {
@@ -2279,6 +2282,7 @@ const StrategyView = () => {
                                                                                                 "Apply Optimization Config?",
                                                                                                 `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
                                                                                                 () => {
+                                                                                                    // 1. Update Configuration
                                                                                                     setConfigList(prev => {
                                                                                                         const next = [...prev];
                                                                                                         const configToApply = res.full_config || {};
@@ -2288,6 +2292,10 @@ const StrategyView = () => {
                                                                                                         };
                                                                                                         return next;
                                                                                                     });
+
+                                                                                                    // 2. Trigger Real Backtest (User Request)
+                                                                                                    // Runs backtest immediately using the selected config
+                                                                                                    runBacktest(selectedStrategy.id, res.full_config || {});
                                                                                                 }
                                                                                             );
                                                                                         }}
