@@ -13,11 +13,6 @@ class BacktestContext(IContext):
         self.feeds = feeds
         self.primary_symbol = primary_symbol or (list(feeds.keys())[0] if feeds else "UNKNOWN")
         
-        # Performance Optimization: Pre-index feeds by timestamp for O(1) lookup
-        # self.feed_index = {sym: {c['timestamp']: c for c in candles} for sym, candles in feeds.items()}
-        # For now, to keep memory low, we might not fully index if lists are sorted.
-        # But for 'get_current_price' which relies on 'current_candle', we need a way to sync.
-        
         self.current_index = 0
         self.current_timestamp = None # Explicit Time Tracking
         
@@ -37,59 +32,72 @@ class BacktestContext(IContext):
         return None
 
     def get_time(self) -> datetime:
+        # Use explicit timestamp from Engine if available, else fallback to primary candle
+        if self.current_timestamp:
+            ts = self.current_timestamp
+            if isinstance(ts, datetime): return ts
+            return datetime.fromisoformat(ts)
+            
         if self.current_candle:
             ts = self.current_candle['timestamp']
-            if isinstance(ts, datetime):
-                return ts
+            if isinstance(ts, datetime): return ts
             return datetime.fromisoformat(ts)
         return datetime.now()
 
     def get_current_price(self, symbol: str) -> float:
         # Multi-Symbol Lookup
-        # 1. If symbol is the primary one, use index (Fastest)
+        target_ts = self.current_timestamp
+        
+        # If Engine hasn't set explicit timestamp (Legacy Mode), use primary candle
+        if not target_ts and self.current_candle:
+            target_ts = self.current_candle['timestamp']
+            
+        if not target_ts: return 0
+        
+        # Optimize: Check primary matches
         if symbol == self.primary_symbol and self.current_candle:
-            return self.current_candle['close']
-            
-        # 2. If different symbol, we need to find the candle at current_timestamp
-        # This requires synchronization.
-        # Ideally, the Engine should inject the 'current_step_prices' into the context each step.
-        # But to keep API simple for BaseStrategy, we look it up.
+            # Verify timestamp matches just in case
+            c_ts = self.current_candle['timestamp']
+            if c_ts == target_ts:
+                return self.current_candle['close']
         
-        target_ts = self.get_time().isoformat()
-        if isinstance(target_ts, datetime): target_ts = target_ts.isoformat()
-        
-        # optimize: In the loop, we are at self.current_index of PRIMARY feed.
-        # If other feeds are aligned (same length, same ts), we can use same index.
-        # But they might not be.
-        
-        # Fallback for now: Linear search / Dictionary lookup if we had index.
-        # For the "Rank 1 Only" shim, this path is rarely hit unless Strategy asks for other symbols.
-        
+        # General Lookup
         if symbol in self.feeds:
-            # Try same index first (Optimistic)
             feed = self.feeds[symbol]
-            if 0 <= self.current_index < len(feed):
-                c = feed[self.current_index]
-                if c['timestamp'] == target_ts:
-                    return c['close']
-            
-            # Fallback: Search (Slow, but safe)
-            # For real production, we'd use the 'feed_index' approach.
-            # But let's defer full heavy indexing until strictly needed.
-            # For "Rank 1 Only", this loop won't trigger for the main symbol.
+            # Heuristic: If feeds are aligned, index might match.
+            # But safer to find. For performance in backtest, linear scan from last known index is best.
+            # For now, simplistic scan.
             for c in feed:
                 if c['timestamp'] == target_ts:
                     return c['close']
-                    
         return 0
 
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+        # LEAGUE RULE: Single Position Enforcement
+        # If we are holding ANY symbol that is NOT this one, reject.
+        if len(self.holdings) > 0 and symbol not in self.holdings:
+            self.log(f"BUY REJECTED: System holds {list(self.holdings.keys())}, cannot buy {symbol}.")
+            return {"status": "failed", "reason": "System Occupied"}
+
         exec_price = price if price > 0 else self.get_current_price(symbol)
+        if exec_price <= 0:
+             self.log(f"BUY FAILED: Invalid Price for {symbol}")
+             return {"status": "failed", "reason": "Invalid Price"}
+             
         cost = exec_price * quantity
         
+        # LEAGUE RULE: Cash Check (Shared Capital)
+        if self.cash < cost:
+             # Try adjusting quantity? Or just fail.
+             # TimeMomentum calculates based on cash, so usually fine.
+             # But if racing, cash might be gone.
+             self.log(f"BUY FAILED: Insufficient Cash ({self.cash} < {cost})")
+             return {"status": "failed", "reason": "Insufficient Cash"}
+
         self.cash -= cost
         self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
         
+        # Record Trade
         trade = {
             "type": "buy",
             "symbol": symbol,
@@ -98,7 +106,7 @@ class BacktestContext(IContext):
             "time": self.get_time().isoformat()
         }
         self.trades.append(trade)
-        self.log(f"BUY EXECUTED: {quantity} @ {exec_price}")
+        self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
         return trade
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
@@ -109,6 +117,8 @@ class BacktestContext(IContext):
             
             self.cash += revenue
             self.holdings[symbol] -= quantity
+            if self.holdings[symbol] <= 0:
+                del self.holdings[symbol]
             
             trade = {
                 "type": "sell",
@@ -118,7 +128,7 @@ class BacktestContext(IContext):
                 "time": self.get_time().isoformat()
             }
             self.trades.append(trade)
-            self.log(f"SELL EXECUTED: {quantity} @ {exec_price}")
+            self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
             return trade
         else:
             self.log("SELL FAILED: Insufficient Holdings")
@@ -140,60 +150,137 @@ class BacktestContext(IContext):
 class WaterfallBacktestEngine:
     def __init__(self, strategy_class, config: Dict = None):
         self.strategy_class = strategy_class
+        # This primary config might be Rank 1 or empty if using list
         self.config = config or {}
 
-    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
-        # 1. Fetch Data (Async)
+    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+        # 1. Prepare Symbols and Fetch Data
         from ..services.market_data import MarketDataService
         data_service = MarketDataService()
         
-        # Fetch Primary Data
-        primary_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
-        
-        print(f"DEBUG: WaterfallBacktestEngine.run requested interval={interval} symbol={symbol} days={duration_days}")
-        print(f"DEBUG: Fetched {len(primary_feed) if primary_feed else 0} candles.")
-        
-        if not primary_feed:
-            return self._empty_result()
+        unique_symbols = set()
+        if global_symbol: unique_symbols.add(global_symbol)
+        for cfg in strategies_config:
+            if 'symbol' in cfg:
+                unique_symbols.add(cfg['symbol'])
+                
+        feeds = {}
+        # Fetch for all symbols
+        for sym in unique_symbols:
+            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
+            if raw_feed:
+                # Filter Date
+                if from_date:
+                    raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
+                # Sort
+                raw_feed.sort(key=lambda x: x['timestamp'])
+                feeds[sym] = raw_feed
+            else:
+                print(f"Warning: No data for {sym}")
 
-        # Filter by Start Date
-        if from_date:
-            try:
-                filtered_feed = [c for c in primary_feed if c['timestamp'] >= from_date]
-                if filtered_feed:
-                    primary_feed = filtered_feed
-            except Exception as e:
-                print(f"Date filter error: {e}")
+        if not feeds:
+             return self._empty_result(["No data for any symbol"])
 
-        # ----------------------------------------------------
-        # REFACTOR: Multi-Symbol Structure Preparation
-        # Even though we only have ONE symbol, we wrap it in a dict.
-        # This allows easy expansion later without changing the Context interface again.
-        # ----------------------------------------------------
-        feeds = {symbol: primary_feed}
+        # Determine Primary Symbol (Rank 1 typically)
+        primary_symbol = strategies_config[0].get('symbol', global_symbol) if strategies_config else global_symbol
         
-        # 2. Setup Context with Feeds Dict
-        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol)
+        # 2. Setup Shared Context
+        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=primary_symbol)
         
-        # 3. Initialize Strategy
-        self.config['symbol'] = symbol
-        self.config['initial_capital'] = initial_capital
-        strategy = self.strategy_class(context, self.config)
-        strategy.initialize()
-        
-        # 4. Run Loop
-        # We iterate over the Primary Feed (Driver)
-        # Context.current_index will track this iteration.
-        for i, candle in enumerate(primary_feed):
-            context.current_index = i
-            # Important: Sync Context Timestamp if needed (Context property does this via index)
+        # 3. Initialize Strategies (League Participants)
+        participants = []
+        for rank_idx, cfg_raw in enumerate(strategies_config):
+            # Each participant gets its own config override
+            # Assuming 'cfg_raw' is the dict from request
+            # Logic: We use SELF.strategy_class (TimeMomentum) for all.
+            # Ideally strategy_class should come from config, but for now fixed.
             
-            strategy.on_data(candle)
+            p_config = cfg_raw.copy()
+            p_config['initial_capital'] = initial_capital # Share knowledge of cap
+            
+            # Create Instance
+            strat = self.strategy_class(context, p_config)
+            strat.initialize()
+            
+            participants.append({
+                "rank": rank_idx + 1,
+                "strategy": strat,
+                "symbol": p_config.get("symbol", global_symbol)
+            })
+            
+        print(f"DEBUG: League Initialized with {len(participants)} strategies.")
+            
+        # 4. League Loop (Time + Rank Priority)
+        # Collect all timestamps
+        all_ts = set()
+        for f in feeds.values():
+            for c in f:
+                all_ts.add(c['timestamp'])
+        sorted_ts = sorted(list(all_ts))
+        
+        for ts in sorted_ts:
+            context.current_timestamp = ts # Sync verification clock
+            
+            # Update Context Index for Primary (Helper for legacy logic if needed)
+            if primary_symbol in feeds:
+                # Find index (Naive check: assuming contiguous - improving robustness later)
+                # But Context.get_current_price uses generic lookup now, so explicit index less critical
+                # unless using current_candle property.
+                pass 
+                
+            # -- STRATEGY UPDATE PHASE --
+            # Every strategy MUST receive on_data to update indicators.
+            # Check Holdings to decide who executes.
+             
+            # "Occupancy Check": Is cash used?
+            # Actually, we let the strategies TRY.
+            # If cash is 0, they buy 0 or fail. 
+            # If holding other symbol, Context.buy rejects.
+            # So we iterate in RANK ORDER.
+            
+            for p in participants:
+                strat = p['strategy']
+                sym = p['symbol']
+                
+                # Get candle for THIS strategy's symbol at THIS time
+                candle = None
+                if sym in feeds:
+                    # Optimized find? 
+                    # For V1, simple find.
+                    # TODO: Add index pointers for each feed for O(1)
+                    matches = [c for c in feeds[sym] if c['timestamp'] == ts]
+                    if matches: candle = matches[0]
+                
+                if candle:
+                    # Run Strategy Logic
+                    # This updates indicators.
+                    # If it triggers BUY, Context checks constraints (Cash/Holding).
+                    # If it triggers SELL (StopLoss), Context processes it.
+                    strat.on_data(candle)
+            
+            # Update Equity Curve for this timestamp
             context.update_equity()
             
-        # 5. Calculate Stats
-        return self._generate_stats(context, primary_feed)
+        # 5. Stats
+        # Use Primary Feed for OHLCV visualization reference (or global)
+        ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
+        return self._generate_stats(context, ref_feed)
 
+    # Legacy 'run' for backward compatibility if needed, maps to run_integrated
+    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+        # Wrap single run into integrated format
+        cfg = self.config.copy()
+        cfg['symbol'] = symbol
+        return await self.run_integrated(
+            strategies_config=[cfg],
+            global_symbol=symbol,
+            duration_days=duration_days,
+            from_date=from_date,
+            interval=interval,
+            initial_capital=initial_capital
+        )
+
+    # ... _generate_stats, _empty_result, etc. (Existing methods remain) ...
     def _generate_stats(self, context: BacktestContext, data_feed: List[Dict]):
         if not context.equity_curve:
              return self._empty_result(logs=context.logs)
@@ -504,6 +591,9 @@ class WaterfallBacktestEngine:
         }
 
     def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
+        # User requested to REMOVE LIMIT. Returning all data.
+        if not data: return []
+        
         return [{
             "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp
             "open": d['open'],

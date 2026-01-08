@@ -546,41 +546,34 @@ class IntegratedBacktestRequest(BaseModel):
 
 @router.post("/integrated-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
-    # Shim Implementation: Rank 1 Replica using WaterfallBacktestEngine
-    # This guarantees identical results to Rank 1 tab by using the same engine logic structure.
-    
+    # Full League Mode Implementation
     from ..core.waterfall_engine import WaterfallBacktestEngine
     from ..strategies.time_momentum import TimeMomentumStrategy
     
     if not request.configs:
         return {"error": "No strategies provided"}
         
-    # 1. Select Rank 1 Strategy (First Item)
-    # The frontend sorts them or we assume index 0 is Rank 1?
-    # Usually frontend sends sorted list. We take the first one.
-    target = request.configs[0]
+    # Prepare Strategy Configs
+    # Convert Pydantic models to dicts
+    strategies_config = [c.config for c in request.configs]
     
-    # 2. Prepare Config
-    config = target.config.copy()
+    # Ensure symbols are set fallback
+    for i, cfg in enumerate(strategies_config):
+        if 'symbol' not in cfg:
+            cfg['symbol'] = request.configs[i].symbol or request.symbol
+
+    engine = WaterfallBacktestEngine(TimeMomentumStrategy, {})
     
-    # Inject Global Settings if missing (though frontend should have mapped them)
-    if 'symbol' not in config:
-        config['symbol'] = target.symbol or request.symbol
-        
-    # 3. Instantiate Engine
-    # Use TimeMomentumStrategy (Shim restriction: Only supports this for now)
-    engine = WaterfallBacktestEngine(TimeMomentumStrategy, config)
-    
-    # 4. Run Shim
-    # We pass global 'initial_capital' from request as the engine arg
-    result = await engine.run(
-        symbol=config['symbol'],
+    # Run Integrated League
+    result = await engine.run_integrated(
+        strategies_config=strategies_config,
+        global_symbol=request.symbol, # Fallback global symbol
         duration_days=request.days,
         from_date=request.from_date,
         interval=request.interval,
         initial_capital=int(request.initial_capital)
     )
     
-    result['strategy_id'] = f"Integrated (Rank 1 Shim: {target.strategy_id})"
+    result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
     return result
 
