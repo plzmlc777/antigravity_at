@@ -81,8 +81,12 @@ const VisualBacktestChart = ({
                         textColor: '#9ca3af',
                     },
                     grid: {
-                        vertLines: { color: '#1f2937' },
-                        horzLines: { color: '#1f2937' },
+                        vertLines: { visible: !showOnlyPnl, color: '#1f2937' },
+                        horzLines: { visible: !showOnlyPnl, color: '#1f2937' },
+                    },
+                    crosshair: {
+                        vertLine: { visible: !showOnlyPnl, labelVisible: !showOnlyPnl },
+                        horzLine: { visible: !showOnlyPnl, labelVisible: false }, // Hide price label for Rank
                     },
                     width: chartContainerRef.current.clientWidth,
                     height: 500,
@@ -119,12 +123,7 @@ const VisualBacktestChart = ({
                         // If fixedYRange is provided, use it to LOCK the Y-axis range
                         ...(priceScaleOptions?.fixedYRange ? {
                             autoScale: false, // Turn off generic autoscale
-                            scaleMargins: { top: 0, bottom: 0 }, // We manage margins via the range itself usually, or keep inherited. 
-                            // Actually, autoscaleInfoProvider works WITH autoScale=true usually to 'suggest' range.
-                            // But for PURE locking, we override it. 
-                            // Lightweight Charts 4.0 trick:
-                            // We might just need series.applyOptions({ autoscaleInfoProvider: ... }) ?
-                            // No, chart options don't have this. Series do.
+                            scaleMargins: { top: 0.1, bottom: 0.1 }, // Add padding to ranks
                         } : {}),
                     },
                     localization: {
@@ -141,15 +140,18 @@ const VisualBacktestChart = ({
                     },
                 });
 
-                // 4. Add Series (HIDDEN for Time Debugging)
-                // User Request: "Hide Candles and Markers" to focus on Time/Date
                 // 4. Add Series (Visible Candles)
+                // If in 'Swimlane' mode (showOnlyPnl), we make candles TRANSPARENT so only Markers show.
+                const seriesColor = showOnlyPnl ? 'rgba(0,0,0,0)' : undefined;
+
                 const series = chart.addSeries(CandlestickSeries, {
-                    upColor: '#26a69a',
-                    downColor: '#ef5350',
+                    upColor: seriesColor || '#26a69a',
+                    downColor: seriesColor || '#ef5350',
                     borderVisible: false,
-                    wickUpColor: '#26a69a',
-                    wickDownColor: '#ef5350',
+                    wickUpColor: seriesColor || '#26a69a',
+                    wickDownColor: seriesColor || '#ef5350',
+                    priceLineVisible: !showOnlyPnl, // Hide current price line in Swimlane
+                    lastValueVisible: !showOnlyPnl,
                     autoscaleInfoProvider: priceScaleOptions?.fixedYRange
                         ? () => ({
                             priceRange: {

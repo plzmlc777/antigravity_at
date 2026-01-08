@@ -1,63 +1,82 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
-const IntegratedAnalysis = ({ trades, backtestResult }) => {
+const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
     // 1. Data Source
     const tradeList = useMemo(() => {
         let list = trades || backtestResult?.trades || [];
         return [...list].sort((a, b) => new Date(a.time) - new Date(b.time));
     }, [trades, backtestResult]);
 
-    // 2. Identify Ranks
-    // User wants "Rank 1, Rank 2..." lanes.
-    const { totalRanks } = useMemo(() => {
-        const maxRank = tradeList.reduce((max, t) => {
-            return Math.max(max, t.strategy_rank || 1);
-        }, 0);
-        const count = Math.max(maxRank, 1);
-        return { totalRanks: count };
-    }, [tradeList]);
-
     // 3. Transform Data & Build Lookup Map
-    const { transformedTrades, tradeLookupMap } = useMemo(() => {
+    const { transformedTrades, tradeLookupMap, totalRanks } = useMemo(() => {
         const symbolRankMap = {};
+
+        // Build Map from Config (Rank 1 = Index 0)
+        // strategiesConfig is expected to be sorted by Rank 1..N
+        console.log("IntegratedAnalysis: Strategies Config:", strategiesConfig); // DEBUG
+
+        if (strategiesConfig && strategiesConfig.length > 0) {
+            strategiesConfig.forEach((cfg, index) => {
+                const sym = cfg.symbol || "UNKNOWN";
+                symbolRankMap[sym] = index + 1; // Rank 1-based
+            });
+        }
+        console.log("IntegratedAnalysis: Symbol Rank Map:", symbolRankMap); // DEBUG
+
+        // Calculate Max Rank dynamically or from config
+        let maxRankDerived = strategiesConfig ? strategiesConfig.length : 1;
+
         const lookup = new Map();
 
         const transformed = tradeList.map(t => {
-            let rank = t.strategy_rank;
+            // Priority: Explicit Rank > Symbol Map > Default 1
+            let rank = t.strategy_rank || symbolRankMap[t.symbol] || 1;
 
-            if (t.type === 'buy' && rank) {
-                symbolRankMap[t.symbol] = rank;
-            }
+            // Log warning if symbol not found?
+            // console.log(`Mapping ${t.symbol} -> Rank ${rank}`);
 
-            if (!rank) {
-                rank = symbolRankMap[t.symbol] || 1;
-            }
+            maxRankDerived = Math.max(maxRankDerived, rank);
 
-            const yVal = (totalRanks + 1) - rank;
+            // Invert Y for Chart (Rank 1 at top? Recharts Y grows upwards usually)
+            // Let's assume standard Y: 0 at bottom.
+            // Lane 1 (Rank 1): Y = Total + 1 - 1 = Total
+            // Lane N (Rank N): Y = Total + 1 - N = 1
+            // So Rank 1 is highest Y value.
 
+            // We need 'totalRanks' to be fixed though.
+            // Let's defer Y calculation or do it in a second pass? 
+            // Better: Just use maxRankDerived later.
+            return {
+                ...t,
+                _temp_rank: rank,
+                original_price: t.price
+            };
+        });
+
+        const finalizedTrades = transformed.map(t => {
+            const yVal = (maxRankDerived + 1) - t._temp_rank;
             const tradeObj = {
                 ...t,
-                strategy_rank: rank,
-                original_price: t.price,
-                price: yVal
+                strategy_rank: t._temp_rank,
+                price: yVal // Override price for Scatter/Candle Y-axis
             };
 
-            // Build Lookup Key: "MinuteTimestamp_RankY"
+            // Lookup Key
             const timeMin = Math.floor(new Date(t.time).getTime() / 60000);
             const rankY = Math.round(yVal);
             const key = `${timeMin}_${rankY}`;
-
-            // Should we support multiple trades in same minute/rank? 
-            // For now, overwrite or simple collision handling. 
-            // Latest trade usually most relevant if overlap.
             lookup.set(key, tradeObj);
 
             return tradeObj;
         });
 
-        return { transformedTrades: transformed, tradeLookupMap: lookup };
-    }, [tradeList, totalRanks]);
+        return {
+            transformedTrades: finalizedTrades,
+            tradeLookupMap: lookup,
+            totalRanks: maxRankDerived
+        };
+    }, [tradeList, strategiesConfig]);
 
     const syntheticData = useMemo(() => {
         if (!transformedTrades.length) return [];

@@ -1772,8 +1772,8 @@ const StrategyView = () => {
                             {/* VISUAL CHART SECTION (Dedicated) */}
                             {showChart && backtestResult && (
                                 <div className="mb-6 animate-fade-in-down">
-                                    <Card title={backtestResult.strategy_id === 'integrated_waterfall' ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
-                                        {backtestResult.strategy_id === 'integrated_waterfall' ? (
+                                    <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
+                                        {backtestResult.strategy_id.includes('Integrated') ? (
                                             <IntegratedAnalysis
                                                 trades={backtestResult.trades || []}
                                                 backtestResult={backtestResult}
