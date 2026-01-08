@@ -4,9 +4,23 @@ from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 
 class BacktestContext(IContext):
-    def __init__(self, data_feed: List[Dict], initial_capital: int = 10000000):
-        self.data_feed = data_feed
+    def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = 10000000, primary_symbol: str = None):
+        """
+        Refactored Context for Multi-Symbol Support.
+        :param feeds: Dictionary { "SYMBOL": [candle1, candle2, ...] }
+        :param primary_symbol: The symbol driving the main loop (optional context)
+        """
+        self.feeds = feeds
+        self.primary_symbol = primary_symbol or (list(feeds.keys())[0] if feeds else "UNKNOWN")
+        
+        # Performance Optimization: Pre-index feeds by timestamp for O(1) lookup
+        # self.feed_index = {sym: {c['timestamp']: c for c in candles} for sym, candles in feeds.items()}
+        # For now, to keep memory low, we might not fully index if lists are sorted.
+        # But for 'get_current_price' which relies on 'current_candle', we need a way to sync.
+        
         self.current_index = 0
+        self.current_timestamp = None # Explicit Time Tracking
+        
         self.cash = initial_capital
         self.holdings = {} # {symbol: quantity}
         self.trades = []
@@ -15,8 +29,11 @@ class BacktestContext(IContext):
 
     @property
     def current_candle(self):
-        if 0 <= self.current_index < len(self.data_feed):
-            return self.data_feed[self.current_index]
+        # Legacy Support: Returns candle of the PRIMARY symbol
+        if self.primary_symbol in self.feeds:
+            feed = self.feeds[self.primary_symbol]
+            if 0 <= self.current_index < len(feed):
+                return feed[self.current_index]
         return None
 
     def get_time(self) -> datetime:
@@ -28,16 +45,48 @@ class BacktestContext(IContext):
         return datetime.now()
 
     def get_current_price(self, symbol: str) -> float:
-        if self.current_candle:
+        # Multi-Symbol Lookup
+        # 1. If symbol is the primary one, use index (Fastest)
+        if symbol == self.primary_symbol and self.current_candle:
             return self.current_candle['close']
+            
+        # 2. If different symbol, we need to find the candle at current_timestamp
+        # This requires synchronization.
+        # Ideally, the Engine should inject the 'current_step_prices' into the context each step.
+        # But to keep API simple for BaseStrategy, we look it up.
+        
+        target_ts = self.get_time().isoformat()
+        if isinstance(target_ts, datetime): target_ts = target_ts.isoformat()
+        
+        # optimize: In the loop, we are at self.current_index of PRIMARY feed.
+        # If other feeds are aligned (same length, same ts), we can use same index.
+        # But they might not be.
+        
+        # Fallback for now: Linear search / Dictionary lookup if we had index.
+        # For the "Rank 1 Only" shim, this path is rarely hit unless Strategy asks for other symbols.
+        
+        if symbol in self.feeds:
+            # Try same index first (Optimistic)
+            feed = self.feeds[symbol]
+            if 0 <= self.current_index < len(feed):
+                c = feed[self.current_index]
+                if c['timestamp'] == target_ts:
+                    return c['close']
+            
+            # Fallback: Search (Slow, but safe)
+            # For real production, we'd use the 'feed_index' approach.
+            # But let's defer full heavy indexing until strictly needed.
+            # For "Rank 1 Only", this loop won't trigger for the main symbol.
+            for c in feed:
+                if c['timestamp'] == target_ts:
+                    return c['close']
+                    
         return 0
 
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
         exec_price = price if price > 0 else self.get_current_price(symbol)
         cost = exec_price * quantity
         
-        # Simulation Mode: Allow negative cash to support "Fixed Betting" regardless of drawdown
-        # if self.cash >= cost: 
         self.cash -= cost
         self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
         
@@ -97,110 +146,70 @@ class WaterfallBacktestEngine:
         # 1. Fetch Data (Async)
         from ..services.market_data import MarketDataService
         data_service = MarketDataService()
-        data_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
+        
+        # Fetch Primary Data
+        primary_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
         
         print(f"DEBUG: WaterfallBacktestEngine.run requested interval={interval} symbol={symbol} days={duration_days}")
-        print(f"DEBUG: Fetched {len(data_feed) if data_feed else 0} candles.")
-        if data_feed and len(data_feed) > 0:
-             print(f"DEBUG: First Candle: {data_feed[0]['timestamp']}")
-             print(f"DEBUG: Second Candle: {data_feed[1]['timestamp'] if len(data_feed) > 1 else 'N/A'}")
+        print(f"DEBUG: Fetched {len(primary_feed) if primary_feed else 0} candles.")
         
-        if not data_feed:
-            return {
-                "logs": ["No data collected"],
-                "total_return": "0%",
-                "win_rate": "0%",
-                "max_drawdown": "0%",
-                "activity_rate": "0%",
-                "total_trades": 0,
-                "score": 0,
-                "avg_pnl": "0%",
-                "max_profit": "0%",
-                "max_loss": "0%",
-                "profit_factor": "0.00",
-                "sharpe_ratio": "0.00",
-                "avg_holding_time": "0m",
-                "stability_score": "0.00",
-                "acceleration_score": "0.00",
-                "chart_data": [],
-                "ohlcv_data": []
-            }
+        if not primary_feed:
+            return self._empty_result()
 
         # Filter by Start Date
         if from_date:
             try:
-                # Assuming data_feed timestamp is ISO format string compatible with comparison
-                # YYYY-MM-DD string comparison works if data is YYYY-MM-DD HH:MM:SS
-                filtered_feed = [c for c in data_feed if c['timestamp'] >= from_date]
+                filtered_feed = [c for c in primary_feed if c['timestamp'] >= from_date]
                 if filtered_feed:
-                    data_feed = filtered_feed
+                    primary_feed = filtered_feed
             except Exception as e:
                 print(f"Date filter error: {e}")
 
-        # 2. Setup Context
-        context = BacktestContext(data_feed, initial_capital=initial_capital)
+        # ----------------------------------------------------
+        # REFACTOR: Multi-Symbol Structure Preparation
+        # Even though we only have ONE symbol, we wrap it in a dict.
+        # This allows easy expansion later without changing the Context interface again.
+        # ----------------------------------------------------
+        feeds = {symbol: primary_feed}
+        
+        # 2. Setup Context with Feeds Dict
+        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol)
         
         # 3. Initialize Strategy
-        # Inject Symbol and Initial Capital into config
         self.config['symbol'] = symbol
         self.config['initial_capital'] = initial_capital
         strategy = self.strategy_class(context, self.config)
         strategy.initialize()
         
         # 4. Run Loop
-        for i, candle in enumerate(data_feed):
+        # We iterate over the Primary Feed (Driver)
+        # Context.current_index will track this iteration.
+        for i, candle in enumerate(primary_feed):
             context.current_index = i
+            # Important: Sync Context Timestamp if needed (Context property does this via index)
+            
             strategy.on_data(candle)
             context.update_equity()
             
         # 5. Calculate Stats
-        # 5. Calculate Stats
+        return self._generate_stats(context, primary_feed)
+
+    def _generate_stats(self, context: BacktestContext, data_feed: List[Dict]):
         if not context.equity_curve:
-             return {
-                 "logs": context.logs, 
-                 "total_return": "0%", 
-                 "win_rate": "0%", 
-                 "max_drawdown": "0%", 
-                 "activity_rate": "0%",
-                 "total_trades": 0,
-                 "avg_pnl": "0%",
-                 "max_profit": "0%",
-                 "max_loss": "0%",
-                 "profit_factor": "0.00",
-                 "sharpe_ratio": "0.00",
-                 "avg_holding_time": "0m",
-                 "stability_score": "0.00",
-                 "acceleration_score": "0.00",
-                 "chart_data": [],
-                 "ohlcv_data": []
-             }
+             return self._empty_result(logs=context.logs)
 
         final_equity = context.equity_curve[-1]['equity']
         initial_equity = context.equity_curve[0]['equity']
         total_return = (final_equity - initial_equity) / initial_equity * 100
         
-        # Activity Rate Calculation
+        # Activity Rate logic
         data_dates = set()
         for c in data_feed:
-             try:
-                 ts = c['timestamp']
-                 if isinstance(ts, datetime):
-                     dt = ts.date()
-                 else:
-                     dt = datetime.fromisoformat(ts).date()
-                 data_dates.add(dt)
+             try: data_dates.add(datetime.fromisoformat(c['timestamp']).date())
              except: pass
-             
         traded_dates = set()
         for t in context.trades:
-             try:
-                 ts = t['time']
-                 # Trades always use isoformat string from get_time, 
-                 # BUT if get_time() crashed before, they might be empty/weird.
-                 # Assuming get_time() fixed above returns valid datetime, then .isoformat() is string.
-                 # So t['time'] is string.
-                 dt = datetime.fromisoformat(ts).date()
-                 traded_dates.add(dt)
+             try: traded_dates.add(datetime.fromisoformat(t['time']).date())
              except: pass
         
         total_days = len(data_dates)
@@ -222,12 +231,33 @@ class WaterfallBacktestEngine:
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": f"{activity_rate:.1f}%",
-            "total_days": total_days, # Expose for UI
-            "chart_data": self._resample_equity(context.equity_curve, 50000), # Resampled Equity for LineChart
-            "ohlcv_data": raw_ohlcv, # Direct Raw Data
-            "logs": context.logs[-50:], # Return last 50 logs
-            "trades": context.trades, # List of trades for visual markers
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp']) # Inject detailed trade stats
+            "total_days": total_days,
+            "chart_data": self._resample_equity(context.equity_curve, 50000),
+            "ohlcv_data": raw_ohlcv,
+            "logs": context.logs[-50:],
+            "trades": context.trades,
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'])
+        }
+
+    def _empty_result(self, logs=None):
+        return {
+            "logs": logs or ["No data collected"],
+            "total_return": "0%",
+            "win_rate": "0%",
+            "max_drawdown": "0%",
+            "activity_rate": "0%",
+            "total_trades": 0,
+            "score": 0,
+            "avg_pnl": "0%",
+            "max_profit": "0%",
+            "max_loss": "0%",
+            "profit_factor": "0.00",
+            "sharpe_ratio": "0.00",
+            "avg_holding_time": "0m",
+            "stability_score": "0.00",
+            "acceleration_score": "0.00",
+            "chart_data": [],
+            "ohlcv_data": []
         }
 
     def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None) -> Dict[str, Any]:
@@ -474,9 +504,6 @@ class WaterfallBacktestEngine:
         }
 
     def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        # User requested to REMOVE LIMIT. Returning all data.
-        if not data: return []
-        
         return [{
             "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp
             "open": d['open'],
@@ -486,7 +513,6 @@ class WaterfallBacktestEngine:
         } for d in data]
 
     def _resample_equity(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        # User requested to REMOVE LIMIT. Returning all data.
         return data
 
     def _calc_mdd(self, equity_curve):
