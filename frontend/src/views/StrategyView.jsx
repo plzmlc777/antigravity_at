@@ -1340,7 +1340,7 @@ const StrategyView = () => {
                                                     <div className="flex justify-center gap-6 mb-8">
                                                         <div className="text-left">
                                                             <label className="text-xs text-gray-400 mb-1 block">
-                                                                Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                                Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
                                                             </label>
                                                             <input
                                                                 type="text"
@@ -1356,7 +1356,7 @@ const StrategyView = () => {
                                                         </div>
                                                         <div className="text-left">
                                                             <label className="text-xs text-gray-400 mb-1 block">
-                                                                Start Date {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                                Start Date {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
                                                             </label>
                                                             <input
                                                                 type="date"
@@ -1371,7 +1371,7 @@ const StrategyView = () => {
                                                         </div>
                                                         <div className="text-left">
                                                             <label className="text-xs text-gray-400 mb-1 block">
-                                                                Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited)</span>}
+                                                                Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
                                                             </label>
                                                             <select
                                                                 value={displayConfig?.betting_strategy || "fixed"}
@@ -1428,23 +1428,41 @@ const StrategyView = () => {
                                                             // 1. Betting Logic
                                                             const globalBettingStrategy = leaderConfig.betting_strategy || "fixed";
 
-                                                            // Apply Global Overrides
-                                                            const overriddenConfigs = activeConfigs.map(cfg => ({
-                                                                ...cfg,
-                                                                betting_strategy: globalBettingStrategy
-                                                            }));
+                                                            // Apply Global Overrides & Format for Backend IntegratedConfig Schema
+                                                            // Backend expects: { id, rank, config: {}, strategy_id, symbol }
+                                                            const validConfigs = activeConfigs.map(cfg => {
+                                                                const mergedConfig = {
+                                                                    ...cfg,
+                                                                    betting_strategy: globalBettingStrategy,
+                                                                    // Ensure Symbol is present in config
+                                                                    symbol: cfg.symbol || currentSymbol
+                                                                };
 
-                                                            // Calculate days based on fromDate
-                                                            const startDate = new Date(leaderConfig?.from_date || "");
-                                                            const today = new Date();
-                                                            const diffTime = Math.abs(today - startDate);
-                                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                                return {
+                                                                    id: cfg.uuid || generateUUID(),
+                                                                    rank: cfg.rank || 999,
+                                                                    strategy_id: selectedStrategy?.id || "time_momentum", // Default or current
+                                                                    symbol: mergedConfig.symbol,
+                                                                    config: mergedConfig // Pass entire flat config as nested dict
+                                                                };
+                                                            });
+
+                                                            // Calculate days based on fromDate safely
+                                                            let diffDays = 365; // Default
+                                                            if (leaderConfig?.from_date) {
+                                                                const startDate = new Date(leaderConfig.from_date);
+                                                                const today = new Date();
+                                                                if (!isNaN(startDate.getTime())) {
+                                                                    const diffTime = Math.abs(today - startDate);
+                                                                    diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                                }
+                                                            }
 
                                                             const result = await axios.post('/api/v1/strategies/integrated-backtest', {
-                                                                configs: overriddenConfigs,
+                                                                configs: validConfigs,
                                                                 symbol: currentSymbol || "KRW-BTC", // Use global or default
                                                                 interval: leaderConfig?.interval || "1m", // Use selected interval
-                                                                days: diffDays > 0 ? diffDays : 365, // Use calculated days or default
+                                                                days: diffDays > 0 ? diffDays : 365,
                                                                 from_date: leaderConfig?.from_date || "",
                                                                 initial_capital: leaderConfig?.initial_capital || 10000000
                                                             });

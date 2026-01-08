@@ -55,6 +55,31 @@ async def root():
 async def health_check():
     return {"status": "ok"}
 
+# --- Debug: Validation Error Logging ---
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import json
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    # Log the full details to the backend console
+    error_details = exc.errors()
+    body = await request.body()
+    
+    logger.error(f"⚠️  [422 Validation Error] URL: {request.url}")
+    try:
+        logger.error(f"⚠️  Body: {body.decode('utf-8')}")
+    except:
+        logger.error(f"⚠️  Body: <binary>")
+    
+    logger.error(f"⚠️  Details: {json.dumps(error_details, indent=2)}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={"detail": error_details, "body": str(body)},
+    )
+# ---------------------------------------
+
 # Include Routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["accounts"])

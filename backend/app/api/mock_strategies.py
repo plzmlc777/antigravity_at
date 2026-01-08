@@ -527,3 +527,60 @@ async def get_optimization_status(task_id: str):
     )
 
 
+# --- Integrated Backtest Logic ---
+
+class IntegratedConfig(BaseModel):
+    id: str
+    rank: int
+    config: Dict[str, Any]
+    strategy_id: str
+    symbol: str
+
+class IntegratedBacktestRequest(BaseModel):
+    configs: List[IntegratedConfig]
+    symbol: str # Primary/Global symbol (fallback)
+    interval: str
+    days: int
+    from_date: Optional[str] = None
+    initial_capital: float
+
+@router.post("/integrated-backtest")
+async def run_integrated_backtest(request: IntegratedBacktestRequest):
+    # Shim Implementation: Rank 1 Replica using WaterfallBacktestEngine
+    # This guarantees identical results to Rank 1 tab by using the same engine logic structure.
+    
+    from ..core.waterfall_engine import WaterfallBacktestEngine
+    from ..strategies.time_momentum import TimeMomentumStrategy
+    
+    if not request.configs:
+        return {"error": "No strategies provided"}
+        
+    # 1. Select Rank 1 Strategy (First Item)
+    # The frontend sorts them or we assume index 0 is Rank 1?
+    # Usually frontend sends sorted list. We take the first one.
+    target = request.configs[0]
+    
+    # 2. Prepare Config
+    config = target.config.copy()
+    
+    # Inject Global Settings if missing (though frontend should have mapped them)
+    if 'symbol' not in config:
+        config['symbol'] = target.symbol or request.symbol
+        
+    # 3. Instantiate Engine
+    # Use TimeMomentumStrategy (Shim restriction: Only supports this for now)
+    engine = WaterfallBacktestEngine(TimeMomentumStrategy, config)
+    
+    # 4. Run Shim
+    # We pass global 'initial_capital' from request as the engine arg
+    result = await engine.run(
+        symbol=config['symbol'],
+        duration_days=request.days,
+        from_date=request.from_date,
+        interval=request.interval,
+        initial_capital=int(request.initial_capital)
+    )
+    
+    result['strategy_id'] = f"Integrated (Rank 1 Shim: {target.strategy_id})"
+    return result
+

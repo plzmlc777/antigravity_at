@@ -1,5 +1,5 @@
 // Version is injected by Vite at build time from package.json & git
-export const APP_VERSION = "v0.8.9.5";
+export const APP_VERSION = "v0.8.9.6";
 export const COMMIT_HASH = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : "dev";
 export const BUILD_DATE = new Date().toISOString().split('T')[0];
 
