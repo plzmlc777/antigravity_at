@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, createSeriesMarkers, LineSeries } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, HistogramSeries, createSeriesMarkers, LineSeries } from 'lightweight-charts';
 
 const VisualBacktestChart = ({
     data,
@@ -145,6 +145,40 @@ const VisualBacktestChart = ({
                 // If in 'Swimlane' mode (showOnlyPnl), we make candles TRANSPARENT so only Markers show.
                 const seriesColor = showOnlyPnl ? 'rgba(0,0,0,0)' : undefined;
 
+                // [NEW] Date Separator Background Lines (Safe Implementation)
+                try {
+                    const separatorSeries = chart.addSeries(HistogramSeries, {
+                        color: 'rgba(75, 85, 99, 0.4)', // #4B5563 (lighter gray) with 0.4 opacity
+                        priceScaleId: 'separator_scale',
+                        priceFormat: { type: 'volume' },
+                    });
+
+                    chart.priceScale('separator_scale').applyOptions({
+                        autoScale: true, // Scale to Data (0-1) to fill height
+                        visible: false, // Hide scale
+                        scaleMargins: { top: 0, bottom: 0 },
+                    });
+
+                    const separatorData = [];
+                    let lastDateStr = null;
+                    if (validData && validData.length > 0) {
+                        validData.forEach(d => {
+                            const dateObj = new Date(d.time * 1000);
+                            const dateStr = dateObj.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+                            if (lastDateStr && dateStr !== lastDateStr) {
+                                separatorData.push({ time: d.time, value: 1 });
+                            }
+                            lastDateStr = dateStr;
+                        });
+                        if (separatorData.length > 0) {
+                            separatorSeries.setData(separatorData);
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Separator Error:", err);
+                }
+
                 const series = chart.addSeries(CandlestickSeries, {
                     upColor: seriesColor || '#26a69a',
                     downColor: seriesColor || '#ef5350',
@@ -176,6 +210,7 @@ const VisualBacktestChart = ({
                     priceLineVisible: false,
                     title: 'W/L Price',
                 });
+                tradeSeriesRef.current = tradePriceSeries;
 
                 // Prepare Data (Deduplicated for LineSeries)
                 const tradeMap = new Map();
@@ -186,43 +221,14 @@ const VisualBacktestChart = ({
                     });
                 });
                 const tradePriceData = Array.from(tradeMap.values()).sort((a, b) => a.time - b.time);
+                allTradePriceDataRef.current = tradePriceData; // Store it
 
-                // Helper ref to update this series on slider move
-                // We attach it to a temporary property on the chart instance or just manage it here
-                // Simplest is to just set it once for the full range if we aren't dynamically slicing it strictly.
-                // Wait, we DO slice data in playback. So we need a ref for this series too.
-                tradePriceSeries.setData(tradePriceData);
+                // Initialize trade series data
+                if (tradePriceData.length > 0) {
+                    tradePriceSeries.setData(tradePriceData);
+                }
 
-                // We need to expose this series to the updateChartState function
-                // Let's store it in a ref. We can reuse 'dotSeriesRef' or create 'tradeSeriesRef'.
-                // Since I removed dotSeriesRef in previous step, I will create a new ref or just use a property.
-                // Actually, I need to add `tradeSeriesRef` to the component top level first.
-                // For this edit, I'll rely on `seriesInstance` pattern.
-
-                // BETTER: Just set the data once. 
-                // LineSeries handles data outside the visible range gracefully? 
-                // Yes, but for "Replay", we want to hide future trades.
-                // So I MUST maintain a reference to update it.
-                // I will overwrite `lineSeriesRef` which is currently unused/removed.
-                // Wait, I removed `lineSeriesRef` in the previous "Clean" step.
-                // I need to check if `lineSeriesRef` still exists in the file.
-                // I'll assume I need to RE-ADD the ref definition if I deleted it.
-
-                // Let's look at the file content again or just add the Ref definition in the `MultiReplace` if needed.
-                // Or I can use `useRef` inside the component body in a separate `replace_file_content`.
-                // Actually, I'll just add `const tradeSeriesRef = useRef(null);` at the top and use it.
-                // But `replace_file_content` is a single block edit.
-
-                // Strategy: 
-                // 1. Modify component start to add `tradeSeriesRef`.
-                // 2. Modify init logic to create and assign `tradePriceSeries`.
-                // 3. Modify `updateChartState` to update `tradePriceSeries`.
-
-                // This requires MULTIPLE edits.
-                // I will use `multi_replace_file_content`.
-
-
-                // 5. Initialize Markers Plugin (Arrows at EXACT Price)
+                // 6. Initialize Markers Plugin (Arrows at EXACT Price)
                 try {
                     const markersPlugin = createSeriesMarkers(series, []);
                     markersPluginRef.current = markersPlugin;
