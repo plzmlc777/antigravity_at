@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
-const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
+const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSymbols }) => {
     // 1. Data Source
     const tradeList = useMemo(() => {
         let list = trades || backtestResult?.trades || [];
@@ -143,74 +143,156 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
     const [modalData, setModalData] = useState(null);
     const [debugLogs, setDebugLogs] = useState([]);
 
+    // [New] Map Rank -> Symbol for Empty Space Clicks
+    const rankToSymbolMap = useMemo(() => {
+        const map = {};
+        if (strategiesConfig) {
+            strategiesConfig.forEach((cfg, index) => {
+                const rank = index + 1; // 1-based
+                map[rank] = cfg.symbol;
+            });
+        }
+        return map;
+    }, [strategiesConfig]);
+
     const handleChartClick = useCallback((param) => {
-        if (!param || !param.time || !param.price) return;
+        if (!param || !param.time || param.price === undefined) return;
 
         const logs = [];
         const addLog = (msg) => logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`);
 
-        addLog(`Clicked Time=${param.time}, Price=${param.price}`);
+        addLog(`Clicked Time=${param.time}, Price(Y)=${param.price.toFixed(2)}`);
 
-        // O(1) Lookup Strategy
+        // 1. Identify Context (Time & Rank)
         const clickTimeMin = Math.floor(param.time / 60);
-        const clickRankY = Math.round(param.price);
-        const lookupKey = `${clickTimeMin}_${clickRankY}`;
+        // Chart Y is inverted logic in transformation? 
+        // In transformation: yVal = (maxRankDerived + 1) - rank
+        // So: rank = (maxRankDerived + 1) - yVal
+        const clickY = Math.round(param.price);
+        const derivedRank = (totalRanks + 1) - clickY;
 
+        addLog(`Derived Rank: ${derivedRank} (from Y=${clickY}, Total=${totalRanks})`);
+
+        let targetSymbol = null;
+        let targetDate = new Date(param.time * 1000);
+        let targetInterval = "Unknown"; // Default
+
+        // A. Try Exact Trade Lookup first (Most Precise)
+        const lookupKey = `${clickTimeMin}_${clickY}`;
         const clickedTrade = tradeLookupMap.get(lookupKey);
 
         if (clickedTrade) {
-            addLog(`Trade Found (Map): ${clickedTrade.symbol} @ ${clickedTrade.time}`);
-            const symbol = clickedTrade.symbol;
+            addLog(`Strategy Trade Clicked: ${clickedTrade.symbol}`);
+            targetSymbol = clickedTrade.symbol;
+        } else {
+            // B. Fallback to Lane/Rank Lookup
+            const mappedSymbol = rankToSymbolMap[derivedRank];
+            if (mappedSymbol) {
+                addLog(`Empty Space Clicked in Rank ${derivedRank} -> Symbol: ${mappedSymbol}`);
+                targetSymbol = mappedSymbol;
+            } else {
+                addLog(`No Strategy found for Rank ${derivedRank}`);
+            }
+        }
 
-            // 2. Get Data
-            const allCandles = backtestResult?.multi_ohlcv_data?.[symbol] || [];
-            addLog(`Total Candles for ${symbol}: ${allCandles.length}`);
+        if (targetSymbol) {
+            // Resolve Metadata (Name, Interval)
+            // Interval: Find config for this symbol (or just use derivedRank index if consistently ordered)
+            const strategyCfg = strategiesConfig ? strategiesConfig.find(c => c.symbol === targetSymbol) : null;
+            if (strategyCfg) {
+                targetInterval = strategyCfg.interval || "Unknown";
+            }
 
-            // 3. Filter using Correct Timestamp Logic
-            const tradeDate = new Date(clickedTrade.time);
-            const startOfDay = new Date(tradeDate).setHours(0, 0, 0, 0) / 1000; // Seconds
-            const endOfDay = new Date(tradeDate).setHours(23, 59, 59, 999) / 1000; // Seconds
+            // Name: Search savedSymbols
+            const symbolInfo = savedSymbols ? savedSymbols.find(s => s.code === targetSymbol) : null;
+            const symbolName = symbolInfo ? symbolInfo.name : "Unknown Name";
+
+            // 2. Fetch Daily Data for this Symbol
+            const rawCandles = backtestResult?.multi_ohlcv_data?.[targetSymbol] || [];
+            addLog(`Total Candles for ${targetSymbol}: ${rawCandles.length}`);
+
+            // Normalize Data (Backend Waterfall sends 'timestamp', Lightweight Charts needs 'time')
+            const allCandles = rawCandles.map(c => {
+                let t = c.time || c.timestamp;
+                // Ensure Unix Timestamp calculation is robust
+                let unixTime = t;
+                if (typeof t === 'string') {
+                    // Try parsing ISO string
+                    unixTime = new Date(t).getTime() / 1000;
+                }
+
+                return {
+                    ...c,
+                    time: unixTime, // Standardize to 'time' (Unix Seconds)
+                    original_time: t // Keep original for debugging
+                };
+            });
+
+            // Debug: Show first mapped candle
+            if (allCandles.length > 0) {
+                const sample = allCandles[0];
+                addLog(`[DEBUG] Mapped Candle: ${JSON.stringify(sample).substring(0, 100)}...`);
+            }
+
+            // 3. Filter for Date
+            const startOfDay = new Date(targetDate).setHours(0, 0, 0, 0) / 1000;
+            const endOfDay = new Date(targetDate).setHours(23, 59, 59, 999) / 1000;
 
             const dailyCandles = allCandles.filter(c => {
-                // c.time is ALREADY in seconds from backend. Do not wrap in new Date()!
-                const cTime = c.time;
-                return cTime >= startOfDay && cTime <= endOfDay;
+                return c.time >= startOfDay && c.time <= endOfDay;
             });
             addLog(`Daily Candles (Filtered): ${dailyCandles.length}`);
 
-            // 4. Get ALL Trades for this Symbol & Date (to show Buys & Sells)
+            // 4. Filter Trades for Context
             const dailyTrades = transformedTrades.filter(t => {
-                if (t.symbol !== symbol) return false;
+                if (t.symbol !== targetSymbol) return false;
                 const tTime = new Date(t.time).getTime() / 1000;
                 return tTime >= startOfDay && tTime <= endOfDay;
             }).map(t => ({
                 ...t,
-                // Critical Fix: Restore 'price' to 'original_price' so it plots on the Candle Chart Y-axis
-                price: t.original_price || t.price
+                price: t.original_price || t.price // Use Asset Price
             }));
-            addLog(`Daily Trades Found: ${dailyTrades.length}`);
-            dailyTrades.forEach((dt, i) => {
-                addLog(`[${i + 1}] ${dt.type.toUpperCase()}: ${dt.time} (${new Date(dt.time).toLocaleTimeString()})`);
-            });
+            addLog(`Daily Trades: ${dailyTrades.length}`);
 
-            // ALWAYS OPEN MODAL & SET STATE
-            // Reverted Resampling Logic to ensure stability
-            setModalData({
-                symbol: symbol,
-                date: tradeDate.toLocaleDateString(),
-                data: dailyCandles,
-                trades: dailyTrades // Pass the full list
-            });
-            setDebugLogs(logs);
-            setIsModalOpen(true);
+            if (dailyCandles.length > 0 || dailyTrades.length > 0) {
+                setModalData({
+                    rank: derivedRank,
+                    symbol: targetSymbol,
+                    name: symbolName,
+                    interval: targetInterval,
+                    date: targetDate.toLocaleDateString(),
+                    data: dailyCandles,
+                    trades: dailyTrades
+                });
+                setDebugLogs(logs);
+                setIsModalOpen(true);
+            } else {
+                addLog("No candle data found for this date.");
+                // Verify if we should show empty chart or alert?
+                // Let's show Modal with empty state to handle "Missing Data" scenario gracefully
+                setModalData({
+                    rank: derivedRank,
+                    symbol: targetSymbol,
+                    name: symbolName,
+                    interval: targetInterval,
+                    date: targetDate.toLocaleDateString(),
+                    data: [],
+                    trades: []
+                });
+                setDebugLogs(logs);
+                setIsModalOpen(true);
+            }
 
         } else {
-            addLog(`No matching trade found for key: ${lookupKey}`);
+            // Clicked outside valid rank area?
+            addLog("No valid target identified.");
             setModalData(null);
             setDebugLogs(logs);
+            // Optionally do not open modal if nothing clicked, or show Debug logs
             setIsModalOpen(true);
         }
-    }, [tradeLookupMap, backtestResult, transformedTrades]);
+
+    }, [tradeLookupMap, backtestResult, transformedTrades, totalRanks, rankToSymbolMap, strategiesConfig, savedSymbols]);
 
     // 6. Render
     if (!tradeList.length) {
@@ -268,15 +350,28 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+                        {console.log("DrillDownRender: modalData=", modalData)}
+                        <div className="bg-gray-800 min-h-[60px] px-4 py-3 border-b border-gray-700 flex justify-between items-center shrink-0">
                             <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-bold text-white">
-                                    {modalData ? modalData.symbol : "Debug Mode"}
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    {modalData ? (
+                                        <>
+                                            <span className="text-purple-400">Rank #{modalData.rank}</span>
+                                            <span className="text-gray-500">|</span>
+                                            <span className="text-blue-400">[{modalData.symbol}]</span>
+                                            <span className="text-white">{modalData.name || "Unknown"}</span>
+                                        </>
+                                    ) : "Debug Mode"}
                                 </h3>
                                 {modalData && (
-                                    <span className="text-sm text-gray-400 bg-black/30 px-2 py-0.5 rounded">
-                                        {modalData.date}
-                                    </span>
+                                    <div className="flex items-center gap-2 ml-4">
+                                        <span className="text-xs text-gray-400 bg-gray-700 px-2 py-0.5 rounded border border-gray-600">
+                                            {modalData.interval || "?"}
+                                        </span>
+                                        <span className="text-sm text-gray-300 font-mono">
+                                            {modalData.date}
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                             <button
@@ -306,9 +401,18 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
 
                             {/* Debug Console */}
                             <div className="h-32 bg-black/90 p-3 overflow-y-auto font-mono text-xs text-green-400 border-t border-gray-700">
-                                <div className="font-bold text-gray-500 mb-2 sticky top-0 bg-black/90 pb-1 border-b border-gray-800 flex justify-between">
+                                <div className="font-bold text-gray-500 mb-2 sticky top-0 bg-black/90 pb-1 border-b border-gray-800 flex justify-between items-center">
                                     <span>CONSOLE LOGS (O(1) Map Lookup)</span>
-                                    <button onClick={() => setDebugLogs([])} className="hover:text-white transition-colors">Clear</button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => navigator.clipboard.writeText(debugLogs.join('\n'))}
+                                            className="hover:text-white transition-colors"
+                                            title="Copy logs to clipboard"
+                                        >
+                                            Copy
+                                        </button>
+                                        <button onClick={() => setDebugLogs([])} className="hover:text-white transition-colors">Clear</button>
+                                    </div>
                                 </div>
                                 {debugLogs.map((log, i) => (
                                     <div key={i} className="whitespace-pre-wrap mb-1 border-b border-gray-800/50 pb-0.5">{log}</div>

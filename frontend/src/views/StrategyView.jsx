@@ -1778,6 +1778,7 @@ const StrategyView = () => {
                                                 trades={backtestResult.trades || []}
                                                 backtestResult={backtestResult}
                                                 strategiesConfig={configList}
+                                                savedSymbols={savedSymbols || []}
                                             />
                                         ) : (
                                             backtestResult.ohlcv_data ? (
