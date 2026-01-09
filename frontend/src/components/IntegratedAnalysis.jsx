@@ -222,6 +222,29 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
         );
     }
 
+    // 7. Rank Selector Logic (Task 2)
+    const [selectedRank, setSelectedRank] = useState(1); // Default Rank 1
+
+    const rankOptions = useMemo(() => {
+        const ranks = [];
+        for (let i = 1; i <= totalRanks; i++) {
+            ranks.push(i);
+        }
+        return ranks;
+    }, [totalRanks]);
+
+    const rankSelectorUI = (
+        <select
+            value={selectedRank}
+            onChange={(e) => setSelectedRank(Number(e.target.value))}
+            className="bg-gray-800 border border-gray-600 rounded text-[10px] px-2 py-1 text-white outline-none focus:border-blue-500 hover:bg-gray-700 transition-colors font-bold"
+        >
+            {rankOptions.map(r => (
+                <option key={r} value={r}>Rank {r}</option>
+            ))}
+        </select>
+    );
+
     return (
         <div className="w-full relative">
             <VisualBacktestChart
@@ -231,6 +254,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
                 priceScaleOptions={priceScaleOptions}
                 showOnlyPnl={true}
                 onChartClick={handleChartClick}
+                customControls={rankSelectorUI}
             />
 
             {/* Drill-Down Modal */}

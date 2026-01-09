@@ -7,7 +7,8 @@ const VisualBacktestChart = ({
     yAxisFormatter,
     priceScaleOptions,
     showOnlyPnl,
-    onChartClick // Event Handler for Single Click
+    onChartClick, // Event Handler for Single Click
+    customControls // Custom UI Elements (Rank Selector, etc.)
 }) => {
     const chartContainerRef = useRef();
     const chartInstance = useRef(null);
@@ -516,7 +517,12 @@ const VisualBacktestChart = ({
                         className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
                     />
 
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex gap-2 shrink-0 items-center">
+                        {customControls && (
+                            <div className="mr-2 border-r border-gray-700 pr-2">
+                                {customControls}
+                            </div>
+                        )}
                         <select
                             value={zoomLevel}
                             onChange={(e) => setZoomLevel(Number(e.target.value))}
