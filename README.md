@@ -8,6 +8,12 @@ A comprehensive automated trading system with Python FastAPI backend and React f
 - **Frontend**: React (Vite)
 - **Process Management**: PM2 (Standardized for both Local & Server)
 
+## 🚀 Release Notes
+### v0.9.0.0 (Visualization Complete)
+- **Completed**: Full Visualization Suite (Scatter Integration, Drill-Down Analysis).
+- **Fixed**: Data Consistency Layer (Timestamp Mapping).
+- **Infrastructure**: Added Automated OpenAPI Client Generation.
+
 ## 🚀 Getting Started
 
 We use a unified script for local development and server deployment.

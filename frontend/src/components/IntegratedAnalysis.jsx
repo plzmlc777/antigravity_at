@@ -387,11 +387,24 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
                             {/* Chart Area */}
                             <div className="flex-1 relative border-b border-gray-800">
                                 {modalData && modalData.data.length > 0 ? (
-                                    <VisualBacktestChart
-                                        data={modalData.data}
-                                        trades={modalData.trades}
-                                        showOnlyPnl={false}
-                                    />
+                                    <>
+                                        <VisualBacktestChart
+                                            data={modalData.data}
+                                            trades={modalData.trades}
+                                            showOnlyPnl={false}
+                                        />
+                                        {/* Legend Overlay */}
+                                        <div className="absolute top-4 right-16 z-20 flex gap-4 bg-gray-900/80 px-3 py-1.5 rounded-md border border-gray-700 backdrop-blur-sm shadow-sm pointer-events-none">
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 bg-[#26a69a] rounded-sm"></div>
+                                                <span className="text-xs text-gray-300 font-medium">Up (Rise)</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className="w-3 h-3 bg-[#ef5350] rounded-sm"></div>
+                                                <span className="text-xs text-gray-300 font-medium">Down (Fall)</span>
+                                            </div>
+                                        </div>
+                                    </>
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center text-gray-500">
                                         {modalData ? "Chart Data Empty" : "No Trade Selected"}
