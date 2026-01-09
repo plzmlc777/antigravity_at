@@ -158,28 +158,58 @@ class WaterfallBacktestEngine:
         from ..services.market_data import MarketDataService
         data_service = MarketDataService()
         
+        # Identify Symbols and Intervals
         unique_symbols = set()
+        symbol_interval_map = {} # Key: Symbol, Value: Interval
+
+        # Global override check
+        if global_symbol: 
+            unique_symbols.add(global_symbol)
+            symbol_interval_map[global_symbol] = interval
         if global_symbol: unique_symbols.add(global_symbol)
         for cfg in strategies_config:
             if 'symbol' in cfg:
                 unique_symbols.add(cfg['symbol'])
-                
+
+        # --- [SIMULATION DATA] ---
+        # Fetch using GLOBAL interval to preserve v0.8.9.9 Simulation Logic & Results
         feeds = {}
-        # Fetch for all symbols
         for sym in unique_symbols:
             raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
             if raw_feed:
-                # Filter Date
+                # Filter Date (Safe String Comparison)
                 if from_date:
                     raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
-                # Sort
                 raw_feed.sort(key=lambda x: x['timestamp'])
                 feeds[sym] = raw_feed
             else:
-                print(f"Warning: No data for {sym}")
+                print(f"Warning: No Simulation data for {sym}")
 
         if not feeds:
              return self._empty_result(["No data for any symbol"])
+
+        # --- [VISUALIZATION DATA] (Task 1 Fix) ---
+        # Fetch using CORRECT Per-Strategy Interval for Popup/Drill-down
+        viz_feeds = {}
+        symbol_interval_map = {}
+        if global_symbol: symbol_interval_map[global_symbol] = interval
+        for cfg in strategies_config:
+            if 'symbol' in cfg:
+                symbol_interval_map[cfg['symbol']] = cfg.get('interval', interval)
+
+        for sym in unique_symbols:
+            target_interval = symbol_interval_map.get(sym, interval)
+            # Optimize: If target match global, reuse `feeds`
+            if target_interval == interval and sym in feeds:
+                viz_feeds[sym] = feeds[sym]
+            else:
+                # Fetch specific interval
+                v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
+                if v_feed:
+                    if from_date:
+                        v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
+                    v_feed.sort(key=lambda x: x['timestamp'])
+                    viz_feeds[sym] = v_feed
 
         # Determine Primary Symbol (Rank 1 typically)
         primary_symbol = strategies_config[0].get('symbol', global_symbol) if strategies_config else global_symbol
@@ -190,17 +220,13 @@ class WaterfallBacktestEngine:
         # 3. Initialize Strategies (League Participants)
         participants = []
         for rank_idx, cfg_raw in enumerate(strategies_config):
-            # Each participant gets its own config override
-            # Assuming 'cfg_raw' is the dict from request
-            # Logic: We use SELF.strategy_class (TimeMomentum) for all.
-            # Ideally strategy_class should come from config, but for now fixed.
-            
             p_config = cfg_raw.copy()
-            p_config['initial_capital'] = initial_capital # Share knowledge of cap
+            p_config['initial_capital'] = initial_capital 
             
-            # Create Instance
+            # Create Instance (v0.8.9.9 Structure)
             strat = self.strategy_class(context, p_config)
-            strat.initialize()
+            if hasattr(strat, 'initialize'):
+                strat.initialize()
             
             participants.append({
                 "rank": rank_idx + 1,
@@ -211,7 +237,6 @@ class WaterfallBacktestEngine:
         print(f"DEBUG: League Initialized with {len(participants)} strategies.")
             
         # 4. League Loop (Time + Rank Priority)
-        # Collect all timestamps
         all_ts = set()
         for f in feeds.values():
             for c in f:
@@ -219,52 +244,32 @@ class WaterfallBacktestEngine:
         sorted_ts = sorted(list(all_ts))
         
         for ts in sorted_ts:
-            context.current_timestamp = ts # Sync verification clock
-            
-            # Update Context Index for Primary (Helper for legacy logic if needed)
-            if primary_symbol in feeds:
-                # Find index (Naive check: assuming contiguous - improving robustness later)
-                # But Context.get_current_price uses generic lookup now, so explicit index less critical
-                # unless using current_candle property.
-                pass 
-                
-            # -- STRATEGY UPDATE PHASE --
-            # Every strategy MUST receive on_data to update indicators.
-            # Check Holdings to decide who executes.
-             
-            # "Occupancy Check": Is cash used?
-            # Actually, we let the strategies TRY.
-            # If cash is 0, they buy 0 or fail. 
-            # If holding other symbol, Context.buy rejects.
-            # So we iterate in RANK ORDER.
+            context.current_timestamp = ts 
             
             for p in participants:
                 strat = p['strategy']
                 sym = p['symbol']
                 
-                # Get candle for THIS strategy's symbol at THIS time
                 candle = None
                 if sym in feeds:
-                    # Optimized find? 
-                    # For V1, simple find.
-                    # TODO: Add index pointers for each feed for O(1)
                     matches = [c for c in feeds[sym] if c['timestamp'] == ts]
                     if matches: candle = matches[0]
                 
                 if candle:
-                    # Run Strategy Logic
-                    # This updates indicators.
-                    # If it triggers BUY, Context checks constraints (Cash/Holding).
-                    # If it triggers SELL (StopLoss), Context processes it.
                     strat.on_data(candle)
             
-            # Update Equity Curve for this timestamp
             context.update_equity()
             
         # 5. Stats
-        # Use Primary Feed for OHLCV visualization reference (or global)
         ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
-        return self._generate_stats(context, ref_feed)
+        stats = self._generate_stats(context, ref_feed)
+        
+        # [Visual Analysis Support]
+        stats['equity_curve'] = context.equity_curve
+        stats['chart_data'] = context.equity_curve 
+        stats['multi_ohlcv_data'] = viz_feeds # Use VIZ feeds for Popup
+        
+        return stats
 
     # Legacy 'run' for backward compatibility if needed, maps to run_integrated
     async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):

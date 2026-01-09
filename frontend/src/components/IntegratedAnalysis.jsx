@@ -135,6 +135,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig }) => {
             max: totalRanks + 0.5
         },
         autoScale: false,
+        minimumWidth: 80, // Prevent Rank text cutoff
     };
 
     // 5. Interaction
