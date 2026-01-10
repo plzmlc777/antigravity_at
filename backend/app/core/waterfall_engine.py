@@ -87,12 +87,11 @@ class BacktestContext(IContext):
         cost = exec_price * quantity
         
         # LEAGUE RULE: Cash Check (Shared Capital)
-        if self.cash < cost:
-             # Try adjusting quantity? Or just fail.
-             # TimeMomentum calculates based on cash, so usually fine.
-             # But if racing, cash might be gone.
-             self.log(f"BUY FAILED: Insufficient Cash ({self.cash} < {cost})")
-             return {"status": "failed", "reason": "Insufficient Cash"}
+        # SYNCHRONIZATION (2026-01-10): Disable strict check to match Rank 1 "Simulation Mode".
+        # Allow negative cash to support "Fixed Betting" strategies during drawdowns.
+        # if self.cash < cost:
+        #      self.log(f"BUY FAILED: Insufficient Cash ({self.cash} < {cost})")
+        #      return {"status": "failed", "reason": "Insufficient Cash"}
 
         self.cash -= cost
         self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
