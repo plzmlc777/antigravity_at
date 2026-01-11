@@ -352,7 +352,9 @@ class BacktestRequest(BaseModel):
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
-    from ..core.backtest_engine import BacktestEngine
+    # [MIGRATION] Use WaterfallBacktestEngine for consistent logic with Integrated Tab
+    from ..core.waterfall_engine import WaterfallBacktestEngine
+    # from ..core.backtest_engine import BacktestEngine
     
     # Select Strategy Class
     strategy_class = None
@@ -374,19 +376,20 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
              def on_data(self, data): pass
         strategy_class = MockStrategy
 
-    # Run Engine
-    # Initialize engine with Strategy Class and Strategy Config
-    engine = BacktestEngine(strategy_class, config)
-    
-    # Run
-    # Pass initial_capital to run() or set it before running?
-    # BacktestEngine needs to support initial_capital argument in run() or init.
-    # We will pass it to run().
+    # Initialize Engine (Unified)
+    # We pass the class, config is ignored here as run_integrated uses strategies_config list
+    engine = WaterfallBacktestEngine(strategy_class, config)
     
     start_date = request.start_date or request.from_date
     
-    result = await engine.run(
-        symbol=request.symbol, 
+    # Wrap Single into List for Integrated Engine
+    # We must inject 'symbol' into config for the engine to find data
+    config['symbol'] = request.symbol
+    
+    # Run Integrated (League of One)
+    result = await engine.run_integrated(
+        strategies_config=[config],
+        global_symbol=request.symbol, 
         interval=request.interval,
         duration_days=request.days, 
         from_date=start_date,
@@ -405,7 +408,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "profit_factor": result.get('profit_factor', "0.00"),
         "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
         "activity_rate": result.get('activity_rate', "0%"),
-        "total_days": result.get('total_days', 0), # Expose total_days
+        "total_days": result.get('total_days', 0),
         "avg_holding_time": result.get('avg_holding_time', "0m"),
         "decile_stats": result.get('decile_stats', []),
         "stability_score": result.get('stability_score', "0.00"),
@@ -413,7 +416,8 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "chart_data": result['chart_data'],
         "ohlcv_data": result.get('ohlcv_data', []),
         "trades": result.get('trades', []),
-        "logs": result['logs']
+        "logs": result.get('logs', []),
+        "rank_stats_list": result.get('rank_stats_list', [])
     }
 
 @router.post("/{strategy_id}/optimize", response_model=OptimizationResponse)
