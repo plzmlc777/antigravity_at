@@ -2,6 +2,7 @@ import random
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
+from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
 
 class BacktestContext(IContext):
     def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = 10000000, primary_symbol: str = None):
@@ -96,53 +97,100 @@ class BacktestContext(IContext):
              self.log(f"BUY FAILED: Invalid Price for {symbol}")
              return {"status": "failed", "reason": "Invalid Price"}
              
-        cost = exec_price * quantity
-        
-        # LEAGUE RULE: Cash Check (Shared Capital)
-        # SYNCHRONIZATION (2026-01-10): Disable strict check to match Rank 1 "Simulation Mode".
-        # Allow negative cash to support "Fixed Betting" strategies during drawdowns.
-        # if self.cash < cost:
-        #      self.log(f"BUY FAILED: Insufficient Cash ({self.cash} < {cost})")
-        #      return {"status": "failed", "reason": "Insufficient Cash"}
-
-        self.cash -= cost
-        self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
-        
-        # Record Trade
-        trade = {
-            "type": "buy",
-            "symbol": symbol,
-            "price": exec_price,
-            "quantity": quantity,
-            "time": self.get_time().isoformat(),
-            "strategy_rank": self.current_rank  # Tag trade with rank
-        }
-        self.trades.append(trade)
-        self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
-        return trade
+        # [REFACTOR] Use Order Class Logic
+        try:
+            # 1. Create Order Object
+            order = StockOrder(
+                symbol=symbol,
+                side=OrderSide.BUY,
+                quantity=quantity,
+                price=exec_price if price > 0 else None,
+                order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
+            )
+            
+            # 2. Validate
+            order.validate()
+            
+            # 3. Execution (Simulation)
+            cost = exec_price * quantity
+            self.cash -= cost
+            self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
+            
+            # 4. Fill Update
+            order.add_fill(
+                fill_price=exec_price,
+                fill_qty=quantity,
+                fill_id=f"SIM_BUY_{len(self.trades)+1}"
+            )
+            
+            # 5. Legacy Mapping (for _analyze_trades compatibility)
+            trade = {
+                "type": "buy",
+                "symbol": symbol,
+                "price": exec_price,
+                "quantity": quantity,
+                "time": self.get_time().isoformat(),
+                "strategy_rank": self.current_rank,
+                "order_id": order.id # Track Object ID
+            }
+            self.trades.append(trade)
+            self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
+            return trade
+            
+        except Exception as e:
+            self.log(f"BUY ERROR: {e}")
+            return {"status": "failed", "reason": str(e)}
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
         current_qty = self.holdings.get(symbol, 0)
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
-            revenue = exec_price * quantity
             
-            self.cash += revenue
-            self.holdings[symbol] -= quantity
-            if self.holdings[symbol] <= 0:
-                del self.holdings[symbol]
-            
-            trade = {
-                "type": "sell",
-                "symbol": symbol,
-                "price": exec_price,
-                "quantity": quantity,
-                "time": self.get_time().isoformat(),
-                "strategy_rank": self.current_rank  # Tag trade with rank
-            }
-            self.trades.append(trade)
-            self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
-            return trade
+            # [REFACTOR] Use Order Class Logic
+            try:
+                # 1. Create Order Object
+                order = StockOrder(
+                    symbol=symbol, 
+                    side=OrderSide.SELL, 
+                    quantity=quantity,
+                    price=exec_price if price > 0 else None,
+                    order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
+                )
+                
+                # 2. Validate
+                order.validate()
+                
+                # 3. Execution (Simulation)
+                revenue = exec_price * quantity
+                self.cash += revenue
+                self.holdings[symbol] -= quantity
+                if self.holdings[symbol] <= 0:
+                    del self.holdings[symbol]
+                
+                # 4. Fill Update
+                order.add_fill(
+                    fill_price=exec_price,
+                    fill_qty=quantity,
+                    fill_id=f"SIM_SELL_{len(self.trades)+1}"
+                )
+                
+                # 5. Legacy Mapping
+                trade = {
+                    "type": "sell",
+                    "symbol": symbol,
+                    "price": exec_price,
+                    "quantity": quantity,
+                    "time": self.get_time().isoformat(),
+                    "strategy_rank": self.current_rank,
+                    "order_id": order.id
+                }
+                self.trades.append(trade)
+                self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
+                return trade
+                
+            except Exception as e:
+                self.log(f"SELL ERROR: {e}")
+                return {"status": "failed", "reason": str(e)}
         else:
             self.log("SELL FAILED: Insufficient Holdings")
             return {"status": "failed", "reason": "Insufficient Holdings"}
