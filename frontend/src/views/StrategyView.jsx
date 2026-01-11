@@ -1898,76 +1898,83 @@ const StrategyView = () => {
                                         <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
                                             {activeAnalysisTab === 'overview' ? (
                                                 <div className="space-y-4">
-                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Total Return</div>
-                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                {backtestResult.total_return}
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
-                                                            <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
-                                                            <div className="text-xl font-bold text-white">{backtestResult.profit_factor || "0.00"}</div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Win Rate</div>
-                                                            <div className="text-xl font-bold text-white">{backtestResult.win_rate}</div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Sharpe Ratio</div>
-                                                            <div className="text-xl font-bold text-yellow-400">{backtestResult.sharpe_ratio || "0.00"}</div>
-                                                        </div>
+                                                    {/* Helpers defined inline for clarity in render block context or use component utils */
+                                                        (() => {
+                                                            const fmtPct = (v, d = 2) => typeof v === 'number' ? `${v.toFixed(d)}%` : (v || "0.00%");
+                                                            const fmtNum = (v, d = 2) => typeof v === 'number' ? v.toFixed(d) : (v || "0.00");
 
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Total Trades</div>
-                                                            <div className="text-xl font-bold text-white">
-                                                                {backtestResult.total_trades}
-                                                                <span className="text-sm font-normal text-gray-500 ml-2">
-                                                                    ({backtestResult.total_days} days)
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Stability (R²)</div>
-                                                            <div className="text-xl font-bold text-purple-400">{backtestResult.stability_score || "0.00"}</div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Profit Accel</div>
-                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.acceleration_score) >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                {backtestResult.acceleration_score ? `${backtestResult.acceleration_score}x` : "0.00x"}
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Activity Rate</div>
-                                                            <div className="text-xl font-bold text-blue-400">{backtestResult.activity_rate || "0%"}</div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Avg PnL</div>
-                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.avg_pnl) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                {backtestResult.avg_pnl}
-                                                            </div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Avg Holding</div>
-                                                            <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time || "0m"}</div>
-                                                        </div>
+                                                            return (
+                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Total Return</div>
+                                                                        <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {fmtPct(backtestResult.total_return)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                                                                        <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
+                                                                        <div className="text-xl font-bold text-white">{fmtNum(backtestResult.profit_factor)}</div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Win Rate</div>
+                                                                        <div className="text-xl font-bold text-white">{fmtPct(backtestResult.win_rate, 1)}</div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Sharpe Ratio</div>
+                                                                        <div className="text-xl font-bold text-yellow-400">{fmtNum(backtestResult.sharpe_ratio)}</div>
+                                                                    </div>
 
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Max Profit</div>
-                                                            <div className="text-xl font-bold text-green-400">{backtestResult.max_profit}</div>
-                                                        </div>
-                                                        <div className="p-3 bg-white/5 rounded-lg">
-                                                            <div className="text-xs text-gray-400">Max Loss</div>
-                                                            <div className="text-xl font-bold text-red-400">{backtestResult.max_loss}</div>
-                                                        </div>
-                                                        <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
-                                                            <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
-                                                            <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
-                                                                {backtestResult.max_drawdown || "N/A"}
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Total Trades</div>
+                                                                        <div className="text-xl font-bold text-white">
+                                                                            {backtestResult.total_trades}
+                                                                            <span className="text-sm font-normal text-gray-500 ml-2">
+                                                                                ({backtestResult.total_days} days)
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Stability (R²)</div>
+                                                                        <div className="text-xl font-bold text-purple-400">{fmtNum(backtestResult.stability_score)}</div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Profit Accel</div>
+                                                                        <div className={`text-xl font-bold ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                            {fmtNum(backtestResult.acceleration_score)}x
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Activity Rate</div>
+                                                                        <div className="text-xl font-bold text-blue-400">{fmtPct(backtestResult.activity_rate, 1)}</div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Avg PnL</div>
+                                                                        <div className={`text-xl font-bold ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {fmtPct(backtestResult.avg_pnl)}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Avg Holding</div>
+                                                                        <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time}m</div>
+                                                                    </div>
 
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Max Profit</div>
+                                                                        <div className="text-xl font-bold text-green-400">{fmtPct(backtestResult.max_profit)}</div>
+                                                                    </div>
+                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                        <div className="text-xs text-gray-400">Max Loss</div>
+                                                                        <div className="text-xl font-bold text-red-400">{fmtPct(backtestResult.max_loss)}</div>
+                                                                    </div>
+                                                                    <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
+                                                                        <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
+                                                                        <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
+                                                                            {fmtPct(backtestResult.max_drawdown)}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     {/* Monthly Analysis Chart */}
                                                     {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
                                                         <div className="mt-4 pt-4 border-t border-white/10">

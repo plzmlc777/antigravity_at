@@ -330,9 +330,9 @@ class WaterfallBacktestEngine:
         ]
         
         return {
-            "total_return": f"{total_return:.2f}%",
+            "total_return": total_return,
             "max_drawdown": self._calc_mdd(context.equity_curve),
-            "activity_rate": f"{activity_rate:.1f}%",
+            "activity_rate": activity_rate,
             "total_days": total_days,
             "chart_data": self._resample_equity(context.equity_curve, 50000),
             "ohlcv_data": raw_ohlcv,
@@ -344,20 +344,20 @@ class WaterfallBacktestEngine:
     def _empty_result(self, logs=None):
         return {
             "logs": logs or ["No data collected"],
-            "total_return": "0%",
-            "win_rate": "0%",
-            "max_drawdown": "0%",
-            "activity_rate": "0%",
+            "total_return": 0.0,
+            "win_rate": 0.0,
+            "max_drawdown": 0.0,
+            "activity_rate": 0.0,
             "total_trades": 0,
             "score": 0,
-            "avg_pnl": "0%",
-            "max_profit": "0%",
-            "max_loss": "0%",
-            "profit_factor": "0.00",
-            "sharpe_ratio": "0.00",
-            "avg_holding_time": "0m",
-            "stability_score": "0.00",
-            "acceleration_score": "0.00",
+            "avg_pnl": 0.0,
+            "max_profit": 0.0,
+            "max_loss": 0.0,
+            "profit_factor": 0.0,
+            "sharpe_ratio": 0.0,
+            "avg_holding_time": 0, # minutes
+            "stability_score": 0.0,
+            "acceleration_score": 0.0,
             "chart_data": [],
             "ohlcv_data": []
         }
@@ -478,17 +478,17 @@ class WaterfallBacktestEngine:
 
         return {
             "total_trades": total_count,
-            "win_rate": f"{win_rate:.1f}%",
-            "avg_pnl": f"{avg_pnl_percent:.2f}%",
-            "max_profit": f"{max_profit:.2f}%",
-            "max_loss": f"{max_loss:.2f}%",
-            "profit_factor": f"{profit_factor:.2f}",
-            "sharpe_ratio": f"{sharpe:.2f}",
+            "win_rate": win_rate,
+            "avg_pnl": avg_pnl_percent,
+            "max_profit": max_profit,
+            "max_loss": max_loss,
+            "profit_factor": profit_factor,
+            "sharpe_ratio": sharpe,
             # "activity_rate": activity_rate, # Removed to prevent overwrite
-            "avg_holding_time": f"{avg_holding_min}m",
+            "avg_holding_time": avg_holding_min, # minutes
             "decile_stats": decile_data['monthly_stats'],
-            "stability_score": str(decile_data['stability_score']),
-            "acceleration_score": str(decile_data['acceleration_score'])
+            "stability_score": decile_data['stability_score'],
+            "acceleration_score": decile_data['acceleration_score']
         }
 
     def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any) -> List[Dict]:
@@ -601,8 +601,8 @@ class WaterfallBacktestEngine:
 
         return {
             "monthly_stats": stats,
-            "stability_score": float(f"{stability_score:.2f}"),
-            "acceleration_score": float(f"{acceleration_score:.2f}")
+            "stability_score": stability_score,
+            "acceleration_score": acceleration_score
         }
 
     def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
@@ -621,12 +621,12 @@ class WaterfallBacktestEngine:
         return data
 
     def _calc_mdd(self, equity_curve):
-        if not equity_curve: return "0%"
+        if not equity_curve: return 0.0
         peak = equity_curve[0]['equity']
-        max_dd = 0
+        max_dd = 0.0
         for point in equity_curve:
             val = point['equity']
             if val > peak: peak = val
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd
-        return f"-{max_dd * 100:.2f}%"
+        return -(max_dd * 100)
