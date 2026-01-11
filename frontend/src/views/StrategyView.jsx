@@ -2077,8 +2077,84 @@ const StrategyView = () => {
                                                     )}
                                                 </div>
                                             ) : (
-                                                <div className="py-12 text-center text-gray-500 italic">
-                                                    Rank Details Table Placeholder
+                                                <div className="overflow-x-auto">
+                                                    {backtestResult.rank_stats_list && backtestResult.rank_stats_list.length > 0 ? (
+                                                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                            <thead>
+                                                                <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
+                                                                    <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
+                                                                    <th className="p-3">Total PnL</th>
+                                                                    <th className="p-3">Avg Return</th>
+                                                                    <th className="p-3">Win Rate</th>
+                                                                    <th className="p-3">Profit Factor</th>
+                                                                    <th className="p-3">Sharpe</th>
+                                                                    <th className="p-3">Trades</th>
+                                                                    <th className="p-3">Activity</th>
+                                                                    <th className="p-3">Stability</th>
+                                                                    <th className="p-3">Accel</th>
+                                                                    <th className="p-3">Avg Hold</th>
+                                                                    <th className="p-3">Max Profit</th>
+                                                                    <th className="p-3">Max Loss</th>
+                                                                    <th className="p-3 text-right">Max DD</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="text-sm">
+                                                                {backtestResult.rank_stats_list.map((stat, idx) => (
+                                                                    <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                                        <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
+                                                                        <td className={`p-3 font-bold ${stat.total_pnl_value >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {new Intl.NumberFormat('ko-KR').format(stat.total_pnl_value)}
+                                                                        </td>
+                                                                        <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
+                                                                        </td>
+                                                                        <td className="p-3 text-yellow-400 font-bold">
+                                                                            {stat.win_rate.toFixed(1)}%
+                                                                        </td>
+                                                                        <td className="p-3 text-white">
+                                                                            {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
+                                                                        </td>
+                                                                        <td className="p-3 text-yellow-400">
+                                                                            {typeof stat.sharpe_ratio === 'number' ? stat.sharpe_ratio.toFixed(2) : stat.sharpe_ratio}
+                                                                        </td>
+                                                                        <td className="p-3 text-gray-300">
+                                                                            {stat.total_trades}
+                                                                        </td>
+                                                                        <td className="p-3 text-blue-400">
+                                                                            {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
+                                                                        </td>
+                                                                        <td className="p-3 text-purple-400">
+                                                                            {typeof stat.stability_score === 'number' ? stat.stability_score.toFixed(2) : stat.stability_score}
+                                                                        </td>
+                                                                        <td className={`p-3 font-bold ${stat.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                            {typeof stat.acceleration_score === 'number' ? stat.acceleration_score.toFixed(2) : stat.acceleration_score}x
+                                                                        </td>
+                                                                        <td className="p-3 text-gray-400">
+                                                                            {stat.avg_holding_time}m
+                                                                        </td>
+                                                                        <td className="p-3 text-green-400">
+                                                                            {typeof stat.max_profit === 'number' ? stat.max_profit.toFixed(2) : stat.max_profit}%
+                                                                        </td>
+                                                                        <td className="p-3 text-red-400">
+                                                                            {typeof stat.max_loss === 'number' ? stat.max_loss.toFixed(2) : stat.max_loss}%
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-red-400 font-bold">
+                                                                            {typeof stat.max_drawdown === 'number' ? stat.max_drawdown.toFixed(2) : stat.max_drawdown}%
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <div className="py-12 text-center">
+                                                            <div className="text-gray-500 italic mb-2">No rank details available</div>
+                                                            <div className="text-xs text-gray-600">
+                                                                Debug: {JSON.stringify(Object.keys(backtestResult))}
+                                                                <br />
+                                                                IsList: {Array.isArray(backtestResult.rank_stats_list) ? "Yes" : "No"}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </Card>

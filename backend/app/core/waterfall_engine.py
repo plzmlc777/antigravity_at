@@ -22,6 +22,7 @@ class BacktestContext(IContext):
         self.logs = []
         self.equity_curve = []
         self.last_known_prices = {} # {symbol: price}
+        self.current_rank = 0 # Track which rank is currently executing
 
     @property
     def current_candle(self):
@@ -113,7 +114,8 @@ class BacktestContext(IContext):
             "symbol": symbol,
             "price": exec_price,
             "quantity": quantity,
-            "time": self.get_time().isoformat()
+            "time": self.get_time().isoformat(),
+            "strategy_rank": self.current_rank  # Tag trade with rank
         }
         self.trades.append(trade)
         self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
@@ -135,7 +137,8 @@ class BacktestContext(IContext):
                 "symbol": symbol,
                 "price": exec_price,
                 "quantity": quantity,
-                "time": self.get_time().isoformat()
+                "time": self.get_time().isoformat(),
+                "strategy_rank": self.current_rank  # Tag trade with rank
             }
             self.trades.append(trade)
             self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
@@ -259,6 +262,7 @@ class WaterfallBacktestEngine:
             for p in participants:
                 strat = p['strategy']
                 sym = p['symbol']
+                context.current_rank = p['rank']  # Set context rank before execution
                 
                 candle = None
                 if sym in feeds:
@@ -338,7 +342,7 @@ class WaterfallBacktestEngine:
             "ohlcv_data": raw_ohlcv,
             "logs": context.logs[-50:],
             "trades": context.trades,
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'])
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days)
         }
 
     def _empty_result(self, logs=None):
@@ -362,7 +366,7 @@ class WaterfallBacktestEngine:
             "ohlcv_data": []
         }
 
-    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None) -> Dict[str, Any]:
+    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True) -> Dict[str, Any]:
         if not trades:
             return {
                 "total_trades": 0,
@@ -372,11 +376,12 @@ class WaterfallBacktestEngine:
                 "max_loss": "0%",
                 "profit_factor": "0.00",
                 "sharpe_ratio": "0.00",
-                "avg_holding_time": "0m",
-                "stability_score": "0.00",
-                "acceleration_score": "0.00",
+                "avg_holding_time": 0,
+                "stability_score": 0.0,
+                "acceleration_score": 0.0,
                 "decile_stats": [],
-                "activity_rate": "0%"
+                "rank_stats_list": [],
+                "activity_rate": 0.0
             }
 
         # FIFO Trade Matching
@@ -415,7 +420,10 @@ class WaterfallBacktestEngine:
                         'pnl_percent': profit_percent,
                         'volume': revenue,
                         'holding_seconds': holding_seconds,
-                        'time': t['time'] # Store Sell Time for Decile Analysis
+                        'volume': revenue,
+                        'holding_seconds': holding_seconds,
+                        'time': t['time'], # Store Sell Time for Decile Analysis
+                        'strategy_rank': t.get('strategy_rank', 0) # Preserve tag
                     })
                     
                     # Update remaining quantities
@@ -435,49 +443,28 @@ class WaterfallBacktestEngine:
                 "max_loss": "0%",
                 "profit_factor": "0.0",
                 "sharpe_ratio": "0.0",
-                "avg_holding_time": "0m",
-                "decile_stats": []
+                "avg_holding_time": 0,
+                "decile_stats": [],
+                "rank_stats_list": []
             }
 
-        total_count = len(completed_trades)
-        wins = [t for t in completed_trades if t['pnl'] > 0]
-        loss = [t for t in completed_trades if t['pnl'] <= 0]
+        # Stats Calculation via Helper
+        base_stats = self._compute_stats_from_completed(completed_trades)
         
-        win_rate = len(wins) / total_count * 100
-        
-        avg_pnl_percent = sum(t['pnl_percent'] for t in completed_trades) / total_count * 100
-        
-        # Max Profit / Loss (in %)
-        max_profit = max([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
-        max_loss = min([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
-        
-        # Profit Factor
-        gross_profit = sum(t['pnl'] for t in wins)
-        gross_loss = abs(sum(t['pnl'] for t in loss))
-        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 99.99 # Infinite if no loss
-        
-        # Avg Holding Time
-        total_holding_sec = sum(t.get('holding_seconds', 0) for t in completed_trades)
-        avg_holding_sec = total_holding_sec / total_count if total_count > 0 else 0
-        avg_holding_min = int(avg_holding_sec / 60)
-        
-        # Sharpe Ratio (Simplified Estimate using Trade Returns)
-        # Ideally use daily returns, but trade-based Sharpe is a useful proxy for shorter-term strategies
-        # Sharpe = (Mean Return / StdDev Return) * sqrt(Trades Per Year)
-        # Check std deviation
-        import statistics
-        returns = [t['pnl_percent'] for t in completed_trades]
-        if len(returns) > 1:
-            stdev = statistics.stdev(returns)
-            sharpe = (statistics.mean(returns) / stdev * (len(returns)**0.5)) if stdev > 0 else 0
-        else:
-            sharpe = 0
+        # Extract for return
+        win_rate = base_stats['win_rate']
+        avg_pnl_percent = base_stats['avg_pnl']
+        max_profit = base_stats['max_profit']
+        max_loss = base_stats['max_loss']
+        profit_factor = base_stats['profit_factor']
+        sharpe = base_stats['sharpe_ratio']
+        avg_holding_min = base_stats['avg_holding_time']
 
         # Calculate Monthly Stats & Stability
         decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
 
         return {
-            "total_trades": total_count,
+            "total_trades": len(completed_trades),
             "win_rate": win_rate,
             "avg_pnl": avg_pnl_percent,
             "max_profit": max_profit,
@@ -488,8 +475,148 @@ class WaterfallBacktestEngine:
             "avg_holding_time": avg_holding_min, # minutes
             "decile_stats": decile_data['monthly_stats'],
             "stability_score": decile_data['stability_score'],
-            "acceleration_score": decile_data['acceleration_score']
+            "acceleration_score": decile_data['acceleration_score'],
+            "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts) if calc_ranks else []
         }
+
+    def _compute_stats_from_completed(self, completed_trades: List[Dict]) -> Dict[str, Any]:
+        """
+        Helper: Calculates WinRate, Sharpe, ProfitFactor, etc. from ALREADY MATCHED trades.
+        """
+        if not completed_trades:
+             return {
+                "win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "sharpe_ratio": 0.0,
+                "avg_holding_time": 0
+            }
+
+        total_count = len(completed_trades)
+        wins = [t for t in completed_trades if t['pnl'] > 0]
+        loss = [t for t in completed_trades if t['pnl'] <= 0]
+        
+        win_rate = len(wins) / total_count * 100
+        avg_pnl_percent = sum(t['pnl_percent'] for t in completed_trades) / total_count * 100
+        
+        # Max Profit / Loss (in %)
+        max_profit = max([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
+        max_loss = min([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
+        
+        # Profit Factor
+        gross_profit = sum(t['pnl'] for t in wins)
+        gross_loss = abs(sum(t['pnl'] for t in loss))
+        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 99.99 
+        
+        # Avg Holding Time
+        total_holding_sec = sum(t.get('holding_seconds', 0) for t in completed_trades)
+        avg_holding_sec = total_holding_sec / total_count if total_count > 0 else 0
+        avg_holding_min = int(avg_holding_sec / 60)
+        
+        # Sharpe Ratio
+        import statistics
+        returns = [t['pnl_percent'] for t in completed_trades]
+        if len(returns) > 1:
+            stdev = statistics.stdev(returns)
+            sharpe = (statistics.mean(returns) / stdev * (len(returns)**0.5)) if stdev > 0 else 0
+        else:
+            sharpe = 0
+            
+        return {
+            "win_rate": win_rate,
+            "avg_pnl": avg_pnl_percent,
+            "max_profit": max_profit,
+            "max_loss": max_loss,
+            "profit_factor": profit_factor,
+            "sharpe_ratio": sharpe,
+            "avg_holding_time": avg_holding_min
+        }
+
+    def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any) -> List[Dict]:
+        """
+        Calculates full suite of statistics for each Rank, matching Overview metrics.
+        """
+        ranks = sorted(list(set(t.get('strategy_rank', 0) for t in trades)))
+        rank_stats = []
+        
+        for r in ranks:
+            if r == 0: continue # Skip if rank 0
+            
+            r_trades = [t for t in trades if t.get('strategy_rank') == r]
+            if not r_trades: continue
+            
+            # 1. Base Stats via Helper
+            # Use Decile Calc for Stability/Accel/Deciles separately if needed?
+            # Actually, Stability/Accel require _calc_deciles which needs Trades+Dates.
+            # _calc_deciles works on completed trades.
+            # So we can calculate stability for this rank too!
+            
+            decile_data_rank = self._calc_deciles(r_trades, start_ts, end_ts)
+            base_stats = self._compute_stats_from_completed(r_trades)
+            
+            # Merge decile-based stability into base_stats
+            base_stats['stability_score'] = decile_data_rank['stability_score']
+            base_stats['acceleration_score'] = decile_data_rank['acceleration_score']
+            base_stats['total_trades'] = len(r_trades)
+            
+            # 2. Total PnL (Value)
+            total_pnl_value = sum(t['pnl'] for t in r_trades)
+            
+            # 3. Activity Rate
+            if total_days > 0 and r_trades:
+                # Use first 10 chars of ISO string for Date YYYY-MM-DD
+                uniq_days = len(set(t['time'][:10] for t in r_trades))
+                activity_rate = (uniq_days / total_days * 100)
+            else:
+                activity_rate = 0.0
+                
+            # 4. Max Drawdown (From Peak of Cumulative PnL Curve)
+            # Since we don't have per-rank capital, we check DD from Peak Profit.
+            cum_pnl = 0
+            peak_pnl = 0
+            max_dd_val = 0
+            
+            # Sort by time to ensure curve is correct
+            sorted_trades = sorted(r_trades, key=lambda x: x['time'])
+            
+            for t in sorted_trades:
+                cum_pnl += t['pnl']
+                if cum_pnl > peak_pnl:
+                    peak_pnl = cum_pnl
+                
+                # Drawdown is distance from Peak
+                # If Peak is 0 (all loss), DD gets larger negative? 
+                # Drawdown = Peak - Current. 
+                dd = peak_pnl - cum_pnl
+                if dd > max_dd_val:
+                    max_dd_val = dd
+            
+            # DD % relative to Peak Profit (if meaningful) or just return Value
+            # Overview uses % of Equity. Here we only have PnL. 
+            # We will return the Value for now, or if Peak > 0 we can try %.
+            # Let's provide BOTH or handle in frontend. 
+            # Actually, to be 1:1, Frontend expects "Max Drawdown". 
+            # Let's provide "max_drawdown" as a Percentage if Peak > 0, else 0 ??
+            # Or just provide the Value and label it?
+            # User wants 1:1. The Overview has "Max Drawdown %".
+            # If I return a raw number, Frontend formats with "%". 
+            # If I return 1,000,000 and it says "1,000,000%", that's bad.
+            # So I should return a fake % or strictly meaningful %.
+            # "Drawdown from Peak PnL" / "Peak PnL" makes sense.
+            max_dd_pct = (max_dd_val / peak_pnl * 100) if peak_pnl > 0.0001 else 0.0
+            
+            rank_stats.append({
+                "rank": r,
+                "total_pnl_value": int(total_pnl_value),
+                "activity_rate": float(f"{activity_rate:.1f}"),
+                "max_drawdown": float(f"{max_dd_pct:.2f}"), # % relative to Peak Profit
+                "max_drawdown_value": int(max_dd_val), # Value for tooltip/debug
+                **base_stats 
+            })
+            
+        return rank_stats
 
     def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any) -> List[Dict]:
         """
