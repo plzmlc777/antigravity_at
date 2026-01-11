@@ -273,6 +273,7 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "trades": result.get('trades', []),
             "matched_trades": result.get('matched_trades', []),
             "multi_ohlcv_data": result.get('multi_ohlcv_data', {}),
+            "rank_stats_list": result.get('rank_stats_list', []),
             "logs": result.get('logs', [])
         }
     except Exception as e:

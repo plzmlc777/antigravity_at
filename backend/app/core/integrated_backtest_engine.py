@@ -137,7 +137,8 @@ class IntegratedBacktestEngine(BacktestEngine):
                         'pnl': profit,
                         'pnl_percent': profit_percent,
                         'holding_seconds': holding_seconds,
-                        'strategy_name': t.get('strategy_rank', 'Unknown')
+                        'strategy_name': t.get('strategy_rank', 'Unknown'),
+                        'strategy_rank': t.get('strategy_rank', 999) # Ensure explicit int rank
                     })
                     
                     qty_to_sell -= matched_qty
@@ -148,4 +149,54 @@ class IntegratedBacktestEngine(BacktestEngine):
 
         # Merge new data into base stats
         base_stats['matched_trades'] = completed_trades
+
+        # Calculate Per-Rank Statistics
+        rank_stats = {}
+        for t in completed_trades:
+            rank = t.get('strategy_rank', 999)
+            if rank not in rank_stats:
+                rank_stats[rank] = {
+                    'pnl': 0.0,
+                    'pnl_percent': 0.0,
+                    'wins': 0,
+                    'count': 0,
+                    'total_holding': 0
+                }
+            
+            rank_stats[rank]['pnl'] += t['pnl']
+            rank_stats[rank]['pnl_percent'] += t['pnl_percent']
+            rank_stats[rank]['count'] += 1
+            rank_stats[rank]['total_holding'] += t['holding_seconds']
+            if t['pnl'] > 0:
+                rank_stats[rank]['wins'] += 1
+
+        rank_stats_list = []
+        for rank, data in rank_stats.items():
+            count = data['count']
+            if count > 0:
+                win_rate = (data['wins'] / count) * 100
+                avg_holding = data['total_holding'] / count
+                
+                # Format Holding Time
+                if avg_holding < 60:
+                    holding_str = f"{int(avg_holding)}s"
+                elif avg_holding < 3600:
+                    holding_str = f"{int(avg_holding // 60)}m"
+                else:
+                    holding_str = f"{avg_holding / 3600:.1f}h"
+
+                rank_stats_list.append({
+                    "rank": rank,
+                    "trades": count,
+                    "win_rate": f"{win_rate:.1f}%",
+                    "return": f"{data['pnl_percent'] * 100:.2f}%", 
+                    "avg_holding": holding_str,
+                    "profit": float(f"{data['pnl']:.0f}") # Raw PnL Amount
+                })
+        
+        # Sort by Rank
+        rank_stats_list.sort(key=lambda x: x['rank'])
+        
+        base_stats['rank_stats_list'] = rank_stats_list # Add to return
+        
         return base_stats

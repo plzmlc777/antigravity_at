@@ -695,7 +695,13 @@ class BacktestEngine:
                 owner_candle = context.feed_index.get(owner_sym, {}).get(candle['timestamp'])
                 
                 if owner_candle:
+                    trades_before = len(context.trades)
                     owner_strat.on_data(owner_candle)
+                    trades_after = len(context.trades)
+                    
+                    if trades_after > trades_before:
+                         # Tag the exit trade (or any trade made by owner)
+                         context.trades[-1]['strategy_rank'] = trade_owner_idx + 1
                 else:
                     # Data missing for this symbol at this time?
                     # Skip for safety
