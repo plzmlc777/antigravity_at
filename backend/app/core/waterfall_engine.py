@@ -604,29 +604,35 @@ class WaterfallBacktestEngine:
             else:
                 activity_rate = 0.0
                 
-            # 4. Max Drawdown
-            # Drawdown is distance from Peak PnL
-            # We calculate this as a percentage of INITIAL CAPITAL to show risk contribution to portfolio.
-            # Sign is negative to match Overview.
-            
-            cum_pnl = 0
-            peak_pnl = 0
-            max_dd_val = 0
+            # 4. Max Drawdown (Standardized Calculation)
+            # To match Overview exactly, we must treat this Rank as a virtual sub-account.
+            # Virtual Equity = Initial Capital + Cumulative PnL
+            # MDD = (Peak Virtual Equity - Current Virtual Equity) / Peak Virtual Equity
             
             # Sort by time to ensure curve is correct
             sorted_trades = sorted(r_trades, key=lambda x: x['time'])
             
-            for t in sorted_trades:
-                cum_pnl += t['pnl']
-                if cum_pnl > peak_pnl:
-                    peak_pnl = cum_pnl
-                
-                dd = peak_pnl - cum_pnl
-                if dd > max_dd_val:
-                    max_dd_val = dd
+            virtual_equity = initial_capital
+            peak_equity = initial_capital
+            max_dd_ratio = 0.0
+            max_dd_val = 0.0 # Keep tracking value for potential debug
             
-            # MDD % relative to Initial Capital (Negative)
-            max_dd_pct = -(max_dd_val / initial_capital * 100) if initial_capital > 0 else 0.0
+            for t in sorted_trades:
+                virtual_equity += t['pnl']
+                
+                if virtual_equity > peak_equity:
+                    peak_equity = virtual_equity
+                
+                dd_val = peak_equity - virtual_equity
+                if dd_val > 0:
+                    dd_ratio = dd_val / peak_equity
+                    if dd_ratio > max_dd_ratio:
+                        max_dd_ratio = dd_ratio
+                        max_dd_val = dd_val # Max DD Value
+
+            # MDD % (Negative)
+            max_dd_pct = -(max_dd_ratio * 100) if initial_capital > 0 else 0.0
+            
             
             rank_stats.append({
                 "rank": r,
