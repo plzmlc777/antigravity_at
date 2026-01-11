@@ -1799,81 +1799,7 @@ const StrategyView = () => {
 
                             {/* Backtest Results */}
                             {backtestResult && (
-                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                                    <Card
-                                        className="lg:col-span-2"
-                                        title="Equity Curve"
-                                    >
-                                        <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={backtestResult.chart_data}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        stroke="#666"
-                                                        height={50}
-                                                        ticks={(() => {
-                                                            // Generate ticks only for month changes
-                                                            if (!backtestResult.chart_data) return [];
-                                                            const ticks = [];
-                                                            let lastMonth = -1;
-                                                            backtestResult.chart_data.forEach(d => {
-                                                                const date = new Date(d.date);
-                                                                const month = date.getMonth();
-                                                                if (month !== lastMonth) {
-                                                                    ticks.push(d.date);
-                                                                    lastMonth = month;
-                                                                }
-                                                            });
-                                                            return ticks;
-                                                        })()}
-                                                        interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
-                                                        tick={({ x, y, payload, index }) => {
-                                                            const dateStr = payload.value;
-                                                            if (!dateStr) return null;
-                                                            const date = new Date(dateStr);
-                                                            const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
-                                                            const year = date.getFullYear();
-
-                                                            // Show Year if it's Jan (Month 0) OR it's the very first tick
-                                                            const isJan = date.getMonth() === 0;
-                                                            const showYear = index === 0 || isJan;
-
-                                                            return (
-                                                                <g transform={`translate(${x},${y})`}>
-                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
-                                                                        {monthStr}
-                                                                    </text>
-                                                                    {showYear && (
-                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
-                                                                            {year}
-                                                                        </text>
-                                                                    )}
-                                                                </g>
-                                                            );
-                                                        }}
-                                                    />
-                                                    <YAxis
-                                                        stroke="#666"
-                                                        domain={['auto', 'auto']}
-                                                        tickFormatter={(value) => {
-                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
-                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                                            return value;
-                                                        }}
-                                                        width={60}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                        itemStyle={{ color: '#fff' }}
-                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
-                                                    />
-                                                    <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </Card>
+                                <div className="space-y-6 mb-6">
                                     <div className="space-y-6">
                                         {/* Analysis Mode Tabs (Integrated Only or Global) */}
                                         <div className="flex gap-4 mb-4">
@@ -2144,6 +2070,99 @@ const StrategyView = () => {
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
+                                                            <tfoot className="text-sm border-t-2 border-white/20">
+                                                                {/* 1. Calculated Total / Average Row */}
+                                                                {(() => {
+                                                                    const stats = backtestResult.rank_stats_list;
+                                                                    const count = stats.length;
+                                                                    const sumReturn = stats.reduce((acc, s) => acc + s.total_return, 0);
+                                                                    const totalTrades = stats.reduce((acc, s) => acc + s.total_trades, 0);
+
+                                                                    // Activity Rate: Sum (matches Overview ~81%)
+                                                                    const sumActivity = stats.reduce((acc, s) => acc + s.activity_rate, 0);
+
+                                                                    // Weighted Averages (by Trades) - More accurate for PnL/PF/Sharpe
+                                                                    const getWeightedAvg = (key) => totalTrades > 0
+                                                                        ? stats.reduce((acc, s) => acc + (s[key] * s.total_trades), 0) / totalTrades
+                                                                        : 0;
+
+                                                                    const wWinRate = getWeightedAvg('win_rate');
+                                                                    const wPF = getWeightedAvg('profit_factor');
+                                                                    const wSharpe = getWeightedAvg('sharpe_ratio');
+                                                                    const wStability = getWeightedAvg('stability_score');
+                                                                    const wAccel = getWeightedAvg('acceleration_score');
+                                                                    const wReturn = getWeightedAvg('avg_pnl');
+                                                                    const wHold = getWeightedAvg('avg_holding_time');
+
+                                                                    // Extremes
+                                                                    const maxProfit = stats.length > 0 ? Math.max(...stats.map(s => s.max_profit)) : 0;
+                                                                    const maxLoss = stats.length > 0 ? Math.min(...stats.map(s => s.max_loss)) : 0;
+                                                                    const maxDD = stats.length > 0 ? Math.min(...stats.map(s => s.max_drawdown)) : 0; // Negative values
+
+                                                                    return (
+                                                                        <tr className="bg-[#1a1d24]/50 border-b border-white/10 font-bold text-gray-300">
+                                                                            <td className="p-3 sticky left-0 bg-[#15181e] z-10 shadow-r">TOTAL (Sum/W.Avg)</td>
+                                                                            <td className={`p-3 ${sumReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{sumReturn.toFixed(2)}%</td>
+                                                                            <td className="p-3">{wPF.toFixed(2)}</td>
+                                                                            <td className="p-3 text-yellow-400/80">{wWinRate.toFixed(1)}%</td>
+                                                                            <td className="p-3">{wSharpe.toFixed(2)}</td>
+                                                                            <td className="p-3 text-white">{totalTrades}</td>
+                                                                            <td className="p-3">{wStability.toFixed(2)}</td>
+                                                                            <td className="p-3">{wAccel.toFixed(2)}x</td>
+                                                                            <td className="p-3">{sumActivity.toFixed(1)}%</td>
+                                                                            <td className={`p-3 ${wReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{wReturn > 0 ? "+" : ""}{wReturn.toFixed(2)}%</td>
+                                                                            <td className="p-3">{Math.round(wHold)}m</td>
+                                                                            <td className="p-3 text-green-400/80">{maxProfit.toFixed(2)}%</td>
+                                                                            <td className="p-3 text-red-400/80">{maxLoss.toFixed(2)}%</td>
+                                                                            <td className="p-3 text-right text-red-400/80">{maxDD.toFixed(2)}%</td>
+                                                                        </tr>
+                                                                    );
+                                                                })()}
+
+                                                                {/* 2. Overview Row (Global Stats) */}
+                                                                <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
+                                                                    <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
+                                                                    <td className={`p-3 ${backtestResult.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                        {typeof backtestResult.total_return === 'number' ? backtestResult.total_return.toFixed(2) : backtestResult.total_return}%
+                                                                    </td>
+                                                                    <td className="p-3 text-white">
+                                                                        {typeof backtestResult.profit_factor === 'number' ? backtestResult.profit_factor.toFixed(2) : backtestResult.profit_factor}
+                                                                    </td>
+                                                                    <td className="p-3 text-yellow-400">
+                                                                        {typeof backtestResult.win_rate === 'number' ? backtestResult.win_rate.toFixed(1) : backtestResult.win_rate}%
+                                                                    </td>
+                                                                    <td className="p-3 text-yellow-400">
+                                                                        {typeof backtestResult.sharpe_ratio === 'number' ? backtestResult.sharpe_ratio.toFixed(2) : backtestResult.sharpe_ratio}
+                                                                    </td>
+                                                                    <td className="p-3 text-gray-300">
+                                                                        {backtestResult.total_trades}
+                                                                    </td>
+                                                                    <td className="p-3 text-purple-400">
+                                                                        {typeof backtestResult.stability_score === 'number' ? backtestResult.stability_score.toFixed(2) : backtestResult.stability_score}
+                                                                    </td>
+                                                                    <td className={`p-3 ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                        {typeof backtestResult.acceleration_score === 'number' ? backtestResult.acceleration_score.toFixed(2) : backtestResult.acceleration_score}x
+                                                                    </td>
+                                                                    <td className="p-3 text-blue-400">
+                                                                        {typeof backtestResult.activity_rate === 'number' ? backtestResult.activity_rate.toFixed(1) : backtestResult.activity_rate}%
+                                                                    </td>
+                                                                    <td className={`p-3 ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                        {backtestResult.avg_pnl > 0 ? "+" : ""}{typeof backtestResult.avg_pnl === 'number' ? backtestResult.avg_pnl.toFixed(2) : backtestResult.avg_pnl}%
+                                                                    </td>
+                                                                    <td className="p-3 text-gray-400">
+                                                                        {backtestResult.avg_holding_time}m
+                                                                    </td>
+                                                                    <td className="p-3 text-green-400">
+                                                                        {typeof backtestResult.max_profit === 'number' ? backtestResult.max_profit.toFixed(2) : backtestResult.max_profit}%
+                                                                    </td>
+                                                                    <td className="p-3 text-red-400">
+                                                                        {typeof backtestResult.max_loss === 'number' ? backtestResult.max_loss.toFixed(2) : backtestResult.max_loss}%
+                                                                    </td>
+                                                                    <td className="p-3 text-right text-red-400">
+                                                                        {typeof backtestResult.max_drawdown === 'number' ? backtestResult.max_drawdown.toFixed(2) : backtestResult.max_drawdown}%
+                                                                    </td>
+                                                                </tr>
+                                                            </tfoot>
                                                         </table>
                                                     ) : (
                                                         <div className="py-12 text-center">
@@ -2162,6 +2181,79 @@ const StrategyView = () => {
                                             Deploy Strategy to Live
                                         </button>
                                     </div>
+                                    <Card
+                                        title="Equity Curve"
+                                    >
+                                        <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={backtestResult.chart_data}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        stroke="#666"
+                                                        height={50}
+                                                        ticks={(() => {
+                                                            // Generate ticks only for month changes
+                                                            if (!backtestResult.chart_data) return [];
+                                                            const ticks = [];
+                                                            let lastMonth = -1;
+                                                            backtestResult.chart_data.forEach(d => {
+                                                                const date = new Date(d.date);
+                                                                const month = date.getMonth();
+                                                                if (month !== lastMonth) {
+                                                                    ticks.push(d.date);
+                                                                    lastMonth = month;
+                                                                }
+                                                            });
+                                                            return ticks;
+                                                        })()}
+                                                        interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
+                                                        tick={({ x, y, payload, index }) => {
+                                                            const dateStr = payload.value;
+                                                            if (!dateStr) return null;
+                                                            const date = new Date(dateStr);
+                                                            const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
+                                                            const year = date.getFullYear();
+
+                                                            // Show Year if it's Jan (Month 0) OR it's the very first tick
+                                                            const isJan = date.getMonth() === 0;
+                                                            const showYear = index === 0 || isJan;
+
+                                                            return (
+                                                                <g transform={`translate(${x},${y})`}>
+                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
+                                                                        {monthStr}
+                                                                    </text>
+                                                                    {showYear && (
+                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
+                                                                            {year}
+                                                                        </text>
+                                                                    )}
+                                                                </g>
+                                                            );
+                                                        }}
+                                                    />
+                                                    <YAxis
+                                                        stroke="#666"
+                                                        domain={['auto', 'auto']}
+                                                        tickFormatter={(value) => {
+                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
+                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                                            return value;
+                                                        }}
+                                                        width={60}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                        itemStyle={{ color: '#fff' }}
+                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
+                                                    />
+                                                    <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </Card>
                                 </div>
                             )}
                         </div> {/* End of Backtest Simulation Group */}

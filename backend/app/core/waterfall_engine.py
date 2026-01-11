@@ -273,7 +273,41 @@ class WaterfallBacktestEngine:
                     strat.on_data(candle)
             
             context.update_equity()
+
+        # [FORCED LIQUIDATION] (2026-01-11)
+        # To ensure Total Return (Equity) and Rank Sums (Realized PnL) match exactly,
+        # we must close all open positions at the end.
+        
+        # 1. Calculate Net Position per Rank
+        rank_positions = {} # { rank_id: { symbol: qty } }
+        for t in context.trades:
+            r = t.get('strategy_rank', 0)
+            sym = t['symbol']
+            qty = t['quantity']
             
+            if r not in rank_positions: rank_positions[r] = {}
+            if sym not in rank_positions[r]: rank_positions[r][sym] = 0
+            
+            if t['type'] == 'buy':
+                rank_positions[r][sym] += qty
+            elif t['type'] == 'sell':
+                rank_positions[r][sym] -= qty
+                
+        # 2. Execute Forced Sells
+        print("DEBUG: Executing Forced Liquidation at end of simulation...")
+        for r, syms in rank_positions.items():
+            for sym, qty in syms.items():
+                if qty > 0:
+                    context.current_rank = r
+                    # Get Last Price
+                    last_price = context.get_current_price(sym)
+                    if last_price <= 0:
+                         # Fallback if no price found (should rare)
+                         last_price = 100000 
+                         
+                    print(f"DEBUG: Force Closing Rank {r}: {qty} {sym} @ {last_price}")
+                    context.sell(sym, qty, price=last_price)
+                    
         # 5. Stats
         ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
         stats = self._generate_stats(context, ref_feed)
@@ -570,8 +604,11 @@ class WaterfallBacktestEngine:
             else:
                 activity_rate = 0.0
                 
-            # 4. Max Drawdown (From Peak of Cumulative PnL Curve)
-            # Since we don't have per-rank capital, we check DD from Peak Profit.
+            # 4. Max Drawdown
+            # Drawdown is distance from Peak PnL
+            # We calculate this as a percentage of INITIAL CAPITAL to show risk contribution to portfolio.
+            # Sign is negative to match Overview.
+            
             cum_pnl = 0
             peak_pnl = 0
             max_dd_val = 0
@@ -584,26 +621,12 @@ class WaterfallBacktestEngine:
                 if cum_pnl > peak_pnl:
                     peak_pnl = cum_pnl
                 
-                # Drawdown is distance from Peak
-                # If Peak is 0 (all loss), DD gets larger negative? 
-                # Drawdown = Peak - Current. 
                 dd = peak_pnl - cum_pnl
                 if dd > max_dd_val:
                     max_dd_val = dd
             
-            # DD % relative to Peak Profit (if meaningful) or just return Value
-            # Overview uses % of Equity. Here we only have PnL. 
-            # We will return the Value for now, or if Peak > 0 we can try %.
-            # Let's provide BOTH or handle in frontend. 
-            # Actually, to be 1:1, Frontend expects "Max Drawdown". 
-            # Let's provide "max_drawdown" as a Percentage if Peak > 0, else 0 ??
-            # Or just provide the Value and label it?
-            # User wants 1:1. The Overview has "Max Drawdown %".
-            # If I return a raw number, Frontend formats with "%". 
-            # If I return 1,000,000 and it says "1,000,000%", that's bad.
-            # So I should return a fake % or strictly meaningful %.
-            # "Drawdown from Peak PnL" / "Peak PnL" makes sense.
-            max_dd_pct = (max_dd_val / peak_pnl * 100) if peak_pnl > 0.0001 else 0.0
+            # MDD % relative to Initial Capital (Negative)
+            max_dd_pct = -(max_dd_val / initial_capital * 100) if initial_capital > 0 else 0.0
             
             rank_stats.append({
                 "rank": r,

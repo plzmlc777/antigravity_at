@@ -11,9 +11,14 @@ engine = WaterfallBacktestEngine(MockStrategy)
 initial_capital = 10000000 # 10 Million
 trades = [
     {"type": "buy", "symbol": "005930", "price": 100, "quantity": 1000, "time": "2024-01-01T10:00:00", "strategy_rank": 1},
-    {"type": "sell", "symbol": "005930", "price": 110, "quantity": 1000, "time": "2024-01-02T10:00:00", "strategy_rank": 1}
-    # Profit = (110 - 100) * 1000 = 10,000 KRW
-    # Return % = 10,000 / 10,000,000 * 100 = 0.1%
+    {"type": "sell", "symbol": "005930", "price": 110, "quantity": 1000, "time": "2024-01-02T10:00:00", "strategy_rank": 1},
+    # Trade 1: +10,000 KRW. Cum: +10,000. Peak: +10,000.
+    
+    {"type": "buy", "symbol": "005930", "price": 100, "quantity": 1000, "time": "2024-01-03T10:00:00", "strategy_rank": 1},
+    {"type": "sell", "symbol": "005930", "price": 95, "quantity": 1000, "time": "2024-01-04T10:00:00", "strategy_rank": 1}
+    # Trade 2: -5,000 KRW. Cum: +5,000. Peak: +10,000.
+    # Drawdown Amount: 5,000 KRW.
+    # MDD % = -(5,000 / 10,000,000 * 100) = -0.05%
 ]
 
 print("Running _calc_rank_stats check...")
@@ -27,11 +32,18 @@ try:
     else:
         r1 = rank_stats[0]
         print(f"Rank 1 Stats: {r1}")
-        expected_return = 0.1
-        if abs(r1['total_return'] - expected_return) < 0.001:
-            print("SUCCESS: Total Return matches expected 0.1%")
+        
+        # Check Total Return (Net +5000 / 10M = 0.05%)
+        if abs(r1['total_return'] - 0.05) < 0.001:
+            print("SUCCESS: Total Return matches expected 0.05%")
         else:
-            print(f"FAILED: Expected 0.1%, got {r1['total_return']}%")
+            print(f"FAILED: Expected Return 0.05%, got {r1['total_return']}%")
+            
+        # Check MDD (-0.05%)
+        if abs(r1['max_drawdown'] - (-0.05)) < 0.001:
+             print("SUCCESS: Max Drawdown matches expected -0.05%")
+        else:
+             print(f"FAILED: Expected MDD -0.05%, got {r1['max_drawdown']}%")
 
 except Exception as e:
     print(f"CRASHED: {e}")
