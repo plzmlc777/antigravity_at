@@ -2084,14 +2084,14 @@ const StrategyView = () => {
                                                                 <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
                                                                     <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
                                                                     <th className="p-3">Total PnL</th>
-                                                                    <th className="p-3">Avg Return</th>
-                                                                    <th className="p-3">Win Rate</th>
                                                                     <th className="p-3">Profit Factor</th>
+                                                                    <th className="p-3">Win Rate</th>
                                                                     <th className="p-3">Sharpe</th>
                                                                     <th className="p-3">Trades</th>
-                                                                    <th className="p-3">Activity</th>
                                                                     <th className="p-3">Stability</th>
                                                                     <th className="p-3">Accel</th>
+                                                                    <th className="p-3">Activity</th>
+                                                                    <th className="p-3">Avg Return</th>
                                                                     <th className="p-3">Avg Hold</th>
                                                                     <th className="p-3">Max Profit</th>
                                                                     <th className="p-3">Max Loss</th>
@@ -2105,14 +2105,11 @@ const StrategyView = () => {
                                                                         <td className={`p-3 font-bold ${stat.total_pnl_value >= 0 ? "text-green-400" : "text-red-400"}`}>
                                                                             {new Intl.NumberFormat('ko-KR').format(stat.total_pnl_value)}
                                                                         </td>
-                                                                        <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
+                                                                        <td className="p-3 text-white">
+                                                                            {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
                                                                         </td>
                                                                         <td className="p-3 text-yellow-400 font-bold">
                                                                             {stat.win_rate.toFixed(1)}%
-                                                                        </td>
-                                                                        <td className="p-3 text-white">
-                                                                            {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
                                                                         </td>
                                                                         <td className="p-3 text-yellow-400">
                                                                             {typeof stat.sharpe_ratio === 'number' ? stat.sharpe_ratio.toFixed(2) : stat.sharpe_ratio}
@@ -2120,14 +2117,17 @@ const StrategyView = () => {
                                                                         <td className="p-3 text-gray-300">
                                                                             {stat.total_trades}
                                                                         </td>
-                                                                        <td className="p-3 text-blue-400">
-                                                                            {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
-                                                                        </td>
                                                                         <td className="p-3 text-purple-400">
                                                                             {typeof stat.stability_score === 'number' ? stat.stability_score.toFixed(2) : stat.stability_score}
                                                                         </td>
                                                                         <td className={`p-3 font-bold ${stat.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
                                                                             {typeof stat.acceleration_score === 'number' ? stat.acceleration_score.toFixed(2) : stat.acceleration_score}x
+                                                                        </td>
+                                                                        <td className="p-3 text-blue-400">
+                                                                            {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
+                                                                        </td>
+                                                                        <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
                                                                         </td>
                                                                         <td className="p-3 text-gray-400">
                                                                             {stat.avg_holding_time}m
