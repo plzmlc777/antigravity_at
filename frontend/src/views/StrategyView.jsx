@@ -114,6 +114,7 @@ const StrategyView = () => {
     const [showIntegratedAnalysis, setShowIntegratedAnalysis] = useState(false);
     const [integratedResults, setIntegratedResults] = useState(null);
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
+    const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -1874,179 +1875,205 @@ const StrategyView = () => {
                                         </div>
                                     </Card>
                                     <div className="space-y-6">
-                                        <Card title="Performance Stats">
-                                            <div className="space-y-4">
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Total Return</div>
-                                                        <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                            {backtestResult.total_return}
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
-                                                        <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
-                                                        <div className="text-xl font-bold text-white">{backtestResult.profit_factor || "0.00"}</div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Win Rate</div>
-                                                        <div className="text-xl font-bold text-white">{backtestResult.win_rate}</div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Sharpe Ratio</div>
-                                                        <div className="text-xl font-bold text-yellow-400">{backtestResult.sharpe_ratio || "0.00"}</div>
-                                                    </div>
+                                        {/* Analysis Mode Tabs (Integrated Only or Global) */}
+                                        <div className="flex gap-4 mb-4">
+                                            <button
+                                                onClick={() => setActiveAnalysisTab('overview')}
+                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'overview'
+                                                    ? 'bg-purple-600 text-white shadow-lg'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                            >
+                                                Overview
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveAnalysisTab('rank_details')}
+                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'rank_details'
+                                                    ? 'bg-purple-600 text-white shadow-lg'
+                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                            >
+                                                Rank Details
+                                            </button>
+                                        </div>
 
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Total Trades</div>
-                                                        <div className="text-xl font-bold text-white">
-                                                            {backtestResult.total_trades}
-                                                            <span className="text-sm font-normal text-gray-500 ml-2">
-                                                                ({backtestResult.total_days} days)
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Stability (R²)</div>
-                                                        <div className="text-xl font-bold text-purple-400">{backtestResult.stability_score || "0.00"}</div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Profit Accel</div>
-                                                        <div className={`text-xl font-bold ${parseFloat(backtestResult.acceleration_score) >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                            {backtestResult.acceleration_score ? `${backtestResult.acceleration_score}x` : "0.00x"}
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Activity Rate</div>
-                                                        <div className="text-xl font-bold text-blue-400">{backtestResult.activity_rate || "0%"}</div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Avg PnL</div>
-                                                        <div className={`text-xl font-bold ${parseFloat(backtestResult.avg_pnl) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                            {backtestResult.avg_pnl}
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Avg Holding</div>
-                                                        <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time || "0m"}</div>
-                                                    </div>
-
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Max Profit</div>
-                                                        <div className="text-xl font-bold text-green-400">{backtestResult.max_profit}</div>
-                                                    </div>
-                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                        <div className="text-xs text-gray-400">Max Loss</div>
-                                                        <div className="text-xl font-bold text-red-400">{backtestResult.max_loss}</div>
-                                                    </div>
-                                                    <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
-                                                        <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
-                                                        <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
-                                                            {backtestResult.max_drawdown || "N/A"}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Monthly Analysis Chart */}
-                                                {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
-                                                    <div className="mt-4 pt-4 border-t border-white/10">
-                                                        <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
-                                                        <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
-                                                            <ResponsiveContainer width="100%" height="100%">
-                                                                <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-
-                                                                    {/* Custom X-Axis with Multi-Row Data */}
-                                                                    <XAxis
-                                                                        dataKey="block"
-                                                                        stroke="#666"
-                                                                        tickLine={false}
-                                                                        interval={0}
-                                                                        tick={({ x, y, payload, index }) => {
-                                                                            const data = backtestResult.decile_stats[index];
-                                                                            return (
-                                                                                <g transform={`translate(${x},${y})`}>
-                                                                                    {/* Row 1: Month */}
-                                                                                    <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
-                                                                                        {payload.value}
-                                                                                    </text>
-                                                                                    {/* Row 2: Trade Count */}
-                                                                                    <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
-                                                                                        {data.count}
-                                                                                    </text>
-                                                                                    {/* Row 3: Win Rate */}
-                                                                                    <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
-                                                                                        {data.win_rate}%
-                                                                                    </text>
-                                                                                    {/* Row 4: Realized PnL */}
-                                                                                    <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
-                                                                                        {data.total_pnl}%
-                                                                                    </text>
-                                                                                </g>
-                                                                            );
-                                                                        }}
-                                                                    />
-
-                                                                    <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
-                                                                    <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
-
-                                                                    <Tooltip
-                                                                        contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                                                                        itemStyle={{ color: '#fff' }}
-                                                                        formatter={(value, name) => {
-                                                                            if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
-                                                                            return [value, name];
-                                                                        }}
-                                                                        labelFormatter={(label) => `Month: ${label}`}
-                                                                    />
-                                                                    <ReferenceLine yAxisId="left" y={0} stroke="#666" />
-
-                                                                    <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
-                                                                        {backtestResult.decile_stats.map((entry, index) => (
-                                                                            <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
-                                                                        ))}
-                                                                    </Bar>
-                                                                </ComposedChart>
-                                                            </ResponsiveContainer>
-                                                        </div>
-                                                        <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
-                                                            <div className="flex items-center gap-1">
-                                                                <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
-                                                                <span>Profit</span>
+                                        <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
+                                            {activeAnalysisTab === 'overview' ? (
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Total Return</div>
+                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                {backtestResult.total_return}
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
-                                                                <span>Loss</span>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                                                            <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
+                                                            <div className="text-xl font-bold text-white">{backtestResult.profit_factor || "0.00"}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Win Rate</div>
+                                                            <div className="text-xl font-bold text-white">{backtestResult.win_rate}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Sharpe Ratio</div>
+                                                            <div className="text-xl font-bold text-yellow-400">{backtestResult.sharpe_ratio || "0.00"}</div>
+                                                        </div>
+
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Total Trades</div>
+                                                            <div className="text-xl font-bold text-white">
+                                                                {backtestResult.total_trades}
+                                                                <span className="text-sm font-normal text-gray-500 ml-2">
+                                                                    ({backtestResult.total_days} days)
+                                                                </span>
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="text-blue-400 font-bold">12</span>
-                                                                <span>= Count</span>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Stability (R²)</div>
+                                                            <div className="text-xl font-bold text-purple-400">{backtestResult.stability_score || "0.00"}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Profit Accel</div>
+                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.acceleration_score) >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                {backtestResult.acceleration_score ? `${backtestResult.acceleration_score}x` : "0.00x"}
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
-                                                                <span>= Win Rate</span>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Activity Rate</div>
+                                                            <div className="text-xl font-bold text-blue-400">{backtestResult.activity_rate || "0%"}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Avg PnL</div>
+                                                            <div className={`text-xl font-bold ${parseFloat(backtestResult.avg_pnl) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                {backtestResult.avg_pnl}
                                                             </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="text-green-400 font-bold">5.2%</span>
-                                                                <span>= Realized PnL</span>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Avg Holding</div>
+                                                            <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time || "0m"}</div>
+                                                        </div>
+
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Max Profit</div>
+                                                            <div className="text-xl font-bold text-green-400">{backtestResult.max_profit}</div>
+                                                        </div>
+                                                        <div className="p-3 bg-white/5 rounded-lg">
+                                                            <div className="text-xs text-gray-400">Max Loss</div>
+                                                            <div className="text-xl font-bold text-red-400">{backtestResult.max_loss}</div>
+                                                        </div>
+                                                        <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
+                                                            <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
+                                                            <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
+                                                                {backtestResult.max_drawdown || "N/A"}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                )}
 
-                                                {/* Logs Preview */}
-                                                {backtestResult.logs && (
-                                                    <div className="mt-4 pt-4 border-t border-white/10">
-                                                        <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs (Debug: {backtestResult.logs ? backtestResult.logs.length : 'N/A'})</h4>
-                                                        <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
-                                                            {backtestResult.logs.map((log, i) => (
-                                                                <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
-                                                                    {log}
+                                                    {/* Monthly Analysis Chart */}
+                                                    {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
+                                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
+                                                            <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
+                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+
+                                                                        {/* Custom X-Axis with Multi-Row Data */}
+                                                                        <XAxis
+                                                                            dataKey="block"
+                                                                            stroke="#666"
+                                                                            tickLine={false}
+                                                                            interval={0}
+                                                                            tick={({ x, y, payload, index }) => {
+                                                                                const data = backtestResult.decile_stats[index];
+                                                                                return (
+                                                                                    <g transform={`translate(${x},${y})`}>
+                                                                                        {/* Row 1: Month */}
+                                                                                        <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
+                                                                                            {payload.value}
+                                                                                        </text>
+                                                                                        {/* Row 2: Trade Count */}
+                                                                                        <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
+                                                                                            {data.count}
+                                                                                        </text>
+                                                                                        {/* Row 3: Win Rate */}
+                                                                                        <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
+                                                                                            {data.win_rate}%
+                                                                                        </text>
+                                                                                        {/* Row 4: Realized PnL */}
+                                                                                        <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
+                                                                                            {data.total_pnl}%
+                                                                                        </text>
+                                                                                    </g>
+                                                                                );
+                                                                            }}
+                                                                        />
+
+                                                                        <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
+                                                                        <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
+
+                                                                        <Tooltip
+                                                                            contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
+                                                                            itemStyle={{ color: '#fff' }}
+                                                                            formatter={(value, name) => {
+                                                                                if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
+                                                                                return [value, name];
+                                                                            }}
+                                                                            labelFormatter={(label) => `Month: ${label}`}
+                                                                        />
+                                                                        <ReferenceLine yAxisId="left" y={0} stroke="#666" />
+
+                                                                        <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
+                                                                            {backtestResult.decile_stats.map((entry, index) => (
+                                                                                <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
+                                                                            ))}
+                                                                        </Bar>
+                                                                    </ComposedChart>
+                                                                </ResponsiveContainer>
+                                                            </div>
+                                                            <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
+                                                                <div className="flex items-center gap-1">
+                                                                    <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
+                                                                    <span>Profit</span>
                                                                 </div>
-                                                            ))}
+                                                                <div className="flex items-center gap-1">
+                                                                    <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
+                                                                    <span>Loss</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-blue-400 font-bold">12</span>
+                                                                    <span>= Count</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
+                                                                    <span>= Win Rate</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-green-400 font-bold">5.2%</span>
+                                                                    <span>= Realized PnL</span>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    )}
+
+                                                    {/* Logs Preview */}
+                                                    {backtestResult.logs && (
+                                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs (Debug: {backtestResult.logs ? backtestResult.logs.length : 'N/A'})</h4>
+                                                            <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
+                                                                {backtestResult.logs.map((log, i) => (
+                                                                    <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
+                                                                        {log}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="py-12 text-center text-gray-500 italic">
+                                                    Rank Details Table Placeholder
+                                                </div>
+                                            )}
                                         </Card>
                                         <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform">
                                             Deploy Strategy to Live
@@ -2382,10 +2409,10 @@ const StrategyView = () => {
                     </div>
                 )
                 }
-            </div>
+            </div >
 
             {/* AI Generator Input - Fixed Bottom */}
-            <Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]">
+            < Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]" >
                 <div className="flex gap-4">
                     <input
                         type="text"
@@ -2404,10 +2431,10 @@ const StrategyView = () => {
                         {isGenerating ? 'Generatin...' : 'Ask AI'}
                     </button>
                 </div>
-            </Card>
+            </Card >
 
             {/* Custom Confirm Modal */}
-            <ConfirmModal
+            < ConfirmModal
                 isOpen={confirmModal.isOpen}
                 onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                 onConfirm={confirmModal.onConfirm}
