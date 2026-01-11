@@ -21,6 +21,7 @@ class BacktestContext(IContext):
         self.trades = []
         self.logs = []
         self.equity_curve = []
+        self.last_known_prices = {} # {symbol: price}
 
     @property
     def current_candle(self):
@@ -52,25 +53,35 @@ class BacktestContext(IContext):
         if not target_ts and self.current_candle:
             target_ts = self.current_candle['timestamp']
             
-        if not target_ts: return 0
+        if not target_ts: 
+            return self.last_known_prices.get(symbol, 0)
+        
+        price = 0
         
         # Optimize: Check primary matches
         if symbol == self.primary_symbol and self.current_candle:
             # Verify timestamp matches just in case
             c_ts = self.current_candle['timestamp']
             if c_ts == target_ts:
-                return self.current_candle['close']
+                price = self.current_candle['close']
         
-        # General Lookup
-        if symbol in self.feeds:
+        # General Lookup if not found yet
+        if price == 0 and symbol in self.feeds:
             feed = self.feeds[symbol]
             # Heuristic: If feeds are aligned, index might match.
             # But safer to find. For performance in backtest, linear scan from last known index is best.
             # For now, simplistic scan.
             for c in feed:
                 if c['timestamp'] == target_ts:
-                    return c['close']
-        return 0
+                    price = c['close']
+                    break
+        
+        if price > 0:
+            self.last_known_prices[symbol] = price
+            return price
+        else:
+            # Return last known price if available
+            return self.last_known_prices.get(symbol, 0)
 
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
         # LEAGUE RULE: Single Position Enforcement
