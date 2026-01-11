@@ -342,7 +342,7 @@ class WaterfallBacktestEngine:
             "ohlcv_data": raw_ohlcv,
             "logs": context.logs[-50:],
             "trades": context.trades,
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days)
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity)
         }
 
     def _empty_result(self, logs=None):
@@ -366,7 +366,7 @@ class WaterfallBacktestEngine:
             "ohlcv_data": []
         }
 
-    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True) -> Dict[str, Any]:
+    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000) -> Dict[str, Any]:
         if not trades:
             return {
                 "total_trades": 0,
@@ -476,7 +476,7 @@ class WaterfallBacktestEngine:
             "decile_stats": decile_data['monthly_stats'],
             "stability_score": decile_data['stability_score'],
             "acceleration_score": decile_data['acceleration_score'],
-            "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts) if calc_ranks else []
+            "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital) if calc_ranks else []
         }
 
     def _compute_stats_from_completed(self, completed_trades: List[Dict]) -> Dict[str, Any]:
@@ -534,7 +534,7 @@ class WaterfallBacktestEngine:
             "avg_holding_time": avg_holding_min
         }
 
-    def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any) -> List[Dict]:
+    def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any, initial_capital: float) -> List[Dict]:
         """
         Calculates full suite of statistics for each Rank, matching Overview metrics.
         """
@@ -548,10 +548,6 @@ class WaterfallBacktestEngine:
             if not r_trades: continue
             
             # 1. Base Stats via Helper
-            # Use Decile Calc for Stability/Accel/Deciles separately if needed?
-            # Actually, Stability/Accel require _calc_deciles which needs Trades+Dates.
-            # _calc_deciles works on completed trades.
-            # So we can calculate stability for this rank too!
             
             decile_data_rank = self._calc_deciles(r_trades, start_ts, end_ts)
             base_stats = self._compute_stats_from_completed(r_trades)
@@ -561,8 +557,10 @@ class WaterfallBacktestEngine:
             base_stats['acceleration_score'] = decile_data_rank['acceleration_score']
             base_stats['total_trades'] = len(r_trades)
             
-            # 2. Total PnL (Value)
+            # 2. Total PnL (Value) and Return % (Contribution to Total)
             total_pnl_value = sum(t['pnl'] for t in r_trades)
+            # Use Initial Capital as denominator to show contribution % to overall return
+            total_return_pct = (total_pnl_value / initial_capital * 100) if initial_capital > 0 else 0.0
             
             # 3. Activity Rate
             if total_days > 0 and r_trades:
@@ -609,6 +607,7 @@ class WaterfallBacktestEngine:
             
             rank_stats.append({
                 "rank": r,
+                "total_return": float(f"{total_return_pct:.2f}"), # Total Return %
                 "total_pnl_value": int(total_pnl_value),
                 "activity_rate": float(f"{activity_rate:.1f}"),
                 "max_drawdown": float(f"{max_dd_pct:.2f}"), # % relative to Peak Profit

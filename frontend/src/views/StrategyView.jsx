@@ -2083,7 +2083,7 @@ const StrategyView = () => {
                                                             <thead>
                                                                 <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
                                                                     <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
-                                                                    <th className="p-3">Total PnL</th>
+                                                                    <th className="p-3">Total Return</th>
                                                                     <th className="p-3">Profit Factor</th>
                                                                     <th className="p-3">Win Rate</th>
                                                                     <th className="p-3">Sharpe</th>
@@ -2102,8 +2102,8 @@ const StrategyView = () => {
                                                                 {backtestResult.rank_stats_list.map((stat, idx) => (
                                                                     <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                                                                         <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
-                                                                        <td className={`p-3 font-bold ${stat.total_pnl_value >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {new Intl.NumberFormat('ko-KR').format(stat.total_pnl_value)}
+                                                                        <td className={`p-3 font-bold ${stat.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                            {typeof stat.total_return === 'number' ? stat.total_return.toFixed(2) : stat.total_return}%
                                                                         </td>
                                                                         <td className="p-3 text-white">
                                                                             {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
