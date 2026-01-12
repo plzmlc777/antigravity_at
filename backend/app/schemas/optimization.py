@@ -28,6 +28,8 @@ class OptimizationResultItem(BaseModel):
     activity_rate: Optional[str] = None
     total_days: Optional[int] = 0
     avg_holding_time: Optional[str] = None
+    max_profit: Optional[str] = None
+    max_loss: Optional[str] = None
     metrics: Dict[str, Any] = {} # For any extra fields
 
 class OptimizationResponse(BaseModel):

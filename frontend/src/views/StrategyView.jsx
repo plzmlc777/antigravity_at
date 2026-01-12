@@ -658,11 +658,10 @@ const StrategyView = () => {
     const [fetchMessage, setFetchMessage] = useState(null);
 
     // 6. Optimization State
-
-    // 6. Optimization State
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [optResults, setOptResults] = useState(null);
     const [optProgress, setOptProgress] = useState({ current: 0, total: 0 });
+    const [optStatusMessage, setOptStatusMessage] = useState("");
     const [optError, setOptError] = useState(null);
 
     // State for Dynamic Optimization
@@ -773,6 +772,7 @@ const StrategyView = () => {
         setIsCancelling(false);
         setOptResults([]);
         setOptError(null);
+        setOptStatusMessage("");
         setOptProgress({ current: 0, total: 0 }); // Reset
 
         try {
@@ -823,6 +823,10 @@ const StrategyView = () => {
                             current: statusData.progress_current,
                             total: statusData.progress_total
                         });
+
+                        if (statusData.message) {
+                            setOptStatusMessage(statusData.message);
+                        }
 
                         if (statusData.status === 'completed' || statusData.status === 'cancelled') {
                             // Finished (or Cancelled)
@@ -2401,6 +2405,13 @@ const StrategyView = () => {
                                                 )}
                                             </div>
 
+                                            {/* Status Message Display */}
+                                            {isOptimizing && optStatusMessage && (
+                                                <div className="mt-2 p-2 bg-black/40 rounded border border-white/10 text-xs font-mono text-cyan-400 text-center animate-pulse">
+                                                    STATUS: {optStatusMessage}
+                                                </div>
+                                            )}
+
                                             {/* Error/Status Display */}
                                             {optError && (
                                                 <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
@@ -2441,6 +2452,11 @@ const StrategyView = () => {
                                                                         { key: 'profit_factor', label: 'P.Factor' },
                                                                         { key: 'sharpe_ratio', label: 'Sharpe' },
                                                                         { key: 'avg_pnl', label: 'Avg PnL' },
+                                                                        { key: 'activity_rate', label: 'Activity' },
+                                                                        { key: 'total_days', label: 'Days' },
+                                                                        { key: 'avg_holding_time', label: 'Avg Hold' },
+                                                                        { key: 'max_profit', label: 'Max Profit' },
+                                                                        { key: 'max_loss', label: 'Max Loss' },
                                                                         { key: 'stability_score', label: 'Stability' },
                                                                         { key: 'acceleration_score', label: 'Profit Accel' },
                                                                         { key: 'trades', label: 'Trades' },
@@ -2538,18 +2554,34 @@ const StrategyView = () => {
                                                                                     </td>
                                                                                 ))}
 
-                                                                                <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                    {res.return > 0 ? '+' : ''}{res.return}%
-                                                                                </td>
-                                                                                <td className="p-3 text-red-300">{res.max_drawdown ?? '-'}</td>
-                                                                                <td className="p-3 text-white">{res.win_rate}%</td>
-                                                                                <td className="p-3 text-white">{res.profit_factor ?? '-'}</td>
-                                                                                <td className="p-3 text-white">{res.sharpe_ratio ?? '-'}</td>
-                                                                                <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{res.avg_pnl ?? '-'}</td>
-                                                                                <td className="p-3 text-white">{res.stability_score ?? '-'}</td>
-                                                                                <td className="p-3 text-white">{res.acceleration_score ?? '-'}</td>
-                                                                                <td className="p-3 text-gray-400">{res.trades}</td>
-                                                                                <td className="p-3 text-blue-400 font-bold">{res.score}</td>
+                                                                                {/* Helper for Number Formatting */}
+                                                                                {(() => {
+                                                                                    const fmt = (v) => {
+                                                                                        const n = parseFloat(v);
+                                                                                        return isNaN(n) ? '-' : n.toFixed(2);
+                                                                                    };
+                                                                                    return (
+                                                                                        <>
+                                                                                            <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                                                {res.return > 0 ? '+' : ''}{fmt(res.return)}%
+                                                                                            </td>
+                                                                                            <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
+                                                                                            <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
+                                                                                            <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
+                                                                                            <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
+                                                                                            <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
+                                                                                            <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
+                                                                                            <td className="p-3 text-gray-400">{res.total_days}</td>
+                                                                                            <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
+                                                                                            <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
+                                                                                            <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
+                                                                                            <td className="p-3 text-white">{fmt(res.stability_score)}</td>
+                                                                                            <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
+                                                                                            <td className="p-3 text-gray-400">{res.trades}</td>
+                                                                                            <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
+                                                                                        </>
+                                                                                    );
+                                                                                })()}
                                                                             </tr>
                                                                         );
                                                                     })}

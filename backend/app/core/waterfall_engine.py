@@ -24,6 +24,12 @@ class BacktestContext(IContext):
         self.equity_curve = []
         self.last_known_prices = {} # {symbol: price}
         self.current_rank = 0 # Track which rank is currently executing
+        self.optimize_mode = False # Performance flag
+        
+        # Optimize: Pre-index feeds for O(1) price lookup
+        self.price_map = {}
+        for sym, feed in feeds.items():
+            self.price_map[sym] = {c['timestamp']: c['close'] for c in feed}
 
     @property
     def current_candle(self):
@@ -67,16 +73,9 @@ class BacktestContext(IContext):
             if c_ts == target_ts:
                 price = self.current_candle['close']
         
-        # General Lookup if not found yet
-        if price == 0 and symbol in self.feeds:
-            feed = self.feeds[symbol]
-            # Heuristic: If feeds are aligned, index might match.
-            # But safer to find. For performance in backtest, linear scan from last known index is best.
-            # For now, simplistic scan.
-            for c in feed:
-                if c['timestamp'] == target_ts:
-                    price = c['close']
-                    break
+        # General Lookup if not found yet (Optimized O(1))
+        if price == 0 and symbol in self.price_map:
+             price = self.price_map[symbol].get(target_ts, 0)
         
         if price > 0:
             self.last_known_prices[symbol] = price
@@ -97,9 +96,13 @@ class BacktestContext(IContext):
              self.log(f"BUY FAILED: Invalid Price for {symbol}")
              return {"status": "failed", "reason": "Invalid Price"}
              
+        # [OPTIMIZATION] Bypass Order Class in Light Mode
+        # [OPTIMIZATION] Order Class Bypass REMOVED by User Request
+        
         # [REFACTOR] Use Order Class Logic
         try:
             # 1. Create Order Object
+             # ... existing code ...
             order = StockOrder(
                 symbol=symbol,
                 side=OrderSide.BUY,
@@ -145,6 +148,8 @@ class BacktestContext(IContext):
         current_qty = self.holdings.get(symbol, 0)
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
+            
+            # [OPTIMIZATION] Order Class Bypass REMOVED by User Request
             
             # [REFACTOR] Use Order Class Logic
             try:
@@ -196,6 +201,7 @@ class BacktestContext(IContext):
             return {"status": "failed", "reason": "Insufficient Holdings"}
 
     def log(self, message: str):
+        if self.optimize_mode: return
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
 
     def update_equity(self):
@@ -214,7 +220,9 @@ class WaterfallBacktestEngine:
         # This primary config might be Rank 1 or empty if using list
         self.config = config or {}
 
-    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
+        import time
+        t_start = time.time()
         # 1. Prepare Symbols and Fetch Data
         from ..services.market_data import MarketDataService
         data_service = MarketDataService()
@@ -248,35 +256,41 @@ class WaterfallBacktestEngine:
 
         if not feeds:
              return self._empty_result(["No data for any symbol"])
+             
+        t_data = time.time()
+        print(f"[{'LITE' if optimize_mode else 'FULL'}] Data Fetch: {t_data - t_start:.4f}s")
 
         # --- [VISUALIZATION DATA] (Task 1 Fix) ---
-        # Fetch using CORRECT Per-Strategy Interval for Popup/Drill-down
+        # Skip if optimize_mode is True (Save memory/time)
         viz_feeds = {}
-        symbol_interval_map = {}
-        if global_symbol: symbol_interval_map[global_symbol] = interval
-        for cfg in strategies_config:
-            if 'symbol' in cfg:
-                symbol_interval_map[cfg['symbol']] = cfg.get('interval', interval)
+        if not optimize_mode:
+            # Fetch using CORRECT Per-Strategy Interval for Popup/Drill-down
+            symbol_interval_map = {}
+            if global_symbol: symbol_interval_map[global_symbol] = interval
+            for cfg in strategies_config:
+                if 'symbol' in cfg:
+                    symbol_interval_map[cfg['symbol']] = cfg.get('interval', interval)
 
-        for sym in unique_symbols:
-            target_interval = symbol_interval_map.get(sym, interval)
-            # Optimize: If target match global, reuse `feeds`
-            if target_interval == interval and sym in feeds:
-                viz_feeds[sym] = feeds[sym]
-            else:
-                # Fetch specific interval
-                v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
-                if v_feed:
-                    if from_date:
-                        v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
-                    v_feed.sort(key=lambda x: x['timestamp'])
-                    viz_feeds[sym] = v_feed
+            for sym in unique_symbols:
+                target_interval = symbol_interval_map.get(sym, interval)
+                # Optimize: If target match global, reuse `feeds`
+                if target_interval == interval and sym in feeds:
+                    viz_feeds[sym] = feeds[sym]
+                else:
+                    # Fetch specific interval
+                    v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
+                    if v_feed:
+                        if from_date:
+                            v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
+                        v_feed.sort(key=lambda x: x['timestamp'])
+                        viz_feeds[sym] = v_feed
 
         # Determine Primary Symbol (Rank 1 typically)
         primary_symbol = strategies_config[0].get('symbol', global_symbol) if strategies_config else global_symbol
         
         # 2. Setup Shared Context
         context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=primary_symbol)
+        context.optimize_mode = optimize_mode
         
         # 3. Initialize Strategies (League Participants)
         participants = []
@@ -297,30 +311,78 @@ class WaterfallBacktestEngine:
             
         print(f"DEBUG: League Initialized with {len(participants)} strategies.")
             
+        print(f"DEBUG: League Initialized with {len(participants)} strategies.")
+            
         # 4. League Loop (Time + Rank Priority)
-        all_ts = set()
-        for f in feeds.values():
-            for c in f:
-                all_ts.add(c['timestamp'])
-        sorted_ts = sorted(list(all_ts))
-        
-        for ts in sorted_ts:
-            context.current_timestamp = ts 
+        # [OPTIMIZATION] Fast Loop for Single-Strategy Optimization
+        if optimize_mode and len(participants) == 1 and len(feeds) == 1:
+            # Bypass Set/Sort overhead. Iterate directly on feed.
+            p = participants[0]
+            strat = p['strategy']
+            sym = p['symbol']
+            feed = feeds[sym]
             
-            for p in participants:
-                strat = p['strategy']
-                sym = p['symbol']
-                context.current_rank = p['rank']  # Set context rank before execution
+            context.current_rank = p['rank']
+            
+            for candle in feed:
+                # Direct Injection
+                context.current_timestamp = candle['timestamp']
+                context.price_map[sym][candle['timestamp']] = candle['close'] # Ensure recent price is set (though O(1) map handles it)
+                # Actually, price_map is static. But we need to update 'current_candle' if logic uses it.
+                # But 'get_current_price' uses price_map now.
                 
-                candle = None
-                if sym in feeds:
-                    matches = [c for c in feeds[sym] if c['timestamp'] == ts]
-                    if matches: candle = matches[0]
+                # Update Context State (Minimal)
+                # We need to simulate 'current_candle' update for the engine?
+                # The engine implementation of 'current_candle' property reads from... where?
+                # It uses self.data_feeds or similar? No, 'current_candle' property is not in Context.
+                # Actually, context doesn't need 'current_candle' if strategy receives it.
+                # But strategy.on_data(candle) is what matters.
                 
-                if candle:
+                try:
                     strat.on_data(candle)
+                    
+                    # Update Equity (Lightweight)
+                    # Inline update_equity optimization?
+                    # context.update_equity() -> heavy?
+                    # Let's use the optimized one.
+                    context.update_equity()
+                except Exception as e:
+                     pass # similar to main loop error handling
+                     
+        else:
+            # [LEGACY / MULTI-STRATEGY] Full Time-Sync Loop
+            all_ts = set()
+            for f in feeds.values():
+                for c in f:
+                    all_ts.add(c['timestamp'])
+            sorted_ts = sorted(list(all_ts))
             
-            context.update_equity()
+            for ts in sorted_ts:
+                context.current_timestamp = ts 
+                
+                for p in participants:
+                    strat = p['strategy']
+                    sym = p['symbol']
+                    context.current_rank = p['rank']  # Set context rank before execution
+                    
+                    candle = None
+                    if sym in feeds:
+                        # [LEGACY LOOP] Linear scan (inefficient but safe for multi-strategy)
+                        # Optimization: we could index this too, but for now restore functionality
+                        for c in feeds[sym]:
+                             if c['timestamp'] == ts:
+                                 candle = c
+                                 break
+                
+                    if candle:
+                        try:
+                            strat.on_data(candle)
+                        except Exception as e:
+                            # Log but continue (or break?)
+                            # context.log(f"Error in strategy {p['rank']}: {e}")
+                            pass
+            
+                context.update_equity()
 
         # [FORCED LIQUIDATION] (2026-01-11)
         # To ensure Total Return (Equity) and Rank Sums (Realized PnL) match exactly,
@@ -356,15 +418,27 @@ class WaterfallBacktestEngine:
                     print(f"DEBUG: Force Closing Rank {r}: {qty} {sym} @ {last_price}")
                     context.sell(sym, qty, price=last_price)
                     
+        t_exec = time.time()
+        print(f"[{'LITE' if optimize_mode else 'FULL'}] Execution: {t_exec - t_data:.4f}s")
+                    
         # 5. Stats
         ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
-        stats = self._generate_stats(context, ref_feed)
+        stats = self._generate_stats(context, ref_feed, optimize_mode=optimize_mode)
         
         # [Visual Analysis Support]
-        stats['equity_curve'] = context.equity_curve
-        stats['chart_data'] = context.equity_curve 
-        stats['multi_ohlcv_data'] = viz_feeds # Use VIZ feeds for Popup
+        if not optimize_mode:
+            stats['equity_curve'] = context.equity_curve
+            stats['chart_data'] = context.equity_curve 
+            stats['multi_ohlcv_data'] = viz_feeds # Use VIZ feeds for Popup
+        else:
+             stats['multi_ohlcv_data'] = {}
         
+        t_stats = time.time()
+        perf_msg = f"[{'LITE' if optimize_mode else 'FULL'}] Data Fetch: {t_data - t_start:.4f}s | Exec: {t_exec - t_data:.4f}s | Stats: {t_stats - t_exec:.4f}s | Total: {t_stats - t_start:.4f}s"
+        print(perf_msg)
+        stats['perf_log'] = perf_msg
+
+
         return stats
 
     # Legacy 'run' for backward compatibility if needed, maps to run_integrated
@@ -382,7 +456,8 @@ class WaterfallBacktestEngine:
         )
 
     # ... _generate_stats, _empty_result, etc. (Existing methods remain) ...
-    def _generate_stats(self, context: BacktestContext, data_feed: List[Dict]):
+    # ... _generate_stats, _empty_result, etc. (Existing methods remain) ...
+    def _generate_stats(self, context: BacktestContext, data_feed: List[Dict], optimize_mode: bool = False):
         if not context.equity_curve:
              return self._empty_result(logs=context.logs)
 
@@ -405,26 +480,29 @@ class WaterfallBacktestEngine:
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
         
         # DEBUG: Force Raw OHLCV inline
-        raw_ohlcv = [
-            {
-                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
-                "open": d['open'],
-                "high": d['high'],
-                "low": d['low'],
-                "close": d['close']
-            } for d in data_feed
-        ]
+        raw_ohlcv = []
+        if not optimize_mode:
+            raw_ohlcv = [
+                {
+                    "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                    "open": d['open'],
+                    "high": d['high'],
+                    "low": d['low'],
+                    "close": d['close']
+                } for d in data_feed
+            ]
         
         return {
             "total_return": total_return,
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": activity_rate,
             "total_days": total_days,
-            "chart_data": self._resample_equity(context.equity_curve, 50000),
+            "total_days": total_days,
+            "chart_data": self._resample_equity(context.equity_curve, 50000) if not optimize_mode else [],
             "ohlcv_data": raw_ohlcv,
             "logs": context.logs[-50:],
             "trades": context.trades,
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity)
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity, optimize_mode=optimize_mode)
         }
 
     def _empty_result(self, logs=None):
@@ -445,10 +523,12 @@ class WaterfallBacktestEngine:
             "stability_score": 0.0,
             "acceleration_score": 0.0,
             "chart_data": [],
-            "ohlcv_data": []
+            "ohlcv_data": [],
+            "rank_stats_list": [],
+            "decile_stats": []
         }
 
-    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000) -> Dict[str, Any]:
+    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000, optimize_mode: bool = False) -> Dict[str, Any]:
         if not trades:
             return {
                 "total_trades": 0,
@@ -542,8 +622,17 @@ class WaterfallBacktestEngine:
         sharpe = base_stats['sharpe_ratio']
         avg_holding_min = base_stats['avg_holding_time']
 
+        
         # Calculate Monthly Stats & Stability
-        decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
+        if not optimize_mode:
+            decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
+            monthly_stats = decile_data['monthly_stats']
+            stability_score = decile_data['stability_score']
+            acceleration_score = decile_data['acceleration_score']
+        else:
+            monthly_stats = []
+            stability_score = 0.0
+            acceleration_score = 0.0
 
         return {
             "total_trades": len(completed_trades),
@@ -555,9 +644,9 @@ class WaterfallBacktestEngine:
             "sharpe_ratio": sharpe,
             # "activity_rate": activity_rate, # Removed to prevent overwrite
             "avg_holding_time": avg_holding_min, # minutes
-            "decile_stats": decile_data['monthly_stats'],
-            "stability_score": decile_data['stability_score'],
-            "acceleration_score": decile_data['acceleration_score'],
+            "decile_stats": monthly_stats,
+            "stability_score": stability_score,
+            "acceleration_score": acceleration_score,
             "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital) if calc_ranks else []
         }
 

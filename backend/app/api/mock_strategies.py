@@ -58,9 +58,13 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         print(f"Warning: Failed to dispose engine in worker: {e}")
 
     import asyncio
-    from ..core.backtest_engine import BacktestEngine
+    # [MIGRATION] Use WaterfallBacktestEngine for consistent logic (Unified, Standard MDD, StockOrder)
+    from ..core.waterfall_engine import WaterfallBacktestEngine
     
-    engine = BacktestEngine(strategy_cls, config)
+    # Initialize Engine with Unified Logic
+    # We pass the class, config is mostly ignored here as run_integrated uses strategies_config list
+    engine = WaterfallBacktestEngine(strategy_cls, config)
+    
     # create new loop for this process
     try:
         loop = asyncio.get_event_loop()
@@ -68,12 +72,18 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-    result = loop.run_until_complete(engine.run(
-        symbol=symbol, 
+    # Wrap config into list for Integrated Engine
+    # Ensure symbol is present in config for data fetching
+    config['symbol'] = symbol
+    
+    result = loop.run_until_complete(engine.run_integrated(
+        strategies_config=[config],
+        global_symbol=symbol, 
         interval=interval, 
         duration_days=days, 
         from_date=from_date,
-        initial_capital=initial_capital
+        initial_capital=initial_capital,
+        optimize_mode=True
     ))
     return config, result
 
@@ -113,6 +123,10 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                              failures.append(f"Config failed: {err_msg}")
                         # logger.error(f"Config failed: {err_msg}")
                     else:
+                        # [DEBUG] Update Status Message with Performance Log (Light Mode check)
+                        if 'perf_log' in res:
+                             OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})... {res['perf_log']}"
+                        
                         # Calculate Score
                         ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
                         wr = float(str(res['win_rate']).replace('%', ''))
@@ -137,6 +151,8 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             acceleration_score=str(res.get("acceleration_score", "-")),
                             activity_rate=str(res.get("activity_rate", "-")),
                             total_days=int(res.get("total_days", 0)),
+                            max_profit=str(res.get("max_profit", "-")),
+                            max_loss=str(res.get("max_loss", "-")),
                             metrics={
                                 # Frontend relies on 'metrics' spread, so we must populate these!
                                 "max_drawdown": res.get("max_drawdown", "-"),
