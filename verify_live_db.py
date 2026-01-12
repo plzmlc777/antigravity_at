@@ -14,17 +14,12 @@ def verify_db():
     tables = inspector.get_table_names()
     print(f"Existing Tables: {tables}")
     
-    required_tables = ["live_bot_sessions", "live_trade_executions"]
-    missing = [t for t in required_tables if t not in tables]
-    
-    if missing:
-        print(f"Missing Tables: {missing}. Creating...")
-        # Import all models to ensure they are registered with Base
-        import backend.app.models.live_trading
-        Base.metadata.create_all(bind=engine)
-        print("Tables created.")
-    else:
-        print("All required tables exist.")
+    # Always recreate in Dev to ensure schema matches model
+    print("Recreating tables to apply schema changes...")
+    import backend.app.models.live_trading
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    print("Tables created.")
         
     # 2. CRUD Test
     db = SessionLocal()
@@ -46,9 +41,11 @@ def verify_db():
         # Create Execution
         dummy_exec = LiveTradeExecution(
             session_id=dummy_session.id,
+            symbol="TEST-EXEC",
             signal_type="BUY",
             signal_timestamp=datetime.utcnow(),
             theoretical_price=100.0,
+            requested_quantity=10,
             executed_price=101.0,
             filled_quantity=10,
             status="FILLED"

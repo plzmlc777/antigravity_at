@@ -59,11 +59,13 @@ class LiveTradeExecution(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     
     session_id = Column(String, ForeignKey("live_bot_sessions.id"), nullable=False)
+    symbol = Column(String, index=True, nullable=False)
     
     # 1. Theoretical Signal
     signal_type = Column(String, nullable=False) # BUY / SELL
     signal_timestamp = Column(DateTime, nullable=False) # Chart Time (e.g. 09:00)
     theoretical_price = Column(Float, nullable=False) # Close Price of Signal Candle
+    requested_quantity = Column(Integer, default=0)
     
     # 2. Actual Execution
     order_submitted_at = Column(DateTime, nullable=True)
