@@ -178,3 +178,17 @@ export const syncStrategyConfigs = async (configs) => {
     const { data } = await api.post('/strategy-configs/', configs);
     return data;
 };
+export const startLiveBot = async (config) => {
+    const { data } = await api.post('/live/start', config);
+    return data;
+};
+
+export const stopLiveBot = async (sessionId) => {
+    const { data } = await api.post(`/live/stop/${sessionId}`);
+    return data;
+};
+
+export const getLiveStatus = async () => {
+    const { data } = await api.get('/live/status');
+    return data;
+};

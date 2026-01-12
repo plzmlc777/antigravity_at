@@ -25,7 +25,9 @@ async def lifespan(app: FastAPI):
     
     # Start Services
     await HttpClientManager.get_instance().start() # Global Client
-    bot_manager.initialize() # Load bots after DB creation
+    # bot_manager.initialize() # Legacy
+    from .core.live_manager import live_manager
+    await live_manager.initialize() # Restore Live Sessions
     await condition_watcher.start()
     
     yield

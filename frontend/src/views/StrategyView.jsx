@@ -7,6 +7,7 @@ import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
+import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -1042,6 +1043,21 @@ const StrategyView = () => {
 
                             {/* --- New Tab Bar UI --- */}
                             <div className="flex items-center gap-1 mb-4 overflow-x-auto p-2 scrollbar-hide">
+                                {/* Live Operation Tab */}
+                                <button
+                                    onClick={() => setActiveTab(-2)}
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -2
+                                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-400 shadow-[0_0_15px_rgba(225,29,72,0.4)] scale-105'
+                                        : 'bg-gradient-to-r from-gray-800 to-gray-900 text-rose-500 border-rose-500/30 hover:border-rose-500 hover:text-rose-400 hover:shadow-[0_0_10px_rgba(225,29,72,0.2)]'
+                                        }`}
+                                >
+                                    <span className="text-lg">🔴</span>
+                                    <span>Live Operation</span>
+                                </button>
+
+                                {/* Divider */}
+                                <div className="w-px h-6 bg-white/10 mx-2" />
+
                                 {/* Integrated Tab */}
                                 <button
                                     onClick={() => setActiveTab(-1)}
@@ -1150,1507 +1166,1643 @@ const StrategyView = () => {
                                 </button>
                             </div>
 
-                            <Card
-                                title={
-                                    <div className="flex items-center justify-between w-full">
-                                        <span>Configuration</span>
-                                        {activeTab !== -1 && (
-                                            <div className="flex items-center gap-4 ml-4">
-                                                <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
-                                                    {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
-                                                </span>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleConfigChange('is_active', currentConfig.is_active === false); // Toggle
-                                                    }}
-                                                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
-                                                >
-                                                    <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                }
-                                className="mb-6 border border-purple-500/50 shadow-lg shadow-purple-900/20"
-                                variant="major"
-                            >
-                                {activeTab === -1 ? (
-                                    <div className="p-4">
-                                        <div className="text-center mb-8">
-                                            <h3 className="text-xl font-bold text-white mb-2">🌊 Waterfall Execution Flow</h3>
-                                            <p className="text-sm text-gray-400 max-w-lg mx-auto">
-                                                Strategies are evaluated sequentially. The first strategy to trigger a BUY signal executes the trade,
-                                                and the remaining strategies are skipped for the current interval.
-                                            </p>
-                                        </div>
-
-                                        <div className="flex flex-col items-center gap-2">
-                                            {configList.some(c => c.is_active !== false) ? (
-                                                configList.filter(c => c.is_active !== false).map((cfg, idx, arr) => (
-                                                    <React.Fragment key={idx}>
-                                                        {/* Strategy Node */}
-                                                        <div className="w-full max-w-lg bg-black/40 border-2 border-green-500/30 rounded-lg p-4 relative hover:border-green-500/60 transition-colors group">
-                                                            {/* Rank Badge */}
-                                                            <div className="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-green-600 flex items-center justify-center font-bold text-white shadow-lg border border-black text-sm z-10">
-                                                                {idx + 1}
-                                                            </div>
-
-                                                            <div className="flex justify-between items-start pl-4">
-                                                                <div>
-                                                                    <div className="font-bold text-lg text-white group-hover:text-green-400 transition-colors">
-                                                                        {cfg.strategy || "Unknown Strategy"}
-                                                                    </div>
-                                                                    <div className="text-xs text-gray-400 font-mono mt-1">
-                                                                        {cfg.symbol} • {cfg.interval}s interval
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="text-right">
-                                                                    <div className="text-[10px] uppercase tracking-wider text-green-400 font-bold bg-green-900/20 px-2 py-1 rounded">
-                                                                        Active
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Config Preview */}
-                                                            <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-2 text-xs text-gray-500">
-                                                                {Object.entries(cfg.optEnabled || {}).filter(([_, v]) => v).slice(0, 3).map(([k]) => (
-                                                                    <div key={k} className="bg-white/5 rounded px-2 py-1 truncate">
-                                                                        {k}: {cfg[k]}
-                                                                    </div>
-                                                                ))}
-                                                                {(Object.keys(cfg.optEnabled || {}).filter(k => cfg.optEnabled[k]).length > 3) && (
-                                                                    <div className="px-2 py-1">+ More...</div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Connector Arrow */}
-                                                        {idx < arr.length - 1 && (
-                                                            <div className="flex flex-col items-center h-16 justify-center relative">
-                                                                <div className="absolute w-0.5 h-full bg-gray-700"></div>
-                                                                <div className="bg-[#1e2029] px-3 py-1 text-[10px] text-gray-500 border border-gray-700 rounded-full z-10">
-                                                                    No Signal? Next 👇
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        {/* End Node */}
-                                                        {idx === arr.length - 1 && (
-                                                            <div className="flex flex-col items-center mt-2 opacity-50">
-                                                                <div className="h-8 w-0.5 bg-gray-700 mb-1"></div>
-                                                                <div className="px-3 py-1 rounded-full bg-gray-600 text-gray-400 text-xs border border-gray-500">
-                                                                    End of Validation (Wait)
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </React.Fragment>
-                                                ))
-                                            ) : (
-                                                <div className="text-gray-500 italic py-10">
-                                                    No Active Strategies Configured. <br />
-                                                    Enable strategies in the Rank tabs to add them here.
+                            {activeTab !== -2 && (
+                                <Card
+                                    title={
+                                        <div className="flex items-center justify-between w-full">
+                                            <span>Configuration</span>
+                                            {activeTab !== -1 && (
+                                                <div className="flex items-center gap-4 ml-4">
+                                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
+                                                        {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleConfigChange('is_active', currentConfig.is_active === false); // Toggle
+                                                        }}
+                                                        className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
+                                                    >
+                                                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Strategy Configuration Summary Panel */}
-                                        <div className="mt-8 mb-8 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                                            <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
-                                                <h3 className="font-bold text-gray-200 text-sm">Active Strategy Configurations</h3>
-                                                <span className="text-xs text-gray-400">{configList.filter(c => c.is_active !== false).length} Active</span>
+                                    }
+                                    className="mb-6 border border-purple-500/50 shadow-lg shadow-purple-900/20"
+                                    variant="major"
+                                >
+                                    {activeTab === -1 ? (
+                                        <div className="p-4">
+                                            <div className="text-center mb-8">
+                                                <h3 className="text-xl font-bold text-white mb-2">🌊 Waterfall Execution Flow</h3>
+                                                <p className="text-sm text-gray-400 max-w-lg mx-auto">
+                                                    Strategies are evaluated sequentially. The first strategy to trigger a BUY signal executes the trade,
+                                                    and the remaining strategies are skipped for the current interval.
+                                                </p>
                                             </div>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm text-left">
-                                                    <thead className="text-xs text-gray-400 bg-white/5 uppercase">
-                                                        <tr>
-                                                            <th className="px-4 py-3">Rank</th>
-                                                            <th className="px-4 py-3">Symbol</th>
-                                                            <th className="px-4 py-3">Interval</th>
-                                                            <th className="px-4 py-3">Direction</th>
-                                                            <th className="px-4 py-3">Delay</th>
-                                                            <th className="px-4 py-3">Target / Stop</th>
-                                                            <th className="px-4 py-3">Trailing</th>
-                                                            <th className="px-4 py-3 text-right">Settings</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-white/5">
-                                                        {configList.map((cfg, idx) => {
-                                                            if (cfg.is_active === false) return null;
-                                                            const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
-                                                            const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
-                                                            const isRise = (cfg.direction || 'rise') === 'rise';
 
-                                                            return (
-                                                                <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
-                                                                    <td className="px-4 py-3">
-                                                                        <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">
-                                                                            {cfg.tabName || `Rank ${idx + 1}`}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 font-medium text-white">
-                                                                        {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-gray-300">
-                                                                        {cfg.interval || "1m"}
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                                            {isRise ? '🚀 Rise' : '📉 Fall'}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <span className="text-yellow-400 font-bold">{cfg.delay_minutes || 0}m</span>
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <div className="flex flex-col text-xs gap-1">
-                                                                            <span className="text-green-400">TP: {cfg.target_percent}%</span>
-                                                                            <span className="text-red-400">SL: {cfg.safety_stop_percent}%</span>
+                                            <div className="flex flex-col items-center gap-2">
+                                                {configList.some(c => c.is_active !== false) ? (
+                                                    configList.filter(c => c.is_active !== false).map((cfg, idx, arr) => (
+                                                        <React.Fragment key={idx}>
+                                                            {/* Strategy Node */}
+                                                            <div className="w-full max-w-lg bg-black/40 border-2 border-green-500/30 rounded-lg p-4 relative hover:border-green-500/60 transition-colors group">
+                                                                {/* Rank Badge */}
+                                                                <div className="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-green-600 flex items-center justify-center font-bold text-white shadow-lg border border-black text-sm z-10">
+                                                                    {idx + 1}
+                                                                </div>
+
+                                                                <div className="flex justify-between items-start pl-4">
+                                                                    <div>
+                                                                        <div className="font-bold text-lg text-white group-hover:text-green-400 transition-colors">
+                                                                            {cfg.strategy || "Unknown Strategy"}
                                                                         </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3">
-                                                                        <div className="text-xs text-blue-400">
-                                                                            {cfg.trailing_start_percent}% / {cfg.trailing_stop_drop}%
+                                                                        <div className="text-xs text-gray-400 font-mono mt-1">
+                                                                            {cfg.symbol} • {cfg.interval}s interval
                                                                         </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-right">
-                                                                        <button
-                                                                            onClick={() => setActiveTab(idx)}
-                                                                            className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-white transition"
-                                                                        >
-                                                                            Edit
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
+                                                                    </div>
 
+                                                                    <div className="text-right">
+                                                                        <div className="text-[10px] uppercase tracking-wider text-green-400 font-bold bg-green-900/20 px-2 py-1 rounded">
+                                                                            Active
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
 
+                                                                {/* Config Preview */}
+                                                                <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-2 text-xs text-gray-500">
+                                                                    {Object.entries(cfg.optEnabled || {}).filter(([_, v]) => v).slice(0, 3).map(([k]) => (
+                                                                        <div key={k} className="bg-white/5 rounded px-2 py-1 truncate">
+                                                                            {k}: {cfg[k]}
+                                                                        </div>
+                                                                    ))}
+                                                                    {(Object.keys(cfg.optEnabled || {}).filter(k => cfg.optEnabled[k]).length > 3) && (
+                                                                        <div className="px-2 py-1">+ More...</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
 
-                                        {/* Action Button & Settings */}
-                                        <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
-                                            {/* Integrated Settings */}
-                                            {/* Integrated Settings */}
-                                            {(() => {
-                                                const isIntegrated = activeTab === -1;
-                                                // If Integrated, inherit from Rank 1 (index 0). Fallback to DEFAULT if empty.
-                                                const displayConfig = isIntegrated ? (configList[0] || DEFAULT_CONFIG) : currentConfig;
+                                                            {/* Connector Arrow */}
+                                                            {idx < arr.length - 1 && (
+                                                                <div className="flex flex-col items-center h-16 justify-center relative">
+                                                                    <div className="absolute w-0.5 h-full bg-gray-700"></div>
+                                                                    <div className="bg-[#1e2029] px-3 py-1 text-[10px] text-gray-500 border border-gray-700 rounded-full z-10">
+                                                                        No Signal? Next 👇
+                                                                    </div>
+                                                                </div>
+                                                            )}
 
-                                                return (
-                                                    <div className="flex justify-center gap-6 mb-8">
-                                                        <div className="text-left">
-                                                            <label className="text-xs text-gray-400 mb-1 block">
-                                                                Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={(displayConfig?.initial_capital || 10000000).toLocaleString()}
-                                                                onChange={(e) => {
-                                                                    if (isIntegrated) return; // Prevent edit
-                                                                    const rawValue = e.target.value.replace(/[^0-9]/g, '');
-                                                                    handleConfigChange('initial_capital', rawValue === '' ? 0 : parseInt(rawValue, 10));
-                                                                }}
-                                                                disabled={isIntegrated}
-                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <label className="text-xs text-gray-400 mb-1 block">
-                                                                Start Date {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
-                                                            </label>
-                                                            <input
-                                                                type="date"
-                                                                value={displayConfig?.from_date || ""}
-                                                                onChange={(e) => {
-                                                                    if (isIntegrated) return;
-                                                                    handleConfigChange('from_date', e.target.value);
-                                                                }}
-                                                                disabled={isIntegrated}
-                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            />
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <label className="text-xs text-gray-400 mb-1 block">
-                                                                Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
-                                                            </label>
-                                                            <select
-                                                                value={displayConfig?.betting_strategy || "fixed"}
-                                                                onChange={(e) => {
-                                                                    if (isIntegrated) return;
-                                                                    // We need to handle betting_strategy in handleConfigChange if it's not already there.
-                                                                    // Alternatively, update specific state if it was separate.
-                                                                    // But user wants inheritance, so it implies Rank 1 has this property.
-                                                                    // Let's assume handleConfigChange handles generic keys.
-                                                                    handleConfigChange('betting_strategy', e.target.value);
-                                                                }}
-                                                                disabled={isIntegrated}
-                                                                className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center appearance-none cursor-pointer focus:border-blue-500 ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            >
-                                                                <option value="fixed">Fixed Amount</option>
-                                                                <option value="compound">Compound Interest</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-
-
-                                            <div className="flex gap-4">
-                                                <button
-                                                    onClick={() => setShowChart(!showChart)}
-                                                    disabled={!integratedResults}
-                                                    className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults
-                                                        ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
-                                                        : 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
-                                                        }`}
-                                                >
-                                                    {showChart ? '📉 Hide Analysis' : '📊 Visual Analysis'}
-                                                </button>
-                                                <button
-                                                    onClick={async () => {
-                                                        setIsLoading(true);
-                                                        setBacktestStatus({ status: 'running', message: 'Initializing Integrated Simulation...' });
-                                                        setBacktestResult(null); // Clear previous
-                                                        setIntegratedResults(null);
-
-                                                        try {
-                                                            // Collect configurations from active configList
-                                                            // Filter only ACTIVE configs, but prioritize Rank Order
-                                                            const activeConfigs = configList.filter(c => c.is_active);
-                                                            if (activeConfigs.length === 0) {
-                                                                throw new Error("No active strategies selected.");
-                                                            }
-
-                                                            // Define Leader (Rank 1) for Global Settings
-                                                            const leaderConfig = activeConfigs[0];
-
-                                                            // Enforce Global Settings from Leader
-                                                            // 1. Betting Logic
-                                                            const globalBettingStrategy = leaderConfig.betting_strategy || "fixed";
-
-                                                            // Apply Global Overrides & Format for Backend IntegratedConfig Schema
-                                                            // Backend expects: { id, rank, config: {}, strategy_id, symbol }
-                                                            const validConfigs = activeConfigs.map(cfg => {
-                                                                const mergedConfig = {
-                                                                    ...cfg,
-                                                                    betting_strategy: globalBettingStrategy,
-                                                                    // Ensure Symbol is present in config
-                                                                    symbol: cfg.symbol || currentSymbol
-                                                                };
-
-                                                                return {
-                                                                    id: cfg.uuid || generateUUID(),
-                                                                    rank: cfg.rank || 999,
-                                                                    strategy_id: selectedStrategy?.id || "time_momentum", // Default or current
-                                                                    symbol: mergedConfig.symbol,
-                                                                    config: mergedConfig // Pass entire flat config as nested dict
-                                                                };
-                                                            });
-
-                                                            // Calculate days based on fromDate safely
-                                                            let diffDays = 365; // Default
-                                                            if (leaderConfig?.from_date) {
-                                                                const startDate = new Date(leaderConfig.from_date);
-                                                                const today = new Date();
-                                                                if (!isNaN(startDate.getTime())) {
-                                                                    const diffTime = Math.abs(today - startDate);
-                                                                    diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                                                }
-                                                            }
-
-                                                            const result = await axios.post('/api/v1/strategies/integrated-backtest', {
-                                                                configs: validConfigs,
-                                                                symbol: currentSymbol || "KRW-BTC", // Use global or default
-                                                                interval: leaderConfig?.interval || "1m", // Use selected interval
-                                                                days: diffDays > 0 ? diffDays : 365,
-                                                                from_date: leaderConfig?.from_date || "",
-                                                                initial_capital: leaderConfig?.initial_capital || 10000000
-                                                            });
-
-                                                            // Update Result State and Store for Visualization
-                                                            setBacktestResult(result.data);
-                                                            setIntegratedResults(result.data); // Store full result for visualization
-                                                            setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
-
-                                                            // Save Result for Persistence
-                                                            saveStrategyResult(INTEGRATED_UUID, 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
-
-                                                        } catch (e) {
-                                                            console.error("Integrated Backtest Failed", e);
-                                                            setBacktestStatus({ status: 'error', message: "Integrated Backtest Failed: " + (e.message || "Unknown Error") });
-                                                        } finally {
-                                                            setIsLoading(false);
-                                                        }
-                                                    }}
-                                                    disabled={isLoading}
-                                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                                                >
-                                                    {isLoading ? (
-                                                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Running Simulation...</>
-                                                    ) : (
-                                                        <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
-                                                    )}
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-gray-500 mt-4">
-                                                * Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.
-                                            </p>
-                                        </div>
-
-                                        {/* Integrated Analysis Visualization Modal */}
-
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        {/* 1. Target Data */}
-                                        <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</div>
-                                                Target Asset
-                                            </h4>
-                                            <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
-                                                <SymbolSelector
-                                                    currentSymbol={currentConfig.symbol || currentSymbol} // Use config's symbol
-                                                    setCurrentSymbol={(newSymbol) => handleConfigChange('symbol', newSymbol)} // Update config's symbol
-                                                    savedSymbols={savedSymbols}
-                                                    setSavedSymbols={setSavedSymbols}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* 2. Parameters */}
-                                        <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">2</div>
-                                                Parameters
-                                            </h4>
-                                            <div className="bg-black/20 p-4 rounded-lg border border-white/5">
-                                                {selectedStrategy.id === 'time_momentum' ? (
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
-                                                            <select
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                value={currentConfig.start_time || "09:00"}
-                                                                onChange={(e) => handleConfigChange('start_time', e.target.value)}
-                                                            >
-                                                                {Array.from({ length: 48 }).map((_, i) => {
-                                                                    const h = Math.floor(i / 2);
-                                                                    const m = i % 2 === 0 ? "00" : "30";
-                                                                    const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                    return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                                })}
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
-                                                            <input
-                                                                type="number"
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                value={currentConfig.delay_minutes ?? ''}
-                                                                onChange={(e) => handleConfigChange('delay_minutes', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Direction</label>
-                                                            <select
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                value={currentConfig.direction || "rise"}
-                                                                onChange={(e) => handleConfigChange('direction', e.target.value)}
-                                                            >
-                                                                <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
-                                                                <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
-                                                            <input
-                                                                type="number" step="0.1" min="0"
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                value={currentConfig.target_percent === '' ? '' : Math.abs(currentConfig.target_percent)}
-                                                                onChange={(e) => handleConfigChange('target_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
-                                                            <input
-                                                                type="number" step="0.1" min="0"
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                value={currentConfig.safety_stop_percent === '' ? '' : Math.abs(currentConfig.safety_stop_percent)}
-                                                                onChange={(e) => handleConfigChange('safety_stop_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
-                                                            <input
-                                                                type="number" step="0.1"
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                value={currentConfig.trailing_start_percent === '' ? '' : currentConfig.trailing_start_percent}
-                                                                onChange={(e) => handleConfigChange('trailing_start_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
-                                                            <input
-                                                                type="number" step="0.1"
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                value={currentConfig.trailing_stop_drop === '' ? '' : currentConfig.trailing_stop_drop}
-                                                                onChange={(e) => handleConfigChange('trailing_stop_drop', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
-                                                            <select
-                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                value={currentConfig.stop_time || "15:00"}
-                                                                onChange={(e) => handleConfigChange('stop_time', e.target.value)}
-                                                            >
-                                                                {Array.from({ length: 48 }).map((_, i) => {
-                                                                    const h = Math.floor(i / 2);
-                                                                    const m = i % 2 === 0 ? "00" : "30";
-                                                                    const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                    return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                                })}
-                                                            </select>
-                                                        </div>
-                                                    </div>
+                                                            {/* End Node */}
+                                                            {idx === arr.length - 1 && (
+                                                                <div className="flex flex-col items-center mt-2 opacity-50">
+                                                                    <div className="h-8 w-0.5 bg-gray-700 mb-1"></div>
+                                                                    <div className="px-3 py-1 rounded-full bg-gray-600 text-gray-400 text-xs border border-gray-500">
+                                                                        End of Validation (Wait)
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </React.Fragment>
+                                                    ))
                                                 ) : (
-                                                    <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
+                                                    <div className="text-gray-500 italic py-10">
+                                                        No Active Strategies Configured. <br />
+                                                        Enable strategies in the Rank tabs to add them here.
+                                                    </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </Card>
 
-                            {/* Backtest Controls (Relocated) - Hidden in Integrated View */}
-                            {activeTab !== -1 && (
-                                <Card title="Backtest Settings & Execution" variant="major" className="border-t-4 border-t-blue-500">
-                                    <div className="flex flex-col gap-4">
-                                        {/* Row 1: Data Interval & Status */}
-                                        <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
-                                            <div className="flex items-center gap-4 w-full md:w-auto">
-                                                <div className="relative w-32">
-                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
-                                                    <select
-                                                        value={currentConfig?.interval || "1m"}
-                                                        onChange={(e) => handleConfigChange('interval', e.target.value)}
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                                                    >
-                                                        <option value="1m">1 Min</option>
-                                                        <option value="3m">3 Min</option>
-                                                        <option value="5m">5 Min</option>
-                                                        <option value="10m">10 Min</option>
-                                                        <option value="15m">15 Min</option>
-                                                        <option value="30m">30 Min</option>
-                                                        <option value="60m">1 Hour</option>
-                                                        <option value="1d">1 Day</option>
-                                                        <option value="1w">1 Week</option>
-                                                    </select>
+                                            {/* Strategy Configuration Summary Panel */}
+                                            <div className="mt-8 mb-8 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                                <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
+                                                    <h3 className="font-bold text-gray-200 text-sm">Active Strategy Configurations</h3>
+                                                    <span className="text-xs text-gray-400">{configList.filter(c => c.is_active !== false).length} Active</span>
                                                 </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm text-left">
+                                                        <thead className="text-xs text-gray-400 bg-white/5 uppercase">
+                                                            <tr>
+                                                                <th className="px-4 py-3">Rank</th>
+                                                                <th className="px-4 py-3">Symbol</th>
+                                                                <th className="px-4 py-3">Interval</th>
+                                                                <th className="px-4 py-3">Direction</th>
+                                                                <th className="px-4 py-3">Delay</th>
+                                                                <th className="px-4 py-3">Target / Stop</th>
+                                                                <th className="px-4 py-3">Trailing</th>
+                                                                <th className="px-4 py-3 text-right">Settings</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {configList.map((cfg, idx) => {
+                                                                if (cfg.is_active === false) return null;
+                                                                const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
+                                                                const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
+                                                                const isRise = (cfg.direction || 'rise') === 'rise';
 
-                                                <div className="flex items-center gap-3">
-                                                    {!dataStatus.is_fresh ? (
-                                                        <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
-                                                            Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
-                                                            Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
-                                                        </span>
-                                                    )}
+                                                                return (
+                                                                    <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
+                                                                        <td className="px-4 py-3">
+                                                                            <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">
+                                                                                {cfg.tabName || `Rank ${idx + 1}`}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 font-medium text-white">
+                                                                            {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-gray-300">
+                                                                            {cfg.interval || "1m"}
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                                                                {isRise ? '🚀 Rise' : '📉 Fall'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <span className="text-yellow-400 font-bold">{cfg.delay_minutes || 0}m</span>
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <div className="flex flex-col text-xs gap-1">
+                                                                                <span className="text-green-400">TP: {cfg.target_percent}%</span>
+                                                                                <span className="text-red-400">SL: {cfg.safety_stop_percent}%</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3">
+                                                                            <div className="text-xs text-blue-400">
+                                                                                {cfg.trailing_start_percent}% / {cfg.trailing_stop_drop}%
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-right">
+                                                                            <button
+                                                                                onClick={() => setActiveTab(idx)}
+                                                                                className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-white transition"
+                                                                            >
+                                                                                Edit
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+
+
+                                            {/* Action Button & Settings */}
+                                            <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
+                                                {/* Integrated Settings */}
+                                                {/* Integrated Settings */}
+                                                {(() => {
+                                                    const isIntegrated = activeTab === -1;
+                                                    // If Integrated, inherit from Rank 1 (index 0). Fallback to DEFAULT if empty.
+                                                    const displayConfig = isIntegrated ? (configList[0] || DEFAULT_CONFIG) : currentConfig;
+
+                                                    return (
+                                                        <div className="flex justify-center gap-6 mb-8">
+                                                            <div className="text-left">
+                                                                <label className="text-xs text-gray-400 mb-1 block">
+                                                                    Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(displayConfig?.initial_capital || 10000000).toLocaleString()}
+                                                                    onChange={(e) => {
+                                                                        if (isIntegrated) return; // Prevent edit
+                                                                        const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                                                                        handleConfigChange('initial_capital', rawValue === '' ? 0 : parseInt(rawValue, 10));
+                                                                    }}
+                                                                    disabled={isIntegrated}
+                                                                    className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <label className="text-xs text-gray-400 mb-1 block">
+                                                                    Start Date {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                </label>
+                                                                <input
+                                                                    type="date"
+                                                                    value={displayConfig?.from_date || ""}
+                                                                    onChange={(e) => {
+                                                                        if (isIntegrated) return;
+                                                                        handleConfigChange('from_date', e.target.value);
+                                                                    }}
+                                                                    disabled={isIntegrated}
+                                                                    className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                />
+                                                            </div>
+                                                            <div className="text-left">
+                                                                <label className="text-xs text-gray-400 mb-1 block">
+                                                                    Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                </label>
+                                                                <select
+                                                                    value={displayConfig?.betting_strategy || "fixed"}
+                                                                    onChange={(e) => {
+                                                                        if (isIntegrated) return;
+                                                                        // We need to handle betting_strategy in handleConfigChange if it's not already there.
+                                                                        // Alternatively, update specific state if it was separate.
+                                                                        // But user wants inheritance, so it implies Rank 1 has this property.
+                                                                        // Let's assume handleConfigChange handles generic keys.
+                                                                        handleConfigChange('betting_strategy', e.target.value);
+                                                                    }}
+                                                                    disabled={isIntegrated}
+                                                                    className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center appearance-none cursor-pointer focus:border-blue-500 ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    <option value="fixed">Fixed Amount</option>
+                                                                    <option value="compound">Compound Interest</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+
+
+                                                <div className="flex gap-4">
                                                     <button
-                                                        onClick={handleFetchData}
-                                                        disabled={isFetchingData || !isSymbolValid}
-                                                        title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
-                                                        className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
-                                                            fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
-                                                                "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
+                                                        onClick={() => setShowChart(!showChart)}
+                                                        disabled={!integratedResults}
+                                                        className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults
+                                                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                                            : 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
                                                             }`}
                                                     >
-                                                        {fetchMessage ? fetchMessage : 'Update Data'}
+                                                        {showChart ? '📉 Hide Analysis' : '📊 Visual Analysis'}
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsLoading(true);
+                                                            setBacktestStatus({ status: 'running', message: 'Initializing Integrated Simulation...' });
+                                                            setBacktestResult(null); // Clear previous
+                                                            setIntegratedResults(null);
+
+                                                            try {
+                                                                // Collect configurations from active configList
+                                                                // Filter only ACTIVE configs, but prioritize Rank Order
+                                                                const activeConfigs = configList.filter(c => c.is_active);
+                                                                if (activeConfigs.length === 0) {
+                                                                    throw new Error("No active strategies selected.");
+                                                                }
+
+                                                                // Define Leader (Rank 1) for Global Settings
+                                                                const leaderConfig = activeConfigs[0];
+
+                                                                // Enforce Global Settings from Leader
+                                                                // 1. Betting Logic
+                                                                const globalBettingStrategy = leaderConfig.betting_strategy || "fixed";
+
+                                                                // Apply Global Overrides & Format for Backend IntegratedConfig Schema
+                                                                // Backend expects: { id, rank, config: {}, strategy_id, symbol }
+                                                                const validConfigs = activeConfigs.map(cfg => {
+                                                                    const mergedConfig = {
+                                                                        ...cfg,
+                                                                        betting_strategy: globalBettingStrategy,
+                                                                        // Ensure Symbol is present in config
+                                                                        symbol: cfg.symbol || currentSymbol
+                                                                    };
+
+                                                                    return {
+                                                                        id: cfg.uuid || generateUUID(),
+                                                                        rank: cfg.rank || 999,
+                                                                        strategy_id: selectedStrategy?.id || "time_momentum", // Default or current
+                                                                        symbol: mergedConfig.symbol,
+                                                                        config: mergedConfig // Pass entire flat config as nested dict
+                                                                    };
+                                                                });
+
+                                                                // Calculate days based on fromDate safely
+                                                                let diffDays = 365; // Default
+                                                                if (leaderConfig?.from_date) {
+                                                                    const startDate = new Date(leaderConfig.from_date);
+                                                                    const today = new Date();
+                                                                    if (!isNaN(startDate.getTime())) {
+                                                                        const diffTime = Math.abs(today - startDate);
+                                                                        diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                                    }
+                                                                }
+
+                                                                const result = await axios.post('/api/v1/strategies/integrated-backtest', {
+                                                                    configs: validConfigs,
+                                                                    symbol: currentSymbol || "KRW-BTC", // Use global or default
+                                                                    interval: leaderConfig?.interval || "1m", // Use selected interval
+                                                                    days: diffDays > 0 ? diffDays : 365,
+                                                                    from_date: leaderConfig?.from_date || "",
+                                                                    initial_capital: leaderConfig?.initial_capital || 10000000
+                                                                });
+
+                                                                // Update Result State and Store for Visualization
+                                                                setBacktestResult(result.data);
+                                                                setIntegratedResults(result.data); // Store full result for visualization
+                                                                setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
+
+                                                                // Save Result for Persistence
+                                                                saveStrategyResult(INTEGRATED_UUID, 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
+
+                                                            } catch (e) {
+                                                                console.error("Integrated Backtest Failed", e);
+                                                                setBacktestStatus({ status: 'error', message: "Integrated Backtest Failed: " + (e.message || "Unknown Error") });
+                                                            } finally {
+                                                                setIsLoading(false);
+                                                            }
+                                                        }}
+                                                        disabled={isLoading}
+                                                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                                    >
+                                                        {isLoading ? (
+                                                            <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Running Simulation...</>
+                                                        ) : (
+                                                            <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
+                                                        )}
                                                     </button>
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Row 2: Capital & Date & Strategy */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
-                                            <div className="relative">
-                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
-                                                <input
-                                                    type="text"
-                                                    value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
-                                                    onChange={(e) => {
-                                                        const val = parseInt(e.target.value.replace(/,/g, ''), 10);
-                                                        if (!isNaN(val)) handleConfigChange('initial_capital', val);
-                                                    }}
-                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
-                                                />
+                                                <p className="text-xs text-gray-500 mt-4">
+                                                    * Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.
+                                                </p>
                                             </div>
 
-                                            <div className="relative">
-                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
-                                                <input
-                                                    type="date"
-                                                    value={currentConfig?.from_date || ""}
-                                                    onChange={(e) => handleConfigChange('from_date', e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
-                                                />
+                                            {/* Integrated Analysis Visualization Modal */}
+
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {/* 1. Target Data */}
+                                            <div>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</div>
+                                                    Target Asset
+                                                </h4>
+                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
+                                                    <SymbolSelector
+                                                        currentSymbol={currentConfig.symbol || currentSymbol} // Use config's symbol
+                                                        setCurrentSymbol={(newSymbol) => handleConfigChange('symbol', newSymbol)} // Update config's symbol
+                                                        savedSymbols={savedSymbols}
+                                                        setSavedSymbols={setSavedSymbols}
+                                                    />
+                                                </div>
                                             </div>
 
-                                            <div className="relative">
-                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
-                                                <select
-                                                    value={currentConfig.betting_strategy || "fixed"}
-                                                    onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                                                >
-                                                    <option value="fixed">Fixed Amount</option>
-                                                    <option value="compound">Compound Interest</option>
-                                                </select>
+                                            {/* 2. Parameters */}
+                                            <div>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">2</div>
+                                                    Parameters
+                                                </h4>
+                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5">
+                                                    {selectedStrategy.id === 'time_momentum' ? (
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.start_time || "09:00"}
+                                                                    onChange={(e) => handleConfigChange('start_time', e.target.value)}
+                                                                >
+                                                                    {Array.from({ length: 48 }).map((_, i) => {
+                                                                        const h = Math.floor(i / 2);
+                                                                        const m = i % 2 === 0 ? "00" : "30";
+                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.delay_minutes ?? ''}
+                                                                    onChange={(e) => handleConfigChange('delay_minutes', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Direction</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.direction || "rise"}
+                                                                    onChange={(e) => handleConfigChange('direction', e.target.value)}
+                                                                >
+                                                                    <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
+                                                                    <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1" min="0"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.target_percent === '' ? '' : Math.abs(currentConfig.target_percent)}
+                                                                    onChange={(e) => handleConfigChange('target_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1" min="0"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.safety_stop_percent === '' ? '' : Math.abs(currentConfig.safety_stop_percent)}
+                                                                    onChange={(e) => handleConfigChange('safety_stop_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.trailing_start_percent === '' ? '' : currentConfig.trailing_start_percent}
+                                                                    onChange={(e) => handleConfigChange('trailing_start_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
+                                                                <input
+                                                                    type="number" step="0.1"
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                                                    value={currentConfig.trailing_stop_drop === '' ? '' : currentConfig.trailing_stop_drop}
+                                                                    onChange={(e) => handleConfigChange('trailing_stop_drop', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
+                                                                <select
+                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
+                                                                    value={currentConfig.stop_time || "15:00"}
+                                                                    onChange={(e) => handleConfigChange('stop_time', e.target.value)}
+                                                                >
+                                                                    {Array.from({ length: 48 }).map((_, i) => {
+                                                                        const h = Math.floor(i / 2);
+                                                                        const m = i % 2 === 0 ? "00" : "30";
+                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
+                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
+                                                                    })}
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-
-                                        {/* Row 3: Action Buttons */}
-                                        <div className="grid grid-cols-2 gap-4 pt-2">
-                                            <button
-                                                onClick={() => setShowChart(!showChart)}
-                                                disabled={!backtestResult}
-                                                className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
-                                                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
-                                                    : showChart
-                                                        ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
-                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                                    }`}
-                                            >
-                                                {showChart ? "🙈 Hide Visual Chart" : "📊 Visual Analysis"}
-                                            </button>
-                                            <button
-                                                onClick={() => runBacktest(selectedStrategy?.id)}
-                                                disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1}
-                                                className={`bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700 ${activeTab === -1 ? 'opacity-80 cursor-not-allowed' : ''}`}
-                                            >
-                                                {isLoading ? (
-                                                    <>
-                                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                        Running...
-                                                    </>
-                                                ) : (
-                                                    <>{activeTab === -1 ? 'Coming Soon' : '🚀 Run Backtest'}</>
-                                                )}
-                                            </button>
-                                        </div>
-
-
-                                    </div>
-                                </Card>
-                            )}
-
-                            {/* SHARED EXECUTION STATUS FEEDBACK (Visible for both Single and Integrated Modes) */}
-                            {(backtestStatus.status !== 'idle' || !backtestResult) && (
-                                <Card className="mb-6 border-t-2 border-blue-500/30">
-                                    {backtestStatus.status === 'running' ? (
-                                        <div className="flex items-center justify-center gap-3 py-8 text-blue-400">
-                                            <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                            <span className="text-lg font-bold animate-pulse">{backtestStatus.message}</span>
-                                        </div>
-                                    ) : backtestStatus.status === 'error' ? (
-                                        <div className="flex items-center justify-center gap-3 py-8 text-red-400">
-                                            <span className="text-2xl">⚠️</span>
-                                            <span className="text-lg font-bold">{backtestStatus.message}</span>
-                                        </div>
-                                    ) : !backtestResult && (
-                                        <div className="text-center text-gray-500 py-8 text-sm italic">
-                                            Select a strategy and click 'Run Backtest' to see results here.
                                         </div>
                                     )}
                                 </Card>
                             )}
 
-
-                            {/* VISUAL CHART SECTION (Dedicated) */}
-                            {showChart && backtestResult && (
-                                <div className="mb-6 animate-fade-in-down">
-                                    <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
-                                        {backtestResult.strategy_id.includes('Integrated') ? (
-                                            <IntegratedAnalysis
-                                                trades={backtestResult.trades || []}
-                                                backtestResult={backtestResult}
-                                                strategiesConfig={configList}
-                                                savedSymbols={savedSymbols || []}
-                                            />
-                                        ) : (
-                                            backtestResult.ohlcv_data ? (
-                                                <VisualBacktestChart
-                                                    data={backtestResult.ohlcv_data}
-                                                    trades={backtestResult.trades}
-                                                />
-                                            ) : (
-                                                <div className="h-[200px] flex items-center justify-center text-gray-500">
-                                                    No visual data available.
-                                                </div>
-                                            )
-                                        )}
-                                    </Card>
+                            {/* Content Area based on Tab */}
+                            {activeTab === -2 ? (
+                                <div className="animate-fade-in-up">
+                                    <LiveStrategyPanel
+                                        strategyConfig={{
+                                            ...configList[0], // Use config of Rank 1 as default base
+                                            symbol: currentSymbol, // Force current symbol
+                                        }}
+                                    />
                                 </div>
-                            )}
+                            ) : activeTab === -1 ? (
+                                <div className="animate-fade-in-up">
+                                    {/* INTEGRATED VIEW UI */}
+                                    <Card title="Integrated Portfolio Configuration" variant="major" className="border-t-4 border-t-amber-500">
+                                        <div className="flex flex-col gap-4">
+                                            {/* Row 1: Data Interval & Status */}
+                                            <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+                                                <div className="flex items-center gap-4 w-full md:w-auto">
+                                                    <div className="relative w-32">
+                                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
+                                                        <select
+                                                            value={currentConfig?.interval || "1m"}
+                                                            onChange={(e) => handleConfigChange('interval', e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                        >
+                                                            <option value="1m">1 Min</option>
+                                                            <option value="3m">3 Min</option>
+                                                            <option value="5m">5 Min</option>
+                                                            <option value="10m">10 Min</option>
+                                                            <option value="15m">15 Min</option>
+                                                            <option value="30m">30 Min</option>
+                                                            <option value="60m">1 Hour</option>
+                                                            <option value="1d">1 Day</option>
+                                                            <option value="1w">1 Week</option>
+                                                        </select>
+                                                    </div>
 
-                            {/* Backtest Results */}
-                            {backtestResult && (
-                                <div className="space-y-6 mb-6">
-                                    <div className="space-y-6">
-                                        {/* Analysis Mode Tabs (Integrated Only or Global) */}
-                                        <div className="flex gap-4 mb-4">
-                                            <button
-                                                onClick={() => setActiveAnalysisTab('overview')}
-                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'overview'
-                                                    ? 'bg-purple-600 text-white shadow-lg'
-                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                                            >
-                                                Overview
-                                            </button>
-                                            <button
-                                                onClick={() => setActiveAnalysisTab('rank_details')}
-                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'rank_details'
-                                                    ? 'bg-purple-600 text-white shadow-lg'
-                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                                            >
-                                                Rank Details
-                                            </button>
-                                        </div>
-
-                                        <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
-                                            {activeAnalysisTab === 'overview' ? (
-                                                <div className="space-y-4">
-                                                    {/* Helpers defined inline for clarity in render block context or use component utils */
-                                                        (() => {
-                                                            const fmtPct = (v, d = 2) => typeof v === 'number' ? `${v.toFixed(d)}%` : (v || "0.00%");
-                                                            const fmtNum = (v, d = 2) => typeof v === 'number' ? v.toFixed(d) : (v || "0.00");
-
-                                                            return (
-                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Total Return</div>
-                                                                        <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {fmtPct(backtestResult.total_return)}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
-                                                                        <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
-                                                                        <div className="text-xl font-bold text-white">{fmtNum(backtestResult.profit_factor)}</div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Win Rate</div>
-                                                                        <div className="text-xl font-bold text-white">{fmtPct(backtestResult.win_rate, 1)}</div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Sharpe Ratio</div>
-                                                                        <div className="text-xl font-bold text-yellow-400">{fmtNum(backtestResult.sharpe_ratio)}</div>
-                                                                    </div>
-
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Total Trades</div>
-                                                                        <div className="text-xl font-bold text-white">
-                                                                            {backtestResult.total_trades}
-                                                                            <span className="text-sm font-normal text-gray-500 ml-2">
-                                                                                ({backtestResult.total_days} days)
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Stability (R²)</div>
-                                                                        <div className="text-xl font-bold text-purple-400">{fmtNum(backtestResult.stability_score)}</div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Profit Accel</div>
-                                                                        <div className={`text-xl font-bold ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                            {fmtNum(backtestResult.acceleration_score)}x
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Activity Rate</div>
-                                                                        <div className="text-xl font-bold text-blue-400">{fmtPct(backtestResult.activity_rate, 1)}</div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Avg PnL</div>
-                                                                        <div className={`text-xl font-bold ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {fmtPct(backtestResult.avg_pnl)}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Avg Holding</div>
-                                                                        <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time}m</div>
-                                                                    </div>
-
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Max Profit</div>
-                                                                        <div className="text-xl font-bold text-green-400">{fmtPct(backtestResult.max_profit)}</div>
-                                                                    </div>
-                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                        <div className="text-xs text-gray-400">Max Loss</div>
-                                                                        <div className="text-xl font-bold text-red-400">{fmtPct(backtestResult.max_loss)}</div>
-                                                                    </div>
-                                                                    <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
-                                                                        <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
-                                                                        <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
-                                                                            {fmtPct(backtestResult.max_drawdown)}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    {/* Monthly Analysis Chart */}
-                                                    {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
-                                                        <div className="mt-4 pt-4 border-t border-white/10">
-                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
-                                                            <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
-                                                                <ResponsiveContainer width="100%" height="100%">
-                                                                    <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
-                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-
-                                                                        {/* Custom X-Axis with Multi-Row Data */}
-                                                                        <XAxis
-                                                                            dataKey="block"
-                                                                            stroke="#666"
-                                                                            tickLine={false}
-                                                                            interval={0}
-                                                                            tick={({ x, y, payload, index }) => {
-                                                                                const data = backtestResult.decile_stats[index];
-                                                                                return (
-                                                                                    <g transform={`translate(${x},${y})`}>
-                                                                                        {/* Row 1: Month */}
-                                                                                        <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
-                                                                                            {payload.value}
-                                                                                        </text>
-                                                                                        {/* Row 2: Trade Count */}
-                                                                                        <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
-                                                                                            {data.count}
-                                                                                        </text>
-                                                                                        {/* Row 3: Win Rate */}
-                                                                                        <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
-                                                                                            {data.win_rate}%
-                                                                                        </text>
-                                                                                        {/* Row 4: Realized PnL */}
-                                                                                        <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
-                                                                                            {data.total_pnl}%
-                                                                                        </text>
-                                                                                    </g>
-                                                                                );
-                                                                            }}
-                                                                        />
-
-                                                                        <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
-                                                                        <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
-
-                                                                        <Tooltip
-                                                                            contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                                                                            itemStyle={{ color: '#fff' }}
-                                                                            formatter={(value, name) => {
-                                                                                if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
-                                                                                return [value, name];
-                                                                            }}
-                                                                            labelFormatter={(label) => `Month: ${label}`}
-                                                                        />
-                                                                        <ReferenceLine yAxisId="left" y={0} stroke="#666" />
-
-                                                                        <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
-                                                                            {backtestResult.decile_stats.map((entry, index) => (
-                                                                                <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
-                                                                            ))}
-                                                                        </Bar>
-                                                                    </ComposedChart>
-                                                                </ResponsiveContainer>
-                                                            </div>
-                                                            <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
-                                                                <div className="flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
-                                                                    <span>Profit</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
-                                                                    <span>Loss</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-blue-400 font-bold">12</span>
-                                                                    <span>= Count</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
-                                                                    <span>= Win Rate</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-green-400 font-bold">5.2%</span>
-                                                                    <span>= Realized PnL</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Logs Preview */}
-                                                    {backtestResult.logs && (
-                                                        <div className="mt-4 pt-4 border-t border-white/10">
-                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs (Debug: {backtestResult.logs ? backtestResult.logs.length : 'N/A'})</h4>
-                                                            <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
-                                                                {backtestResult.logs.map((log, i) => (
-                                                                    <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
-                                                                        {log}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center gap-3">
+                                                        {!dataStatus.is_fresh ? (
+                                                            <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
+                                                                Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
+                                                                Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                            </span>
+                                                        )}
+                                                        <button
+                                                            onClick={handleFetchData}
+                                                            disabled={isFetchingData || !isSymbolValid}
+                                                            title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
+                                                            className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
+                                                                fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
+                                                                    "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
+                                                                }`}
+                                                        >
+                                                            {fetchMessage ? fetchMessage : 'Update Data'}
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <div className="overflow-x-auto">
-                                                    {backtestResult.rank_stats_list && backtestResult.rank_stats_list.length > 0 ? (
-                                                        <table className="w-full text-left border-collapse whitespace-nowrap">
-                                                            <thead>
-                                                                <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
-                                                                    <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
-                                                                    <th className="p-3">Total Return</th>
-                                                                    <th className="p-3">Profit Factor</th>
-                                                                    <th className="p-3">Win Rate</th>
-                                                                    <th className="p-3">Sharpe</th>
-                                                                    <th className="p-3">Trades</th>
-                                                                    <th className="p-3">Stability</th>
-                                                                    <th className="p-3">Accel</th>
-                                                                    <th className="p-3">Activity</th>
-                                                                    <th className="p-3">Avg Return</th>
-                                                                    <th className="p-3">Avg Hold</th>
-                                                                    <th className="p-3">Max Profit</th>
-                                                                    <th className="p-3">Max Loss</th>
-                                                                    <th className="p-3 text-right">Max DD</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="text-sm">
-                                                                {backtestResult.rank_stats_list.map((stat, idx) => (
-                                                                    <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                                        <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
-                                                                        <td className={`p-3 font-bold ${stat.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {typeof stat.total_return === 'number' ? stat.total_return.toFixed(2) : stat.total_return}%
-                                                                        </td>
-                                                                        <td className="p-3 text-white">
-                                                                            {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
-                                                                        </td>
-                                                                        <td className="p-3 text-yellow-400 font-bold">
-                                                                            {stat.win_rate.toFixed(1)}%
-                                                                        </td>
-                                                                        <td className="p-3 text-yellow-400">
-                                                                            {typeof stat.sharpe_ratio === 'number' ? stat.sharpe_ratio.toFixed(2) : stat.sharpe_ratio}
-                                                                        </td>
-                                                                        <td className="p-3 text-gray-300">
-                                                                            {stat.total_trades}
-                                                                        </td>
-                                                                        <td className="p-3 text-purple-400">
-                                                                            {typeof stat.stability_score === 'number' ? stat.stability_score.toFixed(2) : stat.stability_score}
-                                                                        </td>
-                                                                        <td className={`p-3 font-bold ${stat.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                            {typeof stat.acceleration_score === 'number' ? stat.acceleration_score.toFixed(2) : stat.acceleration_score}x
-                                                                        </td>
-                                                                        <td className="p-3 text-blue-400">
-                                                                            {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
-                                                                        </td>
-                                                                        <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                            {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
-                                                                        </td>
-                                                                        <td className="p-3 text-gray-400">
-                                                                            {stat.avg_holding_time}m
-                                                                        </td>
-                                                                        <td className="p-3 text-green-400">
-                                                                            {typeof stat.max_profit === 'number' ? stat.max_profit.toFixed(2) : stat.max_profit}%
-                                                                        </td>
-                                                                        <td className="p-3 text-red-400">
-                                                                            {typeof stat.max_loss === 'number' ? stat.max_loss.toFixed(2) : stat.max_loss}%
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-red-400 font-bold">
-                                                                            {typeof stat.max_drawdown === 'number' ? stat.max_drawdown.toFixed(2) : stat.max_drawdown}%
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                            <tfoot className="text-sm border-t-2 border-white/20">
-                                                                {/* 1. Calculated Total / Average Row */}
-                                                                {(() => {
-                                                                    const stats = backtestResult.rank_stats_list;
-                                                                    const count = stats.length;
-                                                                    const sumReturn = stats.reduce((acc, s) => acc + s.total_return, 0);
-                                                                    const totalTrades = stats.reduce((acc, s) => acc + s.total_trades, 0);
+                                            </div>
 
-                                                                    // Activity Rate: Sum (matches Overview ~81%)
-                                                                    const sumActivity = stats.reduce((acc, s) => acc + s.activity_rate, 0);
+                                            {/* Row 2: Capital & Date & Strategy */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                                    <input
+                                                        type="text"
+                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value.replace(/,/g, ''), 10);
+                                                            if (!isNaN(val)) handleConfigChange('initial_capital', val);
+                                                        }}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
 
-                                                                    // Weighted Averages (by Trades) - More accurate for PnL/PF/Sharpe
-                                                                    const getWeightedAvg = (key) => totalTrades > 0
-                                                                        ? stats.reduce((acc, s) => acc + (s[key] * s.total_trades), 0) / totalTrades
-                                                                        : 0;
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={currentConfig?.from_date || ""}
+                                                        onChange={(e) => handleConfigChange('from_date', e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
 
-                                                                    const wWinRate = getWeightedAvg('win_rate');
-                                                                    const wPF = getWeightedAvg('profit_factor');
-                                                                    const wSharpe = getWeightedAvg('sharpe_ratio');
-                                                                    const wStability = getWeightedAvg('stability_score');
-                                                                    const wAccel = getWeightedAvg('acceleration_score');
-                                                                    const wReturn = getWeightedAvg('avg_pnl');
-                                                                    const wHold = getWeightedAvg('avg_holding_time');
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
+                                                    <select
+                                                        value={currentConfig.betting_strategy || "fixed"}
+                                                        onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                    >
+                                                        <option value="fixed">Fixed Amount</option>
+                                                        <option value="compound">Compound Interest</option>
+                                                    </select>
+                                                </div>
+                                            </div>
 
-                                                                    // Extremes
-                                                                    const maxProfit = stats.length > 0 ? Math.max(...stats.map(s => s.max_profit)) : 0;
-                                                                    const maxLoss = stats.length > 0 ? Math.min(...stats.map(s => s.max_loss)) : 0;
-                                                                    const maxDD = stats.length > 0 ? Math.min(...stats.map(s => s.max_drawdown)) : 0; // Negative values
-
-                                                                    return (
-                                                                        <tr className="bg-[#1a1d24]/50 border-b border-white/10 font-bold text-gray-300">
-                                                                            <td className="p-3 sticky left-0 bg-[#15181e] z-10 shadow-r">TOTAL (Sum/W.Avg)</td>
-                                                                            <td className={`p-3 ${sumReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{sumReturn.toFixed(2)}%</td>
-                                                                            <td className="p-3">{wPF.toFixed(2)}</td>
-                                                                            <td className="p-3 text-yellow-400/80">{wWinRate.toFixed(1)}%</td>
-                                                                            <td className="p-3">{wSharpe.toFixed(2)}</td>
-                                                                            <td className="p-3 text-white">{totalTrades}</td>
-                                                                            <td className="p-3">{wStability.toFixed(2)}</td>
-                                                                            <td className="p-3">{wAccel.toFixed(2)}x</td>
-                                                                            <td className="p-3">{sumActivity.toFixed(1)}%</td>
-                                                                            <td className={`p-3 ${wReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{wReturn > 0 ? "+" : ""}{wReturn.toFixed(2)}%</td>
-                                                                            <td className="p-3">{Math.round(wHold)}m</td>
-                                                                            <td className="p-3 text-green-400/80">{maxProfit.toFixed(2)}%</td>
-                                                                            <td className="p-3 text-red-400/80">{maxLoss.toFixed(2)}%</td>
-                                                                            <td className="p-3 text-right text-red-400/80">{maxDD.toFixed(2)}%</td>
-                                                                        </tr>
-                                                                    );
-                                                                })()}
-
-                                                                {/* 2. Overview Row (Global Stats) */}
-                                                                <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
-                                                                    <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
-                                                                    <td className={`p-3 ${backtestResult.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                        {typeof backtestResult.total_return === 'number' ? backtestResult.total_return.toFixed(2) : backtestResult.total_return}%
-                                                                    </td>
-                                                                    <td className="p-3 text-white">
-                                                                        {typeof backtestResult.profit_factor === 'number' ? backtestResult.profit_factor.toFixed(2) : backtestResult.profit_factor}
-                                                                    </td>
-                                                                    <td className="p-3 text-yellow-400">
-                                                                        {typeof backtestResult.win_rate === 'number' ? backtestResult.win_rate.toFixed(1) : backtestResult.win_rate}%
-                                                                    </td>
-                                                                    <td className="p-3 text-yellow-400">
-                                                                        {typeof backtestResult.sharpe_ratio === 'number' ? backtestResult.sharpe_ratio.toFixed(2) : backtestResult.sharpe_ratio}
-                                                                    </td>
-                                                                    <td className="p-3 text-gray-300">
-                                                                        {backtestResult.total_trades}
-                                                                    </td>
-                                                                    <td className="p-3 text-purple-400">
-                                                                        {typeof backtestResult.stability_score === 'number' ? backtestResult.stability_score.toFixed(2) : backtestResult.stability_score}
-                                                                    </td>
-                                                                    <td className={`p-3 ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                        {typeof backtestResult.acceleration_score === 'number' ? backtestResult.acceleration_score.toFixed(2) : backtestResult.acceleration_score}x
-                                                                    </td>
-                                                                    <td className="p-3 text-blue-400">
-                                                                        {typeof backtestResult.activity_rate === 'number' ? backtestResult.activity_rate.toFixed(1) : backtestResult.activity_rate}%
-                                                                    </td>
-                                                                    <td className={`p-3 ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                        {backtestResult.avg_pnl > 0 ? "+" : ""}{typeof backtestResult.avg_pnl === 'number' ? backtestResult.avg_pnl.toFixed(2) : backtestResult.avg_pnl}%
-                                                                    </td>
-                                                                    <td className="p-3 text-gray-400">
-                                                                        {backtestResult.avg_holding_time}m
-                                                                    </td>
-                                                                    <td className="p-3 text-green-400">
-                                                                        {typeof backtestResult.max_profit === 'number' ? backtestResult.max_profit.toFixed(2) : backtestResult.max_profit}%
-                                                                    </td>
-                                                                    <td className="p-3 text-red-400">
-                                                                        {typeof backtestResult.max_loss === 'number' ? backtestResult.max_loss.toFixed(2) : backtestResult.max_loss}%
-                                                                    </td>
-                                                                    <td className="p-3 text-right text-red-400">
-                                                                        {typeof backtestResult.max_drawdown === 'number' ? backtestResult.max_drawdown.toFixed(2) : backtestResult.max_drawdown}%
-                                                                    </td>
-                                                                </tr>
-                                                            </tfoot>
-                                                        </table>
+                                            {/* Row 3: Action Buttons */}
+                                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                                <button
+                                                    onClick={() => setShowChart(!showChart)}
+                                                    disabled={!backtestResult}
+                                                    className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
+                                                        ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                                        : showChart
+                                                            ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
+                                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                        }`}
+                                                >
+                                                    {showChart ? "🙈 Hide Visual Chart" : "📊 Visual Analysis"}
+                                                </button>
+                                                <button
+                                                    onClick={() => runBacktest(selectedStrategy?.id)}
+                                                    disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1}
+                                                    className={`bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700 ${activeTab === -1 ? 'opacity-80 cursor-not-allowed' : ''}`}
+                                                >
+                                                    {isLoading ? (
+                                                        <>
+                                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Running...
+                                                        </>
                                                     ) : (
-                                                        <div className="py-12 text-center">
-                                                            <div className="text-gray-500 italic mb-2">No rank details available</div>
-                                                            <div className="text-xs text-gray-600">
-                                                                Debug: {JSON.stringify(Object.keys(backtestResult))}
-                                                                <br />
-                                                                IsList: {Array.isArray(backtestResult.rank_stats_list) ? "Yes" : "No"}
-                                                            </div>
-                                                        </div>
+                                                        <>{activeTab === -1 ? 'Coming Soon' : '🚀 Run Backtest'}</>
                                                     )}
+                                                </button>
+                                            </div>
+
+
+                                        </div>
+                                    </Card>
+
+                                    {/* Backtest Controls (Relocated) - Hidden in Integrated View and Live View */}
+                                    {activeTab >= 0 && (
+                                        <Card title="Backtest Settings & Execution" variant="major" className="border-t-4 border-t-blue-500">
+                                            <div className="flex flex-col gap-4">
+                                                {/* Row 1: Data Interval & Status */}
+                                                <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+                                                    <div className="flex items-center gap-4 w-full md:w-auto">
+                                                        <div className="relative w-32">
+                                                            <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
+                                                            <select
+                                                                value={currentConfig?.interval || "1m"}
+                                                                onChange={(e) => handleConfigChange('interval', e.target.value)}
+                                                                className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                            >
+                                                                <option value="1m">1 Min</option>
+                                                                <option value="3m">3 Min</option>
+                                                                <option value="5m">5 Min</option>
+                                                                <option value="10m">10 Min</option>
+                                                                <option value="15m">15 Min</option>
+                                                                <option value="30m">30 Min</option>
+                                                                <option value="60m">1 Hour</option>
+                                                                <option value="1d">1 Day</option>
+                                                                <option value="1w">1 Week</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3">
+                                                            {!dataStatus.is_fresh ? (
+                                                                <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
+                                                                    Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
+                                                                    Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                                </span>
+                                                            )}
+                                                            <button
+                                                                onClick={handleFetchData}
+                                                                disabled={isFetchingData || !isSymbolValid}
+                                                                title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
+                                                                className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
+                                                                    fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
+                                                                        "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
+                                                                    }`}
+                                                            >
+                                                                {fetchMessage ? fetchMessage : 'Update Data'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Row 2: Capital & Date & Strategy */}
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
+                                                    <div className="relative">
+                                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                                        <input
+                                                            type="text"
+                                                            value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                            onChange={(e) => {
+                                                                const val = parseInt(e.target.value.replace(/,/g, ''), 10);
+                                                                if (!isNaN(val)) handleConfigChange('initial_capital', val);
+                                                            }}
+                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                        />
+                                                    </div>
+
+                                                    <div className="relative">
+                                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                                                        <input
+                                                            type="date"
+                                                            value={currentConfig?.from_date || ""}
+                                                            onChange={(e) => handleConfigChange('from_date', e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                        />
+                                                    </div>
+
+                                                    <div className="relative">
+                                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
+                                                        <select
+                                                            value={currentConfig.betting_strategy || "fixed"}
+                                                            onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                        >
+                                                            <option value="fixed">Fixed Amount</option>
+                                                            <option value="compound">Compound Interest</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                {/* Row 3: Action Buttons */}
+                                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                                    <button
+                                                        onClick={() => setShowChart(!showChart)}
+                                                        disabled={!backtestResult}
+                                                        className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
+                                                            ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                                            : showChart
+                                                                ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
+                                                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                            }`}
+                                                    >
+                                                        {showChart ? "🙈 Hide Visual Chart" : "📊 Visual Analysis"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => runBacktest(selectedStrategy?.id)}
+                                                        disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1}
+                                                        className={`bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700 ${activeTab === -1 ? 'opacity-80 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {isLoading ? (
+                                                            <>
+                                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                Running...
+                                                            </>
+                                                        ) : (
+                                                            <>{activeTab === -1 ? 'Coming Soon' : '🚀 Run Backtest'}</>
+                                                        )}
+                                                    </button>
+                                                </div>
+
+
+                                            </div>
+                                        </Card>
+                                    )}
+
+                                    {/* SHARED EXECUTION STATUS FEEDBACK (Visible for both Single and Integrated Modes) */}
+                                    {(backtestStatus.status !== 'idle' || !backtestResult) && (
+                                        <Card className="mb-6 border-t-2 border-blue-500/30">
+                                            {backtestStatus.status === 'running' ? (
+                                                <div className="flex items-center justify-center gap-3 py-8 text-blue-400">
+                                                    <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                    <span className="text-lg font-bold animate-pulse">{backtestStatus.message}</span>
+                                                </div>
+                                            ) : backtestStatus.status === 'error' ? (
+                                                <div className="flex items-center justify-center gap-3 py-8 text-red-400">
+                                                    <span className="text-2xl">⚠️</span>
+                                                    <span className="text-lg font-bold">{backtestStatus.message}</span>
+                                                </div>
+                                            ) : !backtestResult && (
+                                                <div className="text-center text-gray-500 py-8 text-sm italic">
+                                                    Select a strategy and click 'Run Backtest' to see results here.
                                                 </div>
                                             )}
                                         </Card>
-                                        <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform">
-                                            Deploy Strategy to Live
-                                        </button>
-                                    </div>
-                                    <Card
-                                        title="Equity Curve"
-                                    >
-                                        <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart data={backtestResult.chart_data}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        stroke="#666"
-                                                        height={50}
-                                                        ticks={(() => {
-                                                            // Generate ticks only for month changes
-                                                            if (!backtestResult.chart_data) return [];
-                                                            const ticks = [];
-                                                            let lastMonth = -1;
-                                                            backtestResult.chart_data.forEach(d => {
-                                                                const date = new Date(d.date);
-                                                                const month = date.getMonth();
-                                                                if (month !== lastMonth) {
-                                                                    ticks.push(d.date);
-                                                                    lastMonth = month;
-                                                                }
-                                                            });
-                                                            return ticks;
-                                                        })()}
-                                                        interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
-                                                        tick={({ x, y, payload, index }) => {
-                                                            const dateStr = payload.value;
-                                                            if (!dateStr) return null;
-                                                            const date = new Date(dateStr);
-                                                            const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
-                                                            const year = date.getFullYear();
+                                    )}
 
-                                                            // Show Year if it's Jan (Month 0) OR it's the very first tick
-                                                            const isJan = date.getMonth() === 0;
-                                                            const showYear = index === 0 || isJan;
 
-                                                            return (
-                                                                <g transform={`translate(${x},${y})`}>
-                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
-                                                                        {monthStr}
-                                                                    </text>
-                                                                    {showYear && (
-                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
-                                                                            {year}
-                                                                        </text>
-                                                                    )}
-                                                                </g>
-                                                            );
-                                                        }}
+                                    {/* VISUAL CHART SECTION (Dedicated) */}
+                                    {showChart && backtestResult && (
+                                        <div className="mb-6 animate-fade-in-down">
+                                            <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
+                                                {backtestResult.strategy_id.includes('Integrated') ? (
+                                                    <IntegratedAnalysis
+                                                        trades={backtestResult.trades || []}
+                                                        backtestResult={backtestResult}
+                                                        strategiesConfig={configList}
+                                                        savedSymbols={savedSymbols || []}
                                                     />
-                                                    <YAxis
-                                                        stroke="#666"
-                                                        domain={['auto', 'auto']}
-                                                        tickFormatter={(value) => {
-                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
-                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                                            return value;
-                                                        }}
-                                                        width={60}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                        itemStyle={{ color: '#fff' }}
-                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
-                                                    />
-                                                    <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
-                                                </LineChart>
-                                            </ResponsiveContainer>
+                                                ) : (
+                                                    backtestResult.ohlcv_data ? (
+                                                        <VisualBacktestChart
+                                                            data={backtestResult.ohlcv_data}
+                                                            trades={backtestResult.trades}
+                                                        />
+                                                    ) : (
+                                                        <div className="h-[200px] flex items-center justify-center text-gray-500">
+                                                            No visual data available.
+                                                        </div>
+                                                    )
+                                                )}
+                                            </Card>
                                         </div>
-                                    </Card>
-                                </div>
-                            )}
-                        </div> {/* End of Backtest Simulation Group */}
+                                    )}
 
-                        {/* OPTIMIZATION SECTION */}
-                        {activeTab !== -1 && (
-                            <div className="space-y-6 pt-10">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/50">
-                                        <span className="text-white font-bold text-lg">2</span>
-                                    </div>
-                                    <h2 className="text-2xl font-bold text-white tracking-tight">Parameter Optimization</h2>
-                                    <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
-                                </div>
+                                    {/* Backtest Results */}
+                                    {backtestResult && (
+                                        <div className="space-y-6 mb-6">
+                                            <div className="space-y-6">
+                                                {/* Analysis Mode Tabs (Integrated Only or Global) */}
+                                                <div className="flex gap-4 mb-4">
+                                                    <button
+                                                        onClick={() => setActiveAnalysisTab('overview')}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'overview'
+                                                            ? 'bg-purple-600 text-white shadow-lg'
+                                                            : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                                    >
+                                                        Overview
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setActiveAnalysisTab('rank_details')}
+                                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'rank_details'
+                                                            ? 'bg-purple-600 text-white shadow-lg'
+                                                            : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                                    >
+                                                        Rank Details
+                                                    </button>
+                                                </div>
 
-                                <Card title="Parameter Optimization (Grid Search)" variant="major" className="border-t-4 border-t-purple-500">
-                                    <div className="space-y-6">
-                                        <div className="space-y-6">
-                                            {/* Dynamic Grid Inputs */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                {(() => {
-                                                    const currentOptEnabled = currentConfig.optEnabled || {};
-                                                    const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+                                                <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
+                                                    {activeAnalysisTab === 'overview' ? (
+                                                        <div className="space-y-4">
+                                                            {/* Helpers defined inline for clarity in render block context or use component utils */
+                                                                (() => {
+                                                                    const fmtPct = (v, d = 2) => typeof v === 'number' ? `${v.toFixed(d)}%` : (v || "0.00%");
+                                                                    const fmtNum = (v, d = 2) => typeof v === 'number' ? v.toFixed(d) : (v || "0.00");
 
-                                                    return PARAM_DEFINITIONS.map((param) => (
-                                                        <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`opt-${param.key}`}
-                                                                    checked={!!currentOptEnabled[param.key]}
-                                                                    onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
-                                                                    className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
-                                                                />
-                                                                <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${currentOptEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
-                                                                    {param.label}
-                                                                </label>
-                                                            </div>
-                                                            {param.type === 'select' && currentOptEnabled[param.key] ? (
-                                                                <div className="relative">
-                                                                    <div
-                                                                        onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
-                                                                        className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
-                                                                            }`}
-                                                                    >
-                                                                        <span className="truncate">
-                                                                            {currentOptValues[param.key] || <span className="text-gray-500">Select options...</span>}
-                                                                        </span>
-                                                                        <span className="text-gray-400 text-xs ml-2">▼</span>
-                                                                    </div>
+                                                                    return (
+                                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Total Return</div>
+                                                                                <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                    {fmtPct(backtestResult.total_return)}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
+                                                                                <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
+                                                                                <div className="text-xl font-bold text-white">{fmtNum(backtestResult.profit_factor)}</div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Win Rate</div>
+                                                                                <div className="text-xl font-bold text-white">{fmtPct(backtestResult.win_rate, 1)}</div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Sharpe Ratio</div>
+                                                                                <div className="text-xl font-bold text-yellow-400">{fmtNum(backtestResult.sharpe_ratio)}</div>
+                                                                            </div>
 
-                                                                    {/* Dropdown Menu */}
-                                                                    {activeDropdown === param.key && (
-                                                                        <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                                            {param.options.map(option => {
-                                                                                const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
-                                                                                const isSelected = currentVals.includes(option);
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Total Trades</div>
+                                                                                <div className="text-xl font-bold text-white">
+                                                                                    {backtestResult.total_trades}
+                                                                                    <span className="text-sm font-normal text-gray-500 ml-2">
+                                                                                        ({backtestResult.total_days} days)
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Stability (R²)</div>
+                                                                                <div className="text-xl font-bold text-purple-400">{fmtNum(backtestResult.stability_score)}</div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Profit Accel</div>
+                                                                                <div className={`text-xl font-bold ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                                    {fmtNum(backtestResult.acceleration_score)}x
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Activity Rate</div>
+                                                                                <div className="text-xl font-bold text-blue-400">{fmtPct(backtestResult.activity_rate, 1)}</div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Avg PnL</div>
+                                                                                <div className={`text-xl font-bold ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                    {fmtPct(backtestResult.avg_pnl)}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Avg Holding</div>
+                                                                                <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time}m</div>
+                                                                            </div>
 
-                                                                                return (
-                                                                                    <div
-                                                                                        key={option}
-                                                                                        onClick={() => {
-                                                                                            let newVals;
-                                                                                            if (isSelected) {
-                                                                                                newVals = currentVals.filter(v => v !== option);
-                                                                                            } else {
-                                                                                                // Sort logic if needed, but append is fine for now
-                                                                                                newVals = [...currentVals, option];
-                                                                                                // Try to sort times if possible? complex. Just push.
-                                                                                            }
-                                                                                            handleOptValueChange(param.key, newVals.join(', '));
-                                                                                        }}
-                                                                                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
-                                                                                            }`}
-                                                                                    >
-                                                                                        <span>{option}</span>
-                                                                                        {isSelected && <span>✓</span>}
-                                                                                    </div>
-                                                                                );
-                                                                            })}
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Max Profit</div>
+                                                                                <div className="text-xl font-bold text-green-400">{fmtPct(backtestResult.max_profit)}</div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-white/5 rounded-lg">
+                                                                                <div className="text-xs text-gray-400">Max Loss</div>
+                                                                                <div className="text-xl font-bold text-red-400">{fmtPct(backtestResult.max_loss)}</div>
+                                                                            </div>
+                                                                            <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
+                                                                                <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
+                                                                                <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
+                                                                                    {fmtPct(backtestResult.max_drawdown)}
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
-                                                                    )}
+                                                                    );
+                                                                })()}
+                                                            {/* Monthly Analysis Chart */}
+                                                            {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
+                                                                <div className="mt-4 pt-4 border-t border-white/10">
+                                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
+                                                                    <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
+                                                                        <ResponsiveContainer width="100%" height="100%">
+                                                                            <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
+                                                                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
 
-                                                                    {/* Overlay to close */}
-                                                                    {activeDropdown === param.key && (
-                                                                        <div
-                                                                            className="fixed inset-0 z-40"
-                                                                            onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
-                                                                        ></div>
-                                                                    )}
+                                                                                {/* Custom X-Axis with Multi-Row Data */}
+                                                                                <XAxis
+                                                                                    dataKey="block"
+                                                                                    stroke="#666"
+                                                                                    tickLine={false}
+                                                                                    interval={0}
+                                                                                    tick={({ x, y, payload, index }) => {
+                                                                                        const data = backtestResult.decile_stats[index];
+                                                                                        return (
+                                                                                            <g transform={`translate(${x},${y})`}>
+                                                                                                {/* Row 1: Month */}
+                                                                                                <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
+                                                                                                    {payload.value}
+                                                                                                </text>
+                                                                                                {/* Row 2: Trade Count */}
+                                                                                                <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
+                                                                                                    {data.count}
+                                                                                                </text>
+                                                                                                {/* Row 3: Win Rate */}
+                                                                                                <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
+                                                                                                    {data.win_rate}%
+                                                                                                </text>
+                                                                                                {/* Row 4: Realized PnL */}
+                                                                                                <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
+                                                                                                    {data.total_pnl}%
+                                                                                                </text>
+                                                                                            </g>
+                                                                                        );
+                                                                                    }}
+                                                                                />
+
+                                                                                <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
+                                                                                <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
+
+                                                                                <Tooltip
+                                                                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
+                                                                                    itemStyle={{ color: '#fff' }}
+                                                                                    formatter={(value, name) => {
+                                                                                        if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
+                                                                                        return [value, name];
+                                                                                    }}
+                                                                                    labelFormatter={(label) => `Month: ${label}`}
+                                                                                />
+                                                                                <ReferenceLine yAxisId="left" y={0} stroke="#666" />
+
+                                                                                <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
+                                                                                    {backtestResult.decile_stats.map((entry, index) => (
+                                                                                        <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
+                                                                                    ))}
+                                                                                </Bar>
+                                                                            </ComposedChart>
+                                                                        </ResponsiveContainer>
+                                                                    </div>
+                                                                    <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
+                                                                            <span>Profit</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
+                                                                            <span>Loss</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="text-blue-400 font-bold">12</span>
+                                                                            <span>= Count</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
+                                                                            <span>= Win Rate</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="text-green-400 font-bold">5.2%</span>
+                                                                            <span>= Realized PnL</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                            ) : (
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={param.placeholder}
-                                                                    disabled={!currentOptEnabled[param.key]}
-                                                                    className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
-                                                                        ? 'border-purple-500/30 text-white focus:border-purple-500'
-                                                                        : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                                    value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
-                                                                    onChange={(e) => handleOptValueChange(param.key, e.target.value)}
-                                                                />
                                                             )}
-                                                            {currentOptEnabled[param.key] && (
-                                                                <p className="text-[10px] text-gray-500 mt-1 truncate">
-                                                                    e.g. {param.placeholder}
-                                                                </p>
+
+                                                            {/* Logs Preview */}
+                                                            {backtestResult.logs && (
+                                                                <div className="mt-4 pt-4 border-t border-white/10">
+                                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs (Debug: {backtestResult.logs ? backtestResult.logs.length : 'N/A'})</h4>
+                                                                    <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
+                                                                        {backtestResult.logs.map((log, i) => (
+                                                                            <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
+                                                                                {log}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
                                                             )}
                                                         </div>
-                                                    ));
-                                                })()}
-                                            </div>
-
-
-
-
-
-                                            {/* Action */}
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={runOptimization}
-                                                    disabled={isOptimizing || activeTab === -1}
-                                                    className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
-                                                >
-                                                    {isOptimizing ? (
-                                                        <>
-                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                            {optProgress.total > 0
-                                                                ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                                : "Initializing..."}
-                                                        </>
                                                     ) : (
-                                                        <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
+                                                        <div className="overflow-x-auto">
+                                                            {backtestResult.rank_stats_list && backtestResult.rank_stats_list.length > 0 ? (
+                                                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                                    <thead>
+                                                                        <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
+                                                                            <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
+                                                                            <th className="p-3">Total Return</th>
+                                                                            <th className="p-3">Profit Factor</th>
+                                                                            <th className="p-3">Win Rate</th>
+                                                                            <th className="p-3">Sharpe</th>
+                                                                            <th className="p-3">Trades</th>
+                                                                            <th className="p-3">Stability</th>
+                                                                            <th className="p-3">Accel</th>
+                                                                            <th className="p-3">Activity</th>
+                                                                            <th className="p-3">Avg Return</th>
+                                                                            <th className="p-3">Avg Hold</th>
+                                                                            <th className="p-3">Max Profit</th>
+                                                                            <th className="p-3">Max Loss</th>
+                                                                            <th className="p-3 text-right">Max DD</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="text-sm">
+                                                                        {backtestResult.rank_stats_list.map((stat, idx) => (
+                                                                            <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                                                <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
+                                                                                <td className={`p-3 font-bold ${stat.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                    {typeof stat.total_return === 'number' ? stat.total_return.toFixed(2) : stat.total_return}%
+                                                                                </td>
+                                                                                <td className="p-3 text-white">
+                                                                                    {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
+                                                                                </td>
+                                                                                <td className="p-3 text-yellow-400 font-bold">
+                                                                                    {stat.win_rate.toFixed(1)}%
+                                                                                </td>
+                                                                                <td className="p-3 text-yellow-400">
+                                                                                    {typeof stat.sharpe_ratio === 'number' ? stat.sharpe_ratio.toFixed(2) : stat.sharpe_ratio}
+                                                                                </td>
+                                                                                <td className="p-3 text-gray-300">
+                                                                                    {stat.total_trades}
+                                                                                </td>
+                                                                                <td className="p-3 text-purple-400">
+                                                                                    {typeof stat.stability_score === 'number' ? stat.stability_score.toFixed(2) : stat.stability_score}
+                                                                                </td>
+                                                                                <td className={`p-3 font-bold ${stat.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                                    {typeof stat.acceleration_score === 'number' ? stat.acceleration_score.toFixed(2) : stat.acceleration_score}x
+                                                                                </td>
+                                                                                <td className="p-3 text-blue-400">
+                                                                                    {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
+                                                                                </td>
+                                                                                <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                    {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
+                                                                                </td>
+                                                                                <td className="p-3 text-gray-400">
+                                                                                    {stat.avg_holding_time}m
+                                                                                </td>
+                                                                                <td className="p-3 text-green-400">
+                                                                                    {typeof stat.max_profit === 'number' ? stat.max_profit.toFixed(2) : stat.max_profit}%
+                                                                                </td>
+                                                                                <td className="p-3 text-red-400">
+                                                                                    {typeof stat.max_loss === 'number' ? stat.max_loss.toFixed(2) : stat.max_loss}%
+                                                                                </td>
+                                                                                <td className="p-3 text-right text-red-400 font-bold">
+                                                                                    {typeof stat.max_drawdown === 'number' ? stat.max_drawdown.toFixed(2) : stat.max_drawdown}%
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                    <tfoot className="text-sm border-t-2 border-white/20">
+                                                                        {/* 1. Calculated Total / Average Row */}
+                                                                        {(() => {
+                                                                            const stats = backtestResult.rank_stats_list;
+                                                                            const count = stats.length;
+                                                                            const sumReturn = stats.reduce((acc, s) => acc + s.total_return, 0);
+                                                                            const totalTrades = stats.reduce((acc, s) => acc + s.total_trades, 0);
+
+                                                                            // Activity Rate: Sum (matches Overview ~81%)
+                                                                            const sumActivity = stats.reduce((acc, s) => acc + s.activity_rate, 0);
+
+                                                                            // Weighted Averages (by Trades) - More accurate for PnL/PF/Sharpe
+                                                                            const getWeightedAvg = (key) => totalTrades > 0
+                                                                                ? stats.reduce((acc, s) => acc + (s[key] * s.total_trades), 0) / totalTrades
+                                                                                : 0;
+
+                                                                            const wWinRate = getWeightedAvg('win_rate');
+                                                                            const wPF = getWeightedAvg('profit_factor');
+                                                                            const wSharpe = getWeightedAvg('sharpe_ratio');
+                                                                            const wStability = getWeightedAvg('stability_score');
+                                                                            const wAccel = getWeightedAvg('acceleration_score');
+                                                                            const wReturn = getWeightedAvg('avg_pnl');
+                                                                            const wHold = getWeightedAvg('avg_holding_time');
+
+                                                                            // Extremes
+                                                                            const maxProfit = stats.length > 0 ? Math.max(...stats.map(s => s.max_profit)) : 0;
+                                                                            const maxLoss = stats.length > 0 ? Math.min(...stats.map(s => s.max_loss)) : 0;
+                                                                            const maxDD = stats.length > 0 ? Math.min(...stats.map(s => s.max_drawdown)) : 0; // Negative values
+
+                                                                            return (
+                                                                                <tr className="bg-[#1a1d24]/50 border-b border-white/10 font-bold text-gray-300">
+                                                                                    <td className="p-3 sticky left-0 bg-[#15181e] z-10 shadow-r">TOTAL (Sum/W.Avg)</td>
+                                                                                    <td className={`p-3 ${sumReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{sumReturn.toFixed(2)}%</td>
+                                                                                    <td className="p-3">{wPF.toFixed(2)}</td>
+                                                                                    <td className="p-3 text-yellow-400/80">{wWinRate.toFixed(1)}%</td>
+                                                                                    <td className="p-3">{wSharpe.toFixed(2)}</td>
+                                                                                    <td className="p-3 text-white">{totalTrades}</td>
+                                                                                    <td className="p-3">{wStability.toFixed(2)}</td>
+                                                                                    <td className="p-3">{wAccel.toFixed(2)}x</td>
+                                                                                    <td className="p-3">{sumActivity.toFixed(1)}%</td>
+                                                                                    <td className={`p-3 ${wReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{wReturn > 0 ? "+" : ""}{wReturn.toFixed(2)}%</td>
+                                                                                    <td className="p-3">{Math.round(wHold)}m</td>
+                                                                                    <td className="p-3 text-green-400/80">{maxProfit.toFixed(2)}%</td>
+                                                                                    <td className="p-3 text-red-400/80">{maxLoss.toFixed(2)}%</td>
+                                                                                    <td className="p-3 text-right text-red-400/80">{maxDD.toFixed(2)}%</td>
+                                                                                </tr>
+                                                                            );
+                                                                        })()}
+
+                                                                        {/* 2. Overview Row (Global Stats) */}
+                                                                        <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
+                                                                            <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
+                                                                            <td className={`p-3 ${backtestResult.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                {typeof backtestResult.total_return === 'number' ? backtestResult.total_return.toFixed(2) : backtestResult.total_return}%
+                                                                            </td>
+                                                                            <td className="p-3 text-white">
+                                                                                {typeof backtestResult.profit_factor === 'number' ? backtestResult.profit_factor.toFixed(2) : backtestResult.profit_factor}
+                                                                            </td>
+                                                                            <td className="p-3 text-yellow-400">
+                                                                                {typeof backtestResult.win_rate === 'number' ? backtestResult.win_rate.toFixed(1) : backtestResult.win_rate}%
+                                                                            </td>
+                                                                            <td className="p-3 text-yellow-400">
+                                                                                {typeof backtestResult.sharpe_ratio === 'number' ? backtestResult.sharpe_ratio.toFixed(2) : backtestResult.sharpe_ratio}
+                                                                            </td>
+                                                                            <td className="p-3 text-gray-300">
+                                                                                {backtestResult.total_trades}
+                                                                            </td>
+                                                                            <td className="p-3 text-purple-400">
+                                                                                {typeof backtestResult.stability_score === 'number' ? backtestResult.stability_score.toFixed(2) : backtestResult.stability_score}
+                                                                            </td>
+                                                                            <td className={`p-3 ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
+                                                                                {typeof backtestResult.acceleration_score === 'number' ? backtestResult.acceleration_score.toFixed(2) : backtestResult.acceleration_score}x
+                                                                            </td>
+                                                                            <td className="p-3 text-blue-400">
+                                                                                {typeof backtestResult.activity_rate === 'number' ? backtestResult.activity_rate.toFixed(1) : backtestResult.activity_rate}%
+                                                                            </td>
+                                                                            <td className={`p-3 ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                {backtestResult.avg_pnl > 0 ? "+" : ""}{typeof backtestResult.avg_pnl === 'number' ? backtestResult.avg_pnl.toFixed(2) : backtestResult.avg_pnl}%
+                                                                            </td>
+                                                                            <td className="p-3 text-gray-400">
+                                                                                {backtestResult.avg_holding_time}m
+                                                                            </td>
+                                                                            <td className="p-3 text-green-400">
+                                                                                {typeof backtestResult.max_profit === 'number' ? backtestResult.max_profit.toFixed(2) : backtestResult.max_profit}%
+                                                                            </td>
+                                                                            <td className="p-3 text-red-400">
+                                                                                {typeof backtestResult.max_loss === 'number' ? backtestResult.max_loss.toFixed(2) : backtestResult.max_loss}%
+                                                                            </td>
+                                                                            <td className="p-3 text-right text-red-400">
+                                                                                {typeof backtestResult.max_drawdown === 'number' ? backtestResult.max_drawdown.toFixed(2) : backtestResult.max_drawdown}%
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tfoot>
+                                                                </table>
+                                                            ) : (
+                                                                <div className="py-12 text-center">
+                                                                    <div className="text-gray-500 italic mb-2">No rank details available</div>
+                                                                    <div className="text-xs text-gray-600">
+                                                                        Debug: {JSON.stringify(Object.keys(backtestResult))}
+                                                                        <br />
+                                                                        IsList: {Array.isArray(backtestResult.rank_stats_list) ? "Yes" : "No"}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     )}
+                                                </Card>
+                                                <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform">
+                                                    Deploy Strategy to Live
                                                 </button>
-
-                                                {isOptimizing && (
-                                                    <button
-                                                        onClick={() => cancelOptimization(currentOptTaskId)}
-                                                        disabled={isCancelling}
-                                                        className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isCancelling ? 'Stopping...' : 'Stop'}
-                                                    </button>
-                                                )}
                                             </div>
+                                            <Card
+                                                title="Equity Curve"
+                                            >
+                                                <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <LineChart data={backtestResult.chart_data}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                                            <XAxis
+                                                                dataKey="date"
+                                                                stroke="#666"
+                                                                height={50}
+                                                                ticks={(() => {
+                                                                    // Generate ticks only for month changes
+                                                                    if (!backtestResult.chart_data) return [];
+                                                                    const ticks = [];
+                                                                    let lastMonth = -1;
+                                                                    backtestResult.chart_data.forEach(d => {
+                                                                        const date = new Date(d.date);
+                                                                        const month = date.getMonth();
+                                                                        if (month !== lastMonth) {
+                                                                            ticks.push(d.date);
+                                                                            lastMonth = month;
+                                                                        }
+                                                                    });
+                                                                    return ticks;
+                                                                })()}
+                                                                interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
+                                                                tick={({ x, y, payload, index }) => {
+                                                                    const dateStr = payload.value;
+                                                                    if (!dateStr) return null;
+                                                                    const date = new Date(dateStr);
+                                                                    const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
+                                                                    const year = date.getFullYear();
 
-                                            {/* Status Message Display */}
-                                            {isOptimizing && optStatusMessage && (
-                                                <div className="mt-2 p-2 bg-black/40 rounded border border-white/10 text-xs font-mono text-cyan-400 text-center animate-pulse">
-                                                    STATUS: {optStatusMessage}
+                                                                    // Show Year if it's Jan (Month 0) OR it's the very first tick
+                                                                    const isJan = date.getMonth() === 0;
+                                                                    const showYear = index === 0 || isJan;
+
+                                                                    return (
+                                                                        <g transform={`translate(${x},${y})`}>
+                                                                            <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
+                                                                                {monthStr}
+                                                                            </text>
+                                                                            {showYear && (
+                                                                                <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
+                                                                                    {year}
+                                                                                </text>
+                                                                            )}
+                                                                        </g>
+                                                                    );
+                                                                }}
+                                                            />
+                                                            <YAxis
+                                                                stroke="#666"
+                                                                domain={['auto', 'auto']}
+                                                                tickFormatter={(value) => {
+                                                                    if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
+                                                                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                                                    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                                                    return value;
+                                                                }}
+                                                                width={60}
+                                                            />
+                                                            <Tooltip
+                                                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                                itemStyle={{ color: '#fff' }}
+                                                                formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
+                                                            />
+                                                            <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
                                                 </div>
-                                            )}
+                                            </Card>
+                                        </div>
+                                    )}
+                                </div> {/* End of Backtest Simulation Group */}
 
-                                            {/* Error/Status Display */}
-                                            {optError && (
-                                                <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
-                                                    ? "bg-gray-800/50 border-gray-600 text-gray-300"
-                                                    : "bg-red-900/20 border-red-500/50 text-red-300"
-                                                    }`}>
-                                                    <div className={`flex items-center gap-2 mb-2 font-bold ${optError.includes("Cancelled") ? "text-gray-300" : "text-red-400"}`}>
-                                                        <span className="text-xl">{optError.includes("Cancelled") ? "🛑" : "⚠️"}</span>
-                                                        {optError.includes("Cancelled") ? "Optimization Stopped" : "Optimization Error"}
-                                                    </div>
-                                                    <pre className={`whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 rounded border ${optError.includes("Cancelled")
-                                                        ? "bg-black/30 border-gray-500/30 text-gray-400"
-                                                        : "bg-black/30 border-red-500/10"
-                                                        }`}>
-                                                        {optError}
-                                                    </pre>
-                                                    {!optError.includes("Cancelled") && (
-                                                        <p className="text-xs text-red-500/70 mt-2">
-                                                            Check the error message above. You can copy it for debugging.
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
+                            {/* OPTIMIZATION SECTION */}
+                            {activeTab >= 0 && (
+                                <div className="space-y-6 pt-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/50">
+                                            <span className="text-white font-bold text-lg">2</span>
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-white tracking-tight">Parameter Optimization</h2>
+                                        <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
+                                    </div>
 
-                                            {optResults && optResults.length > 0 && (
-                                                <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-left border-collapse whitespace-nowrap">
-                                                            <thead>
-                                                                <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
-                                                                    <th className="p-3 text-center w-16">Active</th>
-                                                                    {[
-                                                                        { key: 'rank', label: 'Rank' },
-                                                                        ...PARAM_DEFINITIONS,
-                                                                        { key: 'return', label: 'Return' },
-                                                                        { key: 'max_drawdown', label: 'MDD' },
-                                                                        { key: 'win_rate', label: 'Win Rate' },
-                                                                        { key: 'profit_factor', label: 'P.Factor' },
-                                                                        { key: 'sharpe_ratio', label: 'Sharpe' },
-                                                                        { key: 'avg_pnl', label: 'Avg PnL' },
-                                                                        { key: 'activity_rate', label: 'Activity' },
-                                                                        { key: 'total_days', label: 'Days' },
-                                                                        { key: 'avg_holding_time', label: 'Avg Hold' },
-                                                                        { key: 'max_profit', label: 'Max Profit' },
-                                                                        { key: 'max_loss', label: 'Max Loss' },
-                                                                        { key: 'stability_score', label: 'Stability' },
-                                                                        { key: 'acceleration_score', label: 'Profit Accel' },
-                                                                        { key: 'trades', label: 'Trades' },
-                                                                        { key: 'score', label: 'Score' }
-                                                                    ].map((col) => (
-                                                                        <th
-                                                                            key={col.key}
-                                                                            onClick={() => handleSort(col.key)}
-                                                                            className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''
+                                    <Card title="Parameter Optimization (Grid Search)" variant="major" className="border-t-4 border-t-purple-500">
+                                        <div className="space-y-6">
+                                            <div className="space-y-6">
+                                                {/* Dynamic Grid Inputs */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    {(() => {
+                                                        const currentOptEnabled = currentConfig.optEnabled || {};
+                                                        const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+
+                                                        return PARAM_DEFINITIONS.map((param) => (
+                                                            <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id={`opt-${param.key}`}
+                                                                        checked={!!currentOptEnabled[param.key]}
+                                                                        onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
+                                                                        className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
+                                                                    />
+                                                                    <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${currentOptEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
+                                                                        {param.label}
+                                                                    </label>
+                                                                </div>
+                                                                {param.type === 'select' && currentOptEnabled[param.key] ? (
+                                                                    <div className="relative">
+                                                                        <div
+                                                                            onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
+                                                                            className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
                                                                                 }`}
                                                                         >
-                                                                            <div className="flex items-center gap-1">
-                                                                                {col.label}
-                                                                                {sortConfig.key === col.key && (
-                                                                                    <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-                                                                                )}
+                                                                            <span className="truncate">
+                                                                                {currentOptValues[param.key] || <span className="text-gray-500">Select options...</span>}
+                                                                            </span>
+                                                                            <span className="text-gray-400 text-xs ml-2">▼</span>
+                                                                        </div>
+
+                                                                        {/* Dropdown Menu */}
+                                                                        {activeDropdown === param.key && (
+                                                                            <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                                                                {param.options.map(option => {
+                                                                                    const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
+                                                                                    const isSelected = currentVals.includes(option);
+
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={option}
+                                                                                            onClick={() => {
+                                                                                                let newVals;
+                                                                                                if (isSelected) {
+                                                                                                    newVals = currentVals.filter(v => v !== option);
+                                                                                                } else {
+                                                                                                    // Sort logic if needed, but append is fine for now
+                                                                                                    newVals = [...currentVals, option];
+                                                                                                    // Try to sort times if possible? complex. Just push.
+                                                                                                }
+                                                                                                handleOptValueChange(param.key, newVals.join(', '));
+                                                                                            }}
+                                                                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
+                                                                                                }`}
+                                                                                        >
+                                                                                            <span>{option}</span>
+                                                                                            {isSelected && <span>✓</span>}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
-                                                                        </th>
-                                                                    ))}
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {[...optResults]
-                                                                    .sort((a, b) => {
-                                                                        let valA = a[sortConfig.key];
-                                                                        let valB = b[sortConfig.key];
+                                                                        )}
 
-                                                                        // Handle percentage strings if necessary, though backend sends numbers usually
-                                                                        // If raw data is mixed, safe check:
-                                                                        if (typeof valA === 'string' && valA.includes('%')) valA = parseFloat(valA);
-                                                                        if (typeof valB === 'string' && valB.includes('%')) valB = parseFloat(valB);
+                                                                        {/* Overlay to close */}
+                                                                        {activeDropdown === param.key && (
+                                                                            <div
+                                                                                className="fixed inset-0 z-40"
+                                                                                onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
+                                                                            ></div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder={param.placeholder}
+                                                                        disabled={!currentOptEnabled[param.key]}
+                                                                        className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
+                                                                            ? 'border-purple-500/30 text-white focus:border-purple-500'
+                                                                            : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
+                                                                        value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
+                                                                        onChange={(e) => handleOptValueChange(param.key, e.target.value)}
+                                                                    />
+                                                                )}
+                                                                {currentOptEnabled[param.key] && (
+                                                                    <p className="text-[10px] text-gray-500 mt-1 truncate">
+                                                                        e.g. {param.placeholder}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ));
+                                                    })()}
+                                                </div>
 
-                                                                        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                                                                        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                                                                        return 0;
-                                                                    })
-                                                                    .map((res, idx) => {
-                                                                        let isActiveConfig = true;
-                                                                        // Check if this result matches current configuration
-                                                                        if (currentConfig) {
-                                                                            for (const param of PARAM_DEFINITIONS) {
-                                                                                const configVal = currentConfig[param.key];
-                                                                                const resVal = res[param.key];
-                                                                                // Loose equality since API might return number vs string input
-                                                                                // eslint-disable-next-line eqeqeq
-                                                                                if (configVal != resVal) {
-                                                                                    isActiveConfig = false;
-                                                                                    break;
+
+
+
+
+                                                {/* Action */}
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={runOptimization}
+                                                        disabled={isOptimizing || activeTab === -1}
+                                                        className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
+                                                    >
+                                                        {isOptimizing ? (
+                                                            <>
+                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                {optProgress.total > 0
+                                                                    ? `Processing (${optProgress.current}/${optProgress.total})...`
+                                                                    : "Initializing..."}
+                                                            </>
+                                                        ) : (
+                                                            <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
+                                                        )}
+                                                    </button>
+
+                                                    {isOptimizing && (
+                                                        <button
+                                                            onClick={() => cancelOptimization(currentOptTaskId)}
+                                                            disabled={isCancelling}
+                                                            className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            {isCancelling ? 'Stopping...' : 'Stop'}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Status Message Display */}
+                                                {isOptimizing && optStatusMessage && (
+                                                    <div className="mt-2 p-2 bg-black/40 rounded border border-white/10 text-xs font-mono text-cyan-400 text-center animate-pulse">
+                                                        STATUS: {optStatusMessage}
+                                                    </div>
+                                                )}
+
+                                                {/* Error/Status Display */}
+                                                {optError && (
+                                                    <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
+                                                        ? "bg-gray-800/50 border-gray-600 text-gray-300"
+                                                        : "bg-red-900/20 border-red-500/50 text-red-300"
+                                                        }`}>
+                                                        <div className={`flex items-center gap-2 mb-2 font-bold ${optError.includes("Cancelled") ? "text-gray-300" : "text-red-400"}`}>
+                                                            <span className="text-xl">{optError.includes("Cancelled") ? "🛑" : "⚠️"}</span>
+                                                            {optError.includes("Cancelled") ? "Optimization Stopped" : "Optimization Error"}
+                                                        </div>
+                                                        <pre className={`whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 rounded border ${optError.includes("Cancelled")
+                                                            ? "bg-black/30 border-gray-500/30 text-gray-400"
+                                                            : "bg-black/30 border-red-500/10"
+                                                            }`}>
+                                                            {optError}
+                                                        </pre>
+                                                        {!optError.includes("Cancelled") && (
+                                                            <p className="text-xs text-red-500/70 mt-2">
+                                                                Check the error message above. You can copy it for debugging.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {optResults && optResults.length > 0 && (
+                                                    <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                                <thead>
+                                                                    <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
+                                                                        <th className="p-3 text-center w-16">Active</th>
+                                                                        {[
+                                                                            { key: 'rank', label: 'Rank' },
+                                                                            ...PARAM_DEFINITIONS,
+                                                                            { key: 'return', label: 'Return' },
+                                                                            { key: 'max_drawdown', label: 'MDD' },
+                                                                            { key: 'win_rate', label: 'Win Rate' },
+                                                                            { key: 'profit_factor', label: 'P.Factor' },
+                                                                            { key: 'sharpe_ratio', label: 'Sharpe' },
+                                                                            { key: 'avg_pnl', label: 'Avg PnL' },
+                                                                            { key: 'activity_rate', label: 'Activity' },
+                                                                            { key: 'total_days', label: 'Days' },
+                                                                            { key: 'avg_holding_time', label: 'Avg Hold' },
+                                                                            { key: 'max_profit', label: 'Max Profit' },
+                                                                            { key: 'max_loss', label: 'Max Loss' },
+                                                                            { key: 'stability_score', label: 'Stability' },
+                                                                            { key: 'acceleration_score', label: 'Profit Accel' },
+                                                                            { key: 'trades', label: 'Trades' },
+                                                                            { key: 'score', label: 'Score' }
+                                                                        ].map((col) => (
+                                                                            <th
+                                                                                key={col.key}
+                                                                                onClick={() => handleSort(col.key)}
+                                                                                className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''
+                                                                                    }`}
+                                                                            >
+                                                                                <div className="flex items-center gap-1">
+                                                                                    {col.label}
+                                                                                    {sortConfig.key === col.key && (
+                                                                                        <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </th>
+                                                                        ))}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {[...optResults]
+                                                                        .sort((a, b) => {
+                                                                            let valA = a[sortConfig.key];
+                                                                            let valB = b[sortConfig.key];
+
+                                                                            // Handle percentage strings if necessary, though backend sends numbers usually
+                                                                            // If raw data is mixed, safe check:
+                                                                            if (typeof valA === 'string' && valA.includes('%')) valA = parseFloat(valA);
+                                                                            if (typeof valB === 'string' && valB.includes('%')) valB = parseFloat(valB);
+
+                                                                            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                                                                            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                                                                            return 0;
+                                                                        })
+                                                                        .map((res, idx) => {
+                                                                            let isActiveConfig = true;
+                                                                            // Check if this result matches current configuration
+                                                                            if (currentConfig) {
+                                                                                for (const param of PARAM_DEFINITIONS) {
+                                                                                    const configVal = currentConfig[param.key];
+                                                                                    const resVal = res[param.key];
+                                                                                    // Loose equality since API might return number vs string input
+                                                                                    // eslint-disable-next-line eqeqeq
+                                                                                    if (configVal != resVal) {
+                                                                                        isActiveConfig = false;
+                                                                                        break;
+                                                                                    }
                                                                                 }
                                                                             }
-                                                                        }
 
-                                                                        return (
-                                                                            <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${isActiveConfig ? 'bg-green-500/20' : (res.rank === 1 ? 'bg-green-500/10' : '')}`}>
-                                                                                <td className="p-3 text-center">
-                                                                                    <button
-                                                                                        disabled={isActiveConfig}
-                                                                                        onClick={() => {
-                                                                                            requestConfirm(
-                                                                                                "Apply Optimization Config?",
-                                                                                                `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
-                                                                                                () => {
-                                                                                                    // 1. Update Configuration
-                                                                                                    setConfigList(prev => {
-                                                                                                        const next = [...prev];
-                                                                                                        const configToApply = res.full_config || {};
-                                                                                                        next[activeTab] = {
-                                                                                                            ...next[activeTab],
-                                                                                                            ...configToApply
-                                                                                                        };
-                                                                                                        return next;
-                                                                                                    });
+                                                                            return (
+                                                                                <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${isActiveConfig ? 'bg-green-500/20' : (res.rank === 1 ? 'bg-green-500/10' : '')}`}>
+                                                                                    <td className="p-3 text-center">
+                                                                                        <button
+                                                                                            disabled={isActiveConfig}
+                                                                                            onClick={() => {
+                                                                                                requestConfirm(
+                                                                                                    "Apply Optimization Config?",
+                                                                                                    `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
+                                                                                                    () => {
+                                                                                                        // 1. Update Configuration
+                                                                                                        setConfigList(prev => {
+                                                                                                            const next = [...prev];
+                                                                                                            const configToApply = res.full_config || {};
+                                                                                                            next[activeTab] = {
+                                                                                                                ...next[activeTab],
+                                                                                                                ...configToApply
+                                                                                                            };
+                                                                                                            return next;
+                                                                                                        });
 
-                                                                                                    // 2. Trigger Real Backtest (User Request)
-                                                                                                    // Runs backtest immediately using the selected config
-                                                                                                    runBacktest(selectedStrategy.id, res.full_config || {});
-                                                                                                }
-                                                                                            );
-                                                                                        }}
-                                                                                        className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
-                                                                                            ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
-                                                                                            : 'bg-purple-900/40 hover:bg-purple-800 border border-purple-500/30 text-purple-300 hover:shadow-purple-900/20'
-                                                                                            }`}
-                                                                                    >
-                                                                                        {isActiveConfig && <span className="absolute left-2 top-1.5 text-[9px] leading-3">✓</span>}
-                                                                                        {isActiveConfig ? 'Active' : 'Select'}
-                                                                                    </button>
-                                                                                </td>
-                                                                                <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
-
-                                                                                {/* Render All Params */}
-                                                                                {PARAM_DEFINITIONS.map(param => (
-                                                                                    <td key={param.key} className="p-3 text-gray-300">
-                                                                                        {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                                        // 2. Trigger Real Backtest (User Request)
+                                                                                                        // Runs backtest immediately using the selected config
+                                                                                                        runBacktest(selectedStrategy.id, res.full_config || {});
+                                                                                                    }
+                                                                                                );
+                                                                                            }}
+                                                                                            className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
+                                                                                                ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
+                                                                                                : 'bg-purple-900/40 hover:bg-purple-800 border border-purple-500/30 text-purple-300 hover:shadow-purple-900/20'
+                                                                                                }`}
+                                                                                        >
+                                                                                            {isActiveConfig && <span className="absolute left-2 top-1.5 text-[9px] leading-3">✓</span>}
+                                                                                            {isActiveConfig ? 'Active' : 'Select'}
+                                                                                        </button>
                                                                                     </td>
-                                                                                ))}
+                                                                                    <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
-                                                                                {/* Helper for Number Formatting */}
-                                                                                {(() => {
-                                                                                    const fmt = (v) => {
-                                                                                        const n = parseFloat(v);
-                                                                                        return isNaN(n) ? '-' : n.toFixed(2);
-                                                                                    };
-                                                                                    return (
-                                                                                        <>
-                                                                                            <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                                {res.return > 0 ? '+' : ''}{fmt(res.return)}%
-                                                                                            </td>
-                                                                                            <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
-                                                                                            <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
-                                                                                            <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
-                                                                                            <td className="p-3 text-gray-400">{res.total_days}</td>
-                                                                                            <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
-                                                                                            <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
-                                                                                            <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.stability_score)}</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
-                                                                                            <td className="p-3 text-gray-400">{res.trades}</td>
-                                                                                            <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
-                                                                                        </>
-                                                                                    );
-                                                                                })()}
-                                                                            </tr>
-                                                                        );
-                                                                    })}
-                                                            </tbody>
-                                                        </table>
+                                                                                    {/* Render All Params */}
+                                                                                    {PARAM_DEFINITIONS.map(param => (
+                                                                                        <td key={param.key} className="p-3 text-gray-300">
+                                                                                            {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                        </td>
+                                                                                    ))}
+
+                                                                                    {/* Helper for Number Formatting */}
+                                                                                    {(() => {
+                                                                                        const fmt = (v) => {
+                                                                                            const n = parseFloat(v);
+                                                                                            return isNaN(n) ? '-' : n.toFixed(2);
+                                                                                        };
+                                                                                        return (
+                                                                                            <>
+                                                                                                <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                                                    {res.return > 0 ? '+' : ''}{fmt(res.return)}%
+                                                                                                </td>
+                                                                                                <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
+                                                                                                <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
+                                                                                                <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
+                                                                                                <td className="p-3 text-gray-400">{res.total_days}</td>
+                                                                                                <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
+                                                                                                <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
+                                                                                                <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.stability_score)}</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
+                                                                                                <td className="p-3 text-gray-400">{res.trades}</td>
+                                                                                                <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
+                                                                                            </>
+                                                                                        );
+                                                                                    })()}
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </Card>
+
+
+
+
+                                </div>
+                            )}
+
+                            {/* Code View */}
+                            <div className="pt-10">
+                                <Card title="Strategy Logic">
+                                    <pre className="bg-black/50 p-4 rounded-lg text-sm font-mono text-gray-300 overflow-x-auto border border-white/5 max-h-[300px]">
+                                        {selectedStrategy.code}
+                                    </pre>
                                 </Card>
-
-
-
-
                             </div>
-                        )}
-
-                        {/* Code View */}
-                        <div className="pt-10">
-                            <Card title="Strategy Logic">
-                                <pre className="bg-black/50 p-4 rounded-lg text-sm font-mono text-gray-300 overflow-x-auto border border-white/5 max-h-[300px]">
-                                    {selectedStrategy.code}
-                                </pre>
-                            </Card>
+                        </>
+                        ) : (
+                        <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">
+                            <div className="text-6xl mb-4 opacity-20">⚡</div>
+                            <p className="text-xl">Select a strategy to begin</p>
                         </div>
-                    </>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">
-                        <div className="text-6xl mb-4 opacity-20">⚡</div>
-                        <p className="text-xl">Select a strategy to begin</p>
-                    </div>
-                )
+                        )
                 }
+                    </div >
+
+                {/* AI Generator Input - Fixed Bottom */}
+                < Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]" >
+                    <div className="flex gap-4">
+                        <input
+                            type="text"
+                            className="flex-1 bg-black/40 border border-white/10 rounded-lg p-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none placeholder-gray-600"
+                            placeholder="Describe a new strategy... (e.g., 'Buy when RSI < 30 and price is above 200MA')"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAiGenerate()}
+                        />
+                        <button
+                            onClick={handleAiGenerate}
+                            disabled={isGenerating || !aiPrompt}
+                            className={`px-8 rounded-lg font-bold transition-all flex items-center gap-2 whitespace-nowrap ${isGenerating ? 'bg-purple-900 text-purple-300' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-purple-500/30'
+                                }`}
+                        >
+                            {isGenerating ? 'Generatin...' : 'Ask AI'}
+                        </button>
+                    </div>
+                </Card >
+
+                {/* Custom Confirm Modal */}
+                < ConfirmModal
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    onConfirm={confirmModal.onConfirm}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    isDanger={confirmModal.isDanger}
+                />
             </div >
-
-            {/* AI Generator Input - Fixed Bottom */}
-            < Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]" >
-                <div className="flex gap-4">
-                    <input
-                        type="text"
-                        className="flex-1 bg-black/40 border border-white/10 rounded-lg p-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none placeholder-gray-600"
-                        placeholder="Describe a new strategy... (e.g., 'Buy when RSI < 30 and price is above 200MA')"
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleAiGenerate()}
-                    />
-                    <button
-                        onClick={handleAiGenerate}
-                        disabled={isGenerating || !aiPrompt}
-                        className={`px-8 rounded-lg font-bold transition-all flex items-center gap-2 whitespace-nowrap ${isGenerating ? 'bg-purple-900 text-purple-300' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-purple-500/30'
-                            }`}
-                    >
-                        {isGenerating ? 'Generatin...' : 'Ask AI'}
-                    </button>
-                </div>
-            </Card >
-
-            {/* Custom Confirm Modal */}
-            < ConfirmModal
-                isOpen={confirmModal.isOpen}
-                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                onConfirm={confirmModal.onConfirm}
-                title={confirmModal.title}
-                message={confirmModal.message}
-                isDanger={confirmModal.isDanger}
-            />
-        </div >
-    );
+            );
 };
 
-export default StrategyView;
+            export default StrategyView;
