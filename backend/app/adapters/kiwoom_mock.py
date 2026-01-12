@@ -1,6 +1,7 @@
 import random
 import asyncio
 from typing import Dict, Any
+from datetime import datetime
 from ..core.exchange_interface import ExchangeInterface
 
 class KiwoomMockAdapter(ExchangeInterface):
@@ -36,9 +37,14 @@ class KiwoomMockAdapter(ExchangeInterface):
 
     async def get_balance(self) -> Dict[str, Any]:
         await asyncio.sleep(0.1)
+        # Format holdings to match LiveContext expectation: {sym: {'quantity': qty}}
+        formatted_holdings = {}
+        for sym, qty in self.holdings.items():
+            formatted_holdings[sym] = {"quantity": qty}
+            
         return {
             "cash": self.balance,
-            "holdings": self.holdings
+            "holdings": formatted_holdings
         }
 
     async def place_buy_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
@@ -112,3 +118,40 @@ class KiwoomMockAdapter(ExchangeInterface):
     async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
         await asyncio.sleep(0.5)
         return {"status": "success", "message": f"Mock Order {order_id} cancelled"}
+
+    async def get_minute_candles(self, symbol: str, interval_minutes: int = 1) -> list:
+        """
+        Generate 1 day of mock minute candles
+        """
+        await asyncio.sleep(0.2)
+        candles = []
+        now = datetime.now()
+        base_price = 70000 if symbol == "005930" else 10000
+        
+        # Generate 390 candles (approx 6.5 hours)
+        for i in range(390):
+            from datetime import timedelta
+            # Ascending order: T-390, T-389 ... T-0
+            dt = now - timedelta(minutes=390-i)
+            ts_str = dt.strftime("%Y%m%d%H%M%S")
+            
+            fluctuation = random.uniform(-0.005, 0.005) # 0.5% volatility
+            close_price = int(base_price * (1 + fluctuation))
+            open_price = int(base_price * (1 + random.uniform(-0.002, 0.002)))
+            high_price = max(open_price, close_price) + int(base_price * 0.005)
+            low_price = min(open_price, close_price) - int(base_price * 0.005)
+            volume = random.randint(100, 5000)
+            
+            candles.append({
+                "timestamp": ts_str,
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "close": close_price,
+                "volume": volume
+            })
+            
+            # Update base for next candle (Random Walk)
+            base_price = close_price
+            
+        return candles

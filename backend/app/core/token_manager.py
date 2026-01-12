@@ -62,6 +62,10 @@ class KiwoomTokenManager:
             data = response.json()
             
             self.access_token = data.get("token")
+            if not self.access_token:
+                 logger.error(f"Token missing in response: {data}")
+                 return None
+
             expires_in = int(data.get("expires_in", 86400)) # Default 24h
             
             # Set expiry with a buffer (e.g. 60 seconds earlier)

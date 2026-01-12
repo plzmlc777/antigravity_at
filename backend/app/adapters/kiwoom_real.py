@@ -311,3 +311,70 @@ class KiwoomRealAdapter(ExchangeInterface):
         except Exception as e:
             logger.error(f"Cancel order failed: {e}")
             return {"status": "failed", "message": str(e)}
+
+    async def get_minute_candles(self, symbol: str, interval_minutes: int = 1) -> list:
+        """
+        Fetch minute candles using ka10080 (Stock Minute Chart)
+        """
+        await self._ensure_token()
+        token = self.access_token
+        if not token:
+            logger.error("Failed to acquire token from TokenManager")
+            return []
+
+        url = f"{self.base_url}/api/dostk/chart"
+        headers = self._get_auth_headers(tr_id="ka10080")
+        headers["content-type"] = "application/json;charset=UTF-8" # Ensure content type is set (though _common_headers has it)
+        
+        # Payload per doc (page 197)
+        payload = {
+            "stk_cd": symbol,
+            "tic_scope": str(interval_minutes),
+            "upd_stkpc_tp": "1" # Adjusted Price
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=payload, timeout=10.0)
+                
+                if response.status_code != 200:
+                    logger.error(f"Error fetching candles: Server error '{response.status_code} {response.reason_phrase}' for url '{url}'")
+                    return []
+                
+                data = response.json()
+                if data.get("return_code") != 0:
+                    logger.error(f"API Error get_minute_candles: {data.get('return_msg')}")
+                    return []
+                
+                output = data.get("stk_min_pole_chart_qry", [])
+                candles = []
+                
+                for item in output:
+                    # Parse fields (prices might be negative string)
+                    # cntr_tm: 20250917132000
+                    try:
+                        ts = item.get("cntr_tm")
+                        c = abs(int(item.get("cur_prc", 0)))
+                        o = abs(int(item.get("open_pric", 0)))
+                        h = abs(int(item.get("high_pric", 0)))
+                        l = abs(int(item.get("low_pric", 0)))
+                        v = int(item.get("trde_qty", 0))
+                        
+                        candles.append({
+                            "timestamp": ts,
+                            "open": o,
+                            "high": h,
+                            "low": l,
+                            "close": c,
+                            "volume": v
+                        })
+                    except ValueError:
+                        continue
+
+                # Sort by time ascending
+                candles.sort(key=lambda x: x['timestamp'])
+                return candles
+
+        except Exception as e:
+            logger.error(f"Exception in get_minute_candles: {e}")
+            return []

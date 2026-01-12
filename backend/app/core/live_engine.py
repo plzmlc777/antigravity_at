@@ -35,9 +35,24 @@ class LiveTradingEngine:
         self.aggregator: CandleRealAggregator = None
         self.symbol: str = ""
         
-        # Real-time Event Callback (for Frontend)
-        self.on_tick_callback: Callable[[Dict], None] = None
-        self.on_candle_closed_callback: Callable[[Dict], None] = None
+        # Real-time Event Listeners (List of callbacks)
+        self.tick_listeners: List[Callable[[Dict], None]] = []
+        self.candle_listeners: List[Callable[[Dict], None]] = []
+        self.history_candles: List[Dict] = []
+
+    def add_tick_listener(self, listener: Callable[[Dict], None]):
+        self.tick_listeners.append(listener)
+
+    def remove_tick_listener(self, listener: Callable[[Dict], None]):
+        if listener in self.tick_listeners:
+            self.tick_listeners.remove(listener)
+
+    def add_candle_listener(self, listener: Callable[[Dict], None]):
+        self.candle_listeners.append(listener)
+
+    def remove_candle_listener(self, listener: Callable[[Dict], None]):
+        if listener in self.candle_listeners:
+            self.candle_listeners.remove(listener)
 
     async def initialize(self):
         """Setup Context, Strategy, Aggregator"""
@@ -65,10 +80,43 @@ class LiveTradingEngine:
             # 4. Sync Initial Balance
             await self.context.async_sync_balance()
             
+            # 5. Fetch Historical Data (Preload for Chart)
+            # This allows the chart to show past context even if market is closed
+            # Historical Data Fetch (with Retry)
+            logger.info(f"Fetching historical minute candles for {self.symbol}...")
+            history = []
+            for attempt in range(3):
+                try:
+                    # Give it a bit of time if this is a cold start
+                    if attempt > 0:
+                        await asyncio.sleep(2.0)
+                        
+                    history = await asyncio.wait_for(
+                        self.adapter.get_minute_candles(self.symbol, interval_minutes=1),
+                        timeout=5.0
+                    )
+                    
+                    if history:
+                        self.history_candles = history
+                        logger.info(f"Loaded {len(history)} historical candles (Attempt {attempt+1}).")
+                        break
+                    else:
+                        logger.warning(f"History fetch returned empty (Attempt {attempt+1}). Retrying...")
+                        
+                except Exception as e:
+                    logger.warning(f"History fetch failed (Attempt {attempt+1}): {e}")
+            
+            if not self.history_candles:
+                 logger.error("Failed to load history after 3 attempts.")
+                 
             logger.info(f"Live Engine Initialized for {self.symbol}")
             
         finally:
             db.close()
+
+    def get_history(self) -> List[Dict]:
+        """Return loaded historical candles"""
+        return self.history_candles
 
     async def run_loop(self):
         """Main Async Loop"""
@@ -112,19 +160,21 @@ class LiveTradingEngine:
         self.context.price_map[self.symbol] = price
         
         # 2. Frontend Tick Emission (Real-time View)
-        if self.on_tick_callback:
-            self.on_tick_callback({
-                "symbol": self.symbol,
-                "price": price,
-                "time": now.isoformat()
-            })
+        tick_event = {
+            "type": "tick",
+            "symbol": self.symbol,
+            "price": price,
+            "time": now.isoformat()
+        }
+        for listener in self.tick_listeners:
+            try:
+                listener(tick_event)
+            except Exception as e:
+                logger.error(f"Error in tick listener: {e}")
             
         # 3. Aggregate -> Candle
         # Volume: Ideally we need 'tick volume' (delta). 
         # Kiwoom 'get_current_price' usually gives 'accumulated volume' or we assume 1 tick volume if unknown.
-        # For 'Real' Kiwoom adapter, we might need to calc delta. 
-        # For MVP, let's pass dummy volume 1 or fix adapter later.
-        # Check adapter... it returns 'price'.
         closed_candle, snapshot = self.aggregator.add_tick(price, 1, now) # Vol 1 placeholder
         
         # 4. Strategy Execution (On Candle Close)
@@ -132,11 +182,17 @@ class LiveTradingEngine:
             logger.info(f"Candle Closed: {closed_candle['timestamp']}")
             
             # Notify Frontend of confirmed candle
-            if self.on_candle_closed_callback:
-                self.on_candle_closed_callback(closed_candle)
+            candle_event = {
+                "type": "candle",
+                "data": closed_candle
+            }
+            for listener in self.candle_listeners:
+                try:
+                    listener(candle_event)
+                except Exception as e:
+                    logger.error(f"Error in candle listener: {e}")
             
             # Update Context Time
-            # engine sets current_timestamp (Strategy thinks it's this time)
             self.context.current_timestamp = datetime.fromisoformat(closed_candle['timestamp'])
             
             # Run Strategy
@@ -144,32 +200,19 @@ class LiveTradingEngine:
                 # Sync Balance before decision
                 await self.context.async_sync_balance()
                 
-                # Inject Data
-                # Strategy expects 'data' dict usually?
-                # Or just calls on_data(candle)?
-                # Standard interface: setup_method(context), on_data(context, data)
-                # Let's check 'time_momentum.py' via memory or view.
-                
-                # Assuming simple interface: strategy.on_data(context, {symbol: [candle]})
-                # Create 'feeds' style input
-                data_packet = {self.symbol: [closed_candle]}
-                
-                # Setup context if needed (once?) context is usually passed in __init__ or run?
-                # In waterfall: strategy.setup(context) calls once.
-                # Here we might need to set context on strategy if not set.
+                # Check if context is linked (Safety)
                 if not hasattr(self.strategy_instance, 'context') or self.strategy_instance.context is None:
-                     self.strategy_instance.context = self.context
-                     self.strategy_instance.setup(self.context)
-
-                self.strategy_instance.on_data(self.context, data_packet)
+                        self.strategy_instance.context = self.context
+                        
+                # Call Strategy with Correct Signature (single argument)
+                self.strategy_instance.on_data(closed_candle)
                 
                 # 5. Process Orders
-                # Strategy logic calls `context.buy()`, which queues orders in DB.
-                # Now we execute them.
                 await self.context.process_queue()
                 
             except Exception as e:
                 logger.error(f"Strategy Execution Error: {e}")
+                import traceback
                 traceback.print_exc()
 
     def stop(self):

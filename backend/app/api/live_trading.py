@@ -40,3 +40,39 @@ async def get_live_status():
     """
     return live_manager.get_status()
 
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+
+@router.websocket("/ws/{session_id}")
+async def websocket_live_feed(websocket: WebSocket, session_id: str):
+    """
+    WebSocket endpoint for Real-time Tick & Candle updates.
+    """
+    await websocket.accept()
+    
+    queue = asyncio.Queue(maxsize=100)
+    listeners = None
+    
+    try:
+        # Subscribe
+        listeners = await live_manager.subscribe_to_session(session_id, queue)
+        
+        while True:
+            # Wait for data from queue
+            data = await queue.get()
+            
+            # Send to Frontend
+            await websocket.send_json(data)
+            
+    except WebSocketDisconnect:
+        # Expected disconnect
+        pass
+    except Exception as e:
+        print(f"WS Error: {e}")
+        # Optional: Send error to client before closing?
+    finally:
+        # Unsubscribe
+        if listeners:
+            live_manager.unsubscribe_from_session(session_id, listeners)
+        # await websocket.close() # Usually auto-closed by FastAPI on disconnect exception
+

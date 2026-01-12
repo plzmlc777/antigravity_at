@@ -124,7 +124,16 @@ class LiveContext:
         try:
             bal = await self.adapter.get_balance()
             if bal:
-                self.cash = bal['cash']['KRW']
+                # SAFEGUARD: If adapter returns 0 cash (mock/error) but we have initial_capital,
+                # preserve initial_capital for PnL consistency in simulation/test.
+                fetched_cash = bal['cash']['KRW']
+                
+                if fetched_cash == 0 and self.initial_capital > 0 and self.cash == self.initial_capital:
+                    logger.warning("Balance Sync returned 0 cash. Preserving initial_capital for simulation.")
+                    # Keep self.cash as is
+                else:
+                    self.cash = fetched_cash
+                
                 simple_holdings = {}
                 for sym, data in bal['holdings'].items():
                     simple_holdings[sym] = data['quantity']

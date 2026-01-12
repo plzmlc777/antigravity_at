@@ -8,8 +8,9 @@ from datetime import datetime
 
 from ..core.live_engine import LiveTradingEngine
 from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..adapters.kiwoom_mock import KiwoomMockAdapter
 from ..strategies.time_momentum import TimeMomentumStrategy 
-# Add other strategies here or use a StrategyFactory
+from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus
 
@@ -29,7 +30,15 @@ class LiveManager:
 
     def __init__(self):
         self.engines: Dict[str, LiveTradingEngine] = {} # session_id -> Engine
-        self.adapter = KiwoomRealAdapter() # Shared Adapter
+        
+        if settings.TRADING_MODE == "MOCK":
+            logger.info("LiveManager: Using KIWOOM MOCK ADAPTER")
+            self.adapter = KiwoomMockAdapter()
+        else:
+            logger.info("LiveManager: Using KIWOOM REAL ADAPTER")
+            self.adapter = KiwoomRealAdapter()
+            
+        # Note: In real production, adapter might need to be singleton too.
         # Note: In real production, adapter might need to be singleton too.
         # KiwoomRealAdapter in this project seems to be stateless http wrapper?
         # If it holds WebSocket state, it must be shared carefully.
@@ -84,7 +93,8 @@ class LiveManager:
                 strategy_config=strat_config,
                 initial_capital=initial_capital,
                 status=SessionStatus.RUNNING, # Optimistic
-                start_time=datetime.now()
+                started_at=datetime.now(),
+                interval="1m" # Default to 1m for now
             )
             db.add(sess)
             db.commit()
@@ -166,6 +176,48 @@ class LiveManager:
         await engine.initialize()
         self.engines[sess.id] = engine
         asyncio.create_task(engine.run_loop())
+
+    async def subscribe_to_session(self, session_id: str, queue: asyncio.Queue):
+        """
+        Subscribe a WebSocket Queue to a Session's Real-time Events.
+        """
+        if session_id not in self.engines:
+            # If session not active, maybe return error or empty?
+            # For now, just raise
+            raise ValueError(f"Session {session_id} is not running")
+            
+        engine = self.engines[session_id]
+        
+        # 0. Send Initial History immediately
+        history = engine.get_history()
+        if history:
+             await queue.put({
+                 "type": "history",
+                 "data": history
+             })
+        
+        # 1. Define Listeners
+        async def on_tick(data):
+            await queue.put(data)
+            
+        async def on_candle(data):
+            await queue.put(data)
+            
+        # 2. Attach
+        engine.add_tick_listener(on_tick)
+        engine.add_candle_listener(on_candle)
+        
+        return on_tick, on_candle # Return so caller can unsubscribe later
+
+    def unsubscribe_from_session(self, session_id: str, listeners: tuple):
+        """
+        Unsubscribe listeners.
+        """
+        if session_id in self.engines:
+            engine = self.engines[session_id]
+            tick_l, candle_l = listeners
+            engine.remove_tick_listener(tick_l)
+            engine.remove_candle_listener(candle_l)
 
 # Global Access
 live_manager = LiveManager.get_instance()

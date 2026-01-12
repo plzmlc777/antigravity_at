@@ -12,7 +12,7 @@ load_dotenv("backend/.env")    # child (if running from root)
 
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
-    PROJECT_VERSION: str = "0.9.0.0"
+    PROJECT_VERSION: str = "0.9.2.7"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def validate_config(self):
+        print(f"DEBUG: Trading Mode: {self.TRADING_MODE}")
+        print(f"DEBUG: Initial API URL: {self.HCP_KIWOOM_API_URL}")
+        
         if self.TRADING_MODE.upper() == "REAL":
             missing = []
             if not self.HCP_KIWOOM_APP_KEY: missing.append("HCP_KIWOOM_APP_KEY")
@@ -50,6 +53,12 @@ class Settings(BaseSettings):
                 # We now allow missing keys because they might be provided via DB.
                 # Just log a warning or pass.
                 pass 
+        elif self.TRADING_MODE.upper() == "MOCK":
+             # Auto-switch to Mock API if still default
+             if self.HCP_KIWOOM_API_URL == "https://api.kiwoom.com":
+                  self.HCP_KIWOOM_API_URL = "https://mockapi.kiwoom.com"
+                  print(f"DEBUG: Switched to Mock URL: {self.HCP_KIWOOM_API_URL}")
+                  
         return self
 
     def set_mode(self, mode: str):
