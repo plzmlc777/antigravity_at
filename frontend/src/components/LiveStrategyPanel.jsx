@@ -4,22 +4,30 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { startLiveBot, stopLiveBot, getLiveStatus } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 
-const LiveStrategyPanel = ({ strategyConfig }) => {
+const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
     const [liveData, setLiveData] = useState(null);
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState(null);
+    const [tickData, setTickData] = useState([]);
+    const [isStopModalOpen, setIsStopModalOpen] = useState(false);
 
     // Polling Ref
     const pollInterval = useRef(null);
 
-    // Initial Load checks if already running
+    // Initial Load checks if already running (TRADE only)
     useEffect(() => {
-        checkStatus();
-        return () => stopPolling();
-    }, []);
+        if (mode === 'TRADE') {
+            checkStatus();
+            return () => stopPolling();
+        } else {
+            // Watch Mode: Set Running immediately to trigger WS
+            setStatus('RUNNING');
+            addLog("System", `Started watching ${strategyConfig.symbol}`);
+        }
+    }, [mode, strategyConfig.symbol]);
 
     const startPolling = () => {
         if (pollInterval.current) return;
@@ -101,11 +109,20 @@ const LiveStrategyPanel = ({ strategyConfig }) => {
 
     // WebSocket for Real-time Data
     useEffect(() => {
-        if (!sessionId || status !== 'RUNNING') return;
+        // Condition to connect logic
+        if (status !== 'RUNNING') return;
+        if (mode === 'TRADE' && !sessionId) return;
 
-        console.log("Connecting WS to session:", sessionId);
+        console.log(`Connecting WS (${mode}) for`, strategyConfig.symbol);
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/${sessionId}`;
+
+        let wsUrl;
+        if (mode === 'WATCH') {
+            wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/watch/${strategyConfig.symbol}`;
+        } else {
+            wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/${sessionId}`;
+        }
+
         // Note: Using 8001 which is the default backend port. In prod, configure dynamically.
 
         let ws = new WebSocket(wsUrl);
@@ -172,11 +189,7 @@ const LiveStrategyPanel = ({ strategyConfig }) => {
         return () => {
             if (ws) ws.close();
         };
-    }, [sessionId, status]);
-
-    const [tickData, setTickData] = useState([]);
-
-    const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+    }, [sessionId, status, mode, strategyConfig.symbol]);
 
     // Render Helpers
     const getStatusColor = () => {
@@ -188,6 +201,40 @@ const LiveStrategyPanel = ({ strategyConfig }) => {
             default: return 'text-gray-500 border-gray-500/30 bg-gray-500/5';
         }
     };
+
+    if (mode === 'WATCH') {
+        return (
+            <div className="flex flex-col h-full bg-[#1e1e24] border border-white/5 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                        <Activity size={14} className="text-blue-400 animate-pulse" />
+                        Live Monitor: {strategyConfig.symbol}
+                    </h3>
+                    {liveData?.current_price && (
+                        <span className="text-xl font-mono text-white">{liveData.current_price.toLocaleString()}</span>
+                    )}
+                </div>
+
+                <div className="flex-1 w-full min-h-[200px] relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={tickData.length > 0 ? tickData : [{ time: '', price: 0 }]}>
+                            <defs>
+                                <linearGradient id="colorPriceWatch" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                            <XAxis dataKey="time" stroke="#555" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                            <YAxis domain={['auto', 'auto']} stroke="#555" tick={{ fontSize: 10 }} width={60} tickFormatter={(val) => val.toLocaleString()} />
+                            <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }} itemStyle={{ color: '#fff' }} />
+                            <Area type="monotone" dataKey="price" stroke="#3b82f6" fillOpacity={1} fill="url(#colorPriceWatch)" isAnimationActive={false} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">

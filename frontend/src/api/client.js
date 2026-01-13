@@ -192,3 +192,13 @@ export const getLiveStatus = async () => {
     const { data } = await api.get('/live/status');
     return data;
 };
+
+export const getHistorySessions = async () => {
+    const { data } = await api.get('/live/history/sessions');
+    return data;
+};
+
+export const getSessionDetails = async (sessionId) => {
+    const { data } = await api.get(`/live/history/sessions/${sessionId}`);
+    return data;
+};

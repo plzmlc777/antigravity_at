@@ -96,3 +96,5 @@ from .api import strategy_configs
 app.include_router(strategy_configs.router, prefix="/api/v1/strategy-configs", tags=["strategy-configs"])
 from .api import live_trading
 app.include_router(live_trading.router, prefix="/api/v1/live", tags=["live-trading"])
+from .api import history
+app.include_router(history.router, prefix="/api/v1/live/history", tags=["live-history"])

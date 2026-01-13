@@ -8,6 +8,9 @@ import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
+import LiveHistoryList from '../components/LiveHistoryList';
+import LiveReplayView from '../components/LiveReplayView';
+import { History as HistoryIcon } from 'lucide-react';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -110,6 +113,8 @@ const StrategyView = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
     const [activeDropdown, setActiveDropdown] = useState(null); // Key of the currently open optimization dropdown
+    const [selectedHistoryId, setSelectedHistoryId] = useState(null); // For Live History
+    const [showTickMonitor, setShowTickMonitor] = useState(false); // For Watch Mode
 
     // Integrated Analysis State - Added for v0.8.7
     const [showIntegratedAnalysis, setShowIntegratedAnalysis] = useState(false);
@@ -1056,7 +1061,20 @@ const StrategyView = () => {
                                         }`}
                                 >
                                     <span className="text-lg">🔴</span>
+                                    <Activity size={16} className={activeTab === -2 ? "animate-pulse" : ""} />
                                     <span>Live Operation</span>
+                                </button>
+
+                                {/* History Tab */}
+                                <button
+                                    onClick={() => setActiveTab(-3)}
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -3
+                                        ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                                        : 'bg-[#1e1e24] border-transparent text-gray-400 hover:bg-[#25252b] hover:text-gray-200'
+                                        }`}
+                                >
+                                    <HistoryIcon size={16} />
+                                    <span>History</span>
                                 </button>
 
                                 {/* Divider */}
@@ -1541,6 +1559,20 @@ const StrategyView = () => {
                                                         savedSymbols={savedSymbols}
                                                         setSavedSymbols={setSavedSymbols}
                                                     />
+
+                                                    {/* Watch Monitor Toggle */}
+                                                    <div className="mt-4 pt-4 border-t border-white/5">
+                                                        <button
+                                                            onClick={() => setShowTickMonitor(!showTickMonitor)}
+                                                            className={`w-full py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors ${showTickMonitor
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                                                }`}
+                                                        >
+                                                            <Activity size={14} className={showTickMonitor ? "animate-pulse" : ""} />
+                                                            {showTickMonitor ? 'Stop Monitoring' : 'Monitor Real-time Ticks'}
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -1647,10 +1679,40 @@ const StrategyView = () => {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Tick Monitor Section - Added for Phase 3.5 */}
+                                    {showTickMonitor && (
+                                        <div className="mt-6 h-[400px] animate-fade-in-down border-t border-white/5 pt-6">
+                                            <LiveStrategyPanel strategyConfig={currentConfig} mode="WATCH" />
+                                        </div>
+                                    )}
                                 </Card>
                             )}
 
                             {/* Content Area based on Tab */}
+                            {/* History Tab Content */}
+                            {activeTab === -3 && (
+                                <div className="h-full bg-[#1e1e24] rounded-xl border border-white/5 p-6 overflow-hidden">
+                                    {selectedHistoryId ? (
+                                        <LiveReplayView
+                                            sessionId={selectedHistoryId}
+                                            onClose={() => setSelectedHistoryId(null)}
+                                        />
+                                    ) : (
+                                        <div className="h-full flex flex-col">
+                                            <div className="mb-6">
+                                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                                    <HistoryIcon className="text-purple-400" />
+                                                    Session History
+                                                </h2>
+                                                <p className="text-gray-500 text-sm">Review past automated trading sessions.</p>
+                                            </div>
+                                            <LiveHistoryList onSelect={setSelectedHistoryId} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {activeTab === -2 && (
                                 <div className="animate-fade-in-up">
                                     <LiveStrategyPanel
@@ -2429,342 +2491,344 @@ const StrategyView = () => {
                         </div> {/* End of Backtest Simulation Group */}
 
                         {/* OPTIMIZATION SECTION */}
-                        {activeTab >= 0 && (
-                            <div className="space-y-6 pt-10">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/50">
-                                        <span className="text-white font-bold text-lg">2</span>
+                        {
+                            activeTab >= 0 && (
+                                <div className="space-y-6 pt-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/50">
+                                            <span className="text-white font-bold text-lg">2</span>
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-white tracking-tight">Parameter Optimization</h2>
+                                        <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
                                     </div>
-                                    <h2 className="text-2xl font-bold text-white tracking-tight">Parameter Optimization</h2>
-                                    <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
-                                </div>
 
-                                <Card title="Parameter Optimization (Grid Search)" variant="major" className="border-t-4 border-t-purple-500">
-                                    <div className="space-y-6">
+                                    <Card title="Parameter Optimization (Grid Search)" variant="major" className="border-t-4 border-t-purple-500">
                                         <div className="space-y-6">
-                                            {/* Dynamic Grid Inputs */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                {(() => {
-                                                    const currentOptEnabled = currentConfig.optEnabled || {};
-                                                    const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+                                            <div className="space-y-6">
+                                                {/* Dynamic Grid Inputs */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    {(() => {
+                                                        const currentOptEnabled = currentConfig.optEnabled || {};
+                                                        const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
 
-                                                    return PARAM_DEFINITIONS.map((param) => (
-                                                        <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`opt-${param.key}`}
-                                                                    checked={!!currentOptEnabled[param.key]}
-                                                                    onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
-                                                                    className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
-                                                                />
-                                                                <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${currentOptEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
-                                                                    {param.label}
-                                                                </label>
-                                                            </div>
-                                                            {param.type === 'select' && currentOptEnabled[param.key] ? (
-                                                                <div className="relative">
-                                                                    <div
-                                                                        onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
-                                                                        className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
-                                                                            }`}
-                                                                    >
-                                                                        <span className="truncate">
-                                                                            {currentOptValues[param.key] || <span className="text-gray-500">Select options...</span>}
-                                                                        </span>
-                                                                        <span className="text-gray-400 text-xs ml-2">▼</span>
-                                                                    </div>
-
-                                                                    {/* Dropdown Menu */}
-                                                                    {activeDropdown === param.key && (
-                                                                        <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                                            {param.options.map(option => {
-                                                                                const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
-                                                                                const isSelected = currentVals.includes(option);
-
-                                                                                return (
-                                                                                    <div
-                                                                                        key={option}
-                                                                                        onClick={() => {
-                                                                                            let newVals;
-                                                                                            if (isSelected) {
-                                                                                                newVals = currentVals.filter(v => v !== option);
-                                                                                            } else {
-                                                                                                // Sort logic if needed, but append is fine for now
-                                                                                                newVals = [...currentVals, option];
-                                                                                                // Try to sort times if possible? complex. Just push.
-                                                                                            }
-                                                                                            handleOptValueChange(param.key, newVals.join(', '));
-                                                                                        }}
-                                                                                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
-                                                                                            }`}
-                                                                                    >
-                                                                                        <span>{option}</span>
-                                                                                        {isSelected && <span>✓</span>}
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* Overlay to close */}
-                                                                    {activeDropdown === param.key && (
-                                                                        <div
-                                                                            className="fixed inset-0 z-40"
-                                                                            onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
-                                                                        ></div>
-                                                                    )}
+                                                        return PARAM_DEFINITIONS.map((param) => (
+                                                            <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id={`opt-${param.key}`}
+                                                                        checked={!!currentOptEnabled[param.key]}
+                                                                        onChange={(e) => handleOptEnableChange(param.key, e.target.checked)}
+                                                                        className="w-4 h-4 rounded border-gray-600 text-purple-600 focus:ring-purple-500 bg-gray-700"
+                                                                    />
+                                                                    <label htmlFor={`opt-${param.key}`} className={`text-xs font-bold ${currentOptEnabled[param.key] ? 'text-purple-300' : 'text-gray-500'}`}>
+                                                                        {param.label}
+                                                                    </label>
                                                                 </div>
-                                                            ) : (
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder={param.placeholder}
-                                                                    disabled={!currentOptEnabled[param.key]}
-                                                                    className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
-                                                                        ? 'border-purple-500/30 text-white focus:border-purple-500'
-                                                                        : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                                    value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
-                                                                    onChange={(e) => handleOptValueChange(param.key, e.target.value)}
-                                                                />
-                                                            )}
-                                                            {currentOptEnabled[param.key] && (
-                                                                <p className="text-[10px] text-gray-500 mt-1 truncate">
-                                                                    e.g. {param.placeholder}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    ));
-                                                })()}
-                                            </div>
-
-
-
-
-
-                                            {/* Action */}
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={runOptimization}
-                                                    disabled={isOptimizing || activeTab === -1}
-                                                    className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
-                                                >
-                                                    {isOptimizing ? (
-                                                        <>
-                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                            {optProgress.total > 0
-                                                                ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                                : "Initializing..."}
-                                                        </>
-                                                    ) : (
-                                                        <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
-                                                    )}
-                                                </button>
-
-                                                {isOptimizing && (
-                                                    <button
-                                                        onClick={() => cancelOptimization(currentOptTaskId)}
-                                                        disabled={isCancelling}
-                                                        className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isCancelling ? 'Stopping...' : 'Stop'}
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                            {/* Status Message Display */}
-                                            {isOptimizing && optStatusMessage && (
-                                                <div className="mt-2 p-2 bg-black/40 rounded border border-white/10 text-xs font-mono text-cyan-400 text-center animate-pulse">
-                                                    STATUS: {optStatusMessage}
-                                                </div>
-                                            )}
-
-                                            {/* Error/Status Display */}
-                                            {optError && (
-                                                <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
-                                                    ? "bg-gray-800/50 border-gray-600 text-gray-300"
-                                                    : "bg-red-900/20 border-red-500/50 text-red-300"
-                                                    }`}>
-                                                    <div className={`flex items-center gap-2 mb-2 font-bold ${optError.includes("Cancelled") ? "text-gray-300" : "text-red-400"}`}>
-                                                        <span className="text-xl">{optError.includes("Cancelled") ? "🛑" : "⚠️"}</span>
-                                                        {optError.includes("Cancelled") ? "Optimization Stopped" : "Optimization Error"}
-                                                    </div>
-                                                    <pre className={`whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 rounded border ${optError.includes("Cancelled")
-                                                        ? "bg-black/30 border-gray-500/30 text-gray-400"
-                                                        : "bg-black/30 border-red-500/10"
-                                                        }`}>
-                                                        {optError}
-                                                    </pre>
-                                                    {!optError.includes("Cancelled") && (
-                                                        <p className="text-xs text-red-500/70 mt-2">
-                                                            Check the error message above. You can copy it for debugging.
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {optResults && optResults.length > 0 && (
-                                                <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-left border-collapse whitespace-nowrap">
-                                                            <thead>
-                                                                <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
-                                                                    <th className="p-3 text-center w-16">Active</th>
-                                                                    {[
-                                                                        { key: 'rank', label: 'Rank' },
-                                                                        ...PARAM_DEFINITIONS,
-                                                                        { key: 'return', label: 'Return' },
-                                                                        { key: 'max_drawdown', label: 'MDD' },
-                                                                        { key: 'win_rate', label: 'Win Rate' },
-                                                                        { key: 'profit_factor', label: 'P.Factor' },
-                                                                        { key: 'sharpe_ratio', label: 'Sharpe' },
-                                                                        { key: 'avg_pnl', label: 'Avg PnL' },
-                                                                        { key: 'activity_rate', label: 'Activity' },
-                                                                        { key: 'total_days', label: 'Days' },
-                                                                        { key: 'avg_holding_time', label: 'Avg Hold' },
-                                                                        { key: 'max_profit', label: 'Max Profit' },
-                                                                        { key: 'max_loss', label: 'Max Loss' },
-                                                                        { key: 'stability_score', label: 'Stability' },
-                                                                        { key: 'acceleration_score', label: 'Profit Accel' },
-                                                                        { key: 'trades', label: 'Trades' },
-                                                                        { key: 'score', label: 'Score' }
-                                                                    ].map((col) => (
-                                                                        <th
-                                                                            key={col.key}
-                                                                            onClick={() => handleSort(col.key)}
-                                                                            className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''
+                                                                {param.type === 'select' && currentOptEnabled[param.key] ? (
+                                                                    <div className="relative">
+                                                                        <div
+                                                                            onClick={() => setActiveDropdown(activeDropdown === param.key ? null : param.key)}
+                                                                            className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${activeDropdown === param.key ? 'border-purple-500 ring-1 ring-purple-500' : 'border-purple-500/30'
                                                                                 }`}
                                                                         >
-                                                                            <div className="flex items-center gap-1">
-                                                                                {col.label}
-                                                                                {sortConfig.key === col.key && (
-                                                                                    <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-                                                                                )}
+                                                                            <span className="truncate">
+                                                                                {currentOptValues[param.key] || <span className="text-gray-500">Select options...</span>}
+                                                                            </span>
+                                                                            <span className="text-gray-400 text-xs ml-2">▼</span>
+                                                                        </div>
+
+                                                                        {/* Dropdown Menu */}
+                                                                        {activeDropdown === param.key && (
+                                                                            <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                                                                {param.options.map(option => {
+                                                                                    const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
+                                                                                    const isSelected = currentVals.includes(option);
+
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={option}
+                                                                                            onClick={() => {
+                                                                                                let newVals;
+                                                                                                if (isSelected) {
+                                                                                                    newVals = currentVals.filter(v => v !== option);
+                                                                                                } else {
+                                                                                                    // Sort logic if needed, but append is fine for now
+                                                                                                    newVals = [...currentVals, option];
+                                                                                                    // Try to sort times if possible? complex. Just push.
+                                                                                                }
+                                                                                                handleOptValueChange(param.key, newVals.join(', '));
+                                                                                            }}
+                                                                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
+                                                                                                }`}
+                                                                                        >
+                                                                                            <span>{option}</span>
+                                                                                            {isSelected && <span>✓</span>}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
                                                                             </div>
-                                                                        </th>
-                                                                    ))}
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {[...optResults]
-                                                                    .sort((a, b) => {
-                                                                        let valA = a[sortConfig.key];
-                                                                        let valB = b[sortConfig.key];
+                                                                        )}
 
-                                                                        // Handle percentage strings if necessary, though backend sends numbers usually
-                                                                        // If raw data is mixed, safe check:
-                                                                        if (typeof valA === 'string' && valA.includes('%')) valA = parseFloat(valA);
-                                                                        if (typeof valB === 'string' && valB.includes('%')) valB = parseFloat(valB);
+                                                                        {/* Overlay to close */}
+                                                                        {activeDropdown === param.key && (
+                                                                            <div
+                                                                                className="fixed inset-0 z-40"
+                                                                                onClick={(e) => { e.stopPropagation(); setActiveDropdown(null); }}
+                                                                            ></div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder={param.placeholder}
+                                                                        disabled={!currentOptEnabled[param.key]}
+                                                                        className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
+                                                                            ? 'border-purple-500/30 text-white focus:border-purple-500'
+                                                                            : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
+                                                                        value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
+                                                                        onChange={(e) => handleOptValueChange(param.key, e.target.value)}
+                                                                    />
+                                                                )}
+                                                                {currentOptEnabled[param.key] && (
+                                                                    <p className="text-[10px] text-gray-500 mt-1 truncate">
+                                                                        e.g. {param.placeholder}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        ));
+                                                    })()}
+                                                </div>
 
-                                                                        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-                                                                        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-                                                                        return 0;
-                                                                    })
-                                                                    .map((res, idx) => {
-                                                                        let isActiveConfig = true;
-                                                                        // Check if this result matches current configuration
-                                                                        if (currentConfig) {
-                                                                            for (const param of PARAM_DEFINITIONS) {
-                                                                                const configVal = currentConfig[param.key];
-                                                                                const resVal = res[param.key];
-                                                                                // Loose equality since API might return number vs string input
-                                                                                // eslint-disable-next-line eqeqeq
-                                                                                if (configVal != resVal) {
-                                                                                    isActiveConfig = false;
-                                                                                    break;
+
+
+
+
+                                                {/* Action */}
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={runOptimization}
+                                                        disabled={isOptimizing || activeTab === -1}
+                                                        className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
+                                                    >
+                                                        {isOptimizing ? (
+                                                            <>
+                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                {optProgress.total > 0
+                                                                    ? `Processing (${optProgress.current}/${optProgress.total})...`
+                                                                    : "Initializing..."}
+                                                            </>
+                                                        ) : (
+                                                            <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
+                                                        )}
+                                                    </button>
+
+                                                    {isOptimizing && (
+                                                        <button
+                                                            onClick={() => cancelOptimization(currentOptTaskId)}
+                                                            disabled={isCancelling}
+                                                            className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            {isCancelling ? 'Stopping...' : 'Stop'}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Status Message Display */}
+                                                {isOptimizing && optStatusMessage && (
+                                                    <div className="mt-2 p-2 bg-black/40 rounded border border-white/10 text-xs font-mono text-cyan-400 text-center animate-pulse">
+                                                        STATUS: {optStatusMessage}
+                                                    </div>
+                                                )}
+
+                                                {/* Error/Status Display */}
+                                                {optError && (
+                                                    <div className={`mt-4 p-4 rounded-lg animate-fade-in border ${optError.includes("Cancelled")
+                                                        ? "bg-gray-800/50 border-gray-600 text-gray-300"
+                                                        : "bg-red-900/20 border-red-500/50 text-red-300"
+                                                        }`}>
+                                                        <div className={`flex items-center gap-2 mb-2 font-bold ${optError.includes("Cancelled") ? "text-gray-300" : "text-red-400"}`}>
+                                                            <span className="text-xl">{optError.includes("Cancelled") ? "🛑" : "⚠️"}</span>
+                                                            {optError.includes("Cancelled") ? "Optimization Stopped" : "Optimization Error"}
+                                                        </div>
+                                                        <pre className={`whitespace-pre-wrap text-sm font-mono overflow-auto max-h-40 select-text p-2 rounded border ${optError.includes("Cancelled")
+                                                            ? "bg-black/30 border-gray-500/30 text-gray-400"
+                                                            : "bg-black/30 border-red-500/10"
+                                                            }`}>
+                                                            {optError}
+                                                        </pre>
+                                                        {!optError.includes("Cancelled") && (
+                                                            <p className="text-xs text-red-500/70 mt-2">
+                                                                Check the error message above. You can copy it for debugging.
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {optResults && optResults.length > 0 && (
+                                                    <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                                <thead>
+                                                                    <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
+                                                                        <th className="p-3 text-center w-16">Active</th>
+                                                                        {[
+                                                                            { key: 'rank', label: 'Rank' },
+                                                                            ...PARAM_DEFINITIONS,
+                                                                            { key: 'return', label: 'Return' },
+                                                                            { key: 'max_drawdown', label: 'MDD' },
+                                                                            { key: 'win_rate', label: 'Win Rate' },
+                                                                            { key: 'profit_factor', label: 'P.Factor' },
+                                                                            { key: 'sharpe_ratio', label: 'Sharpe' },
+                                                                            { key: 'avg_pnl', label: 'Avg PnL' },
+                                                                            { key: 'activity_rate', label: 'Activity' },
+                                                                            { key: 'total_days', label: 'Days' },
+                                                                            { key: 'avg_holding_time', label: 'Avg Hold' },
+                                                                            { key: 'max_profit', label: 'Max Profit' },
+                                                                            { key: 'max_loss', label: 'Max Loss' },
+                                                                            { key: 'stability_score', label: 'Stability' },
+                                                                            { key: 'acceleration_score', label: 'Profit Accel' },
+                                                                            { key: 'trades', label: 'Trades' },
+                                                                            { key: 'score', label: 'Score' }
+                                                                        ].map((col) => (
+                                                                            <th
+                                                                                key={col.key}
+                                                                                onClick={() => handleSort(col.key)}
+                                                                                className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''
+                                                                                    }`}
+                                                                            >
+                                                                                <div className="flex items-center gap-1">
+                                                                                    {col.label}
+                                                                                    {sortConfig.key === col.key && (
+                                                                                        <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </th>
+                                                                        ))}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {[...optResults]
+                                                                        .sort((a, b) => {
+                                                                            let valA = a[sortConfig.key];
+                                                                            let valB = b[sortConfig.key];
+
+                                                                            // Handle percentage strings if necessary, though backend sends numbers usually
+                                                                            // If raw data is mixed, safe check:
+                                                                            if (typeof valA === 'string' && valA.includes('%')) valA = parseFloat(valA);
+                                                                            if (typeof valB === 'string' && valB.includes('%')) valB = parseFloat(valB);
+
+                                                                            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                                                                            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+                                                                            return 0;
+                                                                        })
+                                                                        .map((res, idx) => {
+                                                                            let isActiveConfig = true;
+                                                                            // Check if this result matches current configuration
+                                                                            if (currentConfig) {
+                                                                                for (const param of PARAM_DEFINITIONS) {
+                                                                                    const configVal = currentConfig[param.key];
+                                                                                    const resVal = res[param.key];
+                                                                                    // Loose equality since API might return number vs string input
+                                                                                    // eslint-disable-next-line eqeqeq
+                                                                                    if (configVal != resVal) {
+                                                                                        isActiveConfig = false;
+                                                                                        break;
+                                                                                    }
                                                                                 }
                                                                             }
-                                                                        }
 
-                                                                        return (
-                                                                            <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${isActiveConfig ? 'bg-green-500/20' : (res.rank === 1 ? 'bg-green-500/10' : '')}`}>
-                                                                                <td className="p-3 text-center">
-                                                                                    <button
-                                                                                        disabled={isActiveConfig}
-                                                                                        onClick={() => {
-                                                                                            requestConfirm(
-                                                                                                "Apply Optimization Config?",
-                                                                                                `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
-                                                                                                () => {
-                                                                                                    // 1. Update Configuration
-                                                                                                    setConfigList(prev => {
-                                                                                                        const next = [...prev];
-                                                                                                        const configToApply = res.full_config || {};
-                                                                                                        next[activeTab] = {
-                                                                                                            ...next[activeTab],
-                                                                                                            ...configToApply
-                                                                                                        };
-                                                                                                        return next;
-                                                                                                    });
+                                                                            return (
+                                                                                <tr key={idx} className={`text-sm border-b border-white/5 hover:bg-white/5 transition-colors ${isActiveConfig ? 'bg-green-500/20' : (res.rank === 1 ? 'bg-green-500/10' : '')}`}>
+                                                                                    <td className="p-3 text-center">
+                                                                                        <button
+                                                                                            disabled={isActiveConfig}
+                                                                                            onClick={() => {
+                                                                                                requestConfirm(
+                                                                                                    "Apply Optimization Config?",
+                                                                                                    `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
+                                                                                                    () => {
+                                                                                                        // 1. Update Configuration
+                                                                                                        setConfigList(prev => {
+                                                                                                            const next = [...prev];
+                                                                                                            const configToApply = res.full_config || {};
+                                                                                                            next[activeTab] = {
+                                                                                                                ...next[activeTab],
+                                                                                                                ...configToApply
+                                                                                                            };
+                                                                                                            return next;
+                                                                                                        });
 
-                                                                                                    // 2. Trigger Real Backtest (User Request)
-                                                                                                    // Runs backtest immediately using the selected config
-                                                                                                    runBacktest(selectedStrategy.id, res.full_config || {});
-                                                                                                }
-                                                                                            );
-                                                                                        }}
-                                                                                        className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
-                                                                                            ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
-                                                                                            : 'bg-purple-900/40 hover:bg-purple-800 border border-purple-500/30 text-purple-300 hover:shadow-purple-900/20'
-                                                                                            }`}
-                                                                                    >
-                                                                                        {isActiveConfig && <span className="absolute left-2 top-1.5 text-[9px] leading-3">✓</span>}
-                                                                                        {isActiveConfig ? 'Active' : 'Select'}
-                                                                                    </button>
-                                                                                </td>
-                                                                                <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
-
-                                                                                {/* Render All Params */}
-                                                                                {PARAM_DEFINITIONS.map(param => (
-                                                                                    <td key={param.key} className="p-3 text-gray-300">
-                                                                                        {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                                        // 2. Trigger Real Backtest (User Request)
+                                                                                                        // Runs backtest immediately using the selected config
+                                                                                                        runBacktest(selectedStrategy.id, res.full_config || {});
+                                                                                                    }
+                                                                                                );
+                                                                                            }}
+                                                                                            className={`text-xs px-3 py-1.5 rounded font-bold transition-all shadow-sm ${isActiveConfig
+                                                                                                ? 'bg-green-600/80 text-white cursor-default shadow-green-900/40 relative pl-6 ring-1 ring-green-400'
+                                                                                                : 'bg-purple-900/40 hover:bg-purple-800 border border-purple-500/30 text-purple-300 hover:shadow-purple-900/20'
+                                                                                                }`}
+                                                                                        >
+                                                                                            {isActiveConfig && <span className="absolute left-2 top-1.5 text-[9px] leading-3">✓</span>}
+                                                                                            {isActiveConfig ? 'Active' : 'Select'}
+                                                                                        </button>
                                                                                     </td>
-                                                                                ))}
+                                                                                    <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
-                                                                                {/* Helper for Number Formatting */}
-                                                                                {(() => {
-                                                                                    const fmt = (v) => {
-                                                                                        const n = parseFloat(v);
-                                                                                        return isNaN(n) ? '-' : n.toFixed(2);
-                                                                                    };
-                                                                                    return (
-                                                                                        <>
-                                                                                            <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                                {res.return > 0 ? '+' : ''}{fmt(res.return)}%
-                                                                                            </td>
-                                                                                            <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
-                                                                                            <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
-                                                                                            <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
-                                                                                            <td className="p-3 text-gray-400">{res.total_days}</td>
-                                                                                            <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
-                                                                                            <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
-                                                                                            <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.stability_score)}</td>
-                                                                                            <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
-                                                                                            <td className="p-3 text-gray-400">{res.trades}</td>
-                                                                                            <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
-                                                                                        </>
-                                                                                    );
-                                                                                })()}
-                                                                            </tr>
-                                                                        );
-                                                                    })}
-                                                            </tbody>
-                                                        </table>
+                                                                                    {/* Render All Params */}
+                                                                                    {PARAM_DEFINITIONS.map(param => (
+                                                                                        <td key={param.key} className="p-3 text-gray-300">
+                                                                                            {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                        </td>
+                                                                                    ))}
+
+                                                                                    {/* Helper for Number Formatting */}
+                                                                                    {(() => {
+                                                                                        const fmt = (v) => {
+                                                                                            const n = parseFloat(v);
+                                                                                            return isNaN(n) ? '-' : n.toFixed(2);
+                                                                                        };
+                                                                                        return (
+                                                                                            <>
+                                                                                                <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                                                    {res.return > 0 ? '+' : ''}{fmt(res.return)}%
+                                                                                                </td>
+                                                                                                <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
+                                                                                                <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
+                                                                                                <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
+                                                                                                <td className="p-3 text-gray-400">{res.total_days}</td>
+                                                                                                <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
+                                                                                                <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
+                                                                                                <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.stability_score)}</td>
+                                                                                                <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
+                                                                                                <td className="p-3 text-gray-400">{res.trades}</td>
+                                                                                                <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
+                                                                                            </>
+                                                                                        );
+                                                                                    })()}
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                </Card>
+                                    </Card>
 
 
 
 
-                            </div>
-                        )}
+                                </div>
+                            )
+                        }
 
                         {/* Code View */}
                         <div className="pt-10">

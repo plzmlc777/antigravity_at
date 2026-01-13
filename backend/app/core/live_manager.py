@@ -13,6 +13,7 @@ from ..strategies.time_momentum import TimeMomentumStrategy
 from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus
+from ..core.market_data_router import market_data_router
 
 logger = logging.getLogger("LiveManager")
 
@@ -39,7 +40,6 @@ class LiveManager:
             self.adapter = KiwoomRealAdapter()
             
         # Note: In real production, adapter might need to be singleton too.
-        # Note: In real production, adapter might need to be singleton too.
         # KiwoomRealAdapter in this project seems to be stateless http wrapper?
         # If it holds WebSocket state, it must be shared carefully.
         
@@ -47,6 +47,9 @@ class LiveManager:
         """
         Load active sessions from DB on server startup.
         """
+        # Connect to MarketRouter
+        market_data_router.set_live_manager(self)
+
         db = SessionLocal()
         try:
             # Find RUNNING sessions

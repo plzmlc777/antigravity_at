@@ -9,6 +9,7 @@ from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..db.session import SessionLocal
+from ..models.ohlcv import OHLCV
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +215,53 @@ class LiveTradingEngine:
                 logger.error(f"Strategy Execution Error: {e}")
                 import traceback
                 traceback.print_exc()
+
+            # 6. Persistence (Phase 3.5)
+            try:
+                self._save_candle(closed_candle)
+            except Exception as e:
+                 logger.error(f"Candle Persistence Error: {e}")
+
+    def _save_candle(self, candle: Dict[str, Any]):
+        """
+        Save 1-minute candle to OHLCV table.
+        """
+        db = SessionLocal()
+        try:
+            timestamp = datetime.fromisoformat(candle['timestamp'])
+            
+            # Check exist (Upsert)
+            existing = db.query(OHLCV).filter(
+                OHLCV.symbol == self.symbol,
+                OHLCV.timestamp == timestamp,
+                OHLCV.time_frame == "1m"
+            ).first()
+            
+            if existing:
+                existing.open = candle['open']
+                existing.high = candle['high']
+                existing.low = candle['low']
+                existing.close = candle['close']
+                existing.volume = int(candle['volume'])
+            else:
+                new_candle = OHLCV(
+                    symbol=self.symbol,
+                    timestamp=timestamp,
+                    time_frame="1m",
+                    open=candle['open'],
+                    high=candle['high'],
+                    low=candle['low'],
+                    close=candle['close'],
+                    volume=int(candle['volume'])
+                )
+                db.add(new_candle)
+            
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
 
     def stop(self):
         self.is_running = False

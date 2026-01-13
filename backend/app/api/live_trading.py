@@ -76,3 +76,14 @@ async def websocket_live_feed(websocket: WebSocket, session_id: str):
             live_manager.unsubscribe_from_session(session_id, listeners)
         # await websocket.close() # Usually auto-closed by FastAPI on disconnect exception
 
+
+from ..core.market_data_router import market_data_router
+
+@router.websocket("/ws/watch/{symbol}")
+async def websocket_watch_symbol(websocket: WebSocket, symbol: str):
+    """
+    Watch real-time ticks for a specific symbol (No Bot required).
+    """
+    # Connect directly to Router
+    await market_data_router.connect(websocket, symbol)
+
