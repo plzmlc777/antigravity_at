@@ -202,3 +202,9 @@ export const getSessionDetails = async (sessionId) => {
     const { data } = await api.get(`/live/history/sessions/${sessionId}`);
     return data;
 };
+
+export const getOHLCV = async (symbol, params = {}) => {
+    // params: { interval, date, limit }
+    const { data } = await api.get(`/candles/${symbol}`, { params });
+    return data;
+};

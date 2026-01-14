@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV } from '../api/client';
 import ConfirmModal from './ConfirmModal';
+import VisualBacktestChart from './VisualBacktestChart';
 
 const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
     // State
@@ -11,8 +12,13 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
     const [liveData, setLiveData] = useState(null);
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState(null);
+    const [activeTickTab, setActiveTickTab] = useState('realtime'); // 'realtime' | 'history'
     const [tickData, setTickData] = useState([]);
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+
+    // History View State
+    const [historyViewData, setHistoryViewData] = useState({ data: [], trades: [] });
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
     // Polling Ref
     const pollInterval = useRef(null);
@@ -44,10 +50,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
     const checkStatus = async () => {
         try {
             const sessions = await getLiveStatus();
-            // Find session for THIS symbol/strategy
             const currentSymbol = strategyConfig.symbol;
-
-            // For now, assume one session per symbol
             const mySession = sessions.find(s => s.symbol === currentSymbol && s.is_running);
 
             if (mySession) {
@@ -56,7 +59,6 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 setLiveData(mySession);
                 startPolling();
             } else if (status === 'RUNNING') {
-                // Was running, now gone -> Stopped
                 setStatus('STOPPED');
                 stopPolling();
             }
@@ -77,9 +79,9 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
 
             const payload = {
                 symbol: strategyConfig.symbol,
-                strategy_name: "time_momentum", // TODO: Dynamic
+                strategy_name: "time_momentum",
                 strategy_config: strategyConfig,
-                initial_capital: 10000000 // TODO: Input
+                initial_capital: 10000000
             };
 
             const res = await startLiveBot(payload);
@@ -95,8 +97,6 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
             addLog("Error", err.message);
         }
     };
-
-
 
     // Helper: Logs
     const addLog = (source, msg) => {
@@ -137,24 +137,25 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 const data = JSON.parse(event.data);
 
                 if (data.type === 'tick') {
-                    // Update Tick Chart
                     setLiveData(prev => ({
                         ...prev,
                         current_price: data.price
                     }));
 
-                    // Direct state update for ticks
                     setTickData(prev => {
-                        const newTick = { time: data.time.split('T')[1].split('.')[0], price: data.price };
+                        // Safe tick time parsing
+                        let timeStr = data.time;
+                        if (data.time && data.time.includes('T')) {
+                            timeStr = data.time.split('T')[1].split('.')[0];
+                        }
+                        const newTick = { time: timeStr, price: data.price };
                         const newData = [...prev, newTick];
                         if (newData.length > MAX_TICKS) return newData.slice(newData.length - MAX_TICKS);
                         return newData;
                     });
 
                 } else if (data.type === 'history') {
-                    // Initial History Load
                     const historyPoints = data.data.map(candle => {
-                        // Kiwoom Format: YYYYMMDDHHMMSS -> HH:MM:SS
                         const ts = String(candle.timestamp);
                         const timeStr = ts.length === 14
                             ? `${ts.substring(8, 10)}:${ts.substring(10, 12)}:${ts.substring(12, 14)}`
@@ -165,7 +166,6 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                         };
                     });
 
-                    // Take last N items
                     setTickData(historyPoints.slice(-MAX_TICKS));
                     addLog("System", `Loaded ${historyPoints.length} historical candles.`);
 
@@ -190,6 +190,86 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
             if (ws) ws.close();
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);
+
+    // Fetch History Data when Tab changes to 'history'
+    useEffect(() => {
+        if (activeTickTab === 'history') {
+            setIsHistoryLoading(true);
+            (async () => {
+                try {
+                    const now = new Date();
+                    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+
+                    // Fetch Candles
+                    let candles = await getOHLCV(strategyConfig.symbol, {
+                        date: dateStr,
+                        interval: '1m'
+                    });
+
+                    // Mock Fallback
+                    if (!candles || candles.length === 0) {
+                        const mockC = [];
+                        let price = 72000;
+                        const startTs = new Date(now);
+                        startTs.setHours(9, 0, 0, 0);
+
+                        for (let i = 0; i < 300; i++) {
+                            price = price + (Math.random() - 0.5) * 100;
+                            mockC.push({ time: (startTs.getTime() + i * 60000) / 1000, open: price, high: price + 50, low: price - 50, close: price, volume: 100 });
+                        }
+                        candles = mockC;
+                    }
+
+                    // Format Trades from live tick info
+                    const formattedTrades = tickData.map(t => {
+                        // Avoid crash if time format is unexpected
+                        if (!t.time || typeof t.time !== 'string') return null;
+
+                        const parts = t.time.split(':');
+                        if (parts.length < 3) return null;
+
+                        const [h, m, s] = parts.map(Number);
+                        const tDate = new Date(now);
+                        tDate.setHours(h, m, s, 0);
+                        return {
+                            ...t,
+                            time: tDate.getTime() / 1000,
+                            price: t.price,
+                            type: t.type,
+                            pnl_percent: t.pnl_percent
+                        };
+                    }).filter(Boolean).sort((a, b) => a.time - b.time);
+
+                    setHistoryViewData({
+                        data: candles,
+                        trades: formattedTrades
+                    });
+
+                } catch (e) {
+                    console.error("History Tab Fetch Error", e);
+                } finally {
+                    setIsHistoryLoading(false);
+                }
+            })();
+        }
+    }, [activeTickTab, tickData, strategyConfig.symbol]);
+
+
+
+    // [TESTING] Inject Mock Data
+    useEffect(() => {
+        const mockTicks = [
+            { time: "09:00:00", price: 72000, type: 'buy', pnl_percent: 0 },
+            { time: "09:15:30", price: 72500, type: 'sell', pnl_percent: 0.0069 },
+            { time: "10:30:00", price: 71800, type: 'buy', pnl_percent: 0 },
+            { time: "11:45:10", price: 73000, type: 'sell', pnl_percent: 0.0167 },
+            { time: "13:20:00", price: 72900, type: 'buy', pnl_percent: 0 }
+        ];
+        setTickData(mockTicks);
+        addLog("System", "Mock Data Injected for Testing");
+    }, []);
+
+
 
     // Render Helpers
     const getStatusColor = () => {
@@ -339,62 +419,101 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
             {/* Right Col: Visualization & Logs */}
             <div className="lg:col-span-2 flex flex-col gap-6">
                 {/* Chart Area (Real-time Tick Chart) */}
-                <div className="flex-1 bg-[#1e1e24] border border-white/5 rounded-xl p-4 relative min-h-[300px] flex flex-col">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2">
-                            <Activity size={14} className="text-purple-400" />
-                            Real-time Ticks ({strategyConfig.symbol})
-                        </h3>
-                        <span className="text-xs text-gray-500 animate-pulse">● Live Stream</span>
+                <div className="flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[300px] overflow-hidden">
+                    {/* Tab Header */}
+                    <div className="flex border-b border-white/5 bg-black/20">
+                        <button
+                            onClick={() => setActiveTickTab('realtime')}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'realtime'
+                                ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+                                : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                                }`}
+                        >
+                            <Activity size={14} />
+                            Real-time Ticks
+                            {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                        </button>
+                        <button
+                            onClick={() => setActiveTickTab('history')}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'history'
+                                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                                : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                                }`}
+                        >
+                            <List size={14} />
+                            History Ticks
+                        </button>
                     </div>
-                    <div className="flex-1 w-full h-full min-h-[250px] relative">
-                        {/* Empty State Overlay */}
-                        {tickData.length === 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <div className="text-center text-gray-500">
-                                    <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
-                                    <p>Waiting for market data...</p>
-                                    <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
+
+                    {/* Tab Content */}
+                    <div className="flex-1 p-4 relative min-h-[250px] flex flex-col">
+                        {activeTickTab === 'realtime' ? (
+                            <>
+                                {/* Empty State Overlay */}
+                                {tickData.length === 0 && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                        <div className="text-center text-gray-500">
+                                            <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
+                                            <p>Waiting for market data...</p>
+                                            <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex-1 w-full h-full min-h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={tickData.length > 0 ? tickData : [{ time: '', price: 0 }]}>
+                                            <defs>
+                                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                            <XAxis
+                                                dataKey="time"
+                                                stroke="#555"
+                                                tick={{ fontSize: 10 }}
+                                                interval="preserveStartEnd"
+                                            />
+                                            <YAxis
+                                                domain={['auto', 'auto']}
+                                                stroke="#555"
+                                                tick={{ fontSize: 10 }}
+                                                width={60}
+                                                tickFormatter={(val) => val.toLocaleString()}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                itemStyle={{ color: '#fff' }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="price"
+                                                stroke="#8884d8"
+                                                fillOpacity={1}
+                                                fill="url(#colorPrice)"
+                                                isAnimationActive={false}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
                                 </div>
+                            </>
+                        ) : (
+                            // HISTORY TAB: Direct Visual Chart
+                            <div className="flex-1 relative bg-black/10 min-h-[400px]">
+                                {isHistoryLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                                        <span className="text-blue-400 font-bold bg-black/80 px-4 py-2 rounded">Loading...</span>
+                                    </div>
+                                )}
+                                <VisualBacktestChart
+                                    data={historyViewData.data}
+                                    trades={historyViewData.trades}
+                                    showOnlyPnl={true}
+                                />
                             </div>
                         )}
-
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={tickData.length > 0 ? tickData : [{ time: '', price: 0 }]}>
-                                <defs>
-                                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#8884d8" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                                <XAxis
-                                    dataKey="time"
-                                    stroke="#555"
-                                    tick={{ fontSize: 10 }}
-                                    interval="preserveStartEnd"
-                                />
-                                <YAxis
-                                    domain={['auto', 'auto']}
-                                    stroke="#555"
-                                    tick={{ fontSize: 10 }}
-                                    width={60}
-                                    tickFormatter={(val) => val.toLocaleString()}
-                                />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="price"
-                                    stroke="#8884d8"
-                                    fillOpacity={1}
-                                    fill="url(#colorPrice)"
-                                    isAnimationActive={false}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
                     </div>
                 </div>
 

@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from pydantic import BaseModel
 from ..adapters.kiwoom_real import KiwoomRealAdapter
+from typing import List, Optional
+
 router = APIRouter()
 
 @router.get("/status/{symbol}")
@@ -114,4 +116,60 @@ def reset_market_data(
         return {"status": "success", "message": f"Successfully deleted {num} market data records."}
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/candles/{symbol}")
+def get_candles(
+    symbol: str, 
+    interval: str = "1m", 
+    date: Optional[str] = None, 
+    limit: int = 1000,
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch historical candles for a symbol.
+    - If `date` (YYYY-MM-DD or YYYYMMDD) is provided, fetches candles for that specific day.
+    - Otherwise, returns the most recent `limit` candles.
+    """
+    try:
+        query = db.query(OHLCV).filter(
+            OHLCV.symbol == symbol,
+            OHLCV.time_frame == interval
+        )
+
+        if date:
+             # Flexible Date Parsing
+            target_date = date.replace("-", "").replace(".", "") # Normalize to YYYYMMDD
+            
+            # Assuming 'timestamp' in OHLCV is DateTime. 
+            # We filter by range for that entire day.
+            try:
+                # Construct datetime range
+                start_dt = datetime.strptime(target_date, "%Y%m%d")
+                end_dt = start_dt + timedelta(days=1)
+                
+                query = query.filter(
+                    OHLCV.timestamp >= start_dt,
+                    OHLCV.timestamp < end_dt
+                )
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYYMMDD.")
+        
+        # Sort by time asc for chart
+        candles = query.order_by(OHLCV.timestamp.asc()).limit(limit).all()
+        
+        return [
+            {
+                "time": int(c.timestamp.timestamp()), # Unix Timestamp (Seconds) for Frontend
+                "open": float(c.open),
+                "high": float(c.high),
+                "low": float(c.low),
+                "close": float(c.close),
+                "volume": float(c.volume)
+            }
+            for c in candles
+        ]
+
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
