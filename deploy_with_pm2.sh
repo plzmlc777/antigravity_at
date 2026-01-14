@@ -4,8 +4,8 @@
 echo "Updating code from git..."
 # Update code (Force Sync)
 echo "Updating code from git (Forced Sync)..."
-git fetch --all
-git reset --hard origin/master
+# git fetch --all
+# git reset --hard origin/master
 
 # Add local tools to PATH if they exist
 export PATH="$(pwd)/tools/node/bin:$PATH"

@@ -1724,6 +1724,131 @@ const StrategyView = () => {
                                 </div>
                             )}
 
+                            {activeTab === -1 && (
+                                <div className="animate-fade-in-up">
+                                    {/* INTEGRATED VIEW UI */}
+                                    <Card title="Integrated Portfolio Configuration" variant="major" className="border-t-4 border-t-amber-500">
+                                        <div className="flex flex-col gap-4">
+                                            {/* Row 1: Data Interval & Status */}
+                                            <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+                                                <div className="flex items-center gap-4 w-full md:w-auto">
+                                                    <div className="relative w-32">
+                                                        <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
+                                                        <select
+                                                            value={currentConfig?.interval || "1m"}
+                                                            onChange={(e) => handleConfigChange('interval', e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                        >
+                                                            <option value="1m">1 Min</option>
+                                                            <option value="3m">3 Min</option>
+                                                            <option value="5m">5 Min</option>
+                                                            <option value="10m">10 Min</option>
+                                                            <option value="15m">15 Min</option>
+                                                            <option value="30m">30 Min</option>
+                                                            <option value="60m">1 Hour</option>
+                                                            <option value="1d">1 Day</option>
+                                                            <option value="1w">1 Week</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        {!dataStatus.is_fresh ? (
+                                                            <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
+                                                                Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-green-500 text-xs font-bold px-2 py-1 bg-green-500/10 rounded border border-green-500/20 whitespace-nowrap">
+                                                                Data Fresh ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
+                                                            </span>
+                                                        )}
+                                                        <button
+                                                            onClick={handleFetchData}
+                                                            disabled={isFetchingData || !isSymbolValid}
+                                                            title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
+                                                            className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
+                                                                fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
+                                                                    "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
+                                                                }`}
+                                                        >
+                                                            {fetchMessage ? fetchMessage : 'Update Data'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Row 2: Capital & Date & Strategy */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                                    <input
+                                                        type="text"
+                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value.replace(/,/g, ''), 10);
+                                                            if (!isNaN(val)) handleConfigChange('initial_capital', val);
+                                                        }}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={currentConfig?.from_date || ""}
+                                                        onChange={(e) => handleConfigChange('from_date', e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
+                                                    <select
+                                                        value={currentConfig.betting_strategy || "fixed"}
+                                                        onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
+                                                    >
+                                                        <option value="fixed">Fixed Amount</option>
+                                                        <option value="compound">Compound Interest</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {/* Row 3: Action Buttons */}
+                                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                                <button
+                                                    onClick={() => setShowChart(!showChart)}
+                                                    disabled={!backtestResult}
+                                                    className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
+                                                        ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
+                                                        : showChart
+                                                            ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
+                                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                        }`}
+                                                >
+                                                    {showChart ? "🙈 Hide Visual Chart" : "📊 Visual Analysis"}
+                                                </button>
+                                                <button
+                                                    onClick={() => runBacktest(selectedStrategy?.id)}
+                                                    disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1}
+                                                    className={`bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700 ${activeTab === -1 ? 'opacity-80 cursor-not-allowed' : ''}`}
+                                                >
+                                                    {isLoading ? (
+                                                        <>
+                                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Running...
+                                                        </>
+                                                    ) : (
+                                                        <>{activeTab === -1 ? 'Coming Soon' : '🚀 Run Backtest'}</>
+                                                    )}
+                                                </button>
+                                            </div>
+
+
+                                        </div>
+                                    </Card>
+                                </div>
+                            )}
 
                             {/* Backtest Controls (Relocated) - Hidden in Integrated View and Live View */}
                             {activeTab >= 0 && (

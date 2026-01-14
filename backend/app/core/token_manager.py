@@ -16,7 +16,15 @@ class KiwoomTokenManager:
              KiwoomTokenManager._instance = self
              self.access_token: Optional[str] = None
              self.token_expiry: Optional[datetime] = None
-             self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+             
+             # Force Real API for Data/Token regardless of mode (Unless user explicitly overrides differently)
+             # Defaulting to openapi.kiwoom.com because Mock API lacks historical data.
+             # If settings url is mockapi, we override it back to real for this manager.
+             if "mockapi" in settings.HCP_KIWOOM_API_URL:
+                 self.base_url = "https://openapi.kiwoom.com"
+                 logger.info("Forcing Standard Open API URL for Token Manager in Mock Mode.")
+             else:
+                 self.base_url = settings.HCP_KIWOOM_API_URL or "https://openapi.kiwoom.com"
              
     @staticmethod
     def get_instance():
@@ -42,7 +50,11 @@ class KiwoomTokenManager:
         # Assuming http_client.py is in same package or accessible.
         from .http_client import HttpClientManager
         
+        # Determine Path based on URL (Standard vs HCP)
+        # Reverting to oauth2/token as openapi.kiwoom.com/oauth2.0 failed.
+        # api.kiwoom.com accepts oauth2/token.
         url = f"{self.base_url}/oauth2/token"
+            
         headers = {
             "Content-Type": "application/json;charset=UTF-8",
             "api-id": "au10001"

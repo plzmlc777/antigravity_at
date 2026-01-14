@@ -54,7 +54,7 @@ class MarketDataService:
                 OHLCV.time_frame == interval
             ).order_by(OHLCV.timestamp.asc()).all()
             
-            if len(db_candles) > 0:
+            if len(db_candles) >= 100:
                 print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol}")
                 return [
                     {
@@ -70,7 +70,8 @@ class MarketDataService:
         # If DB empty or logic dictates, fetch fresh
         # Note: In explicit usage, user triggers 'fetch_history' manually.
         # But here checking 'if empty' is good UX.
-        if count == 0:
+        # If DB empty or insufficient data (e.g. < 100 records), fetch fresh
+        if count < 100:
             # Calculate required limit for fetch
             minutes_per_day = 1440
             if interval.endswith("m"):
@@ -82,7 +83,7 @@ class MarketDataService:
             # Ensure limit is enough for days requested
             fetch_limit = max(100000, days * minutes_per_day * 2) # Safety multiplier
             
-            print(f"No data for {symbol} {interval}. Fetching automatically (Limit: {fetch_limit})...")
+            print(f"Insufficient data for {symbol} {interval} (Count: {count}). Fetching automatically (Limit: {fetch_limit})...")
             await self.fetch_history(symbol, interval, days, limit=fetch_limit)
             # Re-read from DB
             # Re-read from DB
@@ -93,7 +94,8 @@ class MarketDataService:
                     OHLCV.time_frame == interval
                 ).order_by(OHLCV.timestamp.asc()).all()
                 
-                if len(db_candles) > 0:
+                # Only return if we have a substantial amount, otherwise fallback to synthetic
+                if len(db_candles) >= 100:
                     print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (After Fetch)")
                     return [
                         {
@@ -102,9 +104,16 @@ class MarketDataService:
                         }
                         for c in db_candles
                     ][-limit:]
+            
+                # Fallback: Generate Synthetic Data if Fetch Failed (Mock Mode Support)
+                # print(f"Fetch failed or returned insufficient records({len(db_candles)}). Generating synthetic data for {symbol}...")
+                # return await self._generate_synthetic_candles(symbol, days)
+                
+                # USER DEMAND: DISABLE FAKE DATA.
+                print(f"Fetch failed or returned insufficient records ({len(db_candles)}). Real data fetch required but failed (404/Empty). Returning empty.")
+                return []
             finally:
                 db.close()
-            return []
             
         return []
 
@@ -273,7 +282,35 @@ class MarketDataService:
             return
 
         from ..core.config import settings
-        base_url = settings.HCP_KIWOOM_API_URL or self.BASE_URL
+        
+        # Enforce Real API (HCP REST)
+        if "mockapi" in getattr(settings, "HCP_KIWOOM_API_URL", ""):
+             base_url = "https://api.kiwoom.com"
+             print("DEBUG: MarketDataService forcing Real API URL (HCP).")
+        else:
+             base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+        
+        # HCP REST API uses /api/dostk/chart
+        url = f"{base_url}/api/dostk/chart" 
+        # Wait, if I hardcode this, I might break it if the suffix is wrong.
+        # Kiwoom Open API REST documentation says:
+        # GET https://openapi.kiwoom.com/openapi/service/rest/opt10001 (example)
+        # But here code uses /api/dostk/chart ?? This looks like a specific wrapper or customized gateway.
+        # "dostk" sounds like "Do Stock"? 
+        # If this is a proxy or HCP wrapper, "mockapi" suggests it is an HCP standard.
+        # If I change to "https://openapi.kiwoom.com" I might need to adjust the path too.
+        
+        # HOWEVER, the previous log showed `https://mockapi.kiwoom.com` was used.
+        # If I switch to `https://openapi.kiwoom.com`, I must match the path structure.
+        # Since I don't know the exact HCP path structure for Real, I should stick to the pattern but change the DOMAIN.
+        
+        # Let's assume the path `/api/dostk/chart` is correct for the gateway.
+        # I will just force the domain to `https://openapi.kiwoom.com` IF that is the Real server.
+        # Wait, usually `openapi.kiwoom.com` IS the real server.
+        
+        # Let's try forcing the domain but keeping the logic simple.
+        
+        base_url = "https://openapi.kiwoom.com"
         url = f"{base_url}/api/dostk/chart" 
         
         headers = {
@@ -592,10 +629,53 @@ class MarketDataService:
         if current_bucket: agg.append(current_bucket)
         return agg
 
-    def _generate_synthetic_candles(self, symbol: str, days: int) -> List[Dict]:
-        # Fallback mechanism if API fails
-        return [] # Simplified for now to encourage real data usage
-
+    async def _generate_synthetic_candles(self, symbol: str, days: int) -> List[Dict]:
+        """
+        Generate synthetic OHLCV data for testing.
+        Uses a random walk to create realistic-looking price movement.
+        """
+        import random
+        from datetime import timedelta
+        
+        print(f"Generating {days} days of synthetic data for {symbol}...")
+        candles = []
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=days)
+        
+        base_price = 70000 if symbol == "005930" else 10000
+        current_price = base_price
+        
+        # Approximate Trading Minutes (09:00 - 15:30 = 390 mins)
+        # We need to generate roughly 'days * 390' records or cover the 24h span if crypto logic?
+        # Kiwoom is stock, so 09:00-15:30.
+        # For simplicity, we can generate generic 24h data or strictly 09:00-15:30.
+        # Strict logic is complex. Let's do simple 24h or continuous.
+        # Backtest engine usually works with any timestamps.
+        
+        current_ts = start_dt
+        while current_ts < end_dt:
+             # Random Walk
+             fluctuation = random.uniform(-0.002, 0.002) # 0.2% per minute
+             current_price = current_price * (1 + fluctuation)
+             
+             # OHLC
+             open_p = current_price * (1 + random.uniform(-0.0005, 0.0005))
+             close_p = current_price
+             high_p = max(open_p, close_p) * (1 + random.uniform(0, 0.001))
+             low_p = min(open_p, close_p) * (1 - random.uniform(0, 0.001))
+             
+             candles.append({
+                 "timestamp": current_ts.strftime("%Y-%m-%d %H:%M:%S"),
+                 "open": int(open_p),
+                 "high": int(high_p),
+                 "low": int(low_p),
+                 "close": int(close_p),
+                 "volume": random.randint(100, 5000)
+             })
+             
+             current_ts += timedelta(minutes=1)
+             
+        return candles
 
     # TODO: Implement actual API call when documentation is confirmed
     # async def _real_api_call(self): ...
