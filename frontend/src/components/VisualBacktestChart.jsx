@@ -64,236 +64,252 @@ const VisualBacktestChart = ({
         ctx.stroke();
     };
 
+    // Helper: Process Data
+    const processData = (rawData) => {
+        const uniqueDataMap = new Map();
+        rawData.forEach(item => {
+            let time = item.time;
+            if (typeof time === 'string') time = new Date(time).getTime() / 1000;
+            const timeNum = Number(time);
+            if (!isNaN(timeNum)) {
+                uniqueDataMap.set(timeNum, {
+                    time: timeNum,
+                    open: Number(item.open),
+                    high: Number(item.high),
+                    low: Number(item.low),
+                    close: Number(item.close)
+                });
+            }
+        });
+        return Array.from(uniqueDataMap.values()).sort((a, b) => a.time - b.time);
+    };
+
+    const processTrades = (rawTrades) => {
+        if (!rawTrades || !Array.isArray(rawTrades)) return [];
+        return rawTrades.map(t => {
+            let time = t.time;
+            if (typeof time === 'string') time = new Date(time).getTime() / 1000;
+            return { ...t, time: Number(time) };
+        }).sort((a, b) => a.time - b.time);
+    };
+
     useEffect(() => {
         if (!data || data.length === 0 || !chartContainerRef.current) return;
 
-        // Cleanup
-        if (chartInstance.current) {
-            chartInstance.current.remove();
-            chartInstance.current = null;
-        }
-        setIsReady(false);
+        // 1. Process Data
+        const validData = processData(data);
+        const processedTrades = processTrades(trades);
 
-        const timer = setTimeout(() => {
-            console.log("Chart: Starting Initialization...");
-            try {
-                // 1. Process Candle Data
-                const uniqueDataMap = new Map();
-                data.forEach(item => {
-                    let time = item.time;
-                    if (typeof time === 'string') time = new Date(time).getTime() / 1000;
-                    const timeNum = Number(time);
-                    if (!isNaN(timeNum)) {
-                        uniqueDataMap.set(timeNum, {
-                            time: timeNum,
-                            open: Number(item.open),
-                            high: Number(item.high),
-                            low: Number(item.low),
-                            close: Number(item.close)
-                        });
-                    }
-                });
-                const validData = Array.from(uniqueDataMap.values()).sort((a, b) => a.time - b.time);
-                allDataRef.current = validData;
+        // Update Refs
+        allDataRef.current = validData;
+        allTradesRef.current = processedTrades;
 
-                // [NEW] Pre-calculate Day Change Timestamps for Overlay
-                const dayChanges = [];
-                let lastDateStr = null;
-                validData.forEach(d => {
-                    const dateStr = new Date(d.time * 1000).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
-                    if (lastDateStr && dateStr !== lastDateStr) {
-                        dayChanges.push(d.time);
-                    }
-                    lastDateStr = dateStr;
-                });
-                dayChangesRef.current = dayChanges;
+        // Trade Data for Line Series
+        const tradeMap = new Map();
+        processedTrades.forEach(t => {
+            tradeMap.set(t.time, { time: t.time, value: t.price });
+        });
+        const tradePriceData = Array.from(tradeMap.values()).sort((a, b) => a.time - b.time);
+        allTradePriceDataRef.current = tradePriceData;
 
-
-                // 2. Process Trades
-                let processedTrades = [];
-                try {
-                    if (trades && Array.isArray(trades)) {
-                        processedTrades = trades.map(t => {
-                            let time = t.time;
-                            if (typeof time === 'string') time = new Date(time).getTime() / 1000;
-                            return { ...t, time: Number(time) };
-                        }).sort((a, b) => a.time - b.time);
-                        allTradesRef.current = processedTrades;
-                    }
-                } catch (err) {
-                    console.error("Chart: Trade Processing Error", err);
-                }
-
-                // 3. Create Chart Instance
-                const chart = createChart(chartContainerRef.current, {
-                    layout: {
-                        background: { type: ColorType.Solid, color: '#111827' },
-                        textColor: '#9ca3af',
-                    },
-                    grid: {
-                        vertLines: { visible: !showOnlyPnl, color: '#1f2937' },
-                        horzLines: { visible: !showOnlyPnl, color: '#1f2937' },
-                    },
-                    crosshair: {
-                        vertLine: { visible: !showOnlyPnl, labelVisible: !showOnlyPnl },
-                        horzLine: { visible: !showOnlyPnl, labelVisible: false },
-                    },
-                    width: chartContainerRef.current.clientWidth,
-                    height: 500,
-                    timeScale: {
-                        timeVisible: true,
-                        secondsVisible: true,
-                        borderColor: '#374151',
-                        rightOffset: 12,
-                        tickMarkFormatter: (time, tickMarkType) => {
-                            const date = new Date(time * 1000);
-                            if (tickMarkType < 3) {
-                                const d = new Intl.DateTimeFormat('ko-KR', {
-                                    month: 'numeric',
-                                    day: 'numeric',
-                                }).format(date);
-                                return `[[ ${d} ]]`;
-                            } else {
-                                return new Intl.DateTimeFormat('ko-KR', {
-                                    timeZone: 'Asia/Seoul',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false
-                                }).format(date);
-                            }
-                        }
-                    },
-                    rightPriceScale: {
-                        borderColor: '#374151',
-                        ...priceScaleOptions,
-                        ...(priceScaleOptions?.fixedYRange ? {
-                            autoScale: false,
-                            scaleMargins: { top: 0.1, bottom: 0.1 },
-                        } : {}),
-                    },
-                    localization: {
-                        timezone: 'Asia/Seoul',
-                        dateFormat: 'yyyy-MM-dd',
-                        timeFormatter: (timestamp) => {
-                            const date = new Date(timestamp * 1000);
-                            return date.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' });
-                        },
-                        priceFormatter: (price) => {
-                            if (yAxisFormatter) return yAxisFormatter(price);
-                            return price.toFixed(2);
-                        }
-                    },
-                });
-
-                // 4. Add Series (Candles)
-                const seriesColor = showOnlyPnl ? 'rgba(0,0,0,0)' : undefined;
-                const series = chart.addSeries(CandlestickSeries, {
-                    upColor: seriesColor || '#26a69a',
-                    downColor: seriesColor || '#ef5350',
-                    borderVisible: false,
-                    wickUpColor: seriesColor || '#26a69a',
-                    wickDownColor: seriesColor || '#ef5350',
-                    priceLineVisible: !showOnlyPnl,
-                    lastValueVisible: !showOnlyPnl,
-                    autoscaleInfoProvider: priceScaleOptions?.fixedYRange
-                        ? () => ({
-                            priceRange: {
-                                minValue: priceScaleOptions.fixedYRange.min,
-                                maxValue: priceScaleOptions.fixedYRange.max,
-                            },
-                        })
-                        : undefined,
-                });
-                series.setData(validData);
-                seriesInstance.current = series;
-
-                // 5. Add Invisible Helper Series for Crosshair
-                const tradePriceSeries = chart.addSeries(LineSeries, {
-                    color: 'rgba(0, 0, 0, 0)',
-                    lineVisible: false,
-                    pointMarkersVisible: false,
-                    crosshairMarkerVisible: true,
-                    crosshairMarkerRadius: 4,
-                    lastValueVisible: false,
-                    priceLineVisible: false,
-                    title: 'W/L Price',
-                });
-                tradeSeriesRef.current = tradePriceSeries;
-
-                const tradeMap = new Map();
-                processedTrades.forEach(t => {
-                    tradeMap.set(t.time, { time: t.time, value: t.price });
-                });
-                const tradePriceData = Array.from(tradeMap.values()).sort((a, b) => a.time - b.time);
-                allTradePriceDataRef.current = tradePriceData;
-                if (tradePriceData.length > 0) tradePriceSeries.setData(tradePriceData);
-
-                // 6. Initialize Markers Plugin
-                try {
-                    const markersPlugin = createSeriesMarkers(series, []);
-                    markersPluginRef.current = markersPlugin;
-                    if (validData.length > 0) {
-                        const endTime = validData[validData.length - 1].time;
-                        updateMarkersInViewLogic(endTime, markersPlugin);
-                    }
-                } catch (err) { }
-
-                chartInstance.current = chart;
-
-                // Initial Viewport
-                const total = validData.length;
-                chart.timeScale().setVisibleLogicalRange({
-                    from: total - zoomLevel,
-                    to: total
-                });
-
-                // 7. Subscribe to Layout/Range Changes for Canvas Overlay
-                chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-                    requestAnimationFrame(drawSeparators);
-                });
-                chart.timeScale().subscribeVisibleTimeRangeChange(() => {
-                    requestAnimationFrame(drawSeparators);
-                });
-
-                // Resize Observer (Handles Chart AND Canvas)
-                try {
-                    const resizeObserver = new ResizeObserver(entries => {
-                        if (chartInstance.current && entries[0]) {
-                            const { width, height } = entries[0].contentRect;
-
-                            // 1. Resize Chart
-                            chartInstance.current.applyOptions({ width, height });
-
-                            // 2. Resize Canvas (Overlay)
-                            if (overlayCanvasRef.current) {
-                                const dpr = window.devicePixelRatio || 1;
-                                overlayCanvasRef.current.width = width * dpr;
-                                overlayCanvasRef.current.height = height * dpr;
-
-                                const ctx = overlayCanvasRef.current.getContext('2d');
-                                ctx.scale(dpr, dpr);
-
-                                requestAnimationFrame(drawSeparators);
-                            }
-                        }
-                    });
-                    resizeObserver.observe(chartContainerRef.current);
-                } catch (e) { }
-
-                setIsReady(true);
-
-                // Initial Draw
-                setTimeout(drawSeparators, 200);
-
-            } catch (e) {
-                console.error("Chart: Fatal Init Error:", e);
-                setIsReady(true);
+        // Calculate Day Changes for Overlay
+        const dayChanges = [];
+        let lastDateStr = null;
+        validData.forEach(d => {
+            const dateStr = new Date(d.time * 1000).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+            if (lastDateStr && dateStr !== lastDateStr) {
+                dayChanges.push(d.time);
             }
-        }, 100);
+            lastDateStr = dateStr;
+        });
+        dayChangesRef.current = dayChanges;
+
+
+        // 2. Check if Chart Exists -> Update Only
+        if (chartInstance.current && seriesInstance.current) {
+            // Update Series Data
+            // We use updateChartState to handle slider logic + data update together
+            // If we are "Live" (slider at 100), we want to update the chart to the latest.
+            // If we are "Replaying" (slider < 100), the slider effect will handle it?
+            // Actually, simplest is to just re-run the slider/data sync logic.
+            // But we need to update the Underlying Series with FULL data first?
+            // No, lightweight-charts setData replaces everything.
+            // Our "updateChartState" function slices the data based on slider.
+
+            // So here we triggers a re-calc via slider update or direct call?
+            // Let's force an update of the chart state.
+
+            // If slider is 100, we show everything.
+            if (sliderValue >= 100) {
+                updateChartState(validData.length);
+            } else {
+                // Slider is somewhere else, re-calc based on current percentage?
+                // But total changed.
+                const total = validData.length;
+                const minCandles = 30;
+                const targetCount = minCandles + Math.floor((sliderValue / 100) * (total - minCandles));
+                updateChartState(Math.min(targetCount, total));
+            }
+
+            return; // EXIT HERE, DO NOT RE-CREATE
+        }
+
+        // 3. Initialization (Runs only once)
+        console.log("Chart: Starting Initialization...");
+        try {
+            // Create Chart Instance
+            const chart = createChart(chartContainerRef.current, {
+                layout: {
+                    background: { type: ColorType.Solid, color: '#111827' },
+                    textColor: '#9ca3af',
+                },
+                grid: {
+                    vertLines: { visible: !showOnlyPnl, color: '#1f2937' },
+                    horzLines: { visible: !showOnlyPnl, color: '#1f2937' },
+                },
+                crosshair: {
+                    vertLine: { visible: !showOnlyPnl, labelVisible: !showOnlyPnl },
+                    horzLine: { visible: !showOnlyPnl, labelVisible: false },
+                },
+                width: chartContainerRef.current.clientWidth,
+                height: 500,
+                timeScale: {
+                    timeVisible: true,
+                    secondsVisible: true,
+                    borderColor: '#374151',
+                    rightOffset: 12,
+                    tickMarkFormatter: (time, tickMarkType) => {
+                        const date = new Date(time * 1000);
+                        if (tickMarkType < 3) {
+                            const d = new Intl.DateTimeFormat('ko-KR', {
+                                month: 'numeric',
+                                day: 'numeric',
+                            }).format(date);
+                            return `[[ ${d} ]]`;
+                        } else {
+                            return new Intl.DateTimeFormat('ko-KR', {
+                                timeZone: 'Asia/Seoul',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            }).format(date);
+                        }
+                    }
+                },
+                rightPriceScale: {
+                    borderColor: '#374151',
+                    ...priceScaleOptions,
+                    ...(priceScaleOptions?.fixedYRange ? {
+                        autoScale: false,
+                        scaleMargins: { top: 0.1, bottom: 0.1 },
+                    } : {}),
+                },
+                localization: {
+                    timezone: 'Asia/Seoul',
+                    dateFormat: 'yyyy-MM-dd',
+                    timeFormatter: (timestamp) => {
+                        const date = new Date(timestamp * 1000);
+                        return date.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Seoul' });
+                    },
+                    priceFormatter: (price) => {
+                        if (yAxisFormatter) return yAxisFormatter(price);
+                        return price.toFixed(2);
+                    }
+                },
+            });
+
+            // Add Series (Candles)
+            const seriesColor = showOnlyPnl ? 'rgba(0,0,0,0)' : undefined;
+            const series = chart.addSeries(CandlestickSeries, {
+                upColor: seriesColor || '#26a69a',
+                downColor: seriesColor || '#ef5350',
+                borderVisible: false,
+                wickUpColor: seriesColor || '#26a69a',
+                wickDownColor: seriesColor || '#ef5350',
+                priceLineVisible: !showOnlyPnl,
+                lastValueVisible: !showOnlyPnl,
+                autoscaleInfoProvider: priceScaleOptions?.fixedYRange
+                    ? () => ({
+                        priceRange: {
+                            minValue: priceScaleOptions.fixedYRange.min,
+                            maxValue: priceScaleOptions.fixedYRange.max,
+                        },
+                    })
+                    : undefined,
+            });
+            series.setData(validData);
+            seriesInstance.current = series;
+
+            // Add Invisible Helper Series for Crosshair
+            const tradePriceSeries = chart.addSeries(LineSeries, {
+                color: 'rgba(0, 0, 0, 0)',
+                lineVisible: false,
+                pointMarkersVisible: false,
+                crosshairMarkerVisible: true,
+                crosshairMarkerRadius: 4,
+                lastValueVisible: false,
+                priceLineVisible: false,
+                title: 'W/L Price',
+            });
+            tradeSeriesRef.current = tradePriceSeries;
+            if (tradePriceData.length > 0) tradePriceSeries.setData(tradePriceData);
+
+            // Initialize Markers Plugin
+            try {
+                const markersPlugin = createSeriesMarkers(series, []);
+                markersPluginRef.current = markersPlugin;
+                if (validData.length > 0) {
+                    const endTime = validData[validData.length - 1].time;
+                    updateMarkersInViewLogic(endTime, markersPlugin);
+                }
+            } catch (err) { }
+
+            chartInstance.current = chart;
+
+            // Initial Viewport
+            const total = validData.length;
+            chart.timeScale().setVisibleLogicalRange({
+                from: total - zoomLevel,
+                to: total
+            });
+
+            // Subscribe to Layout/Range Changes
+            chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+                requestAnimationFrame(drawSeparators);
+            });
+            chart.timeScale().subscribeVisibleTimeRangeChange(() => {
+                requestAnimationFrame(drawSeparators);
+            });
+
+            // Resize Observer
+            try {
+                const resizeObserver = new ResizeObserver(entries => {
+                    if (chartInstance.current && entries[0]) {
+                        const { width, height } = entries[0].contentRect;
+                        chartInstance.current.applyOptions({ width, height });
+                        if (overlayCanvasRef.current) {
+                            const dpr = window.devicePixelRatio || 1;
+                            overlayCanvasRef.current.width = width * dpr;
+                            overlayCanvasRef.current.height = height * dpr;
+                            const ctx = overlayCanvasRef.current.getContext('2d');
+                            ctx.scale(dpr, dpr);
+                            requestAnimationFrame(drawSeparators);
+                        }
+                    }
+                });
+                resizeObserver.observe(chartContainerRef.current);
+            } catch (e) { }
+
+            setIsReady(true);
+            setTimeout(drawSeparators, 200);
+
+        } catch (e) {
+            console.error("Chart: Fatal Init Error:", e);
+            setIsReady(true);
+        }
 
         return () => {
-            clearTimeout(timer);
-            if (chartInstance.current) chartInstance.current.remove();
+            // Cleanup handled in parent unmount or if we purposefully destroy
         };
     }, [data, trades]);
 

@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     # await bot_manager.stop_all() # Ensure bots are stopped
     await condition_watcher.stop() # Stop watcher
 
-app = FastAPI(title="AutoTrading Agent API", version="0.9.2.9", description="Backend API for AI-driven Auto Trading System", lifespan=lifespan)
+app = FastAPI(title="AutoTrading Agent API", version="0.9.3.0", description="Backend API for AI-driven Auto Trading System", lifespan=lifespan)
 
 # CORS Configuration
 app.add_middleware(
