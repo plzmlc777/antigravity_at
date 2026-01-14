@@ -10,7 +10,7 @@ import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
-import { History as HistoryIcon } from 'lucide-react';
+import { History as HistoryIcon, Activity } from 'lucide-react';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
