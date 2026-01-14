@@ -8,6 +8,7 @@ import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
+import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
 import { History as HistoryIcon, Activity } from 'lucide-react';
@@ -1065,17 +1066,7 @@ const StrategyView = () => {
                                     <span>Live Operation</span>
                                 </button>
 
-                                {/* History Tab */}
-                                <button
-                                    onClick={() => setActiveTab(-3)}
-                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -3
-                                        ? 'bg-purple-600/20 border-purple-500 text-purple-400'
-                                        : 'bg-[#1e1e24] border-transparent text-gray-400 hover:bg-[#25252b] hover:text-gray-200'
-                                        }`}
-                                >
-                                    <HistoryIcon size={16} />
-                                    <span>History</span>
-                                </button>
+
 
                                 {/* Divider */}
                                 <div className="w-px h-6 bg-white/10 mx-2" />
@@ -1294,80 +1285,12 @@ const StrategyView = () => {
                                                 )}
                                             </div>
 
-                                            {/* Strategy Configuration Summary Panel */}
-                                            <div className="mt-8 mb-8 bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                                                <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
-                                                    <h3 className="font-bold text-gray-200 text-sm">Active Strategy Configurations</h3>
-                                                    <span className="text-xs text-gray-400">{configList.filter(c => c.is_active !== false).length} Active</span>
-                                                </div>
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-sm text-left">
-                                                        <thead className="text-xs text-gray-400 bg-white/5 uppercase">
-                                                            <tr>
-                                                                <th className="px-4 py-3">Rank</th>
-                                                                <th className="px-4 py-3">Symbol</th>
-                                                                <th className="px-4 py-3">Interval</th>
-                                                                <th className="px-4 py-3">Direction</th>
-                                                                <th className="px-4 py-3">Delay</th>
-                                                                <th className="px-4 py-3">Target / Stop</th>
-                                                                <th className="px-4 py-3">Trailing</th>
-                                                                <th className="px-4 py-3 text-right">Settings</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-white/5">
-                                                            {configList.map((cfg, idx) => {
-                                                                if (cfg.is_active === false) return null;
-                                                                const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
-                                                                const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
-                                                                const isRise = (cfg.direction || 'rise') === 'rise';
-
-                                                                return (
-                                                                    <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
-                                                                        <td className="px-4 py-3">
-                                                                            <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">
-                                                                                {cfg.tabName || `Rank ${idx + 1}`}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-3 font-medium text-white">
-                                                                            {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
-                                                                        </td>
-                                                                        <td className="px-4 py-3 text-gray-300">
-                                                                            {cfg.interval || "1m"}
-                                                                        </td>
-                                                                        <td className="px-4 py-3">
-                                                                            <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                                                {isRise ? '🚀 Rise' : '📉 Fall'}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td className="px-4 py-3">
-                                                                            <span className="text-yellow-400 font-bold">{cfg.delay_minutes || 0}m</span>
-                                                                        </td>
-                                                                        <td className="px-4 py-3">
-                                                                            <div className="flex flex-col text-xs gap-1">
-                                                                                <span className="text-green-400">TP: {cfg.target_percent}%</span>
-                                                                                <span className="text-red-400">SL: {cfg.safety_stop_percent}%</span>
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="px-4 py-3">
-                                                                            <div className="text-xs text-blue-400">
-                                                                                {cfg.trailing_start_percent}% / {cfg.trailing_stop_drop}%
-                                                                            </div>
-                                                                        </td>
-                                                                        <td className="px-4 py-3 text-right">
-                                                                            <button
-                                                                                onClick={() => setActiveTab(idx)}
-                                                                                className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-white transition"
-                                                                            >
-                                                                                Edit
-                                                                            </button>
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
+                                            {/* Unified Strategy Configuration Panel */}
+                                            <ActiveStrategiesPanel
+                                                configList={configList}
+                                                savedSymbols={savedSymbols}
+                                                onEdit={(idx) => setActiveTab(idx)}
+                                            />
 
 
 
@@ -1683,35 +1606,19 @@ const StrategyView = () => {
                                     {/* Tick Monitor Section - Added for Phase 3.5 */}
                                     {showTickMonitor && (
                                         <div className="mt-6 h-[400px] animate-fade-in-down border-t border-white/5 pt-6">
-                                            <LiveStrategyPanel strategyConfig={currentConfig} mode="WATCH" />
+                                            <LiveStrategyPanel
+                                                strategyConfig={currentConfig}
+                                                mode="WATCH"
+                                                configList={configList}
+                                                savedSymbols={savedSymbols}
+                                            />
                                         </div>
                                     )}
                                 </Card>
                             )}
 
                             {/* Content Area based on Tab */}
-                            {/* History Tab Content */}
-                            {activeTab === -3 && (
-                                <div className="h-full bg-[#1e1e24] rounded-xl border border-white/5 p-6 overflow-hidden">
-                                    {selectedHistoryId ? (
-                                        <LiveReplayView
-                                            sessionId={selectedHistoryId}
-                                            onClose={() => setSelectedHistoryId(null)}
-                                        />
-                                    ) : (
-                                        <div className="h-full flex flex-col">
-                                            <div className="mb-6">
-                                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                                    <HistoryIcon className="text-purple-400" />
-                                                    Session History
-                                                </h2>
-                                                <p className="text-gray-500 text-sm">Review past automated trading sessions.</p>
-                                            </div>
-                                            <LiveHistoryList onSelect={setSelectedHistoryId} />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+
 
                             {activeTab === -2 && (
                                 <div className="animate-fade-in-up">
@@ -1720,6 +1627,8 @@ const StrategyView = () => {
                                             ...configList[0], // Use config of Rank 1 as default base
                                             symbol: currentSymbol, // Force current symbol
                                         }}
+                                        configList={configList}
+                                        savedSymbols={savedSymbols}
                                     />
                                 </div>
                             )}

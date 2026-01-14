@@ -4,8 +4,9 @@ import { Play, Square, Activity, AlertTriangle, Terminal, List } from 'lucide-re
 import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
+import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 
-const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
+const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [] }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -403,6 +404,16 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full grid-rows-[auto_1fr]">
+            {/* Shared Strategy Config Panel */}
+            {configList.length > 0 && (
+                <div className="lg:col-span-3">
+                    <ActiveStrategiesPanel
+                        configList={configList}
+                        savedSymbols={savedSymbols}
+                    />
+                </div>
+            )}
+
             {/* Modal */}
             <ConfirmModal
                 isOpen={isStopModalOpen}
