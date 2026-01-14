@@ -8,7 +8,9 @@ const VisualBacktestChart = ({
     priceScaleOptions,
     showOnlyPnl,
     onChartClick, // Event Handler for Single Click
-    customControls // Custom UI Elements (Rank Selector, etc.)
+    customControls, // Custom UI Elements (Rank Selector, etc.)
+    selectedInterval = '1m', // New Prop: 1m, 3m, 5m, 15m, 30m, 60m, 1d
+    onIntervalChange // New Prop: Handler
 }) => {
     const chartContainerRef = useRef();
     const overlayCanvasRef = useRef(); // Canvas for 1px Lines
@@ -484,6 +486,19 @@ const VisualBacktestChart = ({
                             <div className="mr-2 border-r border-gray-700 pr-2">
                                 {customControls}
                             </div>
+                        )}
+                        {onIntervalChange && (
+                            <select value={selectedInterval} onChange={(e) => onIntervalChange(e.target.value)} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors mr-2">
+                                <option value="1m">1m</option>
+                                <option value="3m">3m</option>
+                                <option value="5m">5m</option>
+                                <option value="10m">10m</option>
+                                <option value="15m">15m</option>
+                                <option value="30m">30m</option>
+                                <option value="1h">1h</option>
+                                <option value="4h">4h</option>
+                                <option value="1d">1d</option>
+                            </select>
                         )}
                         <select value={zoomLevel} onChange={(e) => setZoomLevel(Number(e.target.value))} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
                             <option value={30}>Zoom: 30</option>

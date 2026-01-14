@@ -18,6 +18,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
 
     // Real-Time Candles State
     const [realTimeCandles, setRealTimeCandles] = useState([]);
+    const [selectedInterval, setSelectedInterval] = useState('1m');
 
     // History View State
     const [historyViewData, setHistoryViewData] = useState({ data: [], trades: [] });
@@ -53,7 +54,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 try {
                     const now = new Date();
                     const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-                    const candles = await getOHLCV(strategyConfig.symbol, { date: dateStr, interval: '1m' });
+                    const candles = await getOHLCV(strategyConfig.symbol, { date: dateStr, interval: selectedInterval });
 
                     // Format for Chart
                     const formatted = candles.map(c => ({
@@ -71,7 +72,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 }
             })();
         }
-    }, [status, strategyConfig.symbol]);
+    }, [status, strategyConfig.symbol, selectedInterval]);
 
 
     const startPolling = () => {
@@ -329,6 +330,8 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                             autoScale: true,
                         }}
                         yAxisFormatter={(price) => price.toLocaleString()}
+                        selectedInterval={selectedInterval}
+                        onIntervalChange={setSelectedInterval}
                     />
                 </div>
             </div>
@@ -336,7 +339,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full grid-rows-[auto_1fr]">
             {/* Modal */}
             <ConfirmModal
                 isOpen={isStopModalOpen}
@@ -357,7 +360,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 isDanger={true}
             />
 
-            {/* Left Col: Controls & Status */}
+            {/* 1. TOP ROW LEFT: Controls & Status */}
             <div className="lg:col-span-1 space-y-6">
                 {/* Status Card */}
                 <div className="bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden">
@@ -435,100 +438,99 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE' }) => {
                 </div>
             </div>
 
-            {/* Right Col: Visualization & Logs */}
-            <div className="lg:col-span-2 flex flex-col gap-6">
-                {/* Chart Area (Real-time Tick Chart) */}
-                <div className="flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[300px] overflow-hidden">
-                    {/* Tab Header */}
-                    <div className="flex border-b border-white/5 bg-black/20">
-                        <button
-                            onClick={() => setActiveTickTab('realtime')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'realtime'
-                                ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                                : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                                }`}
-                        >
-                            <Activity size={14} />
-                            Real-time Ticks
-                            {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                        </button>
-                        <button
-                            onClick={() => setActiveTickTab('history')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'history'
-                                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                                : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                                }`}
-                        >
-                            <List size={14} />
-                            History Ticks
-                        </button>
-                    </div>
+            {/* 2. TOP ROW RIGHT: Logs Console (Moved Here) */}
+            <div className="lg:col-span-2 bg-[#1e1e24] border border-white/5 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col h-full max-h-[350px]">
+                <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
+                    <Terminal size={12} />
+                    <span>Execution Logs</span>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
+                    {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
+                    {logs.map((log, i) => (
+                        <div key={i} className="flex gap-2">
+                            <span className="text-gray-500">[{log.time}]</span>
+                            <span className={log.source === 'Error' ? 'text-red-400' : 'text-blue-400'}>{log.source}:</span>
+                            <span className="text-gray-300">{log.msg}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
-                    {/* Tab Content */}
-                    <div className="flex-1 p-4 relative min-h-[250px] flex flex-col">
-                        {activeTickTab === 'realtime' ? (
-                            <>
-                                {/* Empty State Overlay */}
-                                {tickData.length === 0 && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                        <div className="text-center text-gray-500">
-                                            <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
-                                            <p>Waiting for market data...</p>
-                                            <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex-1 w-full h-full min-h-[350px] relative">
-                                    <VisualBacktestChart
-                                        data={realTimeCandles}
-                                        trades={[]} // We can pass real trades here if needed later
-                                        showOnlyPnl={false}
-                                        priceScaleOptions={{
-                                            autoScale: true,
-                                            scaleMargins: {
-                                                top: 0.1,
-                                                bottom: 0.1,
-                                            },
-                                        }}
-                                        yAxisFormatter={(price) => price.toLocaleString()}
-                                    />
-                                </div>
-                            </>
-                        ) : (
-                            // HISTORY TAB: Direct Visual Chart
-                            <div className="flex-1 relative bg-black/10 min-h-[400px]">
-                                {isHistoryLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                                        <span className="text-blue-400 font-bold bg-black/80 px-4 py-2 rounded">Loading...</span>
-                                    </div>
-                                )}
-                                <VisualBacktestChart
-                                    data={historyViewData.data}
-                                    trades={historyViewData.trades}
-                                    showOnlyPnl={true}
-                                />
-                            </div>
-                        )}
-                    </div>
+            {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
+            <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">
+                {/* Tab Header */}
+                <div className="flex border-b border-white/5 bg-black/20">
+                    <button
+                        onClick={() => setActiveTickTab('realtime')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'realtime'
+                            ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                    >
+                        <Activity size={14} />
+                        Real-time Ticks
+                        {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                    </button>
+                    <button
+                        onClick={() => setActiveTickTab('history')}
+                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'history'
+                            ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                    >
+                        <List size={14} />
+                        History Ticks
+                    </button>
                 </div>
 
-                {/* Logs Console */}
-                <div className="h-[200px] bg-black/40 border border-white/10 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col">
-                    <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
-                        <Terminal size={12} />
-                        <span>Execution Logs</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
-                        {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
-                        {logs.map((log, i) => (
-                            <div key={i} className="flex gap-2">
-                                <span className="text-gray-500">[{log.time}]</span>
-                                <span className={log.source === 'Error' ? 'text-red-400' : 'text-blue-400'}>{log.source}:</span>
-                                <span className="text-gray-300">{log.msg}</span>
+                {/* Tab Content */}
+                <div className="flex-1 p-4 relative min-h-[350px] flex flex-col">
+                    {activeTickTab === 'realtime' ? (
+                        <>
+                            {/* Empty State Overlay */}
+                            {tickData.length === 0 && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                    <div className="text-center text-gray-500">
+                                        <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
+                                        <p>Waiting for market data...</p>
+                                        <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex-1 w-full h-full min-h-[350px] relative">
+                                <VisualBacktestChart
+                                    data={realTimeCandles}
+                                    trades={[]} // We can pass real trades here if needed later
+                                    showOnlyPnl={false}
+                                    priceScaleOptions={{
+                                        autoScale: true,
+                                        scaleMargins: {
+                                            top: 0.1,
+                                            bottom: 0.1,
+                                        },
+                                    }}
+                                    yAxisFormatter={(price) => price.toLocaleString()}
+                                    selectedInterval={selectedInterval}
+                                    onIntervalChange={setSelectedInterval}
+                                />
                             </div>
-                        ))}
-                    </div>
+                        </>
+                    ) : (
+                        // HISTORY TAB: Direct Visual Chart
+                        <div className="flex-1 relative bg-black/10 min-h-[400px]">
+                            {isHistoryLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                                    <span className="text-blue-400 font-bold bg-black/80 px-4 py-2 rounded">Loading...</span>
+                                </div>
+                            )}
+                            <VisualBacktestChart
+                                data={historyViewData.data}
+                                trades={historyViewData.trades}
+                                showOnlyPnl={true}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
