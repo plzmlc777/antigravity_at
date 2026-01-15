@@ -542,7 +542,10 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                             }`}
                     >
                         <Activity size={14} />
-                        Real-time Ticks
+                        Real-time Ticks {(() => {
+                            const match = savedSymbols.find(s => s.code === strategyConfig.symbol);
+                            return match && match.name ? `(${match.name})` : `(${strategyConfig.symbol})`;
+                        })()}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     </button>
                     <button

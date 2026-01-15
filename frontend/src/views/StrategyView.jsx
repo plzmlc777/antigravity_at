@@ -416,7 +416,7 @@ const StrategyView = () => {
     };
 
     // Helper to get current config for UI rendering
-    const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : DEFAULT_CONFIG;
+    const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : (activeTab === -2 && configList.length > 0 ? configList[0] : DEFAULT_CONFIG);
 
     // Check Symbol Validity for UI
     const activeSymbol = currentConfig?.symbol || currentSymbol;
@@ -1034,7 +1034,7 @@ const StrategyView = () => {
                                 <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/50">
                                     <span className="text-white font-bold text-lg">1</span>
                                 </div>
-                                <h2 className="text-2xl font-bold text-white tracking-tight">Backtest Simulation</h2>
+                                <h2 className="text-2xl font-bold text-white tracking-tight">Antigravity Auto Trading</h2>
                                 <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
                             </div>
 
@@ -1170,7 +1170,7 @@ const StrategyView = () => {
                                 </button>
                             </div>
 
-                            {activeTab !== -2 && (
+                            {(true) && (
                                 <Card
                                     title={
                                         <div className="flex items-center justify-between w-full">
