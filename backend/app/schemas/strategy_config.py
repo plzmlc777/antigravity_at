@@ -4,6 +4,7 @@ from datetime import datetime
 
 class StrategyConfigBase(BaseModel):
     tab_id: str
+    strategy_id: Optional[str] = "time_momentum" # Default for migration
     rank: int
     is_active: bool = True
     tab_name: str

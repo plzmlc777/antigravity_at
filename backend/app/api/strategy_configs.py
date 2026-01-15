@@ -7,25 +7,31 @@ from ..schemas.strategy_config import StrategyConfig, StrategyConfigCreate
 
 router = APIRouter()
 
-@router.get("/", response_model=List[StrategyConfig])
+@router.get("/{strategy_id}", response_model=List[StrategyConfig])
 def read_strategy_configs(
+    strategy_id: str,
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100
 ):
     """
-    Retrieve strategy configurations.
+    Retrieve strategy configurations for a specific strategy.
     """
-    return strategy_config.get_multi(db, skip=skip, limit=limit)
+    return strategy_config.get_multi(db, strategy_id=strategy_id, skip=skip, limit=limit)
 
-@router.post("/", response_model=List[StrategyConfig])
+@router.post("/{strategy_id}/sync", response_model=List[StrategyConfig])
 def sync_strategy_configs(
     *,
+    strategy_id: str,
     db: Session = Depends(get_db),
     configs: List[StrategyConfigCreate]
 ):
     """
-    Sync strategy configurations.
-    Replaces all existing configurations with the new list.
+    Sync strategy configurations for a specific strategy.
+    Replaces all existing configurations for this strategy with the new list.
     """
-    return strategy_config.replace_all(db, configs=configs)
+    # Ensure strategy_id in config objects matches path (optional but good for consistency)
+    for c in configs:
+        c.strategy_id = strategy_id
+        
+    return strategy_config.replace_all(db, strategy_id=strategy_id, configs=configs)

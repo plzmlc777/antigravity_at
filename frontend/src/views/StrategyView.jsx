@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -177,100 +177,66 @@ const StrategyView = () => {
     // Persistence logic removed for initialCapital
 
     // Load Strategy Config List on Selection
+    // Load Strategy Config List from API
+    // Load Strategy Config List from API
     useEffect(() => {
-        if (selectedStrategy) {
-            const storageKey = `strategyConfig_${selectedStrategy.id}_v2`; // New Key
-            const legacyKey = `strategyConfig_${selectedStrategy.id}`; // Old Key
+        let isMounted = true;
 
-            const savedList = localStorage.getItem(storageKey);
+        const loadConfigs = async () => {
+            if (selectedStrategy) {
+                setIsConfigLoaded(false);
 
-            if (savedList) {
                 try {
-                    const parsed = JSON.parse(savedList);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        // Migration: Ensure UUIDs exist and Merge Defaults
-                        let needsUpdate = false;
-                        const migratedList = parsed.map(cfg => {
-                            // Merge with DEFAULT_CONFIG first
-                            let mergedCfg = { ...DEFAULT_CONFIG, ...cfg };
-                            let hasSanitized = false;
+                    const savedList = await getStrategyConfigs(selectedStrategy.id);
 
-                            // Sanitization: Ensure empty strings don't override defaults for numeric/select fields
-                            // Exception: from_date can be empty (uuid handled separately)
+                    if (savedList && savedList.length > 0) {
+                        const migratedList = savedList.map(cfg => {
+                            // cfg is StrategyConfig object from DB (rank, is_active, tab_name, config_json)
+                            // Flatten for UI state
+                            let configData = cfg.config_json || {};
+
+                            // Merge with DEFAULT
+                            let mergedCfg = { ...DEFAULT_CONFIG, ...configData };
+
+                            // Restore UI meta-fields from DB columns
+                            mergedCfg.rank = cfg.rank;
+                            mergedCfg.is_active = cfg.is_active;
+                            mergedCfg.tabName = cfg.tab_name;
+                            mergedCfg.uuid = cfg.tab_id;
+
+                            // Sanitization: Ensure defaults
                             Object.keys(DEFAULT_CONFIG).forEach(key => {
-                                if (key === 'from_date' || key === 'uuid') return; // Allow empty
-
+                                if (key === 'from_date' || key === 'uuid') return;
                                 const val = mergedCfg[key];
                                 const defaultVal = DEFAULT_CONFIG[key];
-
-                                // If loaded value is empty string or null/undefined, and default is not, revert to default
                                 if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
                                     mergedCfg[key] = defaultVal;
-                                    hasSanitized = true;
                                 }
                             });
 
-                            if (!mergedCfg.uuid) {
-                                needsUpdate = true;
-                                mergedCfg.uuid = generateUUID();
-                            }
-                            if (hasSanitized) {
-                                needsUpdate = true;
-                            }
+                            // Re-generate UUID if missing (should not happen from DB)
+                            if (!mergedCfg.uuid) mergedCfg.uuid = generateUUID();
 
                             return mergedCfg;
                         });
 
-                        setConfigList(migratedList);
-
-                        if (needsUpdate) {
-                            // Immediate save to correct the storage
-                            localStorage.setItem(storageKey, JSON.stringify(migratedList));
-                            console.log("Sanitized and updated config in localStorage");
-                        }
+                        if (isMounted) setConfigList(migratedList);
                     } else {
-                        // Fallback if parsing failed or empty
-                        initDefaultList();
+                        // DB empty -> Init Default
+                        if (isMounted) initDefaultList();
                     }
-                } catch {
-                    initDefaultList();
-                }
-            } else {
-                // Migration: Check for legacy single config
-                const legacy = localStorage.getItem(legacyKey);
-                if (legacy) {
-                    try {
-                        const parsedLegacy = JSON.parse(legacy);
-
-                        // Merge & Sanitize Logic (Duplicate of above for safety)
-                        let mergedCfg = { ...DEFAULT_CONFIG, ...parsedLegacy };
-                        Object.keys(DEFAULT_CONFIG).forEach(key => {
-                            if (key === 'from_date' || key === 'uuid' || key === 'symbol') return;
-                            const val = mergedCfg[key];
-                            const defaultVal = DEFAULT_CONFIG[key];
-                            if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
-                                mergedCfg[key] = defaultVal;
-                            }
-                        });
-
-
-                        const migrated = [{
-                            ...mergedCfg,
-                            is_active: true,
-                            tabName: "Rank 1",
-                            uuid: generateUUID()
-                        }];
-                        setConfigList(migrated);
-
-                    } catch {
-                        initDefaultList();
-                    }
-                } else {
-                    initDefaultList();
+                } catch (e) {
+                    console.error("Failed to load strategy configs from DB", e);
+                    if (isMounted) initDefaultList(); // Fallback
+                } finally {
+                    if (isMounted) setIsConfigLoaded(true);
                 }
             }
-            setIsConfigLoaded(true);
-        }
+        };
+
+        loadConfigs();
+
+        return () => { isMounted = false; };
     }, [selectedStrategy]);
 
     const initDefaultList = () => {
@@ -285,11 +251,30 @@ const StrategyView = () => {
 
     };
 
-    // Save Strategy Config List on Change
+    // Save Strategy Config List on Change (Debounced DB Sync)
     useEffect(() => {
-        if (isConfigLoaded && selectedStrategy && configList.length > 0) {
-            localStorage.setItem(`strategyConfig_${selectedStrategy.id}_v2`, JSON.stringify(configList));
-        }
+        const timer = setTimeout(async () => {
+            if (isConfigLoaded && selectedStrategy && configList.length > 0) {
+                // Map UI Config to DB Schema
+                const configsToSave = configList.map((cfg, index) => ({
+                    tab_id: cfg.uuid,
+                    strategy_id: selectedStrategy.id,
+                    rank: index, // 0-based for list order
+                    is_active: cfg.is_active !== false,
+                    tab_name: cfg.tabName,
+                    config_json: cfg
+                }));
+
+                try {
+                    await syncStrategyConfigs(selectedStrategy.id, configsToSave);
+                    // console.log("Strategy configs saved to DB");
+                } catch (e) {
+                    console.error("Failed to save configs to DB", e);
+                }
+            }
+        }, 1000); // 1s debounce
+
+        return () => clearTimeout(timer);
     }, [configList, selectedStrategy, isConfigLoaded]);
 
     const moveRankTab = (index, direction, e) => {

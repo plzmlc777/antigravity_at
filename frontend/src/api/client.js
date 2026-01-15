@@ -169,13 +169,13 @@ export const runIntegratedBacktest = async (payload) => {
     return data;
 };
 
-export const getStrategyConfigs = async () => {
-    const { data } = await api.get('/strategy-configs/');
+export const getStrategyConfigs = async (strategyId) => {
+    const { data } = await api.get(`/strategy-configs/${strategyId}`);
     return data;
 };
 
-export const syncStrategyConfigs = async (configs) => {
-    const { data } = await api.post('/strategy-configs/', configs);
+export const syncStrategyConfigs = async (strategyId, configs) => {
+    const { data } = await api.post(`/strategy-configs/${strategyId}/sync`, configs);
     return data;
 };
 export const startLiveBot = async (config) => {

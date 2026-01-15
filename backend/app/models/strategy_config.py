@@ -6,6 +6,7 @@ class StrategyConfig(Base):
     __tablename__ = "strategy_configs"
 
     tab_id = Column(String, primary_key=True, index=True)
+    strategy_id = Column(String, index=True) # Added for Multi-Strategy Support
     rank = Column(Integer, index=True)
     is_active = Column(Boolean, default=True)
     tab_name = Column(String)
