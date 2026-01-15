@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -66,7 +66,7 @@ const generateDefaultConfig = () => {
         initial_capital: 10000000,
         from_date: "",
         interval: "1m",
-        symbol: "233740",
+        symbol: "005930",
         betting_strategy: "fixed",
         uuid: null // Will be generated
     };
@@ -135,6 +135,8 @@ const StrategyView = () => {
         localStorage.setItem('strategyViewActiveTab', activeTab);
     }, [activeTab]);
     const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+
+
 
     // Backtest Settings
     // const [fromDate, setFromDate] = useState(""); // YYYY-MM-DD
@@ -937,15 +939,15 @@ const StrategyView = () => {
 
     const checkDataStatus = async (symbol) => {
         try {
-            const res = await axios.get(`/api/v1/market-data/status/${symbol}`, {
-                params: { interval: currentConfig?.interval || "1m" }
+            const data = await getMarketDataStatus(symbol, {
+                interval: currentConfig?.interval || "1m"
             });
-            setDataStatus(res.data);
+            setDataStatus(data);
 
             // Auto-set Start Date to Data Start
-            if (res.data.start_date) {
+            if (data.start_date) {
                 // Server returns YY.MM.DD -> Convert to YYYY-MM-DD for input type="date"
-                const parts = res.data.start_date.split('.');
+                const parts = data.start_date.split('.');
                 if (parts.length === 3) {
                     const yyyy = `20${parts[0]}`;
                     const mm = parts[1];
@@ -958,6 +960,7 @@ const StrategyView = () => {
             }
         } catch (e) {
             console.error("Failed to check data status", e);
+            setFetchMessage(`Status Error: ${e.message}`);
         }
     };
 
@@ -966,12 +969,15 @@ const StrategyView = () => {
         setFetchMessage(`Updating...`);
         const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
         try {
-            const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
+            const res = await fetchMarketData(symbolToFetch, {
                 interval: currentConfig?.interval || "1m",
                 days: 3650 // Request ~10 years to hit 10k limit
             });
 
-            const added = res.data.added;
+            // fetchMarketData returns data directly (no .data property wrapping if client.js unwraps it)
+            // client.js: return data; (which is the response body)
+            // response body: { status, message, added }
+            const added = res.added;
             setFetchMessage(null);
 
             const resultMsg = added > 0 ? `Updated (+${added})` : `Up to date (+0)`;

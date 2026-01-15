@@ -205,6 +205,16 @@ export const getSessionDetails = async (sessionId) => {
 
 export const getOHLCV = async (symbol, params = {}) => {
     // params: { interval, date, limit }
-    const { data } = await api.get(`/candles/${symbol}`, { params });
+    const { data } = await api.get(`/market-data/candles/${symbol}`, { params });
+    return data;
+};
+
+export const fetchMarketData = async (symbol, params = {}) => {
+    const { data } = await api.post(`/market-data/fetch/${symbol}`, params);
+    return data;
+};
+
+export const getMarketDataStatus = async (symbol, params = {}) => {
+    const { data } = await api.get(`/market-data/status/${symbol}`, { params });
     return data;
 };

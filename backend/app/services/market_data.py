@@ -310,8 +310,6 @@ class MarketDataService:
         
         # Let's try forcing the domain but keeping the logic simple.
         
-        base_url = "https://openapi.kiwoom.com"
-        url = f"{base_url}/api/dostk/chart" 
         
         headers = {
             "Authorization": f"Bearer {token}",
