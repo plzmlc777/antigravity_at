@@ -38,7 +38,7 @@ async def lifespan(app: FastAPI):
     # await bot_manager.stop_all() # Ensure bots are stopped
     await condition_watcher.stop() # Stop watcher
 
-app = FastAPI(title="AutoTrading Agent API", version="0.9.3.6", description="Backend API for AI-driven Auto Trading System", lifespan=lifespan)
+app = FastAPI(title="AutoTrading Agent API", version="0.9.4.4", description="Backend API for AI-driven Auto Trading System", lifespan=lifespan)
 
 # CORS Configuration
 app.add_middleware(
@@ -51,7 +51,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AutoTrading Agent API v0.9.3.6", "version": "0.9.3.6", "status": "running"}
+    return {"message": "AntiGravity Crypto/Stock Auto-Trading Backend v0.9.4.4 Running", "version": "0.9.4.4", "status": "running"}
 
 @app.get("/health")
 async def health_check():

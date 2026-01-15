@@ -75,14 +75,14 @@ class KiwoomRealAdapter(ExchangeInterface):
         try:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
-            data = response.json()
-            
             # 'cur_prc' maps to Current Price
             price_str = data.get("cur_prc", "0").replace("+", "").replace("-", "")
+            volume_str = data.get("trde_qty", "0") # Accumulated Volume
             
             return {
                 "symbol": symbol,
                 "price": float(price_str),
+                "volume": int(volume_str),
                 "name": data.get("stk_nm", symbol) # Return name or code if missing
             }
         except Exception as e:

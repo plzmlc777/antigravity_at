@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
+import IntegratedAnalysis from './IntegratedAnalysis';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 
-const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [] }) => {
+const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -48,58 +49,93 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         }
     }, [mode, strategyConfig.symbol]);
 
-    // Fetch Initial Candles for Real-Time View
+    // History Tab Fetch Logic (Integrated Analysis)
     useEffect(() => {
-        if (status === 'RUNNING' && strategyConfig.symbol) {
+        if (activeTickTab === 'history') {
+            setIsHistoryLoading(true);
             (async () => {
                 try {
-                    const now = new Date();
-                    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-
-                    // Clear previous data first explicitly to properly trigger Chart reset
-                    setRealTimeCandles([]);
-
-                    const candles = await getOHLCV(strategyConfig.symbol, { date: dateStr, interval: selectedInterval });
-
-                    // Format for Chart
-                    const formatted = candles.map(c => ({
-                        time: c.time, // Unix TS
-                        open: c.open,
-                        high: c.high,
-                        low: c.low,
-                        close: c.close,
-                        volume: c.volume
-                    }));
-
-                    setRealTimeCandles(formatted);
+                    // Fetch full composite data: { trades, multi_ohlcv_data, strategies_config }
+                    const result = await getTradeHistory(1000);
+                    setHistoryViewData(result);
                 } catch (e) {
-                    console.error("Failed to load initial candles", e);
-                    // Fallback Mock Data for UI Verification if Backend 404
-                    const now = Math.floor(Date.now() / 1000);
-                    const unit = selectedInterval.slice(-1);
-                    const val = parseInt(selectedInterval.slice(0, -1));
-                    let step = 60;
-                    if (unit === 'm') step = val * 60;
-                    else if (unit === 'h') step = val * 3600;
-                    else if (unit === 'd') step = val * 86400;
-
-                    const mockFallback = [];
-                    for (let i = 0; i < 50; i++) {
-                        mockFallback.push({
-                            time: now - ((50 - i) * step),
-                            open: 70000 + i * 10,
-                            high: 70000 + i * 10 + 50,
-                            low: 70000 + i * 10 - 50,
-                            close: 70000 + i * 10 + 20,
-                            volume: 1000
-                        });
-                    }
-                    setRealTimeCandles(mockFallback);
-                    addLog("System", `Loaded Mock Data for ${selectedInterval} (Backend Unavailable)`);
+                    console.error("History Tab Error", e);
+                } finally {
+                    setIsHistoryLoading(false);
                 }
             })();
         }
-    }, [status, strategyConfig.symbol, selectedInterval]);
+    }, [activeTickTab]);
+
+    // Fetch Initial Candles for Real-Time View (Hybrid Pattern: History + Live)
+    useEffect(() => {
+        // Log status to debug
+        console.log(`[DEBUG] History Fetch Effect Triggered. Status: ${status}, Symbol: ${strategyConfig.symbol}, Interval: ${selectedInterval}`);
+
+        if (strategyConfig.symbol) {
+            // Clear existing candles immediately to indicate loading/change
+            setRealTimeCandles([]);
+
+            (async () => {
+                try {
+                    // 1. Calculate Today's Date in KST (YYYYMMDD)
+                    const now = new Date();
+                    const kstOffset = 9 * 60; // KST is UTC+9
+                    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                    const kstDate = new Date(utc + (kstOffset * 60000));
+                    const dateStr = kstDate.toISOString().split('T')[0].replace(/-/g, '');
+
+                    addLog("System", `[DEBUG] REQ: ${selectedInterval} | Date: ${dateStr}`);
+                    console.log(`[DEBUG] Requesting ${selectedInterval} for ${strategyConfig.symbol} on ${dateStr}`);
+
+                    // 2. Fetch History (Today's candles)
+                    const candles = await getOHLCV(strategyConfig.symbol, {
+                        date: dateStr,
+                        interval: selectedInterval
+                    });
+
+                    console.log("[DEBUG] Response:", candles);
+
+                    // 3. Update State
+                    if (candles && candles.length > 0) {
+                        setRealTimeCandles(candles);
+                        addLog("System", `[DEBUG] OK: Loaded ${candles.length} candles. Last: ${candles[candles.length - 1].time}`);
+
+                        // Check if we also have current price from liveData
+                        if (liveData && liveData.current_price) {
+                            // Optional: Append/Update last candle with current price if newer?
+                            // Usually WS will handle the next update.
+                        }
+                    } else {
+                        // Fallback: If no history (e.g. market just opened or error), try current price
+                        addLog("System", `[DEBUG] EMPTY Response for ${selectedInterval} on ${dateStr}`);
+                        console.warn("[DEBUG] Empty history response");
+
+                        if (liveData && liveData.current_price) {
+                            const nowTs = Math.floor(Date.now() / 1000);
+                            setRealTimeCandles([{
+                                time: nowTs,
+                                open: liveData.current_price,
+                                high: liveData.current_price,
+                                low: liveData.current_price,
+                                close: liveData.current_price,
+                                volume: 0
+                            }]);
+                            addLog("System", "No history found, starting with Current Price.");
+                        } else {
+                            setRealTimeCandles([]);
+                            addLog("System", "No history data. Waiting for stream...");
+                        }
+                    }
+                } catch (e) {
+                    console.error("Init Error", e);
+                    addLog("Error", "Failed to fetch history");
+                    // Fallback to empty
+                    setRealTimeCandles([]);
+                }
+            })();
+        }
+    }, [status, strategyConfig.symbol, selectedInterval]); // Removed liveData dependency to prevent re-fetching loop
 
 
     const startPolling = () => {
@@ -297,66 +333,11 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);
 
-    // History Tab Fetch Logic (Unchanged)
-    useEffect(() => {
-        if (activeTickTab === 'history') {
-            setIsHistoryLoading(true);
-            (async () => {
-                try {
-                    const now = new Date();
-                    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-                    let candles = await getOHLCV(strategyConfig.symbol, { date: dateStr, interval: '1m' });
-
-                    // Mock Fallback (Removed or kept minimal)
-                    if (!candles || candles.length === 0) {
-                        // Optional: Add empty check or mock logic if strict testing needed
-                    }
-
-                    // Prepare Trades (Mock or Real) from tickData context if available
-                    // For now, just show candles.
-                    setHistoryViewData({ data: candles, trades: [] });
-
-                } catch (e) {
-                    console.error("History Tab Error", e);
-                } finally {
-                    setIsHistoryLoading(false);
-                }
-            })();
-        }
-    }, [activeTickTab, strategyConfig.symbol]);
 
 
 
-    // [TESTING] Inject Mock Data
-    useEffect(() => {
-        // Mock Ticks for Tick List
-        const mockTicks = [
-            { time: "09:00:00", price: 72000, type: 'buy', pnl_percent: 0 },
-            { time: "09:15:30", price: 72500, type: 'sell', pnl_percent: 0.0069 },
-            { time: "10:30:00", price: 71800, type: 'buy', pnl_percent: 0 },
-            { time: "11:45:10", price: 73000, type: 'sell', pnl_percent: 0.0167 },
-            { time: "13:20:00", price: 72900, type: 'buy', pnl_percent: 0 }
-        ];
-        setTickData(mockTicks);
 
-        // Mock Candles for Chart (Derived from mock ticks or separate mock)
-        // Only inject if realTimeCandles is empty to avoid overwriting real data
-        if (realTimeCandles.length === 0) {
-            const now = Math.floor(Date.now() / 1000);
-            const mockCandles = [
-                { time: now - 300, open: 71900, high: 72100, low: 71800, close: 72000, volume: 1000 },
-                { time: now - 240, open: 72000, high: 72200, low: 71950, close: 72100, volume: 1500 },
-                { time: now - 180, open: 72100, high: 72600, low: 72000, close: 72500, volume: 2000 },
-                { time: now - 120, open: 72500, high: 72550, low: 71700, close: 71800, volume: 1200 },
-                { time: now - 60, open: 71800, high: 73100, low: 71800, close: 73000, volume: 3000 },
-                { time: now, open: 73000, high: 73050, low: 72850, close: 72900, volume: 500 }
-            ];
-            setRealTimeCandles(mockCandles);
-            addLog("System", "Mock Candles Injected for Testing");
-        }
 
-        addLog("System", "Mock Data Injected for Testing");
-    }, []);
 
 
 
@@ -562,38 +543,56 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
                 {/* Tab Content */}
                 <div className="flex-1 p-4 relative min-h-[350px] flex flex-col">
-                    {activeTickTab === 'realtime' ? (
-                        <>
-                            {/* Empty State Overlay */}
-                            {tickData.length === 0 && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                    <div className="text-center text-gray-500">
-                                        <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
-                                        <p>Waiting for market data...</p>
-                                        <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
-                                    </div>
+                    {activeTickTab === 'realtime' ? (<>
+                        {/* Empty State Overlay */}
+                        {tickData.length === 0 && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                <div className="text-center text-gray-500">
+                                    <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
+                                    <p>Waiting for market data...</p>
+                                    <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
                                 </div>
-                            )}
-
-                            <div className="flex-1 w-full h-full min-h-[350px] relative">
-                                <VisualBacktestChart
-                                    data={realTimeCandles}
-                                    trades={[]} // We can pass real trades here if needed later
-                                    showOnlyPnl={false}
-                                    priceScaleOptions={{
-                                        autoScale: true,
-                                        scaleMargins: {
-                                            top: 0.1,
-                                            bottom: 0.1,
-                                        },
-                                    }}
-                                    yAxisFormatter={(price) => price.toLocaleString()}
-                                    selectedInterval={selectedInterval}
-                                    onIntervalChange={setSelectedInterval}
-                                />
                             </div>
-                        </>
-                    ) : (
+                        )}
+
+                        <div className="flex-1 w-full h-full min-h-[350px] relative">
+                            <VisualBacktestChart
+                                data={realTimeCandles}
+                                trades={[]} // We can pass real trades here if needed later
+                                showOnlyPnl={false}
+                                priceScaleOptions={{
+                                    autoScale: true,
+                                    scaleMargins: {
+                                        top: 0.1,
+                                        bottom: 0.1,
+                                    },
+                                }}
+                                yAxisFormatter={(price) => price.toLocaleString()}
+                                selectedInterval={selectedInterval}
+                                onIntervalChange={setSelectedInterval}
+                                customControls={
+                                    configList && configList.length > 0 && onRankChange ? (
+                                        <select
+                                            value={currentRankIndex}
+                                            onChange={(e) => onRankChange(parseInt(e.target.value))}
+                                            className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors mr-2"
+                                        >
+                                            {configList.map((cfg, idx) => {
+                                                if (!cfg.is_active) return null;
+                                                const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
+                                                const name = symbolMatch ? symbolMatch.name : cfg.symbol;
+                                                return (
+                                                    <option key={idx} value={idx}>
+                                                        Rank {idx + 1}: {name}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    ) : null
+                                }
+                            />
+                        </div>
+                    </>) : (
                         // HISTORY TAB: Direct Visual Chart
                         <div className="flex-1 relative bg-black/10 min-h-[400px]">
                             {isHistoryLoading && (
@@ -601,16 +600,19 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                     <span className="text-blue-400 font-bold bg-black/80 px-4 py-2 rounded">Loading...</span>
                                 </div>
                             )}
-                            <VisualBacktestChart
-                                data={historyViewData.data}
-                                trades={historyViewData.trades}
-                                showOnlyPnl={true}
-                            />
+                            <div className="w-full h-full flex flex-col">
+                                <IntegratedAnalysis
+                                    trades={(historyViewData.trades || []).map(t => ({ ...t, strategy_rank: undefined }))}
+                                    backtestResult={historyViewData}
+                                    strategiesConfig={configList.filter(c => c.is_active !== false)}
+                                    savedSymbols={savedSymbols}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

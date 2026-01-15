@@ -117,10 +117,28 @@ def reset_market_data(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+from .auth import get_current_user
+
+@router.delete("/reset/{symbol}")
+def reset_symbol_data(
+    symbol: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """
+    Delete OHLCV data for a SPECIFIC symbol.
+    """
+    service = MarketDataService()
+    try:
+        num = service.delete_ohlcv_by_symbol(db, symbol)
+        return {"status": "success", "message": f"Successfully deleted {num} records for {symbol}."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/candles/{symbol}")
-def get_candles(
+async def get_candles(
     symbol: str, 
     interval: str = "1m", 
     date: Optional[str] = None, 
@@ -133,43 +151,37 @@ def get_candles(
     - Otherwise, returns the most recent `limit` candles.
     """
     try:
-        query = db.query(OHLCV).filter(
-            OHLCV.symbol == symbol,
-            OHLCV.time_frame == interval
-        )
-
+        service = MarketDataService()
         if date:
-             # Flexible Date Parsing
-            target_date = date.replace("-", "").replace(".", "") # Normalize to YYYYMMDD
+            # Normalized date string for service (YYYYMMDD)
+            date_clean = date.replace("-", "").replace(".", "")
+            return await service.get_candles_by_date(symbol, interval, date_clean)
+        else:
+            # Default fetch logic (recent limit) - reusing service if possible or keeping simplified query
+            # For consistency, let's keep the simple query for limit-based fetch or implement get_candles_limit in service
+            # To minimize risk, we keep existing limit logic but fix the date logic.
             
-            # Assuming 'timestamp' in OHLCV is DateTime. 
-            # We filter by range for that entire day.
-            try:
-                # Construct datetime range
-                start_dt = datetime.strptime(target_date, "%Y%m%d")
-                end_dt = start_dt + timedelta(days=1)
-                
-                query = query.filter(
-                    OHLCV.timestamp >= start_dt,
-                    OHLCV.timestamp < end_dt
-                )
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYYMMDD.")
+            # OR better: use service.get_candles if it supports limit logic well?
+            # service.get_candles fetches LAST days.
+            # Here we want LAST LIMIT candles.
+            
+            query = db.query(OHLCV).filter(
+                OHLCV.symbol == symbol,
+                OHLCV.time_frame == interval
+            )
+            candles = query.order_by(OHLCV.timestamp.asc()).limit(limit).all()
         
-        # Sort by time asc for chart
-        candles = query.order_by(OHLCV.timestamp.asc()).limit(limit).all()
-        
-        return [
-            {
-                "time": int(c.timestamp.timestamp()), # Unix Timestamp (Seconds) for Frontend
-                "open": float(c.open),
-                "high": float(c.high),
-                "low": float(c.low),
-                "close": float(c.close),
-                "volume": float(c.volume)
-            }
-            for c in candles
-        ]
+            return [
+                {
+                    "time": int(c.timestamp.timestamp()), # Unix Timestamp (Seconds) for Frontend
+                    "open": float(c.open),
+                    "high": float(c.high),
+                    "low": float(c.low),
+                    "close": float(c.close),
+                    "volume": float(c.volume or 0) # Handle None safely
+                }
+                for c in candles
+            ]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

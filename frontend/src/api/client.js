@@ -209,8 +209,18 @@ export const getOHLCV = async (symbol, params = {}) => {
     return data;
 };
 
+export const getTradeHistory = async (limit = 1000) => {
+    const { data } = await api.get('/trade/history', { params: { limit } });
+    return data;
+};
+
 export const fetchMarketData = async (symbol, params = {}) => {
     const { data } = await api.post(`/market-data/fetch/${symbol}`, params);
+    return data;
+};
+
+export const resetMarketData = async (symbol) => {
+    const { data } = await api.delete(`/market-data/reset/${symbol}`);
     return data;
 };
 

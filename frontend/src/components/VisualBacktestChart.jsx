@@ -79,7 +79,8 @@ const VisualBacktestChart = ({
                     open: Number(item.open),
                     high: Number(item.high),
                     low: Number(item.low),
-                    close: Number(item.close)
+                    close: Number(item.close),
+                    volume: Number(item.volume || 0)
                 });
             }
         });
@@ -96,7 +97,9 @@ const VisualBacktestChart = ({
     };
 
     useEffect(() => {
-        if (!data || data.length === 0 || !chartContainerRef.current) return;
+        if (!chartContainerRef.current) return;
+        // Allow initialization even with empty data so the grid renders.
+        // Data processing below handles empty arrays safely.
 
         // 1. Process Data
         const validData = processData(data);
@@ -514,7 +517,14 @@ const VisualBacktestChart = ({
                             <option value={50}>Speed: 2x</option>
                             <option value={10}>Speed: Max</option>
                         </select>
-                        <button onClick={() => { const debugText = allDataRef.current.slice(0, 10).map(d => { const date = new Date(d.time * 1000); return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`; }).join('\n'); setDebugContent(debugText); setShowDebugModal(true); }} className="bg-red-600 text-white text-[10px] px-2 py-1 rounded hover:bg-red-500 font-bold shadow-lg animate-pulse">INSPECT</button>
+                        <button onClick={() => {
+                            const debugText = allDataRef.current.slice(-20).map(d => {
+                                const date = new Date(d.time * 1000);
+                                return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n  O:${d.open} H:${d.high} L:${d.low} C:${d.close} V:${d.volume}`;
+                            }).join('\n');
+                            setDebugContent("--- LAST 20 CANDLES ---\n" + debugText);
+                            setShowDebugModal(true);
+                        }} className="bg-red-600 text-white text-[10px] px-2 py-1 rounded hover:bg-red-500 font-bold shadow-lg animate-pulse">INSPECT</button>
                     </div>
                 </div>
             )}

@@ -467,3 +467,99 @@ async def cancel_condition(condition_id: int, db: Session = Depends(get_db)):
         return {"status": "success", "message": f"Condition {condition_id} cancelled"}
     except Exception as e:
          raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/ohlcv/{symbol}")
+async def get_ohlcv(
+    symbol: str, 
+    interval: str = "1m", 
+    days: int = 365, 
+    limit: int = 100000,
+    date: str = None # Optional: YYYYMMDD
+):
+    """
+    Get OHLCV Data.
+    If 'date' is provided (YYYYMMDD), fetches data for that specific day.
+    Otherwise fetches last 'days' history.
+    """
+    from ..services.market_data import MarketDataService
+    service = MarketDataService()
+    
+    if date:
+        # Fetch specific date (Intraday History)
+        data = await service.get_candles_by_date(symbol, interval, date)
+    else:
+        # Default fetch
+        data = await service.get_candles(symbol, interval, days, limit)
+        
+    return data
+
+@router.get("/trade/history")
+async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(get_db)):
+    """
+    Fetch executed trades AND composite market data for Visual Analysis.
+    Returns composite object: { trades: [], multi_ohlcv_data: { sym: [] }, strategies_config: [] }
+    """
+    from ..models.live_trading import LiveTradeExecution, LiveBotSession
+    from ..services.market_data import MarketDataService
+    from sqlalchemy.orm import joinedload
+
+    # 1. Get Strategies Config (Latest Session) FIRST to determine involved symbols
+    strategies_config = []
+    last_session = db.query(LiveBotSession).order_by(LiveBotSession.started_at.desc()).first()
+    if last_session and last_session.strategy_config:
+        strategies_config = last_session.strategy_config
+
+    # 2. Fetch Trades
+    trades_query = db.query(LiveTradeExecution).options(joinedload(LiveTradeExecution.session)).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(limit).all()
+    
+    trades_data = []
+    involved_symbols = set()
+    
+    # Collect symbols from Config
+    for cfg in strategies_config:
+        if isinstance(cfg, dict) and 'symbol' in cfg:
+            involved_symbols.add(cfg['symbol'])
+    
+    for t in trades_query:
+        # Dynamic Rank
+        rank = 0
+        if t.session and t.session.strategy_config:
+            try:
+                for idx, cfg in enumerate(t.session.strategy_config):
+                    if cfg.get('symbol') == t.symbol:
+                        rank = idx + 1
+                        break
+            except:
+                pass
+
+        trades_data.append({
+            "time": t.signal_timestamp.isoformat(),
+            "price": float(t.executed_price) if t.executed_price is not None else 0.0,
+            "symbol": t.symbol,
+            "quantity": float(t.filled_quantity) if t.filled_quantity is not None else 0.0,
+            "type": t.signal_type.lower(),
+            "strategy_rank": rank,
+            "order_id": t.id if t.id else "unknown"
+        })
+        involved_symbols.add(t.symbol) # Add trade symbols just in case
+        
+    trades_data.reverse()
+    
+    # 3. Fetch Multi-OHLCV Data (Async)
+    service = MarketDataService()
+    multi_ohlcv = {}
+    
+    # Fetch data for ALL involved symbols (from Config AND Trades)
+    for sym in involved_symbols:
+        # Using 365 days to ensure coverage for the full 1-year timeline view
+        candles = await service.get_candles(sym, interval="1d", days=365, limit=5000)
+        if candles:
+            multi_ohlcv[sym] = candles
+
+    return {
+        "trades": trades_data,
+        "multi_ohlcv_data": multi_ohlcv,
+        "strategies_config": strategies_config,
+        "strategy_id": "live_integrated_view",
+        "total_trades": len(trades_data)
+    }

@@ -145,15 +145,30 @@ class LiveTradingEngine:
             self.is_running = False
             logger.info("Live Loop Stopped")
 
+        self.last_accum_volume = -1
+        self.last_price = 0
+        
     async def _process_tick(self):
         # 1. Fetch Real-time Price
         tick_data = await self.adapter.get_current_price(self.symbol)
         price = tick_data.get('price', 0)
+        volume = tick_data.get('volume', 0) # Accumulated Volume
         
         # Kiwoom sometimes returns 0 if market closed or error?
         # If 0, skip update but keep loop running
         if price <= 0:
             return
+
+        # Ghost Tick Prevention:
+        # If Price AND Volume are identical to last poll, it's a duplicate snapshot. Skip.
+        if price == self.last_price and volume == self.last_accum_volume:
+             # Only skip if we have valid initial state (volume != -1)
+             if self.last_accum_volume != -1:
+                 return
+
+        # Update State
+        self.last_price = price
+        self.last_accum_volume = volume
 
         now = datetime.now()
         

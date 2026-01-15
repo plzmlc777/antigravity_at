@@ -117,6 +117,304 @@ class MarketDataService:
             
         return []
 
+    async def get_candles_by_date(self, symbol: str, interval: str, date_str: str) -> List[Dict]:
+        """
+        Fetch candles for a specific date (YYYYMMDD).
+        Useful for intraday history retrieval.
+        """
+        # 1. Parse Date
+        try:
+            target_date = datetime.strptime(date_str, "%Y%m%d").date()
+        except ValueError:
+            print(f"Invalid date format {date_str}. Expected YYYYMMDD.")
+            return []
+            
+        # 2. Query DB
+        from ..db.session import SessionLocal
+        from ..models.ohlcv import OHLCV
+        from sqlalchemy import and_
+        
+        db = SessionLocal()
+        try:
+            # Filter by timestamp >= date 00:00:00 AND timestamp < date+1 00:00:00
+            start_dt = datetime.combine(target_date, datetime.min.time())
+            end_dt = start_dt + timedelta(days=1)
+            
+            db_candles = db.query(OHLCV).filter(
+                and_(
+                    OHLCV.symbol == symbol, 
+                    OHLCV.time_frame == interval,
+                    OHLCV.timestamp >= start_dt,
+                    OHLCV.timestamp < end_dt
+                )
+            ).order_by(OHLCV.timestamp.asc()).all()
+            
+            if len(db_candles) > 0:
+                print(f"Loaded {len(db_candles)} {interval} candles for {date_str} from DB.")
+                return [
+                    {
+                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                        "time": int(c.timestamp.timestamp()) # Add unix timestamp for frontend
+                    }
+                    for c in db_candles
+                ]
+            else:
+                # If no data in DB, we could try fetching from Kiwoom API if it supports date range.
+                # BUT Kiwoom API opt10080 (Minute) usually fetches "recent N".
+                # If the date is TODAY, we can just fetch recent.
+                if target_date == datetime.now().date():
+                    print("Date is Today. Fetching recent history from API...")
+                    # We reuse fetch_history but it fetches "days". 
+                    # fetch_history(..., days=1) fetches last 24h usually or 1 day worth.
+                    await self.fetch_history(symbol, interval, days=1)
+                    
+                    # Re-query
+                    db_candles = db.query(OHLCV).filter(
+                        and_(
+                            OHLCV.symbol == symbol, 
+                            OHLCV.time_frame == interval,
+                            OHLCV.timestamp >= start_dt,
+                            OHLCV.timestamp < end_dt
+                        )
+                    ).order_by(OHLCV.timestamp.asc()).all()
+                    
+                    return [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                            "time": int(c.timestamp.timestamp())
+                        }
+                        for c in db_candles
+                    ]
+                
+                return []
+                
+        finally:
+            db.close()
+
+    def _resample_candles(self, candles: List[Dict], interval: str) -> List[Dict]:
+        """
+        Resample 1m candles list to target interval.
+        candles: list of dicts with keys: timestamp(str), open, high, low, close, volume, time(int)
+        """
+        if not candles:
+            return []
+            
+        minutes = 1
+        if interval.endswith("m"):
+            minutes = int(interval.replace("m", ""))
+        elif interval == "1h" or interval == "60m":
+            minutes = 60
+        elif interval == "4h":
+            minutes = 240
+        elif interval == "1d":
+            # Special case: Resample everything into one day logic
+            # OR just treat as 24h for bucketing?
+            # Market hours are 09:00-15:30 (6.5h).
+            # If we use 1440m (24h), it buckets correctly per day.
+            minutes = 1440
+        else:
+            # Try parsing custom "Xm"
+             if interval.endswith("m"):
+                try:
+                    minutes = int(interval.replace("m", ""))
+                except:
+                    pass
+
+            
+        if minutes == 1:
+            return candles
+            
+        resampled = []
+        current_bucket_start = None
+        current_candle = None
+        
+        # Helper to parse time if needed, but assuming input has 'time' (unix) or 'timestamp' (str)
+        # We use 'time' (unix) for easiest bucketing
+        
+        for c in candles:
+            ts = c.get("time")
+            if not ts: continue # Skip invalid
+            
+            # Bucketing logic: floor(ts / (minutes*60)) * (minutes*60)
+            bucket_sec = minutes * 60
+            bucket_start_ts = (ts // bucket_sec) * bucket_sec
+            
+            if current_bucket_start != bucket_start_ts:
+                # Push previous
+                if current_candle:
+                    resampled.append(current_candle)
+                
+                # Start new
+                current_bucket_start = bucket_start_ts
+                current_candle = {
+                    "timestamp": datetime.fromtimestamp(bucket_start_ts).strftime("%Y-%m-%d %H:%M:%S"),
+                    "open": c["open"],
+                    "high": c["high"],
+                    "low": c["low"],
+                    "close": c["close"],
+                    "volume": c["volume"],
+                    "time": bucket_start_ts
+                }
+            else:
+                # Aggregate
+                current_candle["high"] = max(current_candle["high"], c["high"])
+                current_candle["low"] = min(current_candle["low"], c["low"])
+                current_candle["close"] = c["close"]
+                current_candle["volume"] += c["volume"]
+                
+        # Push last
+        if current_candle:
+            resampled.append(current_candle)
+            
+        return resampled
+
+    async def get_candles_by_date(self, symbol: str, interval: str, date_str: str) -> List[Dict]:
+        """
+        Fetch candles for a specific date (YYYYMMDD).
+        Useful for intraday history retrieval.
+        Supports on-the-fly aggregation if specific interval is missing in DB.
+        """
+        # 1. Parse Date
+        try:
+            target_date = datetime.strptime(date_str, "%Y%m%d").date()
+        except ValueError:
+            print(f"Invalid date format {date_str}. Expected YYYYMMDD.")
+            return []
+            
+        # 2. Query DB
+        from ..db.session import SessionLocal
+        from ..models.ohlcv import OHLCV
+        from sqlalchemy import and_
+        
+        db = SessionLocal()
+        try:
+            # Filter by timestamp >= date 00:00:00 AND timestamp < date+1 00:00:00
+            start_dt = datetime.combine(target_date, datetime.min.time())
+            end_dt = start_dt + timedelta(days=1)
+            
+            # A. Try Exact Match
+            db_candles = db.query(OHLCV).filter(
+                and_(
+                    OHLCV.symbol == symbol, 
+                    OHLCV.time_frame == interval,
+                    OHLCV.timestamp >= start_dt,
+                    OHLCV.timestamp < end_dt
+                )
+            ).order_by(OHLCV.timestamp.asc()).all()
+            
+            if len(db_candles) > 0:
+                print(f"Loaded {len(db_candles)} {interval} candles for {date_str} from DB (Exact Match).")
+                return [
+                    {
+                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                        "time": int(c.timestamp.timestamp())
+                    }
+                    for c in db_candles
+                ]
+            
+            # B. If Empty and Interval != 1m, Try Aggregating 1m Data
+            if interval != "1m":
+                print(f"No exact match for {interval}. Trying to aggregate from 1m data...")
+                
+                # Check 1m data
+                base_candles_db = db.query(OHLCV).filter(
+                    and_(
+                        OHLCV.symbol == symbol, 
+                        OHLCV.time_frame == "1m",
+                        OHLCV.timestamp >= start_dt,
+                        OHLCV.timestamp < end_dt
+                    )
+                ).order_by(OHLCV.timestamp.asc()).all()
+                
+                # Helper to format DB objects to Dicts
+                base_data = []
+                if base_candles_db:
+                    base_data = [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                            "time": int(c.timestamp.timestamp())
+                        }
+                        for c in base_candles_db
+                    ]
+                
+                # If still empty (no 1m data), try fetching 1m from API (only for Today)
+                if not base_data and target_date == datetime.now().date():
+                     print("1m Data missing for Today. Fetching from API...")
+                     await self.fetch_history(symbol, "1m", days=1)
+                     
+                     # Re-query
+                     base_candles_db = db.query(OHLCV).filter(
+                        and_(
+                            OHLCV.symbol == symbol, 
+                            OHLCV.time_frame == "1m",
+                            OHLCV.timestamp >= start_dt,
+                            OHLCV.timestamp < end_dt
+                        )
+                    ).order_by(OHLCV.timestamp.asc()).all()
+                    
+                     base_data = [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                            "time": int(c.timestamp.timestamp())
+                        }
+                        for c in base_candles_db
+                    ]
+                
+                if base_data:
+                    resampled = self._resample_candles(base_data, interval)
+                    print(f"Aggregated {len(base_data)} 1m candles into {len(resampled)} {interval} candles.")
+                    return resampled
+            
+            # C. Fallback for 1m (if B skipped or failed)
+            # Use original fallback logic but adapted
+            if not db_candles and target_date == datetime.now().date() and interval == "1m":
+                 print("1m Data missing for Today. Fetching from API (Fallback)...")
+                 await self.fetch_history(symbol, interval, days=1)
+                 # Re-query
+                 db_candles = db.query(OHLCV).filter(
+                    and_(
+                        OHLCV.symbol == symbol, 
+                        OHLCV.time_frame == interval,
+                        OHLCV.timestamp >= start_dt,
+                        OHLCV.timestamp < end_dt
+                    )
+                ).order_by(OHLCV.timestamp.asc()).all()
+                
+                 return [
+                    {
+                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                        "time": int(c.timestamp.timestamp())
+                    }
+                    for c in db_candles
+                ]
+
+            return []
+                
+        finally:
+            db.close()
+
+    def delete_ohlcv_by_symbol(self, db, symbol: str) -> int:
+        """
+        Delete ALL OHLCV data for a specific symbol.
+        Returns the number of deleted records.
+        """
+        try:
+            from ..models.ohlcv import OHLCV
+            num = db.query(OHLCV).filter(OHLCV.symbol == symbol).delete()
+            db.commit()
+            print(f"Deleted {num} records for {symbol}")
+            return num
+        except Exception as e:
+            db.rollback()
+            print(f"Error deleting data for {symbol}: {e}")
+            raise e
+
     async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 100000):
         """
         Fetch historical data from Kiwoom API and save to DB.
@@ -405,16 +703,20 @@ class MarketDataService:
                     try:
                         # Date parsing
                         # Minute: cntr_tm (YYYYMMDDHHMMSS) or date+time
-                        # Day/Week: dt (YYYYMMDD) or date
+                        # Day/Week: dt (YYYYMMDD) or date or stck_bsop_date
                         
-                        ts_str = item.get("cntr_tm") or item.get("dt") or item.get("date")
+                        ts_str = item.get("cntr_tm") or item.get("dt") or item.get("date") or item.get("stck_bsop_date")
                         
                         dt = None
-                        if len(ts_str) == 14: # YYYYMMDDHHMMSS
-                            dt = datetime.strptime(ts_str, "%Y%m%d%H%M%S")
-                        elif len(ts_str) == 8: # YYYYMMDD
-                            dt = datetime.strptime(ts_str, "%Y%m%d")
+                        if ts_str:
+                            if len(ts_str) == 14: # YYYYMMDDHHMMSS
+                                dt = datetime.strptime(ts_str, "%Y%m%d%H%M%S")
+                            elif len(ts_str) == 8: # YYYYMMDD
+                                dt = datetime.strptime(ts_str, "%Y%m%d")
                         
+                        if not dt:
+                             continue # Skip if no date
+
                         # Optimization: Stop if we hit existing data
                         if last_ts and dt <= last_ts:
                             logger.info(f"Hit existing data boundary at {dt}. Stopping fetch.")
@@ -422,6 +724,7 @@ class MarketDataService:
                             break # Stop processing this page
 
                         # Parse Prices
+                        # Standard Kiwoom Keys: stck_oprc, stck_hgpr, stck_lwpr, stck_clpr, acml_vol
                         def p(k): return abs(int(item.get(k, 0)))
                         
                         # Prepare Data Dict for Batch
@@ -429,11 +732,11 @@ class MarketDataService:
                             "symbol": symbol,
                             "timestamp": dt,
                             "time_frame": interval,
-                            "open": p("open_pric") or p("open"),
-                            "high": p("high_pric") or p("high"),
-                            "low": p("low_pric") or p("low"),
-                            "close": p("cur_prc") or p("close") or p("current_price"),
-                            "volume": int(item.get("trde_qty") or item.get("volume") or 0)
+                            "open": p("open_pric") or p("open") or p("stck_oprc"),
+                            "high": p("high_pric") or p("high") or p("stck_hgpr"),
+                            "low": p("low_pric") or p("low") or p("stck_lwpr"),
+                            "close": p("cur_prc") or p("close") or p("current_price") or p("stck_clpr"),
+                            "volume": int(item.get("trde_qty") or item.get("volume") or item.get("acml_vol") or 0)
                         }
                         
                         batch_data.append(candle_dict)

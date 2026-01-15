@@ -79,7 +79,33 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
     }, [tradeList, strategiesConfig]);
 
     const syntheticData = useMemo(() => {
-        if (!transformedTrades.length) return [];
+        // [New] Handle Empty State: Generate Time Axis if no trades but Strategies Config exists
+        if (!transformedTrades.length) {
+            if (strategiesConfig && strategiesConfig.length > 0) {
+                // Generate a 1-year window for the chart (Empty State) with Daily Ticks
+                const now = new Date();
+                const start = new Date(now);
+                start.setFullYear(now.getFullYear() - 1); // 1 Year ago
+
+                const dataPoints = [];
+                // Generate Daily Points to force proper X-axis ticks
+                let current = new Date(start);
+                const end = new Date(now);
+
+                while (current <= end) {
+                    const timeNum = Math.floor(current.getTime() / 1000);
+                    dataPoints.push({
+                        time: timeNum,
+                        open: 0, high: 0, low: 0, close: 0
+                    });
+                    // Advance 1 Day
+                    current.setDate(current.getDate() + 1);
+                }
+
+                return dataPoints;
+            }
+            return [];
+        }
 
         const uniqueTimeMap = new Map();
 
@@ -112,7 +138,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
         const dataArray = Array.from(uniqueTimeMap.values()).sort((a, b) => a.time - b.time);
         if (dataArray.length === 0) return [];
         return dataArray;
-    }, [transformedTrades]);
+    }, [transformedTrades, strategiesConfig]);
 
 
     // 4. Formatter & Options
@@ -295,7 +321,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
     }, [tradeLookupMap, backtestResult, transformedTrades, totalRanks, rankToSymbolMap, strategiesConfig, savedSymbols]);
 
     // 6. Render
-    if (!tradeList.length) {
+    if (!tradeList.length && (!strategiesConfig || strategiesConfig.length === 0)) {
         return (
             <div className="text-gray-500 text-center py-20 flex flex-col items-center justify-center gap-2">
                 <span className="text-4xl">📭</span>
@@ -303,6 +329,9 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             </div>
         );
     }
+
+    // Note: If strategiesConfig exists but tradeList is empty, we continue to Render Chart (Empty Lanes)
+    // because syntheticData will now be populated with the Empty Time Axis.
 
     // 7. Rank Selector Logic (Task 2)
     const [selectedRank, setSelectedRank] = useState(1); // Default Rank 1
@@ -328,7 +357,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
     );
 
     return (
-        <div className="w-full relative">
+        <div className="w-full h-full relative flex flex-col">
             <VisualBacktestChart
                 data={syntheticData}
                 trades={transformedTrades}

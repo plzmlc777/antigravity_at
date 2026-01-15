@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, resetMarketData } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -122,10 +122,37 @@ const StrategyView = () => {
     const [integratedResults, setIntegratedResults] = useState(null);
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
+    const [liveRankIndex, setLiveRankIndex] = useState(0); // Selected Rank Index for Live Tab
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
     const [configList, setConfigList] = useState([]); // Array of config objects
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        isDanger: false,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel'
+    });
+
+    const openConfirm = (title, message, onConfirm, isDanger = false, confirmText = 'Confirm', cancelText = 'Cancel') => {
+        setConfirmModal({
+            isOpen: true,
+            title,
+            message,
+            onConfirm,
+            isDanger,
+            confirmText,
+            cancelText
+        });
+    };
+
+    const closeConfirm = () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    };
+
     const [activeTab, setActiveTab] = useState(() => {
         const saved = localStorage.getItem('strategyViewActiveTab');
         return saved !== null ? parseInt(saved, 10) : 0;
@@ -147,23 +174,7 @@ const StrategyView = () => {
 
 
     // Custom Confirmation Modal State
-    const [confirmModal, setConfirmModal] = useState({
-        isOpen: false,
-        title: "",
-        message: "",
-        onConfirm: null,
-        isDanger: false
-    });
 
-    const requestConfirm = (title, message, onConfirm, isDanger = false) => {
-        setConfirmModal({
-            isOpen: true,
-            title,
-            message,
-            onConfirm,
-            isDanger
-        });
-    };
 
     // Save to LocalStorage
     useEffect(() => {
@@ -949,20 +960,58 @@ const StrategyView = () => {
         }
     };
 
+    const handleResetData = () => {
+        if (!configList[activeTab]) return;
+        const symbol = configList[activeTab].symbol;
+
+        openConfirm(
+            "Reset Market Data",
+            `Are you sure you want to RESET market data for ${symbol}? This cannot be undone.`,
+            async () => {
+                try {
+                    const res = await resetMarketData(symbol);
+                    console.log("Reset result:", res);
+                    // Force status check update
+                    checkDataStatus(symbol, configList[activeTab].interval);
+
+                    // Show Success Modal (Reuse ConfirmModal as Alert)
+                    setTimeout(() => {
+                        openConfirm(
+                            "Success",
+                            `Market data for ${symbol} has been reset.`,
+                            () => { }, // No action on confirm
+                            false,
+                            "OK",
+                            "" // Hide cancel if component supports it, or just show empty
+                        );
+                    }, 300); // Small delay to allow transition
+
+                } catch (error) {
+                    console.error("Reset failed:", error);
+                    setTimeout(() => {
+                        openConfirm("Error", "Failed to reset data. See console.", () => { }, true, "OK", "");
+                    }, 300);
+                }
+            },
+            true, // isDanger
+            "Reset Data",
+            "Cancel"
+        );
+    };
+
     const handleFetchData = async () => {
         setIsFetchingData(true);
         setFetchMessage(`Updating...`);
         const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
         try {
-            const res = await fetchMarketData(symbolToFetch, {
+            // Reverted to direct axios call as per v0.9.3.7 initial state (Legacy Mode)
+            const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
                 interval: currentConfig?.interval || "1m",
                 days: 3650 // Request ~10 years to hit 10k limit
             });
 
-            // fetchMarketData returns data directly (no .data property wrapping if client.js unwraps it)
-            // client.js: return data; (which is the response body)
-            // response body: { status, message, added }
-            const added = res.added;
+            const data = res.data;
+            const added = data.added;
             setFetchMessage(null);
 
             const resultMsg = added > 0 ? `Updated (+${added})` : `Up to date (+0)`;
@@ -971,6 +1020,45 @@ const StrategyView = () => {
             setFetchMessage(resultMsg);
 
         } catch (e) {
+            setFetchMessage("Failed");
+            setTimeout(() => setFetchMessage(null), 3000);
+        } finally {
+            setIsFetchingData(false);
+        }
+    };
+
+    // Integrated Tab: Update Data for All Ranks
+    const handleUpdateAllData = async () => {
+        if (configList.length === 0) return;
+        setIsFetchingData(true);
+        setFetchMessage("Queueing...");
+        try {
+            let totalAdded = 0;
+            let updatedCount = 0;
+
+            for (let i = 0; i < configList.length; i++) {
+                const cfg = configList[i];
+                if (!cfg.symbol) continue;
+
+                setFetchMessage(`Updating Rank ${i + 1} (${cfg.symbol})...`);
+                try {
+                    // Legacy Axios Call (Strict Compliance)
+                    const res = await axios.post(`/api/v1/market-data/fetch/${cfg.symbol}`, {
+                        interval: cfg.interval || "1m",
+                        days: 3650
+                    });
+                    totalAdded += (res.data.added || 0);
+                    updatedCount++;
+                } catch (err) {
+                    console.error(`Failed to update Rank ${i + 1}`, err);
+                }
+            }
+
+            setFetchMessage(`All Active (${updatedCount}) Updated (+${totalAdded})`);
+            setTimeout(() => setFetchMessage(null), 3000);
+
+        } catch (e) {
+            console.error("Update All Failed", e);
             setFetchMessage("Failed");
             setTimeout(() => setFetchMessage(null), 3000);
         } finally {
@@ -1365,6 +1453,19 @@ const StrategyView = () => {
                                                         {showChart ? '📉 Hide Analysis' : '📊 Visual Analysis'}
                                                     </button>
                                                     <button
+                                                        onClick={handleUpdateAllData}
+                                                        disabled={isFetchingData}
+                                                        className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-white ${fetchMessage && (fetchMessage.includes("All Active") || fetchMessage.includes("Updating"))
+                                                            ? "bg-green-600"
+                                                            : "bg-amber-600 hover:bg-amber-500 shadow-amber-500/30"
+                                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                    >
+                                                        {fetchMessage && (fetchMessage.includes("All Active") || fetchMessage.includes("Updating"))
+                                                            ? fetchMessage
+                                                            : <><span className="text-2xl">📥</span> Update All Data</>
+                                                        }
+                                                    </button>
+                                                    <button
                                                         onClick={async () => {
                                                             setIsLoading(true);
                                                             setBacktestStatus({ status: 'running', message: 'Initializing Integrated Simulation...' });
@@ -1614,12 +1715,16 @@ const StrategyView = () => {
                             {activeTab === -2 && (
                                 <div className="animate-fade-in-up">
                                     <LiveStrategyPanel
-                                        strategyConfig={{
-                                            ...configList[0], // Use config of Rank 1 as default base
-                                            symbol: currentSymbol, // Force current symbol
-                                        }}
+                                        strategyConfig={configList[liveRankIndex] || configList[0]}
                                         configList={configList}
                                         savedSymbols={savedSymbols}
+                                        currentRankIndex={liveRankIndex}
+                                        onRankChange={(index) => {
+                                            setLiveRankIndex(index);
+                                            if (configList[index] && configList[index].symbol) {
+                                                setCurrentSymbol(configList[index].symbol);
+                                            }
+                                        }}
                                     />
                                 </div>
                             )}
@@ -1671,6 +1776,13 @@ const StrategyView = () => {
                                                             }`}
                                                     >
                                                         {fetchMessage ? fetchMessage : 'Update Data'}
+                                                    </button>
+                                                    <button
+                                                        onClick={handleResetData}
+                                                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm ml-2"
+                                                        title="Clear all saved market data for this symbol"
+                                                    >
+                                                        Reset Data
                                                     </button>
                                                 </div>
                                             </div>
@@ -1782,7 +1894,7 @@ const StrategyView = () => {
                                                     <IntegratedAnalysis
                                                         trades={backtestResult.trades || []}
                                                         backtestResult={backtestResult}
-                                                        strategiesConfig={configList}
+                                                        strategiesConfig={configList.filter(c => c.is_active !== false)}
                                                         savedSymbols={savedSymbols || []}
                                                     />
                                                 ) : (
@@ -2645,14 +2757,17 @@ const StrategyView = () => {
                 </div>
             </Card >
 
-            {/* Custom Confirm Modal */}
-            < ConfirmModal
+
+            {/* Dynamic Confirm Modal */}
+            <ConfirmModal
                 isOpen={confirmModal.isOpen}
-                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onClose={closeConfirm}
                 onConfirm={confirmModal.onConfirm}
                 title={confirmModal.title}
                 message={confirmModal.message}
                 isDanger={confirmModal.isDanger}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText}
             />
         </div >
     );
