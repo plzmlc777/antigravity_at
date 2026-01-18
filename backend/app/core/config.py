@@ -12,7 +12,8 @@ load_dotenv("backend/.env")    # child (if running from root)
 
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
-    PROJECT_VERSION: str = "0.9.4.4"
+    PROJECT_NAME: str = "Antigravity Trading System"
+    PROJECT_VERSION: str = "0.9.4.6"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
