@@ -1892,6 +1892,7 @@ const StrategyView = () => {
                                             <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
                                                 {backtestResult.strategy_id.includes('Integrated') ? (
                                                     <IntegratedAnalysis
+                                                        mode="backtest"
                                                         trades={backtestResult.trades || []}
                                                         backtestResult={backtestResult}
                                                         strategiesConfig={configList.filter(c => c.is_active !== false)}

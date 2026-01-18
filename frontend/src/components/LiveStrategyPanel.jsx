@@ -602,6 +602,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                             )}
                             <div className="w-full h-full flex flex-col">
                                 <IntegratedAnalysis
+                                    mode="real"
                                     trades={(historyViewData.trades || []).map(t => ({ ...t, strategy_rank: undefined }))}
                                     backtestResult={historyViewData}
                                     strategiesConfig={configList.filter(c => c.is_active !== false)}

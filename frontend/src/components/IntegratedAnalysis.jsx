@@ -1,7 +1,22 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
-const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSymbols }) => {
+const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSymbols, mode = 'backtest' }) => {
+    // Helper to normalize trades from different sources (Backtest vs Real)
+    const normalizeTrade = useCallback((t) => {
+        if (mode === 'real') {
+            return {
+                ...t,
+                time: t.signal_timestamp || t.time,
+                price: t.executed_price || t.price,
+                quantity: t.filled_quantity || t.quantity,
+                type: (t.signal_type || t.type || '').toLowerCase().includes('buy') ? 'buy' : 'sell',
+                strategy_rank: t.strategy_rank || 1
+            };
+        }
+        return t; // Backtest format is default
+    }, [mode]);
+
     // Helper to determine Rank 1 Symbol robustly (Moved to top to prevent ReferenceError)
     const getRank1Symbol = (config) => {
         if (!config) return null;
@@ -17,8 +32,10 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
     // 1. Data Source
     const tradeList = useMemo(() => {
         let list = trades || backtestResult?.trades || [];
-        return [...list].sort((a, b) => new Date(a.time) - new Date(b.time));
-    }, [trades, backtestResult]);
+        return [...list]
+            .map(normalizeTrade)
+            .sort((a, b) => new Date(a.time) - new Date(b.time));
+    }, [trades, backtestResult, normalizeTrade]);
 
     // 3. Transform Data & Build Lookup Map
     const { transformedTrades, tradeLookupMap, totalRanks } = useMemo(() => {
