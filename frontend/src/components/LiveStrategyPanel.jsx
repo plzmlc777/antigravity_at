@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
-import IntegratedAnalysis from './IntegratedAnalysis';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 
 const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
@@ -14,7 +13,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [liveData, setLiveData] = useState(null);
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState(null);
-    const [activeTickTab, setActiveTickTab] = useState('realtime'); // 'realtime' | 'history'
+
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
 
@@ -22,9 +21,6 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [realTimeCandles, setRealTimeCandles] = useState([]);
     const [selectedInterval, setSelectedInterval] = useState('1m');
 
-    // History View State
-    const [historyViewData, setHistoryViewData] = useState({ data: [], trades: [] });
-    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
     // Polling Ref
     const pollInterval = useRef(null);
@@ -49,23 +45,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         }
     }, [mode, strategyConfig.symbol]);
 
-    // History Tab Fetch Logic (Integrated Analysis)
-    useEffect(() => {
-        if (activeTickTab === 'history') {
-            setIsHistoryLoading(true);
-            (async () => {
-                try {
-                    // Fetch full composite data: { trades, multi_ohlcv_data, strategies_config }
-                    const result = await getTradeHistory(1000);
-                    setHistoryViewData(result);
-                } catch (e) {
-                    console.error("History Tab Error", e);
-                } finally {
-                    setIsHistoryLoading(false);
-                }
-            })();
-        }
-    }, [activeTickTab]);
+
 
     // Fetch Initial Candles for Real-Time View (Hybrid Pattern: History + Live)
     useEffect(() => {
@@ -515,12 +495,8 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">
                 {/* Tab Header */}
                 <div className="flex border-b border-white/5 bg-black/20">
-                    <button
-                        onClick={() => setActiveTickTab('realtime')}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'realtime'
-                            ? 'border-purple-500 text-purple-400 bg-purple-500/5'
-                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                            }`}
+                    <div
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 border-purple-500 text-purple-400 bg-purple-500/5"
                     >
                         <Activity size={14} />
                         Real-time Ticks {(() => {
@@ -528,90 +504,70 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                             return match && match.name ? `(${match.name})` : `(${strategyConfig.symbol})`;
                         })()}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                    </button>
-                    <button
-                        onClick={() => setActiveTickTab('history')}
-                        className={`flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 ${activeTickTab === 'history'
-                            ? 'border-blue-500 text-blue-400 bg-blue-500/5'
-                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                            }`}
-                    >
-                        <List size={14} />
-                        History Ticks
-                    </button>
+                    </div>
                 </div>
 
-                {/* Tab Content */}
                 <div className="flex-1 p-4 relative min-h-[350px] flex flex-col">
-                    {activeTickTab === 'realtime' ? (<>
-                        {/* Empty State Overlay */}
-                        {tickData.length === 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                                <div className="text-center text-gray-500">
-                                    <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
-                                    <p>Waiting for market data...</p>
-                                    <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex-1 w-full h-full min-h-[350px] relative">
-                            <VisualBacktestChart
-                                data={realTimeCandles}
-                                trades={[]} // We can pass real trades here if needed later
-                                showOnlyPnl={false}
-                                priceScaleOptions={{
-                                    autoScale: true,
-                                    scaleMargins: {
-                                        top: 0.1,
-                                        bottom: 0.1,
-                                    },
-                                }}
-                                yAxisFormatter={(price) => price.toLocaleString()}
-                                selectedInterval={selectedInterval}
-                                onIntervalChange={setSelectedInterval}
-                                customControls={
-                                    configList && configList.length > 0 && onRankChange ? (
-                                        <select
-                                            value={currentRankIndex}
-                                            onChange={(e) => onRankChange(parseInt(e.target.value))}
-                                            className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors mr-2"
-                                        >
-                                            {configList.map((cfg, idx) => {
-                                                if (!cfg.is_active) return null;
-                                                const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
-                                                const name = symbolMatch ? symbolMatch.name : cfg.symbol;
-                                                return (
-                                                    <option key={idx} value={idx}>
-                                                        Rank {idx + 1}: {name}
-                                                    </option>
-                                                );
-                                            })}
-                                        </select>
-                                    ) : null
-                                }
-                            />
-                        </div>
-                    </>) : (
-                        // HISTORY TAB: Direct Visual Chart
-                        <div className="flex-1 relative bg-black/10 min-h-[400px]">
-                            {isHistoryLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                                    <span className="text-blue-400 font-bold bg-black/80 px-4 py-2 rounded">Loading...</span>
-                                </div>
-                            )}
-                            <div className="w-full h-full flex flex-col">
-                                <IntegratedAnalysis
-                                    mode="real"
-                                    trades={(historyViewData.trades || []).map(t => ({ ...t, strategy_rank: undefined }))}
-                                    backtestResult={historyViewData}
-                                    strategiesConfig={configList.filter(c => c.is_active !== false)}
-                                    savedSymbols={savedSymbols}
-                                />
+                    {/* Empty State Overlay */}
+                    {tickData.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                            <div className="text-center text-gray-500">
+                                <Activity className="w-10 h-10 mx-auto mb-2 opacity-50 animate-pulse" />
+                                <p>Waiting for market data...</p>
+                                <p className="text-xs mt-1">Market might be closed or history fetch failed.</p>
                             </div>
                         </div>
                     )}
+
+                    <div className="flex-1 w-full h-full min-h-[350px] relative">
+                        <VisualBacktestChart
+                            data={realTimeCandles}
+                            trades={[]} // We can pass real trades here if needed later
+                            showOnlyPnl={false}
+                            priceScaleOptions={{
+                                autoScale: true,
+                                scaleMargins: {
+                                    top: 0.1,
+                                    bottom: 0.1,
+                                },
+                            }}
+                            yAxisFormatter={(price) => price.toLocaleString()}
+                            selectedInterval={selectedInterval}
+                            onIntervalChange={setSelectedInterval}
+                            customControls={
+                                configList && configList.length > 0 && onRankChange ? (
+                                    <select
+                                        value={currentRankIndex}
+                                        onChange={(e) => onRankChange(parseInt(e.target.value))}
+                                        className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors mr-2"
+                                    >
+                                        {configList.map((cfg, idx) => {
+                                            if (!cfg.is_active) return null;
+                                            const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
+                                            const name = symbolMatch ? symbolMatch.name : cfg.symbol;
+                                            return (
+                                                <option key={idx} value={idx}>
+                                                    Rank {idx + 1}: {name}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                ) : null
+                            }
+                        />
+                    </div>
                 </div>
+            </div>
+
+            {/* Transaction History Button */}
+            <div className="lg:col-span-3 flex justify-end">
+                <button
+                    className="flex items-center gap-2 bg-[#1e1e24] hover:bg-gray-800 text-gray-300 border border-white/5 hover:border-white/10 px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                    onClick={() => alert("거래 내역 기능은 준비 중입니다.")}
+                >
+                    <List size={16} />
+                    거래 내역
+                </button>
             </div>
         </div >
     );
