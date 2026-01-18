@@ -10,7 +10,8 @@ const VisualBacktestChart = ({
     onChartClick, // Event Handler for Single Click
     customControls, // Custom UI Elements (Rank Selector, etc.)
     selectedInterval = '1m', // New Prop: 1m, 3m, 5m, 15m, 30m, 60m, 1d
-    onIntervalChange // New Prop: Handler
+    onIntervalChange, // New Prop: Handler
+    debugInfo // New Prop: Debug Info Object for Inspect
 }) => {
     const chartContainerRef = useRef();
     const overlayCanvasRef = useRef(); // Canvas for 1px Lines
@@ -183,6 +184,7 @@ const VisualBacktestChart = ({
                     secondsVisible: true,
                     borderColor: '#374151',
                     rightOffset: 12,
+                    fixLeftEdge: true,
                     tickMarkFormatter: (time, tickMarkType) => {
                         const date = new Date(time * 1000);
                         if (tickMarkType < 3) {
@@ -518,11 +520,20 @@ const VisualBacktestChart = ({
                             <option value={10}>Speed: Max</option>
                         </select>
                         <button onClick={() => {
-                            const debugText = allDataRef.current.slice(-20).map(d => {
+                            const totalCount = allDataRef.current.length;
+                            const debugStr = debugInfo ? `--- DEBUG DIAGNOSTICS ---\n${JSON.stringify(debugInfo, null, 2)}\n\n` : '';
+
+                            const firstItems = allDataRef.current.slice(0, 5).map(d => {
                                 const date = new Date(d.time * 1000);
-                                return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n  O:${d.open} H:${d.high} L:${d.low} C:${d.close} V:${d.volume}`;
+                                return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n  O:${d.open} H:${d.high} L:${d.low} C:${d.close}`;
                             }).join('\n');
-                            setDebugContent("--- LAST 20 CANDLES ---\n" + debugText);
+
+                            const lastItems = allDataRef.current.slice(-5).map(d => {
+                                const date = new Date(d.time * 1000);
+                                return `[${d.time}] ${date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n  O:${d.open} H:${d.high} L:${d.low} C:${d.close}`;
+                            }).join('\n');
+
+                            setDebugContent(`${debugStr}TOTAL COUNT: ${totalCount}\n\n--- FIRST 5 CANDLES ---\n${firstItems}\n\n--- LAST 5 CANDLES ---\n${lastItems}`);
                             setShowDebugModal(true);
                         }} className="bg-red-600 text-white text-[10px] px-2 py-1 rounded hover:bg-red-500 font-bold shadow-lg animate-pulse">INSPECT</button>
                     </div>

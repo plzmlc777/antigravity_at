@@ -516,9 +516,18 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
     involved_symbols = set()
     
     # Collect symbols from Config
-    for cfg in strategies_config:
-        if isinstance(cfg, dict) and 'symbol' in cfg:
-            involved_symbols.add(cfg['symbol'])
+    if isinstance(strategies_config, dict):
+        if 'symbol' in strategies_config:
+            involved_symbols.add(strategies_config['symbol'])
+        else:
+            # Maybe map of ranks?
+            for val in strategies_config.values():
+                if isinstance(val, dict) and 'symbol' in val:
+                    involved_symbols.add(val['symbol'])
+    elif isinstance(strategies_config, list):
+        for cfg in strategies_config:
+            if isinstance(cfg, dict) and 'symbol' in cfg:
+                involved_symbols.add(cfg['symbol'])
     
     for t in trades_query:
         # Dynamic Rank
@@ -549,17 +558,72 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
     service = MarketDataService()
     multi_ohlcv = {}
     
+    # Build Symbol -> Interval Map from Config
+    symbol_interval_map = {}
+    if isinstance(strategies_config, dict):
+        if 'symbol' in strategies_config:
+            symbol_interval_map[strategies_config['symbol']] = strategies_config.get('interval', '30m')
+        else:
+            for val in strategies_config.values():
+                if isinstance(val, dict) and 'symbol' in val:
+                    symbol_interval_map[val['symbol']] = val.get('interval', '30m')
+    elif isinstance(strategies_config, list):
+        for cfg in strategies_config:
+            if isinstance(cfg, dict) and 'symbol' in cfg:
+                symbol_interval_map[cfg['symbol']] = cfg.get('interval', '30m')
+
     # Fetch data for ALL involved symbols (from Config AND Trades)
     for sym in involved_symbols:
-        # Using 365 days to ensure coverage for the full 1-year timeline view
-        candles = await service.get_candles(sym, interval="1d", days=365, limit=5000)
-        if candles:
-            multi_ohlcv[sym] = candles
+        # Use configured interval or default to 30m if not found
+        target_interval = symbol_interval_map.get(sym, "30m")
+        
+        # User Rule: Everything from Kiwoom is 1m. We fetch 1m from DB and let frontend/backend handle sampling.
+        # FIX: Force '1m' fetch.
+        candles = await service.get_candles(sym, interval="1m", days=365, limit=50000)
+        
+        if not candles:
+             # FIX: Fail Loudly if data is missing.
+             raise HTTPException(
+                 status_code=404, 
+                 detail=f"No 1m Market Data found for symbol {sym}. Please ensure data is collected."
+             )
+             
+        multi_ohlcv[sym] = candles
+
+    # 4. Get Rank 1 Start Date for Timeline Anchoring
+    rank1_start_date = None
+    try:
+        if strategies_config:
+            rank1_symbol = None
+            if isinstance(strategies_config, list) and len(strategies_config) > 0:
+                rank1_symbol = strategies_config[0].get('symbol')
+            elif isinstance(strategies_config, dict):
+                # Check if it's a single strategy config (has 'symbol' key directly)
+                if 'symbol' in strategies_config:
+                    rank1_symbol = strategies_config.get('symbol')
+                else:
+                    # Fallback if config is dict of ranks
+                    first_val = next(iter(strategies_config.values()))
+                    if isinstance(first_val, dict):
+                        rank1_symbol = first_val.get('symbol')
+
+            if rank1_symbol and rank1_symbol in multi_ohlcv:
+                candles = multi_ohlcv[rank1_symbol]
+                # candles should be list of dicts
+                if isinstance(candles, list) and len(candles) > 0:
+                    rank1_start_date = candles[0].get('timestamp')
+                elif isinstance(candles, dict):
+                    # Should not happens if resample returns list, but just in case
+                    pass
+    except Exception as e:
+        print(f"Error extracting Rank 1 Start Date: {e}")
+        pass
 
     return {
         "trades": trades_data,
         "multi_ohlcv_data": multi_ohlcv,
         "strategies_config": strategies_config,
         "strategy_id": "live_integrated_view",
-        "total_trades": len(trades_data)
+        "total_trades": len(trades_data),
+        "rank1_start_date": rank1_start_date # Used by IntegratedAnalysis to anchor Start Time
     }

@@ -784,5 +784,6 @@ class BacktestEngine:
             "ohlcv_data": self._resample_ohlcv(data_feed, 2000),
             "logs": context.logs, # Return all logs for debugging
             "trades": context.trades,
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'])
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp']),
+            "rank1_start_date": data_feed[0]['timestamp'] if data_feed else None # For timeline alignment
         }

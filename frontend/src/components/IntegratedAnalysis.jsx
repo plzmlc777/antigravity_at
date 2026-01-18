@@ -2,6 +2,18 @@ import React, { useMemo, useState, useCallback } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
 const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSymbols }) => {
+    // Helper to determine Rank 1 Symbol robustly (Moved to top to prevent ReferenceError)
+    const getRank1Symbol = (config) => {
+        if (!config) return null;
+        if (Array.isArray(config) && config.length > 0) return config[0].symbol;
+        if (config.symbol) return config.symbol;
+        if (config[1] && config[1].symbol) return config[1].symbol;
+        // Dict of Dicts
+        const keys = Object.keys(config);
+        if (keys.length > 0 && config[keys[0]].symbol) return config[keys[0]].symbol;
+        return null;
+    };
+
     // 1. Data Source
     const tradeList = useMemo(() => {
         let list = trades || backtestResult?.trades || [];
@@ -33,20 +45,12 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             // Priority: Explicit Rank > Symbol Map > Default 1
             let rank = t.strategy_rank || symbolRankMap[t.symbol] || 1;
 
-            // Log warning if symbol not found?
-            // console.log(`Mapping ${t.symbol} -> Rank ${rank}`);
-
             maxRankDerived = Math.max(maxRankDerived, rank);
 
-            // Invert Y for Chart (Rank 1 at top? Recharts Y grows upwards usually)
-            // Let's assume standard Y: 0 at bottom.
-            // Lane 1 (Rank 1): Y = Total + 1 - 1 = Total
+            // Invert Y for Chart
             // Lane N (Rank N): Y = Total + 1 - N = 1
             // So Rank 1 is highest Y value.
 
-            // We need 'totalRanks' to be fixed though.
-            // Let's defer Y calculation or do it in a second pass? 
-            // Better: Just use maxRankDerived later.
             return {
                 ...t,
                 _temp_rank: rank,
@@ -79,17 +83,40 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
     }, [tradeList, strategiesConfig]);
 
     const syntheticData = useMemo(() => {
-        // [New] Handle Empty State: Generate Time Axis if no trades but Strategies Config exists
+        // Timeline Anchoring Logic
+        // Goal: Ensure X-Axis spans from Rank 1 Start Date (or 1 Year Ago) to Now
+
+        const now = new Date();
+        let startTime = null;
+
+        // Override with Rank 1 Start Date if available (from Backend /trade/history)
+        if (backtestResult && backtestResult.rank1_start_date) {
+            console.log(`[IntegratedAnalysis] Raw Rank1Date: "${backtestResult.rank1_start_date}"`);
+            try {
+                // Ensure ISO format (replace space with T)
+                const safeDateStr = backtestResult.rank1_start_date.replace(" ", "T");
+                const parsedDate = new Date(safeDateStr);
+                if (!isNaN(parsedDate.getTime())) {
+                    startTime = parsedDate;
+                } else {
+                    console.error("[IntegratedAnalysis] Invalid Rank1Date parsed:", parsedDate);
+                }
+            } catch (err) {
+                console.error("[IntegratedAnalysis] Date Parse Error:", err);
+            }
+        } else {
+            console.log(`[IntegratedAnalysis] rank1_start_date MISSING in backtestResult`, backtestResult);
+        }
+
+        // (Fallback Logic Moved to After Map Population)
+
+        // Handle Empty State (No Trades) -> Generate Full Daily Grid
         if (!transformedTrades.length) {
             if (strategiesConfig && strategiesConfig.length > 0) {
-                // Generate a 1-year window for the chart (Empty State) with Daily Ticks
-                const now = new Date();
-                const start = new Date(now);
-                start.setFullYear(now.getFullYear() - 1); // 1 Year ago
-
                 const dataPoints = [];
-                // Generate Daily Points to force proper X-axis ticks
-                let current = new Date(start);
+                // If we have config but no trades, start from 'from_date' if possible, or fallback
+                // But here startTime is set.
+                let current = new Date(startTime);
                 const end = new Date(now);
 
                 while (current <= end) {
@@ -98,17 +125,64 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
                         time: timeNum,
                         open: 0, high: 0, low: 0, close: 0
                     });
-                    // Advance 1 Day
                     current.setDate(current.getDate() + 1);
                 }
-
                 return dataPoints;
             }
             return [];
         }
 
+        // TIMELINE LOGIC: Interval-Based Gaps (Ordinal)
+        // User requested that gaps remain "collapsed" (same interval visually)
+        // but the Start Date must be anchored to Rank 1 Start.
+
         const uniqueTimeMap = new Map();
 
+        // 2. Pre-fill with OHLCV Data (Market History) if available
+        if (backtestResult && backtestResult.multi_ohlcv_data) {
+            console.log("[IntegratedAnalysis] multi_ohlcv_data keys:", Object.keys(backtestResult.multi_ohlcv_data));
+
+            // Find Rank 1 Symbol using robust helper
+            const configToUse = backtestResult.strategies_config || strategiesConfig;
+            const rank1Symbol = getRank1Symbol(configToUse);
+
+            console.log(`[IntegratedAnalysis] Determined Rank1Symbol: ${rank1Symbol}`);
+            console.log(`[IntegratedAnalysis] Data available for symbol?`, !!backtestResult.multi_ohlcv_data[rank1Symbol]);
+
+            if (rank1Symbol && backtestResult.multi_ohlcv_data[rank1Symbol]) {
+                const candles = backtestResult.multi_ohlcv_data[rank1Symbol];
+                console.log(`[IntegratedAnalysis] Injecting ${candles.length} candles for ${rank1Symbol} (Start: ${candles[0].timestamp})`);
+
+                candles.forEach(c => {
+                    let t = c.timestamp;
+                    let timeNum = 0;
+                    if (typeof t === 'string') {
+                        // Robust Parsing: Replace Space with T for ISO format
+                        const safeT = t.replace(' ', 'T');
+                        timeNum = Math.floor(new Date(safeT).getTime() / 1000);
+                    } else if (typeof t === 'number') {
+                        if (t > 10000000000) timeNum = Math.floor(t / 1000);
+                        else timeNum = t;
+                    }
+
+                    if (!isNaN(timeNum) && timeNum > 0) {
+                        uniqueTimeMap.set(timeNum, {
+                            time: timeNum,
+                            open: c.open,
+                            high: c.high,
+                            low: c.low,
+                            close: c.close
+                        });
+                    }
+                });
+            } else {
+                console.warn(`[IntegratedAnalysis] Injection Failed. Rank1Symbol=${rank1Symbol}, DataKeys=${Object.keys(backtestResult.multi_ohlcv_data)}`);
+            }
+        } else {
+            console.log("[IntegratedAnalysis] multi_ohlcv_data MISSING in backtestResult");
+        }
+
+        // 1. Process Actual Trades (Directly, no pre-fill)
         transformedTrades.forEach(trade => {
             const timeVal = new Date(trade.time).getTime() / 1000;
             const timeNum = Math.floor(timeVal);
@@ -117,14 +191,16 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             const existing = uniqueTimeMap.get(timeNum);
 
             if (existing) {
+                // Update existing grid point to show Trade Bar
                 uniqueTimeMap.set(timeNum, {
                     time: timeNum,
-                    open: existing.open,
-                    high: Math.max(existing.high, yVal),
-                    low: Math.min(existing.low, yVal),
+                    open: existing.open || yVal,
+                    high: Math.max(existing.high || yVal, yVal),
+                    low: (existing.low === 0 && existing.high === 0) ? yVal : Math.min(existing.low, yVal),
                     close: yVal,
                 });
             } else {
+                // New trade point
                 uniqueTimeMap.set(timeNum, {
                     time: timeNum,
                     open: yVal,
@@ -135,10 +211,51 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             }
         });
 
+        // Fallback: If startTime is still null, use the earliest data point from Market Data or Trades
+        if (!startTime) {
+            let minTime = Infinity;
+            for (const key of uniqueTimeMap.keys()) {
+                if (key < minTime) minTime = key;
+            }
+            if (minTime !== Infinity) {
+                startTime = new Date(minTime * 1000);
+                console.log(`[IntegratedAnalysis] Fallback to Earliest Data Point: ${startTime.toLocaleString()}`);
+            } else {
+                console.log(`[IntegratedAnalysis] No Data Available -> Defaulting to Now`);
+                startTime = new Date(now);
+            }
+        }
+        // 3. Inject Anchors (Start & End) to force X-Axis Range
+        // This ensures the chart STARTS at Rank 1 Date, but jumps to the first trade if gap exists.
+
+        const startNum = Math.floor(startTime.getTime() / 1000);
+        console.log(`[IntegratedAnalysis] Anchor Calculation: StartTime=${startTime.toISOString()} (${startTime.toLocaleString()}) -> Num=${startNum}`);
+
+        if (!uniqueTimeMap.has(startNum)) {
+            console.log(`[IntegratedAnalysis] Injecting Start Anchor Point: ${startNum}`);
+            uniqueTimeMap.set(startNum, { time: startNum, open: 0, high: 0, low: 0, close: 0 });
+        } else {
+            console.log(`[IntegratedAnalysis] Start Date already in trade data or mapped`);
+        }
+
+        const endNum = Math.floor(now.getTime() / 1000);
+        if (!uniqueTimeMap.has(endNum)) {
+            uniqueTimeMap.set(endNum, { time: endNum, open: 0, high: 0, low: 0, close: 0 });
+        }
+
         const dataArray = Array.from(uniqueTimeMap.values()).sort((a, b) => a.time - b.time);
-        if (dataArray.length === 0) return [];
+
+        if (dataArray.length > 0) {
+            const firstDate = new Date(dataArray[0].time * 1000);
+            const secondDate = dataArray.length > 1 ? new Date(dataArray[1].time * 1000) : "None";
+            console.log(`[IntegratedAnalysis] FINAL DATA -> Total Points: ${dataArray.length}`);
+            console.log(`[IntegratedAnalysis] FINAL DATA -> First Point: Time=${dataArray[0].time} (${firstDate.toLocaleString()}) Val=${dataArray[0].close}`);
+            console.log(`[IntegratedAnalysis] FINAL DATA -> Second Point: ${secondDate.toLocaleString()}`);
+        } else {
+            console.log(`[IntegratedAnalysis] FINAL DATA -> Empty Array`);
+        } if (dataArray.length === 0) return [];
         return dataArray;
-    }, [transformedTrades, strategiesConfig]);
+    }, [transformedTrades, strategiesConfig, backtestResult]);
 
 
     // 4. Formatter & Options
@@ -356,6 +473,48 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
         </select>
     );
 
+
+
+    // Gather Debug Info for Inspect Button
+    const debugInfo = {
+        rank1Symbol: (() => {
+            const configToUse = backtestResult?.strategies_config || strategiesConfig;
+            if (backtestResult && backtestResult.multi_ohlcv_data) {
+                console.log("[IntegratedAnalysis] multi_ohlcv_data keys:", Object.keys(backtestResult.multi_ohlcv_data));
+
+                // Find Rank 1 Symbol using robust helper
+                const rank1Symbol = getRank1Symbol(configToUse);
+
+                console.log(`[IntegratedAnalysis] Determined Rank1Symbol: ${rank1Symbol}`);
+                console.log(`[IntegratedAnalysis] Data available for symbol?`, !!backtestResult.multi_ohlcv_data[rank1Symbol]);
+
+                if (rank1Symbol && backtestResult.multi_ohlcv_data[rank1Symbol]) {
+                    // This block was incomplete in the instruction, assuming it was for logging/debugging
+                }
+            }
+            return getRank1Symbol(configToUse) || "Unknown";
+        })(),
+        hasMarketData: backtestResult?.multi_ohlcv_data ? "YES" : "NO",
+        marketDataKeys: backtestResult?.multi_ohlcv_data ? Object.keys(backtestResult.multi_ohlcv_data) : [],
+        candleCount: (() => {
+            const configToUse = backtestResult?.strategies_config || strategiesConfig;
+            const sym = getRank1Symbol(configToUse) || "000660";
+            if (backtestResult?.multi_ohlcv_data?.[sym]) return backtestResult.multi_ohlcv_data[sym].length;
+            const keys = backtestResult?.multi_ohlcv_data ? Object.keys(backtestResult.multi_ohlcv_data) : [];
+            if (keys.length > 0) return backtestResult.multi_ohlcv_data[keys[0]].length;
+            return 0;
+        })(),
+        sampleTimestamp: (() => {
+            const keys = backtestResult?.multi_ohlcv_data ? Object.keys(backtestResult.multi_ohlcv_data) : [];
+            if (keys.length > 0 && backtestResult.multi_ohlcv_data[keys[0]].length > 0) {
+                return backtestResult.multi_ohlcv_data[keys[0]][0].timestamp;
+            }
+            return "None";
+        })(),
+        injectionStatus: syntheticData.length > 0 ? (syntheticData[0].open === 0 && syntheticData[1]?.open > 0 ? "Potential Zero Start" : "Normal") : "Empty",
+        rank1StartDate: backtestResult?.rank1_start_date || "Missing"
+    };
+
     return (
         <div className="w-full h-full relative flex flex-col">
             <VisualBacktestChart
@@ -366,6 +525,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
                 showOnlyPnl={true}
                 onChartClick={handleChartClick}
                 customControls={rankSelectorUI}
+                debugInfo={debugInfo}
             />
 
             {/* Drill-Down Modal */}

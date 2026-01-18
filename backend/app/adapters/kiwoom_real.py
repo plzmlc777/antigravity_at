@@ -75,6 +75,9 @@ class KiwoomRealAdapter(ExchangeInterface):
         try:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
+            
+            data = response.json()
+            
             # 'cur_prc' maps to Current Price
             price_str = data.get("cur_prc", "0").replace("+", "").replace("-", "")
             volume_str = data.get("trde_qty", "0") # Accumulated Volume
@@ -378,3 +381,109 @@ class KiwoomRealAdapter(ExchangeInterface):
         except Exception as e:
             logger.error(f"Exception in get_minute_candles: {e}")
             return []
+
+    async def get_daily_candles(self, symbol: str) -> list:
+        """
+        Fetch daily candles using ka10081 (Stock Daily Chart)
+        """
+        await self._ensure_token()
+        token = self.access_token
+        if not token:
+            return []
+
+        url = f"{self.base_url}/api/dostk/chart"
+        headers = self._get_auth_headers(tr_id="ka10081")
+        headers["content-type"] = "application/json;charset=UTF-8"
+        
+        payload = {
+            "stk_cd": symbol,
+            "upd_stkpc_tp": "1" # Adjusted Price
+        }
+
+        try:
+            from httpx import AsyncClient
+            async with AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=payload, timeout=10.0)
+                
+                if response.status_code != 200:
+                    logger.error(f"Error fetching daily candles: {response.status_code}")
+                    return []
+                
+                data = response.json()
+                if data.get("return_code") != 0:
+                    return []
+                
+                output = data.get("stk_day_pole_chart_qry", []) 
+                
+                candles = []
+                for item in output:
+                    try:
+                        ts = item.get("stk_dt") # YYYYMMDD
+                        
+                        c = abs(int(item.get("cur_prc", 0)))
+                        o = abs(int(item.get("open_pric", 0)))
+                        h = abs(int(item.get("high_pric", 0)))
+                        l = abs(int(item.get("low_pric", 0)))
+                        v = int(item.get("trde_qty", 0))
+                        
+                        # Convert YYYYMMDD to ISO date string (YYYY-MM-DD) for consistency
+                        if ts and len(ts) == 8:
+                            ts_iso = f"{ts[:4]}-{ts[4:6]}-{ts[6:]}"
+                        else:
+                            ts_iso = ts
+
+                        candles.append({
+                            "timestamp": ts_iso,
+                            "open": o,
+                            "high": h,
+                            "low": l,
+                            "close": c,
+                            "volume": v
+                        })
+                    except ValueError:
+                        continue
+
+                candles.sort(key=lambda x: x['timestamp'])
+                return candles
+
+        except Exception as e:
+            logger.error(f"Exception in get_daily_candles: {e}")
+            return []
+
+    async def get_candles(self, symbol: str, interval: str, days: int = 30, limit: int = 1000) -> list:
+        """
+        Unified get_candles method.
+        interval: "1m", "30m", "1d"
+        """
+        candles = []
+        if interval == "1d":
+            candles = await self.get_daily_candles(symbol)
+        elif interval.endswith("m"):
+            minute = int(interval.replace("m", ""))
+            candles = await self.get_minute_candles(symbol, minute)
+        else:
+            # Default
+            candles = await self.get_minute_candles(symbol, 1)
+
+        # Filter by Days (Cutoff)
+        if days > 0 and candles:
+            try:
+                from datetime import datetime, timedelta
+                cutoff = datetime.now() - timedelta(days=days)
+                # Parse timestamp and filter
+                # Format is usually YYYY-MM-DD or YYYYMMDDHHMMSS
+                filtered = []
+                for c in candles:
+                    ts_str = str(c['timestamp'])
+                    # Normalize if needed, but assuming ISO or comparable string
+                    # Simple string comparison works for ISO YYYY-MM-DD
+                    # Construct cutoff string
+                    cutoff_str = cutoff.strftime("%Y-%m-%d")
+                    if ts_str >= cutoff_str:
+                        filtered.append(c)
+                return filtered[-limit:] if limit > 0 else filtered
+            except Exception as e:
+                logger.error(f"Error filtering candles: {e}")
+                return candles[-limit:] if limit > 0 else candles
+
+        return candles[-limit:] if limit > 0 else candles

@@ -33,11 +33,13 @@ description: Standard Version Release & Reporting Protocol
 2.  Update `main.py` (Backend)
 3.  (If applicable) Verify dynamic version injection works.
 
-## 4. Commit & Tag
+## 4. Commit, Tag & Push
+**MANDATORY**: You MUST push the changes to density the remote repository immediately.
 ```bash
 git add .
 git commit -m "chore: bump version to vX.Y.Z"
 # git tag vX.Y.Z (Optional but recommended)
+git push
 ```
 
 ## 5. Post-Release
