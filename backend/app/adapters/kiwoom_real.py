@@ -1,62 +1,73 @@
 from ..core.http_client import HttpClientManager
 import logging
-from typing import Dict, Any, Optional
+import asyncio
+from typing import Dict, Any, Optional, List, Callable
 from datetime import datetime
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
 from ..core.token_manager import KiwoomTokenManager
+from .kiwoom_websocket import KiwoomWebSocket
+from .kiwoom_base import KiwoomBaseAdapter
 
 logger = logging.getLogger(__name__)
 
-class KiwoomRealAdapter(ExchangeInterface):
+class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     """
     Real Adapter for Kiwoom Open API V5 (REST).
     Implemented based on 'Kiwoom REST API Documentation'.
     """
     
     def __init__(self, app_key: str = None, secret_key: str = None, account_no: str = None, account_name: str = None):
+        # Initialize Base Class
+        KiwoomBaseAdapter.__init__(self, app_key or settings.HCP_KIWOOM_APP_KEY, secret_key or settings.HCP_KIWOOM_SECRET_KEY)
+        
         # Base URL from docs: https://api.kiwoom.com (Production)
         # But we respect the config if user wants to override (e.g. mock server)
         self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
         
-        # Priority: Passed args > Settings (Env)
-        self.app_key = app_key or settings.HCP_KIWOOM_APP_KEY
-        self.secret_key = secret_key or settings.HCP_KIWOOM_SECRET_KEY
         self.account_no = account_no or settings.HCP_KIWOOM_ACCOUNT_NO
         self.account_name = account_name or "Unknown"
         
-        self.access_token: Optional[str] = None
-        self._common_headers = {
-            "Content-Type": "application/json;charset=UTF-8"
-        }
+        # WebSocket Integration
+        self.ws_client = KiwoomWebSocket.get_instance()
+        self.ws_client.set_callbacks(on_tick=self._on_ws_tick)
+        self.tick_listeners: List[Callable[[Dict], None]] = []
+        self._ws_task = None
+        
+    def add_tick_listener(self, callback: Callable[[Dict], None]):
+        self.tick_listeners.append(callback)
+
+    def _on_ws_tick(self, tick_data: Dict):
+        for listener in self.tick_listeners:
+            try:
+                listener(tick_data)
+            except Exception as e:
+                logger.error(f"Error in tick listener: {e}")
+
+    async def start_realtime(self, symbols: List[str] = None):
+        """
+        Start WebSocket connection and subscribe to symbols.
+        """
+        await self._ensure_token()
+        if not self.access_token:
+            logger.error("Cannot start Realtime: No Token")
+            return
+
+        if not self.ws_client.is_running:
+            await self.ws_client.connect(self.access_token)
+            
+        if symbols:
+            await self.ws_client.subscribe_symbols(symbols)
+
+    async def stop_realtime(self):
+        self.ws_client.is_running = False
+
 
     def get_name(self) -> str:
         return "KIWOOM (REAL)"
 
     def get_account_name(self) -> str:
         return self.account_name
-
-    async def _ensure_token(self):
-        """
-        Fetch Access Token using TokenManager (Singleton)
-        """
-        # Delegate to Singleton Manager
-        self.access_token = await KiwoomTokenManager.get_instance().get_token(
-            self.app_key, self.secret_key
-        )
-        
-        if not self.access_token:
-             logger.error("Failed to acquire token from TokenManager")
-
-    def _get_auth_headers(self, tr_id: str) -> Dict[str, str]:
-        if not self.access_token:
-            return {}
-            
-        return {
-            **self._common_headers,
-            "Authorization": f"Bearer {self.access_token}",
-            "api-id": tr_id
-        }
 
     async def get_current_price(self, symbol: str) -> Dict[str, Any]:
         """

@@ -36,10 +36,25 @@ class LiveManager:
             logger.info("LiveManager: Using KIWOOM MOCK ADAPTER")
             self.adapter = KiwoomMockAdapter()
         else:
-            logger.info("LiveManager: Using KIWOOM REAL ADAPTER")
             self.adapter = KiwoomRealAdapter()
-            
-        # Note: In real production, adapter might need to be singleton too.
+            # Register Global Tick Listener
+            if hasattr(self.adapter, "add_tick_listener"):
+                self.adapter.add_tick_listener(self._on_tick)
+
+    def _on_tick(self, tick_data: Dict):
+        """
+        Route global tick to specific engine
+        """
+        symbol = tick_data.get("symbol")
+        if not symbol: return
+        
+        # Find engine with this symbol
+        # Ideally engines map by session_id, maybe we need map by symbol too?
+        # For now, iterate (few sessions usually)
+        for engine in self.engines.values():
+            if engine.symbol == symbol:
+                asyncio.create_task(engine.process_realtime_tick(tick_data))
+
         # KiwoomRealAdapter in this project seems to be stateless http wrapper?
         # If it holds WebSocket state, it must be shared carefully.
         
@@ -117,6 +132,10 @@ class LiveManager:
             self.engines[session_id] = engine
             asyncio.create_task(engine.run_loop())
             
+            # Start Real-time Data Stream for this symbol
+            if hasattr(self.adapter, "start_realtime"):
+                asyncio.create_task(self.adapter.start_realtime([symbol]))
+            
             logger.info(f"Started Live Session {session_id}")
             return session_id
             
@@ -179,6 +198,10 @@ class LiveManager:
         await engine.initialize()
         self.engines[sess.id] = engine
         asyncio.create_task(engine.run_loop())
+        
+        # Restore Real-time
+        if hasattr(self.adapter, "start_realtime"):
+             asyncio.create_task(self.adapter.start_realtime([sess.symbol]))
 
     async def subscribe_to_session(self, session_id: str, queue: asyncio.Queue):
         """

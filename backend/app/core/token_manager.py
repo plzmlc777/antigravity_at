@@ -25,12 +25,60 @@ class KiwoomTokenManager:
                  logger.info("Forcing Standard Open API URL for Token Manager in Mock Mode.")
              else:
                  self.base_url = settings.HCP_KIWOOM_API_URL or "https://openapi.kiwoom.com"
+
+             # Load from disk
+             self._load_cache()
+
+    def _load_cache(self):
+        try:
+            import json
+            import os
+            if os.path.exists("token_cache.json"):
+                with open("token_cache.json", "r") as f:
+                    data = json.load(f)
+                    self.access_token = data.get("access_token")
+                    expiry_str = data.get("token_expiry")
+                    if expiry_str:
+                        self.token_expiry = datetime.fromisoformat(expiry_str)
+                        
+                    # Check if expired
+                    if self.token_expiry and datetime.now() > self.token_expiry:
+                        logger.info("Cached token expired.")
+                        self.access_token = None
+                    elif self.access_token:
+                        logger.info("Loaded valid Access Token from disk cache.")
+        except Exception as e:
+            logger.error(f"Failed to load token cache: {e}")
+
+    def _save_cache(self):
+        try:
+            import json
+            data = {
+                "access_token": self.access_token,
+                "token_expiry": self.token_expiry.isoformat() if self.token_expiry else None
+            }
+            with open("token_cache.json", "w") as f:
+                json.dump(data, f)
+            logger.info("Access Token saved to disk cache.")
+        except Exception as e:
+            logger.error(f"Failed to save token cache: {e}")
+
              
     @staticmethod
     def get_instance():
         if KiwoomTokenManager._instance is None:
             KiwoomTokenManager()
         return KiwoomTokenManager._instance
+
+    def is_token_valid(self) -> bool:
+        """
+        Only checks if the current token is physically present and not expired.
+        Does NOT trigger a network request for a new one.
+        """
+        if not self.access_token or not self.token_expiry:
+            return False
+            
+        return datetime.now() < self.token_expiry
         
     async def get_token(self, app_key: str, secret_key: str) -> Optional[str]:
         """
@@ -82,6 +130,9 @@ class KiwoomTokenManager:
             
             # Set expiry with a buffer (e.g. 60 seconds earlier)
             self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)
+            
+            # Save to disk
+            self._save_cache()
             
             logger.info(f"Kiwoom Access Token acquired successfully. Expires in {expires_in} seconds.")
             return self.access_token

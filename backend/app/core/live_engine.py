@@ -40,6 +40,10 @@ class LiveTradingEngine:
         self.tick_listeners: List[Callable[[Dict], None]] = []
         self.candle_listeners: List[Callable[[Dict], None]] = []
         self.history_candles: List[Dict] = []
+        
+        # State
+        self.last_price = 0
+        self.last_accum_volume = -1
 
     def add_tick_listener(self, listener: Callable[[Dict], None]):
         self.tick_listeners.append(listener)
@@ -70,8 +74,8 @@ class LiveTradingEngine:
             self.context = LiveContext(self.session_id, self.adapter, initial_capital=initial_cap)
             
             # 2. Strategy
-            # Instantiate Strategy (assuming standard __init__(config))
-            self.strategy_instance = self.strategy_class(self.strategy_config)
+            # Instantiate Strategy (context, config)
+            self.strategy_instance = self.strategy_class(self.context, self.strategy_config)
             
             # 3. Aggregator
             # Parse interval from session (e.g. "1m" -> 1)
@@ -128,16 +132,10 @@ class LiveTradingEngine:
             while self.is_running:
                 loop_start = asyncio.get_running_loop().time()
                 
-                try:
-                    await self._process_tick()
-                except Exception as e:
-                    logger.error(f"Error in Live Loop Tick: {e}")
-                    traceback.print_exc()
-                
-                # Sleep to maintain interval
-                elapsed = asyncio.get_running_loop().time() - loop_start
-                sleep_time = max(0.1, self.interval_seconds - elapsed)
-                await asyncio.sleep(sleep_time)
+                # Pure Event-Driven Mode (WebSocket)
+                # We do NOT poll current price via REST API to avoid Rate Limits.
+                # Data flows in via process_realtime_tick (Called by Adapter)
+                await asyncio.sleep(1)
                 
         except asyncio.CancelledError:
             logger.info("Live Loop Cancelled")
@@ -166,11 +164,37 @@ class LiveTradingEngine:
              if self.last_accum_volume != -1:
                  return
 
+        await self._update_internals(price, volume, datetime.now())
+
+    async def process_realtime_tick(self, tick_data: Dict):
+        """
+        Handle WebSocket Tick
+        """
+        price = tick_data.get('price', 0)
+        volume = tick_data.get('volume', 0)
+        
+        # Deduplication
+        if price == self.last_price and volume == self.last_accum_volume:
+             if self.last_accum_volume != -1:
+                 return
+
+        # Use Server Timestamp if available, else Now
+        ts_str = tick_data.get('timestamp')
+        if ts_str:
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except:
+                ts = datetime.now()
+        else:
+            ts = datetime.now()
+            
+        await self._update_internals(price, volume, ts)
+
+    async def _update_internals(self, price: float, volume: int, now: datetime):
         # Update State
         self.last_price = price
         self.last_accum_volume = volume
 
-        now = datetime.now()
         
         # Update Context Price Map (for Strategy)
         self.context.price_map[self.symbol] = price
