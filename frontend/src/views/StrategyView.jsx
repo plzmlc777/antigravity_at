@@ -1258,7 +1258,7 @@ const StrategyView = () => {
                                 </button>
                             </div>
 
-                            {(true) && (
+                            {activeTab !== -2 && (
                                 <Card
                                     title={
                                         <div className="flex items-center justify-between w-full">

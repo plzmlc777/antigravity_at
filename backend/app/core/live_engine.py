@@ -213,6 +213,20 @@ class LiveTradingEngine:
                 listener(tick_event)
             except Exception as e:
                 logger.error(f"Error in tick listener: {e}")
+
+        # 2.1 Strategy Status Emission
+        try:
+            strategy_status = {
+                "type": "strategy_status",
+                "data": self.strategy_instance.get_state()
+            }
+            for listener in self.tick_listeners:
+                try:
+                    listener(strategy_status)
+                except:
+                    pass
+        except Exception as e:
+            logger.error(f"Error emitting strategy status: {e}")
             
         # 3. Aggregate -> Candle
         # Volume: Ideally we need 'tick volume' (delta). 

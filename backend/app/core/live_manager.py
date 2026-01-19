@@ -260,6 +260,18 @@ class LiveManager:
                  "type": "history",
                  "data": history
              })
+
+        # 0.5 Send Initial Strategy Status Immediately
+        try:
+            if hasattr(engine, 'strategy_instance') and hasattr(engine.strategy_instance, 'get_state'):
+                init_state = engine.strategy_instance.get_state()
+                if init_state:
+                    await queue.put({
+                        "type": "strategy_status",
+                        "data": init_state
+                    })
+        except Exception as e:
+            logger.error(f"Failed to send initial strategy status: {e}")
         
         # 1. Define Listeners
         async def on_tick(data):

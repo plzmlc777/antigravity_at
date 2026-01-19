@@ -254,3 +254,35 @@ class TimeMomentumStrategy(BaseStrategy):
         if self.current_trading_date != current_date_obj:
             self.logged_skip_today = False
 
+    def get_state(self) -> Dict[str, Any]:
+        """
+        Export internal strategy state for UI visualization.
+        """
+        current_time = self.context.get_time()
+        
+        # Calculate current change from reference
+        change = 0
+        if self.reference_price and self.reference_price > 0:
+            current_price = self.context.get_current_price(self.config.get("symbol", ""))
+            if current_price > 0:
+                change = (current_price - self.reference_price) / self.reference_price
+
+        # Check if delay has passed
+        trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
+        is_delay_passed = current_time >= trigger_time
+
+        return {
+            "symbol": self.config.get("symbol"),
+            "reference_price": self.reference_price,
+            "target_percent": self.target_percent,
+            "direction": self.direction,
+            "change_percent": change,
+            "is_delay_passed": is_delay_passed,
+            "has_bought": self.has_bought,
+            "trailing_active": self.trailing_active,
+            "checked_today": self.checked_today,
+            "start_time": self.start_time_str,
+            "delay_minutes": self.delay_minutes,
+            "safety_stop_percent": self.safety_stop_percent
+        }
+

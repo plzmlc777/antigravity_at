@@ -49,3 +49,9 @@ class BaseStrategy(ABC):
         :param data: Dictionary containing 'symbol', 'open', 'high', 'low', 'close', 'volume', 'timestamp'
         """
         pass
+
+    def get_state(self) -> Dict[str, Any]:
+        """
+        Return the internal state of the strategy for visualization.
+        """
+        return {}

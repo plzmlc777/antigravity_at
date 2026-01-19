@@ -6,6 +6,7 @@ import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
+import StrategySignalPanel from './StrategySignalPanel';
 
 const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
     // State
@@ -26,6 +27,9 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [showHistoryView, setShowHistoryView] = useState(false);
     const [historyData, setHistoryData] = useState(null);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+    // New: Strategy Internal State
+    const [strategyState, setStrategyState] = useState(null);
 
 
     // Polling Ref
@@ -345,6 +349,8 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
                 } else if (data.type === 'history' || data.type === 'candle') {
                     // Logic to handle history push if needed
+                } else if (data.type === 'strategy_status') {
+                    setStrategyState(data.data);
                 }
             } catch (err) {
                 console.error("WS Parse Error", err);
@@ -442,124 +448,126 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 isDanger={true}
             />
 
-            {/* 1. TOP ROW LEFT: Controls & Status */}
-            <div className="lg:col-span-1 space-y-6">
-                {/* Status Card */}
+            {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
+            <div className="lg:col-span-3 relative">
                 <div className="bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-4">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
                         <div className="flex items-center gap-3">
                             <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
                             <h2 className="font-bold text-lg text-white">Live Operation</h2>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor()}`}>
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold border tracking-wider ${getStatusColor()}`}>
                             {status}
                         </span>
                     </div>
 
-                    {/* Stats Summary */}
-                    {liveData && (
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-black/20 p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs">Current Price</div>
-                                <div className="text-xl font-mono text-white">
-                                    {liveData.current_price?.toLocaleString()}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {/* A. Stats Section */}
+                        <div className="flex flex-col justify-center">
+                            {liveData ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                                        <div className="text-gray-400 text-xs mb-1">Current Price</div>
+                                        <div className="text-xl font-mono text-white">
+                                            {liveData.current_price?.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                                        <div className="text-gray-400 text-xs mb-1">Unrealized PnL</div>
+                                        <div className={`text-xl font-mono ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="bg-black/20 p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs">Unrealized PnL</div>
-                                <div className={`text-xl font-mono ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-gray-600 text-sm border border-dashed border-gray-700 rounded-lg">
+                                    Ready to Start
+                                </div>
+                            )}
+                        </div>
+
+                        {/* B. Main Controls */}
+                        <div className="flex flex-col gap-3 justify-center border-l border-r border-white/5 px-4 md:px-8">
+                            {status !== 'RUNNING' ? (
+                                <button
+                                    onClick={handleStart}
+                                    disabled={status === 'STARTING'}
+                                    className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
+                                >
+                                    <Play size={20} />
+                                    START LIVE SESSION
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={handleToggleOrders}
+                                        className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-lg border transition-all ${liveData?.orders_enabled
+                                            ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                            : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                            }`}
+                                    >
+                                        {liveData?.orders_enabled ? (
+                                            <>
+                                                <ShieldOff size={18} />
+                                                DISABLE ORDERS (Paper Mode)
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Shield size={18} />
+                                                ENABLE ORDERS (Real Mode)
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsStopModalOpen(true)}
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition-all text-sm"
+                                    >
+                                        <Square size={16} />
+                                        STOP SESSION
+                                    </button>
+                                </>
+                            )}
+                        </div>
+
+                        {/* C. Emergency Controls */}
+                        <div className="flex flex-col justify-center">
+                            <div className="bg-red-900/10 border border-red-500/20 rounded-xl p-4 h-full flex flex-col justify-center">
+                                <div className="flex items-center gap-2 text-red-400 font-bold mb-3 text-sm">
+                                    <AlertTriangle size={16} /> EMERGENCY ZONE
+                                </div>
+                                <button
+                                    className="w-full bg-red-900/50 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg py-3 text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-inner"
+                                    onClick={handleEmergencyLiquidation}
+                                    disabled={status !== 'RUNNING'}
+                                >
+                                    <ShieldAlert size={18} />
+                                    EMERGENCY EXIT
+                                </button>
+                                <div className="text-[10px] text-red-400/60 mt-2 text-center leading-tight">
+                                    * Immediate Market Sell + Order Block
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    {/* Controls */}
-                    <div className="flex gap-3">
-                        {status !== 'RUNNING' ? (
-                            <button
-                                onClick={handleStart}
-                                disabled={status === 'STARTING'}
-                                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50"
-                            >
-                                <Play size={18} />
-                                START LIVE
-                            </button>
-                        ) : (
-                            <div className="flex-1 flex flex-col gap-3">
-                                <button
-                                    onClick={() => setIsStopModalOpen(true)}
-                                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition-all"
-                                >
-                                    <Square size={18} />
-                                    STOP LIVE
-                                </button>
-
-                                <button
-                                    onClick={handleToggleOrders}
-                                    className={`w-full flex items-center justify-center gap-2 font-bold py-2 rounded-lg border transition-all ${liveData?.orders_enabled
-                                        ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
-                                        : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
-                                        }`}
-                                >
-                                    {liveData?.orders_enabled ? (
-                                        <>
-                                            <ShieldOff size={16} />
-                                            STOP ORDERS (Paper mode)
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Shield size={16} />
-                                            START ORDERS (Real mode)
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
                     </div>
 
                     {error && (
-                        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs break-words">
+                        <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs break-words animate-fade-in">
                             <div className="flex items-center gap-2 font-bold mb-1">
-                                <AlertTriangle size={12} /> Error
+                                <AlertTriangle size={12} /> Error Details
                             </div>
                             {error}
                         </div>
                     )}
                 </div>
-
-                {/* Kill Switch (To be implemented fully in Phase 4) */}
-                <div className="bg-red-900/10 border border-red-500/20 rounded-xl p-4">
-                    <div className="flex items-center gap-2 text-red-400 font-bold mb-2">
-                        <AlertTriangle size={16} /> EMERGENCY
-                    </div>
-                    <button
-                        className="w-full bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-500/50 rounded py-2 text-sm font-bold transition-colors disabled:opacity-50"
-                        onClick={handleEmergencyLiquidation}
-                        disabled={status !== 'RUNNING'}
-                    >
-                        LIQUIDATE ALL & STOP
-                    </button>
-                </div>
             </div>
 
-            {/* 2. TOP ROW RIGHT: Logs Console (Moved Here) */}
-            <div className="lg:col-span-2 bg-[#1e1e24] border border-white/5 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col h-full max-h-[350px]">
-                <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
-                    <Terminal size={12} />
-                    <span>Execution Logs</span>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
-                    {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
-                    {logs.map((log, i) => (
-                        <div key={i} className="flex gap-2">
-                            <span className="text-gray-500">[{log.time}]</span>
-                            <span className={log.source === 'Error' ? 'text-red-400' : 'text-blue-400'}>{log.source}:</span>
-                            <span className="text-gray-300">{log.msg}</span>
-                        </div>
-                    ))}
-                </div>
+            {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
+            <div className="lg:col-span-3">
+                <StrategySignalPanel strategyState={strategyState} />
             </div>
+
+
 
             {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
             <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">
@@ -712,7 +720,26 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                         </div>
                     </div>
                 )}
-            </div>        </div >
+            </div>
+
+            {/* 5. EXECUTION LOGS (Moved to Bottom) */}
+            <div className="lg:col-span-3 bg-[#1e1e24] border border-white/5 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col min-h-[200px] max-h-[400px]">
+                <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
+                    <Terminal size={12} />
+                    <span>Execution Logs</span>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
+                    {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
+                    {logs.map((log, i) => (
+                        <div key={i} className="flex gap-2">
+                            <span className="text-gray-500">[{log.time}]</span>
+                            <span className={log.source === 'Error' ? 'text-red-400' : 'text-blue-400'}>{log.source}:</span>
+                            <span className="text-gray-300">{log.msg}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 };
 
