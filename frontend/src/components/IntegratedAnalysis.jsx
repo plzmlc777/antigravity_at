@@ -160,7 +160,11 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             console.log("[IntegratedAnalysis] multi_ohlcv_data keys:", Object.keys(backtestResult.multi_ohlcv_data));
 
             // Find Rank 1 Symbol using robust helper
-            const configToUse = backtestResult.strategies_config || strategiesConfig;
+            // FIX: If backtestResult.strategies_config is empty array, OR logic fails. Check length.
+            let configToUse = strategiesConfig;
+            if (backtestResult && backtestResult.strategies_config && backtestResult.strategies_config.length > 0) {
+                configToUse = backtestResult.strategies_config;
+            }
             const rank1Symbol = getRank1Symbol(configToUse);
 
             console.log(`[IntegratedAnalysis] Determined Rank1Symbol: ${rank1Symbol}`);

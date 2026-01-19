@@ -500,82 +500,115 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
     Returns composite object: { trades: [], multi_ohlcv_data: { sym: [] }, strategies_config: [] }
     """
     from ..models.live_trading import LiveTradeExecution, LiveBotSession
+    from ..models.strategy_config import StrategyConfig
     from ..services.market_data import MarketDataService
     from sqlalchemy.orm import joinedload
-
-    # 1. Get Strategies Config (Latest Session) FIRST to determine involved symbols
+    
+    # 1. Get Active Strategies Config (Source of Truth for "Screen Context")
+    # We query ALL active configurations to determine what "Should be displayed"
     strategies_config = []
-    last_session = db.query(LiveBotSession).order_by(LiveBotSession.started_at.desc()).first()
-    if last_session and last_session.strategy_config:
-        strategies_config = last_session.strategy_config
+    
+    # Fetch all active configs sorted by rank (assuming default strategy 'time_momentum' for now or all)
+    # Filter by user's active intent.
+    db_configs = db.query(StrategyConfig).filter(
+        StrategyConfig.is_active == True
+    ).order_by(StrategyConfig.rank).all()
+    
+    involved_symbols = set()
+    
+    for c in db_configs:
+        cfg = c.config_json
+        if cfg and isinstance(cfg, dict):
+            # Ensure symbol exists
+            if 'symbol' in cfg:
+                strategies_config.append(cfg)
+                involved_symbols.add(cfg['symbol'])
+                
+    # If no active configs found, try fallback to latest session
+    if not strategies_config:
+        last_session = db.query(LiveBotSession).order_by(LiveBotSession.started_at.desc()).first()
+        if last_session and last_session.strategy_config:
+            strategies_config = last_session.strategy_config
+            # Collect symbols
+            if isinstance(strategies_config, list):
+                for cfg in strategies_config:
+                    if isinstance(cfg, dict) and 'symbol' in cfg:
+                        involved_symbols.add(cfg['symbol'])
 
-    # 2. Fetch Trades
+    # 2. Fetch Market Data (OHLCV) - Replicating BacktestEngine Logic
+    # We fetch data for ALL involved symbols to provide the "Background Chart"
+    md_service = MarketDataService()
+    multi_ohlcv_data = {}
+    
+    # Check "from_date" in Rank 1 config to determine range, or default to 1-2 year?
+    # Backtest engine usually fetches based on config['from_date'] or duration.
+    # We'll fetch a reasonable default info (e.g., 365 days) or parse from config.
+    fetch_days = 365
+    from_date = None
+    
+    if strategies_config and len(strategies_config) > 0:
+        # Try to find 'from_date' in Rank 1
+        rank1 = strategies_config[0]
+        if 'from_date' in rank1:
+            from_date = rank1['from_date']
+        # Also check interval
+        interval = rank1.get('interval', '30m')
+    else:
+        interval = '30m'
+
+    # Fetch Logic
+    for sym in involved_symbols:
+        # We fetch enough data. Backtest usually fetches 1-2 years if needed.
+        # Let's fetch 400 days to be safe.
+        candles = await md_service.get_candles(sym, interval=interval, days=400)
+        if candles:
+            # Filter if from_date exists
+            if from_date:
+                candles = [c for c in candles if c['timestamp'] >= from_date]
+            multi_ohlcv_data[sym] = candles
+            
+    # 3. Fetch Real Trades
     trades_query = db.query(LiveTradeExecution).options(joinedload(LiveTradeExecution.session)).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(limit).all()
     
     trades_data = []
-    involved_symbols = set()
-    
-    # Collect symbols from Config
-    if isinstance(strategies_config, dict):
-        if 'symbol' in strategies_config:
-            involved_symbols.add(strategies_config['symbol'])
-        else:
-            # Maybe map of ranks?
-            for val in strategies_config.values():
-                if isinstance(val, dict) and 'symbol' in val:
-                    involved_symbols.add(val['symbol'])
-    elif isinstance(strategies_config, list):
-        for cfg in strategies_config:
-            if isinstance(cfg, dict) and 'symbol' in cfg:
-                involved_symbols.add(cfg['symbol'])
     
     for t in trades_query:
-        # Dynamic Rank
+        # Dynamic Rank Calculation based on Current Config
         rank = 0
-        if t.session and t.session.strategy_config:
-            try:
-                for idx, cfg in enumerate(t.session.strategy_config):
-                    if cfg.get('symbol') == t.symbol:
+        symbol = t.symbol
+        
+        # Match symbol to current config to assign rank
+        # This aligns historical trades to CURRENT view lanes.
+        # (User might want to see how past trades fit onto current strategy lanes)
+        found_rank = False
+        for i, cfg in enumerate(strategies_config):
+            if cfg.get('symbol') == symbol:
+                rank = i + 1
+                found_rank = True
+                break
+        
+        # If not found in current config, maybe use the session's recorded config?
+        # But for Visual Context, we often want to see "Where does this trade fall in my current lanes?"
+        # If the symbol is not in current lanes, it will have Rank 0 or show up as "Other".
+        # Let's fallback to original rank if available or 0.
+        if not found_rank and t.session and t.session.strategy_config:
+             # Try to find rank in the SESSION'S config
+             try:
+                for idx, scfg in enumerate(t.session.strategy_config):
+                    if scfg.get('symbol') == symbol:
                         rank = idx + 1
                         break
-            except:
-                pass
+             except: pass
 
         trades_data.append({
             "time": t.signal_timestamp.isoformat(),
             "price": float(t.executed_price) if t.executed_price is not None else 0.0,
             "symbol": t.symbol,
             "quantity": float(t.filled_quantity) if t.filled_quantity is not None else 0.0,
-            "type": t.signal_type.lower(),
-            "strategy_rank": rank,
-            "order_id": t.id if t.id else "unknown"
+            "type": t.signal_type, # 'BUY' or 'SELL'
+            "pnl": float(t.realized_pnl) if t.realized_pnl is not None else 0.0,
+            "strategy_rank": rank 
         })
-        involved_symbols.add(t.symbol) # Add trade symbols just in case
-        
-    trades_data.reverse()
-    
-    # 3. Fetch Multi-OHLCV Data (Async)
-    service = MarketDataService()
-    multi_ohlcv = {}
-    
-    # Build Symbol -> Interval Map from Config
-    symbol_interval_map = {}
-    if isinstance(strategies_config, dict):
-        if 'symbol' in strategies_config:
-            symbol_interval_map[strategies_config['symbol']] = strategies_config.get('interval', '30m')
-        else:
-            for val in strategies_config.values():
-                if isinstance(val, dict) and 'symbol' in val:
-                    symbol_interval_map[val['symbol']] = val.get('interval', '30m')
-    elif isinstance(strategies_config, list):
-        for cfg in strategies_config:
-            if isinstance(cfg, dict) and 'symbol' in cfg:
-                symbol_interval_map[cfg['symbol']] = cfg.get('interval', '30m')
-
-    # Fetch data for ALL involved symbols (from Config AND Trades)
-    for sym in involved_symbols:
-        # Use configured interval or default to 30m if not found
-        target_interval = symbol_interval_map.get(sym, "30m")
         
         # User Rule: Everything from Kiwoom is 1m. We fetch 1m from DB and let frontend/backend handle sampling.
         # FIX: Force '1m' fetch.

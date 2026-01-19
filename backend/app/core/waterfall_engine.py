@@ -214,6 +214,49 @@ class BacktestContext(IContext):
             "equity": int(equity)
         })
 
+async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, preloaded_feeds: Dict[str, List] = None) -> Dict[str, List]:
+    """
+    Independent helper to fetch OHLCV data for Visualization (Background Charts).
+    Can reuse preloaded_feeds (Simulation Data) if intervals match to save bandwidth.
+    """
+    from ..services.market_data import MarketDataService
+    data_service = MarketDataService()
+    
+    viz_feeds = {}
+    
+    # 1. Identify Symbols and Target Intervals
+    unique_symbols = set()
+    symbol_interval_map = {} 
+    
+    # Global default
+    if global_symbol: 
+        unique_symbols.add(global_symbol)
+        symbol_interval_map[global_symbol] = interval
+        
+    for cfg in strategies_config:
+        if 'symbol' in cfg:
+            sym = cfg['symbol']
+            unique_symbols.add(sym)
+            symbol_interval_map[sym] = cfg.get('interval', interval)
+
+    # 2. Fetch Data
+    for sym in unique_symbols:
+        target_interval = symbol_interval_map.get(sym, interval)
+        
+        # Optimization: Reuse preloaded simulation data if available and matches interval
+        if preloaded_feeds and sym in preloaded_feeds and target_interval == interval:
+             viz_feeds[sym] = preloaded_feeds[sym]
+        else:
+            # Fetch from DB/API
+            v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
+            if v_feed:
+                if from_date:
+                    v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
+                v_feed.sort(key=lambda x: x['timestamp'])
+                viz_feeds[sym] = v_feed
+                
+    return viz_feeds
+
 class WaterfallBacktestEngine:
     def __init__(self, strategy_class, config: Dict = None):
         self.strategy_class = strategy_class
@@ -260,30 +303,18 @@ class WaterfallBacktestEngine:
         t_data = time.time()
         print(f"[{'LITE' if optimize_mode else 'FULL'}] Data Fetch: {t_data - t_start:.4f}s")
 
-        # --- [VISUALIZATION DATA] (Task 1 Fix) ---
+        # --- [VISUALIZATION DATA] (Refactored to Independent Function) ---
         # Skip if optimize_mode is True (Save memory/time)
         viz_feeds = {}
         if not optimize_mode:
-            # Fetch using CORRECT Per-Strategy Interval for Popup/Drill-down
-            symbol_interval_map = {}
-            if global_symbol: symbol_interval_map[global_symbol] = interval
-            for cfg in strategies_config:
-                if 'symbol' in cfg:
-                    symbol_interval_map[cfg['symbol']] = cfg.get('interval', interval)
-
-            for sym in unique_symbols:
-                target_interval = symbol_interval_map.get(sym, interval)
-                # Optimize: If target match global, reuse `feeds`
-                if target_interval == interval and sym in feeds:
-                    viz_feeds[sym] = feeds[sym]
-                else:
-                    # Fetch specific interval
-                    v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
-                    if v_feed:
-                        if from_date:
-                            v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
-                        v_feed.sort(key=lambda x: x['timestamp'])
-                        viz_feeds[sym] = v_feed
+            viz_feeds = await fetch_visualization_feeds(
+                strategies_config=strategies_config,
+                global_symbol=global_symbol,
+                interval=interval,
+                duration_days=duration_days,
+                from_date=from_date,
+                preloaded_feeds=feeds # Pass simulation feeds for optimization
+            )
 
         # Determine Primary Symbol (Rank 1 typically)
         primary_symbol = strategies_config[0].get('symbol', global_symbol) if strategies_config else global_symbol

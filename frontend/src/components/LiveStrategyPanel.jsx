@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory } from '../api/client';
+import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -20,6 +21,11 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     // Real-Time Candles State
     const [realTimeCandles, setRealTimeCandles] = useState([]);
     const [selectedInterval, setSelectedInterval] = useState('1m');
+
+    // Transaction History View State
+    const [showHistoryView, setShowHistoryView] = useState(false);
+    const [historyData, setHistoryData] = useState(null);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
 
     // Polling Ref
@@ -563,12 +569,65 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             <div className="lg:col-span-3 flex justify-end">
                 <button
                     className="flex items-center gap-2 bg-[#1e1e24] hover:bg-gray-800 text-gray-300 border border-white/5 hover:border-white/10 px-4 py-2 rounded-lg text-sm font-bold transition-all"
-                    onClick={() => alert("거래 내역 기능은 준비 중입니다.")}
+                    onClick={() => {
+                        setShowHistoryView(true);
+                        setIsHistoryLoading(true);
+                        getTradeHistory(1000).then(data => {
+                            setHistoryData(data);
+                            setIsHistoryLoading(false);
+                        }).catch(err => {
+                            console.error("Failed to load history:", err);
+                            setIsHistoryLoading(false);
+                        });
+                    }}
                 >
                     <List size={16} />
                     거래 내역
                 </button>
             </div>
+
+            {/* Transaction History Modal / Overlay */}
+            {showHistoryView && (
+                <div className="fixed inset-0 z-50 bg-[#111827] flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#1f2937]">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <List className="text-blue-400" />
+                            Transaction History & Visual Context
+                        </h2>
+                        <button
+                            onClick={() => setShowHistoryView(false)}
+                            className="p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-hidden relative">
+                        {isHistoryLoading ? (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="flex flex-col items-center gap-4">
+                                    <Activity className="w-12 h-12 text-blue-500 animate-pulse" />
+                                    <span className="text-gray-400 text-lg">Loading System Context...</span>
+                                </div>
+                            </div>
+                        ) : historyData ? (
+                            <IntegratedAnalysis
+                                mode="real"
+                                trades={historyData.trades}
+                                backtestResult={historyData}
+                                strategiesConfig={configList}
+                                savedSymbols={savedSymbols}
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-red-400">
+                                Failed to load data.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
