@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -370,7 +370,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     }
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full grid-rows-[auto_1fr]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-full pb-10">
             {/* Shared Strategy Config Panel */}
             {configList.length > 0 && (
                 <div className="lg:col-span-3">
@@ -565,70 +565,90 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 </div>
             </div>
 
-            {/* Transaction History Button */}
-            <div className="lg:col-span-3 flex justify-end">
-                <button
-                    className="flex items-center gap-2 bg-[#1e1e24] hover:bg-gray-800 text-gray-300 border border-white/5 hover:border-white/10 px-4 py-2 rounded-lg text-sm font-bold transition-all"
-                    onClick={() => {
-                        setShowHistoryView(true);
-                        setIsHistoryLoading(true);
-                        getTradeHistory(1000).then(data => {
-                            setHistoryData(data);
-                            setIsHistoryLoading(false);
-                        }).catch(err => {
-                            console.error("Failed to load history:", err);
-                            setIsHistoryLoading(false);
-                        });
-                    }}
-                >
-                    <List size={16} />
-                    거래 내역
-                </button>
-            </div>
-
-            {/* Transaction History Modal / Overlay */}
-            {showHistoryView && (
-                <div className="fixed inset-0 z-50 bg-[#111827] flex flex-col">
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#1f2937]">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <List className="text-blue-400" />
-                            Transaction History & Visual Context
-                        </h2>
+            {/* 4. TRANSACTION HISTORY SECTION (Inline) */}
+            <div className="lg:col-span-3 mt-4">
+                {!showHistoryView ? (
+                    <div className="flex justify-center">
                         <button
-                            onClick={() => setShowHistoryView(false)}
-                            className="p-2 hover:bg-gray-700 rounded-full text-gray-400 hover:text-white transition-colors"
+                            className="w-full py-4 border-2 border-dashed border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 rounded-xl text-gray-400 hover:text-blue-400 font-bold transition-all flex flex-col items-center gap-2"
+                            onClick={() => {
+                                setShowHistoryView(true);
+                                setIsHistoryLoading(true);
+
+                                // Construct Payload for Context-Aware History
+                                const contextConfigs = configList.map(c => ({
+                                    id: c.id || "temp_id",
+                                    rank: c.rank,
+                                    strategy_id: c.strategy_id || "time_momentum",
+                                    symbol: c.symbol,
+                                    config: c.config_json || {}
+                                }));
+
+                                const payload = {
+                                    configs: contextConfigs,
+                                    symbol: strategyConfig.symbol || "KRW-BTC",
+                                    interval: "30m", // Default
+                                    days: 365,
+                                    limit: 1000
+                                };
+
+                                getTradeHistoryContext(payload).then(data => {
+                                    setHistoryData(data);
+                                    setIsHistoryLoading(false);
+                                }).catch(err => {
+                                    console.error("Failed to load history:", err);
+                                    setIsHistoryLoading(false);
+                                });
+                            }}
                         >
-                            <X size={24} />
+                            <List size={24} />
+                            <span>Load Transaction History & Visual Analysis</span>
+                            <span className="text-xs font-normal opacity-70">Fetches trade history with context-aware market data</span>
                         </button>
                     </div>
+                ) : (
+                    <div className="bg-[#1e1e24] border border-white/5 rounded-xl overflow-hidden flex flex-col min-h-[600px]">
+                        <div className="px-6 py-4 border-b border-gray-800 bg-[#1f2937] flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <List className="text-blue-400" />
+                                Transaction History & Visual Context
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setShowHistoryView(false);
+                                    setHistoryData(null); // Optional: Clear data to save memory
+                                }}
+                                className="text-gray-400 hover:text-red-400 text-sm font-bold flex items-center gap-1"
+                            >
+                                <X size={16} /> Close View
+                            </button>
+                        </div>
 
-                    {/* Content */}
-                    <div className="flex-1 overflow-hidden relative">
-                        {isHistoryLoading ? (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="flex flex-col items-center gap-4">
-                                    <Activity className="w-12 h-12 text-blue-500 animate-pulse" />
-                                    <span className="text-gray-400 text-lg">Loading System Context...</span>
+                        <div className="flex-1 relative min-h-[550px] bg-[#111827]">
+                            {isHistoryLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <Activity className="w-12 h-12 text-blue-500 animate-pulse" />
+                                        <span className="text-gray-400 text-lg">Loading System Context...</span>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : historyData ? (
-                            <IntegratedAnalysis
-                                mode="real"
-                                trades={historyData.trades}
-                                backtestResult={historyData}
-                                strategiesConfig={configList}
-                                savedSymbols={savedSymbols}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-red-400">
-                                Failed to load data.
-                            </div>
-                        )}
+                            ) : historyData ? (
+                                <IntegratedAnalysis
+                                    mode="real"
+                                    trades={historyData.trades}
+                                    backtestResult={historyData}
+                                    strategiesConfig={configList}
+                                    savedSymbols={savedSymbols}
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-red-400">
+                                    Failed to load data.
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
-        </div >
+                )}
+            </div>        </div >
     );
 };
 

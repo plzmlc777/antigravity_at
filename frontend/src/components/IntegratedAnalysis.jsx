@@ -128,12 +128,16 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
         // (Fallback Logic Moved to After Map Population)
 
         // Handle Empty State (No Trades) -> Generate Full Daily Grid
-        if (!transformedTrades.length) {
+        // FIX: Only trigger this blind fallback if we ALSO lack Market Data.
+        // If we have Market Data (OHLCV), we should use it (below) to generate the timeline,
+        // so that we respect weekend gaps for Stocks.
+        const hasMarketData = backtestResult && backtestResult.multi_ohlcv_data && Object.keys(backtestResult.multi_ohlcv_data).length > 0;
+
+        if (!transformedTrades.length && !hasMarketData) {
             if (strategiesConfig && strategiesConfig.length > 0) {
                 const dataPoints = [];
-                // If we have config but no trades, start from 'from_date' if possible, or fallback
-                // But here startTime is set.
-                let current = new Date(startTime);
+                // If we have config but no trades AND no market data, start from 'from_date' or startTime
+                let current = new Date(startTime || now);
                 const end = new Date(now);
 
                 while (current <= end) {

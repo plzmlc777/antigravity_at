@@ -214,6 +214,12 @@ export const getTradeHistory = async (limit = 1000) => {
     return data;
 };
 
+export const getTradeHistoryContext = async (payload) => {
+    // payload: { configs, symbol, interval, days, limit }
+    const { data } = await api.post('/trade/history-context', payload);
+    return data;
+};
+
 export const fetchMarketData = async (symbol, params = {}) => {
     const { data } = await api.post(`/market-data/fetch/${symbol}`, params);
     return data;

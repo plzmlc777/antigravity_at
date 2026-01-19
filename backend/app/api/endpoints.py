@@ -7,6 +7,8 @@ from ..core.config import settings
 from ..db.session import get_db
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import List, Optional
+from ..core.waterfall_engine import fetch_visualization_feeds
 
 router = APIRouter()
 
@@ -659,4 +661,98 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
         "strategy_id": "live_integrated_view",
         "total_trades": len(trades_data),
         "rank1_start_date": rank1_start_date # Used by IntegratedAnalysis to anchor Start Time
+    }
+
+# --- Data Models for Context Request ---
+class IntegratedConfigItem(BaseModel):
+    id: str
+    rank: int
+    config: Dict[str, Any]
+    strategy_id: str
+    symbol: str
+
+class TradeHistoryContextRequest(BaseModel):
+    configs: List[IntegratedConfigItem]
+    symbol: str
+    interval: str = "30m"
+    days: int = 365
+    from_date: Optional[str] = None
+    limit: int = 1000
+
+@router.post("/trade/history-context")
+async def get_trade_history_context(request: TradeHistoryContextRequest, db: Session = Depends(get_db)):
+    """
+    Fetch executed trades matching the provided Frontend Configuration.
+    Uses 'fetch_visualization_feeds' to generate identical background charts to Integrated Tab.
+    """
+    from ..models.live_trading import LiveTradeExecution
+    from sqlalchemy.orm import joinedload
+
+    # 1. Extract Configs (Source of Truth is Frontend)
+    strategies_config = [c.config for c in request.configs]
+    
+    # Ensure symbols are set fallback
+    for i, cfg in enumerate(strategies_config):
+        if 'symbol' not in cfg:
+            cfg['symbol'] = request.configs[i].symbol or request.symbol
+
+    # 2. Fetch Market Data (Identical Logic to Integrated Tab)
+    multi_ohlcv_data = await fetch_visualization_feeds(
+        strategies_config=strategies_config,
+        global_symbol=request.symbol,
+        interval=request.interval,
+        duration_days=request.days,
+        from_date=request.from_date,
+        preloaded_feeds=None # Live mode has no preloaded simulation data
+    )
+            
+    # 3. Fetch Real Trades
+    trades_query = db.query(LiveTradeExecution).options(joinedload(LiveTradeExecution.session)).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
+    
+    trades_data = []
+    
+    for t in trades_query:
+        # Dynamic Rank Calculation based on Request Config
+        rank = 0
+        symbol = t.symbol
+        
+        # Match symbol to current config to assign rank
+        found_rank = False
+        for i, cfg in enumerate(strategies_config):
+            if cfg.get('symbol') == symbol:
+                rank = i + 1
+                found_rank = True
+                break
+        
+        # Fallback to Session Config if not found in Request Config? 
+        # User wants to see how trades fit CURRENT View. So if not found, it's Rank 0 (Other).
+        # We can optionally check session config, but adhering to "Visual Context" implies strict matching.
+        # Let's keep strict matching to Request Config for clarity.
+        
+        trades_data.append({
+            "time": t.signal_timestamp.isoformat(),
+            "price": float(t.executed_price) if t.executed_price is not None else 0.0,
+            "symbol": t.symbol,
+            "quantity": float(t.filled_quantity) if t.filled_quantity is not None else 0.0,
+            "type": t.signal_type, 
+            "pnl": float(t.realized_pnl) if t.realized_pnl is not None else 0.0,
+            "strategy_rank": rank 
+        })
+        
+    # 4. Get Rank 1 Start Date
+    rank1_start_date = None
+    if strategies_config and len(strategies_config) > 0:
+        r1_sym = strategies_config[0].get('symbol')
+        if r1_sym and r1_sym in multi_ohlcv_data:
+            candles = multi_ohlcv_data[r1_sym]
+            if candles:
+                 rank1_start_date = candles[0].get('timestamp')
+
+    return {
+        "trades": trades_data,
+        "multi_ohlcv_data": multi_ohlcv_data,
+        "strategies_config": strategies_config,
+        "strategy_id": "live_integrated_view",
+        "total_trades": len(trades_data),
+        "rank1_start_date": rank1_start_date
     }
