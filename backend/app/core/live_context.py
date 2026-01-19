@@ -44,6 +44,54 @@ class LiveContext:
         """Returns current real server time"""
         return datetime.now()
 
+    def get_total_equity(self) -> float:
+        """
+        Calculates total equity: Cash + Sum of (Holding Qty * Current Price)
+        Uses price_map for latest known prices.
+        """
+        equity = self.cash
+        for symbol, qty in self.holdings.items():
+            price = self.price_map.get(symbol, 0.0)
+            equity += qty * price
+        return equity
+
+    def calculate_pnl(self) -> float:
+        """
+        Calculates PnL based ONLY on trades executed during this session.
+        PnL = Sum of (Sold Value) - Sum of (Bought Value) + (Current Holding Value)
+        """
+        db = SessionLocal()
+        try:
+            executions = db.query(LiveTradeExecution).filter(
+                LiveTradeExecution.session_id == self.session_id,
+                LiveTradeExecution.status == ExecutionStatus.FILLED
+            ).all()
+            
+            total_bought_cost = 0.0
+            total_sold_value = 0.0
+            current_qty = 0.0
+            
+            for ex in executions:
+                val = (ex.executed_price or 0.0) * (ex.filled_quantity or 0.0)
+                if ex.signal_type == "BUY":
+                    total_bought_cost += val
+                    current_qty += (ex.filled_quantity or 0.0)
+                elif ex.signal_type == "SELL":
+                    total_sold_value += val
+                    current_qty -= (ex.filled_quantity or 0.0)
+            
+            # Unrealized part of current holding
+            current_price = self.get_current_price(executions[0].symbol if executions else "")
+            unrealized_value = current_qty * current_price
+            
+            return total_sold_value + unrealized_value - total_bought_cost
+            
+        except Exception as e:
+            logger.error(f"PnL Calculation Error: {e}")
+            return 0.0
+        finally:
+            db.close()
+
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
         return self._execute_order(symbol, OrderSide.BUY, quantity, price)
 
@@ -138,6 +186,12 @@ class LiveContext:
                 for sym, data in bal['holdings'].items():
                     simple_holdings[sym] = data['quantity']
                 self.holdings = simple_holdings
+                
+                # Update price map for all holdings to ensure get_total_equity is accurate
+                for sym, data in bal['holdings'].items():
+                    if 'current_price' in data and data['current_price'] > 0:
+                        self.price_map[sym] = data['current_price']
+                        
         except Exception as e:
             logger.error(f"Balance Sync Error: {e}")
 
@@ -161,16 +215,37 @@ class LiveContext:
                     if p.signal_type == "BUY":
                         res = await self.adapter.place_buy_order(p.symbol, p.theoretical_price, p.requested_quantity)
                     elif p.signal_type == "SELL":
-                         res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
+                        res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
                     
-                    if res:
-                        p.status = ExecutionStatus.SUBMITTED
+                    if res and res.get("status") == "success":
+                        # 1. Update DB Record
+                        p.status = ExecutionStatus.FILLED
                         p.order_submitted_at = self.get_time()
-                        # log result...
+                        p.order_filled_at = self.get_time()
+                        p.executed_price = res.get("price", p.theoretical_price)
+                        p.filled_quantity = res.get("quantity", p.requested_quantity)
+                        
+                        # 2. Update Local Context State (In-Memory for Strategy)
+                        # This ensures the bot's internal view is based on its OWN actions
+                        cost = p.executed_price * p.filled_quantity
+                        if p.signal_type == "BUY":
+                            self.cash -= cost
+                            self.holdings[p.symbol] = self.holdings.get(p.symbol, 0) + p.filled_quantity
+                        else:
+                            self.cash += cost
+                            self.holdings[p.symbol] = self.holdings.get(p.symbol, 0) - p.filled_quantity
+                            
+                        self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
+                        
+                    elif res:
+                        p.status = ExecutionStatus.FAILED
+                        p.error_reason = res.get("message", "Unknown Error")
+                        self.log(f"ORDER FAILED: {p.error_reason}")
                         
                     db.commit()
                 except Exception as e:
                     logger.error(f"Queue Process Error: {e}")
+                    db.rollback()
         except Exception as e:
             logger.error(f"Queue DB Error: {e}")
         finally:

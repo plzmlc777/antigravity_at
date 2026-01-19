@@ -99,7 +99,7 @@ class LiveManager:
         symbol = config.get("symbol")
         strategy_name = config.get("strategy_name", "time_momentum")
         strat_config = config.get("strategy_config", {})
-        initial_capital = config.get("initial_capital", 10000000)
+        initial_capital = config.get("initial_capital", 0)
         
         # 1. DB Record
         db = SessionLocal()
@@ -216,8 +216,8 @@ class LiveManager:
             if sid not in self.engines: continue
             eng = self.engines[sid]
             
-            # Context Summary
-            pnl = (eng.context.cash + sum(eng.context.holdings.values()) * eng.context.get_current_price(eng.symbol)) - eng.context.initial_capital
+            # Context Summary (Isolated PnL based on trades)
+            pnl = eng.context.calculate_pnl()
             
             results.append({
                 "session_id": sid,

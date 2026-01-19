@@ -87,6 +87,16 @@ class LiveTradingEngine:
             # 4. Sync Initial Balance
             await self.context.async_sync_balance()
             
+            # 4.1 Capture Initial Capital if not set (Phase 3.5 Extension)
+            if initial_cap <= 0:
+                current_equity = self.context.get_total_equity()
+                logger.info(f"Initial Capital not set. Capturing current equity as baseline: {current_equity}")
+                self.context.initial_capital = current_equity
+                
+                # Persist to DB for consistency
+                session.initial_capital = current_equity
+                db.commit()
+            
             # 5. Fetch Historical Data (Preload for Chart)
             # This allows the chart to show past context even if market is closed
             # Historical Data Fetch (with Retry)

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, liquidateLiveBot } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, liquidateLiveBot, getBalance } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -15,6 +15,8 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [liveData, setLiveData] = useState(null);
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState(null);
+    const [availableBalance, setAvailableBalance] = useState(null);
+    const [inputCapital, setInputCapital] = useState(10000000); // 10M default
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
@@ -63,6 +65,23 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         init();
         return () => stopPolling();
     }, [mode, strategyConfig.symbol, currentRankIndex]); // Added currentRankIndex to dependencies
+
+    // Fetch Account Balance when IDLE to show user how much they can allocate
+    useEffect(() => {
+        if (status === 'IDLE') {
+            const fetchBal = async () => {
+                try {
+                    const bal = await getBalance();
+                    if (bal && bal.cash) {
+                        setAvailableBalance(bal.cash.KRW);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch balance", e);
+                }
+            };
+            fetchBal();
+        }
+    }, [status]);
 
 
 
@@ -188,7 +207,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 symbol: strategyConfig.symbol,
                 strategy_name: "time_momentum",
                 strategy_config: strategyConfig,
-                initial_capital: 10000000
+                initial_capital: parseFloat(inputCapital) || 0
             };
 
             const res = await startLiveBot(payload);
@@ -457,26 +476,14 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                         <h2 className="font-bold text-lg text-white">Live Operation</h2>
                     </div>
 
-                    {/* Section 1: Dashboard Stats (Status | Price | PnL) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* Section 1: Dashboard Stats (Status | PnL | Balance | Target) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                         {/* Status */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
                             <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Session Status</span>
                             <span className={`px-4 py-1 rounded-full text-sm font-bold border tracking-wide ${getStatusColor()}`}>
                                 {status}
                             </span>
-                        </div>
-
-                        {/* Current Price */}
-                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center relative">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Current Price</span>
-                            {liveData ? (
-                                <div className="text-2xl font-mono text-white tracking-tight">
-                                    {liveData.current_price?.toLocaleString()}
-                                </div>
-                            ) : (
-                                <span className="text-gray-600 text-sm">-</span>
-                            )}
                         </div>
 
                         {/* PnL */}
@@ -490,84 +497,136 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                 <span className="text-gray-600 text-sm">-</span>
                             )}
                         </div>
+
+                        {/* Account Balance (Total Available Cash) */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Total Account Cash</span>
+                            <div className="text-xl font-mono text-blue-400 tracking-tight">
+                                {availableBalance !== null ? `${availableBalance.toLocaleString()} KRW` : 'Fetching...'}
+                            </div>
+                        </div>
+
+                        {/* Target Capital (Allocated for this bot) */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Target Capital</span>
+                            <div className="text-xl font-mono text-purple-400 tracking-tight">
+                                {inputCapital ? `${(parseFloat(inputCapital)).toLocaleString()} KRW` : '0 KRW'}
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Section 2: Control Grid */}
-                    <div className="w-full">
-                        {status !== 'RUNNING' ? (
-                            <button
-                                onClick={handleStart}
-                                disabled={status === 'STARTING'}
-                                className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
-                            >
-                                <Play size={20} />
-                                START LIVE SESSION
-                            </button>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Button 1: Toggle Orders */}
-                                <button
-                                    onClick={handleToggleOrders}
-                                    className={`h-14 flex items-center justify-center gap-2 text-sm font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
-                                        ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
-                                        : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
-                                        }`}
-                                >
-                                    {liveData?.orders_enabled ? (
-                                        <>
-                                            <ShieldOff size={18} />
-                                            DISABLE ORDERS (Paper)
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Shield size={18} />
-                                            ENABLE ORDERS (Real)
-                                        </>
-                                    )}
-                                </button>
-
-                                {/* Button 2: Stop Session */}
-                                <button
-                                    onClick={() => setIsStopModalOpen(true)}
-                                    className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold tracking-wide rounded-lg transition-all border border-gray-600"
-                                >
-                                    <Square size={18} />
-                                    STOP SESSION
-                                </button>
-
-                                {/* Button 3: Emergency Exit */}
+                    {/* Section 2: Configuration & Controls */}
+                    <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
+                        <div className="flex flex-col md:flex-row items-center gap-6">
+                            {/* Capital Input - Only editable when NOT running */}
+                            <div className="flex-1 w-full">
+                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                    Trading Capital (KRW)
+                                </label>
                                 <div className="relative group">
+                                    <input
+                                        type="number"
+                                        disabled={status === 'RUNNING' || status === 'STARTING'}
+                                        value={inputCapital}
+                                        onChange={(e) => setInputCapital(e.target.value)}
+                                        className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        placeholder="Enter amount..."
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                                </div>
+                                {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
+                                    <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
+                                        <AlertTriangle size={10} /> Insufficient account funds
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Main Action Buttons */}
+                            <div className="flex-[0.5] w-full flex flex-col gap-2">
+                                {status !== 'RUNNING' ? (
                                     <button
-                                        className="w-full h-14 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-sm font-bold tracking-wide transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-inner"
-                                        onClick={handleEmergencyLiquidation}
-                                        disabled={status !== 'RUNNING'}
+                                        onClick={handleStart}
+                                        disabled={status === 'STARTING'}
+                                        className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
                                     >
-                                        <AlertTriangle size={18} />
-                                        EMERGENCY EXIT
+                                        <Play size={20} />
+                                        START LIVE BOT
                                     </button>
-                                    {/* Tooltip/Subtitle styled as absolute or just simple text below? Layout consistency requires absolute or hidden. Let's try simple absolute hint or just rely on title. User disliked misaligned text. Let's keep it clean. */}
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={() => {
+                                                if (availableBalance !== null && inputCapital > availableBalance) {
+                                                    alert("Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
+                                                    return;
+                                                }
+                                                handleToggleOrders();
+                                            }}
+                                            className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
+                                                ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                                : (availableBalance !== null && inputCapital > availableBalance)
+                                                    ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                                                    : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                                }`}
+                                        >
+                                            {liveData?.orders_enabled ? (
+                                                <><ShieldOff size={14} /> PAPER MODE</>
+                                            ) : (
+                                                <><Shield size={14} /> LIVE MODE</>
+                                            )}
+                                        </button>
+
+                                        <button
+                                            onClick={() => setIsStopModalOpen(true)}
+                                            className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
+                                        >
+                                            <Square size={14} />
+                                            STOP
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Over-allocation Warning & Status */}
+                        {availableBalance !== null && inputCapital > availableBalance && (
+                            <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg flex items-center gap-3 animate-pulse">
+                                <AlertTriangle className="text-red-500" size={20} />
+                                <div className="flex-1">
+                                    <p className="text-red-400 text-xs font-bold uppercase tracking-wider">CRITICAL: Insufficient Funds</p>
+                                    <p className="text-red-200/70 text-[10px]">Your target capital exceeds available account cash. **Paper Mode forced.** Real trading is disabled to protect against margin errors.</p>
                                 </div>
                             </div>
                         )}
-                    </div>
 
-                    {error && (
-                        <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs break-words animate-fade-in">
-                            <div className="flex items-center gap-2 font-bold mb-1">
-                                <AlertTriangle size={12} /> Error Details
-                            </div>
-                            {error}
-                        </div>
-                    )}
+                        {/* Emergency Exit - Independent row for visibility */}
+                        {status === 'RUNNING' && (
+                            <button
+                                className="w-full mt-4 h-12 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2"
+                                onClick={handleEmergencyLiquidation}
+                            >
+                                <AlertTriangle size={14} />
+                                EMERGENCY LIQUIDATION & KILL SWITCH
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {/* Error Display */}
+                {error && (
+                    <div className="mt-6 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs break-words animate-fade-in">
+                        <div className="flex items-center gap-2 font-bold mb-1">
+                            <AlertTriangle size={12} /> Error Details
+                        </div>
+                        {error}
+                    </div>
+                )}
             </div>
 
             {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
             <div className="lg:col-span-3">
                 <StrategySignalPanel strategyState={strategyState} />
             </div>
-
-
 
             {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
             <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">
