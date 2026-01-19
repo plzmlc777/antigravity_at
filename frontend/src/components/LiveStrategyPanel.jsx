@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -198,6 +198,18 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             setError(err.response?.data?.detail || err.message);
             setStatus('ERROR');
             addLog("Error", err.message);
+        }
+    };
+
+    const handleToggleOrders = async () => {
+        if (!sessionId) return;
+        try {
+            const newState = !liveData?.orders_enabled;
+            await toggleLiveOrders(sessionId, newState);
+            setLiveData(prev => ({ ...prev, orders_enabled: newState }));
+            addLog("System", `Orders ${newState ? 'Enabled' : 'Disabled'} by User`);
+        } catch (err) {
+            setError(err.message);
         }
     };
 
@@ -459,13 +471,35 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                 START LIVE
                             </button>
                         ) : (
-                            <button
-                                onClick={() => setIsStopModalOpen(true)}
-                                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-all"
-                            >
-                                <Square size={18} />
-                                STOP
-                            </button>
+                            <div className="flex-1 flex flex-col gap-3">
+                                <button
+                                    onClick={() => setIsStopModalOpen(true)}
+                                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition-all"
+                                >
+                                    <Square size={18} />
+                                    STOP LIVE
+                                </button>
+
+                                <button
+                                    onClick={handleToggleOrders}
+                                    className={`w-full flex items-center justify-center gap-2 font-bold py-2 rounded-lg border transition-all ${liveData?.orders_enabled
+                                        ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                        : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                        }`}
+                                >
+                                    {liveData?.orders_enabled ? (
+                                        <>
+                                            <ShieldOff size={16} />
+                                            STOP ORDERS (Paper mode)
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Shield size={16} />
+                                            START ORDERS (Real mode)
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         )}
                     </div>
 

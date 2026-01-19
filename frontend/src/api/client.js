@@ -193,6 +193,11 @@ export const getLiveStatus = async () => {
     return data;
 };
 
+export const toggleLiveOrders = async (sessionId, enabled) => {
+    const { data } = await api.post(`/live/toggle-orders/${sessionId}`, { enabled });
+    return data;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;

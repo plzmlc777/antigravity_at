@@ -40,6 +40,7 @@ class LiveBotSession(Base):
     
     # Lifecycle
     status = Column(String, default=SessionStatus.RUNNING)
+    orders_enabled = Column(Boolean, default=True)
     started_at = Column(DateTime, default=datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
     

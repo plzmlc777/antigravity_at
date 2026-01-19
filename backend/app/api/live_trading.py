@@ -33,6 +33,17 @@ async def stop_live_bot(session_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class ToggleOrdersRequest(BaseModel):
+    enabled: bool
+
+@router.post("/toggle-orders/{session_id}")
+async def toggle_orders(session_id: str, req: ToggleOrdersRequest):
+    try:
+        await live_manager.toggle_orders(session_id, req.enabled)
+        return {"status": "success", "orders_enabled": req.enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/status")
 async def get_live_status():
     """

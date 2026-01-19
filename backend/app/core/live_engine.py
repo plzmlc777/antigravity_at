@@ -28,6 +28,7 @@ class LiveTradingEngine:
         self.adapter = adapter
         
         self.is_running = False
+        self.orders_enabled = True
         self.interval_seconds = 1 # Poll interval
         
         # Components
@@ -68,6 +69,7 @@ class LiveTradingEngine:
                 raise ValueError(f"Session {self.session_id} not found")
             
             self.symbol = session.symbol
+            self.orders_enabled = session.orders_enabled
             initial_cap = session.initial_capital
             
             # 1. Context
@@ -248,7 +250,13 @@ class LiveTradingEngine:
                 self.strategy_instance.on_data(closed_candle)
                 
                 # 5. Process Orders
-                await self.context.process_queue()
+                if self.orders_enabled:
+                    await self.context.process_queue()
+                else:
+                    queue_size = len(self.context.order_queue)
+                    if queue_size > 0:
+                        logger.info(f"Session {self.session_id}: Skipping {queue_size} signals (Orders Disabled)")
+                        self.context.order_queue.clear()
                 
             except Exception as e:
                 logger.error(f"Strategy Execution Error: {e}")
@@ -304,3 +312,7 @@ class LiveTradingEngine:
 
     def stop(self):
         self.is_running = False
+
+    def toggle_orders(self, enabled: bool):
+        self.orders_enabled = enabled
+        logger.info(f"Session {self.session_id}: Orders {'Enabled' if enabled else 'Disabled'}")

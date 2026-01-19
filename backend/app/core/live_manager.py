@@ -162,8 +162,27 @@ class LiveManager:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess:
                 sess.status = SessionStatus.STOPPED
-                sess.end_time = datetime.now()
+                sess.stopped_at = datetime.now()
                 db.commit()
+        finally:
+            db.close()
+
+    async def toggle_orders(self, session_id: str, enabled: bool):
+        """
+        Enable or Disable actual order execution for a session.
+        """
+        # 1. Update running engine
+        if session_id in self.engines:
+            self.engines[session_id].toggle_orders(enabled)
+            
+        # 2. Update DB
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if sess:
+                sess.orders_enabled = enabled
+                db.commit()
+                logger.info(f"Session {session_id}: Orders {'Enabled' if enabled else 'Disabled'} (DB Updated)")
         finally:
             db.close()
 
@@ -185,6 +204,7 @@ class LiveManager:
                 "session_id": sid,
                 "symbol": eng.symbol,
                 "is_running": eng.is_running,
+                "orders_enabled": eng.orders_enabled,
                 "current_price": eng.context.get_current_price(eng.symbol),
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),
