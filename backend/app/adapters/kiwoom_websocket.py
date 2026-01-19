@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class KiwoomWebSocket(KiwoomBaseAdapter):
     _instance = None
+    _monitor_task = None
     
     def __init__(self):
         # Initialize Base Class
@@ -49,21 +50,34 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         
         if not self.is_running:
             self.is_running = True
-            logger.info(f"WS: Starting connection loop to {self.uri}")
-            asyncio.create_task(self._monitor_connection())
+            if KiwoomWebSocket._monitor_task is None or KiwoomWebSocket._monitor_task.done():
+                logger.info(f"WS: Starting connection loop to {self.uri}")
+                KiwoomWebSocket._monitor_task = asyncio.create_task(self._monitor_connection())
         else:
             logger.info("WS: Connection loop already running, token updated.")
 
     async def _monitor_connection(self):
+        retry_count = 0
         while self.is_running:
+            # 0. Mandatory guard delay to prevent tight-looping on fast failures
+            await asyncio.sleep(5)
+
+            # 1. Ensure we have a valid token (and refresh if needed)
+            await self._ensure_token()
+            
             if not self.access_token:
-                await asyncio.sleep(2)
+                logger.error("WS: No access token available. Waiting 60s...")
+                await asyncio.sleep(60)
                 continue
                 
-            # Validity Check: Do not attempt connection if token is invalid
-            if not self.check_token_validity():
-                logger.warning("WS: Current token is invalid or expired. Skipping connection attempt to avoid IP blocking. Waiting 60s...")
-                await asyncio.sleep(60)
+            # 2. Check token validity
+            from ..core.token_manager import KiwoomTokenManager
+            mgr = KiwoomTokenManager.get_instance()
+            remaining_sec = mgr.get_remaining_seconds()
+            
+            if remaining_sec < 60:
+                logger.warning(f"WS: Token almost expired ({remaining_sec}s). Waiting for refresh...")
+                await asyncio.sleep(30)
                 continue
             
             try:
@@ -74,11 +88,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                     "content-type": "application/json;charset=UTF-8"
                 }
 
-                logger.info("WS: Connecting...")
-                # Note: websockets 10.0+ uses 'extra_headers', older might use 'additional_headers'.
-                # We assume 12.0+ found in environment.
+                logger.info(f"WS: Connecting (Token valid for {remaining_sec // 60} mins)...")
                 async with websockets.connect(self.uri, extra_headers=headers) as websocket:
                     self.websocket = websocket
+                    retry_count = 0 # Reset on success
+                    
                     logger.info("WS: Connected. Sending LOGIN...")
                     
                     # 0. Send LOGIN 
@@ -103,16 +117,33 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                     await self._listen_loop()
                     
             except Exception as e:
-                logger.error(f"WS: Connection Error: {e}")
-                
-            await asyncio.sleep(5)
+                retry_count += 1
+                wait_time = min(30 * (2 ** (retry_count - 1)), 1800) # 30s, 60s, 120s ... max 30 mins
+                logger.error(f"WS: Connection Error: {e}. Retrying in {wait_time}s (Attempt {retry_count})")
+                await asyncio.sleep(wait_time)
 
     async def _listen_loop(self):
+        from ..core.token_manager import KiwoomTokenManager
+        mgr = KiwoomTokenManager.get_instance()
+        
         try:
-            async for message in self.websocket:
-                await self._handle_message(message)
+            while self.websocket and self.websocket.open:
+                try:
+                    # Use wait_for to allow periodic token checks
+                    message = await asyncio.wait_for(self.websocket.recv(), timeout=30.0)
+                    await self._handle_message(message)
+                except asyncio.TimeoutError:
+                    # Periodic Token Check while idle
+                    remaining = mgr.get_remaining_seconds()
+                    if remaining < 1800: # 30 mins
+                        logger.info(f"WS: Proactive Refresh - Token expiring soon ({remaining // 60} mins). Reconnecting...")
+                        await self.websocket.close()
+                        break
+                    continue
         except websockets.exceptions.ConnectionClosed:
             logger.warning("WS: Connection closed by server.")
+        except Exception as e:
+            logger.error(f"WS: Listen Loop Error: {e}")
 
     async def _handle_message(self, message):
          try:

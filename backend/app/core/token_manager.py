@@ -79,6 +79,17 @@ class KiwoomTokenManager:
             return False
             
         return datetime.now() < self.token_expiry
+
+    def get_remaining_seconds(self) -> int:
+        """
+        Returns the number of seconds remaining until the token expires.
+        Returns 0 if no token exists or if it has already expired.
+        """
+        if not self.access_token or not self.token_expiry:
+            return 0
+        
+        remaining = (self.token_expiry - datetime.now()).total_seconds()
+        return max(0, int(remaining))
         
     async def get_token(self, app_key: str, secret_key: str) -> Optional[str]:
         """
