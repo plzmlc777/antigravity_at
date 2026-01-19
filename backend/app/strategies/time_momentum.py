@@ -160,16 +160,25 @@ class TimeMomentumStrategy(BaseStrategy):
 
                 if should_buy:
                     # Betting Strategy
-                    betting_mode = self.config.get("betting_strategy", "fixed")
+                    betting_mode = self.config.get("betting_strategy", "compounding")
                     initial_capital = self.config.get("initial_capital", 10000000)
                     
-                    cash = self.context.cash
-                    
                     if betting_mode == "fixed":
-                        bet_amount = initial_capital * 0.99
-                        quantity = int(bet_amount / current_price)
+                        bet_amount = initial_capital
                     else:
-                        quantity = int((max(0, cash) * 0.99) / current_price)
+                        # Compounding: Initial + Session PnL
+                        if hasattr(self.context, 'calculate_pnl'):
+                            session_pnl = self.context.calculate_pnl()
+                            bet_amount = initial_capital + session_pnl
+                        else:
+                            # Backtest / Generic fallback
+                            bet_amount = self.context.cash
+                    
+                    # Safety check: Cannot bet more than available account cash
+                    cash = self.context.cash
+                    bet_amount = min(bet_amount, cash) * 0.99
+                    
+                    quantity = int(bet_amount / current_price)
 
 
                 if quantity > 0:

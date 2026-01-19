@@ -17,6 +17,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [error, setError] = useState(null);
     const [availableBalance, setAvailableBalance] = useState(null);
     const [inputCapital, setInputCapital] = useState(10000000); // 10M default
+    const [bettingMode, setBettingMode] = useState('compounding'); // 'fixed' or 'compounding'
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
@@ -206,8 +207,12 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             const payload = {
                 symbol: strategyConfig.symbol,
                 strategy_name: "time_momentum",
-                strategy_config: strategyConfig,
-                initial_capital: parseFloat(inputCapital) || 0
+                initial_capital: parseFloat(inputCapital),
+                strategy_config: {
+                    ...strategyConfig,
+                    initial_capital: parseFloat(inputCapital),
+                    betting_strategy: bettingMode
+                }
             };
 
             const res = await startLiveBot(payload);
@@ -519,26 +524,43 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                     <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
                         <div className="flex flex-col md:flex-row items-center gap-6">
                             {/* Capital Input - Only editable when NOT running */}
-                            <div className="flex-1 w-full">
-                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                    Trading Capital (KRW)
-                                </label>
-                                <div className="relative group">
-                                    <input
-                                        type="number"
-                                        disabled={status === 'RUNNING' || status === 'STARTING'}
-                                        value={inputCapital}
-                                        onChange={(e) => setInputCapital(e.target.value)}
-                                        className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        placeholder="Enter amount..."
-                                    />
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                            <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="w-full">
+                                    <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                        Trading Capital (KRW)
+                                    </label>
+                                    <div className="relative group">
+                                        <input
+                                            type="number"
+                                            disabled={status === 'RUNNING' || status === 'STARTING'}
+                                            value={inputCapital}
+                                            onChange={(e) => setInputCapital(e.target.value)}
+                                            className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            placeholder="Enter amount..."
+                                        />
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                                    </div>
+                                    {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
+                                        <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
+                                            <AlertTriangle size={10} /> Insufficient account funds
+                                        </p>
+                                    )}
                                 </div>
-                                {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
-                                    <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
-                                        <AlertTriangle size={10} /> Insufficient account funds
-                                    </p>
-                                )}
+
+                                <div className="w-full">
+                                    <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                        Betting Logic
+                                    </label>
+                                    <select
+                                        disabled={status === 'RUNNING' || status === 'STARTING'}
+                                        value={bettingMode}
+                                        onChange={(e) => setBettingMode(e.target.value)}
+                                        className="w-full h-[54px] bg-black/60 border border-white/10 rounded-lg px-4 text-white font-bold outline-none focus:border-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
+                                    >
+                                        <option value="fixed" className="bg-slate-900">Fixed (Static)</option>
+                                        <option value="compounding" className="bg-slate-900">Compounding (PnL+)</option>
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Main Action Buttons */}
