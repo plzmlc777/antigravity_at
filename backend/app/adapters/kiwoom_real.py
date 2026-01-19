@@ -1,4 +1,5 @@
 from ..core.http_client import HttpClientManager
+import httpx
 import logging
 import asyncio
 from typing import Dict, Any, Optional, List, Callable

@@ -22,11 +22,18 @@ class KiwoomBaseAdapter:
         Fetch Access Token using TokenManager (Singleton).
         This method will trigger a renewal if the token is expired.
         """
+        mgr = KiwoomTokenManager.get_instance()
+        
+        # If we already have a valid token in the manager, use it even if keys are missing from this instance.
+        if mgr.is_token_valid():
+            self.access_token = mgr.access_token
+            return
+
         if not self.app_key or not self.secret_key:
             logger.error("App Key or Secret Key missing. Cannot ensure token.")
             return
 
-        self.access_token = await KiwoomTokenManager.get_instance().get_token(
+        self.access_token = await mgr.get_token(
             self.app_key, self.secret_key
         )
         

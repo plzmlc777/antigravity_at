@@ -41,10 +41,18 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         self.on_balance_callback = on_balance
 
     async def connect(self, token: str):
+        if self.is_running and self.websocket and self.websocket.open:
+            logger.info("WS: Already connected and running.")
+            return
+            
         self.access_token = token
-        self.is_running = True
-        logger.info(f"WS: Starting connection loop to {self.uri}")
-        asyncio.create_task(self._monitor_connection())
+        
+        if not self.is_running:
+            self.is_running = True
+            logger.info(f"WS: Starting connection loop to {self.uri}")
+            asyncio.create_task(self._monitor_connection())
+        else:
+            logger.info("WS: Connection loop already running, token updated.")
 
     async def _monitor_connection(self):
         while self.is_running:
@@ -71,8 +79,19 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 # We assume 12.0+ found in environment.
                 async with websockets.connect(self.uri, extra_headers=headers) as websocket:
                     self.websocket = websocket
-                    logger.info("WS: Connected and Authenticated!")
+                    logger.info("WS: Connected. Sending LOGIN...")
                     
+                    # 0. Send LOGIN 
+                    login_payload = {
+                        "trnm": "LOGIN",
+                        "refresh": "1",
+                        "token": self.access_token
+                    }
+                    await websocket.send(json.dumps(login_payload))
+                    
+                    # Wait a moment for server to process LOGIN
+                    await asyncio.sleep(1.0)
+
                     # Send Initial Registrations
                     # 1. Account Events (Orders/Balance)
                     await self._send_reg([""], ["00", "04"])
@@ -119,6 +138,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                      logger.error(f"WS REG Error: {data.get('return_msg')}")
                 else:
                      logger.info("WS REG Success")
+            elif trnm == "LOGIN":
+                if data.get("return_code") != 0:
+                     logger.error(f"WS LOGIN Error: {data.get('return_msg')}")
+                else:
+                     logger.info("WS LOGIN Success")
          except Exception as e:
              logger.error(f"WS Parse Error: {e}")
 

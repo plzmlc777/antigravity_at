@@ -13,7 +13,7 @@ load_dotenv("backend/.env")    # child (if running from root)
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
     PROJECT_NAME: str = "Antigravity Trading System"
-    PROJECT_VERSION: str = "0.9.5.0"
+    PROJECT_VERSION: str = "0.9.5.1"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
@@ -41,9 +41,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def validate_config(self):
-        print(f"DEBUG: Trading Mode: {self.TRADING_MODE}")
-        print(f"DEBUG: Initial API URL: {self.HCP_KIWOOM_API_URL}")
-        
         if self.TRADING_MODE.upper() == "REAL":
             missing = []
             if not self.HCP_KIWOOM_APP_KEY: missing.append("HCP_KIWOOM_APP_KEY")

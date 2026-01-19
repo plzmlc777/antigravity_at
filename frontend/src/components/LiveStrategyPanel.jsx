@@ -42,14 +42,23 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
     // Initial Load & Status Management
     useEffect(() => {
-        if (mode === 'TRADE') {
-            checkStatus();
-            return () => stopPolling();
-        } else {
-            setStatus('RUNNING');
-            addLog("System", `Started watching ${strategyConfig.symbol}`);
-        }
-    }, [mode, strategyConfig.symbol]);
+        const init = async () => {
+            if (mode === 'TRADE') {
+                const found = await checkStatus();
+                // Auto-start for Rank 1 if not already running
+                if (!found && currentRankIndex === 0 && strategyConfig.symbol) {
+                    console.log("[AUTO-START] Triggering auto-start for Rank 1 symbol:", strategyConfig.symbol);
+                    addLog("System", `Auto-connecting Rank 1: ${strategyConfig.symbol}`);
+                    handleStart();
+                }
+            } else {
+                setStatus('RUNNING');
+                addLog("System", `Started watching ${strategyConfig.symbol}`);
+            }
+        };
+        init();
+        return () => stopPolling();
+    }, [mode, strategyConfig.symbol, currentRankIndex]); // Added currentRankIndex to dependencies
 
 
 
@@ -147,12 +156,17 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 setSessionId(mySession.session_id);
                 setLiveData(mySession);
                 startPolling();
-            } else if (status === 'RUNNING') {
-                setStatus('STOPPED');
-                stopPolling();
+                return true;
+            } else {
+                if (status === 'RUNNING') {
+                    setStatus('STOPPED');
+                    stopPolling();
+                }
+                return false;
             }
         } catch (err) {
             console.error("Live Status Error", err);
+            return false;
         }
     };
 
