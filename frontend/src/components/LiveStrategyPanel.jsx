@@ -51,15 +51,10 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     useEffect(() => {
         const init = async () => {
             if (mode === 'TRADE') {
-                const found = await checkStatus();
-                // Auto-start for Rank 1 if not already running
-                if (!found && currentRankIndex === 0 && strategyConfig.symbol) {
-                    console.log("[AUTO-START] Triggering auto-start for Rank 1 symbol:", strategyConfig.symbol);
-                    addLog("System", `Auto-connecting Rank 1: ${strategyConfig.symbol}`);
-                    handleStart();
-                }
+                await checkStatus();
+                // Removed auto-start for Rank 1 to allow configuration before starting
             } else {
-                setStatus('RUNNING');
+                setStatus('WATCHING');
                 addLog("System", `Started watching ${strategyConfig.symbol}`);
             }
         };
@@ -520,118 +515,120 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                         </div>
                     </div>
 
-                    {/* Section 2: Configuration & Controls */}
-                    <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
-                        <div className="flex flex-col md:flex-row items-center gap-6">
-                            {/* Capital Input - Only editable when NOT running */}
-                            <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="w-full">
-                                    <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                        Trading Capital (KRW)
-                                    </label>
-                                    <div className="relative group">
-                                        <input
-                                            type="number"
-                                            disabled={status === 'RUNNING' || status === 'STARTING'}
-                                            value={inputCapital}
-                                            onChange={(e) => setInputCapital(e.target.value)}
-                                            className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                            placeholder="Enter amount..."
-                                        />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                    {/* Section 2: Configuration & Controls - Only show in TRADE mode */}
+                    {mode === 'TRADE' && (
+                        <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
+                            <div className="flex flex-col md:flex-row items-center gap-6">
+                                {/* Capital Input - Only editable when NOT running */}
+                                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="w-full">
+                                        <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                            Trading Capital (KRW)
+                                        </label>
+                                        <div className="relative group">
+                                            <input
+                                                type="number"
+                                                disabled={status === 'RUNNING' || status === 'STARTING'}
+                                                value={inputCapital}
+                                                onChange={(e) => setInputCapital(e.target.value)}
+                                                className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                placeholder="Enter amount..."
+                                            />
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                                        </div>
+                                        {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
+                                            <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
+                                                <AlertTriangle size={10} /> Insufficient account funds
+                                            </p>
+                                        )}
                                     </div>
-                                    {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
-                                        <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
-                                            <AlertTriangle size={10} /> Insufficient account funds
-                                        </p>
+
+                                    <div className="w-full">
+                                        <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                            Betting Logic
+                                        </label>
+                                        <select
+                                            disabled={status === 'RUNNING' || status === 'STARTING'}
+                                            value={bettingMode}
+                                            onChange={(e) => setBettingMode(e.target.value)}
+                                            className="w-full h-[54px] bg-black/60 border border-white/10 rounded-lg px-4 text-white font-bold outline-none focus:border-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
+                                        >
+                                            <option value="fixed" className="bg-slate-900">Fixed (Static)</option>
+                                            <option value="compounding" className="bg-slate-900">Compounding (PnL+)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Main Action Buttons */}
+                                <div className="flex-[0.5] w-full flex flex-col gap-2">
+                                    {status !== 'RUNNING' ? (
+                                        <button
+                                            onClick={handleStart}
+                                            disabled={status === 'STARTING'}
+                                            className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
+                                        >
+                                            <Play size={20} />
+                                            START LIVE BOT
+                                        </button>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    if (availableBalance !== null && inputCapital > availableBalance) {
+                                                        alert("Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
+                                                        return;
+                                                    }
+                                                    handleToggleOrders();
+                                                }}
+                                                className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
+                                                    ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                                    : (availableBalance !== null && inputCapital > availableBalance)
+                                                        ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                                                        : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                                    }`}
+                                            >
+                                                {liveData?.orders_enabled ? (
+                                                    <><ShieldOff size={14} /> PAPER MODE</>
+                                                ) : (
+                                                    <><Shield size={14} /> LIVE MODE</>
+                                                )}
+                                            </button>
+
+                                            <button
+                                                onClick={() => setIsStopModalOpen(true)}
+                                                className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
+                                            >
+                                                <Square size={14} />
+                                                STOP
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
-
-                                <div className="w-full">
-                                    <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                        Betting Logic
-                                    </label>
-                                    <select
-                                        disabled={status === 'RUNNING' || status === 'STARTING'}
-                                        value={bettingMode}
-                                        onChange={(e) => setBettingMode(e.target.value)}
-                                        className="w-full h-[54px] bg-black/60 border border-white/10 rounded-lg px-4 text-white font-bold outline-none focus:border-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
-                                    >
-                                        <option value="fixed" className="bg-slate-900">Fixed (Static)</option>
-                                        <option value="compounding" className="bg-slate-900">Compounding (PnL+)</option>
-                                    </select>
-                                </div>
                             </div>
 
-                            {/* Main Action Buttons */}
-                            <div className="flex-[0.5] w-full flex flex-col gap-2">
-                                {status !== 'RUNNING' ? (
-                                    <button
-                                        onClick={handleStart}
-                                        disabled={status === 'STARTING'}
-                                        className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
-                                    >
-                                        <Play size={20} />
-                                        START LIVE BOT
-                                    </button>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => {
-                                                if (availableBalance !== null && inputCapital > availableBalance) {
-                                                    alert("Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
-                                                    return;
-                                                }
-                                                handleToggleOrders();
-                                            }}
-                                            className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
-                                                ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
-                                                : (availableBalance !== null && inputCapital > availableBalance)
-                                                    ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                    : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
-                                                }`}
-                                        >
-                                            {liveData?.orders_enabled ? (
-                                                <><ShieldOff size={14} /> PAPER MODE</>
-                                            ) : (
-                                                <><Shield size={14} /> LIVE MODE</>
-                                            )}
-                                        </button>
-
-                                        <button
-                                            onClick={() => setIsStopModalOpen(true)}
-                                            className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
-                                        >
-                                            <Square size={14} />
-                                            STOP
-                                        </button>
+                            {/* Over-allocation Warning & Status */}
+                            {availableBalance !== null && inputCapital > availableBalance && (
+                                <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg flex items-center gap-3 animate-pulse">
+                                    <AlertTriangle className="text-red-500" size={20} />
+                                    <div className="flex-1">
+                                        <p className="text-red-400 text-xs font-bold uppercase tracking-wider">CRITICAL: Insufficient Funds</p>
+                                        <p className="text-red-200/70 text-[10px]">Your target capital exceeds available account cash. **Paper Mode forced.** Real trading is disabled to protect against margin errors.</p>
                                     </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Over-allocation Warning & Status */}
-                        {availableBalance !== null && inputCapital > availableBalance && (
-                            <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg flex items-center gap-3 animate-pulse">
-                                <AlertTriangle className="text-red-500" size={20} />
-                                <div className="flex-1">
-                                    <p className="text-red-400 text-xs font-bold uppercase tracking-wider">CRITICAL: Insufficient Funds</p>
-                                    <p className="text-red-200/70 text-[10px]">Your target capital exceeds available account cash. **Paper Mode forced.** Real trading is disabled to protect against margin errors.</p>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Emergency Exit - Independent row for visibility */}
-                        {status === 'RUNNING' && (
-                            <button
-                                className="w-full mt-4 h-12 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2"
-                                onClick={handleEmergencyLiquidation}
-                            >
-                                <AlertTriangle size={14} />
-                                EMERGENCY LIQUIDATION & KILL SWITCH
-                            </button>
-                        )}
-                    </div>
+                            {/* Emergency Exit - Independent row for visibility */}
+                            {status === 'RUNNING' && (
+                                <button
+                                    className="w-full mt-4 h-12 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2"
+                                    onClick={handleEmergencyLiquidation}
+                                >
+                                    <AlertTriangle size={14} />
+                                    EMERGENCY LIQUIDATION & KILL SWITCH
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Error Display */}
