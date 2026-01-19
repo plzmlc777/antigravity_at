@@ -186,6 +186,25 @@ class LiveManager:
         finally:
             db.close()
 
+    async def liquidate_session(self, session_id: str):
+        """
+        Emergency Liquidation: Market Sell and Pause Trading.
+        """
+        # 1. Trigger Engine Liquidation
+        if session_id in self.engines:
+            await self.engines[session_id].liquidate_all()
+            
+        # 2. Persist orders_enabled = False in DB
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if sess:
+                sess.orders_enabled = False
+                db.commit()
+                logger.info(f"Session {session_id}: Force-Disabled Orders in DB after liquidation.")
+        finally:
+            db.close()
+
     def get_status(self, session_id: str = None) -> List[Dict]:
         """
         Return status of specific session or all managed sessions.

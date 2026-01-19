@@ -198,6 +198,11 @@ export const toggleLiveOrders = async (sessionId, enabled) => {
     return data;
 };
 
+export const liquidateLiveBot = async (sessionId) => {
+    const { data } = await api.post(`/live/liquidate/${sessionId}`);
+    return data;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;

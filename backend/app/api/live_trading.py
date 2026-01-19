@@ -44,6 +44,17 @@ async def toggle_orders(session_id: str, req: ToggleOrdersRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/liquidate/{session_id}")
+async def liquidate_session(session_id: str):
+    """
+    Emergency: Market Sell all positions and pause trading.
+    """
+    try:
+        await live_manager.liquidate_session(session_id)
+        return {"status": "success", "message": "Liquidation order sent and trading paused."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/status")
 async def get_live_status():
     """

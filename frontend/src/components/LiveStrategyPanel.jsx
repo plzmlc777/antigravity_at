@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, liquidateLiveBot } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -210,6 +210,21 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             addLog("System", `Orders ${newState ? 'Enabled' : 'Disabled'} by User`);
         } catch (err) {
             setError(err.message);
+        }
+    };
+
+    const handleEmergencyLiquidation = async () => {
+        if (!sessionId) return;
+        if (!window.confirm("EMERGENCY: Do you want to sell ALL holdings and pause trading?")) return;
+
+        try {
+            await liquidateLiveBot(sessionId);
+            setLiveData(prev => ({ ...prev, orders_enabled: false }));
+            addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
+            alert("Emergency Liquidation Initiated. Orders have been paused.");
+        } catch (err) {
+            setError(err.message);
+            addLog("Error", `Liquidation failed: ${err.message}`);
         }
     };
 
@@ -519,8 +534,9 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                         <AlertTriangle size={16} /> EMERGENCY
                     </div>
                     <button
-                        className="w-full bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-500/50 rounded py-2 text-sm font-bold transition-colors"
-                        onClick={() => alert("Kill Switch Logic Pending (Phase 4)")}
+                        className="w-full bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-500/50 rounded py-2 text-sm font-bold transition-colors disabled:opacity-50"
+                        onClick={handleEmergencyLiquidation}
+                        disabled={status !== 'RUNNING'}
                     >
                         LIQUIDATE ALL & STOP
                     </button>

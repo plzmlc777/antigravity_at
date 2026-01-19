@@ -310,6 +310,31 @@ class LiveTradingEngine:
         finally:
             db.close()
 
+    async def liquidate_all(self):
+        """
+        Emergency Kill Switch: Market Sell everything and disable orders.
+        """
+        logger.warning(f"EMERGENCY: Liquidating all holdings for session {self.session_id}")
+        
+        # 1. Sync latest holdings
+        await self.context.async_sync_balance()
+        
+        # 2. Find quantity
+        qty = self.context.holdings.get(self.symbol, 0)
+        
+        if qty > 0:
+            logger.info(f"EMERGENCY: Selling {qty} shares of {self.symbol} at Market Price")
+            # 3. Market Sell
+            self.context.sell(self.symbol, qty, price=0)
+            
+            # 4. Immediate execution (dont wait for candle close)
+            await self.context.process_queue()
+        else:
+            logger.info(f"EMERGENCY: No holdings found for {self.symbol}. Only disabling orders.")
+            
+        # 5. Disable further orders
+        self.toggle_orders(False)
+
     def stop(self):
         self.is_running = False
 
