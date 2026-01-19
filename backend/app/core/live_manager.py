@@ -40,6 +40,9 @@ class LiveManager:
             # Register Global Tick Listener
             if hasattr(self.adapter, "add_tick_listener"):
                 self.adapter.add_tick_listener(self._on_tick)
+                
+        # Background Monitor Task started in initialize()
+        self.monitor_task = None
 
     def _on_tick(self, tick_data: Dict):
         """
@@ -64,6 +67,10 @@ class LiveManager:
         """
         # Connect to MarketRouter
         market_data_router.set_live_manager(self)
+
+        # Start Background Monitor
+        if not self.monitor_task:
+            self.monitor_task = asyncio.create_task(self._monitor_loop())
 
         db = SessionLocal()
         try:
@@ -285,6 +292,31 @@ class LiveManager:
         engine.add_candle_listener(on_candle)
         
         return on_tick, on_candle # Return so caller can unsubscribe later
+
+    async def _monitor_loop(self):
+        """
+        Periodically captures equity snapshots for all active sessions.
+        """
+        logger.info("LiveManager: Starting Equity Monitor Loop (1m)")
+        while True:
+            try:
+                await asyncio.sleep(60) # 1 minute interval
+                db = SessionLocal()
+                try:
+                    # Use a list of keys to avoid concurrent modification if a session stops
+                    session_ids = list(self.engines.keys())
+                    for sid in session_ids:
+                        engine = self.engines.get(sid)
+                        if engine and engine.is_running:
+                            try:
+                                await engine.context.capture_equity_snapshot(db)
+                            except Exception as e:
+                                logger.error(f"Snapshot Error for session {sid}: {e}")
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"Monitor Loop Error: {e}")
+                await asyncio.sleep(10) # Wait before retry
 
     def unsubscribe_from_session(self, session_id: str, listeners: tuple):
         """

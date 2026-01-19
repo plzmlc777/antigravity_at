@@ -4,7 +4,7 @@ from datetime import datetime
 import logging
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
-from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveRealizedTrade, LiveBotSession, LiveEquitySnapshot
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 
@@ -218,14 +218,22 @@ class LiveContext:
                         res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
                     
                     if res and res.get("status") == "success":
-                        # 1. Update DB Record
+                        # 2. Update DB Record
                         p.status = ExecutionStatus.FILLED
                         p.order_submitted_at = self.get_time()
                         p.order_filled_at = self.get_time()
                         p.executed_price = res.get("price", p.theoretical_price)
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
                         
-                        # 2. Update Local Context State (In-Memory for Strategy)
+                        # Initialize remaining_quantity for BUYs
+                        if p.signal_type == "BUY":
+                            p.remaining_quantity = p.filled_quantity
+                        
+                        # Match Trades if it's a SELL
+                        if p.signal_type == "SELL":
+                            await self._match_trade(db, p)
+                        
+                        # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
                         cost = p.executed_price * p.filled_quantity
                         if p.signal_type == "BUY":
@@ -234,7 +242,10 @@ class LiveContext:
                         else:
                             self.cash += cost
                             self.holdings[p.symbol] = self.holdings.get(p.symbol, 0) - p.filled_quantity
-                            
+                        
+                        # Update Session Performance Stats
+                        self._update_session_stats(db)
+                        
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
                         
                     elif res:
@@ -250,3 +261,112 @@ class LiveContext:
             logger.error(f"Queue DB Error: {e}")
         finally:
             db.close()
+    async def _match_trade(self, db: Session, sell_exec: LiveTradeExecution):
+        """
+        Pairs a SELL execution with existing BUY executions (FIFO).
+        """
+        qty_to_match = sell_exec.filled_quantity or 0
+        
+        # Get oldest BUYs for this symbol with remaining quantity
+        open_buys = db.query(LiveTradeExecution).filter(
+            LiveTradeExecution.session_id == self.session_id,
+            LiveTradeExecution.symbol == sell_exec.symbol,
+            LiveTradeExecution.signal_type == "BUY",
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+            LiveTradeExecution.remaining_quantity > 0
+        ).order_by(LiveTradeExecution.order_filled_at.asc()).all()
+        
+        for buy in open_buys:
+            if qty_to_match <= 0:
+                break
+                
+            matched_qty = min(qty_to_match, buy.remaining_quantity)
+            
+            # Create Realized Trade
+            pnl = (sell_exec.executed_price - buy.executed_price) * matched_qty
+            pnl_percent = (sell_exec.executed_price - buy.executed_price) / buy.executed_price * 100
+            holding_seconds = (sell_exec.order_filled_at - buy.order_filled_at).total_seconds()
+            
+            realized = LiveRealizedTrade(
+                session_id=self.session_id,
+                symbol=sell_exec.symbol,
+                entry_exec_id=buy.id,
+                exit_exec_id=sell_exec.id,
+                entry_price=buy.executed_price,
+                exit_price=sell_exec.executed_price,
+                entry_time=buy.order_filled_at,
+                exit_time=sell_exec.order_filled_at,
+                quantity=matched_qty,
+                pnl=pnl,
+                pnl_percent=pnl_percent,
+                holding_seconds=holding_seconds
+            )
+            db.add(realized)
+            
+            # Update BUY's remaining quantity
+            buy.remaining_quantity -= matched_qty
+            qty_to_match -= matched_qty
+            
+        db.commit()
+
+    def _update_session_stats(self, db: Session):
+        """
+        Recalculates and caches performance stats in LiveBotSession.
+        """
+        session = db.query(LiveBotSession).filter(LiveBotSession.id == self.session_id).first()
+        if not session:
+            return
+            
+        realized_trades = db.query(LiveRealizedTrade).filter(LiveRealizedTrade.session_id == self.session_id).all()
+        
+        if not realized_trades:
+            return
+            
+        total_pnl = sum(t.pnl for t in realized_trades)
+        wins = [t for t in realized_trades if t.pnl > 0]
+        losses = [t for t in realized_trades if t.pnl <= 0]
+        
+        total_profit = sum(t.pnl for t in wins)
+        total_loss = abs(sum(t.pnl for t in losses))
+        
+        session.total_trades = len(realized_trades)
+        session.win_rate = (len(wins) / len(realized_trades) * 100) if realized_trades else 0
+        session.total_pnl = total_pnl
+        session.profit_factor = (total_profit / total_loss) if total_loss > 0 else (total_profit if total_profit > 0 else 0)
+        
+        # Current Capital update
+        # session.current_capital = session.initial_capital + total_pnl 
+        # (Wait, current_capital should include unrealized PnL too? 
+        # Usually it reflects the actual balance. Let's use get_total_equity)
+        session.current_capital = self.get_total_equity()
+        
+        db.commit()
+
+    async def capture_equity_snapshot(self, db: Session):
+        """
+        Record current equity state.
+        """
+        equity = self.get_total_equity()
+        holdings_value = sum(qty * self.price_map.get(sym, 0.0) for sym, qty in self.holdings.items())
+        
+        # Calculate Drawdown
+        snapshots = db.query(LiveEquitySnapshot).filter(LiveEquitySnapshot.session_id == self.session_id).all()
+        peak = max([s.equity for s in snapshots] + [equity]) if snapshots else equity
+        drawdown = (peak - equity) / peak * 100 if peak > 0 else 0
+        
+        snapshot = LiveEquitySnapshot(
+            session_id=self.session_id,
+            timestamp=self.get_time(),
+            equity=equity,
+            cash=self.cash,
+            holdings_value=holdings_value,
+            drawdown=drawdown
+        )
+        db.add(snapshot)
+        
+        # Update session Max Drawdown if needed
+        session = db.query(LiveBotSession).filter(LiveBotSession.id == self.session_id).first()
+        if session and drawdown > session.max_drawdown:
+            session.max_drawdown = drawdown
+            
+        db.commit()

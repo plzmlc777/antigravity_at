@@ -44,12 +44,20 @@ class LiveBotSession(Base):
     started_at = Column(DateTime, default=datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
     
-    # Performance (Cached for ease of access)
     initial_capital = Column(Float, default=0.0)
     current_capital = Column(Float, default=0.0)
     
+    # Performance Stats
+    total_trades = Column(Integer, default=0)
+    win_rate = Column(Float, default=0.0)
+    max_drawdown = Column(Float, default=0.0)
+    profit_factor = Column(Float, default=0.0)
+    total_pnl = Column(Float, default=0.0)
+    
     # Relations
     executions = relationship("LiveTradeExecution", back_populates="session", cascade="all, delete-orphan")
+    realized_trades = relationship("LiveRealizedTrade", back_populates="session", cascade="all, delete-orphan")
+    equity_snapshots = relationship("LiveEquitySnapshot", back_populates="session", cascade="all, delete-orphan")
 
 class LiveTradeExecution(Base):
     """
@@ -74,6 +82,7 @@ class LiveTradeExecution(Base):
     
     executed_price = Column(Float, nullable=True)
     filled_quantity = Column(Float, nullable=True)
+    remaining_quantity = Column(Float, nullable=True) # For FIFO matching
     fees = Column(Float, default=0.0)
     
     # 3. Analysis Metrics
@@ -85,3 +94,47 @@ class LiveTradeExecution(Base):
     
     # Relation
     session = relationship("LiveBotSession", back_populates="executions")
+
+class LiveRealizedTrade(Base):
+    """
+    Stores paired Buy/Sell trades for performance analysis.
+    """
+    __tablename__ = "live_realized_trades"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("live_bot_sessions.id"), nullable=False)
+    symbol = Column(String, index=True, nullable=False)
+    
+    entry_exec_id = Column(String, ForeignKey("live_trade_executions.id"), nullable=True)
+    exit_exec_id = Column(String, ForeignKey("live_trade_executions.id"), nullable=True)
+    
+    entry_price = Column(Float, nullable=False)
+    exit_price = Column(Float, nullable=False)
+    entry_time = Column(DateTime, nullable=False)
+    exit_time = Column(DateTime, nullable=False)
+    quantity = Column(Float, nullable=False)
+    
+    pnl = Column(Float, default=0.0)
+    pnl_percent = Column(Float, default=0.0)
+    holding_seconds = Column(Float, default=0.0)
+    
+    # Relation
+    session = relationship("LiveBotSession", back_populates="realized_trades")
+
+class LiveEquitySnapshot(Base):
+    """
+    Periodic snapshot of total value for equity curve plotting.
+    """
+    __tablename__ = "live_equity_snapshots"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("live_bot_sessions.id"), nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    equity = Column(Float, nullable=False)
+    cash = Column(Float, nullable=False)
+    holdings_value = Column(Float, nullable=False)
+    drawdown = Column(Float, default=0.0)
+    
+    # Relation
+    session = relationship("LiveBotSession", back_populates="equity_snapshots")

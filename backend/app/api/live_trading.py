@@ -2,6 +2,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from ..core.live_manager import live_manager
+from ..db.session import get_db
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from ..models.live_trading import LiveBotSession, LiveRealizedTrade, LiveEquitySnapshot
 
 router = APIRouter()
 
@@ -98,6 +102,71 @@ async def websocket_live_feed(websocket: WebSocket, session_id: str):
             live_manager.unsubscribe_from_session(session_id, listeners)
         # await websocket.close() # Usually auto-closed by FastAPI on disconnect exception
 
+
+@router.get("/sessions/{session_id}/stats")
+async def get_session_stats(session_id: str, db: Session = Depends(get_db)):
+    """
+    Get cached performance stats for a session.
+    """
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    return {
+        "initial_capital": session.initial_capital,
+        "current_capital": session.current_capital,
+        "total_pnl": session.total_pnl,
+        "win_rate": session.win_rate,
+        "total_trades": session.total_trades,
+        "max_drawdown": session.max_drawdown,
+        "profit_factor": session.profit_factor,
+        "status": session.status,
+        "started_at": session.started_at,
+        "stopped_at": session.stopped_at
+    }
+
+@router.get("/sessions/{session_id}/equity-curve")
+async def get_session_equity_curve(session_id: str, db: Session = Depends(get_db)):
+    """
+    Get historical equity snapshots for charting.
+    """
+    snapshots = db.query(LiveEquitySnapshot).filter(
+        LiveEquitySnapshot.session_id == session_id
+    ).order_by(LiveEquitySnapshot.timestamp.asc()).all()
+    
+    return [
+        {
+            "timestamp": s.timestamp.isoformat(),
+            "equity": s.equity,
+            "cash": s.cash,
+            "holdings_value": s.holdings_value,
+            "drawdown": s.drawdown
+        } for s in snapshots
+    ]
+
+@router.get("/sessions/{session_id}/trades")
+async def get_session_realized_trades(session_id: str, db: Session = Depends(get_db)):
+    """
+    Get realized (round-trip) trades for a session.
+    """
+    trades = db.query(LiveRealizedTrade).filter(
+        LiveRealizedTrade.session_id == session_id
+    ).order_by(LiveRealizedTrade.exit_time.desc()).all()
+    
+    return [
+        {
+            "id": t.id,
+            "symbol": t.symbol,
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "entry_time": t.entry_time.isoformat(),
+            "exit_time": t.exit_time.isoformat(),
+            "quantity": t.quantity,
+            "pnl": t.pnl,
+            "pnl_percent": t.pnl_percent,
+            "holding_seconds": t.holding_seconds
+        } for t in trades
+    ]
 
 from ..core.market_data_router import market_data_router
 

@@ -7,6 +7,7 @@ import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
+import LivePerformancePanel from './LivePerformancePanel';
 
 const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
     // State
@@ -704,6 +705,15 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
             {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
             <div className="lg:col-span-3">
+                {/* Live Performance Analysis (Backtest-Style) */}
+                {sessionId && (
+                    <LivePerformancePanel
+                        sessionId={sessionId}
+                        strategyConfig={strategyConfig}
+                        liveData={liveData}
+                    />
+                )}
+
                 <StrategySignalPanel strategyState={strategyState} />
             </div>
 

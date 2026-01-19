@@ -244,3 +244,18 @@ export const getMarketDataStatus = async (symbol, params = {}) => {
     const { data } = await api.get(`/market-data/status/${symbol}`, { params });
     return data;
 };
+
+export const getSessionStats = async (sessionId) => {
+    const { data } = await api.get(`/live/sessions/${sessionId}/stats`);
+    return data;
+};
+
+export const getSessionEquityCurve = async (sessionId) => {
+    const { data } = await api.get(`/live/sessions/${sessionId}/equity-curve`);
+    return data;
+};
+
+export const getSessionRealizedTrades = async (sessionId) => {
+    const { data } = await api.get(`/live/sessions/${sessionId}/trades`);
+    return data;
+};
