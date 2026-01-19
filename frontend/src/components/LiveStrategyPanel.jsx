@@ -452,103 +452,103 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             <div className="lg:col-span-3 relative">
                 <div className="bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden">
                     {/* Header */}
-                    <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-                        <div className="flex items-center gap-3">
-                            <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
-                            <h2 className="font-bold text-lg text-white">Live Operation</h2>
-                        </div>
-                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold border tracking-wider ${getStatusColor()}`}>
-                            {status}
-                        </span>
+                    <div className="flex items-center gap-3 mb-6">
+                        <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
+                        <h2 className="font-bold text-lg text-white">Live Operation</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {/* A. Stats Section */}
-                        <div className="flex flex-col justify-center">
+                    {/* Section 1: Dashboard Stats (Status | Price | PnL) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {/* Status */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Session Status</span>
+                            <span className={`px-4 py-1 rounded-full text-sm font-bold border tracking-wide ${getStatusColor()}`}>
+                                {status}
+                            </span>
+                        </div>
+
+                        {/* Current Price */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center relative">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Current Price</span>
                             {liveData ? (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-black/20 p-3 rounded-lg border border-white/5">
-                                        <div className="text-gray-400 text-xs mb-1">Current Price</div>
-                                        <div className="text-xl font-mono text-white">
-                                            {liveData.current_price?.toLocaleString()}
-                                        </div>
-                                    </div>
-                                    <div className="bg-black/20 p-3 rounded-lg border border-white/5">
-                                        <div className="text-gray-400 text-xs mb-1">Unrealized PnL</div>
-                                        <div className={`text-xl font-mono ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                            {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
-                                        </div>
-                                    </div>
+                                <div className="text-2xl font-mono text-white tracking-tight">
+                                    {liveData.current_price?.toLocaleString()}
                                 </div>
                             ) : (
-                                <div className="h-full flex items-center justify-center text-gray-600 text-sm border border-dashed border-gray-700 rounded-lg">
-                                    Ready to Start
-                                </div>
+                                <span className="text-gray-600 text-sm">-</span>
                             )}
                         </div>
 
-                        {/* B. Main Controls */}
-                        <div className="flex flex-col gap-3 justify-center border-l border-r border-white/5 px-4 md:px-8">
-                            {status !== 'RUNNING' ? (
-                                <button
-                                    onClick={handleStart}
-                                    disabled={status === 'STARTING'}
-                                    className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
-                                >
-                                    <Play size={20} />
-                                    START LIVE SESSION
-                                </button>
+                        {/* PnL */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Unrealized PnL</span>
+                            {liveData ? (
+                                <div className={`text-2xl font-mono tracking-tight ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
+                                </div>
                             ) : (
-                                <>
-                                    <button
-                                        onClick={handleToggleOrders}
-                                        className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-lg border transition-all ${liveData?.orders_enabled
-                                            ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
-                                            : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
-                                            }`}
-                                    >
-                                        {liveData?.orders_enabled ? (
-                                            <>
-                                                <ShieldOff size={18} />
-                                                DISABLE ORDERS (Paper Mode)
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Shield size={18} />
-                                                ENABLE ORDERS (Real Mode)
-                                            </>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsStopModalOpen(true)}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition-all text-sm"
-                                    >
-                                        <Square size={16} />
-                                        STOP SESSION
-                                    </button>
-                                </>
+                                <span className="text-gray-600 text-sm">-</span>
                             )}
                         </div>
+                    </div>
 
-                        {/* C. Emergency Controls */}
-                        <div className="flex flex-col justify-center">
-                            <div className="bg-red-900/10 border border-red-500/20 rounded-xl p-4 h-full flex flex-col justify-center">
-                                <div className="flex items-center gap-2 text-red-400 font-bold mb-3 text-sm">
-                                    <AlertTriangle size={16} /> EMERGENCY ZONE
-                                </div>
+                    {/* Section 2: Control Grid */}
+                    <div className="w-full">
+                        {status !== 'RUNNING' ? (
+                            <button
+                                onClick={handleStart}
+                                disabled={status === 'STARTING'}
+                                className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
+                            >
+                                <Play size={20} />
+                                START LIVE SESSION
+                            </button>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Button 1: Toggle Orders */}
                                 <button
-                                    className="w-full bg-red-900/50 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg py-3 text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-inner"
-                                    onClick={handleEmergencyLiquidation}
-                                    disabled={status !== 'RUNNING'}
+                                    onClick={handleToggleOrders}
+                                    className={`h-14 flex items-center justify-center gap-2 text-sm font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
+                                        ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                        : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                        }`}
                                 >
-                                    <ShieldAlert size={18} />
-                                    EMERGENCY EXIT
+                                    {liveData?.orders_enabled ? (
+                                        <>
+                                            <ShieldOff size={18} />
+                                            DISABLE ORDERS (Paper)
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Shield size={18} />
+                                            ENABLE ORDERS (Real)
+                                        </>
+                                    )}
                                 </button>
-                                <div className="text-[10px] text-red-400/60 mt-2 text-center leading-tight">
-                                    * Immediate Market Sell + Order Block
+
+                                {/* Button 2: Stop Session */}
+                                <button
+                                    onClick={() => setIsStopModalOpen(true)}
+                                    className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold tracking-wide rounded-lg transition-all border border-gray-600"
+                                >
+                                    <Square size={18} />
+                                    STOP SESSION
+                                </button>
+
+                                {/* Button 3: Emergency Exit */}
+                                <div className="relative group">
+                                    <button
+                                        className="w-full h-14 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-sm font-bold tracking-wide transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-inner"
+                                        onClick={handleEmergencyLiquidation}
+                                        disabled={status !== 'RUNNING'}
+                                    >
+                                        <AlertTriangle size={18} />
+                                        EMERGENCY EXIT
+                                    </button>
+                                    {/* Tooltip/Subtitle styled as absolute or just simple text below? Layout consistency requires absolute or hidden. Let's try simple absolute hint or just rely on title. User disliked misaligned text. Let's keep it clean. */}
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {error && (
