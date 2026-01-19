@@ -6,6 +6,7 @@ from ..db.session import get_db
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from ..models.live_trading import LiveBotSession, LiveRealizedTrade, LiveEquitySnapshot
+from ..services.stats_service import StatsService
 
 router = APIRouter()
 
@@ -106,24 +107,33 @@ async def websocket_live_feed(websocket: WebSocket, session_id: str):
 @router.get("/sessions/{session_id}/stats")
 async def get_session_stats(session_id: str, db: Session = Depends(get_db)):
     """
-    Get cached performance stats for a session.
+    Get comprehensive performance stats for a session using StatsService.
     """
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    return {
-        "initial_capital": session.initial_capital,
-        "current_capital": session.current_capital,
-        "total_pnl": session.total_pnl,
-        "win_rate": session.win_rate,
-        "total_trades": session.total_trades,
-        "max_drawdown": session.max_drawdown,
-        "profit_factor": session.profit_factor,
+    # Fetch Trades and Equity Curve for Calculation
+    trades = db.query(LiveRealizedTrade).filter(
+        LiveRealizedTrade.session_id == session_id
+    ).all()
+    
+    equity_curve = db.query(LiveEquitySnapshot).filter(
+        LiveEquitySnapshot.session_id == session_id
+    ).order_by(LiveEquitySnapshot.timestamp.asc()).all()
+    
+    # Calculate detailed stats
+    stats = StatsService.calculate_detailed_stats(trades, equity_curve, session.started_at)
+    
+    # Merge with basic session info
+    stats.update({
         "status": session.status,
         "started_at": session.started_at,
-        "stopped_at": session.stopped_at
-    }
+        "stopped_at": session.stopped_at,
+        "current_capital": session.current_capital # Keep for header reference
+    })
+    
+    return stats
 
 @router.get("/sessions/{session_id}/equity-curve")
 async def get_session_equity_curve(session_id: str, db: Session = Depends(get_db)):
