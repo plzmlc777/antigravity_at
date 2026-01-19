@@ -20,7 +20,27 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [bettingMode, setBettingMode] = useState('compounding'); // 'fixed' or 'compounding'
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
-    const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+    const [modalConfig, setModalConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        isDanger: false,
+        onConfirm: () => { },
+        showCancel: true
+    });
+
+    const showModal = (config) => {
+        setModalConfig({
+            isOpen: true,
+            title: config.title || 'Notification',
+            message: config.message || '',
+            confirmText: config.confirmText || 'Confirm',
+            isDanger: config.isDanger || false,
+            onConfirm: config.onConfirm || (() => { }),
+            showCancel: config.showCancel !== undefined ? config.showCancel : true
+        });
+    };
 
     // Real-Time Candles State
     const [realTimeCandles, setRealTimeCandles] = useState([]);
@@ -166,32 +186,39 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
     const checkStatus = async () => {
         try {
+            console.log(`[DEBUG] checkStatus for ${strategyConfig.symbol}...`);
             const sessions = await getLiveStatus();
             const currentSymbol = strategyConfig.symbol;
             const mySession = sessions.find(s => s.symbol === currentSymbol && s.is_running);
 
             if (mySession) {
+                console.log(`[DEBUG] Active Session Found for ${currentSymbol}`);
                 setStatus('RUNNING');
                 setSessionId(mySession.session_id);
                 setLiveData(mySession);
                 startPolling();
                 return true;
             } else {
-                if (status === 'RUNNING') {
-                    setStatus('STOPPED');
-                    stopPolling();
-                }
+                console.log(`[DEBUG] No Active Session for ${currentSymbol}. Setting IDLE.`);
+                setStatus('IDLE');
+                stopPolling();
                 return false;
             }
         } catch (err) {
             console.error("Live Status Error", err);
+            setStatus('IDLE'); // Fallback to IDLE on error to prevent being stuck
             return false;
         }
     };
 
     const handleStart = async () => {
         if (!strategyConfig.symbol) {
-            alert("Symbol not selected");
+            showModal({
+                title: "Symbol Required",
+                message: "Please select a symbol before starting the live bot.",
+                confirmText: "Close",
+                showCancel: false
+            });
             return;
         }
 
@@ -238,17 +265,29 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
     const handleEmergencyLiquidation = async () => {
         if (!sessionId) return;
-        if (!window.confirm("EMERGENCY: Do you want to sell ALL holdings and pause trading?")) return;
+        showModal({
+            title: "전량 매도 및 실거래 중단(페이퍼 모드 전환) 확인",
+            message: "보유 중인 모든 수량을 즉시 시장가로 매도하고, 실거래 기능을 비활성화하여 페이퍼 모드로 전환하시겠습니까?",
+            confirmText: "네, 지금 즉시 실행합니다",
+            isDanger: true,
+            onConfirm: async () => {
 
-        try {
-            await liquidateLiveBot(sessionId);
-            setLiveData(prev => ({ ...prev, orders_enabled: false }));
-            addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
-            alert("Emergency Liquidation Initiated. Orders have been paused.");
-        } catch (err) {
-            setError(err.message);
-            addLog("Error", `Liquidation failed: ${err.message}`);
-        }
+                try {
+                    await liquidateLiveBot(sessionId);
+                    setLiveData(prev => ({ ...prev, orders_enabled: false }));
+                    addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
+                    showModal({
+                        title: "전량 매도 및 페이퍼 모드 전환 완료",
+                        message: "전량 매도 요청이 처리되었습니다. 이제 시스템이 페이퍼 모드(감시 전용)로 동작합니다.",
+                        confirmText: "확인",
+                        showCancel: false
+                    });
+                } catch (err) {
+                    setError(err.message);
+                    addLog("Emergency", `긴급 조치 실패: ${err.message}`);
+                }
+            }
+        });
     };
 
     // WebSocket for Real-time Data
@@ -447,24 +486,16 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 </div>
             )}
 
-            {/* Modal */}
+            {/* Centralized Modal */}
             <ConfirmModal
-                isOpen={isStopModalOpen}
-                onClose={() => setIsStopModalOpen(false)}
-                onConfirm={async () => {
-                    try {
-                        await stopLiveBot(sessionId);
-                        setStatus('STOPPED');
-                        stopPolling();
-                        addLog("System", "Session Stopped by User");
-                    } catch (err) {
-                        setError(err.message);
-                    }
-                }}
-                title="Stop Live Trading?"
-                message="Are you sure you want to stop the live trading session? Pending orders might be cancelled."
-                confirmText="Stop Session"
-                isDanger={true}
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={modalConfig.onConfirm}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                confirmText={modalConfig.confirmText}
+                isDanger={modalConfig.isDanger}
+                cancelText={modalConfig.showCancel ? "Cancel" : null}
             />
 
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
@@ -478,12 +509,20 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
                     {/* Section 1: Dashboard Stats (Status | PnL | Balance | Target) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                        {/* Status */}
-                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center relative group">
                             <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Session Status</span>
-                            <span className={`px-4 py-1 rounded-full text-sm font-bold border tracking-wide ${getStatusColor()}`}>
-                                {status}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-4 py-1 rounded-full text-sm font-bold border tracking-wide ${getStatusColor()}`}>
+                                    {status}
+                                </span>
+                                <button
+                                    onClick={checkStatus}
+                                    title="Refresh Status"
+                                    className="p-1.5 rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-all"
+                                >
+                                    <Activity size={12} className={status === 'STARTING' ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* PnL */}
@@ -575,7 +614,13 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                             <button
                                                 onClick={() => {
                                                     if (availableBalance !== null && inputCapital > availableBalance) {
-                                                        alert("Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
+                                                        showModal({
+                                                            title: "Insufficient account balance",
+                                                            message: "Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.",
+                                                            confirmText: "I understand",
+                                                            showCancel: false,
+                                                            isDanger: true
+                                                        });
                                                         return;
                                                     }
                                                     handleToggleOrders();
@@ -595,7 +640,22 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                             </button>
 
                                             <button
-                                                onClick={() => setIsStopModalOpen(true)}
+                                                onClick={() => showModal({
+                                                    title: "Stop Live Trading?",
+                                                    message: "Are you sure you want to stop the live trading session? Pending orders might be cancelled.",
+                                                    confirmText: "Stop Session",
+                                                    isDanger: true,
+                                                    onConfirm: async () => {
+                                                        try {
+                                                            await stopLiveBot(sessionId);
+                                                            setStatus('STOPPED');
+                                                            stopPolling();
+                                                            addLog("System", "Session Stopped by User");
+                                                        } catch (err) {
+                                                            setError(err.message);
+                                                        }
+                                                    }
+                                                })}
                                                 className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
                                             >
                                                 <Square size={14} />
@@ -624,7 +684,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                     onClick={handleEmergencyLiquidation}
                                 >
                                     <AlertTriangle size={14} />
-                                    EMERGENCY LIQUIDATION & KILL SWITCH
+                                    전량 매도 및 페이퍼 모드 전환 (FORCE SELL ALL & PAPER MODE)
                                 </button>
                             )}
                         </div>
