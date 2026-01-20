@@ -25,7 +25,7 @@ class StatsService:
         # 1. Basic Counts
         total_trades = len(trades)
         if total_trades == 0:
-            return _get_empty_stats()
+            return StatsService.get_empty_stats()
             
         # 2. Key Trade Metrics
         wins = [t for t in trades if t.pnl > 0]
@@ -145,8 +145,9 @@ class StatsService:
             "max_drawdown": f"-{max_dd * 100:.2f}%"
         }
 
-def _get_empty_stats():
-    return {
+    @staticmethod
+    def get_empty_stats():
+        return {
         "total_return": "0.00%",
         "profit_factor": "0.00",
         "win_rate": "0.0%",

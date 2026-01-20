@@ -259,3 +259,10 @@ export const getSessionRealizedTrades = async (sessionId) => {
     const { data } = await api.get(`/live/sessions/${sessionId}/trades`);
     return data;
 };
+
+export const getAggregateStats = async (sessionIds) => {
+    const { data } = await api.get('/live/aggregate/stats', {
+        params: { session_ids: sessionIds.join(',') }
+    });
+    return data;
+};

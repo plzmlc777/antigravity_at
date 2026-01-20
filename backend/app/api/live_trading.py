@@ -140,6 +140,37 @@ async def get_session_stats(session_id: str, db: Session = Depends(get_db)):
     
     return stats
 
+@router.get("/aggregate/stats")
+async def get_total_stats(session_ids: str, db: Session = Depends(get_db)):
+    """
+    Get aggregate performance stats for multiple sessions.
+    Expected session_ids: comma separated strings.
+    """
+    ids = [i.strip() for i in session_ids.split(",") if i.strip()]
+    if not ids:
+        return StatsService.get_empty_stats()
+        
+    sessions = db.query(LiveBotSession).filter(LiveBotSession.id.in_(ids)).all()
+    if not sessions:
+        return StatsService.get_empty_stats()
+        
+    trades = db.query(LiveRealizedTrade).filter(
+        LiveRealizedTrade.session_id.in_(ids)
+    ).all()
+    
+    total_initial_capital = sum(s.initial_capital for s in sessions)
+    min_started_at = min(s.started_at for s in sessions)
+    
+    # Calculate detailed stats for the whole portfolio
+    stats = StatsService.calculate_detailed_stats(
+        trades, 
+        [], # Equity curve is reconstructed from trades in StatsService
+        min_started_at,
+        initial_capital=total_initial_capital
+    )
+    
+    return stats
+
 @router.get("/sessions/{session_id}/equity-curve")
 async def get_session_equity_curve(session_id: str, db: Session = Depends(get_db)):
     """

@@ -11,35 +11,30 @@ from backend.app.db.session import SessionLocal
 from backend.app.models.live_trading import LiveBotSession, LiveTradeExecution, ExecutionStatus, LiveRealizedTrade
 from backend.app.core.live_context import LiveContext
 
-def seed_data():
-    print("--- Seeding Dummy Trades ---")
-    db = SessionLocal()
+def seed_session(db, symbol, name):
+    print(f"--- Seeding Dummy Trades for {name} ({symbol}) ---")
     
-    # 1. Find or Create a dummy running session
-    session = db.query(LiveBotSession).filter(LiveBotSession.status == "RUNNING").first()
+    # Create a unique session per run
+    session_id = f"test-{symbol}-{datetime.now().strftime('%H%M%S')}"
+    print(f"Creating new dummy session: {session_id}")
     
-    if not session:
-        session_id = "dummy-session-" + datetime.now().strftime("%H%M%S")
-        print(f"Creating new dummy session: {session_id}")
-        session = LiveBotSession(
-            id=session_id,
-            symbol="005930",
-            strategy_name="seed_strategy",
-            strategy_config={"symbol": "005930"},
-            initial_capital=10000000,
-            current_capital=10000000,
-            status="RUNNING",
-            started_at=datetime.now() - timedelta(hours=5),
-            interval="1m"
-        )
-        db.add(session)
-        db.commit()
-    else:
-        print(f"Using existing session: {session.id}")
-        session_id = session.id
+    session = LiveBotSession(
+        id=session_id,
+        symbol=symbol,
+        strategy_name="seed_strategy",
+        strategy_config={"symbol": symbol},
+        initial_capital=10000000,
+        current_capital=10000000,
+        status="RUNNING",
+        started_at=datetime.now() - timedelta(hours=5),
+        interval="1m",
+        orders_enabled=True
+    )
+    db.add(session)
+    db.commit()
         
-    # 2. Generate 10 Trades
-    base_price = 70000
+    # Generate 10 Trades
+    base_price = 70000 if symbol == "005930" else 150000
     current_time = datetime.now() - timedelta(hours=4)
     
     total_pnl = 0
@@ -51,7 +46,7 @@ def seed_data():
         exit_time = entry_time + timedelta(minutes=15)
         
         # Random Price Action
-        entry_price = base_price + random.uniform(-500, 500)
+        entry_price = base_price + random.uniform(-1000, 1000)
         is_win = random.choice([True, True, False]) # 66% win rate bias
         pnl_percent = random.uniform(0.005, 0.02) if is_win else random.uniform(-0.01, -0.005)
         exit_price = entry_price * (1 + pnl_percent)
@@ -62,10 +57,10 @@ def seed_data():
         total_pnl += pnl
         if pnl > 0: wins += 1
         
-        # Create Executions (Simplified)
+        # Create Executions
         buy_exec = LiveTradeExecution(
             session_id=session_id,
-            symbol="005930",
+            symbol=symbol,
             signal_type="BUY",
             signal_timestamp=entry_time,
             order_filled_at=entry_time,
@@ -73,15 +68,15 @@ def seed_data():
             executed_price=entry_price,
             requested_quantity=quantity,
             filled_quantity=quantity,
-            remaining_quantity=0, # Fully matched
+            remaining_quantity=0,
             status=ExecutionStatus.FILLED
         )
         db.add(buy_exec)
-        db.commit() # Need ID
+        db.commit()
         
         sell_exec = LiveTradeExecution(
             session_id=session_id,
-            symbol="005930",
+            symbol=symbol,
             signal_type="SELL",
             signal_timestamp=exit_time,
             order_filled_at=exit_time,
@@ -92,12 +87,12 @@ def seed_data():
             status=ExecutionStatus.FILLED
         )
         db.add(sell_exec)
-        db.commit() # Need ID
+        db.commit()
         
         # Create Realized Trade
         realized = LiveRealizedTrade(
             session_id=session_id,
-            symbol="005930",
+            symbol=symbol,
             entry_exec_id=buy_exec.id,
             exit_exec_id=sell_exec.id,
             entry_price=entry_price,
@@ -111,18 +106,21 @@ def seed_data():
         )
         db.add(realized)
         
-    # 3. Update Session Stats
-    session.total_trades += 10
-    session.total_pnl += total_pnl
-    session.current_capital += total_pnl
-    # Recalculate Win Rate/Profit Factor (Simplified)
-    # Ideally should read all trades, but for seed we force it
+    session.total_trades = 10
+    session.total_pnl = total_pnl
+    session.current_capital = 10000000 + total_pnl
     session.win_rate = (wins / 10) * 100
     
     db.commit()
-    print("Seed Complete!")
-    print(f"Session ID: {session_id}")
-    db.close()
+    print(f"Seed Complete for {symbol}! Session ID: {session_id}")
+
+def main():
+    db = SessionLocal()
+    try:
+        seed_session(db, "005930", "삼성전자")
+        seed_session(db, "000660", "SK하이닉스")
+    finally:
+        db.close()
 
 if __name__ == "__main__":
-    seed_data()
+    main()
