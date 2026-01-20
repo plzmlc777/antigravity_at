@@ -9,8 +9,9 @@ class StatsService:
     @staticmethod
     def calculate_detailed_stats(
         trades: List[Any], 
-        equity_curve: List[Any], 
-        start_time: Optional[datetime] = None
+        equity_curve: List[Any], # Kept for signature compatibility, but we'll use virtual one
+        start_time: Optional[datetime] = None,
+        initial_capital: float = 10000000
     ) -> Dict[str, Any]:
         """
         Calculate comprehensive performance statistics matching the Backtest Report.
@@ -49,30 +50,32 @@ class StatsService:
         avg_holding_sec = statistics.mean(holding_times) if holding_times else 0
         avg_holding_min = int(avg_holding_sec / 60)
         
-        # 4. Total Return & MDD (Equity Based)
-        if equity_curve and len(equity_curve) > 1:
-            initial_equity = equity_curve[0].equity if hasattr(equity_curve[0], 'equity') else equity_curve[0]['equity']
-            final_equity = equity_curve[-1].equity if hasattr(equity_curve[-1], 'equity') else equity_curve[-1]['equity']
+        # 4. Generate Virtual Equity Curve (Trade-based)
+        # We start at initial_capital and add PnL of each trade sequentially.
+        # This isolations this strategy's performance from other account activities.
+        current_v_equity = initial_capital
+        equity_values = [current_v_equity]
+        
+        # Sort trades by exit time to build chronological curve
+        sorted_trades = sorted(trades, key=lambda x: x.exit_time if hasattr(x, 'exit_time') else x['exit_time'])
+        
+        max_dd = 0
+        peak = initial_capital
+        
+        for t in sorted_trades:
+            pnl = t.pnl if hasattr(t, 'pnl') else t['pnl']
+            current_v_equity += pnl
+            equity_values.append(current_v_equity)
             
-            # If initial is 0 (bug?), avoid div zero
-            if initial_equity == 0: initial_equity = final_equity 
+            if current_v_equity > peak:
+                peak = current_v_equity
             
-            total_return = ((final_equity - initial_equity) / initial_equity) * 100 if initial_equity > 0 else 0
-            
-            # MDD Calculation
-            peak = initial_equity
-            max_dd = 0
-            equity_values = []
-            for point in equity_curve:
-                val = point.equity if hasattr(point, 'equity') else point['equity']
-                equity_values.append(val)
-                if val > peak: peak = val
-                dd = (peak - val) / peak
-                if dd > max_dd: max_dd = dd
-        else:
-            total_return = 0
-            max_dd = 0
-            equity_values = []
+            dd = (peak - current_v_equity) / peak if peak > 0 else 0
+            if dd > max_dd:
+                max_dd = dd
+        
+        final_equity = equity_values[-1]
+        total_return = ((final_equity - initial_capital) / initial_capital * 100) if initial_capital > 0 else 0
 
         # 5. Sharpe Ratio (Trade-based Proxy)
         # Using trade returns distribution
@@ -91,7 +94,7 @@ class StatsService:
         acceleration_score = 0.0
         
         try:
-            if len(equity_values) > 10:
+            if len(equity_values) >= 2: # Lowered threshold to provide feedback earlier
                 # Stability = R-squared of equity curve
                 x = np.arange(len(equity_values))
                 slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, equity_values)

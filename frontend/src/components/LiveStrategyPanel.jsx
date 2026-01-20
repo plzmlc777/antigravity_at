@@ -706,13 +706,11 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
             <div className="lg:col-span-3">
                 {/* Live Performance Analysis (Backtest-Style) */}
-                {sessionId && (
-                    <LivePerformancePanel
-                        sessionId={sessionId}
-                        strategyConfig={strategyConfig}
-                        liveData={liveData}
-                    />
-                )}
+                <LivePerformancePanel
+                    sessionId={sessionId}
+                    strategyConfig={strategyConfig}
+                    liveData={liveData}
+                />
 
                 <StrategySignalPanel strategyState={strategyState} />
             </div>

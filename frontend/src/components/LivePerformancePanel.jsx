@@ -2,20 +2,42 @@ import React, { useEffect, useState } from 'react';
 import { getSessionStats } from '../api/client';
 import { Activity, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
+const EMPTY_STATS = {
+    total_return: "0.00%",
+    profit_factor: "0.00",
+    win_rate: "0.0%",
+    sharpe_ratio: "0.00",
+    total_trades: 0,
+    stability: "0.00",
+    profit_accel: "0.00x",
+    activity_rate: "0.0%",
+    avg_pnl: "0.00%",
+    avg_holding: "0m",
+    max_profit: "0.00%",
+    max_loss: "0.00%",
+    max_drawdown: "0.00%"
+};
+
 const LivePerformancePanel = ({ sessionId, strategyConfig }) => {
-    const [stats, setStats] = useState(null);
+    const [stats, setStats] = useState(EMPTY_STATS);
     const [loading, setLoading] = useState(false);
 
     // Polling for updates
     useEffect(() => {
-        if (!sessionId) return;
+        if (!sessionId) {
+            setStats(EMPTY_STATS);
+            return;
+        }
 
         const fetchData = async () => {
             try {
                 const s = await getSessionStats(sessionId);
-                setStats(s);
+                if (s) setStats(s);
             } catch (err) {
                 console.error("LivePerformance Fetch Error", err);
+                // Keep existing or show empty? 
+                // Usually better to keep what we have or stick to empty if it was a 404
+                if (err.response?.status === 404) setStats(EMPTY_STATS);
             }
         };
 
@@ -24,7 +46,7 @@ const LivePerformancePanel = ({ sessionId, strategyConfig }) => {
         return () => clearInterval(interval);
     }, [sessionId]);
 
-    if (!sessionId || !stats) return null;
+    const displayStats = stats || EMPTY_STATS;
 
     // Define the Grid Layout based on User Request
     // Metric Keys from Backend: 
@@ -33,22 +55,22 @@ const LivePerformancePanel = ({ sessionId, strategyConfig }) => {
     // avg_pnl, avg_holding, max_profit, max_loss, max_drawdown
 
     const metrics = [
-        { label: "Total Return", value: stats.total_return, highlight: true, color: parseFloat(stats.total_return) >= 0 ? "text-green-400" : "text-red-400" },
-        { label: "Profit Factor", value: stats.profit_factor },
-        { label: "Win Rate", value: stats.win_rate, color: parseFloat(stats.win_rate) >= 50 ? "text-green-400" : "text-red-400" },
-        { label: "Sharpe Ratio", value: stats.sharpe_ratio, color: parseFloat(stats.sharpe_ratio) > 1 ? "text-blue-400" : "text-gray-300" },
+        { label: "Total Return", value: displayStats.total_return, highlight: true, color: parseFloat(displayStats.total_return) >= 0 ? "text-green-400" : "text-red-400" },
+        { label: "Profit Factor", value: displayStats.profit_factor },
+        { label: "Win Rate", value: displayStats.win_rate, color: parseFloat(displayStats.win_rate) >= 50 ? "text-green-400" : "text-red-400" },
+        { label: "Sharpe Ratio", value: displayStats.sharpe_ratio, color: parseFloat(displayStats.sharpe_ratio) > 1 ? "text-blue-400" : "text-gray-300" },
 
-        { label: "Total Trades", value: stats.total_trades },
-        { label: "Stability (R²)", value: stats.stability },
-        { label: "Profit Accel", value: stats.profit_accel },
-        { label: "Activity Rate", value: stats.activity_rate },
+        { label: "Total Trades", value: displayStats.total_trades },
+        { label: "Stability (R²)", value: displayStats.stability },
+        { label: "Profit Accel", value: displayStats.profit_accel },
+        { label: "Activity Rate", value: displayStats.activity_rate },
 
-        { label: "Avg PnL", value: stats.avg_pnl, color: parseFloat(stats.avg_pnl) >= 0 ? "text-green-400" : "text-red-400" },
-        { label: "Avg Holding", value: stats.avg_holding },
-        { label: "Max Profit", value: stats.max_profit, color: "text-green-400" },
-        { label: "Max Loss", value: stats.max_loss, color: "text-red-400" },
+        { label: "Avg PnL", value: displayStats.avg_pnl, color: parseFloat(displayStats.avg_pnl) >= 0 ? "text-green-400" : "text-red-400" },
+        { label: "Avg Holding", value: displayStats.avg_holding },
+        { label: "Max Profit", value: displayStats.max_profit, color: "text-green-400" },
+        { label: "Max Loss", value: displayStats.max_loss, color: "text-red-400" },
 
-        { label: "Max Drawdown", value: stats.max_drawdown, color: "text-red-400", fullWidth: true }
+        { label: "Max Drawdown", value: displayStats.max_drawdown, color: "text-red-400", fullWidth: true }
     ];
 
     return (
@@ -59,7 +81,7 @@ const LivePerformancePanel = ({ sessionId, strategyConfig }) => {
                     Live Performance Analysis
                 </div>
                 <div className="text-[10px] text-gray-500 font-mono">
-                    Session: {sessionId.split('-')[1]}...
+                    Session: {sessionId ? (sessionId.split('-')[1] || sessionId.slice(0, 8)) : "NONE"}...
                 </div>
             </div>
 

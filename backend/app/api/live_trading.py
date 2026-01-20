@@ -123,7 +123,12 @@ async def get_session_stats(session_id: str, db: Session = Depends(get_db)):
     ).order_by(LiveEquitySnapshot.timestamp.asc()).all()
     
     # Calculate detailed stats
-    stats = StatsService.calculate_detailed_stats(trades, equity_curve, session.started_at)
+    stats = StatsService.calculate_detailed_stats(
+        trades, 
+        equity_curve, 
+        session.started_at,
+        initial_capital=session.initial_capital
+    )
     
     # Merge with basic session info
     stats.update({
