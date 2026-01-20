@@ -91,6 +91,12 @@ class LiveManager:
                     db.commit()
         finally:
             db.close()
+            
+        # Always start Realtime Connection (even if no sessions)
+        # This allows monitoring connection status via System Logs
+        if hasattr(self.adapter, "start_realtime"):
+            logger.info("LiveManager: Initiating Auto-Connect to Kiwoom...")
+            asyncio.create_task(self.adapter.start_realtime())
 
     async def start_session(self, config: Dict[str, Any]) -> str:
         """

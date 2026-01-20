@@ -427,36 +427,39 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     }, [sessionId, status, mode, strategyConfig.symbol]);
 
 
-    // Effect: Test Log Stream WebSocket
+    // System Log Stream Effect
     useEffect(() => {
         if (!isTestLogActive) return;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/test/test-logs`;
+        // Connect to new System Logs endpoint
+        const wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/system/system-logs`;
+        console.log("Connecting to System Log Stream:", wsUrl);
+
         let ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            addLog("System", "Test Log Stream Connected (100 logs/sec)");
+            console.log("System Log Stream Open");
+            addLog("System", "Log Monitor Connected");
         };
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                // Directly append to logs to test high-frequency rendering
-                // Using functional update to avoid stale closure, but slicing might be tricky with HF.
-                // Let's just push simple format.
-                setLogs(prev => [{
-                    time: data.time ? data.time.split('T')[1].split('.')[0] : new Date().toLocaleTimeString(),
-                    source: data.source || "Test",
-                    msg: data.msg
-                }, ...prev].slice(0, 200)); // Increased buffer slightly for test
-            } catch (err) {
-                console.error("Test WS Error", err);
+                if (data.msg) {
+                    setLogs(prev => [{
+                        time: data.time ? data.time.split('T')[1].split('.')[0] : new Date().toLocaleTimeString(),
+                        source: data.source || "System",
+                        msg: data.msg
+                    }, ...prev].slice(0, 100));
+                }
+            } catch (e) {
+                console.error("System Log Parse Error", e);
             }
         };
 
         ws.onclose = () => {
-            addLog("System", "Test Log Stream Disconnected");
+            console.log("System Log Stream Closed");
         };
 
         return () => {
@@ -914,7 +917,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                     <span>Execution Logs</span>
                     <label className="ml-auto flex items-center gap-2 cursor-pointer text-[10px] select-none">
                         <span className={`transition-colors ${isTestLogActive ? 'text-green-400 font-bold' : 'text-gray-500'}`}>
-                            Test Stream {isTestLogActive ? '(ON)' : '(OFF)'}
+                            System Logs {isTestLogActive ? '(ON)' : '(OFF)'}
                         </span>
                         <div className="relative inline-flex items-center">
                             <input

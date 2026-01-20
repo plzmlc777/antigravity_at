@@ -6,6 +6,7 @@ from typing import Optional, Dict, List, Callable, Any
 from datetime import datetime
 from ..core.config import settings
 from .kiwoom_base import KiwoomBaseAdapter
+from ..services.log_broadcaster import LogBroadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             self.is_running = True
             if KiwoomWebSocket._monitor_task is None or KiwoomWebSocket._monitor_task.done():
                 logger.info(f"WS: Starting connection loop to {self.uri}")
+                await LogBroadcaster.get_instance().add_log("KiwoomWS", "Initializing Connection Manager...")
                 KiwoomWebSocket._monitor_task = asyncio.create_task(self._monitor_connection())
         else:
             logger.info("WS: Connection loop already running, token updated.")
+            await LogBroadcaster.get_instance().add_log("KiwoomWS", "Token updated.")
 
     async def _monitor_connection(self):
         retry_count = 0
@@ -66,7 +69,9 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             await self._ensure_token()
             
             if not self.access_token:
-                logger.error("WS: No access token available. Waiting 60s...")
+                msg = "WS: No access token available (Check .env for AppKey/Secret). Waiting 60s..."
+                logger.error(msg)
+                await LogBroadcaster.get_instance().add_log("KiwoomWS", msg)
                 await asyncio.sleep(60)
                 continue
                 
@@ -89,11 +94,14 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 }
 
                 logger.info(f"WS: Connecting (Token valid for {remaining_sec // 60} mins)...")
+                await LogBroadcaster.get_instance().add_log("KiwoomWS", f"Connecting to WebSocket... (Token: {remaining_sec // 60}m)")
+                
                 async with websockets.connect(self.uri, extra_headers=headers) as websocket:
                     self.websocket = websocket
                     retry_count = 0 # Reset on success
                     
                     logger.info("WS: Connected. Sending LOGIN...")
+                    await LogBroadcaster.get_instance().add_log("KiwoomWS", "Connected to Server. Authenticating...")
                     
                     # 0. Send LOGIN 
                     login_payload = {
@@ -142,8 +150,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                     continue
         except websockets.exceptions.ConnectionClosed:
             logger.warning("WS: Connection closed by server.")
+            await LogBroadcaster.get_instance().add_log("KiwoomWS", "Connection closed by server.")
         except Exception as e:
             logger.error(f"WS: Listen Loop Error: {e}")
+            await LogBroadcaster.get_instance().add_log("KiwoomWS", f"Listen Loop Error: {e}")
 
     async def _handle_message(self, message):
          try:
@@ -172,8 +182,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             elif trnm == "LOGIN":
                 if data.get("return_code") != 0:
                      logger.error(f"WS LOGIN Error: {data.get('return_msg')}")
+                     await LogBroadcaster.get_instance().add_log("KiwoomWS", f"Login Failed: {data.get('return_msg')}")
                 else:
                      logger.info("WS LOGIN Success")
+                     await LogBroadcaster.get_instance().add_log("KiwoomWS", "Login Successful. Ready for data.")
          except Exception as e:
              logger.error(f"WS Parse Error: {e}")
 
