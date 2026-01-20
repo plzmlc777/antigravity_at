@@ -4,14 +4,14 @@
     "version": "0.9.6.4",
     "description": "Unified control scripts for Auto Trading System",
     "scripts": {
-        "pm2": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2",
-        "start": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 start ecosystem.config.cjs",
-        "restart": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 restart all",
-        "stop": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 stop all",
-        "delete": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 delete all",
-        "logs": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 logs",
-        "monit": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 monit",
-        "status": "./tools/node/bin/node ./tools/node/lib/node_modules/pm2/bin/pm2 list"
+        "pm2": "npx pm2",
+        "start": "npx pm2 start ecosystem.config.cjs",
+        "restart": "npx pm2 restart all",
+        "stop": "npx pm2 stop all",
+        "delete": "npx pm2 delete all",
+        "logs": "npx pm2 logs",
+        "monit": "npx pm2 monit",
+        "status": "npx pm2 list"
     },
     "author": "Antigravity",
     "license": "ISC"
