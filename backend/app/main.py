@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(    title="Antigravity Auto Trading",
     description="High Performance Trading Bot with Kiwoom API",
-    version="0.9.6.7",
+    version="0.9.6.8",
     lifespan=lifespan
 )
 

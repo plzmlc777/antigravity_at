@@ -304,9 +304,47 @@ class MarketDataService:
                 )
             ).order_by(OHLCV.timestamp.asc()).all()
             
-            if len(db_candles) > 0:
+            # Check for Staleness if Today
+            is_stale = False
+            if target_date == datetime.now().date():
+                if not db_candles:
+                    is_stale = True
+                else:
+                    last_ts = db_candles[-1].timestamp
+                    # If last candle is older than 10 mins (and currently < 16:00, or just generic check)
+                    # Simple check: if last data is > 10 mins ago, try fetch
+                    # But be careful not to loop if market is closed or API fails.
+                    # Let's trust 'fetch_history' handles 'up to date'.
+                    # Only fetch if gap > 10 mins
+                    if (datetime.now() - last_ts).total_seconds() > 600:
+                         print(f"Data for today seems stale (Last: {last_ts}). Triggering fresh fetch...")
+                         is_stale = True
+            
+            if len(db_candles) > 0 and not is_stale:
                 print(f"Loaded {len(db_candles)} {interval} candles for {date_str} from DB (Exact Match).")
                 return [
+                    {
+                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                        "time": int(c.timestamp.timestamp())
+                    }
+                    for c in db_candles
+                ]
+             
+            if is_stale:
+                 print(f"Refreshing data for {date_str}...")
+                 await self.fetch_history(symbol, interval, days=1)
+                 # Re-query
+                 db_candles = db.query(OHLCV).filter(
+                    and_(
+                        OHLCV.symbol == symbol, 
+                        OHLCV.time_frame == interval,
+                        OHLCV.timestamp >= start_dt,
+                        OHLCV.timestamp < end_dt
+                    )
+                ).order_by(OHLCV.timestamp.asc()).all()
+                
+                 return [
                     {
                         "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                         "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
