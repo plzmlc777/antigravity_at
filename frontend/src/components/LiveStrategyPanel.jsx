@@ -19,6 +19,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     const [availableBalance, setAvailableBalance] = useState(null);
     const [inputCapital, setInputCapital] = useState(10000000); // 10M default
     const [bettingMode, setBettingMode] = useState('compounding'); // 'fixed' or 'compounding'
+    const [isTestLogActive, setIsTestLogActive] = useState(false); // New: Test Log Toggle
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [modalConfig, setModalConfig] = useState({
@@ -170,7 +171,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 }
             })();
         }
-    }, [status, strategyConfig.symbol, selectedInterval]); // Removed liveData dependency to prevent re-fetching loop
+    }, [strategyConfig.symbol, selectedInterval]); // Removed status and liveData dependency to prevent re-fetching loop
 
 
     const startPolling = () => {
@@ -424,6 +425,44 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             if (ws) ws.close();
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);
+
+
+    // Effect: Test Log Stream WebSocket
+    useEffect(() => {
+        if (!isTestLogActive) return;
+
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/test/test-logs`;
+        let ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            addLog("System", "Test Log Stream Connected (100 logs/sec)");
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                // Directly append to logs to test high-frequency rendering
+                // Using functional update to avoid stale closure, but slicing might be tricky with HF.
+                // Let's just push simple format.
+                setLogs(prev => [{
+                    time: data.time ? data.time.split('T')[1].split('.')[0] : new Date().toLocaleTimeString(),
+                    source: data.source || "Test",
+                    msg: data.msg
+                }, ...prev].slice(0, 200)); // Increased buffer slightly for test
+            } catch (err) {
+                console.error("Test WS Error", err);
+            }
+        };
+
+        ws.onclose = () => {
+            addLog("System", "Test Log Stream Disconnected");
+        };
+
+        return () => {
+            if (ws) ws.close();
+        };
+    }, [isTestLogActive]);
 
 
 
@@ -871,7 +910,22 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
             <div className="lg:col-span-3 bg-[#1e1e24] border border-white/5 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col min-h-[200px] max-h-[400px]">
                 <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
                     <Terminal size={12} />
+                    <Terminal size={12} />
                     <span>Execution Logs</span>
+                    <label className="ml-auto flex items-center gap-2 cursor-pointer text-[10px] select-none">
+                        <span className={`transition-colors ${isTestLogActive ? 'text-green-400 font-bold' : 'text-gray-500'}`}>
+                            Test Stream {isTestLogActive ? '(ON)' : '(OFF)'}
+                        </span>
+                        <div className="relative inline-flex items-center">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={isTestLogActive}
+                                onChange={(e) => setIsTestLogActive(e.target.checked)}
+                            />
+                            <div className="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-green-600"></div>
+                        </div>
+                    </label>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
                     {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
