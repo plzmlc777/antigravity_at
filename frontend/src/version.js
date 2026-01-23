@@ -1,5 +1,5 @@
-// Version injected from package.json
-export const APP_VERSION = "v" + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : "0.9.6.2");
+// Version injected from package.json through Vite define
+export const APP_VERSION = "v" + (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : "0.0.0-dev");
 export const COMMIT_HASH = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : "dev";
 export const BUILD_DATE = new Date().toISOString().split('T')[0];
 
