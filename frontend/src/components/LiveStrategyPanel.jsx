@@ -290,6 +290,9 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                 if (data.type === 'tick') {
                     setLiveData(prev => ({ ...prev, current_price: data.price }));
 
+                    // Log tick to Execution Logs
+                    addLog("Market", `Tick: ${data.price.toLocaleString()} (Vol: ${data.volume || 0})`);
+
                     // 1. Update Ticks List (for debug/legacy)
                     setTickData(prev => {
                         let timeStr = data.time;

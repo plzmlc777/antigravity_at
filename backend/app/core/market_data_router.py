@@ -61,13 +61,13 @@ class MarketDataRouter:
 
     async def _handle_tick(self, data: Dict[str, Any]):
         """Callback from Adapter"""
-        symbol = data.get('code')
+        symbol = data.get('symbol')
         if not symbol or symbol not in self.listeners:
             return
 
         payload = {
             "type": "tick",
-            "price": abs(int(data.get('current_price', 0))),
+            "price": data.get('price', 0),
             "time": data.get('timestamp', ''),
             "volume": int(data.get('volume', 0))
         }

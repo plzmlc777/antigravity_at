@@ -35,13 +35,22 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         self.tick_listeners: List[Callable[[Dict], None]] = []
         self._ws_task = None
         
-    def add_tick_listener(self, callback: Callable[[Dict], None]):
-        self.tick_listeners.append(callback)
+    async def register_real_listener(self, symbol: str, callback: Callable[[Dict], Any]):
+        """
+        Special registration for MarketDataRouter/Watching.
+        """
+        self.add_tick_listener(callback)
+        await self.start_realtime([symbol])
 
     def _on_ws_tick(self, tick_data: Dict):
         for listener in self.tick_listeners:
             try:
-                listener(tick_data)
+                # Some listeners might be async (MarketDataRouter._handle_tick)
+                # Others might be sync.
+                if asyncio.iscoroutinefunction(listener):
+                    asyncio.create_task(listener(tick_data))
+                else:
+                    listener(tick_data)
             except Exception as e:
                 logger.error(f"Error in tick listener: {e}")
 

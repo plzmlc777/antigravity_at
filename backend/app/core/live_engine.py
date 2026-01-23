@@ -216,6 +216,7 @@ class LiveTradingEngine:
             "type": "tick",
             "symbol": self.symbol,
             "price": price,
+            "volume": volume,
             "time": now.isoformat()
         }
         for listener in self.tick_listeners:

@@ -81,15 +81,9 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 continue
             
             try:
-                # Prepare Headers
-                headers = {
-                    "api-id": "ws-init", 
-                    "Authorization": f"Bearer {self.access_token}",
-                    "content-type": "application/json;charset=UTF-8"
-                }
-
-                logger.info(f"WS: Connecting (Token valid for {remaining_sec // 60} mins)...")
-                async with websockets.connect(self.uri, extra_headers=headers) as websocket:
+                # Official example doesn't use extra headers in connect
+                logger.info(f"WS: Connecting to {self.uri} (Token valid for {remaining_sec // 60} mins)...")
+                async with websockets.connect(self.uri) as websocket:
                     self.websocket = websocket
                     retry_count = 0 # Reset on success
                     
@@ -151,24 +145,21 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             trnm = data.get("trnm")
             
             if trnm == "REAL":
+                # logger.debug(f"WS: Received REAL message: {data}")
                 items = data.get("data", [])
                 for item in items:
                     m_type = item.get("type")
                     if m_type == "0B": # Stock Execution
+                        # logger.debug(f"WS: Tick received for {item.get('item')}")
                         if self.on_tick_callback:
                             self._parse_tick(item)
-                    elif m_type == "00": # Order
-                        if self.on_order_callback:
-                            self.on_order_callback(item)
-                    elif m_type == "04": # Balance
-                        if self.on_balance_callback:
-                            self.on_balance_callback(item)
-                            
+                    else:
+                        logger.debug(f"WS: Received REAL type {m_type}")
             elif trnm == "REG":
                 if data.get("return_code") != 0:
                      logger.error(f"WS REG Error: {data.get('return_msg')}")
                 else:
-                     logger.info("WS REG Success")
+                     logger.info(f"WS REG Success")
             elif trnm == "LOGIN":
                 if data.get("return_code") != 0:
                      logger.error(f"WS LOGIN Error: {data.get('return_msg')}")
@@ -209,8 +200,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             await self._send_reg(symbols, ["0B"]) 
             
     async def _send_reg(self, items: List[str], types: List[str]):
-        if not self.websocket or not self.websocket.open: return
+        if not self.websocket or not self.websocket.open: 
+            logger.warning(f"WS: Skip REG (WS not open): {items} {types}")
+            return
         
+        logger.info(f"WS: Sending REG for items: {items}, types: {types}")
         payload = {
             "trnm": "REG",
             "grp_no": "1",
