@@ -35,7 +35,7 @@ class MarketDataRouter:
                 # Or we access adapter directly if public.
                 adapter = self.live_manager.adapter
                 if adapter:
-                    adapter.register_real_listener(symbol, self._handle_tick)
+                    await adapter.register_real_listener(symbol, self._handle_tick)
                     self.active_subscriptions.add(symbol)
                     logger.info(f"MarketDataRouter: Subscribed to {symbol}")
             except Exception as e:

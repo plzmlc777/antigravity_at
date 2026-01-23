@@ -58,9 +58,13 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
 
     async def _monitor_connection(self):
         retry_count = 0
+        first_run = True
         while self.is_running:
             # 0. Mandatory guard delay to prevent tight-looping on fast failures
-            await asyncio.sleep(5)
+            #    But skip on first run for faster initial connection
+            if not first_run:
+                await asyncio.sleep(5)
+            first_run = False
 
             # 1. Ensure we have a valid token (and refresh if needed)
             await self._ensure_token()

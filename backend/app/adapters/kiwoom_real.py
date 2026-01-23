@@ -72,6 +72,18 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     async def stop_realtime(self):
         self.ws_client.is_running = False
 
+    def add_tick_listener(self, callback: Callable[[Dict], None]):
+        """Add a tick listener callback."""
+        if callback not in self.tick_listeners:
+            self.tick_listeners.append(callback)
+            logger.debug(f"Added tick listener. Total: {len(self.tick_listeners)}")
+
+    def remove_tick_listener(self, callback: Callable[[Dict], None]):
+        """Remove a tick listener callback."""
+        if callback in self.tick_listeners:
+            self.tick_listeners.remove(callback)
+            logger.debug(f"Removed tick listener. Total: {len(self.tick_listeners)}")
+
 
     def get_name(self) -> str:
         return "KIWOOM (REAL)"
