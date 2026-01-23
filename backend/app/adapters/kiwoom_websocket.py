@@ -174,6 +174,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                      logger.error(f"WS LOGIN Error: {data.get('return_msg')}")
                 else:
                      logger.info("WS LOGIN Success")
+            elif trnm == "PING":
+                # Responding to PING is essential for maintaining the connection
+                await self.websocket.send(message)
+                # logger.debug("WS: Responded to PING")
          except Exception as e:
              logger.error(f"WS Parse Error: {e}")
 
