@@ -27,7 +27,8 @@ def get_history_sessions(db: Session = Depends(get_db)):
             "stopped_at": s.stopped_at.isoformat() if s.stopped_at else None,
             "strategy_name": s.strategy_name,
             "initial_capital": s.initial_capital,
-            "current_capital": s.current_capital
+            "current_capital": s.current_capital,
+            "is_paper": s.is_paper
         })
     return results
 
@@ -91,7 +92,8 @@ def get_session_details(session_id: str, db: Session = Depends(get_db)):
             "status": session.status,
             "started_at": session.started_at.isoformat(),
             "stopped_at": session.stopped_at.isoformat() if session.stopped_at else None,
-            "config": session.strategy_config
+            "config": session.strategy_config,
+            "is_paper": session.is_paper
         },
         "executions": formatted_execs,
         "candles": formatted_candles

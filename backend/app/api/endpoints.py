@@ -593,8 +593,10 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
                 candles = [c for c in candles if c['timestamp'] >= from_date]
             multi_ohlcv_data[sym] = candles
             
-    # 3. Fetch Real Trades
-    trades_query = db.query(LiveTradeExecution).options(joinedload(LiveTradeExecution.session)).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(limit).all()
+    # 3. Fetch Real Trades (Exclude Paper Trading)
+    trades_query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
+        LiveBotSession.is_paper == False
+    ).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(limit).all()
     
     trades_data = []
     
@@ -730,8 +732,10 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
         preloaded_feeds=None # Live mode has no preloaded simulation data
     )
             
-    # 3. Fetch Real Trades
-    trades_query = db.query(LiveTradeExecution).options(joinedload(LiveTradeExecution.session)).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
+    # 3. Fetch Real Trades (Exclude Paper Trading)
+    trades_query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
+        LiveBotSession.is_paper == False
+    ).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
     
     trades_data = []
     

@@ -10,6 +10,7 @@ from ..core.live_aggregator import CandleRealAggregator
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..db.session import SessionLocal
 from ..models.ohlcv import OHLCV
+from ..core.strategy_registry import strategy_registry
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,10 @@ class LiveTradingEngine:
     3. Triggers Strategy (Candle Close).
     4. Processes Orders.
     """
-    def __init__(self, session_id: str, strategy_class: Any, strategy_config: Dict, adapter: KiwoomRealAdapter):
+    def __init__(self, session_id: str, adapter: KiwoomRealAdapter):
         self.session_id = session_id
-        self.strategy_class = strategy_class
-        self.strategy_config = strategy_config
+        # self.strategy_class = strategy_class # Now dynamic
+        # self.strategy_config = strategy_config # Now dynamic
         self.adapter = adapter
         
         self.is_running = False
@@ -70,14 +71,21 @@ class LiveTradingEngine:
             
             self.symbol = session.symbol
             self.orders_enabled = session.orders_enabled
+            self.is_paper = getattr(session, 'is_paper', True)
             initial_cap = session.initial_capital
             
-            # 1. Context
-            self.context = LiveContext(self.session_id, self.adapter, initial_capital=initial_cap)
+            # 1. Strategy Resolution
+            strategy_name = session.strategy_name
+            self.strategy_config = session.strategy_config
+            StrategyClass = strategy_registry.get_strategy_class(strategy_name)
+            if not StrategyClass:
+                raise ValueError(f"Strategy '{strategy_name}' not found in registry")
+
+            # 2. Context
+            self.context = LiveContext(self.session_id, self.adapter, initial_capital=initial_cap, is_paper=self.is_paper)
             
-            # 2. Strategy
-            # Instantiate Strategy (context, config)
-            self.strategy_instance = self.strategy_class(self.context, self.strategy_config)
+            # 3. Strategy Instance
+            self.strategy_instance = StrategyClass(self.context, self.strategy_config)
             
             # 3. Aggregator
             # Parse interval from session (e.g. "1m" -> 1)

@@ -41,6 +41,8 @@ class LiveBotSession(Base):
     # Lifecycle
     status = Column(String, default=SessionStatus.RUNNING)
     orders_enabled = Column(Boolean, default=True)
+    is_paper = Column(Boolean, default=True) # Default to Paper for safety
+    is_active = Column(Boolean, default=True) # To restore on server restart
     started_at = Column(DateTime, default=datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
     
@@ -75,6 +77,7 @@ class LiveTradeExecution(Base):
     executed_price = Column(Float, nullable=True)
     filled_quantity = Column(Float, nullable=True)
     fees = Column(Float, default=0.0)
+    realized_pnl = Column(Float, default=0.0)
     
     # 3. Analysis Metrics
     slippage = Column(Float, default=0.0) # executed_price - theoretical_price

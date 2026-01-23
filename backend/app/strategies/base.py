@@ -27,6 +27,11 @@ class IContext(ABC):
     def get_time(self) -> datetime:
         pass
 
+    @property
+    @abstractmethod
+    def is_paper(self) -> bool:
+        pass
+
 class BaseStrategy(ABC):
     """
     Abstract Base Class for all strategies.

@@ -10,6 +10,7 @@ class LiveBotStartRequest(BaseModel):
     strategy_name: str = "time_momentum"
     strategy_config: Dict[str, Any] = {}
     initial_capital: float = 10000000
+    is_paper: bool = True
 
 @router.post("/start")
 async def start_live_bot(req: LiveBotStartRequest):

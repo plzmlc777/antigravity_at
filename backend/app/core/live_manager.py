@@ -9,7 +9,7 @@ from datetime import datetime
 from ..core.live_engine import LiveTradingEngine
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..adapters.kiwoom_mock import KiwoomMockAdapter
-from ..strategies.time_momentum import TimeMomentumStrategy 
+# from ..strategies.time_momentum import TimeMomentumStrategy # Removed
 from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus
@@ -100,6 +100,7 @@ class LiveManager:
         strategy_name = config.get("strategy_name", "time_momentum")
         strat_config = config.get("strategy_config", {})
         initial_capital = config.get("initial_capital", 0)
+        is_paper = config.get("is_paper", True)
         
         # 1. DB Record
         db = SessionLocal()
@@ -110,6 +111,8 @@ class LiveManager:
                 strategy_name=strategy_name,
                 strategy_config=strat_config,
                 initial_capital=initial_capital,
+                is_paper=is_paper,
+                is_active=True,
                 status=SessionStatus.RUNNING, # Optimistic
                 started_at=datetime.now(),
                 interval="1m" # Default to 1m for now
@@ -122,11 +125,8 @@ class LiveManager:
         
         # 2. Engine Create & Start
         try:
-            # Resolve Strategy Class
-            # TODO: Robust Factory
-            StrategyClass = TimeMomentumStrategy 
-            
-            engine = LiveTradingEngine(session_id, StrategyClass, strat_config, self.adapter)
+            # Note: Strategy class resolution moved inside LiveTradingEngine.initialize()
+            engine = LiveTradingEngine(session_id, self.adapter)
             await engine.initialize()
             
             self.engines[session_id] = engine
@@ -162,6 +162,7 @@ class LiveManager:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess:
                 sess.status = SessionStatus.STOPPED
+                sess.is_active = False # Deactivate so it's not restored
                 sess.stopped_at = datetime.now()
                 db.commit()
         finally:
@@ -224,6 +225,7 @@ class LiveManager:
                 "symbol": eng.symbol,
                 "is_running": eng.is_running,
                 "orders_enabled": eng.orders_enabled,
+                "is_paper": getattr(eng, 'is_paper', True),
                 "current_price": eng.context.get_current_price(eng.symbol),
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),
@@ -232,8 +234,8 @@ class LiveManager:
         return results
 
     async def _restore_engine(self, sess: LiveBotSession):
-        StrategyClass = TimeMomentumStrategy 
-        engine = LiveTradingEngine(sess.id, StrategyClass, sess.strategy_config, self.adapter)
+        # engine = LiveTradingEngine(sess.id, StrategyClass, sess.strategy_config, self.adapter) # Old
+        engine = LiveTradingEngine(sess.id, self.adapter)
         await engine.initialize()
         self.engines[sess.id] = engine
         asyncio.create_task(engine.run_loop())

@@ -15,10 +15,11 @@ class LiveContext:
     Context for Live Trading Strategies.
     Mimics BacktestContext interface but executes against Real Adapter & DB.
     """
-    def __init__(self, session_id: str, adapter: KiwoomRealAdapter, initial_capital: float = 0.0):
+    def __init__(self, session_id: str, adapter: KiwoomRealAdapter, initial_capital: float = 0.0, is_paper: bool = True):
         self.session_id = session_id
         self.adapter = adapter
         self.initial_capital = initial_capital
+        self._is_paper = is_paper
         
         # State
         self.cash = initial_capital
@@ -43,6 +44,10 @@ class LiveContext:
     def get_time(self) -> datetime:
         """Returns current real server time"""
         return datetime.now()
+
+    @property
+    def is_paper(self) -> bool:
+        return self._is_paper
 
     def get_total_equity(self) -> float:
         """
@@ -212,10 +217,22 @@ class LiveContext:
                 # Execute
                 try:
                     res = None
-                    if p.signal_type == "BUY":
-                        res = await self.adapter.place_buy_order(p.symbol, p.theoretical_price, p.requested_quantity)
-                    elif p.signal_type == "SELL":
-                        res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
+                    if self.is_paper:
+                        # Paper Trading: Skip Adapter Call
+                        res = {
+                            "status": "success",
+                            "order_id": f"PAPER-{p.id[:8]}",
+                            "price": p.theoretical_price,
+                            "quantity": p.requested_quantity,
+                            "message": "Paper Execution (Simulated)"
+                        }
+                        self.log(f"PAPER SIGNAL: {p.signal_type} {p.symbol} @ {p.theoretical_price}")
+                    else:
+                        # REAL Trading: Call Adapter
+                        if p.signal_type == "BUY":
+                            res = await self.adapter.place_buy_order(p.symbol, p.theoretical_price, p.requested_quantity)
+                        elif p.signal_type == "SELL":
+                            res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
                     
                     if res and res.get("status") == "success":
                         # 1. Update DB Record
