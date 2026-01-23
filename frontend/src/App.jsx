@@ -9,7 +9,7 @@ import AdminView from './views/AdminView';
 import StatusCard from './components/StatusCard';
 import AccountStatusPanel from './components/AccountStatusPanel';
 import { useState, useEffect } from 'react';
-import { getSystemStatus } from './api/client';
+import { getSystemStatus, getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { MarketDataProvider } from './context/MarketDataContext';
@@ -57,6 +57,21 @@ const RequireAdmin = ({ children }) => {
 function AppContent() {
     const { logout, user } = useAuth();
     const location = useLocation();
+    const [backendVersion, setBackendVersion] = useState(null);
+
+    useEffect(() => {
+        const fetchVersion = async () => {
+            try {
+                const data = await getSystemVersion();
+                if (data.version) {
+                    setBackendVersion('v' + data.version);
+                }
+            } catch (err) {
+                console.error("Failed to fetch backend version", err);
+            }
+        };
+        fetchVersion();
+    }, []);
 
     // Hide Navbar on Login page
     if (location.pathname === '/login') return null;
@@ -84,7 +99,7 @@ function AppContent() {
                         {/* Mode Toggle Moved to Settings */}
                         <StatusCard />
                         <div className="flex flex-col items-end mr-4">
-                            <span className="text-xs font-bold text-blue-400">{APP_VERSION}</span>
+                            <span className="text-xs font-bold text-blue-400">{backendVersion || APP_VERSION}</span>
                             <span className="text-[10px] font-mono text-gray-500">{CODE_NAME}</span>
                         </div>
                         <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Logout</button>

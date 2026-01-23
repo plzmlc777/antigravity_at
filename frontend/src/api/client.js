@@ -76,6 +76,11 @@ export const getStatus = async () => {
 
 export const getSystemStatus = getStatus;
 
+export const getSystemVersion = async () => {
+    const { data } = await api.get('/system/version');
+    return data;
+};
+
 export const getPrice = async (symbol) => {
     const { data } = await api.get(`/price/${symbol}`);
     return data;

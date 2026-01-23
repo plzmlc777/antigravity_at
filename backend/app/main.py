@@ -9,6 +9,7 @@ from .core.bot_manager import bot_manager
 from .core.condition_watcher import condition_watcher
 from .models.bot import TradingBotModel # Register Model
 from .models.ohlcv import OHLCV # Register Model
+from .models.system import SystemMetadata # Register Model
 from .core.http_client import HttpClientManager # New Import
 
 # Configure logging
@@ -25,6 +26,32 @@ async def lifespan(app: FastAPI):
     
     # Start Services
     await HttpClientManager.get_instance().start() # Global Client
+    
+    # 1. Seed System Version if missing
+    from .db.session import SessionLocal
+    db_session = SessionLocal()
+    try:
+        ver = db_session.query(SystemMetadata).filter_by(key="version").first()
+        if not ver:
+            # Read from root package.json as initial source
+            import json, os
+            pkg_path = os.path.join(os.path.dirname(__file__), "..", "..", "package.json")
+            if os.path.exists(pkg_path):
+                with open(pkg_path, "r") as f:
+                    pkg_data = json.load(f)
+                    initial_ver = pkg_data.get("version", "0.9.6.3")
+            else:
+                initial_ver = "0.9.6.3"
+            
+            new_ver = SystemMetadata(key="version", value=initial_ver)
+            db_session.add(new_ver)
+            db_session.commit()
+            logger.info(f"Seeded system version: {initial_ver}")
+    except Exception as e:
+        logger.error(f"Failed to seed version: {e}")
+    finally:
+        db_session.close()
+
     # bot_manager.initialize() # Legacy
     from .core.live_manager import live_manager
     await live_manager.initialize() # Restore Live Sessions
@@ -51,7 +78,12 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "AntiGravity Crypto/Stock Auto-Trading Backend v0.9.5.9 Running", "version": "0.9.5.9", "status": "running"}
+    from .db.session import SessionLocal
+    db = SessionLocal()
+    ver = db.query(SystemMetadata).filter_by(key="version").first()
+    v_str = ver.value if ver else "0.0.0"
+    db.close()
+    return {"message": f"AntiGravity Crypto/Stock Auto-Trading Backend v{v_str} Running", "version": v_str, "status": "running"}
 
 @app.get("/health")
 async def health_check():
