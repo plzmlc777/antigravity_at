@@ -36,6 +36,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
     // Polling Ref
     const pollInterval = useRef(null);
+    const lastFetchRef = useRef({ symbol: null, interval: null, status: null });
 
     // Helper: Logs
     const addLog = (source, msg) => {
@@ -87,72 +88,84 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
     // Fetch Initial Candles for Real-Time View (Hybrid Pattern: History + Live)
     useEffect(() => {
+        // Skip fetch if symbol is missing or we are in STARTING state
+        if (!strategyConfig.symbol || status === 'STARTING') return;
+
+        // Deduplication Check: Skip if this specific combination was already fetched
+        // We ignore 'status' here because history doesn't care about bot status, only symbol/interval.
+        if (lastFetchRef.current.symbol === strategyConfig.symbol &&
+            lastFetchRef.current.interval === selectedInterval) {
+            console.log(`[DEBUG] Skipping redundant history fetch for ${strategyConfig.symbol} (${selectedInterval})`);
+            return;
+        }
+
         // Log status to debug
         console.log(`[DEBUG] History Fetch Effect Triggered. Status: ${status}, Symbol: ${strategyConfig.symbol}, Interval: ${selectedInterval}`);
 
-        if (strategyConfig.symbol) {
-            // Clear existing candles immediately to indicate loading/change
-            setRealTimeCandles([]);
+        // Update Ref immediately to prevent race conditions during async await
+        lastFetchRef.current = { symbol: strategyConfig.symbol, interval: selectedInterval, status: status };
 
-            (async () => {
-                try {
-                    // 1. Calculate Today's Date in KST (YYYYMMDD)
-                    const now = new Date();
-                    const kstOffset = 9 * 60; // KST is UTC+9
-                    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-                    const kstDate = new Date(utc + (kstOffset * 60000));
-                    const dateStr = kstDate.toISOString().split('T')[0].replace(/-/g, '');
+        // Clear existing candles immediately to indicate loading/change
+        setRealTimeCandles([]);
 
-                    addLog("System", `[DEBUG] REQ: ${selectedInterval} | Date: ${dateStr}`);
-                    console.log(`[DEBUG] Requesting ${selectedInterval} for ${strategyConfig.symbol} on ${dateStr}`);
+        (async () => {
+            try {
+                // 1. Calculate Today's Date in KST (YYYYMMDD)
+                const now = new Date();
+                const kstOffset = 9 * 60; // KST is UTC+9
+                const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const kstDate = new Date(utc + (kstOffset * 60000));
+                const dateStr = kstDate.toISOString().split('T')[0].replace(/-/g, '');
 
-                    // 2. Fetch History (Today's candles)
-                    const candles = await getOHLCV(strategyConfig.symbol, {
-                        date: dateStr,
-                        interval: selectedInterval
-                    });
+                addLog("System", `[DEBUG] REQ: ${selectedInterval} | Date: ${dateStr}`);
+                console.log(`[DEBUG] Requesting ${selectedInterval} for ${strategyConfig.symbol} on ${dateStr}`);
 
-                    console.log("[DEBUG] Response:", candles);
+                // 2. Fetch History (Today's candles)
+                const candles = await getOHLCV(strategyConfig.symbol, {
+                    date: dateStr,
+                    interval: selectedInterval
+                });
 
-                    // 3. Update State
-                    if (candles && candles.length > 0) {
-                        setRealTimeCandles(candles);
-                        addLog("System", `[DEBUG] OK: Loaded ${candles.length} candles. Last: ${candles[candles.length - 1].time}`);
+                console.log("[DEBUG] Response:", candles);
 
-                        // Check if we also have current price from liveData
-                        if (liveData && liveData.current_price) {
-                            // Optional: Append/Update last candle with current price if newer?
-                            // Usually WS will handle the next update.
-                        }
-                    } else {
-                        // Fallback: If no history (e.g. market just opened or error), try current price
-                        addLog("System", `[DEBUG] EMPTY Response for ${selectedInterval} on ${dateStr}`);
-                        console.warn("[DEBUG] Empty history response");
+                // 3. Update State
+                if (candles && candles.length > 0) {
+                    setRealTimeCandles(candles);
+                    addLog("System", `[DEBUG] OK: Loaded ${candles.length} candles. Last: ${candles[candles.length - 1].time}`);
 
-                        if (liveData && liveData.current_price) {
-                            const nowTs = Math.floor(Date.now() / 1000);
-                            setRealTimeCandles([{
-                                time: nowTs,
-                                open: liveData.current_price,
-                                high: liveData.current_price,
-                                low: liveData.current_price,
-                                close: liveData.current_price,
-                                volume: 0
-                            }]);
-                            addLog("System", "No history found, starting with Current Price.");
-                        } else {
-                            setRealTimeCandles([]);
-                            addLog("System", "No history data. Waiting for stream...");
-                        }
+                    // Check if we also have current price from liveData
+                    if (liveData && liveData.current_price) {
+                        // Optional: Append/Update last candle with current price if newer?
+                        // Usually WS will handle the next update.
                     }
-                } catch (e) {
-                    console.error("Init Error", e);
-                    addLog("Error", "Failed to fetch history");
-                    // Fallback to empty
-                    setRealTimeCandles([]);
+                } else {
+                    // Fallback: If no history (e.g. market just opened or error), try current price
+                    addLog("System", `[DEBUG] EMPTY Response for ${selectedInterval} on ${dateStr}`);
+                    console.warn("[DEBUG] Empty history response");
+
+                    if (liveData && liveData.current_price) {
+                        const nowTs = Math.floor(Date.now() / 1000);
+                        setRealTimeCandles([{
+                            time: nowTs,
+                            open: liveData.current_price,
+                            high: liveData.current_price,
+                            low: liveData.current_price,
+                            close: liveData.current_price,
+                            volume: 0
+                        }]);
+                        addLog("System", "No history found, starting with Current Price.");
+                    } else {
+                        setRealTimeCandles([]);
+                        addLog("System", "No history data. Waiting for stream...");
+                    }
                 }
-            })();
-        }
+            } catch (e) {
+                console.error("Init Error", e);
+                addLog("Error", "Failed to fetch history");
+                // Fallback to empty
+                setRealTimeCandles([]);
+            }
+        })();
     }, [status, strategyConfig.symbol, selectedInterval]); // Removed liveData dependency to prevent re-fetching loop
 
 
