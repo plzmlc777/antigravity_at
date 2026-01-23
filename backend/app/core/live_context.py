@@ -49,6 +49,11 @@ class LiveContext:
     def is_paper(self) -> bool:
         return self._is_paper
 
+    @is_paper.setter
+    def is_paper(self, value: bool):
+        self._is_paper = value
+        logger.info(f"Context {self.session_id}: Mode switched to {'PAPER' if value else 'REAL'}")
+
     def get_total_equity(self) -> float:
         """
         Calculates total equity: Cash + Sum of (Holding Qty * Current Price)

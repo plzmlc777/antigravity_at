@@ -371,6 +371,12 @@ class LiveTradingEngine:
     def stop(self):
         self.is_running = False
 
+    def toggle_mode(self, is_paper: bool):
+        self.is_paper = is_paper
+        if self.context:
+            self.context.is_paper = is_paper
+        logger.info(f"Session {self.session_id}: Mode toggled to {'PAPER' if is_paper else 'REAL'}")
+
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
         logger.info(f"Session {self.session_id}: Orders {'Enabled' if enabled else 'Disabled'}")

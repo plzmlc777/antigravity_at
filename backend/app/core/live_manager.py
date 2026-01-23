@@ -13,6 +13,7 @@ from ..adapters.kiwoom_mock import KiwoomMockAdapter
 from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus
+from ..models.strategy_config import StrategyConfig
 from ..core.market_data_router import market_data_router
 
 logger = logging.getLogger("LiveManager")
@@ -67,21 +68,46 @@ class LiveManager:
 
         db = SessionLocal()
         try:
-            # Find RUNNING sessions
+            # 1. Restore sessions that were already RUNNING
             active_sessions = db.query(LiveBotSession).filter(
                 LiveBotSession.status == SessionStatus.RUNNING
             ).all()
             
+            restored_ids = set()
             for sess in active_sessions:
                 try:
                     logger.info(f"Restoring Live Session: {sess.id} ({sess.symbol})")
                     await self._restore_engine(sess)
+                    restored_ids.add(sess.id)
                 except Exception as e:
                     logger.error(f"Failed to restore session {sess.id}: {e}")
                     traceback.print_exc()
                     sess.status = SessionStatus.ERROR
                     sess.error_log = str(e)
                     db.commit()
+
+            # 2. Daily League Auto-Start: Start all active StrategyConfigs that aren't running
+            active_configs = db.query(StrategyConfig).filter(StrategyConfig.is_active == True).all()
+            
+            for cfg in active_configs:
+                if cfg.tab_id in restored_ids:
+                    continue
+                    
+                try:
+                    logger.info(f"[AUTO-START] Booting active strategy: {cfg.tab_name} ({cfg.config_json.get('symbol')})")
+                    # Prepare config for start_session
+                    start_cfg = {
+                        "session_id": cfg.tab_id, # Reuse tab_id as session_id for consistency
+                        "symbol": cfg.config_json.get("symbol"),
+                        "strategy_name": cfg.strategy_id or "time_momentum",
+                        "strategy_config": cfg.config_json,
+                        "initial_capital": cfg.config_json.get("initial_capital", 10000000),
+                        "is_paper": True # Auto-start always defaults to Paper Mode
+                    }
+                    await self.start_session(start_cfg)
+                except Exception as e:
+                    logger.error(f"Failed to auto-start active config {cfg.tab_id}: {e}")
+                    
         finally:
             db.close()
 
@@ -95,7 +121,7 @@ class LiveManager:
             "initial_capital": float
         }
         """
-        session_id = str(uuid.uuid4())
+        session_id = config.get("session_id") or str(uuid.uuid4())
         symbol = config.get("symbol")
         strategy_name = config.get("strategy_name", "time_momentum")
         strat_config = config.get("strategy_config", {})
@@ -184,6 +210,25 @@ class LiveManager:
                 sess.orders_enabled = enabled
                 db.commit()
                 logger.info(f"Session {session_id}: Orders {'Enabled' if enabled else 'Disabled'} (DB Updated)")
+        finally:
+            db.close()
+
+    async def toggle_mode(self, session_id: str, is_paper: bool):
+        """
+        Switch between Paper (Simulated) and Real (Live) trading.
+        """
+        # 1. Update running engine
+        if session_id in self.engines:
+            self.engines[session_id].toggle_mode(is_paper)
+            
+        # 2. Update DB
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if sess:
+                sess.is_paper = is_paper
+                db.commit()
+                logger.info(f"Session {session_id}: Mode set to {'PAPER' if is_paper else 'REAL'} (DB Updated)")
         finally:
             db.close()
 

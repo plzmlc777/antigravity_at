@@ -203,6 +203,11 @@ export const toggleLiveOrders = async (sessionId, enabled) => {
     return data;
 };
 
+export const toggleLiveMode = async (sessionId, isPaper) => {
+    const { data } = await api.post(`/live/toggle-mode/${sessionId}`, { enabled: isPaper });
+    return data;
+};
+
 export const liquidateLiveBot = async (sessionId) => {
     const { data } = await api.post(`/live/liquidate/${sessionId}`);
     return data;

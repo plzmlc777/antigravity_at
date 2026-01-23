@@ -28,10 +28,14 @@ description: Standard Version Release & Reporting Protocol
 #### 3. Modified Files
 *List of all files modified in this release.*
 
-## 3. Apply Version Bump
+## 3. Apply Version Bump & DB Sync
 1.  Update `package.json` (Frontend)
-2.  Update `main.py` (Backend)
-3.  (If applicable) Verify dynamic version injection works.
+2.  Update `backend/app/core/config.py` (Backend VERSION variable)
+3.  **MANDATORY**: Update `system_metadata` table in PostgreSQL:
+    ```sql
+    UPDATE system_metadata SET value = 'vX.Y.Z', updated_at = NOW() WHERE key = 'version';
+    ```
+4.  (If applicable) Verify dynamic version injection works.
 
 ## 4. Commit, Tag & Push
 **MANDATORY**: You MUST push the changes to density the remote repository immediately.

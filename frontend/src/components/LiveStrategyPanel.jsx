@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, liquidateLiveBot, getBalance } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -52,10 +52,10 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         const init = async () => {
             if (mode === 'TRADE') {
                 const found = await checkStatus();
-                // Auto-start for Rank 1 if not already running
-                if (!found && currentRankIndex === 0 && strategyConfig.symbol) {
-                    console.log("[AUTO-START] Triggering auto-start for Rank 1 symbol:", strategyConfig.symbol);
-                    addLog("System", `Auto-connecting Rank 1: ${strategyConfig.symbol}`);
+                // Auto-start if this strategy rank is active but not running
+                if (!found && strategyConfig.is_active !== false && strategyConfig.symbol) {
+                    console.log(`[AUTO-START] Triggering auto-start for Active Rank (${currentRankIndex + 1}) symbol:`, strategyConfig.symbol);
+                    addLog("System", `Auto-connecting Active Rank ${currentRankIndex + 1}: ${strategyConfig.symbol}`);
                     handleStart();
                 }
             } else {
@@ -237,13 +237,15 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
         }
     };
 
-    const handleToggleOrders = async () => {
+    const handleToggleMode = async () => {
         if (!sessionId) return;
         try {
-            const newState = !liveData?.orders_enabled;
-            await toggleLiveOrders(sessionId, newState);
-            setLiveData(prev => ({ ...prev, orders_enabled: newState }));
-            addLog("System", `Orders ${newState ? 'Enabled' : 'Disabled'} by User`);
+            const currentMode = liveData?.is_paper !== false; // Default to paper if undefined
+            const nextIsPaper = !currentMode;
+
+            await toggleLiveMode(sessionId, nextIsPaper);
+            setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
+            addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} by User`);
         } catch (err) {
             setError(err.message);
         }
@@ -572,23 +574,26 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                                     <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={() => {
-                                                if (availableBalance !== null && inputCapital > availableBalance) {
-                                                    alert("Cannot enable LIVE MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
-                                                    return;
+                                                if (liveData?.is_paper !== false) { // Moving from Paper to Real
+                                                    if (availableBalance !== null && inputCapital > availableBalance) {
+                                                        alert("Cannot enable REAL MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
+                                                        return;
+                                                    }
+                                                    if (!window.confirm("Switch to REAL MODE? This will send actual orders to the exchange.")) return;
                                                 }
-                                                handleToggleOrders();
+                                                handleToggleMode();
                                             }}
-                                            className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.orders_enabled
-                                                ? 'bg-transparent border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                            className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.is_paper === false
+                                                ? 'bg-red-900/40 border-red-500 text-red-500 hover:bg-red-900/60'
                                                 : (availableBalance !== null && inputCapital > availableBalance)
                                                     ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
                                                     : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
                                                 }`}
                                         >
-                                            {liveData?.orders_enabled ? (
-                                                <><ShieldOff size={14} /> PAPER MODE</>
+                                            {liveData?.is_paper === false ? (
+                                                <><ShieldOff size={14} /> REAL MODE (ON)</>
                                             ) : (
-                                                <><Shield size={14} /> LIVE MODE</>
+                                                <><Shield size={14} /> PAPER MODE (ACTIVE)</>
                                             )}
                                         </button>
 

@@ -45,6 +45,19 @@ async def toggle_orders(session_id: str, req: ToggleOrdersRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/toggle-mode/{session_id}")
+async def toggle_mode(session_id: str, req: ToggleOrdersRequest):
+    """
+    Toggle between Paper and Real mode.
+    Note: We reuse ToggleOrdersRequest (Boolean enabled) where enabled=True means Paper Mode? 
+    Actually, let's be explicit. enabled=True means is_paper=True.
+    """
+    try:
+        await live_manager.toggle_mode(session_id, req.enabled)
+        return {"status": "success", "is_paper": req.enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/liquidate/{session_id}")
 async def liquidate_session(session_id: str):
     """
