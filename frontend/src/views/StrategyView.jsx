@@ -12,6 +12,7 @@ import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
+import DynamicParameterForm from '../components/DynamicParameterForm';
 import { History as HistoryIcon, Activity, HelpCircle } from 'lucide-react';
 
 const generateUUID = () => {
@@ -86,6 +87,40 @@ const generateDefaultOptValues = () => {
         opts[p.key] = p.defaultOptRange;
     });
     return opts;
+};
+
+// Helper: Convert DB parameter_schema to PARAM_DEFINITIONS format
+// This allows the optimization panel to use dynamic schema instead of hardcoded definitions
+const convertSchemaToParamDefs = (schema) => {
+    if (!schema || !schema.fields) return PARAM_DEFINITIONS;
+
+    const fields = schema.fields;
+    return Object.keys(fields).map(key => {
+        const field = fields[key];
+        const def = {
+            key,
+            label: field.label || key,
+            type: field.type || 'text',
+            defaultValue: field.defaultValue,
+            defaultOptRange: field.defaultOptRange || '',
+            placeholder: field.placeholder || ''
+        };
+
+        // Handle select options
+        if (field.type === 'select' && field.options) {
+            def.options = field.options;
+        } else if (field.type === 'time') {
+            // Generate time options for time-type fields
+            def.type = 'select';
+            def.options = Array.from({ length: 48 }).map((_, i) => {
+                const h = Math.floor(i / 2);
+                const m = i % 2 === 0 ? "00" : "30";
+                return `${h.toString().padStart(2, '0')}:${m}`;
+            });
+        }
+
+        return def;
+    });
 };
 
 const DEFAULT_CONFIG = generateDefaultConfig();
@@ -1610,95 +1645,13 @@ const StrategyView = () => {
                                                     Parameters
                                                 </h4>
                                                 <div className="bg-black/20 p-4 rounded-lg border border-white/5">
-                                                    {selectedStrategy.id === 'time_momentum' ? (
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Start Time</label>
-                                                                <select
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                    value={currentConfig.start_time || "09:00"}
-                                                                    onChange={(e) => handleConfigChange('start_time', e.target.value)}
-                                                                >
-                                                                    {Array.from({ length: 48 }).map((_, i) => {
-                                                                        const h = Math.floor(i / 2);
-                                                                        const m = i % 2 === 0 ? "00" : "30";
-                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                                    })}
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Delay (Minutes)</label>
-                                                                <input
-                                                                    type="number"
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                    value={currentConfig.delay_minutes ?? ''}
-                                                                    onChange={(e) => handleConfigChange('delay_minutes', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Direction</label>
-                                                                <select
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                    value={currentConfig.direction || "rise"}
-                                                                    onChange={(e) => handleConfigChange('direction', e.target.value)}
-                                                                >
-                                                                    <option value="rise" className="bg-slate-900">Rise (Momentum)</option>
-                                                                    <option value="fall" className="bg-slate-900">Fall (Dip Buying)</option>
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Target Pump/Dip (%)</label>
-                                                                <input
-                                                                    type="number" step="0.1" min="0"
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                    value={currentConfig.target_percent === '' ? '' : Math.abs(currentConfig.target_percent)}
-                                                                    onChange={(e) => handleConfigChange('target_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</label>
-                                                                <input
-                                                                    type="number" step="0.1" min="0"
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                    value={currentConfig.safety_stop_percent === '' ? '' : Math.abs(currentConfig.safety_stop_percent)}
-                                                                    onChange={(e) => handleConfigChange('safety_stop_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Start (%)</label>
-                                                                <input
-                                                                    type="number" step="0.1"
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                    value={currentConfig.trailing_start_percent === '' ? '' : currentConfig.trailing_start_percent}
-                                                                    onChange={(e) => handleConfigChange('trailing_start_percent', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Trailing Drop (%)</label>
-                                                                <input
-                                                                    type="number" step="0.1"
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                                                    value={currentConfig.trailing_stop_drop === '' ? '' : currentConfig.trailing_stop_drop}
-                                                                    onChange={(e) => handleConfigChange('trailing_stop_drop', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-xs text-gray-500 mb-1 block">Stop Time</label>
-                                                                <select
-                                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none cursor-pointer"
-                                                                    value={currentConfig.stop_time || "15:00"}
-                                                                    onChange={(e) => handleConfigChange('stop_time', e.target.value)}
-                                                                >
-                                                                    {Array.from({ length: 48 }).map((_, i) => {
-                                                                        const h = Math.floor(i / 2);
-                                                                        const m = i % 2 === 0 ? "00" : "30";
-                                                                        const timeStr = `${h.toString().padStart(2, '0')}:${m}`;
-                                                                        return <option key={timeStr} value={timeStr} className="bg-slate-900">{timeStr}</option>;
-                                                                    })}
-                                                                </select>
-                                                            </div>
-                                                        </div>
+                                                    {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
+                                                    {selectedStrategy.parameter_schema?.fields?.length > 0 ? (
+                                                        <DynamicParameterForm
+                                                            schema={selectedStrategy.parameter_schema}
+                                                            values={currentConfig}
+                                                            onChange={handleConfigChange}
+                                                        />
                                                     ) : (
                                                         <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
                                                     )}
@@ -2411,7 +2364,7 @@ const StrategyView = () => {
                                                         const currentOptEnabled = currentConfig.optEnabled || {};
                                                         const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
 
-                                                        return PARAM_DEFINITIONS.map((param) => (
+                                                        return convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map((param) => (
                                                             <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input
@@ -2574,7 +2527,7 @@ const StrategyView = () => {
                                                                         <th className="p-3 text-center w-16">Active</th>
                                                                         {[
                                                                             { key: 'rank', label: 'Rank' },
-                                                                            ...PARAM_DEFINITIONS,
+                                                                            ...convertSchemaToParamDefs(selectedStrategy?.parameter_schema),
                                                                             { key: 'return', label: 'Return' },
                                                                             { key: 'max_drawdown', label: 'MDD' },
                                                                             { key: 'win_rate', label: 'Win Rate' },
@@ -2626,7 +2579,7 @@ const StrategyView = () => {
                                                                             let isActiveConfig = true;
                                                                             // Check if this result matches current configuration
                                                                             if (currentConfig) {
-                                                                                for (const param of PARAM_DEFINITIONS) {
+                                                                                for (const param of convertSchemaToParamDefs(selectedStrategy?.parameter_schema)) {
                                                                                     const configVal = currentConfig[param.key];
                                                                                     const resVal = res[param.key];
                                                                                     // Loose equality since API might return number vs string input
@@ -2677,7 +2630,7 @@ const StrategyView = () => {
                                                                                     <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
                                                                                     {/* Render All Params */}
-                                                                                    {PARAM_DEFINITIONS.map(param => (
+                                                                                    {convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map(param => (
                                                                                         <td key={param.key} className="p-3 text-gray-300">
                                                                                             {res[param.key] !== undefined ? res[param.key] : '-'}
                                                                                         </td>
