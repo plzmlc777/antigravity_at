@@ -13,7 +13,8 @@ import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
-import { History as HistoryIcon, Activity, HelpCircle } from 'lucide-react';
+import TabBadge from '../components/TabBadge';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight } from 'lucide-react';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -1190,12 +1191,22 @@ const StrategyView = () => {
                                     <span className="text-lg">🔴</span>
                                     <Activity size={16} className={activeTab === -2 ? "animate-pulse" : ""} />
                                     <span>Live Operation</span>
+                                    {/* Badge: Active Rank Count */}
+                                    {configList.filter(c => c.is_active !== false).length > 0 && (
+                                        <TabBadge
+                                            count={configList.filter(c => c.is_active !== false).length}
+                                            status={activeTab === -2 ? "running" : "success"}
+                                            size="xs"
+                                        />
+                                    )}
                                 </button>
 
 
 
-                                {/* Divider */}
-                                <div className="w-px h-6 bg-white/10 mx-2" />
+                                {/* Workflow Arrow: Live → Portfolio */}
+                                <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
+                                    <ChevronRight size={16} />
+                                </div>
 
                                 {/* Integrated Tab */}
                                 <button
@@ -1209,8 +1220,10 @@ const StrategyView = () => {
                                     <span>Integrated Portfolio</span>
                                 </button>
 
-                                {/* Divider */}
-                                <div className="w-px h-6 bg-white/10 mx-2" />
+                                {/* Workflow Arrow: Portfolio → Ranks */}
+                                <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
+                                    <ChevronRight size={16} />
+                                </div>
 
                                 {/* Rank/Draft Tabs */}
                                 {(() => {
