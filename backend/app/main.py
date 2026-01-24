@@ -39,9 +39,9 @@ async def lifespan(app: FastAPI):
             if os.path.exists(pkg_path):
                 with open(pkg_path, "r") as f:
                     pkg_data = json.load(f)
-                    initial_ver = pkg_data.get("version", "0.9.7.2")
+                    initial_ver = pkg_data.get("version", "0.9.7.3")
             else:
-                initial_ver = "0.9.7.2"
+                initial_ver = "0.9.7.3"
             
             new_ver = SystemMetadata(key="version", value=initial_ver)
             db_session.add(new_ver)

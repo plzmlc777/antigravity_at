@@ -51,13 +51,8 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
     useEffect(() => {
         const init = async () => {
             if (mode === 'TRADE') {
-                const found = await checkStatus();
-                // Auto-start if this strategy rank is active but not running
-                if (!found && strategyConfig.is_active !== false && strategyConfig.symbol) {
-                    console.log(`[AUTO-START] Triggering auto-start for Active Rank (${currentRankIndex + 1}) symbol:`, strategyConfig.symbol);
-                    addLog("System", `Auto-connecting Active Rank ${currentRankIndex + 1}: ${strategyConfig.symbol}`);
-                    handleStart();
-                }
+                await checkStatus();
+                // NOTE: Auto-start removed in v0.9.7.3 - users must manually click Start
             } else {
                 setStatus('RUNNING');
                 addLog("System", `Started watching ${strategyConfig.symbol}`);

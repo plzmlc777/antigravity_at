@@ -370,10 +370,9 @@ class MarketDataService:
                     print(f"Aggregated {len(base_data)} 1m candles into {len(resampled)} {interval} candles.")
                     return resampled
             
-            # C. Fallback for 1m (if B skipped or failed)
-            # Use original fallback logic but adapted
+            # C. Fallback for 1m (if B skipped or failed) - Try API fetch for today
             if not db_candles and target_date == datetime.now().date() and interval == "1m":
-                 print("1m Data missing for Today. Fetching from API (Fallback)...")
+                 print("1m Data missing for Today. Fetching from API (Fallback C)...")
                  await self.fetch_history(symbol, interval, days=1)
                  # Re-query
                  db_candles = db.query(OHLCV).filter(
@@ -385,14 +384,60 @@ class MarketDataService:
                     )
                 ).order_by(OHLCV.timestamp.asc()).all()
                 
-                 return [
-                    {
-                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
-                        "time": int(c.timestamp.timestamp())
-                    }
-                    for c in db_candles
-                ]
+                 # Only return if we actually got data, otherwise fall through to D
+                 if db_candles:
+                     return [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                            "time": int(c.timestamp.timestamp())
+                        }
+                        for c in db_candles
+                    ]
+                 else:
+                     print("C block API fetch returned no data for today. Falling through to D...")
+
+            # D. Fallback: If still no data (e.g., weekend/holiday), get most recent trading day
+            print(f"No data for {date_str}. Checking for most recent trading day...")
+            latest_record = db.query(OHLCV).filter(
+                OHLCV.symbol == symbol,
+                OHLCV.time_frame == "1m"  # Always check 1m as base
+            ).order_by(OHLCV.timestamp.desc()).first()
+            
+            if latest_record:
+                latest_date = latest_record.timestamp.date()
+                print(f"Found latest trading day: {latest_date}")
+                
+                # Fetch that day's data
+                fallback_start = datetime.combine(latest_date, datetime.min.time())
+                fallback_end = fallback_start + timedelta(days=1)
+                
+                fallback_candles = db.query(OHLCV).filter(
+                    and_(
+                        OHLCV.symbol == symbol,
+                        OHLCV.time_frame == "1m",
+                        OHLCV.timestamp >= fallback_start,
+                        OHLCV.timestamp < fallback_end
+                    )
+                ).order_by(OHLCV.timestamp.asc()).all()
+                
+                if fallback_candles:
+                    base_data = [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume,
+                            "time": int(c.timestamp.timestamp())
+                        }
+                        for c in fallback_candles
+                    ]
+                    
+                    if interval == "1m":
+                        print(f"Returning {len(base_data)} candles from {latest_date} as fallback.")
+                        return base_data
+                    else:
+                        resampled = self._resample_candles(base_data, interval)
+                        print(f"Returning {len(resampled)} {interval} candles from {latest_date} as fallback.")
+                        return resampled
 
             return []
                 

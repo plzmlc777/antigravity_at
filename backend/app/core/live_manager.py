@@ -66,6 +66,21 @@ class LiveManager:
         # Connect to MarketRouter
         market_data_router.set_live_manager(self)
 
+        # Ensure token is ready BEFORE restoring sessions (prevents "Cannot start Realtime: No Token")
+        if hasattr(self.adapter, '_ensure_token'):
+            logger.info("LiveManager: Acquiring Kiwoom token before session restore...")
+            for attempt in range(3):
+                try:
+                    await self.adapter._ensure_token()
+                    if self.adapter.access_token:
+                        logger.info("LiveManager: Token acquired successfully.")
+                        break
+                except Exception as e:
+                    logger.warning(f"Token acquisition attempt {attempt + 1} failed: {e}")
+                await asyncio.sleep(2)
+            else:
+                logger.error("LiveManager: Failed to acquire token after 3 attempts. Sessions may not have real-time data.")
+
         db = SessionLocal()
         try:
             # 1. Restore sessions that were already RUNNING
@@ -86,27 +101,8 @@ class LiveManager:
                     sess.error_log = str(e)
                     db.commit()
 
-            # 2. Daily League Auto-Start: Start all active StrategyConfigs that aren't running
-            active_configs = db.query(StrategyConfig).filter(StrategyConfig.is_active == True).all()
-            
-            for cfg in active_configs:
-                if cfg.tab_id in restored_ids:
-                    continue
-                    
-                try:
-                    logger.info(f"[AUTO-START] Booting active strategy: {cfg.tab_name} ({cfg.config_json.get('symbol')})")
-                    # Prepare config for start_session
-                    start_cfg = {
-                        "session_id": cfg.tab_id, # Reuse tab_id as session_id for consistency
-                        "symbol": cfg.config_json.get("symbol"),
-                        "strategy_name": cfg.strategy_id or "time_momentum",
-                        "strategy_config": cfg.config_json,
-                        "initial_capital": cfg.config_json.get("initial_capital", 10000000),
-                        "is_paper": True # Auto-start always defaults to Paper Mode
-                    }
-                    await self.start_session(start_cfg)
-                except Exception as e:
-                    logger.error(f"Failed to auto-start active config {cfg.tab_id}: {e}")
+            # NOTE: Auto-Start logic removed in v0.9.7.3 due to duplicate key errors
+            # and conflicts with existing RUNNING sessions. Users must manually start strategies.
                     
         finally:
             db.close()
