@@ -483,7 +483,7 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
 
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
             <div className="lg:col-span-3 relative">
-                <div className="bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden">
+                <div className={`bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
                     {/* Header */}
                     <div className="flex items-center gap-3 mb-6">
                         <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
