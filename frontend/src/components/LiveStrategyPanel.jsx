@@ -7,6 +7,7 @@ import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
+import StrategyKPIWidget from './StrategyKPIWidget';
 
 const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
     // State
@@ -527,6 +528,13 @@ const LiveStrategyPanel = ({ strategyConfig, mode = 'TRADE', configList = [], sa
                             </div>
                         </div>
                     </div>
+
+                    {/* Section 1.5: Strategy-specific KPI Widget */}
+                    <StrategyKPIWidget
+                        strategyId={strategyConfig?.strategy_id || 'time_momentum'}
+                        strategyConfig={strategyConfig}
+                        liveData={liveData}
+                    />
 
                     {/* Section 2: Configuration & Controls */}
                     <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
