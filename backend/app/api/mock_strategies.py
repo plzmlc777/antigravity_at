@@ -311,6 +311,7 @@ class Strategy(BaseModel):
     code: str
     tags: List[str]
     detailed_description: Optional[str] = None
+    parameter_schema: Optional[Dict[str, Any]] = None  # UI parameter configuration
 
     class Config:
         from_attributes = True
