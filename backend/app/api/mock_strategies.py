@@ -1,6 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from ..db.session import get_db
+from ..models.strategy_info import StrategyInfo
 import random
 import time
 import itertools
@@ -307,41 +310,17 @@ class Strategy(BaseModel):
     description: str
     code: str
     tags: List[str]
+    detailed_description: Optional[str] = None
 
-MOCK_STRATEGIES = [
-    Strategy(
-        id="time_momentum",
-        name="Time Momentum (User Req)",
-        description="Wait Delay -> Check % Jump -> Buy -> Trailing Stop",
-        code="[Real Engine] Logic implemented in backend/strategies/time_momentum.py",
-        tags=["Momentum", "Timed Entry"]
-    ),
-    Strategy(
-        id="rsi_strategy",
-        name="RSI Swing Master",
-        description="Buys when RSI < 30 and Sells when RSI > 70. Classic mean reversion.",
-        code="def on_data(self, data):\n    if rsi < 30:\n        order.buy()\n    elif rsi > 70:\n        order.sell()",
-        tags=["Mean Reversion", "Technical"]
-    ),
-    Strategy(
-        id="golden_cross",
-        name="MA Golden Cross",
-        description="Buys when 20MA crosses above 60MA. Captures strong trends.",
-        code="def on_data(self, data):\n    if ma20 > ma60 and prev_ma20 <= prev_ma60:\n        order.buy()",
-        tags=["Trend Following", "Moving Average"]
-    ),
-    Strategy(
-        id="volatility_breakout",
-        name="Volatility Breakout",
-        description="Larry Williams' volatility breakout strategy.",
-        code="def on_data(self, data):\n    if current_price > target_price:\n        order.buy()",
-        tags=["Breakout", "Intraday"]
-    )
-]
+    class Config:
+        from_attributes = True
+
+# Hardcoded strategies removed in favor of DB persistence.
 
 @router.get("/list", response_model=List[Strategy])
-async def list_strategies():
-    return MOCK_STRATEGIES
+async def list_strategies(db: Session = Depends(get_db)):
+    strats = db.query(StrategyInfo).all()
+    return strats
 
 @router.post("/generate")
 async def generate_strategy_code(prompt: Dict[str, str]):

@@ -11,7 +11,8 @@ import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
-import { History as HistoryIcon, Activity } from 'lucide-react';
+import StrategyDetailModal from '../components/StrategyDetailModal';
+import { History as HistoryIcon, Activity, HelpCircle } from 'lucide-react';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -123,6 +124,7 @@ const StrategyView = () => {
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
     const [liveRankIndex, setLiveRankIndex] = useState(0); // Selected Rank Index for Live Tab
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -1095,8 +1097,18 @@ const StrategyView = () => {
                             </div>
                         </div>
                         {selectedStrategy && (
-                            <div className="hidden md:block text-sm text-gray-400 border-l border-white/10 pl-4 h-10 flex items-center flex-1">
-                                {selectedStrategy.description}
+                            <div className="hidden md:flex items-center gap-2 text-sm text-gray-400 border-l border-white/10 pl-4 h-10 flex-1">
+                                <span className="flex-1 truncate">{selectedStrategy.description}</span>
+                                <button
+                                    onClick={() => setIsDetailModalOpen(true)}
+                                    className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-all group relative"
+                                    title="View Detailed Strategy Specification"
+                                >
+                                    <HelpCircle size={16} />
+                                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/10 shadow-xl">
+                                        Detail Specs
+                                    </span>
+                                </button>
                             </div>
                         )}
                     </div>
@@ -2769,6 +2781,13 @@ const StrategyView = () => {
                 isDanger={confirmModal.isDanger}
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
+            />
+
+            {/* Strategy Detail Modal */}
+            <StrategyDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                strategy={selectedStrategy}
             />
         </div >
     );
