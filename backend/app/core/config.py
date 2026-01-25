@@ -1,4 +1,3 @@
-```python
 from pydantic_settings import BaseSettings
 from typing import Optional
 from pydantic import model_validator, ValidationError
@@ -10,30 +9,6 @@ from dotenv import load_dotenv
 load_dotenv(".env")            # strict local
 load_dotenv("../.env")         # parent (root)
 load_dotenv("backend/.env")    # child (if running from root)
-
-# Phase 2: Database Metadata & Schema
-# - [x] Add `dip_martingale` record to `strategy_info`
-# - [x] Define parameter schema for dynamic UI
-# - [x] **Verification**: Check DB entry via SQL
-# - [x] Increment version to v0.9.7.10
-
-# Phase 3: Backtest & Engine Refactoring
-# - [ ] Refactor `BacktestContext` and `live_context` (IContext interface alignment)
-# - [ ] Refactor `mock_strategies.py` and API for dynamic strategy loading
-# - [ ] **Verification**: Run Backtest for Dip Martingale via API
-# - [ ] Increment version to v0.9.7.11
-
-# Phase 4: UI Signal & KPI Widgets
-# - [ ] Implement `DipMartingaleKPIWidget` logic
-# - [ ] Update `StrategySignalPanel` for Martingale signals
-# - [ ] **Verification**: UI check (Real-time monitor loop)
-# - [ ] Increment version to v0.9.7.12
-
-# Phase 5: Chart Visualization (Metadata)
-# - [ ] Add `metadata` support to `buy`/`sell` calls
-# - [ ] Update `VisualBacktestChart` to show levels
-# - [ ] **Verification**: Visual check of entry levels
-# - [ ] Increment version to v0.9.7.13
 
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
