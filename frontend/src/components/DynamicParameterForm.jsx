@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 /**
  * DynamicParameterForm - Schema-driven parameter form generator
- * 
+ *
  * Renders form inputs based on parameter_schema from the database.
  * Supports field types: select, number, time, text, checkbox
- * 
+ *
  * Props:
  * - schema: { fields: [...] } from strategy.parameter_schema
  * - values: { [key]: value } current form values
@@ -13,6 +13,11 @@ import React from 'react';
  * - disabled: boolean to disable all inputs
  */
 const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false }) => {
+    useEffect(() => {
+        console.log('[DynamicParameterForm] Received values:', values);
+        console.log('[DynamicParameterForm] Received schema fields:', schema?.fields?.length || 0);
+    }, [values, schema]);
+
     if (!schema || !schema.fields || schema.fields.length === 0) {
         return (
             <div className="text-gray-500 text-sm italic">

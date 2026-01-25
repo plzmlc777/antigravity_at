@@ -96,13 +96,17 @@ const convertSchemaToParamDefs = (schema) => {
     if (!schema || !schema.fields) return PARAM_DEFINITIONS;
 
     const fields = schema.fields;
-    return Object.keys(fields).map(key => {
-        const field = fields[key];
+
+    // Handle both array and object formats
+    const fieldArray = Array.isArray(fields) ? fields : Object.values(fields);
+
+    return fieldArray.map(field => {
+        const key = field.key || field.name;
         const def = {
             key,
             label: field.label || key,
             type: field.type || 'text',
-            defaultValue: field.defaultValue,
+            defaultValue: field.default || field.defaultValue,
             defaultOptRange: field.defaultOptRange || '',
             placeholder: field.placeholder || ''
         };
@@ -146,6 +150,7 @@ const StrategyView = () => {
     const [strategies, setStrategies] = useState([]);
     const [selectedStrategy, setSelectedStrategy] = useState(null);
     const [backtestResult, setBacktestResult] = useState(null);
+    const [executionLogs, setExecutionLogs] = useState([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [aiPrompt, setAiPrompt] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -189,6 +194,19 @@ const StrategyView = () => {
 
     const closeConfirm = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    };
+
+    // Execution Log Helper
+    const addLog = (message, level = 'info') => {
+        const timestamp = new Date().toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3
+        });
+        const newLog = { timestamp, message, level };
+        setExecutionLogs(prev => [...prev.slice(-99), newLog]); // Keep last 100 logs
+        console.log(`[${timestamp}] ${message}`); // Still log to console
     };
 
     const [activeTab, setActiveTab] = useState(() => {
@@ -290,12 +308,12 @@ const StrategyView = () => {
 
     const initDefaultList = () => {
         setConfigList([{
-            ...DEFAULT_CONFIG,
+            ...getDynamicDefaultConfig(),
             is_active: true,
             tabName: "Rank 1",
             uuid: generateUUID(),
             optEnabled: {},
-            optValues: { ...DEFAULT_OPT_VALUES }
+            optValues: { ...getDynamicOptValues() }
         }]);
 
     };
@@ -465,7 +483,63 @@ const StrategyView = () => {
     };
 
     // Helper to get current config for UI rendering
-    const currentConfig = (activeTab >= 0 && configList[activeTab]) ? configList[activeTab] : (activeTab === -2 && configList.length > 0 ? configList[0] : DEFAULT_CONFIG);
+    // Build dynamic default config from selectedStrategy's schema if configList is empty
+    const getDynamicDefaultConfig = () => {
+        if (!selectedStrategy || !selectedStrategy.parameter_schema) {
+            return DEFAULT_CONFIG;
+        }
+
+        const schema = selectedStrategy.parameter_schema;
+        if (!schema.fields || schema.fields.length === 0) {
+            return DEFAULT_CONFIG;
+        }
+
+        const dynamicDefault = {
+            initial_capital: 10000000,
+            from_date: "",
+            interval: "30m",
+            symbol: currentSymbol,
+            betting_strategy: "fixed",
+            uuid: null,
+            is_active: true,
+            tabName: "Rank 1"
+        };
+
+        schema.fields.forEach(field => {
+            const key = field.key || field.name;
+            if (field.default !== undefined) {
+                dynamicDefault[key] = field.default;
+            }
+        });
+
+        return dynamicDefault;
+    };
+
+    // Helper to build dynamic optimization default values from schema
+    const getDynamicOptValues = () => {
+        if (!selectedStrategy || !selectedStrategy.parameter_schema) {
+            return DEFAULT_OPT_VALUES;
+        }
+
+        const schema = selectedStrategy.parameter_schema;
+        if (!schema.fields || schema.fields.length === 0) {
+            return DEFAULT_OPT_VALUES;
+        }
+
+        const dynamicOptValues = {};
+        schema.fields.forEach(field => {
+            const key = field.key || field.name;
+            if (field.defaultOptRange !== undefined) {
+                dynamicOptValues[key] = field.defaultOptRange;
+            }
+        });
+
+        return dynamicOptValues;
+    };
+
+    const currentConfig = (activeTab >= 0 && configList[activeTab])
+        ? configList[activeTab]
+        : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig());
 
     // Check Symbol Validity for UI
     const activeSymbol = currentConfig?.symbol || currentSymbol;
@@ -589,6 +663,66 @@ const StrategyView = () => {
             console.error(e);
         }
     };
+
+    // Initialize configList with default values from selectedStrategy's parameter_schema
+    useEffect(() => {
+        if (!selectedStrategy || !selectedStrategy.parameter_schema) {
+            addLog('❌ No selectedStrategy or parameter_schema', 'error');
+            return;
+        }
+
+        const schema = selectedStrategy.parameter_schema;
+        if (!schema.fields || schema.fields.length === 0) {
+            addLog('❌ No schema.fields', 'error');
+            return;
+        }
+
+        addLog(`✅ Initializing config from schema: ${selectedStrategy.id}`, 'info');
+        addLog(`📋 Schema has ${schema.fields.length} fields`, 'info');
+
+        // Build default config from schema
+        const defaultFromSchema = {
+            initial_capital: 10000000,
+            from_date: "",
+            interval: "30m",
+            symbol: currentSymbol,
+            betting_strategy: "fixed",
+            uuid: generateUUID(),
+            is_active: true,
+            tabName: "Rank 1",
+            optEnabled: {},
+            optValues: {}
+        };
+
+        // Merge parameter defaults and optimization ranges from schema
+        schema.fields.forEach(field => {
+            const key = field.key || field.name;
+            if (field.default !== undefined) {
+                defaultFromSchema[key] = field.default;
+                addLog(`  ➜ Set ${key} = ${field.default}`, 'success');
+            }
+            if (field.defaultOptRange !== undefined) {
+                defaultFromSchema.optValues[key] = field.defaultOptRange;
+                addLog(`  ➜ Set optValues.${key} = ${field.defaultOptRange}`, 'success');
+            }
+        });
+
+        addLog(`✅ Config initialized with ${Object.keys(defaultFromSchema).length} keys`, 'success');
+        addLog(`✅ OptValues initialized with ${Object.keys(defaultFromSchema.optValues).length} ranges`, 'success');
+
+        // Log parameter values for verification
+        addLog(`🔍 Parameter values:`, 'info');
+        schema.fields.forEach(field => {
+            const key = field.key || field.name;
+            const value = defaultFromSchema[key];
+            const optValue = defaultFromSchema.optValues[key];
+            addLog(`  ${key}: config=${value}, opt="${optValue}"`, 'info');
+        });
+
+        // Reset configList with new strategy's defaults
+        setConfigList([defaultFromSchema]);
+        setActiveTab(0); // Reset to first tab
+    }, [selectedStrategy?.id, currentSymbol]); // Trigger when strategy ID or symbol changes
 
     // Auto-Fetch Symbol Name if Missing
     useEffect(() => {
@@ -735,7 +869,7 @@ const StrategyView = () => {
             const currentCfg = next[activeTab];
             next[activeTab] = {
                 ...currentCfg,
-                optValues: { ...(currentCfg.optValues || DEFAULT_OPT_VALUES), [key]: value }
+                optValues: { ...(currentCfg.optValues || getDynamicOptValues()), [key]: value }
             };
             return next;
         });
@@ -793,7 +927,7 @@ const StrategyView = () => {
 
         // Validation: Check for empty optimization inputs
         const currentOptEnabled = currentConfig.optEnabled || {};
-        const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+        const currentOptValues = currentConfig.optValues || getDynamicOptValues();
 
         const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k]);
         if (varyingKeys.length === 0) {
@@ -2375,7 +2509,7 @@ const StrategyView = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     {(() => {
                                                         const currentOptEnabled = currentConfig.optEnabled || {};
-                                                        const currentOptValues = currentConfig.optValues || DEFAULT_OPT_VALUES;
+                                                        const currentOptValues = currentConfig.optValues || getDynamicOptValues();
 
                                                         return convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map((param) => (
                                                             <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
@@ -2695,6 +2829,43 @@ const StrategyView = () => {
                                 </div>
                             )
                         }
+
+                        {/* Execution Logs Panel */}
+                        <div className="pt-10">
+                            <Card title="🔍 Execution Logs">
+                                <div className="bg-black/50 p-4 rounded-lg border border-white/5 max-h-[400px] overflow-y-auto">
+                                    {executionLogs.length === 0 ? (
+                                        <div className="text-gray-500 text-sm text-center py-8">
+                                            No logs yet. Select a strategy to see execution logs.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            {executionLogs.map((log, index) => (
+                                                <div
+                                                    key={index}
+                                                    className={`flex items-start gap-2 text-xs font-mono p-2 rounded ${
+                                                        log.level === 'error' ? 'bg-red-900/20 text-red-300' :
+                                                        log.level === 'success' ? 'bg-green-900/20 text-green-300' :
+                                                        'bg-blue-900/10 text-gray-300'
+                                                    }`}
+                                                >
+                                                    <span className="text-gray-500 whitespace-nowrap">{log.timestamp}</span>
+                                                    <span className="flex-1">{log.message}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="mt-2 flex justify-end">
+                                    <button
+                                        onClick={() => setExecutionLogs([])}
+                                        className="px-3 py-1 text-xs bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 transition-colors"
+                                    >
+                                        Clear Logs
+                                    </button>
+                                </div>
+                            </Card>
+                        </div>
 
                         {/* Code View */}
                         <div className="pt-10">
