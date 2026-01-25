@@ -3,6 +3,7 @@ from typing import Dict, Type, Optional
 from ..strategies.base import BaseStrategy
 from ..strategies.time_momentum import TimeMomentumStrategy
 from ..strategies.rsi import RSIStrategy
+from ..strategies.dip_martingale import DipMartingaleStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ class StrategyRegistry:
     _strategies: Dict[str, Type[BaseStrategy]] = {
         "time_momentum": TimeMomentumStrategy,
         "rsi": RSIStrategy,
+        "dip_martingale": DipMartingaleStrategy,
     }
 
     @classmethod
