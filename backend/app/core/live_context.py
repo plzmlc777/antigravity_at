@@ -23,7 +23,7 @@ class LiveContext:
         
         # State
         self.cash = initial_capital
-        self.holdings = {} # {symbol: quantity} (Synced with Adapter)
+        self._holdings = {} # {symbol: quantity} (Synced with Adapter)
         self.trades = [] # Keep local copy for strategy logic
         self.logs = []
         self.equity_curve = []
@@ -102,13 +102,17 @@ class LiveContext:
         finally:
             db.close()
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
-        return self._execute_order(symbol, OrderSide.BUY, quantity, price)
+    @property
+    def holdings(self) -> Dict[str, int]:
+        return self._holdings
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
-        return self._execute_order(symbol, OrderSide.SELL, quantity, price)
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata)
 
-    def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float) -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        return self._execute_order(symbol, OrderSide.SELL, quantity, price, metadata)
+
+    def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Core Execution Pipeline:
         1. Validate (StockOrder)
@@ -159,7 +163,8 @@ class LiveContext:
                 "quantity": quantity,
                 "time": self.get_time().isoformat(),
                 "order_id": db_exec.id, # Internal DB ID
-                "status": "queued"
+                "status": "queued",
+                "metadata": metadata or {}
             }
             self.trades.append(trade_receipt)
             return trade_receipt
@@ -195,7 +200,7 @@ class LiveContext:
                 simple_holdings = {}
                 for sym, data in bal['holdings'].items():
                     simple_holdings[sym] = data['quantity']
-                self.holdings = simple_holdings
+                self._holdings = simple_holdings
                 
                 # Update price map for all holdings to ensure get_total_equity is accurate
                 for sym, data in bal['holdings'].items():
@@ -252,10 +257,10 @@ class LiveContext:
                         cost = p.executed_price * p.filled_quantity
                         if p.signal_type == "BUY":
                             self.cash -= cost
-                            self.holdings[p.symbol] = self.holdings.get(p.symbol, 0) + p.filled_quantity
+                            self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
                         else:
                             self.cash += cost
-                            self.holdings[p.symbol] = self.holdings.get(p.symbol, 0) - p.filled_quantity
+                            self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
                             
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
                         

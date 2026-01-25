@@ -38,23 +38,17 @@ class MarketDataService:
         
         db = SessionLocal()
         try:
-             # Count existing
-            count = db.query(OHLCV).filter(
-                OHLCV.symbol == symbol, 
-                OHLCV.time_frame == interval
-            ).count()
+            # Calculate start date based on 'days'
+            start_date = datetime.now() - timedelta(days=days)
             
-            # Simple freshness check: if we have roughly expected count or explicit check requested
-            # For this simplified version, we'll assume if count >= limit/2 it's potentially usable, 
-            # but user usually requests 'fetch' explicitly to update.
-            # Here we just fetch from DB if exists.
-            
+            # Query only what's needed
             db_candles = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol, 
-                OHLCV.time_frame == interval
+                OHLCV.time_frame == interval,
+                OHLCV.timestamp >= start_date
             ).order_by(OHLCV.timestamp.asc()).all()
             
-            if len(db_candles) >= 100:
+            if len(db_candles) >= 10: # Reduced threshold for testing
                 print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol}")
                 return [
                     {
@@ -62,8 +56,18 @@ class MarketDataService:
                         "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume
                     }
                     for c in db_candles
-                ][-limit:] # Return only last N
+                ]
                 
+        finally:
+            db.close()
+            
+        # Count for fetch check
+        db = SessionLocal()
+        try:
+            count = db.query(OHLCV).filter(
+                OHLCV.symbol == symbol, 
+                OHLCV.time_frame == interval
+            ).count()
         finally:
             db.close()
             

@@ -18,7 +18,7 @@ class BacktestContext(IContext):
         self.current_timestamp = None # Explicit Time Tracking
         
         self.cash = initial_capital
-        self.holdings = {} # {symbol: quantity}
+        self._holdings = {} # {symbol: quantity}
         self.trades = []
         self.logs = []
         self.equity_curve = []
@@ -30,6 +30,14 @@ class BacktestContext(IContext):
         self.price_map = {}
         for sym, feed in feeds.items():
             self.price_map[sym] = {c['timestamp']: c['close'] for c in feed}
+
+    @property
+    def holdings(self) -> Dict[str, int]:
+        return self._holdings
+
+    @property
+    def is_paper(self) -> bool:
+        return True
 
     @property
     def current_candle(self):
@@ -84,11 +92,11 @@ class BacktestContext(IContext):
             # Return last known price if available
             return self.last_known_prices.get(symbol, 0)
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         # LEAGUE RULE: Single Position Enforcement
         # If we are holding ANY symbol that is NOT this one, reject.
-        if len(self.holdings) > 0 and symbol not in self.holdings:
-            self.log(f"BUY REJECTED: System holds {list(self.holdings.keys())}, cannot buy {symbol}.")
+        if len(self._holdings) > 0 and symbol not in self._holdings:
+            self.log(f"BUY REJECTED: System holds {list(self._holdings.keys())}, cannot buy {symbol}.")
             return {"status": "failed", "reason": "System Occupied"}
 
         exec_price = price if price > 0 else self.get_current_price(symbol)
@@ -96,13 +104,8 @@ class BacktestContext(IContext):
              self.log(f"BUY FAILED: Invalid Price for {symbol}")
              return {"status": "failed", "reason": "Invalid Price"}
              
-        # [OPTIMIZATION] Bypass Order Class in Light Mode
-        # [OPTIMIZATION] Order Class Bypass REMOVED by User Request
-        
         # [REFACTOR] Use Order Class Logic
         try:
-            # 1. Create Order Object
-             # ... existing code ...
             order = StockOrder(
                 symbol=symbol,
                 side=OrderSide.BUY,
@@ -111,22 +114,18 @@ class BacktestContext(IContext):
                 order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
             )
             
-            # 2. Validate
             order.validate()
             
-            # 3. Execution (Simulation)
             cost = exec_price * quantity
             self.cash -= cost
-            self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
+            self._holdings[symbol] = self._holdings.get(symbol, 0) + quantity
             
-            # 4. Fill Update
             order.add_fill(
                 fill_price=exec_price,
                 fill_qty=quantity,
                 fill_id=f"SIM_BUY_{len(self.trades)+1}"
             )
             
-            # 5. Legacy Mapping (for _analyze_trades compatibility)
             trade = {
                 "type": "buy",
                 "symbol": symbol,
@@ -134,7 +133,8 @@ class BacktestContext(IContext):
                 "quantity": quantity,
                 "time": self.get_time().isoformat(),
                 "strategy_rank": self.current_rank,
-                "order_id": order.id # Track Object ID
+                "order_id": order.id,
+                "metadata": metadata or {}
             }
             self.trades.append(trade)
             self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
@@ -144,16 +144,12 @@ class BacktestContext(IContext):
             self.log(f"BUY ERROR: {e}")
             return {"status": "failed", "reason": str(e)}
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
-        current_qty = self.holdings.get(symbol, 0)
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        current_qty = self._holdings.get(symbol, 0)
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
             
-            # [OPTIMIZATION] Order Class Bypass REMOVED by User Request
-            
-            # [REFACTOR] Use Order Class Logic
             try:
-                # 1. Create Order Object
                 order = StockOrder(
                     symbol=symbol, 
                     side=OrderSide.SELL, 
@@ -162,24 +158,20 @@ class BacktestContext(IContext):
                     order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
                 )
                 
-                # 2. Validate
                 order.validate()
                 
-                # 3. Execution (Simulation)
                 revenue = exec_price * quantity
                 self.cash += revenue
-                self.holdings[symbol] -= quantity
-                if self.holdings[symbol] <= 0:
-                    del self.holdings[symbol]
+                self._holdings[symbol] -= quantity
+                if self._holdings[symbol] <= 0:
+                    del self._holdings[symbol]
                 
-                # 4. Fill Update
                 order.add_fill(
                     fill_price=exec_price,
                     fill_qty=quantity,
                     fill_id=f"SIM_SELL_{len(self.trades)+1}"
                 )
                 
-                # 5. Legacy Mapping
                 trade = {
                     "type": "sell",
                     "symbol": symbol,
@@ -187,7 +179,8 @@ class BacktestContext(IContext):
                     "quantity": quantity,
                     "time": self.get_time().isoformat(),
                     "strategy_rank": self.current_rank,
-                    "order_id": order.id
+                    "order_id": order.id,
+                    "metadata": metadata or {}
                 }
                 self.trades.append(trade)
                 self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
@@ -206,7 +199,7 @@ class BacktestContext(IContext):
 
     def update_equity(self):
         equity = self.cash
-        for symbol, qty in self.holdings.items():
+        for symbol, qty in self._holdings.items():
             equity += qty * self.get_current_price(symbol)
         
         self.equity_curve.append({
@@ -282,6 +275,7 @@ class WaterfallBacktestEngine:
         for cfg in strategies_config:
             if 'symbol' in cfg:
                 unique_symbols.add(cfg['symbol'])
+
 
         # --- [SIMULATION DATA] ---
         # Fetch using GLOBAL interval to preserve v0.8.9.9 Simulation Logic & Results
@@ -381,36 +375,30 @@ class WaterfallBacktestEngine:
                      pass # similar to main loop error handling
                      
         else:
-            # [LEGACY / MULTI-STRATEGY] Full Time-Sync Loop
+            # [LEGACY / MULTI-STRATEGY] Full Time-Sync Loop - OPTIMIZED O(N*M)
             all_ts = set()
-            for f in feeds.values():
+            feed_indices = {} # {symbol: {timestamp: candle}}
+            for sym, f in feeds.items():
+                feed_indices[sym] = {c['timestamp']: c for c in f}
                 for c in f:
                     all_ts.add(c['timestamp'])
+            
             sorted_ts = sorted(list(all_ts))
             
             for ts in sorted_ts:
                 context.current_timestamp = ts 
                 
                 for p in participants:
-                    strat = p['strategy']
                     sym = p['symbol']
-                    context.current_rank = p['rank']  # Set context rank before execution
+                    context.current_rank = p['rank']
                     
-                    candle = None
-                    if sym in feeds:
-                        # [LEGACY LOOP] Linear scan (inefficient but safe for multi-strategy)
-                        # Optimization: we could index this too, but for now restore functionality
-                        for c in feeds[sym]:
-                             if c['timestamp'] == ts:
-                                 candle = c
-                                 break
+                    # O(1) Lookup
+                    candle = feed_indices.get(sym, {}).get(ts)
                 
                     if candle:
                         try:
-                            strat.on_data(candle)
+                            p['strategy'].on_data(candle)
                         except Exception as e:
-                            # Log but continue (or break?)
-                            # context.log(f"Error in strategy {p['rank']}: {e}")
                             pass
             
                 context.update_equity()

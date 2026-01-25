@@ -12,11 +12,17 @@ class IContext(ABC):
         pass
 
     @abstractmethod
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         pass
 
     @abstractmethod
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        pass
+
+    @property
+    @abstractmethod
+    def holdings(self) -> Dict[str, int]:
+        """Returns current holdings {symbol: quantity}"""
         pass
     
     @abstractmethod

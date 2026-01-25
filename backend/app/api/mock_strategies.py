@@ -352,25 +352,16 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     from ..core.waterfall_engine import WaterfallBacktestEngine
     # from ..core.backtest_engine import BacktestEngine
     
-    # Select Strategy Class
-    strategy_class = None
+    # Select Strategy Class from Registry
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
     
-    # Use nested config as the strategy config
+    if not strategy_class:
+        # Fallback for others (or raise 404)
+        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found in registry.")
+
+    # Select Strategy Config
     config = request.config
-    
-    # Also inject root-level params into config if needed (or keep separate)
-    # Strategy might need start_date? Usually not, just "on_data".
-    
-    if strategy_id == "time_momentum":
-        from ..strategies.time_momentum import TimeMomentumStrategy
-        strategy_class = TimeMomentumStrategy
-    else:
-        # Fallback for others (or use a Default)
-        from ..strategies.base import BaseStrategy
-        class MockStrategy(BaseStrategy):
-             def initialize(self): pass
-             def on_data(self, data): pass
-        strategy_class = MockStrategy
 
     # Initialize Engine (Unified)
     # We pass the class, config is ignored here as run_integrated uses strategies_config list
@@ -420,19 +411,12 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
 async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     start_time = time.time()
     
-    # 1. Select Strategy Class
-    strategy_class = None
-    if strategy_id == "time_momentum":
-        from ..strategies.time_momentum import TimeMomentumStrategy
-        strategy_class = TimeMomentumStrategy
-    else:
-        # Optimization only supported for TimeMomentum for now or generic?
-        # Fallback to generic if possible, but we need class logic.
-        from ..strategies.base import BaseStrategy
-        class MockStrategy(BaseStrategy):
-             def initialize(self): pass
-             def on_data(self, data): pass
-        strategy_class = MockStrategy
+    # 1. Select Strategy Class from Registry
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+    
+    if not strategy_class:
+        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found for optimization.")
 
     # 2. Generate Cartesian Product
     keys = list(request.parameter_ranges.keys())
