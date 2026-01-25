@@ -84,10 +84,10 @@ const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData }) => {
                         <span className="text-sm font-bold text-white">Time Momentum Monitor</span>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${tradingStatus === 'active'
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : tradingStatus === 'waiting'
-                                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                                : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : tradingStatus === 'waiting'
+                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                         }`}>
                         {tradingStatus === 'active' ? '🟢 거래 중' : tradingStatus === 'waiting' ? '⏳ 대기 중' : '🔴 마감'}
                     </span>
@@ -195,6 +195,112 @@ const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData }) => {
                     {currentRSI !== null && (
                         <div className="text-center mt-2 text-xl font-mono text-white">{currentRSI.toFixed(1)}</div>
                     )}
+                </div>
+            </div>
+        );
+    }
+
+    // Dip Martingale Strategy Widget
+    if (strategyId === 'dip_martingale') {
+        const currentLevel = liveData?.current_level || 0;
+        const maxLevels = liveData?.max_levels || 4;
+        const avgPrice = liveData?.average_price || 0;
+        const refPrice = liveData?.reference_price || 0;
+        const curPrice = liveData?.current_price || 0;
+        const profitPct = (liveData?.profit_percent || 0) * 100;
+        const dipPct = (liveData?.dip_percent || 0) * 100;
+        const targetDip = (liveData?.target_dip || 0) * 100;
+        const isTrailing = liveData?.trailing_active || false;
+        const isHodl = liveData?.is_hodl || false;
+
+        const levelDots = [];
+        for (let i = 1; i <= maxLevels; i++) {
+            levelDots.push(
+                <div
+                    key={i}
+                    className={`h-2.5 w-2.5 rounded-full shadow-[0_0_8px] transition-all duration-500 ${i <= currentLevel
+                        ? 'bg-indigo-400 shadow-indigo-500/50'
+                        : 'bg-gray-700 shadow-transparent'
+                        }`}
+                />
+            );
+        }
+
+        return (
+            <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900/30 border border-indigo-500/30 rounded-xl p-4 mb-6 shadow-xl">
+                {/* Header with Badges */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Activity size={18} className="text-indigo-400" />
+                        <span className="text-sm font-bold text-white">Dip Martingale Monitor</span>
+                    </div>
+                    <div className="flex gap-2">
+                        {isHodl && (
+                            <span className="bg-red-500/20 text-red-400 border border-red-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase animate-pulse">
+                                HODL 활성
+                            </span>
+                        )}
+                        {isTrailing && (
+                            <span className="bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+                                트레일링 중
+                            </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${currentLevel > 0
+                            ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                            : 'bg-gray-500/20 text-gray-500 border-gray-500/30'
+                            }`}>
+                            {currentLevel > 0 ? `L${currentLevel} 진입` : '대기 중'}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Level Progress Dots */}
+                <div className="bg-black/40 rounded-lg p-3 mb-4 flex items-center justify-between">
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Martingale Levels</span>
+                    <div className="flex gap-2.5">
+                        {levelDots}
+                    </div>
+                </div>
+
+                {/* Main Stats Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-black/30 rounded-lg p-3">
+                        <div className="text-gray-400 text-[10px] uppercase tracking-wider mb-1">Average / Current</div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-lg font-mono text-white">{avgPrice > 0 ? avgPrice.toLocaleString() : '-'}</span>
+                            <span className={`text-[10px] font-mono ${curPrice >= avgPrice ? 'text-red-400' : 'text-blue-400'}`}>
+                                ({curPrice.toLocaleString()})
+                            </span>
+                        </div>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3 text-right">
+                        <div className="text-gray-400 text-[10px] uppercase tracking-wider mb-1">Profit / Loss</div>
+                        <div className={`text-xl font-mono font-bold ${profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                            {avgPrice > 0 ? `${profitPct.toFixed(2)}%` : '0.00%'}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Dip Progress Indicator */}
+                <div className="bg-black/30 rounded-lg p-3">
+                    <div className="flex justify-between text-[10px] text-gray-400 mb-2">
+                        <span>Ref: {refPrice.toLocaleString()}</span>
+                        <span className="font-bold">Dip Progress</span>
+                        <span className="text-indigo-400">Target: -{targetDip.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-800 rounded-full h-2 relative">
+                        <div
+                            className="bg-indigo-500 h-2 rounded-full transition-all duration-1000"
+                            style={{ width: `${Math.min(100, (dipPct / targetDip) * 100)}%` }}
+                        />
+                        {/* Break-even line if holding */}
+                        {currentLevel > 0 && (
+                            <div className="absolute top-0 w-1 h-3 bg-red-400 -mt-0.5" style={{ left: '100%' }} />
+                        )}
+                    </div>
+                    <div className="text-center mt-1 text-[10px] text-gray-500 font-mono">
+                        Current Dip: <span className="text-white">{dipPct.toFixed(2)}%</span>
+                    </div>
                 </div>
             </div>
         );

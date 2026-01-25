@@ -41,6 +41,7 @@ class DipMartingaleStrategy(BaseStrategy):
         current_time = self.context.get_time()
         current_date = current_time.date()
         current_price = data['close']
+        self.last_price = current_price # Store for state
         symbol = self.symbol
         
         # 1. Reset cycle on new day (if no position)
@@ -65,7 +66,7 @@ class DipMartingaleStrategy(BaseStrategy):
                 self.peak_price = current_price
             
             # 3a. Check Trailing Stop Activation
-            if not self.trailing_active and current_return >= self.trailing_start_percent:
+            if not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
                 self.trailing_active = True
                 self.peak_price = current_price
                 self.context.log(f"[DipMartingale] Trailing Stop ACTIVATED. Return: {current_return*100:.2f}%")
@@ -73,13 +74,13 @@ class DipMartingaleStrategy(BaseStrategy):
             # 3b. Check Trailing Stop Liquidation
             if self.trailing_active:
                 drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-                if drop_from_peak >= self.trailing_stop_percent:
+                if drop_from_peak >= (self.trailing_stop_percent / 100):
                     self.context.log(f"[DipMartingale] Trailing Stop VOID! Sell at {current_price:,.0f} (Profit: {current_return*100:.2f}%)")
                     self._liquidate(current_price)
                     return
 
             # 3c. Check Max Loss Protection (HODL)
-            if not self.is_hodl and current_return <= -self.max_loss_percent:
+            if not self.is_hodl and current_return <= -(self.max_loss_percent / 100):
                 self.is_hodl = True
                 self.context.log(f"[DipMartingale] CRITICAL: Loss {current_return*100:.1f}%. HODL Mode Engaged.")
             
@@ -93,7 +94,7 @@ class DipMartingaleStrategy(BaseStrategy):
                 if current_price <= target_price:
                     qty = self._calculate_quantity(next_level)
                     if qty > 0:
-                        self.context.buy(symbol, qty)
+                        self.context.buy(symbol, qty, metadata={"level": next_level})
                         self._add_position(current_price, qty, next_level)
                         self.context.log(f"[DipMartingale] L{next_level} Entry @ {current_price:,.0f}. Avg: {self.average_price:,.0f}")
 
@@ -102,7 +103,7 @@ class DipMartingaleStrategy(BaseStrategy):
             dip_from_ref = (self.reference_price - current_price) / self.reference_price
             if dip_from_ref >= (self.dip_percent / 100):
                 qty = self.base_quantity
-                self.context.buy(symbol, qty)
+                self.context.buy(symbol, qty, metadata={"level": 1})
                 self._add_position(current_price, qty, 1)
                 self.peak_price = current_price
                 self.context.log(f"[DipMartingale] L1 Initial Entry @ {current_price:,.0f} (Dip: {dip_from_ref*100:.2f}%)")
@@ -115,7 +116,7 @@ class DipMartingaleStrategy(BaseStrategy):
         self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
 
     def _liquidate(self, price: float):
-        self.context.sell(self.symbol, self.total_quantity)
+        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE"})
         self.current_level = 0
         self.total_quantity = 0
         self.average_price = 0
@@ -133,13 +134,23 @@ class DipMartingaleStrategy(BaseStrategy):
         return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
 
     def get_state(self) -> Dict[str, Any]:
+        cur_price = getattr(self, 'last_price', 0)
+        dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
+        profit_percent = (cur_price - self.average_price) / self.average_price if self.average_price > 0 else 0
+        
         return {
             "current_level": self.current_level,
+            "max_levels": self.max_levels,
             "average_price": self.average_price,
             "total_quantity": self.total_quantity,
             "peak_price": self.peak_price,
             "trailing_active": self.trailing_active,
             "is_hodl": self.is_hodl,
             "reference_price": self.reference_price,
-            "symbol": self.symbol
+            "symbol": self.symbol,
+            "current_price": cur_price,
+            "dip_percent": dip_percent,
+            "profit_percent": profit_percent,
+            "target_dip": self.dip_percent / 100.0,
+            "target_profit": self.trailing_start_percent / 100.0
         }

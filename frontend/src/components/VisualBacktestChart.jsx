@@ -347,8 +347,9 @@ const VisualBacktestChart = ({
             if (t.type === 'buy') {
                 lastBuyPrice = realPrice;
                 if (showOnlyPnl) return null;
+                const levelDesc = t.metadata?.level ? ` (L${t.metadata.level})` : '';
                 return {
-                    time: t.time, price: t.price, position: 'atPriceBottom', color: '#00BFFF', shape: 'arrowUp', text: 'BUY', size: 1
+                    time: t.time, price: t.price, position: 'atPriceBottom', color: '#00BFFF', shape: 'arrowUp', text: `BUY${levelDesc}`, size: 1
                 };
             } else {
                 let pnlPercent = 0;
