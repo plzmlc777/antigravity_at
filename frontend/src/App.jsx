@@ -64,7 +64,8 @@ function AppContent() {
             try {
                 const data = await getSystemVersion();
                 if (data.version) {
-                    setBackendVersion('v' + data.version);
+                    const ver = data.version.startsWith('v') ? data.version : 'v' + data.version;
+                    setBackendVersion(ver);
                 }
             } catch (err) {
                 console.error("Failed to fetch backend version", err);
