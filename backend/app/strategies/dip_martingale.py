@@ -19,11 +19,11 @@ class DipMartingaleStrategy(BaseStrategy):
         self.max_levels = self.config.get("max_levels", 4) # Max levels (excluding level 0)
         self.lot_size_multiplier = self.config.get("lot_size_multiplier", 2.0) # Martingale multiplier (e.g., 1, 2, 4, 8)
         self.base_quantity = self.config.get("base_quantity", 1) # Starting quantity for Level 1
-        
+
         self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01) # 1% profit starts trailing
         self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003) # 0.3% drop from peak triggers sell
         self.max_loss_percent = self.config.get("max_loss_percent", 0.10) # 10% total loss triggers HODL
-        
+
         # State variables
         self.current_level = 0 # 0: None, 1: First Entry, 2: Second...
         self.reference_price = None # Point from which dip is measured (Cycle Start)
@@ -35,6 +35,7 @@ class DipMartingaleStrategy(BaseStrategy):
         self.last_trade_time = None
         self.current_trading_date = None
         self.entries = [] # List of entry records
+        self.cycle_id = 0  # Unique cycle identifier for tracking
 
     def on_data(self, data: Dict[str, Any]):
         """Called on every price update"""
@@ -84,29 +85,30 @@ class DipMartingaleStrategy(BaseStrategy):
                 self.is_hodl = True
                 self.context.log(f"[DipMartingale] CRITICAL: Loss {current_return*100:.1f}%. HODL Mode Engaged.")
             
-            # 3d. Check Martingale Multi-Entry (If price drops further)
+            # 3d. Check Martingale Multi-Entry (If candle drops n% from open)
             if self.current_level < self.max_levels and not self.trailing_active:
                 next_level = self.current_level + 1
-                # Target price = entry_price of current level - level_gap
-                last_entry_price = self.entries[-1]['price']
-                target_price = last_entry_price * (1 - self.level_gap_percent / 100)
-                
-                if current_price <= target_price:
+                # Check if current candle dropped n% from its open price
+                candle_open = data.get('open', current_price)
+                candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
+
+                if candle_drop >= (self.level_gap_percent / 100):
                     qty = self._calculate_quantity(next_level)
                     if qty > 0:
                         self.context.buy(symbol, qty, metadata={"level": next_level})
                         self._add_position(current_price, qty, next_level)
-                        self.context.log(f"[DipMartingale] L{next_level} Entry @ {current_price:,.0f}. Avg: {self.average_price:,.0f}")
+                        self.context.log(f"[DipMartingale] L{next_level} Entry @ {current_price:,.0f} (Candle Drop: {candle_drop*100:.2f}%). Avg: {self.average_price:,.0f}")
 
-        # 4. Initial Entry (Level 1)
+        # 4. Initial Entry (Level 1) - When candle drops n% from its open
         elif self.current_level == 0:
-            dip_from_ref = (self.reference_price - current_price) / self.reference_price
-            if dip_from_ref >= (self.dip_percent / 100):
+            candle_open = data.get('open', current_price)
+            candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
+            if candle_drop >= (self.dip_percent / 100):
                 qty = self.base_quantity
                 self.context.buy(symbol, qty, metadata={"level": 1})
                 self._add_position(current_price, qty, 1)
                 self.peak_price = current_price
-                self.context.log(f"[DipMartingale] L1 Initial Entry @ {current_price:,.0f} (Dip: {dip_from_ref*100:.2f}%)")
+                self.context.log(f"[DipMartingale] L1 Initial Entry @ {current_price:,.0f} (Candle Drop: {candle_drop*100:.2f}%)")
 
     def _add_position(self, price: float, quantity: int, level: int):
         new_total_qty = self.total_quantity + quantity
@@ -116,7 +118,8 @@ class DipMartingaleStrategy(BaseStrategy):
         self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
 
     def _liquidate(self, price: float):
-        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE"})
+        self.cycle_id += 1  # Increment cycle ID before closing
+        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
         self.current_level = 0
         self.total_quantity = 0
         self.average_price = 0
@@ -137,7 +140,7 @@ class DipMartingaleStrategy(BaseStrategy):
         cur_price = getattr(self, 'last_price', 0)
         dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
         profit_percent = (cur_price - self.average_price) / self.average_price if self.average_price > 0 else 0
-        
+
         return {
             "current_level": self.current_level,
             "max_levels": self.max_levels,

@@ -281,6 +281,7 @@ class WaterfallBacktestEngine:
         # Fetch using GLOBAL interval to preserve v0.8.9.9 Simulation Logic & Results
         feeds = {}
         for sym in unique_symbols:
+            print(f"[DEBUG] WaterfallEngine fetching {sym} with interval={interval}, days={duration_days}")
             raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
             if raw_feed:
                 # Filter Date (Safe String Comparison)
@@ -288,6 +289,7 @@ class WaterfallBacktestEngine:
                     raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
                 raw_feed.sort(key=lambda x: x['timestamp'])
                 feeds[sym] = raw_feed
+                print(f"[DEBUG] WaterfallEngine loaded {len(raw_feed)} candles for {sym} at {interval}")
             else:
                 print(f"Warning: No Simulation data for {sym}")
 
@@ -439,15 +441,15 @@ class WaterfallBacktestEngine:
                     
         t_exec = time.time()
         print(f"[{'LITE' if optimize_mode else 'FULL'}] Execution: {t_exec - t_data:.4f}s")
-                    
+
         # 5. Stats
         ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
         stats = self._generate_stats(context, ref_feed, optimize_mode=optimize_mode)
-        
+
         # [Visual Analysis Support]
         if not optimize_mode:
             stats['equity_curve'] = context.equity_curve
-            stats['chart_data'] = context.equity_curve 
+            stats['chart_data'] = context.equity_curve
             stats['multi_ohlcv_data'] = viz_feeds # Use VIZ feeds for Popup
         else:
              stats['multi_ohlcv_data'] = {}
@@ -601,10 +603,9 @@ class WaterfallBacktestEngine:
                         'pnl_percent': profit_percent,
                         'volume': revenue,
                         'holding_seconds': holding_seconds,
-                        'volume': revenue,
-                        'holding_seconds': holding_seconds,
                         'time': t['time'], # Store Sell Time for Decile Analysis
-                        'strategy_rank': t.get('strategy_rank', 0) # Preserve tag
+                        'strategy_rank': t.get('strategy_rank', 0), # Preserve tag
+                        'metadata': t.get('metadata', {}) # Store sell metadata (for cycle detection)
                     })
                     
                     # Update remaining quantities
@@ -643,15 +644,16 @@ class WaterfallBacktestEngine:
 
         
         # Calculate Monthly Stats & Stability
+        # OPTIMIZED: Now fast enough to run even in optimize_mode (O(N) algorithm)
+        decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
+        stability_score = decile_data['stability_score']
+        acceleration_score = decile_data['acceleration_score']
+
+        # Monthly stats only needed for detailed view (not optimization)
         if not optimize_mode:
-            decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
             monthly_stats = decile_data['monthly_stats']
-            stability_score = decile_data['stability_score']
-            acceleration_score = decile_data['acceleration_score']
         else:
             monthly_stats = []
-            stability_score = 0.0
-            acceleration_score = 0.0
 
         return {
             "total_trades": len(completed_trades),
@@ -666,6 +668,8 @@ class WaterfallBacktestEngine:
             "decile_stats": monthly_stats,
             "stability_score": stability_score,
             "acceleration_score": acceleration_score,
+            "total_cycles": base_stats.get('total_cycles'),  # Martingale cycle count
+            "avg_pnl_per_cycle": base_stats.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
             "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital) if calc_ranks else []
         }
 
@@ -694,6 +698,10 @@ class WaterfallBacktestEngine:
         # Max Profit / Loss (in %)
         max_profit = max([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
         max_loss = min([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
+
+        # Debug log for optimization
+        if completed_trades:
+            print(f"[DEBUG] Max Profit: {max_profit:.2f}%, Max Loss: {max_loss:.2f}% (from {len(completed_trades)} trades)")
         
         # Profit Factor
         gross_profit = sum(t['pnl'] for t in wins)
@@ -713,7 +721,30 @@ class WaterfallBacktestEngine:
             sharpe = (statistics.mean(returns) / stdev * (len(returns)**0.5)) if stdev > 0 else 0
         else:
             sharpe = 0
-            
+
+        # Martingale Cycle Statistics (for strategies using multi-level entries)
+        # A cycle is identified by unique cycle_id in metadata
+        cycle_trades = [t for t in completed_trades if t.get('metadata', {}).get('level') == 'CLOSE']
+
+        # Group trades by cycle_id to count unique cycles and sum PnL per cycle
+        cycle_pnl_map = {}  # {cycle_id: total_pnl_percent}
+        for t in cycle_trades:
+            cycle_id = t.get('metadata', {}).get('cycle_id', 0)
+            pnl_pct = t.get('pnl_percent', 0) * 100  # Convert to %
+            if cycle_id in cycle_pnl_map:
+                cycle_pnl_map[cycle_id] += pnl_pct
+            else:
+                cycle_pnl_map[cycle_id] = pnl_pct
+
+        total_cycles = len(cycle_pnl_map) if cycle_pnl_map else 0
+        avg_pnl_per_cycle = 0.0
+
+        if total_cycles > 0:
+            # Average PnL per unique cycle
+            total_cycle_pnl_percent = sum(cycle_pnl_map.values())
+            avg_pnl_per_cycle = total_cycle_pnl_percent / total_cycles
+            print(f"[DEBUG] Martingale Cycles: {total_cycles} unique cycles, Avg PnL per cycle: {avg_pnl_per_cycle:.2f}%")
+
         return {
             "win_rate": win_rate,
             "avg_pnl": avg_pnl_percent,
@@ -721,7 +752,9 @@ class WaterfallBacktestEngine:
             "max_loss": max_loss,
             "profit_factor": profit_factor,
             "sharpe_ratio": sharpe,
-            "avg_holding_time": avg_holding_min
+            "avg_holding_time": avg_holding_min,
+            "total_cycles": total_cycles if total_cycles > 0 else None,  # None if not martingale strategy
+            "avg_pnl_per_cycle": avg_pnl_per_cycle if total_cycles > 0 else None
         }
 
     def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any, initial_capital: float) -> List[Dict]:
@@ -807,61 +840,72 @@ class WaterfallBacktestEngine:
         Calculates Periodic Stats (Monthly).
         Returns a list of stats for each month in the range.
         Key 'decile_stats' is kept for frontend compatibility but now represents 'Monthly Stats'.
+
+        OPTIMIZED: O(N + M) instead of O(M × N)
+        - N = number of trades
+        - M = number of months
         """
+        import time
+        from collections import defaultdict
+
+        start_time = time.time()
+
         # Helper to parse TS
         def parse(t): return t if isinstance(t, datetime) else datetime.fromisoformat(t)
-        
+
         start_dt = parse(start_ts).date()
         end_dt = parse(end_ts).date()
-        
+
         # Normalize to start of month
         curr = start_dt.replace(day=1)
         end_cap = end_dt.replace(day=1)
-        
+
+        # OPTIMIZATION: Group trades by month in O(N) instead of O(M × N)
+        monthly_trades = defaultdict(list)
+        for t in trades:
+            t_date = parse(t['time']).date()  # Parse only once per trade
+            month_key = t_date.strftime("%Y-%m")
+            monthly_trades[month_key].append(t)
+
         stats = []
         block_idx = 1
-        
+
+        # Iterate through months and lookup pre-grouped trades in O(1)
         while curr <= end_cap:
-            # Calculate Next Month
-            if curr.month == 12:
-                next_month = curr.replace(year=curr.year + 1, month=1)
-            else:
-                next_month = curr.replace(month=curr.month + 1)
-                
-            # Define Range [curr, next_month)
-            # Filter trades
-            chunk = []
-            for t in trades:
-                t_date = parse(t['time']).date()
-                if curr <= t_date < next_month:
-                    chunk.append(t)
-            
+            month_key = curr.strftime("%Y-%m")
+            chunk = monthly_trades.get(month_key, [])  # O(1) lookup
+
             # Stats
             if chunk:
                 # User requested Realized Return (Total PnL for the month)
                 # We sum the PnL percentages to show the total monthly performance.
                 total_pnl = sum(t['pnl_percent'] for t in chunk) * 100
                 avg_pnl = total_pnl / len(chunk)
-                
+
                 wins = len([t for t in chunk if t['pnl'] > 0])
                 win_rate = wins / len(chunk) * 100
             else:
                 total_pnl = 0.0
                 avg_pnl = 0.0
                 win_rate = 0.0
-                
+
             date_label = curr.strftime("%y-%m")
-            
+
             stats.append({
-                "block": date_label, 
+                "block": date_label,
                 "avg_pnl": float(f"{avg_pnl:.2f}"), # Keep for legacy/tooltip if needed, or just use total
                 "total_pnl": float(f"{total_pnl:.2f}"), # New Metric: Monthly Total Return
                 "win_rate": float(f"{win_rate:.1f}"),
                 "date_range": date_label,
                 "count": len(chunk)
             })
-            
-            curr = next_month
+
+            # Calculate next month
+            if curr.month == 12:
+                curr = curr.replace(year=curr.year + 1, month=1)
+            else:
+                curr = curr.replace(month=curr.month + 1)
+
             block_idx += 1
             
         # Calculate Stability Score (R-squared of Cumulative PnL)
@@ -909,6 +953,9 @@ class WaterfallBacktestEngine:
             print(f"Error calculating stats: {e}")
             stability_score = 0.0
             acceleration_score = 0.0
+
+        elapsed_ms = (time.time() - start_time) * 1000
+        print(f"[PERF] _calc_deciles: {len(trades)} trades, {len(stats)} months → {elapsed_ms:.2f}ms")
 
         return {
             "monthly_stats": stats,

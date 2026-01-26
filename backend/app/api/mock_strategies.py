@@ -60,6 +60,14 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     except Exception as e:
         print(f"Warning: Failed to dispose engine in worker: {e}")
 
+    # Force reload modules to ensure latest code is used (worker process caching issue)
+    import sys
+    import importlib
+    modules_to_reload = ['app.core.waterfall_engine', 'app.services.market_data']
+    for mod_name in modules_to_reload:
+        if mod_name in sys.modules:
+            importlib.reload(sys.modules[mod_name])
+
     import asyncio
     # [MIGRATION] Use WaterfallBacktestEngine for consistent logic (Unified, Standard MDD, StockOrder)
     from ..core.waterfall_engine import WaterfallBacktestEngine
@@ -78,16 +86,23 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     # Wrap config into list for Integrated Engine
     # Ensure symbol is present in config for data fetching
     config['symbol'] = symbol
-    
+
+    # Use interval from config if present (for optimization), otherwise use passed interval
+    actual_interval = config.get('interval', interval)
+
     result = loop.run_until_complete(engine.run_integrated(
         strategies_config=[config],
-        global_symbol=symbol, 
-        interval=interval, 
-        duration_days=days, 
+        global_symbol=symbol,
+        interval=actual_interval,
+        duration_days=days,
         from_date=from_date,
         initial_capital=initial_capital,
         optimize_mode=True
     ))
+
+    # Ensure interval is in config for frontend to display correctly
+    config['interval'] = actual_interval
+
     return config, result
 
 def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
@@ -102,88 +117,80 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         OPTIMIZATION_TASKS[task_id]["status"] = "running"
         OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
         
-        # Use max_workers=4
-        with ProcessPoolExecutor(max_workers=4) as executor:
-            # We want to iterate as they complete to update progress?
-            # executor.map returns iterator.
-            # zip(*run_args) unzips
-            
-            # NOTE: list(executor.map(...)) blocks until all are done.
-            # To get progress, we use enumerate on the iterator or submit individually and use as_completed.
-            # For simplicity with map, we can't get granular progress easily unless we chunk it or wrap the iterator.
-            # Let's switch to submit + as_completed for progress updates.
-            from concurrent.futures import as_completed
-            
-            futures = [executor.submit(_run_sync_in_process, *args) for args in run_args]
-            
-            for i, future in enumerate(as_completed(futures)):
-                try:
-                    config, res = future.result()
-                    
-                    if "error" in res:
-                        err_msg = str(res['error'])
-                        if len(failures) < 10:
-                             failures.append(f"Config failed: {err_msg}")
-                        # logger.error(f"Config failed: {err_msg}")
-                    else:
-                        # [DEBUG] Update Status Message with Performance Log (Light Mode check)
-                        if 'perf_log' in res:
-                             OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})... {res['perf_log']}"
-                        
-                        # Calculate Score
-                        ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
-                        wr = float(str(res['win_rate']).replace('%', ''))
-                        trades = int(res.get('total_trades', 0))
-                        
-                        score = ret * (wr / 100.0)
-                        
-                        results.append(OptimizationResultItem(
-                            rank=0,
-                            config=config,
-                            total_return=ret,
-                            win_rate=wr,
-                            total_trades=trades,
-                            score=round(score, 2),
-                            # Explicit Top-Level Promoted Fields
-                            max_drawdown=str(res.get("max_drawdown", "-")),
-                            profit_factor=str(res.get("profit_factor", "-")),
-                            avg_pnl=str(res.get("avg_pnl", "-")),
-                            sharpe_ratio=str(res.get("sharpe_ratio", "-")),
-                            avg_holding_time=str(res.get("avg_holding_time", "-")),
-                            stability_score=str(res.get("stability_score", "-")),
-                            acceleration_score=str(res.get("acceleration_score", "-")),
-                            activity_rate=str(res.get("activity_rate", "-")),
-                            total_days=int(res.get("total_days", 0)),
-                            max_profit=str(res.get("max_profit", "-")),
-                            max_loss=str(res.get("max_loss", "-")),
-                            metrics={
-                                # Frontend relies on 'metrics' spread, so we must populate these!
-                                "max_drawdown": res.get("max_drawdown", "-"),
-                                "profit_factor": res.get("profit_factor", "-"),
-                                "avg_pnl": res.get("avg_pnl", "-"),
-                                "sharpe_ratio": res.get("sharpe_ratio", "-"),
-                                "avg_holding_time": res.get("avg_holding_time", "-"),
-                                "stability_score": res.get("stability_score", "-"),
-                                "acceleration_score": res.get("acceleration_score", "-"),
-                                "activity_rate": res.get("activity_rate", "-"),
-                                "total_days": res.get("total_days", 0)
-                            }
-                        ))
-                except Exception as e:
-                    logger.error(f"Future Result Error: {e}")
-                    failures.append(str(e))
-                
-                # Check for Cancellation
-                if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                    logger.info(f"Task {task_id} cancellation requested. Stopping executor.")
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                    OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                    # Break loop
-                    break
-                
-                # Update Progress
-                OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+        # TEMPORARY: Sequential execution to fix ProcessPoolExecutor module caching issue
+        logger.info(f"[TEMP] Running {total_combos} combinations sequentially (no multiprocessing)")
+
+        for i, args in enumerate(run_args):
+            try:
+                config, res = _run_sync_in_process(*args)
+
+                if "error" in res:
+                    err_msg = str(res['error'])
+                    if len(failures) < 10:
+                         failures.append(f"Config failed: {err_msg}")
+                else:
+                    # Update Status Message
+                    if 'perf_log' in res:
+                         OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})... {res['perf_log']}"
+
+                    # Calculate Score
+                    ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
+                    wr = float(str(res['win_rate']).replace('%', ''))
+                    trades = int(res.get('total_trades', 0))
+
+                    score = ret * (wr / 100.0)
+
+                    results.append(OptimizationResultItem(
+                        rank=0,
+                        config=config,
+                        total_return=ret,
+                        win_rate=wr,
+                        total_trades=trades,
+                        score=round(score, 2),
+                        # Explicit Top-Level Promoted Fields
+                        max_drawdown=str(res.get("max_drawdown", "-")),
+                        profit_factor=str(res.get("profit_factor", "-")),
+                        avg_pnl=str(res.get("avg_pnl", "-")),
+                        sharpe_ratio=str(res.get("sharpe_ratio", "-")),
+                        avg_holding_time=str(res.get("avg_holding_time", "-")),
+                        stability_score=str(res.get("stability_score", "-")),
+                        acceleration_score=str(res.get("acceleration_score", "-")),
+                        activity_rate=str(res.get("activity_rate", "-")),
+                        total_days=int(res.get("total_days", 0)),
+                        max_profit=str(res.get("max_profit", "-")),
+                        max_loss=str(res.get("max_loss", "-")),
+                        total_cycles=res.get("total_cycles"),  # Martingale cycles
+                        avg_pnl_per_cycle=res.get("avg_pnl_per_cycle"),  # Avg PnL per cycle
+                        metrics={
+                            # Frontend relies on 'metrics' spread, so we must populate these!
+                            "max_drawdown": res.get("max_drawdown", "-"),
+                            "profit_factor": res.get("profit_factor", "-"),
+                            "avg_pnl": res.get("avg_pnl", "-"),
+                            "sharpe_ratio": res.get("sharpe_ratio", "-"),
+                            "avg_holding_time": res.get("avg_holding_time", "-"),
+                            "stability_score": res.get("stability_score", "-"),
+                            "acceleration_score": res.get("acceleration_score", "-"),
+                            "activity_rate": res.get("activity_rate", "-"),
+                            "total_days": res.get("total_days", 0),
+                            "max_profit": res.get("max_profit", "-"),
+                            "max_loss": res.get("max_loss", "-"),
+                            "total_cycles": res.get("total_cycles"),
+                            "avg_pnl_per_cycle": res.get("avg_pnl_per_cycle")
+                        }
+                    ))
+            except Exception as e:
+                logger.error(f"Result Error: {e}")
+                failures.append(str(e))
+
+            # Update Progress
+            OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+
+            # Check for Cancellation
+            if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                logger.info(f"Task {task_id} cancellation requested.")
+                OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                break
         
         # Finished
         results.sort(key=lambda x: x.score, reverse=True)
@@ -287,6 +294,8 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "decile_stats": result.get('decile_stats', []),
             "stability_score": result.get('stability_score', "0.00"),
             "acceleration_score": result.get('acceleration_score', "0.00"),
+            "total_cycles": result.get('total_cycles'),  # Martingale cycle count
+            "avg_pnl_per_cycle": result.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
             "chart_data": result['chart_data'],
             "ohlcv_data": result.get('ohlcv_data', []),
             "trades": result.get('trades', []),
@@ -348,14 +357,35 @@ class BacktestRequest(BaseModel):
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
+    # [FIX 2026-01-26] Force reload strategy modules to ensure latest code is used
+    # This fixes the issue where backtest uses cached (old) code while optimization uses fresh code
+    import sys
+    import importlib
+
+    # Reload strategy modules in CORRECT ORDER (base class first, then implementations, then registry)
+    strategy_modules_to_reload = [
+        'app.strategies.base',           # 1. Base class first
+        'app.strategies.dip_martingale', # 2. Strategy implementations
+        'app.strategies.time_momentum',
+        'app.strategies.rsi',
+        'app.core.strategy_registry',    # 3. Registry (imports strategies)
+        'app.core.waterfall_engine',     # 4. Engine (uses registry)
+    ]
+
+    for mod_name in strategy_modules_to_reload:
+        if mod_name in sys.modules:
+            try:
+                importlib.reload(sys.modules[mod_name])
+            except Exception:
+                pass  # Silently continue if reload fails
+
     # [MIGRATION] Use WaterfallBacktestEngine for consistent logic with Integrated Tab
     from ..core.waterfall_engine import WaterfallBacktestEngine
-    # from ..core.backtest_engine import BacktestEngine
-    
-    # Select Strategy Class from Registry
+
+    # Select Strategy Class from Registry (now with fresh imports)
     from ..core.strategy_registry import StrategyRegistry
     strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
-    
+
     if not strategy_class:
         # Fallback for others (or raise 404)
         raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found in registry.")
@@ -374,13 +404,15 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     config['symbol'] = request.symbol
     
     # Run Integrated (League of One)
+    # optimize_mode=False to include chart_data for equity curve visualization
     result = await engine.run_integrated(
         strategies_config=[config],
-        global_symbol=request.symbol, 
+        global_symbol=request.symbol,
         interval=request.interval,
-        duration_days=request.days, 
+        duration_days=request.days,
         from_date=start_date,
-        initial_capital=request.initial_capital
+        initial_capital=request.initial_capital,
+        optimize_mode=False  # Need chart_data for equity curve display
     ) 
     
     return {
@@ -400,6 +432,8 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "decile_stats": result.get('decile_stats', []),
         "stability_score": result.get('stability_score', "0.00"),
         "acceleration_score": result.get('acceleration_score', "0.00"),
+        "total_cycles": result.get('total_cycles'),  # Martingale cycle count
+        "avg_pnl_per_cycle": result.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
         "chart_data": result['chart_data'],
         "ohlcv_data": result.get('ohlcv_data', []),
         "trades": result.get('trades', []),
@@ -435,12 +469,16 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     base_config = request.base_config.copy()
     
     run_args = []
-    for combo in combinations:
+    for idx, combo in enumerate(combinations):
         # Merge combo into config
         current_config = base_config.copy()
         for i, key in enumerate(keys):
             current_config[key] = combo[i]
-            
+
+        # Debug: Log first few combinations
+        if idx < 5:
+            logger.info(f"[DEBUG] Combo {idx}: interval={current_config.get('interval', 'NOT_SET')}, request.interval={request.interval}")
+
         run_args.append((
             strategy_class,
             current_config,

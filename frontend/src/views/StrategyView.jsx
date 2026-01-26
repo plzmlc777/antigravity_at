@@ -15,6 +15,7 @@ import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import TabBadge from '../components/TabBadge';
 import { History as HistoryIcon, Activity, HelpCircle, ChevronRight } from 'lucide-react';
+import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -92,6 +93,8 @@ const generateDefaultOptValues = () => {
 
 // Helper: Convert DB parameter_schema to PARAM_DEFINITIONS format
 // This allows the optimization panel to use dynamic schema instead of hardcoded definitions
+// IMPORTANT: Ensures that optimization panel and backtest settings use identical options
+// (e.g., interval options must match for proper chart calculations during optimization)
 const convertSchemaToParamDefs = (schema) => {
     if (!schema || !schema.fields) return PARAM_DEFINITIONS;
 
@@ -111,9 +114,10 @@ const convertSchemaToParamDefs = (schema) => {
             placeholder: field.placeholder || ''
         };
 
-        // Handle select options
+        // Handle select options - directly from schema to ensure consistency
+        // Backtest Settings (DynamicParameterForm) and Optimization panel MUST use same options
         if (field.type === 'select' && field.options) {
-            def.options = field.options;
+            def.options = field.options; // Direct copy from schema ensures identical options
         } else if (field.type === 'time') {
             // Generate time options for time-type fields
             def.type = 'select';
@@ -395,7 +399,7 @@ const StrategyView = () => {
             return;
         }
 
-        requestConfirm(
+        openConfirm(
             "Delete Strategy Tab",
             "Are you sure you want to delete this strategy tab? This action cannot be undone and all configuration in this tab will be lost.",
             () => {
@@ -635,6 +639,7 @@ const StrategyView = () => {
 
     // 4. Persistence & Initialization
     useEffect(() => {
+        setExecutionLogs([]); // Clear logs on page load/refresh
         fetchStrategies();
     }, []);
 
@@ -680,6 +685,13 @@ const StrategyView = () => {
         addLog(`✅ Initializing config from schema: ${selectedStrategy.id}`, 'info');
         addLog(`📋 Schema has ${schema.fields.length} fields`, 'info');
 
+        // Verify interval options are correctly loaded from schema
+        const intervalField = schema.fields.find(f => (f.key || f.name) === 'interval');
+        if (intervalField && intervalField.options) {
+            addLog(`✅ Interval options: [${intervalField.options.join(', ')}]`, 'info');
+            addLog(`   (These options will be used in both Backtest Settings and Optimization panels)`, 'info');
+        }
+
         // Build default config from schema
         const defaultFromSchema = {
             initial_capital: 10000000,
@@ -716,7 +728,8 @@ const StrategyView = () => {
             const key = field.key || field.name;
             const value = defaultFromSchema[key];
             const optValue = defaultFromSchema.optValues[key];
-            addLog(`  ${key}: config=${value}, opt="${optValue}"`, 'info');
+            const options = field.options ? `options=[${field.options.join(', ')}]` : '';
+            addLog(`  ${key}: config=${value}, opt="${optValue}" ${options}`, 'info');
         });
 
         // Reset configList with new strategy's defaults
@@ -771,6 +784,7 @@ const StrategyView = () => {
             const payload = {
                 symbol: activeConfig.symbol || currentSymbol, // Use config's symbol if available, else global
                 from_date: activeConfig?.from_date || "",
+                days: activeConfig?.days || 365, // Default to 365 days
                 initial_capital: activeConfig?.initial_capital || 10000000,
                 interval: activeConfig?.interval || "1m",
                 config: cleanConfig
@@ -887,6 +901,102 @@ const StrategyView = () => {
         }));
     };
 
+    // Export Optimization Results to XML
+    const exportOptResultsToXML = () => {
+        if (!optResults || optResults.length === 0) {
+            addLog('❌ No optimization results to export', 'error');
+            return;
+        }
+
+        const escapeXML = (str) => {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        };
+
+        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<OptimizationResults>\n';
+        xml += `  <Strategy>${escapeXML(selectedStrategy?.id)}</Strategy>\n`;
+        xml += `  <StrategyName>${escapeXML(selectedStrategy?.name)}</StrategyName>\n`;
+        xml += `  <Symbol>${escapeXML(currentConfig?.symbol)}</Symbol>\n`;
+        xml += `  <DateRange>\n`;
+        xml += `    <From>${escapeXML(currentConfig?.from_date)}</From>\n`;
+        xml += `    <To>${escapeXML(new Date().toISOString().split('T')[0])}</To>\n`;
+        xml += `  </DateRange>\n`;
+        xml += `  <TotalResults>${optResults.length}</TotalResults>\n`;
+        xml += `  <GeneratedAt>${new Date().toISOString()}</GeneratedAt>\n`;
+        xml += '  <Results>\n';
+
+        optResults.forEach((result, index) => {
+            xml += `    <Result index="${index + 1}">\n`;
+            xml += `      <Rank>${escapeXML(result.rank)}</Rank>\n`;
+
+            // Parameters
+            xml += '      <Parameters>\n';
+            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
+            paramDefs.forEach(param => {
+                const value = result[param.key];
+                if (value !== undefined && value !== null) {
+                    xml += `        <${param.key}>${escapeXML(value)}</${param.key}>\n`;
+                }
+            });
+            xml += '      </Parameters>\n';
+
+            // Performance Metrics
+            xml += '      <Performance>\n';
+            const metrics = [
+                { key: 'return', label: 'TotalReturn' },
+                { key: 'max_drawdown', label: 'MaxDrawdown' },
+                { key: 'win_rate', label: 'WinRate' },
+                { key: 'profit_factor', label: 'ProfitFactor' },
+                { key: 'sharpe_ratio', label: 'SharpeRatio' },
+                { key: 'avg_pnl', label: 'AvgPnL' },
+                { key: 'activity_rate', label: 'ActivityRate' },
+                { key: 'total_days', label: 'TotalDays' },
+                { key: 'avg_holding_time', label: 'AvgHoldingTime' },
+                { key: 'max_profit', label: 'MaxProfit' },
+                { key: 'max_loss', label: 'MaxLoss' },
+                { key: 'stability_score', label: 'StabilityScore' },
+                { key: 'acceleration_score', label: 'AccelerationScore' },
+                { key: 'trades', label: 'TotalTrades' },
+                { key: 'total_cycles', label: 'TotalCycles' },
+                { key: 'avg_pnl_per_cycle', label: 'AvgPnLPerCycle' },
+                { key: 'score', label: 'OverallScore' }
+            ];
+
+            metrics.forEach(metric => {
+                const value = result[metric.key];
+                if (value !== undefined && value !== null) {
+                    xml += `        <${metric.label}>${escapeXML(value)}</${metric.label}>\n`;
+                }
+            });
+            xml += '      </Performance>\n';
+
+            xml += '    </Result>\n';
+        });
+
+        xml += '  </Results>\n';
+        xml += '</OptimizationResults>';
+
+        // Download XML file
+        const blob = new Blob([xml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = `optimization_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.xml`;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        addLog(`✅ Exported ${optResults.length} results to ${filename}`, 'success');
+    };
+
     // Helper: Parse parameter string
     const parseValues = (valStr) => {
         if (!valStr) return [];
@@ -894,6 +1004,10 @@ const StrategyView = () => {
             const trimmed = v.trim();
             // Fix: Do not parse as number if it looks like a time string (has colon)
             if (trimmed.includes(':')) return trimmed;
+
+            // Fix: Do not parse as number if it looks like an interval (e.g., "1m", "5m", "1h", "1d")
+            // Pattern: digits followed by letters (like "1m", "60m", "1h", "1d")
+            if (/^\d+[a-zA-Z]+$/.test(trimmed)) return trimmed;
 
             const num = parseFloat(trimmed);
             return isNaN(num) ? trimmed : num;
@@ -943,6 +1057,8 @@ const StrategyView = () => {
                 return;
             }
             parameter_ranges[key] = values;
+            // Log parsed values for verification
+            addLog(`📊 Parsed ${key}: [${values.join(', ')}]`, 'info');
         }
 
         setIsOptimizing(true);
@@ -1103,12 +1219,13 @@ const StrategyView = () => {
             checkDataStatus(symbolToCheck);
         }
         setFetchMessage(null);
-    }, [currentConfig?.symbol, currentSymbol, currentConfig?.interval, isConfigLoaded]); // Depend on isConfigLoaded
+    }, [currentConfig?.symbol, currentSymbol, isConfigLoaded]); // Depend on isConfigLoaded (interval removed - always 1m)
 
     const checkDataStatus = async (symbol) => {
         try {
+            // Always check 1m data status - higher timeframes are aggregated from 1m
             const data = await getMarketDataStatus(symbol, {
-                interval: currentConfig?.interval || "1m"
+                interval: "1m"
             });
             setDataStatus(data);
 
@@ -1143,8 +1260,8 @@ const StrategyView = () => {
                 try {
                     const res = await resetMarketData(symbol);
                     console.log("Reset result:", res);
-                    // Force status check update
-                    checkDataStatus(symbol, configList[activeTab].interval);
+                    // Force status check update (always checks 1m data)
+                    checkDataStatus(symbol);
 
                     // Show Success Modal (Reuse ConfirmModal as Alert)
                     setTimeout(() => {
@@ -1176,9 +1293,9 @@ const StrategyView = () => {
         setFetchMessage(`Updating...`);
         const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
         try {
-            // Reverted to direct axios call as per v0.9.3.7 initial state (Legacy Mode)
+            // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
             const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
-                interval: currentConfig?.interval || "1m",
+                interval: "1m",
                 days: 3650 // Request ~10 years to hit 10k limit
             });
 
@@ -1846,29 +1963,14 @@ const StrategyView = () => {
                             {activeTab >= 0 && (
                                 <Card title="Backtest Settings & Execution" variant="major" className="border-t-4 border-t-blue-500">
                                     <div className="flex flex-col gap-4">
-                                        {/* Row 1: Data Interval & Status */}
+                                        {/* Row 1: Data Status & Actions */}
                                         <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
                                             <div className="flex items-center gap-4 w-full md:w-auto">
-                                                <div className="relative w-32">
-                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Interval</label>
-                                                    <select
-                                                        value={currentConfig?.interval || "1m"}
-                                                        onChange={(e) => handleConfigChange('interval', e.target.value)}
-                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                                                    >
-                                                        <option value="1m">1 Min</option>
-                                                        <option value="3m">3 Min</option>
-                                                        <option value="5m">5 Min</option>
-                                                        <option value="10m">10 Min</option>
-                                                        <option value="15m">15 Min</option>
-                                                        <option value="30m">30 Min</option>
-                                                        <option value="60m">1 Hour</option>
-                                                        <option value="1d">1 Day</option>
-                                                        <option value="1w">1 Week</option>
-                                                    </select>
-                                                </div>
-
                                                 <div className="flex items-center gap-3">
+                                                    {/* Fixed 1m indicator - all data is fetched as 1m and aggregated */}
+                                                    <span className="text-blue-400 text-xs font-bold px-2 py-1 bg-blue-500/10 rounded border border-blue-500/20 whitespace-nowrap" title="모든 데이터는 1분봉으로 수집 후 집계됩니다">
+                                                        1m
+                                                    </span>
                                                     {!dataStatus.is_fresh ? (
                                                         <span className="text-amber-500 text-xs font-bold px-2 py-1 bg-amber-500/10 rounded border border-amber-500/20 whitespace-nowrap">
                                                             Data Stale ({dataStatus.count}{dataStatus.start_date ? `, ${dataStatus.start_date}~` : ''})
@@ -2121,6 +2223,21 @@ const StrategyView = () => {
                                                                                 <div className="text-xs text-gray-400">Max Loss</div>
                                                                                 <div className="text-xl font-bold text-red-400">{fmtPct(backtestResult.max_loss)}</div>
                                                                             </div>
+                                                                            {/* Martingale Cycle Metrics */}
+                                                                            {(backtestResult.total_cycles !== undefined && backtestResult.total_cycles !== null) && (
+                                                                                <>
+                                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                                        <div className="text-xs text-gray-400">Cycles</div>
+                                                                                        <div className="text-xl font-bold text-white">{backtestResult.total_cycles}</div>
+                                                                                    </div>
+                                                                                    <div className="p-3 bg-white/5 rounded-lg">
+                                                                                        <div className="text-xs text-gray-400">Avg PnL/Cycle</div>
+                                                                                        <div className={`text-xl font-bold ${backtestResult.avg_pnl_per_cycle >= 0 ? "text-green-400" : "text-red-400"}`}>
+                                                                                            {fmtPct(backtestResult.avg_pnl_per_cycle)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </>
+                                                                            )}
                                                                             <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
                                                                                 <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
                                                                                 <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
@@ -2217,19 +2334,6 @@ const StrategyView = () => {
                                                                 </div>
                                                             )}
 
-                                                            {/* Logs Preview */}
-                                                            {backtestResult.logs && (
-                                                                <div className="mt-4 pt-4 border-t border-white/10">
-                                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Execution Logs (Debug: {backtestResult.logs ? backtestResult.logs.length : 'N/A'})</h4>
-                                                                    <div className="h-[200px] overflow-y-auto bg-black/40 p-2 rounded text-xs font-mono space-y-1">
-                                                                        {backtestResult.logs.map((log, i) => (
-                                                                            <div key={i} className={log.includes("EXECUTED") ? "text-green-400" : "text-gray-500"}>
-                                                                                {log}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     ) : (
                                                         <div className="overflow-x-auto">
@@ -2406,9 +2510,6 @@ const StrategyView = () => {
                                                         </div>
                                                     )}
                                                 </Card>
-                                                <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 py-4 rounded-xl font-bold text-lg shadow-xl hover:scale-[1.02] transition-transform">
-                                                    Deploy Strategy to Live
-                                                </button>
                                             </div>
                                             <Card
                                                 title="Equity Curve"
@@ -2541,28 +2642,29 @@ const StrategyView = () => {
                                                                         {/* Dropdown Menu */}
                                                                         {activeDropdown === param.key && (
                                                                             <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                                                                {param.options.map(option => {
+                                                                                {/* Use INTERVAL_OPTIONS for interval field, otherwise use param.options */}
+                                                                                {(param.key === 'interval' ? INTERVAL_OPTIONS : (param.options || []).map(o => ({ value: o, label: o }))).map(opt => {
+                                                                                    const optionValue = typeof opt === 'object' ? opt.value : opt;
+                                                                                    const optionLabel = typeof opt === 'object' ? opt.label : opt;
                                                                                     const currentVals = (currentOptValues[param.key] || '').split(',').map(v => v.trim()).filter(Boolean);
-                                                                                    const isSelected = currentVals.includes(option);
+                                                                                    const isSelected = currentVals.includes(optionValue);
 
                                                                                     return (
                                                                                         <div
-                                                                                            key={option}
+                                                                                            key={optionValue}
                                                                                             onClick={() => {
                                                                                                 let newVals;
                                                                                                 if (isSelected) {
-                                                                                                    newVals = currentVals.filter(v => v !== option);
+                                                                                                    newVals = currentVals.filter(v => v !== optionValue);
                                                                                                 } else {
-                                                                                                    // Sort logic if needed, but append is fine for now
-                                                                                                    newVals = [...currentVals, option];
-                                                                                                    // Try to sort times if possible? complex. Just push.
+                                                                                                    newVals = [...currentVals, optionValue];
                                                                                                 }
                                                                                                 handleOptValueChange(param.key, newVals.join(', '));
                                                                                             }}
                                                                                             className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${isSelected ? 'bg-purple-900/40 text-purple-300' : 'text-gray-300'
                                                                                                 }`}
                                                                                         >
-                                                                                            <span>{option}</span>
+                                                                                            <span>{optionLabel}</span>
                                                                                             {isSelected && <span>✓</span>}
                                                                                         </div>
                                                                                     );
@@ -2667,6 +2769,21 @@ const StrategyView = () => {
 
                                                 {optResults && optResults.length > 0 && (
                                                     <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
+                                                        {/* Export Button */}
+                                                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                                                            <div className="text-sm text-gray-400">
+                                                                <span className="font-bold text-white">{optResults.length}</span> optimization results
+                                                            </div>
+                                                            <button
+                                                                onClick={exportOptResultsToXML}
+                                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                                Export to XML
+                                                            </button>
+                                                        </div>
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
                                                                 <thead>
@@ -2674,7 +2791,6 @@ const StrategyView = () => {
                                                                         <th className="p-3 text-center w-16">Active</th>
                                                                         {[
                                                                             { key: 'rank', label: 'Rank' },
-                                                                            ...convertSchemaToParamDefs(selectedStrategy?.parameter_schema),
                                                                             { key: 'return', label: 'Return' },
                                                                             { key: 'max_drawdown', label: 'MDD' },
                                                                             { key: 'win_rate', label: 'Win Rate' },
@@ -2689,7 +2805,10 @@ const StrategyView = () => {
                                                                             { key: 'stability_score', label: 'Stability' },
                                                                             { key: 'acceleration_score', label: 'Profit Accel' },
                                                                             { key: 'trades', label: 'Trades' },
-                                                                            { key: 'score', label: 'Score' }
+                                                                            { key: 'total_cycles', label: 'Cycles' },
+                                                                            { key: 'avg_pnl_per_cycle', label: 'Avg PnL/Cycle' },
+                                                                            { key: 'score', label: 'Score' },
+                                                                            ...convertSchemaToParamDefs(selectedStrategy?.parameter_schema)
                                                                         ].map((col) => (
                                                                             <th
                                                                                 key={col.key}
@@ -2744,7 +2863,7 @@ const StrategyView = () => {
                                                                                         <button
                                                                                             disabled={isActiveConfig}
                                                                                             onClick={() => {
-                                                                                                requestConfirm(
+                                                                                                openConfirm(
                                                                                                     "Apply Optimization Config?",
                                                                                                     `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
                                                                                                     () => {
@@ -2760,7 +2879,6 @@ const StrategyView = () => {
                                                                                                         });
 
                                                                                                         // 2. Trigger Real Backtest (User Request)
-                                                                                                        // Runs backtest immediately using the selected config
                                                                                                         runBacktest(selectedStrategy.id, res.full_config || {});
                                                                                                     }
                                                                                                 );
@@ -2776,14 +2894,7 @@ const StrategyView = () => {
                                                                                     </td>
                                                                                     <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
-                                                                                    {/* Render All Params */}
-                                                                                    {convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map(param => (
-                                                                                        <td key={param.key} className="p-3 text-gray-300">
-                                                                                            {res[param.key] !== undefined ? res[param.key] : '-'}
-                                                                                        </td>
-                                                                                    ))}
-
-                                                                                    {/* Helper for Number Formatting */}
+                                                                                    {/* Helper for Number Formatting - Performance Metrics First */}
                                                                                     {(() => {
                                                                                         const fmt = (v) => {
                                                                                             const n = parseFloat(v);
@@ -2807,10 +2918,21 @@ const StrategyView = () => {
                                                                                                 <td className="p-3 text-white">{fmt(res.stability_score)}</td>
                                                                                                 <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
                                                                                                 <td className="p-3 text-gray-400">{res.trades}</td>
+                                                                                                <td className="p-3 text-gray-400">{res.total_cycles || '-'}</td>
+                                                                                                <td className={`p-3 ${res.avg_pnl_per_cycle && parseFloat(res.avg_pnl_per_cycle) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                                                    {res.avg_pnl_per_cycle ? fmt(res.avg_pnl_per_cycle) + '%' : '-'}
+                                                                                                </td>
                                                                                                 <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
                                                                                             </>
                                                                                         );
                                                                                     })()}
+
+                                                                                    {/* Render All Params - Last */}
+                                                                                    {convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map(param => (
+                                                                                        <td key={param.key} className="p-3 text-gray-300">
+                                                                                            {res[param.key] !== undefined ? res[param.key] : '-'}
+                                                                                        </td>
+                                                                                    ))}
                                                                                 </tr>
                                                                             );
                                                                         })}
@@ -2864,15 +2986,6 @@ const StrategyView = () => {
                                         Clear Logs
                                     </button>
                                 </div>
-                            </Card>
-                        </div>
-
-                        {/* Code View */}
-                        <div className="pt-10">
-                            <Card title="Strategy Logic">
-                                <pre className="bg-black/50 p-4 rounded-lg text-sm font-mono text-gray-300 overflow-x-auto border border-white/5 max-h-[300px]">
-                                    {selectedStrategy.code}
-                                </pre>
                             </Card>
                         </div>
                     </>

@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { INTERVAL_OPTIONS } from '../constants/intervals';
 
 /**
  * DynamicParameterForm - Schema-driven parameter form generator
@@ -13,11 +14,6 @@ import React, { useEffect } from 'react';
  * - disabled: boolean to disable all inputs
  */
 const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false }) => {
-    useEffect(() => {
-        console.log('[DynamicParameterForm] Received values:', values);
-        console.log('[DynamicParameterForm] Received schema fields:', schema?.fields?.length || 0);
-    }, [values, schema]);
-
     if (!schema || !schema.fields || schema.fields.length === 0) {
         return (
             <div className="text-gray-500 text-sm italic">
@@ -33,6 +29,10 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
 
         switch (fieldType) {
             case 'select':
+                // Use centralized INTERVAL_OPTIONS for interval field
+                const selectOptions = key === 'interval'
+                    ? INTERVAL_OPTIONS
+                    : (field.options || []).map(opt => ({ value: opt, label: opt }));
                 return (
                     <select
                         id={key}
@@ -41,8 +41,8 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
                         disabled={disabled}
                         className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-white text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
                     >
-                        {(field.options || []).map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
+                        {selectOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                     </select>
                 );

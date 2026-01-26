@@ -22,11 +22,29 @@ class MarketDataService:
         Main entry point for getting candle data.
         Supported intervals: 1m, 3m, 5m, 10m, 15m, 30m, 1h (60m), 4h, 1d, 1w.
         """
-        # Handle aggregation intervals (4h, 8h, 12h) -> Fetch 1h and aggregate
-        if interval in ["4h", "8h", "12h"]:
-            base_data = await self.get_candles(symbol, "1h", days, limit * 4) # Fetch more base data
-            return self._aggregate_candles(base_data, interval)
-        
+        # Handle aggregation intervals - Fetch 1m and aggregate to higher timeframes
+        # This ensures optimization works correctly even if higher timeframe data isn't in DB
+        aggregation_map = {
+            "3m": ("1m", 3),
+            "5m": ("1m", 5),
+            "10m": ("1m", 10),
+            "15m": ("1m", 15),
+            "30m": ("1m", 30),
+            "60m": ("1m", 60),
+            "1h": ("1m", 60),
+            "4h": ("1h", 4),
+            "8h": ("1h", 8),
+            "12h": ("1h", 12)
+        }
+
+        if interval in aggregation_map:
+            base_interval, multiplier = aggregation_map[interval]
+            print(f"[DEBUG] Aggregating {symbol} from {base_interval} to {interval}")
+            base_data = await self.get_candles(symbol, base_interval, days, limit * multiplier)
+            aggregated = self._aggregate_candles(base_data, interval)
+            print(f"[DEBUG] Aggregation result: {len(base_data)} {base_interval} candles -> {len(aggregated)} {interval} candles")
+            return aggregated
+
         # Normalize interval (e.g., 60m -> 1h for API logic, or keep consistent)
         api_interval = interval
         if interval == "1h": api_interval = "60m"

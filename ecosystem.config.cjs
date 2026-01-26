@@ -6,7 +6,8 @@ module.exports = {
             args: "-m uvicorn app.main:app --host 0.0.0.0 --port 8001",
             cwd: "./backend",
             env: {
-                PYTHONPATH: "."
+                PYTHONPATH: ".",
+                PYTHONDONTWRITEBYTECODE: "1"
             }
         },
         {

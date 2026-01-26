@@ -30,6 +30,8 @@ class OptimizationResultItem(BaseModel):
     avg_holding_time: Optional[str] = None
     max_profit: Optional[str] = None
     max_loss: Optional[str] = None
+    total_cycles: Optional[int] = None  # For martingale strategies
+    avg_pnl_per_cycle: Optional[float] = None  # For martingale strategies
     metrics: Dict[str, Any] = {} # For any extra fields
 
 class OptimizationResponse(BaseModel):
