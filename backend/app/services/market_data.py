@@ -17,13 +17,26 @@ class MarketDataService:
         self.token_manager = KiwoomTokenManager.get_instance()
         self.http_manager = HttpClientManager.get_instance()
 
-    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 100000) -> List[Dict]:
+    # Constants for data retention
+    MAX_DAYS = 365  # 1 year maximum (API limit)
+    DEFAULT_DAYS = 365  # 1 year default
+
+    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000) -> List[Dict]:
         """
         Main entry point for getting candle data.
-        Supported intervals: 1m, 3m, 5m, 10m, 15m, 30m, 1h (60m), 4h, 1d, 1w.
+
+        Data Storage Strategy (v0.9.8.5):
+        - DB stores ONLY 1m data (up to 2 years)
+        - ALL other intervals (3m, 5m, 15m, 30m, 60m, 1d, etc.) are derived from 1m at runtime
+        - This ensures consistency and reduces DB storage
+
+        Supported intervals: 1m, 3m, 5m, 10m, 15m, 30m, 1h (60m), 4h, 1d.
         """
+        # Enforce max days limit
+        days = min(days, self.MAX_DAYS)
+
         # Handle aggregation intervals - Fetch 1m and aggregate to higher timeframes
-        # This ensures optimization works correctly even if higher timeframe data isn't in DB
+        # ALL intervals except 1m are derived from 1m data
         aggregation_map = {
             "3m": ("1m", 3),
             "5m": ("1m", 5),
@@ -32,9 +45,10 @@ class MarketDataService:
             "30m": ("1m", 30),
             "60m": ("1m", 60),
             "1h": ("1m", 60),
-            "4h": ("1h", 4),
-            "8h": ("1h", 8),
-            "12h": ("1h", 12)
+            "4h": ("1m", 240),
+            "8h": ("1m", 480),
+            "12h": ("1m", 720),
+            "1d": ("1m", 390),  # ~390 trading minutes per day (09:00-15:30)
         }
 
         if interval in aggregation_map:
@@ -482,136 +496,35 @@ class MarketDataService:
             print(f"Error deleting data for {symbol}: {e}")
             raise e
 
-    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 365, limit: int = 100000):
+    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000, backfill: bool = False):
         """
         Fetch historical data from Kiwoom API and save to DB.
-        Support Minutes (1,3,5,10,15,30,60) and Day/Week/Month.
-        
-        Refactored Strategy (v0.8.8.6):
-        - All Minute intervals (>1m) are derived from 1m data to ensure consistency.
-        - Direct API calls used only for 1m, 1d, 1w.
-        """
-        print(f"Starting history fetch for {symbol} {interval} ({days} days)...")
-        
-        # 1. Aggregation Logic for Minutes (> 1m) and Hours
-        if interval.endswith("m") and interval != "1m" and interval != "1d" and interval != "1w":
-            print(f"Interval {interval} is derived. Fetching 1m base data first...")
-            # 1. Fetch 1m Base Data
-            await self.fetch_history(symbol, "1m", days, limit * 30) # Fetch enough 1m data
-            
-            # 2. Incremental Aggregation Optimization
-            from ..db.session import SessionLocal
-            from ..models.ohlcv import OHLCV
-            
-            db = SessionLocal()
-            try:
-                # Find latest existing record for target interval
-                last_target_rec = db.query(OHLCV.timestamp).filter(
-                    OHLCV.symbol == symbol, 
-                    OHLCV.time_frame == interval
-                ).order_by(OHLCV.timestamp.desc()).first()
-                
-                last_target_ts = last_target_rec[0] if last_target_rec else None
-                
-                # Determine start time for 1m data load
-                # If we have data, look back slightly (e.g. 2 x interval) to ensure boundary consistency
-                # safely look back 24 hours to cover any gaps or partial days
-                if last_target_ts:
-                    # Load 1m data starting 1 day before the last 15m candle
-                    # This ensures we re-calculate the edge but don't re-process the whole year
-                    load_start_dt = last_target_ts - timedelta(days=1)
-                else:
-                    load_start_dt = datetime.now() - timedelta(days=days + 1)
-                
-                # Load 1m candles
-                base_candles_db = db.query(OHLCV).filter(
-                    OHLCV.symbol == symbol, 
-                    OHLCV.time_frame == "1m",
-                    OHLCV.timestamp >= load_start_dt
-                ).order_by(OHLCV.timestamp.asc()).all()
-                
-                if not base_candles_db:
-                    print("No 1m base data found for aggregation.")
-                    return 0
 
-                base_candles = [
-                    {
-                        "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                        "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume
-                    }
-                    for c in base_candles_db
-                ]
-                
-                # 3. Aggregate
-                aggregated_data = self._aggregate_candles(base_candles, interval)
-                
-                # 4. Save
-                if aggregated_data:
-                    batch_data = []
-                    new_count = 0
-                    
-                    for item in aggregated_data:
-                         ts = datetime.strptime(item["timestamp"], "%Y-%m-%d %H:%M:%S")
-                         
-                         # Count as new if it's after our previous latest
-                         if last_target_ts is None or ts > last_target_ts:
-                             new_count += 1
-                             
-                         batch_data.append({
-                            "symbol": symbol,
-                            "timestamp": ts,
-                            "time_frame": interval,
-                            "open": item["open"],
-                            "high": item["high"],
-                            "low": item["low"],
-                            "close": item["close"],
-                            "volume": item["volume"]
-                        })
-                    
-                    from sqlalchemy.dialects.postgresql import insert
-                    stmt = insert(OHLCV).values(batch_data)
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="uix_symbol_timestamp_tf",
-                        set_={
-                            "open": stmt.excluded.open,
-                            "high": stmt.excluded.high,
-                            "low": stmt.excluded.low,
-                            "close": stmt.excluded.close,
-                            "volume": stmt.excluded.volume
-                        }
-                    )
-                    db.execute(stmt)
-                    db.commit()
-                    
-                    # Return only the count of genuinely NEW records (incremental)
-                    # unless it was a fresh load (new_count == len)
-                    # If we re-processed the overlap, batch_data has overlap, but new_count tracks strictly newer.
-                    if last_target_ts:
-                         print(f"Aggregation Update: Processed {len(batch_data)} records, {new_count} new.")
-                         return new_count
-                    else:
-                         print(f"Aggregation Init: Saved {len(batch_data)} aggregated records.")
-                         return len(batch_data)
-                    
-            except Exception as e:
-                print(f"Aggregation Failed: {e}")
-                import traceback
-                traceback.print_exc()
-            finally:
-                db.close()
-            return 0
-        # Aggregation Logic for Hours (Legacy/Hours)
-        if interval in ["4h", "8h", "12h"]:
-             # For hours, we can base on 1h (60m)
-             # But 60m is now derived from 1m too.
-             # So we fetch 60m (which fetches 1m), then aggregate 60m -> 4h.
-             print(f"Interval {interval} is derived. Fetching 60m base data...")
-             await self.fetch_history(symbol, "60m", days)
-             # We assume getting 60m from DB and aggregating similar to above...
-             # For brevity, leaving as is or adapting similarly.
-             # Let's trust the recursive 60m call handles the base data.
-             # TODO: Implement 60m -> 4h aggregation saving if needed.
-             return
+        backfill: If True, fetch full history regardless of existing data (slower, for initial setup).
+                  If False, stop when hitting existing data (incremental, faster).
+
+        Data Storage Strategy (v0.9.8.5):
+        - ONLY 1m data is fetched from API and stored in DB
+        - ALL other intervals are derived at runtime via get_candles()
+        - This ensures consistency and reduces DB storage
+
+        Args:
+            symbol: Stock symbol
+            interval: Requested interval (only 1m is actually fetched/stored)
+            days: Number of days to fetch (max 730 = 2 years)
+            limit: Maximum records to fetch
+        """
+        # Enforce max days limit
+        days = min(days, self.MAX_DAYS)
+
+        print(f"Starting history fetch for {symbol} {interval} ({days} days)...")
+
+        # ALL intervals except 1m are derived - just fetch 1m base data
+        if interval != "1m":
+            print(f"Interval {interval} is derived from 1m. Fetching 1m base data...")
+            result = await self.fetch_history(symbol, "1m", days, limit)
+            print(f"1m base data fetched: {result} records. {interval} will be derived at runtime.")
+            return result
 
         # Map to API parameters
         tr_id, param_key, param_val = self._map_interval_to_api(interval)
@@ -784,9 +697,9 @@ class MarketDataService:
                         if not dt:
                              continue # Skip if no date
 
-                        # Optimization: Stop if we hit existing data
-                        if last_ts and dt <= last_ts:
-                            logger.info(f"Hit existing data boundary at {dt}. Stopping fetch.")
+                        # Optimization: Stop if we hit existing data (only in incremental mode)
+                        if last_ts and dt <= last_ts and not backfill:
+                            logger.info(f"Hit existing data boundary at {dt}. Stopping fetch (incremental mode).")
                             cont_yn = "N" # Stop future pages
                             break # Stop processing this page
 
@@ -845,17 +758,19 @@ class MarketDataService:
                     break
                 
                 # INCREMENTAL FETCH LOGIC:
-                # If we have existing data, check if we've bridged the gap.
-                if last_ts: 
+                # If we have existing data and NOT in backfill mode, check if we've bridged the gap.
+                if last_ts and not backfill:
                     # Find if we covered the last_ts
                     min_page_ts = min(c.timestamp for c in page_candles) if page_candles else None
-                    
+
                     if min_page_ts:
                         logger.info(f"Overlap check: Page Min: {min_page_ts}, Last DB: {last_ts}")
-                    
+
                     if min_page_ts and min_page_ts <= last_ts:
                         logger.info(f"Incremental fetch: Found overlap (Last: {last_ts}, Page Min: {min_page_ts}). Stopping.")
                         break
+                elif backfill:
+                    logger.info(f"Backfill mode: Continuing to fetch older data...")
                     
                 if cont_yn != "Y":
                     break
@@ -926,15 +841,20 @@ class MarketDataService:
         Aggregate base candles to target interval.
         - Robustly handles gaps (missing 1m data) by skipping empty intervals.
         - Strictly sorts input data to prevent time-travel anomalies.
+        - Supports daily aggregation (1d) by grouping all candles within a calendar day.
         """
         if not base_candles: return []
-        
+
         # Ensure data is sorted by timestamp to prevent aggregation logic errors
         base_candles.sort(key=lambda x: x['timestamp'])
-        
+
+        # Special handling for daily aggregation
+        if target_interval == "1d":
+            return self._aggregate_to_daily(base_candles)
+
         minutes = 0
         hours = 0
-        
+
         # Parse Target Interval
         if target_interval.endswith("m"):
             minutes = int(target_interval[:-1])
@@ -943,14 +863,14 @@ class MarketDataService:
         else:
             print(f"Unsupported aggregation interval: {target_interval}")
             return []
-            
+
         agg = []
         current_bucket = None
         bucket_end_time = None
-        
+
         for c in base_candles:
             dt = datetime.strptime(c['timestamp'], "%Y-%m-%d %H:%M:%S")
-            
+
             # Determine Bucket Start (Align to grid)
             bucket_start = None
             if minutes > 0:
@@ -959,22 +879,22 @@ class MarketDataService:
             elif hours > 0:
                  h_block = (dt.hour // hours) * hours
                  bucket_start = dt.replace(hour=h_block, minute=0, second=0)
-            
+
             bucket_duration = timedelta(minutes=minutes) if minutes > 0 else timedelta(hours=hours)
             bucket_end = bucket_start + bucket_duration
-            
+
             # Check Alignment (New Bucket Needed?)
             # Condition: First bucket OR Timestamp exceeds current bucket end
             if current_bucket is None or dt >= bucket_end_time:
-                
+
                 # Gap Detection Loop (Optional - just for clarity, we simply skip)
                 # If we jump from 09:00 to 10:00, we just close 09:00 and open 10:00.
                 # This leaves the in-between time "Empty" (no candle objects).
-                
+
                 # Close previous bucket
-                if current_bucket: 
+                if current_bucket:
                     agg.append(current_bucket)
-                
+
                 # Start new bucket at the calculated aligned start time
                 current_bucket = {
                     "timestamp": bucket_start.strftime("%Y-%m-%d %H:%M:%S"),
@@ -985,17 +905,53 @@ class MarketDataService:
                     "volume": c["volume"]
                 }
                 bucket_end_time = bucket_end
-            
+
             else:
                 # Accumulate into current bucket
                 current_bucket["high"] = max(current_bucket["high"], c["high"])
                 current_bucket["low"] = min(current_bucket["low"], c["low"])
                 current_bucket["close"] = c["close"]
                 current_bucket["volume"] += c["volume"]
-                
+
         # Close final bucket
         if current_bucket: agg.append(current_bucket)
         return agg
+
+    def _aggregate_to_daily(self, base_candles: List[Dict]) -> List[Dict]:
+        """
+        Aggregate 1m candles to daily (1d) candles.
+        Groups all candles by calendar date.
+        """
+        if not base_candles:
+            return []
+
+        daily_buckets = {}
+
+        for c in base_candles:
+            dt = datetime.strptime(c['timestamp'], "%Y-%m-%d %H:%M:%S")
+            date_key = dt.date()
+
+            if date_key not in daily_buckets:
+                # Start new daily bucket at 00:00:00 of that day
+                daily_buckets[date_key] = {
+                    "timestamp": datetime.combine(date_key, datetime.min.time()).strftime("%Y-%m-%d %H:%M:%S"),
+                    "open": c["open"],
+                    "high": c["high"],
+                    "low": c["low"],
+                    "close": c["close"],
+                    "volume": c["volume"]
+                }
+            else:
+                # Accumulate into existing bucket
+                bucket = daily_buckets[date_key]
+                bucket["high"] = max(bucket["high"], c["high"])
+                bucket["low"] = min(bucket["low"], c["low"])
+                bucket["close"] = c["close"]
+                bucket["volume"] += c["volume"]
+
+        # Sort by date and return
+        sorted_dates = sorted(daily_buckets.keys())
+        return [daily_buckets[d] for d in sorted_dates]
 
     async def _generate_synthetic_candles(self, symbol: str, days: int) -> List[Dict]:
         """

@@ -4,7 +4,7 @@ from typing import Dict, List, Union, Any, Optional
 class OptimizationRequest(BaseModel):
     symbol: str
     interval: str = "1m"
-    days: int = 365
+    days: int = 365  # Default 1 year, max 730 (2 years)
     from_date: Optional[str] = None
     initial_capital: float = 10000000
     # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }

@@ -5,7 +5,7 @@ import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, resetMarketData } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -14,6 +14,7 @@ import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import TabBadge from '../components/TabBadge';
+import DateDropdown from '../components/DateDropdown';
 import { History as HistoryIcon, Activity, HelpCircle, ChevronRight } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
@@ -437,6 +438,46 @@ const StrategyView = () => {
 
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
+
+        // Validate from_date: Use DB data start date if available, otherwise 1 year back
+        if (key === 'from_date' && value) {
+            const selectedDate = new Date(value);
+            const today = new Date();
+
+            // Use DB data start date if available, otherwise default to 1 year
+            let minAllowedDate;
+            let limitDesc;
+            if (dataStatus?.start_date) {
+                // Parse "YY.MM.DD" format
+                const parts = dataStatus.start_date.split('.');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]) + 2000;
+                    const month = parseInt(parts[1]) - 1;
+                    const day = parseInt(parts[2]);
+                    minAllowedDate = new Date(year, month, day);
+                    limitDesc = `available data (${dataStatus.start_date})`;
+                }
+            }
+            if (!minAllowedDate) {
+                minAllowedDate = new Date(today);
+                minAllowedDate.setDate(minAllowedDate.getDate() - 365); // 1 year default
+                limitDesc = "1 year (365 days)";
+            }
+
+            if (selectedDate < minAllowedDate) {
+                const minDateStr = minAllowedDate.toISOString().split('T')[0];
+                openConfirm(
+                    "⚠️ Date Range Limit",
+                    `Start date cannot be earlier than ${limitDesc}.\n\nMinimum allowed date: ${minDateStr}\n\nThe date has been adjusted automatically.`,
+                    () => {}, // No action needed
+                    true, // isDanger (shows warning style)
+                    "OK",
+                    "" // Hide cancel button
+                );
+                // Set to minimum allowed date instead
+                value = minAllowedDate.toISOString().split('T')[0];
+            }
+        }
 
         const newList = [...configList];
         // Ensure we don't start with partial object if configList[activeTab] is missing
@@ -1266,54 +1307,18 @@ const StrategyView = () => {
         }
     };
 
-    const handleResetData = () => {
-        if (!configList[activeTab]) return;
-        const symbol = configList[activeTab].symbol;
-
-        openConfirm(
-            "Reset Market Data",
-            `Are you sure you want to RESET market data for ${symbol}? This cannot be undone.`,
-            async () => {
-                try {
-                    const res = await resetMarketData(symbol);
-                    console.log("Reset result:", res);
-                    // Force status check update (always checks 1m data)
-                    checkDataStatus(symbol);
-
-                    // Show Success Modal (Reuse ConfirmModal as Alert)
-                    setTimeout(() => {
-                        openConfirm(
-                            "Success",
-                            `Market data for ${symbol} has been reset.`,
-                            () => { }, // No action on confirm
-                            false,
-                            "OK",
-                            "" // Hide cancel if component supports it, or just show empty
-                        );
-                    }, 300); // Small delay to allow transition
-
-                } catch (error) {
-                    console.error("Reset failed:", error);
-                    setTimeout(() => {
-                        openConfirm("Error", "Failed to reset data. See console.", () => { }, true, "OK", "");
-                    }, 300);
-                }
-            },
-            true, // isDanger
-            "Reset Data",
-            "Cancel"
-        );
-    };
-
-    const handleFetchData = async () => {
+    const handleFetchData = async (backfill = false) => {
         setIsFetchingData(true);
-        setFetchMessage(`Updating...`);
+        setFetchMessage(backfill ? `Backfilling...` : `Updating...`);
         const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
         try {
             // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
+            // backfill=true: Fetch full 2-year history even if partial data exists
+            // backfill=false: Incremental update, stops when hitting existing data
             const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
                 interval: "1m",
-                days: 3650 // Request ~10 years to hit 10k limit
+                days: 365, // Max 1 year (API limit)
+                backfill: backfill
             });
 
             const data = res.data;
@@ -1348,10 +1353,10 @@ const StrategyView = () => {
 
                 setFetchMessage(`Updating Rank ${i + 1} (${cfg.symbol})...`);
                 try {
-                    // Legacy Axios Call (Strict Compliance)
+                    // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
                     const res = await axios.post(`/api/v1/market-data/fetch/${cfg.symbol}`, {
-                        interval: cfg.interval || "1m",
-                        days: 3650
+                        interval: "1m",
+                        days: 365 // Max 1 year (API limit)
                     });
                     totalAdded += (res.data.added || 0);
                     updatedCount++;
@@ -1730,17 +1735,25 @@ const StrategyView = () => {
                                                             </div>
                                                             <div className="text-left">
                                                                 <label className="text-xs text-gray-400 mb-1 block">
-                                                                    Start Date {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : '(Max 1yr)'} {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
                                                                 </label>
-                                                                <input
-                                                                    type="date"
+                                                                <DateDropdown
                                                                     value={displayConfig?.from_date || ""}
-                                                                    onChange={(e) => {
+                                                                    onChange={(dateStr) => {
                                                                         if (isIntegrated) return;
-                                                                        handleConfigChange('from_date', e.target.value);
+                                                                        handleConfigChange('from_date', dateStr);
                                                                     }}
                                                                     disabled={isIntegrated}
-                                                                    className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    minDate={dataStatus?.start_date ? (() => {
+                                                                        const parts = dataStatus.start_date.split('.');
+                                                                        if (parts.length === 3) {
+                                                                            const year = parseInt(parts[0]) + 2000;
+                                                                            const month = parseInt(parts[1]) - 1;
+                                                                            const day = parseInt(parts[2]);
+                                                                            return new Date(year, month, day);
+                                                                        }
+                                                                        return undefined;
+                                                                    })() : undefined}
                                                                 />
                                                             </div>
                                                             <div className="text-left">
@@ -1998,23 +2011,26 @@ const StrategyView = () => {
                                                         </span>
                                                     )}
                                                     <button
-                                                        onClick={handleFetchData}
+                                                        onClick={() => handleFetchData(false)}
                                                         disabled={isFetchingData || !isSymbolValid}
-                                                        title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "데이터 업데이트"}
+                                                        title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "최신 데이터만 업데이트 (증분)"}
                                                         className={`px-3 py-1 rounded text-sm font-bold transition-all shadow-lg flex items-center gap-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${fetchMessage && fetchMessage.includes("Updated") ? "bg-green-600 text-white" :
                                                             fetchMessage && fetchMessage.includes("Up to date") ? "bg-blue-600 text-white" :
                                                                 "bg-amber-600 hover:bg-amber-500 text-white hover:shadow-amber-500/30"
                                                             }`}
                                                     >
-                                                        {fetchMessage ? fetchMessage : 'Update Data'}
+                                                        {fetchMessage ? fetchMessage : 'Update'}
                                                     </button>
+                                                    {/* Full Backfill Button - Hidden by default, enable when data issues occur
                                                     <button
-                                                        onClick={handleResetData}
-                                                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm ml-2"
-                                                        title="Clear all saved market data for this symbol"
+                                                        onClick={() => handleFetchData(true)}
+                                                        disabled={isFetchingData || !isSymbolValid}
+                                                        title={!isSymbolValid ? "먼저 종목을 선택해주세요" : "전체 1년 데이터 다시 가져오기 (Backfill)"}
+                                                        className="px-2 py-1 rounded text-xs font-bold transition-all shadow-lg whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed bg-purple-600 hover:bg-purple-500 text-white hover:shadow-purple-500/30"
                                                     >
-                                                        Reset Data
+                                                        Full
                                                     </button>
+                                                    */}
                                                 </div>
                                             </div>
                                         </div>
@@ -2035,12 +2051,23 @@ const StrategyView = () => {
                                             </div>
 
                                             <div className="relative">
-                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Start Date</label>
-                                                <input
-                                                    type="date"
+                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
+                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : '(Max 1yr)'}
+                                                </label>
+                                                <DateDropdown
                                                     value={currentConfig?.from_date || ""}
-                                                    onChange={(e) => handleConfigChange('from_date', e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    onChange={(dateStr) => handleConfigChange('from_date', dateStr)}
+                                                    minDate={dataStatus?.start_date ? (() => {
+                                                        // Parse "YY.MM.DD" format to Date
+                                                        const parts = dataStatus.start_date.split('.');
+                                                        if (parts.length === 3) {
+                                                            const year = parseInt(parts[0]) + 2000;
+                                                            const month = parseInt(parts[1]) - 1;
+                                                            const day = parseInt(parts[2]);
+                                                            return new Date(year, month, day);
+                                                        }
+                                                        return undefined;
+                                                    })() : undefined}
                                                 />
                                             </div>
 

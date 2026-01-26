@@ -19,7 +19,7 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText 
                 </h3>
 
                 {/* Body */}
-                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                <p className="text-gray-400 text-sm mb-6 leading-relaxed whitespace-pre-line">
                     {message}
                 </p>
 

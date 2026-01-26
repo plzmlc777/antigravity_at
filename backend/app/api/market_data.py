@@ -81,22 +81,28 @@ async def get_symbol_info(symbol: str):
 
 class FetchRequest(BaseModel):
     interval: str = "1m"
-    days: int = 365
+    days: int = 365  # Max 1 year (API limit)
+    backfill: bool = False  # If True, fetch ALL data up to 'days' even if some exists
 
 @router.post("/fetch/{symbol}")
 async def fetch_market_data(symbol: str, req: FetchRequest):
     """
     Trigger fetching data for the symbol.
-    Req body: { "interval": "1m", "days": 365 } (optional)
+    Req body: { "interval": "1m", "days": 365, "backfill": false } (optional)
+
+    backfill=True: Fetch full history regardless of existing data (slower, use for initial setup)
+    backfill=False: Incremental update, stop when hitting existing data (default, faster)
     """
     service = MarketDataService()
-    
-    # Run synchronously to return count
-    added_count = await service.fetch_history(symbol, req.interval, req.days)
-    
+
+    # Run fetch with backfill option
+    # backfill=True: Fetch full history even if some data exists (slower, for filling gaps)
+    # backfill=False: Stop when hitting existing data (incremental, faster)
+    added_count = await service.fetch_history(symbol, req.interval, req.days, backfill=req.backfill)
+
     return {
-        "status": "success", 
-        "message": f"Fetched {req.interval} data for {symbol}",
+        "status": "success",
+        "message": f"Fetched {req.interval} data for {symbol}" + (" (backfill)" if req.backfill else ""),
         "added": added_count
     }
 
