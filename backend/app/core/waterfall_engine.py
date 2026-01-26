@@ -13,10 +13,11 @@ class BacktestContext(IContext):
         """
         self.feeds = feeds
         self.primary_symbol = primary_symbol or (list(feeds.keys())[0] if feeds else "UNKNOWN")
-        
+
         self.current_index = 0
         self.current_timestamp = None # Explicit Time Tracking
-        
+
+        self.initial_capital = initial_capital  # Store for Fixed betting mode reset
         self.cash = initial_capital
         self._holdings = {} # {symbol: quantity}
         self.trades = []
@@ -25,6 +26,7 @@ class BacktestContext(IContext):
         self.last_known_prices = {} # {symbol: price}
         self.current_rank = 0 # Track which rank is currently executing
         self.optimize_mode = False # Performance flag
+        self.realized_pnl = 0  # Track realized P&L for Fixed mode
         
         # Optimize: Pre-index feeds for O(1) price lookup
         self.price_map = {}
@@ -115,8 +117,14 @@ class BacktestContext(IContext):
             )
             
             order.validate()
-            
+
             cost = exec_price * quantity
+
+            # Capital Check: Ensure sufficient funds before buying
+            if self.cash < cost:
+                self.log(f"BUY REJECTED: Insufficient capital. Need {cost:,.0f}, have {self.cash:,.0f}")
+                return {"status": "failed", "reason": "Insufficient Capital"}
+
             self.cash -= cost
             self._holdings[symbol] = self._holdings.get(symbol, 0) + quantity
             
@@ -197,11 +205,25 @@ class BacktestContext(IContext):
         if self.optimize_mode: return
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
 
+    def reset_cycle_capital(self):
+        """
+        Reset cash to initial_capital for Fixed betting mode.
+        Called at the start of each new cycle.
+        Realized P&L is preserved separately (not lost).
+        """
+        # Calculate realized P&L before reset
+        cycle_pnl = self.cash - self.initial_capital
+        self.realized_pnl += cycle_pnl
+        # Reset to initial capital for next cycle
+        self.cash = self.initial_capital
+        self.log(f"[Fixed Mode] Cycle Reset. PnL: {cycle_pnl:,.0f}, Total Realized: {self.realized_pnl:,.0f}, Cash Reset to: {self.cash:,.0f}")
+
     def update_equity(self):
-        equity = self.cash
+        # Include realized_pnl for Fixed betting mode (accumulated P&L from completed cycles)
+        equity = self.cash + self.realized_pnl
         for symbol, qty in self._holdings.items():
             equity += qty * self.get_current_price(symbol)
-        
+
         self.equity_curve.append({
             "date": self.get_time().strftime("%Y-%m-%d %H:%M"),
             "equity": int(equity)

@@ -19,6 +19,41 @@ logger.setLevel(logging.INFO)
 # Removed file logging function in favor of direct print/file write in exception block
 
 
+# ============================================================================
+# UNIFIED CONFIG BUILDER - Single Source of Truth
+# ============================================================================
+def build_backtest_config(
+    strategy_config: Dict[str, Any],
+    symbol: str,
+    interval: str,
+    days: int,
+    from_date: str,
+    initial_capital: int
+) -> Dict[str, Any]:
+    """
+    Builds a complete, normalized config for backtest execution.
+
+    This function is the SINGLE SOURCE OF TRUTH for config building.
+    Used by BOTH optimization and individual backtest to ensure consistency.
+
+    Returns a new config dict with all required parameters.
+    """
+    config = strategy_config.copy()
+
+    # 1. Symbol (required for data fetching)
+    config['symbol'] = symbol
+
+    # 2. Interval - use config value if present, otherwise use passed value
+    config['interval'] = config.get('interval', interval)
+
+    # 3. Request-level params - MUST be included for Select/Active to work correctly
+    config['days'] = days
+    config['from_date'] = from_date
+    config['initial_capital'] = initial_capital
+
+    return config
+
+
 # Global Task Registry
 OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
 
@@ -63,18 +98,33 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     # Force reload modules to ensure latest code is used (worker process caching issue)
     import sys
     import importlib
-    modules_to_reload = ['app.core.waterfall_engine', 'app.services.market_data']
+    modules_to_reload = [
+        'app.strategies.base',
+        'app.strategies.dip_martingale',
+        'app.strategies.time_momentum',
+        'app.core.strategy_registry',
+        'app.core.waterfall_engine',
+        'app.services.market_data'
+    ]
     for mod_name in modules_to_reload:
         if mod_name in sys.modules:
-            importlib.reload(sys.modules[mod_name])
+            try:
+                importlib.reload(sys.modules[mod_name])
+            except Exception:
+                pass  # Continue if reload fails
 
     import asyncio
     # [MIGRATION] Use WaterfallBacktestEngine for consistent logic (Unified, Standard MDD, StockOrder)
     from ..core.waterfall_engine import WaterfallBacktestEngine
-    
-    # Initialize Engine with Unified Logic
-    # We pass the class, config is mostly ignored here as run_integrated uses strategies_config list
-    engine = WaterfallBacktestEngine(strategy_cls, config)
+
+    # IMPORTANT: After module reload, get FRESH strategy class from registry
+    # The strategy_cls parameter is the OLD class reference from before reload
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_id = config.get('strategy_id', 'dip_martingale')
+    fresh_strategy_cls = StrategyRegistry.get_strategy_class(strategy_id) or strategy_cls
+
+    # Initialize Engine with Unified Logic (using fresh class)
+    engine = WaterfallBacktestEngine(fresh_strategy_cls, config)
     
     # create new loop for this process
     try:
@@ -83,12 +133,9 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-    # Wrap config into list for Integrated Engine
-    # Ensure symbol is present in config for data fetching
-    config['symbol'] = symbol
-
-    # Use interval from config if present (for optimization), otherwise use passed interval
-    actual_interval = config.get('interval', interval)
+    # Use unified config builder (Single Source of Truth)
+    config = build_backtest_config(config, symbol, interval, days, from_date, initial_capital)
+    actual_interval = config['interval']
 
     result = loop.run_until_complete(engine.run_integrated(
         strategies_config=[config],
@@ -99,9 +146,6 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         initial_capital=initial_capital,
         optimize_mode=True
     ))
-
-    # Ensure interval is in config for frontend to display correctly
-    config['interval'] = actual_interval
 
     return config, result
 
@@ -192,11 +236,16 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                 OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
                 break
         
-        # Finished
+        # Finished - Sort by score and assign ranks
         results.sort(key=lambda x: x.score, reverse=True)
+
+        # Use model_copy to properly update rank (Pydantic v2 safe)
+        ranked_results = []
         for i, item in enumerate(results):
-            item.rank = i + 1
-            
+            ranked_item = item.model_copy(update={"rank": i + 1})
+            ranked_results.append(ranked_item)
+        results = ranked_results
+
         execution_time = time.time() - start_time
         
         # Determine final status
@@ -391,24 +440,33 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found in registry.")
 
     # Select Strategy Config
-    config = request.config
+    raw_config = request.config
+    start_date = request.start_date or request.from_date
+
+    # Use unified config builder (Single Source of Truth - same as optimization)
+    config = build_backtest_config(
+        raw_config,
+        symbol=request.symbol,
+        interval=request.interval,
+        days=request.days,
+        from_date=start_date,
+        initial_capital=request.initial_capital
+    )
+    actual_interval = config['interval']
 
     # Initialize Engine (Unified)
-    # We pass the class, config is ignored here as run_integrated uses strategies_config list
     engine = WaterfallBacktestEngine(strategy_class, config)
-    
-    start_date = request.start_date or request.from_date
-    
-    # Wrap Single into List for Integrated Engine
-    # We must inject 'symbol' into config for the engine to find data
-    config['symbol'] = request.symbol
-    
+
+    # DEBUG: Log all parameters for comparison with optimization
+    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={actual_interval}, days={request.days}, from_date={start_date}, initial_capital={request.initial_capital}")
+    logger.info(f"[BACKTEST] config={config}")
+
     # Run Integrated (League of One)
     # optimize_mode=False to include chart_data for equity curve visualization
     result = await engine.run_integrated(
         strategies_config=[config],
         global_symbol=request.symbol,
-        interval=request.interval,
+        interval=actual_interval,
         duration_days=request.days,
         from_date=start_date,
         initial_capital=request.initial_capital,
@@ -472,6 +530,7 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     for idx, combo in enumerate(combinations):
         # Merge combo into config
         current_config = base_config.copy()
+        current_config['strategy_id'] = strategy_id  # Required for fresh class lookup after module reload
         for i, key in enumerate(keys):
             current_config[key] = combo[i]
 

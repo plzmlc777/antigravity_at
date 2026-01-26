@@ -173,14 +173,18 @@ class TimeMomentumStrategy(BaseStrategy):
 
 
                 if quantity > 0:
-                    self.context.buy(symbol, quantity)
-                    self.has_bought = True
-                    self.entry_price = current_price # Fix: Record Actual Entry Price
-                    self.peak_price = current_price
-                    self.trailing_active = False # Fix: Reset trailing state on new trade
-                    self.last_trade_date = current_time.date() # Mark as traded today
-                    target_display = -self.target_percent if self.direction == "fall" else self.target_percent
-                    self.context.log(f"Entry Triggered ({self.direction} | {betting_mode})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
+                    result = self.context.buy(symbol, quantity)
+                    # Only update position state if buy succeeded
+                    if result.get("status") != "failed":
+                        self.has_bought = True
+                        self.entry_price = current_price # Fix: Record Actual Entry Price
+                        self.peak_price = current_price
+                        self.trailing_active = False # Fix: Reset trailing state on new trade
+                        self.last_trade_date = current_time.date() # Mark as traded today
+                        target_display = -self.target_percent if self.direction == "fall" else self.target_percent
+                        self.context.log(f"Entry Triggered ({self.direction} | {betting_mode})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
+                    else:
+                        self.context.log(f"Entry REJECTED: {result.get('reason', 'Unknown')}. Qty: {quantity}, Price: {current_price}")
                 elif should_buy:
                      # Only log if we WANTED to buy but couldn't (e.g. cash, or calculation error)
                     try:

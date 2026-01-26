@@ -610,15 +610,15 @@ const StrategyView = () => {
                 // Restore Optimization
                 if (data.optimization && data.optimization.results) {
                     console.log('[Persistence] Restoring Optimization Data');
-                    const formattedResults = data.optimization.results.map(item => ({
-                        rank: item.rank,
+                    const formattedResults = data.optimization.results.map((item, index) => ({
                         ...(item.config || {}),
+                        ...(item.metrics || {}), // Flatten metrics
                         return: item.total_return,
                         win_rate: item.win_rate,
                         trades: item.total_trades,
                         score: item.score,
                         full_config: item.config || {},
-                        ...(item.metrics || {}) // Flatten metrics
+                        rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
                     }));
                     setOptResults(formattedResults);
                 } else if (data.optimization) {
@@ -1069,8 +1069,25 @@ const StrategyView = () => {
         setOptProgress({ current: 0, total: 0 }); // Reset
 
         try {
-            // Sanitize Config for Base
-            const base_config = { ...currentConfig }; // Use currentConfig
+            // Sanitize Config for Base - Include ALL schema defaults first
+            const base_config = {};
+
+            // 1. First, populate with schema default values (so ALL params are included)
+            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
+            paramDefs.forEach(param => {
+                if (param.defaultValue !== undefined) {
+                    base_config[param.key] = param.defaultValue;
+                }
+            });
+
+            // 2. Overlay with currentConfig values (user-entered values take precedence)
+            Object.keys(currentConfig).forEach(key => {
+                if (currentConfig[key] !== undefined && currentConfig[key] !== '') {
+                    base_config[key] = currentConfig[key];
+                }
+            });
+
+            // 3. Fill any remaining empty values from DEFAULT_CONFIG
             Object.keys(base_config).forEach(key => {
                 if (base_config[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
                     base_config[key] = DEFAULT_CONFIG[key];
@@ -1080,7 +1097,7 @@ const StrategyView = () => {
             const payload = {
                 symbol: currentConfig.symbol || currentSymbol || "SEC", // Use config's symbol if available, else global
                 interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
-                // days: 365, // Removed to match Backtest default
+                days: currentConfig?.days || 365, // Must match Backtest payload
                 from_date: currentConfig?.from_date || "",
                 initial_capital: currentConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
@@ -1125,15 +1142,15 @@ const StrategyView = () => {
                             // Finished (or Cancelled)
                             const resultData = statusData.result;
                             if (resultData && resultData.results && resultData.results.length > 0) {
-                                const formattedResults = resultData.results.map(item => ({
-                                    rank: item.rank,
+                                const formattedResults = resultData.results.map((item, index) => ({
                                     ...item.config,
+                                    ...item.metrics, // Flatten metrics
                                     return: item.total_return,
                                     win_rate: item.win_rate,
                                     trades: item.total_trades,
                                     score: item.score,
                                     full_config: item.config,
-                                    ...item.metrics // Flatten metrics
+                                    rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
                                 }));
                                 setOptResults(formattedResults);
 
@@ -2688,7 +2705,7 @@ const StrategyView = () => {
                                                                         className={`w-full bg-black/40 border rounded px-3 py-2 text-sm focus:outline-none transition-colors ${currentOptEnabled[param.key]
                                                                             ? 'border-purple-500/30 text-white focus:border-purple-500'
                                                                             : 'border-white/5 text-gray-400 bg-white/5 cursor-not-allowed opacity-70'}`}
-                                                                        value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? "")}
+                                                                        value={currentOptEnabled[param.key] ? (currentOptValues[param.key] || "") : (currentConfig[param.key] ?? param.defaultValue ?? "")}
                                                                         onChange={(e) => handleOptValueChange(param.key, e.target.value)}
                                                                     />
                                                                 )}
