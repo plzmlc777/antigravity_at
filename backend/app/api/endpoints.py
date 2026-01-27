@@ -115,11 +115,12 @@ async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter))
 
 @router.get("/system/version")
 async def get_system_version(db: Session = Depends(get_db)):
-    from ..models.system import SystemMetadata
-    ver = db.query(SystemMetadata).filter_by(key="version").first()
-    if not ver:
-        return {"version": "0.0.0-unknown"}
-    return {"version": ver.value, "updated_at": ver.updated_at.isoformat() if ver.updated_at else None}
+    # Read from system_configs table (app_version key)
+    from sqlalchemy import text
+    result = db.execute(text("SELECT value, updated_at FROM system_configs WHERE key = 'app_version'")).fetchone()
+    if not result:
+        return {"version": settings.PROJECT_VERSION}  # Fallback to config
+    return {"version": result[0], "updated_at": result[1].isoformat() if result[1] else None}
 
 class VersionUpdateRequest(BaseModel):
     version: str
