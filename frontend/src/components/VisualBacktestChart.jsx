@@ -33,11 +33,68 @@ const VisualBacktestChart = ({
     const allTradePriceDataRef = useRef([]);
     const dayChangesRef = useRef([]); // Store timestamps of day boundaries
 
+    // Helper to Draw Trade Connection Lines (Buy -> Sell pairs)
+    const drawTradeConnections = (ctx, chart, dpr) => {
+        if (!allTradesRef.current.length || !seriesInstance.current) return;
+
+        const timeScale = chart.timeScale();
+        const series = seriesInstance.current;
+        const trades = allTradesRef.current;
+
+        // Get visible time range
+        const visibleRange = timeScale.getVisibleLogicalRange();
+        if (!visibleRange) return;
+
+        // Pair buy and sell trades (multiple buys can be closed by one sell)
+        const pairs = [];
+        let pendingBuys = [];
+
+        trades.forEach(t => {
+            if (t.type === 'buy') {
+                pendingBuys.push(t);
+            } else if (t.type === 'sell' && pendingBuys.length > 0) {
+                // Connect ALL pending buys to this sell
+                pendingBuys.forEach(buy => {
+                    pairs.push({ buy: buy, sell: t });
+                });
+                pendingBuys = [];
+            }
+        });
+
+        // Draw each pair as a dotted line
+        pairs.forEach(pair => {
+            const buyX = timeScale.timeToCoordinate(pair.buy.time);
+            const sellX = timeScale.timeToCoordinate(pair.sell.time);
+            const buyY = series.priceToCoordinate(pair.buy.price);
+            const sellY = series.priceToCoordinate(pair.sell.price);
+
+            if (buyX === null || sellX === null || buyY === null || sellY === null) return;
+
+            // Calculate profit/loss
+            const buyPrice = pair.buy.original_price !== undefined ? pair.buy.original_price : pair.buy.price;
+            const sellPrice = pair.sell.original_price !== undefined ? pair.sell.original_price : pair.sell.price;
+            const isProfit = sellPrice > buyPrice;
+
+            // Set line style
+            ctx.strokeStyle = isProfit ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)'; // green/red
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]); // Dotted line pattern
+
+            ctx.beginPath();
+            ctx.moveTo(buyX, buyY);
+            ctx.lineTo(sellX, sellY);
+            ctx.stroke();
+        });
+
+        // Reset line dash
+        ctx.setLineDash([]);
+    };
+
     // Helper to Draw Date Separators (Canvas Overlay)
     const drawSeparators = () => {
         const chart = chartInstance.current;
         const canvas = overlayCanvasRef.current;
-        if (!chart || !canvas || dayChangesRef.current.length === 0) return;
+        if (!chart || !canvas) return;
 
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
@@ -47,24 +104,29 @@ const VisualBacktestChart = ({
         // Clear Canvas
         ctx.clearRect(0, 0, width, height);
 
-        // Styling
-        ctx.strokeStyle = 'rgba(75, 85, 99, 0.5)'; // #4B5563 with 0.5 Opacity
-        ctx.lineWidth = 1; // 1px Line (User Requirement)
-        ctx.beginPath();
+        // Draw Trade Connection Lines first (below date separators)
+        if (!showOnlyPnl) {
+            drawTradeConnections(ctx, chart, dpr);
+        }
 
-        const timeScale = chart.timeScale();
+        // Draw Date Separators
+        if (dayChangesRef.current.length > 0) {
+            ctx.strokeStyle = 'rgba(75, 85, 99, 0.5)'; // #4B5563 with 0.5 Opacity
+            ctx.lineWidth = 1; // 1px Line (User Requirement)
+            ctx.beginPath();
 
-        dayChangesRef.current.forEach(ts => {
-            const x = timeScale.timeToCoordinate(ts);
-            if (x !== null) {
-                // Adjust x for DPR if ctx is scaled?
-                // Scale is applied in ResizeObserver
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height / dpr); // height is physical pixels, divide by dpr
-            }
-        });
+            const timeScale = chart.timeScale();
 
-        ctx.stroke();
+            dayChangesRef.current.forEach(ts => {
+                const x = timeScale.timeToCoordinate(ts);
+                if (x !== null) {
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height / dpr);
+                }
+            });
+
+            ctx.stroke();
+        }
     };
 
     // Helper: Process Data
