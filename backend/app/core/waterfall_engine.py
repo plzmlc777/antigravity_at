@@ -832,7 +832,7 @@ class WaterfallBacktestEngine:
             "max_drawdown": max_dd,
             "activity_rate": activity_rate,
             "total_days": total_days,
-            "total_trades": combined_trade_stats.get('total_trades', sum(r['trades_count'] for r in rank_results)),
+            "total_trades": combined_trade_stats.get('total_trades', sum(r.get('full_stats', {}).get('total_trades', 0) for r in rank_results)),
             "chart_data": combined_equity_curve,
             "equity_curve": combined_equity_curve,
             "ohlcv_data": raw_ohlcv,
@@ -1010,7 +1010,7 @@ class WaterfallBacktestEngine:
             "ohlcv_data": raw_ohlcv,
             "logs": context.logs[-50:],
             "trades": context.trades,
-            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity, optimize_mode=optimize_mode)
+            **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity, optimize_mode=optimize_mode, equity_curve=context.equity_curve)
         }
 
     def _empty_result(self, logs=None):
@@ -1036,7 +1036,7 @@ class WaterfallBacktestEngine:
             "decile_stats": []
         }
 
-    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000, optimize_mode: bool = False) -> Dict[str, Any]:
+    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000, optimize_mode: bool = False, equity_curve: List[Dict] = None) -> Dict[str, Any]:
         if not trades:
             return {
                 "total_trades": 0,
@@ -1160,7 +1160,7 @@ class WaterfallBacktestEngine:
             "cycle_avg_hold": base_stats.get('cycle_avg_hold'),
             "cycle_max_hold": base_stats.get('cycle_max_hold'),
             "cycle_min_hold": base_stats.get('cycle_min_hold'),
-            "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital) if calc_ranks else []
+            "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital, equity_curve=equity_curve, raw_trades=trades) if calc_ranks else []
         }
 
     def _compute_stats_from_completed(self, completed_trades: List[Dict]) -> Dict[str, Any]:
@@ -1308,7 +1308,10 @@ class WaterfallBacktestEngine:
 
         for r in rank_results:
             fs = r.get('full_stats', {})
-            trade_count = r.get('trades_count', 0)
+            # Use completed (FIFO-matched) trade count, not raw buy+sell count
+            trade_count = fs.get('total_trades', 0)
+            if trade_count == 0:
+                trade_count = r.get('trades_count', 0)  # fallback to raw
 
             if trade_count == 0:
                 continue
@@ -1424,83 +1427,154 @@ class WaterfallBacktestEngine:
 
         return result
 
-    def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any, initial_capital: float) -> List[Dict]:
+    def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any, initial_capital: float, equity_curve: List[Dict] = None, raw_trades: List[Dict] = None) -> List[Dict]:
         """
         Calculates full suite of statistics for each Rank, matching Overview metrics.
         """
         ranks = sorted(list(set(t.get('strategy_rank', 0) for t in trades)))
         rank_stats = []
-        
+
         for r in ranks:
             if r == 0: continue # Skip if rank 0
-            
+
             r_trades = [t for t in trades if t.get('strategy_rank') == r]
             if not r_trades: continue
-            
+
             # 1. Base Stats via Helper
-            
+
             decile_data_rank = self._calc_deciles(r_trades, start_ts, end_ts)
             base_stats = self._compute_stats_from_completed(r_trades)
-            
+
             # Merge decile-based stability into base_stats
             base_stats['stability_score'] = decile_data_rank['stability_score']
             base_stats['acceleration_score'] = decile_data_rank['acceleration_score']
             base_stats['total_trades'] = len(r_trades)
-            
+
             # 2. Total PnL (Value) and Return % (Contribution to Total)
             total_pnl_value = sum(t['pnl'] for t in r_trades)
             # Use Initial Capital as denominator to show contribution % to overall return
             total_return_pct = (total_pnl_value / initial_capital * 100) if initial_capital > 0 else 0.0
-            
-            # 3. Activity Rate
-            if total_days > 0 and r_trades:
-                # Use first 10 chars of ISO string for Date YYYY-MM-DD
+
+            # 3. Activity Rate (use raw trades for buy+sell days, matching OVERVIEW)
+            if total_days > 0 and raw_trades:
+                rank_raw_trades = [t for t in raw_trades if t.get('strategy_rank') == r]
+                uniq_days = len(set(t['time'][:10] for t in rank_raw_trades)) if rank_raw_trades else 0
+                activity_rate = (uniq_days / total_days * 100)
+            elif total_days > 0 and r_trades:
+                # Fallback: completed trades only
                 uniq_days = len(set(t['time'][:10] for t in r_trades))
                 activity_rate = (uniq_days / total_days * 100)
             else:
                 activity_rate = 0.0
-                
-            # 4. Max Drawdown (Standardized Calculation)
-            # To match Overview exactly, we must treat this Rank as a virtual sub-account.
-            # Virtual Equity = Initial Capital + Cumulative PnL
-            # MDD = (Peak Virtual Equity - Current Virtual Equity) / Peak Virtual Equity
-            
-            # Sort by time to ensure curve is correct
-            sorted_trades = sorted(r_trades, key=lambda x: x['time'])
-            
-            virtual_equity = initial_capital
-            peak_equity = initial_capital
-            max_dd_ratio = 0.0
-            max_dd_val = 0.0 # Keep tracking value for potential debug
-            
-            for t in sorted_trades:
-                virtual_equity += t['pnl']
-                
-                if virtual_equity > peak_equity:
-                    peak_equity = virtual_equity
-                
-                dd_val = peak_equity - virtual_equity
-                if dd_val > 0:
-                    dd_ratio = dd_val / peak_equity
-                    if dd_ratio > max_dd_ratio:
-                        max_dd_ratio = dd_ratio
-                        max_dd_val = dd_val # Max DD Value
 
-            # MDD % (Negative)
-            max_dd_pct = -(max_dd_ratio * 100) if initial_capital > 0 else 0.0
-            
-            
+            # 4. Max Drawdown (Unrealized + Realized)
+            # Use equity curve to capture unrealized DD during martingale phases.
+            # For single-rank or exclusive mode, the equity curve directly reflects
+            # this rank's unrealized P&L. For multi-rank, we extract active periods.
+            max_dd_pct = 0.0
+            max_dd_val = 0.0
+
+            if equity_curve and raw_trades:
+                # Get all unique ranks from raw trades
+                all_ranks = set(t.get('strategy_rank', 0) for t in raw_trades)
+                num_active_ranks = len([rr for rr in all_ranks if rr > 0])
+
+                if num_active_ranks <= 1:
+                    # Single rank: equity curve IS this rank's curve → use directly
+                    max_dd_pct = self._calc_mdd(equity_curve)
+                else:
+                    # Multi-rank (exclusive): extract active periods for this rank
+                    rank_raw = sorted(
+                        [t for t in raw_trades if t.get('strategy_rank') == r],
+                        key=lambda x: x['time']
+                    )
+
+                    # Build active periods (when this rank holds positions)
+                    position_qty = 0
+                    active_start = None
+                    active_periods = []  # [(start_idx, end_idx), ...]
+
+                    # Normalize trade timestamps to equity curve format for comparison
+                    # Equity curve uses "%Y-%m-%d %H:%M", trades use ISO format
+                    def normalize_ts(ts_str):
+                        """Convert any timestamp to '%Y-%m-%d %H:%M' for matching."""
+                        try:
+                            dt = datetime.fromisoformat(ts_str) if 'T' in ts_str else datetime.strptime(ts_str, "%Y-%m-%d %H:%M")
+                            return dt.strftime("%Y-%m-%d %H:%M")
+                        except:
+                            return ts_str
+
+                    trade_events = []  # [(normalized_ts, delta_qty)]
+                    for t in rank_raw:
+                        norm_ts = normalize_ts(t['time'])
+                        if t['type'] == 'buy':
+                            trade_events.append((norm_ts, t['quantity']))
+                        elif t['type'] == 'sell':
+                            trade_events.append((norm_ts, -t['quantity']))
+
+                    # Walk equity curve, tracking position state
+                    sorted_eq = sorted(equity_curve, key=lambda p: p[EQUITY_DATE_KEY])
+                    event_idx = 0
+                    pos_qty = 0
+                    peak_val = initial_capital
+                    rank_max_dd_ratio = 0.0
+
+                    for pt in sorted_eq:
+                        eq_ts = pt[EQUITY_DATE_KEY]
+                        val = pt[EQUITY_VALUE_KEY]
+
+                        # Process any trade events at or before this timestamp
+                        while event_idx < len(trade_events) and trade_events[event_idx][0] <= eq_ts:
+                            pos_qty += trade_events[event_idx][1]
+                            event_idx += 1
+
+                        if pos_qty > 0:
+                            # This rank has a position → track DD
+                            if val > peak_val:
+                                peak_val = val
+                            dd_val_cur = peak_val - val
+                            if dd_val_cur > 0 and peak_val > 0:
+                                dd_ratio = dd_val_cur / peak_val
+                                if dd_ratio > rank_max_dd_ratio:
+                                    rank_max_dd_ratio = dd_ratio
+                                    max_dd_val = dd_val_cur
+                        else:
+                            # No position → reset peak to current (capital may have changed)
+                            peak_val = max(peak_val, val)
+
+                    max_dd_pct = -(rank_max_dd_ratio * 100)
+            else:
+                # Fallback: realized-only DD
+                max_dd_pct = self._calc_rank_dd_realized(r_trades, initial_capital)
+
             rank_stats.append({
                 "rank": r,
                 "total_return": float(f"{total_return_pct:.2f}"), # Total Return %
                 "total_pnl_value": int(total_pnl_value),
                 "activity_rate": float(f"{activity_rate:.1f}"),
-                "max_drawdown": float(f"{max_dd_pct:.2f}"), # % relative to Peak Profit
-                "max_drawdown_value": int(max_dd_val), # Value for tooltip/debug
-                **base_stats 
+                "max_drawdown": float(f"{max_dd_pct:.2f}"),
+                "max_drawdown_value": int(max_dd_val),
+                **base_stats
             })
-            
+
         return rank_stats
+
+    def _calc_rank_dd_realized(self, r_trades: List[Dict], initial_capital: float) -> float:
+        """Fallback: DD from realized PnL only (legacy method)."""
+        sorted_trades = sorted(r_trades, key=lambda x: x['time'])
+        virtual_equity = initial_capital
+        peak_equity = initial_capital
+        max_dd_ratio = 0.0
+        for t in sorted_trades:
+            virtual_equity += t['pnl']
+            if virtual_equity > peak_equity:
+                peak_equity = virtual_equity
+            dd_val = peak_equity - virtual_equity
+            if dd_val > 0 and peak_equity > 0:
+                dd_ratio = dd_val / peak_equity
+                if dd_ratio > max_dd_ratio:
+                    max_dd_ratio = dd_ratio
+        return -(max_dd_ratio * 100) if initial_capital > 0 else 0.0
 
     def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any) -> List[Dict]:
         """

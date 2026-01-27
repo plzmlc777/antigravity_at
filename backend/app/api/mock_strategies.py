@@ -434,7 +434,6 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         'app.strategies.base',           # 1. Base class first
         'app.strategies.dip_martingale', # 2. Strategy implementations
         'app.strategies.time_momentum',
-        'app.strategies.rsi',
         'app.core.strategy_registry',    # 3. Registry (imports strategies)
         'app.core.waterfall_engine',     # 4. Engine (uses registry)
     ]

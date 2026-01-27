@@ -4,7 +4,6 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 from ..strategies.base import BaseStrategy
-from ..strategies.rsi import RSIStrategy
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 import random
 
@@ -27,12 +26,13 @@ class TradingBot:
         self.held_quantity = 0
         self.avg_price = 0
         
-        # Initialize Strategy
+        # Initialize Strategy (Legacy - bot_manager is not actively used)
         strategy_config = config.get('strategy_config', {})
-        if config['strategy'] == 'rsi':
-            self.strategy = RSIStrategy(strategy_config)
-        else:
+        from .strategy_registry import StrategyRegistry
+        strat_class = StrategyRegistry.get_strategy_class(config['strategy'])
+        if not strat_class:
             raise ValueError(f"Unknown strategy: {config['strategy']}")
+        self.strategy = strat_class(strategy_config)
 
     async def run_loop(self):
         self.is_running = True

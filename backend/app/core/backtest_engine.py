@@ -649,7 +649,6 @@ class BacktestEngine:
         
         # 3. Initialize Strategies
         from ..strategies.base import BaseStrategy
-        from ..strategies.rsi import RSIStrategy
         from ..strategies.time_momentum import TimeMomentumStrategy
         
         active_strategies = []
@@ -660,10 +659,11 @@ class BacktestEngine:
             # Inject context
             strat_name = cfg.get('strategy', 'time_momentum')
             
-            if strat_name == 'rsi':
-                strat_instance = RSIStrategy(context, cfg)
-            else:
-                strat_instance = TimeMomentumStrategy(context, cfg)
+            from ..core.strategy_registry import StrategyRegistry
+            strat_class = StrategyRegistry.get_strategy_class(strat_name)
+            if not strat_class:
+                strat_class = TimeMomentumStrategy  # fallback
+            strat_instance = strat_class(context, cfg)
                 
             strat_instance.initialize()
             active_strategies.append(strat_instance)
