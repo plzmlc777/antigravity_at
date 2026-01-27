@@ -2023,6 +2023,7 @@ const StrategyView = () => {
                                         savedSymbols={savedSymbols}
                                         currentRankIndex={liveRankIndex}
                                         executionMode={executionMode}
+                                        onExecutionModeChange={(mode) => setExecutionMode(mode)}
                                         onRankChange={(index) => {
                                             setLiveRankIndex(index);
                                             if (configList[index] && configList[index].symbol) {

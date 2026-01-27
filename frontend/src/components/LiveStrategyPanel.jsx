@@ -9,7 +9,7 @@ import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
 import StrategyKPIWidget from './StrategyKPIWidget';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive' }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -24,6 +24,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     // Parallel mode: track multiple sessions {rankIndex: sessionId}
     const [parallelSessions, setParallelSessions] = useState({});
+
+    // Parallel mode: per-rank capital allocation weights (%) {rankIndex: percent}
+    const [rankWeights, setRankWeights] = useState({});
 
     // Real-Time Candles State
     const [realTimeCandles, setRealTimeCandles] = useState([]);
@@ -83,7 +86,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     }, [status]);
 
-
+    // Auto-initialize rank weights when configList or executionMode changes
+    useEffect(() => {
+        if (executionMode !== 'parallel') return;
+        const activeIndices = configList.map((c, i) => c.is_active ? i : -1).filter(i => i >= 0);
+        if (activeIndices.length === 0) return;
+        const equalWeight = Math.floor(100 / activeIndices.length);
+        const remainder = 100 - (equalWeight * activeIndices.length);
+        const newWeights = {};
+        activeIndices.forEach((idx, pos) => {
+            newWeights[idx] = equalWeight + (pos === 0 ? remainder : 0);
+        });
+        setRankWeights(newWeights);
+    }, [executionMode, configList.length, configList.map(c => c.is_active).join(',')]);
 
     // Fetch Initial Candles for Real-Time View (Hybrid Pattern: History + Live)
     useEffect(() => {
@@ -258,6 +273,16 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setStatus('STARTING');
 
             if (executionMode === 'parallel') {
+                // Validate weights sum to 100%
+                const weightSum = Object.entries(rankWeights)
+                    .filter(([idx]) => configList[idx]?.is_active)
+                    .reduce((s, [, w]) => s + w, 0);
+                if (weightSum !== 100) {
+                    setError(`Rank allocation must total 100% (currently ${weightSum}%)`);
+                    setStatus('IDLE');
+                    return;
+                }
+
                 // Parallel: start sessions for all active ranks
                 const activeConfigs = configList.filter(c => c.is_active);
                 if (activeConfigs.length === 0) {
@@ -265,23 +290,31 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     setStatus('ERROR');
                     return;
                 }
-                const capitalPerRank = Math.floor((parseFloat(inputCapital) || 0) / activeConfigs.length);
+                const totalCapital = parseFloat(inputCapital) || 0;
+                const totalWeight = Object.entries(rankWeights)
+                    .filter(([idx]) => configList[idx]?.is_active)
+                    .reduce((s, [, w]) => s + w, 0);
 
                 const newSessions = {};
                 for (let i = 0; i < configList.length; i++) {
                     const cfg = configList[i];
                     if (!cfg.is_active) continue;
 
+                    const weight = rankWeights[i] || 0;
+                    const rankCapital = totalWeight > 0
+                        ? Math.floor(totalCapital * weight / totalWeight)
+                        : Math.floor(totalCapital / activeConfigs.length);
+
                     const payload = {
                         symbol: cfg.symbol,
                         strategy_name: strategyName || "time_momentum",
                         strategy_config: cfg,
-                        initial_capital: capitalPerRank
+                        initial_capital: rankCapital
                     };
                     try {
                         const res = await startLiveBot(payload);
                         newSessions[i] = res.session_id;
-                        addLog("System", `Rank ${i + 1} Started: ${res.session_id} (${cfg.symbol}, Capital: ${capitalPerRank.toLocaleString()})`);
+                        addLog("System", `Rank ${i + 1} Started: ${res.session_id} (${cfg.symbol}, Capital: ${rankCapital.toLocaleString()} [${weight}%])`);
                     } catch (rankErr) {
                         addLog("Error", `Rank ${i + 1} Failed: ${rankErr.response?.data?.detail || rankErr.message}`);
                     }
@@ -291,7 +324,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     setSessionId(Object.values(newSessions)[0]);
                     setStatus('RUNNING');
                     startPolling();
-                    addLog("System", `Parallel Mode: ${Object.keys(newSessions).length} sessions started (${capitalPerRank.toLocaleString()} KRW/rank)`);
+                    addLog("System", `Parallel Mode: ${Object.keys(newSessions).length} sessions started`);
                 } else {
                     setStatus('ERROR');
                     setError("No sessions started");
@@ -637,11 +670,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             <div className="text-xl font-mono text-purple-400 tracking-tight">
                                 {inputCapital ? `${(parseFloat(inputCapital)).toLocaleString()} KRW` : '0 KRW'}
                             </div>
-                            {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (
-                                <div className="text-[10px] text-gray-500 mt-1">
-                                    ÷ {configList.filter(c => c.is_active).length} ranks = {Math.floor((parseFloat(inputCapital) || 0) / Math.max(1, configList.filter(c => c.is_active).length)).toLocaleString()} KRW/rank
-                                </div>
-                            )}
+                            {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (() => {
+                                const activeWeights = Object.entries(rankWeights).filter(([idx]) => configList[idx]?.is_active);
+                                const isEqual = activeWeights.length > 0 && activeWeights.every(([, w]) => w === activeWeights[0][1]);
+                                return (
+                                    <div className="text-[10px] text-gray-500 mt-1">
+                                        {isEqual
+                                            ? `÷ ${activeWeights.length} ranks (Equal)`
+                                            : `Custom: ${activeWeights.length} ranks`}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -676,6 +715,27 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         <AlertTriangle size={10} /> Insufficient account funds
                                     </p>
                                 )}
+                            </div>
+
+                            {/* Execution Mode Selector */}
+                            <div className="w-full md:w-48">
+                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                    Execution Mode
+                                </label>
+                                <select
+                                    value={executionMode}
+                                    onChange={(e) => onExecutionModeChange?.(e.target.value)}
+                                    disabled={status === 'RUNNING' || status === 'STARTING'}
+                                    className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-3 text-white text-sm font-bold outline-none focus:border-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
+                                >
+                                    <option value="exclusive">Exclusive</option>
+                                    <option value="parallel">Parallel</option>
+                                </select>
+                                <p className="text-gray-500 text-[9px] mt-1.5">
+                                    {executionMode === 'exclusive'
+                                        ? 'Waterfall: Rank 1 → 2 → 3'
+                                        : `${configList.filter(c => c.is_active).length} ranks (custom %)`}
+                                </p>
                             </div>
 
                             {/* Main Action Buttons */}
@@ -727,6 +787,71 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 )}
                             </div>
                         </div>
+
+                        {/* Parallel Mode: Per-Rank Capital Allocation */}
+                        {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (
+                            <div className="mt-4 p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-gray-400 text-[10px] font-bold tracking-wider uppercase">Capital Allocation per Rank</span>
+                                    <button
+                                        onClick={() => {
+                                            const activeIndices = configList.map((c, i) => c.is_active ? i : -1).filter(i => i >= 0);
+                                            const eq = Math.floor(100 / activeIndices.length);
+                                            const rem = 100 - (eq * activeIndices.length);
+                                            const w = {};
+                                            activeIndices.forEach((idx, pos) => { w[idx] = eq + (pos === 0 ? rem : 0); });
+                                            setRankWeights(w);
+                                        }}
+                                        disabled={status === 'RUNNING' || status === 'STARTING'}
+                                        className="text-[9px] text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Reset Equal
+                                    </button>
+                                </div>
+                                <div className="space-y-1.5">
+                                    {configList.map((cfg, idx) => {
+                                        if (!cfg.is_active) return null;
+                                        const weight = rankWeights[idx] || 0;
+                                        const capital = Math.floor((parseFloat(inputCapital) || 0) * weight / 100);
+                                        return (
+                                            <div key={idx} className="flex items-center gap-2">
+                                                <span className="text-gray-500 text-[10px] w-20 truncate font-mono">R{idx + 1} {cfg.symbol?.slice(0, 6)}</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={100}
+                                                    value={weight}
+                                                    onChange={(e) => {
+                                                        const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                                        setRankWeights(prev => ({ ...prev, [idx]: v }));
+                                                    }}
+                                                    disabled={status === 'RUNNING' || status === 'STARTING'}
+                                                    className="w-14 bg-black/60 border border-white/10 rounded px-2 py-1 text-white text-xs font-mono text-center outline-none focus:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                />
+                                                <span className="text-gray-600 text-[10px]">%</span>
+                                                <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="bg-blue-500/60 h-full rounded-full transition-all" style={{ width: `${Math.min(weight, 100)}%` }} />
+                                                </div>
+                                                <span className="text-gray-500 text-[10px] font-mono w-24 text-right">{capital.toLocaleString()}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {(() => {
+                                    const total = Object.values(rankWeights).reduce((s, w) => s + w, 0);
+                                    return (
+                                        <div className={`flex items-center justify-between mt-2 pt-2 border-t border-white/5 text-[10px] ${total !== 100 ? 'text-yellow-400' : 'text-gray-500'}`}>
+                                            <span>Total: {total}%</span>
+                                            {total !== 100 && (
+                                                <span className="flex items-center gap-1">
+                                                    <AlertTriangle size={10} /> Must be 100%
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
 
                         {/* Over-allocation Warning & Status */}
                         {availableBalance !== null && inputCapital > availableBalance && (
