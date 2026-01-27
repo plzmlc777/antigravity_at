@@ -326,6 +326,7 @@ class TimeMomentumStrategy(BaseStrategy):
         is_delay_passed = current_time >= trigger_time
 
         return {
+            "strategy_id": "time_momentum",
             "symbol": self.config.get("symbol"),
             "reference_price": self.reference_price,
             "target_percent": self.target_percent,

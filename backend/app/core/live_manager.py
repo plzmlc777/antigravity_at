@@ -264,6 +264,7 @@ class LiveManager:
             results.append({
                 "session_id": sid,
                 "symbol": eng.symbol,
+                "strategy_name": getattr(eng, 'strategy_name', 'unknown'),
                 "is_running": eng.is_running,
                 "orders_enabled": eng.orders_enabled,
                 "is_paper": getattr(eng, 'is_paper', True),

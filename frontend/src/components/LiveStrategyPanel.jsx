@@ -686,9 +686,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                     {/* Section 1.5: Strategy-specific KPI Widget */}
                     <StrategyKPIWidget
-                        strategyId={strategyConfig?.strategy_id || 'time_momentum'}
+                        strategyId={strategyName || strategyConfig?.strategy_id || 'time_momentum'}
                         strategyConfig={strategyConfig}
                         liveData={liveData}
+                        strategyState={strategyState}
                     />
 
                     {/* Section 2: Configuration & Controls */}
@@ -890,7 +891,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
             {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
             <div className="lg:col-span-3">
-                <StrategySignalPanel strategyState={strategyState} />
+                <StrategySignalPanel strategyState={strategyState} strategyName={strategyName} />
             </div>
 
             {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
@@ -981,7 +982,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 const contextConfigs = configList.map(c => ({
                                     id: c.id || "temp_id",
                                     rank: c.rank,
-                                    strategy_id: c.strategy_id || "time_momentum",
+                                    strategy_id: c.strategy_id || strategyName || "time_momentum",
                                     symbol: c.symbol,
                                     config: c.config_json || {}
                                 }));

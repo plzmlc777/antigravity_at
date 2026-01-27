@@ -9,7 +9,7 @@ import { Clock, TrendingUp, TrendingDown, Activity, Target, Timer } from 'lucide
  *   strategyConfig - Full strategy configuration object
  *   liveData - Real-time data from WebSocket
  */
-const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData }) => {
+const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData, strategyState }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // Update current time every second for countdown
@@ -202,16 +202,17 @@ const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData }) => {
 
     // Dip Martingale Strategy Widget
     if (strategyId === 'dip_martingale') {
-        const currentLevel = liveData?.current_level || 0;
-        const maxLevels = liveData?.max_levels || 4;
-        const avgPrice = liveData?.average_price || 0;
-        const refPrice = liveData?.reference_price || 0;
-        const curPrice = liveData?.current_price || 0;
-        const profitPct = (liveData?.profit_percent || 0) * 100;
-        const dipPct = (liveData?.dip_percent || 0) * 100;
-        const targetDip = (liveData?.target_dip || 0) * 100;
-        const isTrailing = liveData?.trailing_active || false;
-        const isHodl = liveData?.is_hodl || false;
+        const state = strategyState || {};
+        const currentLevel = state.current_level || 0;
+        const maxLevels = state.max_levels || strategyConfig?.max_levels || 4;
+        const avgPrice = state.average_price || 0;
+        const refPrice = state.reference_price || 0;
+        const curPrice = state.current_price || liveData?.current_price || 0;
+        const profitPct = (state.profit_percent || 0) * 100;
+        const dipPct = (state.dip_percent || 0) * 100;
+        const targetDip = (state.target_dip || 0) * 100;
+        const isTrailing = state.trailing_active || false;
+        const isHodl = state.is_hodl || false;
 
         const levelDots = [];
         for (let i = 1; i <= maxLevels; i++) {

@@ -76,6 +76,7 @@ class LiveTradingEngine:
             
             # 1. Strategy Resolution
             strategy_name = session.strategy_name
+            self.strategy_name = strategy_name
             self.strategy_config = session.strategy_config
             StrategyClass = strategy_registry.get_strategy_class(strategy_name)
             if not StrategyClass:
@@ -86,11 +87,13 @@ class LiveTradingEngine:
             
             # 3. Strategy Instance
             self.strategy_instance = StrategyClass(self.context, self.strategy_config)
-            
+            self.strategy_instance.initialize()
+
             # 3. Aggregator
-            # Parse interval from session (e.g. "1m" -> 1)
-            # For now default to 1 minute
-            self.aggregator = CandleRealAggregator(self.symbol, interval_minutes=1)
+            interval_str = self.strategy_config.get("interval", "1m")
+            interval_minutes = self._parse_interval(interval_str)
+            self.aggregator = CandleRealAggregator(self.symbol, interval_minutes=interval_minutes)
+            logger.info(f"Aggregator interval: {interval_str} ({interval_minutes}min)")
             
             # 4. Sync Initial Balance
             await self.context.async_sync_balance()
@@ -231,7 +234,9 @@ class LiveTradingEngine:
         }
         for listener in self.tick_listeners:
             try:
-                listener(tick_event)
+                result = listener(tick_event)
+                if asyncio.iscoroutine(result):
+                    asyncio.ensure_future(result)
             except Exception as e:
                 logger.error(f"Error in tick listener: {e}")
 
@@ -243,7 +248,9 @@ class LiveTradingEngine:
             }
             for listener in self.tick_listeners:
                 try:
-                    listener(strategy_status)
+                    result = listener(strategy_status)
+                    if asyncio.iscoroutine(result):
+                        asyncio.ensure_future(result)
                 except:
                     pass
         except Exception as e:
@@ -265,7 +272,9 @@ class LiveTradingEngine:
             }
             for listener in self.candle_listeners:
                 try:
-                    listener(candle_event)
+                    result = listener(candle_event)
+                    if asyncio.iscoroutine(result):
+                        asyncio.ensure_future(result)
                 except Exception as e:
                     logger.error(f"Error in candle listener: {e}")
             
@@ -288,10 +297,7 @@ class LiveTradingEngine:
                 if self.orders_enabled:
                     await self.context.process_queue()
                 else:
-                    queue_size = len(self.context.order_queue)
-                    if queue_size > 0:
-                        logger.info(f"Session {self.session_id}: Skipping {queue_size} signals (Orders Disabled)")
-                        self.context.order_queue.clear()
+                    logger.debug(f"Session {self.session_id}: Orders disabled, skipping order processing")
                 
             except Exception as e:
                 logger.error(f"Strategy Execution Error: {e}")
@@ -303,6 +309,12 @@ class LiveTradingEngine:
                 self._save_candle(closed_candle)
             except Exception as e:
                  logger.error(f"Candle Persistence Error: {e}")
+
+    @staticmethod
+    def _parse_interval(interval_str: str) -> int:
+        """Parse interval string (e.g. '1m', '5m', '1d') to minutes."""
+        mapping = {"1m": 1, "3m": 3, "5m": 5, "10m": 10, "15m": 15, "30m": 30, "60m": 60, "1d": 1440}
+        return mapping.get(interval_str, 1)
 
     def _save_candle(self, candle: Dict[str, Any]):
         """

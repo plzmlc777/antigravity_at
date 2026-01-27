@@ -298,6 +298,7 @@ class DipMartingaleStrategy(BaseStrategy):
         profit_percent = position_profit / initial_capital if initial_capital > 0 else 0
 
         return {
+            "strategy_id": "dip_martingale",
             "current_level": self.current_level,
             "max_levels": self.max_levels,
             "average_price": self.average_price,
@@ -311,5 +312,7 @@ class DipMartingaleStrategy(BaseStrategy):
             "dip_percent": dip_percent,
             "profit_percent": profit_percent,
             "target_dip": self.dip_percent / 100.0,
-            "target_profit": self.trailing_start_percent / 100.0
+            "target_profit": self.trailing_start_percent / 100.0,
+            "entries": self.entries,
+            "cycle_id": self.cycle_id,
         }

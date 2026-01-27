@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, Clock, Crosshair, Target, Zap, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
 
-const StrategySignalPanel = ({ strategyState }) => {
+const StrategySignalPanel = ({ strategyState, strategyName }) => {
     // Default values / Loading state handling
     const isLoading = !strategyState;
 
@@ -128,7 +128,7 @@ const StrategySignalPanel = ({ strategyState }) => {
                     <span className="text-xs">Waiting for strategy data...</span>
                 </div>
             ) : (
-                strategy_id === 'dip_martingale' ? renderDipMartingale() : renderTimeMomentum()
+                (strategy_id || strategyName) === 'dip_martingale' ? renderDipMartingale() : renderTimeMomentum()
             )}
         </div>
     );
