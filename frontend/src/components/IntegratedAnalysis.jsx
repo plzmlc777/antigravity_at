@@ -323,6 +323,62 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
         return map;
     }, [strategiesConfig]);
 
+    // Helper: Detect DipMartingale cycle at clicked date
+    const findActiveCycle = useCallback((allTrades, targetSymbol, clickedDateUnix) => {
+        const symbolTrades = allTrades
+            .filter(t => t.symbol === targetSymbol)
+            .sort((a, b) => new Date(a.time) - new Date(b.time));
+
+        if (!symbolTrades.length) return null;
+
+        // Group trades into cycles: BUY(level=N)... → SELL(level="CLOSE")
+        const cycles = [];
+        let currentCycleTrades = [];
+
+        for (const trade of symbolTrades) {
+            currentCycleTrades.push(trade);
+            const level = trade.metadata?.level;
+            if (level === "CLOSE" || level === "close") {
+                cycles.push({
+                    trades: [...currentCycleTrades],
+                    startTime: new Date(currentCycleTrades[0].time).getTime() / 1000,
+                    endTime: new Date(trade.time).getTime() / 1000,
+                    cycleId: trade.metadata?.cycle_id
+                });
+                currentCycleTrades = [];
+            }
+        }
+
+        // Incomplete cycle (still holding)
+        if (currentCycleTrades.length > 0) {
+            cycles.push({
+                trades: [...currentCycleTrades],
+                startTime: new Date(currentCycleTrades[0].time).getTime() / 1000,
+                endTime: null,
+                cycleId: null
+            });
+        }
+
+        if (!cycles.length) return null;
+
+        // Find cycle overlapping with clicked date
+        const clickedDayStart = new Date(clickedDateUnix * 1000);
+        clickedDayStart.setHours(0, 0, 0, 0);
+        const clickedDayEnd = new Date(clickedDateUnix * 1000);
+        clickedDayEnd.setHours(23, 59, 59, 999);
+        const dayStartUnix = clickedDayStart.getTime() / 1000;
+        const dayEndUnix = clickedDayEnd.getTime() / 1000;
+
+        for (const cycle of cycles) {
+            const cEnd = cycle.endTime || (Date.now() / 1000);
+            if (cycle.startTime <= dayEndUnix && cEnd >= dayStartUnix) {
+                return cycle;
+            }
+        }
+
+        return null;
+    }, []);
+
     const handleChartClick = useCallback((param) => {
         if (!param || !param.time || param.price === undefined) return;
 
@@ -402,54 +458,64 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
                 addLog(`[DEBUG] Mapped Candle: ${JSON.stringify(sample).substring(0, 100)}...`);
             }
 
-            // 3. Filter for Date
-            const startOfDay = new Date(targetDate).setHours(0, 0, 0, 0) / 1000;
-            const endOfDay = new Date(targetDate).setHours(23, 59, 59, 999) / 1000;
+            // 3. Detect DipMartingale Cycle or Single Day
+            const cycle = findActiveCycle(tradeList, targetSymbol, param.time);
 
-            const dailyCandles = allCandles.filter(c => {
-                return c.time >= startOfDay && c.time <= endOfDay;
-            });
-            addLog(`Daily Candles (Filtered): ${dailyCandles.length}`);
+            let filteredCandles, filteredTrades, dateLabel;
 
-            // 4. Filter Trades for Context
-            const dailyTrades = transformedTrades.filter(t => {
-                if (t.symbol !== targetSymbol) return false;
-                const tTime = new Date(t.time).getTime() / 1000;
-                return tTime >= startOfDay && tTime <= endOfDay;
-            }).map(t => ({
-                ...t,
-                price: t.original_price || t.price // Use Asset Price
-            }));
-            addLog(`Daily Trades: ${dailyTrades.length}`);
+            if (cycle) {
+                // Cycle mode: show entire cycle period
+                const bufferSec = 3600; // 1hr buffer before/after
+                const cycleStartUnix = cycle.startTime - bufferSec;
+                const cycleEndUnix = (cycle.endTime || Date.now() / 1000) + bufferSec;
 
-            if (dailyCandles.length > 0 || dailyTrades.length > 0) {
-                setModalData({
-                    rank: derivedRank,
-                    symbol: targetSymbol,
-                    name: symbolName,
-                    interval: targetInterval,
-                    date: targetDate.toLocaleDateString(),
-                    data: dailyCandles,
-                    trades: dailyTrades
-                });
-                setDebugLogs(logs);
-                setIsModalOpen(true);
+                filteredCandles = allCandles.filter(c => c.time >= cycleStartUnix && c.time <= cycleEndUnix);
+
+                filteredTrades = cycle.trades.map(t => ({
+                    ...t,
+                    price: t.original_price || t.price,
+                    time: typeof t.time === 'number' ? t.time : new Date(t.time).getTime() / 1000
+                }));
+
+                const startStr = new Date(cycle.startTime * 1000).toLocaleDateString();
+                const endStr = cycle.endTime
+                    ? new Date(cycle.endTime * 1000).toLocaleDateString()
+                    : "In Progress";
+                const cycleLabel = cycle.cycleId ? `Cycle #${cycle.cycleId}` : "Cycle";
+                dateLabel = `${startStr} ~ ${endStr} (${cycleLabel})`;
+
+                addLog(`Cycle Detected: ${dateLabel}, Trades: ${filteredTrades.length}, Candles: ${filteredCandles.length}`);
             } else {
-                addLog("No candle data found for this date.");
-                // Verify if we should show empty chart or alert?
-                // Let's show Modal with empty state to handle "Missing Data" scenario gracefully
-                setModalData({
-                    rank: derivedRank,
-                    symbol: targetSymbol,
-                    name: symbolName,
-                    interval: targetInterval,
-                    date: targetDate.toLocaleDateString(),
-                    data: [],
-                    trades: []
-                });
-                setDebugLogs(logs);
-                setIsModalOpen(true);
+                // Single day mode (existing behavior)
+                const startOfDay = new Date(targetDate).setHours(0, 0, 0, 0) / 1000;
+                const endOfDay = new Date(targetDate).setHours(23, 59, 59, 999) / 1000;
+
+                filteredCandles = allCandles.filter(c => c.time >= startOfDay && c.time <= endOfDay);
+                filteredTrades = transformedTrades.filter(t => {
+                    if (t.symbol !== targetSymbol) return false;
+                    const tTime = new Date(t.time).getTime() / 1000;
+                    return tTime >= startOfDay && tTime <= endOfDay;
+                }).map(t => ({
+                    ...t,
+                    price: t.original_price || t.price
+                }));
+                dateLabel = targetDate.toLocaleDateString();
+
+                addLog(`No Cycle (Single Day): ${dateLabel}, Candles: ${filteredCandles.length}, Trades: ${filteredTrades.length}`);
             }
+
+            // 4. Show Modal
+            setModalData({
+                rank: derivedRank,
+                symbol: targetSymbol,
+                name: symbolName,
+                interval: targetInterval,
+                date: dateLabel,
+                data: filteredCandles,
+                trades: filteredTrades
+            });
+            setDebugLogs(logs);
+            setIsModalOpen(true);
 
         } else {
             // Clicked outside valid rank area?
@@ -460,7 +526,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
             setIsModalOpen(true);
         }
 
-    }, [tradeLookupMap, backtestResult, transformedTrades, totalRanks, rankToSymbolMap, strategiesConfig, savedSymbols]);
+    }, [tradeLookupMap, backtestResult, transformedTrades, totalRanks, rankToSymbolMap, strategiesConfig, savedSymbols, findActiveCycle, tradeList]);
 
     // 6. Parallel Mode Summary
     const isParallelMode = backtestResult?.execution_mode === 'parallel';
