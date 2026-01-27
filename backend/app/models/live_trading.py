@@ -49,7 +49,10 @@ class LiveBotSession(Base):
     # Performance (Cached for ease of access)
     initial_capital = Column(Float, default=0.0)
     current_capital = Column(Float, default=0.0)
-    
+
+    # Error Tracking
+    error_log = Column(String, nullable=True)
+
     # Relations
     executions = relationship("LiveTradeExecution", back_populates="session", cascade="all, delete-orphan")
 

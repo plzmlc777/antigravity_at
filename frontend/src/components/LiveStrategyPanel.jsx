@@ -201,8 +201,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     setStatus('RUNNING');
                     const primarySid = activeSessions[currentRankIndex] || Object.values(activeSessions)[0];
                     if (primarySid) setSessionId(primarySid);
+                    // Aggregate PnL/trades from all parallel sessions
+                    const allSessionIds = Object.values(activeSessions);
+                    const allSessionData = sessions.filter(s => allSessionIds.includes(s.session_id));
+                    const aggregatedPnl = allSessionData.reduce((sum, s) => sum + (s.pnl || 0), 0);
+                    const aggregatedTrades = allSessionData.reduce((sum, s) => sum + (s.trades_count || 0), 0);
                     const primaryData = sessions.find(s => s.session_id === primarySid);
-                    if (primaryData) setLiveData(primaryData);
+                    setLiveData(primaryData ? {
+                        ...primaryData,
+                        pnl: aggregatedPnl,
+                        trades_count: aggregatedTrades,
+                        _parallel_sessions: allSessionData
+                    } : null);
                     startPolling();
                     return true;
                 } else {
@@ -803,22 +813,28 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             onIntervalChange={setSelectedInterval}
                             customControls={
                                 configList && configList.length > 0 && onRankChange ? (
-                                    <select
-                                        value={currentRankIndex}
-                                        onChange={(e) => onRankChange(parseInt(e.target.value))}
-                                        className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors mr-2"
-                                    >
-                                        {configList.map((cfg, idx) => {
-                                            if (!cfg.is_active) return null;
-                                            const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
-                                            const name = symbolMatch ? symbolMatch.name : cfg.symbol;
-                                            return (
-                                                <option key={idx} value={idx}>
-                                                    Rank {idx + 1}: {name}
-                                                </option>
-                                            );
-                                        })}
-                                    </select>
+                                    <div className="flex items-center gap-1 mr-2">
+                                        {executionMode === 'parallel' && status === 'RUNNING' && (
+                                            <span className="text-[9px] text-blue-400 mr-1">Chart:</span>
+                                        )}
+                                        <select
+                                            value={currentRankIndex}
+                                            onChange={(e) => onRankChange(parseInt(e.target.value))}
+                                            className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors"
+                                        >
+                                            {configList.map((cfg, idx) => {
+                                                if (!cfg.is_active) return null;
+                                                const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
+                                                const name = symbolMatch ? symbolMatch.name : cfg.symbol;
+                                                const isRunning = executionMode === 'parallel' && parallelSessions[idx];
+                                                return (
+                                                    <option key={idx} value={idx}>
+                                                        Rank {idx + 1}: {name}{isRunning ? ' ●' : ''}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </div>
                                 ) : null
                             }
                         />

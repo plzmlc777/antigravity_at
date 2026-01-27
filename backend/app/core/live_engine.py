@@ -159,6 +159,8 @@ class LiveTradingEngine:
                 
         except asyncio.CancelledError:
             logger.info("Live Loop Cancelled")
+        except Exception as e:
+            logger.error(f"Unexpected error in run_loop: {e}", exc_info=True)
         finally:
             self.is_running = False
             logger.info("Live Loop Stopped")
