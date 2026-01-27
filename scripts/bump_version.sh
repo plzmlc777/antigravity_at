@@ -24,12 +24,13 @@ sed -i "s/PROJECT_VERSION: str = \".*\"/PROJECT_VERSION: str = \"$NEW_VERSION\"/
 echo "[2/4] Updating frontend package.json..."
 sed -i "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" "$ROOT_DIR/frontend/package.json"
 
-# 3. Update DB (system_configs table)
+# 3. Update DB (both tables for consistency)
 echo "[3/4] Updating DB version..."
 cd "$ROOT_DIR"
 source .env 2>/dev/null || true
 PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_SERVER -U $POSTGRES_USER -d $POSTGRES_DB -c \
-    "UPDATE system_configs SET value = '$NEW_VERSION', updated_at = NOW() WHERE key = 'app_version';"
+    "UPDATE system_metadata SET value = '$NEW_VERSION', updated_at = NOW() WHERE key = 'version';
+     UPDATE system_configs SET value = '$NEW_VERSION', updated_at = NOW() WHERE key = 'app_version';"
 
 # 4. Git commit and tag
 echo "[4/4] Creating git commit and tag..."
