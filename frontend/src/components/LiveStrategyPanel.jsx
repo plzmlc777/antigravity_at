@@ -9,7 +9,7 @@ import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
 import StrategyKPIWidget from './StrategyKPIWidget';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive' }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -21,6 +21,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+
+    // Parallel mode: track multiple sessions {rankIndex: sessionId}
+    const [parallelSessions, setParallelSessions] = useState({});
 
     // Real-Time Candles State
     const [realTimeCandles, setRealTimeCandles] = useState([]);
@@ -180,21 +183,53 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const checkStatus = async () => {
         try {
             const sessions = await getLiveStatus();
-            const currentSymbol = strategyConfig.symbol;
-            const mySession = sessions.find(s => s.symbol === currentSymbol && s.is_running);
 
-            if (mySession) {
-                setStatus('RUNNING');
-                setSessionId(mySession.session_id);
-                setLiveData(mySession);
-                startPolling();
-                return true;
-            } else {
-                if (status === 'RUNNING') {
-                    setStatus('STOPPED');
-                    stopPolling();
+            if (executionMode === 'parallel') {
+                // Parallel: detect sessions for all active ranks
+                const activeSessions = {};
+                let anyRunning = false;
+                configList.forEach((cfg, idx) => {
+                    if (!cfg.is_active) return;
+                    const match = sessions.find(s => s.symbol === cfg.symbol && s.is_running);
+                    if (match) {
+                        activeSessions[idx] = match.session_id;
+                        anyRunning = true;
+                    }
+                });
+                setParallelSessions(activeSessions);
+                if (anyRunning) {
+                    setStatus('RUNNING');
+                    const primarySid = activeSessions[currentRankIndex] || Object.values(activeSessions)[0];
+                    if (primarySid) setSessionId(primarySid);
+                    const primaryData = sessions.find(s => s.session_id === primarySid);
+                    if (primaryData) setLiveData(primaryData);
+                    startPolling();
+                    return true;
+                } else {
+                    if (status === 'RUNNING') {
+                        setStatus('STOPPED');
+                        stopPolling();
+                    }
+                    return false;
                 }
-                return false;
+            } else {
+                // Exclusive: single session by symbol
+                const currentSymbol = strategyConfig.symbol;
+                const mySession = sessions.find(s => s.symbol === currentSymbol && s.is_running);
+
+                if (mySession) {
+                    setStatus('RUNNING');
+                    setSessionId(mySession.session_id);
+                    setLiveData(mySession);
+                    startPolling();
+                    return true;
+                } else {
+                    if (status === 'RUNNING') {
+                        setStatus('STOPPED');
+                        stopPolling();
+                    }
+                    return false;
+                }
             }
         } catch (err) {
             console.error("Live Status Error", err);
@@ -212,19 +247,61 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setError(null);
             setStatus('STARTING');
 
-            const payload = {
-                symbol: strategyConfig.symbol,
-                strategy_name: strategyName || "time_momentum",
-                strategy_config: strategyConfig,
-                initial_capital: parseFloat(inputCapital) || 0
-            };
+            if (executionMode === 'parallel') {
+                // Parallel: start sessions for all active ranks
+                const activeConfigs = configList.filter(c => c.is_active);
+                if (activeConfigs.length === 0) {
+                    setError("No active ranks to start");
+                    setStatus('ERROR');
+                    return;
+                }
+                const capitalPerRank = Math.floor((parseFloat(inputCapital) || 0) / activeConfigs.length);
 
-            const res = await startLiveBot(payload);
-            setSessionId(res.session_id);
-            setStatus('RUNNING');
-            startPolling();
+                const newSessions = {};
+                for (let i = 0; i < configList.length; i++) {
+                    const cfg = configList[i];
+                    if (!cfg.is_active) continue;
 
-            addLog("System", `Session Started: ${res.session_id}`);
+                    const payload = {
+                        symbol: cfg.symbol,
+                        strategy_name: strategyName || "time_momentum",
+                        strategy_config: cfg,
+                        initial_capital: capitalPerRank
+                    };
+                    try {
+                        const res = await startLiveBot(payload);
+                        newSessions[i] = res.session_id;
+                        addLog("System", `Rank ${i + 1} Started: ${res.session_id} (${cfg.symbol}, Capital: ${capitalPerRank.toLocaleString()})`);
+                    } catch (rankErr) {
+                        addLog("Error", `Rank ${i + 1} Failed: ${rankErr.response?.data?.detail || rankErr.message}`);
+                    }
+                }
+                setParallelSessions(newSessions);
+                if (Object.keys(newSessions).length > 0) {
+                    setSessionId(Object.values(newSessions)[0]);
+                    setStatus('RUNNING');
+                    startPolling();
+                    addLog("System", `Parallel Mode: ${Object.keys(newSessions).length} sessions started (${capitalPerRank.toLocaleString()} KRW/rank)`);
+                } else {
+                    setStatus('ERROR');
+                    setError("No sessions started");
+                }
+            } else {
+                // Exclusive: single session
+                const payload = {
+                    symbol: strategyConfig.symbol,
+                    strategy_name: strategyName || "time_momentum",
+                    strategy_config: strategyConfig,
+                    initial_capital: parseFloat(inputCapital) || 0
+                };
+
+                const res = await startLiveBot(payload);
+                setSessionId(res.session_id);
+                setStatus('RUNNING');
+                startPolling();
+
+                addLog("System", `Session Started: ${res.session_id}`);
+            }
 
         } catch (err) {
             setError(err.response?.data?.detail || err.message);
@@ -248,13 +325,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     };
 
     const handleEmergencyLiquidation = async () => {
-        if (!sessionId) return;
         if (!window.confirm("EMERGENCY: Do you want to sell ALL holdings and pause trading?")) return;
 
         try {
-            await liquidateLiveBot(sessionId);
+            if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
+                for (const sid of Object.values(parallelSessions)) {
+                    await liquidateLiveBot(sid);
+                }
+                addLog("Emergency", `KILL SWITCH: Liquidating all ${Object.keys(parallelSessions).length} parallel sessions.`);
+            } else if (sessionId) {
+                await liquidateLiveBot(sessionId);
+                addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
+            }
             setLiveData(prev => ({ ...prev, orders_enabled: false }));
-            addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
             alert("Emergency Liquidation Initiated. Orders have been paused.");
         } catch (err) {
             setError(err.message);
@@ -467,17 +550,27 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 onClose={() => setIsStopModalOpen(false)}
                 onConfirm={async () => {
                     try {
-                        await stopLiveBot(sessionId);
+                        if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
+                            for (const sid of Object.values(parallelSessions)) {
+                                await stopLiveBot(sid);
+                            }
+                            setParallelSessions({});
+                            addLog("System", `All ${Object.keys(parallelSessions).length} parallel sessions stopped`);
+                        } else {
+                            await stopLiveBot(sessionId);
+                            addLog("System", "Session Stopped by User");
+                        }
                         setStatus('STOPPED');
                         stopPolling();
-                        addLog("System", "Session Stopped by User");
                     } catch (err) {
                         setError(err.message);
                     }
                 }}
                 title="Stop Live Trading?"
-                message="Are you sure you want to stop the live trading session? Pending orders might be cancelled."
-                confirmText="Stop Session"
+                message={executionMode === 'parallel'
+                    ? `Are you sure you want to stop ALL ${Object.keys(parallelSessions).length} parallel sessions? Pending orders might be cancelled.`
+                    : "Are you sure you want to stop the live trading session? Pending orders might be cancelled."}
+                confirmText={executionMode === 'parallel' ? "Stop All Sessions" : "Stop Session"}
                 isDanger={true}
             />
 
@@ -488,6 +581,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     <div className="flex items-center gap-3 mb-6">
                         <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
                         <h2 className="font-bold text-lg text-white">Live Operation</h2>
+                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${executionMode === 'parallel' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
+                            {executionMode === 'parallel' ? 'Parallel' : 'Exclusive'}
+                        </span>
+                        {executionMode === 'parallel' && Object.keys(parallelSessions).length > 0 && (
+                            <span className="text-xs text-blue-400">
+                                ({Object.keys(parallelSessions).length} ranks active)
+                            </span>
+                        )}
                     </div>
 
                     {/* Section 1: Dashboard Stats (Status | PnL | Balance | Target) */}
@@ -526,6 +627,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             <div className="text-xl font-mono text-purple-400 tracking-tight">
                                 {inputCapital ? `${(parseFloat(inputCapital)).toLocaleString()} KRW` : '0 KRW'}
                             </div>
+                            {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (
+                                <div className="text-[10px] text-gray-500 mt-1">
+                                    ÷ {configList.filter(c => c.is_active).length} ranks = {Math.floor((parseFloat(inputCapital) || 0) / Math.max(1, configList.filter(c => c.is_active).length)).toLocaleString()} KRW/rank
+                                </div>
+                            )}
                         </div>
                     </div>
 
