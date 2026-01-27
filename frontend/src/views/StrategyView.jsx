@@ -2001,6 +2001,7 @@ const StrategyView = () => {
                                         <div className="mt-6 h-[400px] animate-fade-in-down border-t border-white/5 pt-6">
                                             <LiveStrategyPanel
                                                 strategyConfig={currentConfig}
+                                                strategyName={selectedStrategy?.id}
                                                 mode="WATCH"
                                                 configList={configList}
                                                 savedSymbols={savedSymbols}
@@ -2017,6 +2018,7 @@ const StrategyView = () => {
                                 <div className="animate-fade-in-up">
                                     <LiveStrategyPanel
                                         strategyConfig={configList[liveRankIndex] || configList[0]}
+                                        strategyName={selectedStrategy?.id}
                                         configList={configList}
                                         savedSymbols={savedSymbols}
                                         currentRankIndex={liveRankIndex}

@@ -179,6 +179,14 @@ class LiveContext:
         print(f"[LIVE] {message}")
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
 
+    def reset_cycle_capital(self):
+        """
+        Reset cash to initial_capital for Fixed betting mode.
+        Called by DipMartingale after closing a cycle.
+        """
+        self.cash = self.initial_capital
+        self.log(f"Cycle Capital Reset: Cash → {self.initial_capital:,.0f}")
+
     def _sync_balance(self):
         pass
 
