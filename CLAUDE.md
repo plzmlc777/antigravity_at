@@ -199,30 +199,23 @@ Environment variables are loaded from multiple sources (priority order):
 - `SECRET_KEY` - JWT signing key
 - `KIWOOM_*` - API credentials (keep secret!)
 
-### Version Management (v0.9.8.6+)
+### Version Management (v0.9.9.4+)
 
-**Single Source of Truth: DB** (`system_configs.app_version`)
-
-버전은 3곳에 저장되지만, 브라우저에 표시되는 버전은 DB에서 읽어옴:
-- **DB** `system_configs.app_version` - 실제 표시용 (API: `/api/v1/system/version`)
-- **Backend** `config.py` - fallback용
-- **Frontend** `package.json` - 빌드/개발 참고용
+버전은 **코드 2곳**만 수정하면 됨 (DB 저장 없음):
+- `backend/app/core/config.py` — `PROJECT_VERSION` (백엔드 API 반환)
+- `frontend/package.json` — `version` (Vite 빌드 시 주입)
 
 **버전 업데이트 스크립트:**
 ```bash
-# 한 번에 모든 곳 업데이트 + git commit + tag
-./scripts/bump_version.sh 0.9.8.7
-
-# 그 후 push
+./scripts/bump_version.sh 0.9.9.4
 git push origin master --tags
 ```
 
 **수동 업데이트 (Claude에게 요청 시):**
-"버전업, 깃태그, 깃푸시, DB 버전업 해줘" 라고 요청하면:
+"버전업/커밋 해줘" 라고 요청하면:
 1. `backend/app/core/config.py` 버전 수정
 2. `frontend/package.json` 버전 수정
-3. DB `system_configs` 테이블 업데이트
-4. Git commit, tag, push 실행
+3. Git commit, tag, push 실행
 
 ### Real-time WebSocket Endpoints
 - `/api/v1/live/ws/{session_id}` - Live session feed (signals, orders, PnL)

@@ -114,28 +114,8 @@ async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter))
     }
 
 @router.get("/system/version")
-async def get_system_version(db: Session = Depends(get_db)):
-    from ..models.system import SystemMetadata
-    ver = db.query(SystemMetadata).filter_by(key="version").first()
-    if not ver:
-        return {"version": settings.PROJECT_VERSION}
-    return {"version": ver.value, "updated_at": ver.updated_at.isoformat() if ver.updated_at else None}
-
-class VersionUpdateRequest(BaseModel):
-    version: str
-
-@router.post("/system/version")
-async def update_system_version(req: VersionUpdateRequest, db: Session = Depends(get_db)):
-    # In a real system, this should be protected by Admin check
-    from ..models.system import SystemMetadata
-    ver = db.query(SystemMetadata).filter_by(key="version").first()
-    if not ver:
-        ver = SystemMetadata(key="version", value=req.version)
-        db.add(ver)
-    else:
-        ver.value = req.version
-    db.commit()
-    return {"status": "success", "version": req.version}
+async def get_system_version():
+    return {"version": settings.PROJECT_VERSION}
 
 class SystemModeRequest(BaseModel):
     mode: str # REAL or MOCK
