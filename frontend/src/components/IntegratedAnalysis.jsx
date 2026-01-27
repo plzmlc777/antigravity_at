@@ -462,6 +462,86 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
 
     }, [tradeLookupMap, backtestResult, transformedTrades, totalRanks, rankToSymbolMap, strategiesConfig, savedSymbols]);
 
+    // 6. Parallel Mode Summary
+    const isParallelMode = backtestResult?.execution_mode === 'parallel';
+    const rankResultsData = backtestResult?.rank_results || [];
+    const capitalAllocation = backtestResult?.capital_allocation || {};
+
+    const ParallelSummary = () => {
+        if (!isParallelMode || rankResultsData.length === 0) return null;
+
+        const totalReturn = backtestResult?.total_return || 0;
+        const totalCapital = capitalAllocation.total || 0;
+
+        return (
+            <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">⚡</span>
+                    <h3 className="text-sm font-bold text-purple-300">Parallel Execution Mode</h3>
+                    <span className="text-xs text-gray-400 ml-2">Each rank gets Rank 1 capital ({rankResultsData.length} ranks)</span>
+                </div>
+
+                {/* Capital Distribution Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Total Capital</div>
+                        <div className="text-lg font-bold text-white">{totalCapital.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Per Rank</div>
+                        <div className="text-lg font-bold text-blue-400">{(capitalAllocation.per_rank || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Combined Return</div>
+                        <div className={`text-lg font-bold ${totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
+                        </div>
+                    </div>
+                    <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-wider">Max Drawdown</div>
+                        <div className="text-lg font-bold text-yellow-400">{(backtestResult?.max_drawdown || 0).toFixed(2)}%</div>
+                    </div>
+                </div>
+
+                {/* Per-Rank Performance */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {rankResultsData.map((rank, idx) => (
+                        <div
+                            key={rank.rank}
+                            className={`flex items-center justify-between p-2 rounded-lg border ${
+                                rank.return_pct >= 0
+                                    ? 'bg-green-900/20 border-green-500/30'
+                                    : 'bg-red-900/20 border-red-500/30'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    idx === 0 ? 'bg-yellow-500 text-black' :
+                                    idx === 1 ? 'bg-gray-400 text-black' :
+                                    idx === 2 ? 'bg-amber-700 text-white' : 'bg-gray-600 text-white'
+                                }`}>
+                                    {rank.rank}
+                                </span>
+                                <div>
+                                    <div className="text-xs text-gray-300 font-mono">{rank.symbol}</div>
+                                    <div className="text-[10px] text-gray-500">{rank.trades_count} trades</div>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className={`text-sm font-bold ${rank.return_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {rank.return_pct >= 0 ? '+' : ''}{rank.return_pct.toFixed(2)}%
+                                </div>
+                                <div className={`text-[10px] ${rank.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {rank.pnl >= 0 ? '+' : ''}{rank.pnl.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     // 6. Render
     if (!tradeList.length && (!strategiesConfig || strategiesConfig.length === 0)) {
         return (
@@ -542,6 +622,7 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
 
     return (
         <div className="w-full h-full relative flex flex-col">
+            <ParallelSummary />
             <VisualBacktestChart
                 data={syntheticData}
                 trades={transformedTrades}

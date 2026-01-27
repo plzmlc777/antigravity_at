@@ -3,6 +3,33 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
+from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
+
+# --- SINGLE SOURCE OF TRUTH: Performance Stat Keys ---
+# All stat keys that should appear in rank_stats_list and aggregated results.
+# Adding a key here auto-includes it in rank_stats_list extraction.
+PERFORMANCE_STAT_KEYS = [
+    "total_return",
+    "profit_factor",
+    "win_rate",
+    "sharpe_ratio",
+    "total_trades",
+    "stability_score",
+    "acceleration_score",
+    "activity_rate",
+    "avg_pnl",
+    "avg_holding_time",
+    "max_profit",
+    "max_loss",
+    # Cycle metrics (None when no cycles)
+    "cycle_count",
+    "cycle_avg_pnl",
+    "cycle_avg_hold",
+    "cycle_max_hold",
+    "cycle_min_hold",
+    # Always last
+    "max_drawdown",
+]
 
 class BacktestContext(IContext):
     def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = 10000000, primary_symbol: str = None):
@@ -224,10 +251,9 @@ class BacktestContext(IContext):
         for symbol, qty in self._holdings.items():
             equity += qty * self.get_current_price(symbol)
 
-        self.equity_curve.append({
-            "date": self.get_time().strftime("%Y-%m-%d %H:%M"),
-            "equity": int(equity)
-        })
+        self.equity_curve.append(make_equity_point(
+            self.get_time().strftime("%Y-%m-%d %H:%M"), equity
+        ))
 
 async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, preloaded_feeds: Dict[str, List] = None) -> Dict[str, List]:
     """
@@ -277,6 +303,95 @@ class WaterfallBacktestEngine:
         self.strategy_class = strategy_class
         # This primary config might be Rank 1 or empty if using list
         self.config = config or {}
+
+    async def run_single_backtest(
+        self,
+        config: Dict,
+        feed: List[Dict],
+        initial_capital: int,
+        symbol: str,
+        optimize_mode: bool = False,
+        rank: int = 1
+    ) -> Dict:
+        """
+        ATOMIC SINGLE STRATEGY BACKTEST - SINGLE SOURCE OF TRUTH
+
+        This is the core execution unit that BOTH individual backtest AND
+        parallel mode use. This ensures consistent results across all modes.
+
+        Args:
+            config: Strategy configuration dict
+            feed: List of OHLCV candles (already filtered by date)
+            initial_capital: Starting capital for this run
+            symbol: Stock symbol
+            optimize_mode: If True, skip chart/visualization data
+            rank: Rank identifier (for logging)
+
+        Returns:
+            Complete backtest result with stats, trades, equity_curve
+        """
+        if not feed:
+            return self._empty_result(["No data provided"])
+
+        # 1. Create Independent Context
+        feeds = {symbol: feed}
+        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol)
+        context.current_rank = rank
+        context.optimize_mode = optimize_mode
+
+        # 2. Create and Initialize Strategy
+        p_config = config.copy()
+        p_config['initial_capital'] = initial_capital
+        p_config['symbol'] = symbol
+
+        strat = self.strategy_class(context, p_config)
+        if hasattr(strat, 'initialize'):
+            strat.initialize()
+
+        # 3. Run Simulation - Direct Feed Loop (consistent execution path)
+        for candle in feed:
+            context.current_timestamp = candle['timestamp']
+            try:
+                strat.on_data(candle)
+                context.update_equity()
+            except Exception as e:
+                pass  # Continue on error
+
+        # 4. Force Liquidation at End (close all open positions)
+        positions = {}
+        for t in context.trades:
+            sym = t['symbol']
+            qty = t['quantity']
+            if sym not in positions:
+                positions[sym] = 0
+            if t['type'] == 'buy':
+                positions[sym] += qty
+            elif t['type'] == 'sell':
+                positions[sym] -= qty
+
+        for sym, qty in positions.items():
+            if qty > 0:
+                last_price = context.get_current_price(sym)
+                if last_price <= 0:
+                    last_price = feed[-1]['close'] if feed else 100000
+                context.sell(sym, qty, price=last_price)
+
+        # 5. Calculate Statistics using unified _generate_stats
+        stats = self._generate_stats(context, feed, optimize_mode=optimize_mode)
+
+        # 6. Add metadata
+        final_equity = context.equity_curve[-1][EQUITY_VALUE_KEY] if context.equity_curve else initial_capital
+        stats['symbol'] = symbol
+        stats['initial_capital'] = initial_capital
+        stats['final_equity'] = final_equity
+        stats['return_pct'] = ((final_equity - initial_capital) / initial_capital * 100) if initial_capital > 0 else 0
+        stats['pnl'] = final_equity - initial_capital
+        stats['trades_count'] = len(context.trades)
+        stats['equity_curve'] = context.equity_curve
+        stats['rank'] = rank
+        stats['config'] = p_config
+
+        return stats
 
     async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
         import time
@@ -363,8 +478,9 @@ class WaterfallBacktestEngine:
         print(f"DEBUG: League Initialized with {len(participants)} strategies.")
             
         # 4. League Loop (Time + Rank Priority)
-        # [OPTIMIZATION] Fast Loop for Single-Strategy Optimization
-        if optimize_mode and len(participants) == 1 and len(feeds) == 1:
+        # [FIX] Fast Loop for Single-Strategy (ALWAYS use this path for 1 participant)
+        # This ensures individual backtest matches parallel mode execution (same as run_parallel)
+        if len(participants) == 1 and len(feeds) == 1:
             # Bypass Set/Sort overhead. Iterate directly on feed.
             p = participants[0]
             strat = p['strategy']
@@ -498,14 +614,363 @@ class WaterfallBacktestEngine:
             initial_capital=initial_capital
         )
 
+    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+        """
+        Parallel Execution Mode: Each Rank runs independently with equal capital split.
+        All ranks operate simultaneously without affecting each other.
+
+        Capital Distribution: initial_capital / num_ranks (equal split)
+        """
+        import time
+        t_start = time.time()
+
+        if not strategies_config:
+            return self._empty_result(["No strategies provided"])
+
+        num_ranks = len(strategies_config)
+        # PARALLEL MODE: Frontend sends totalCapital = rank1Capital * num_ranks
+        # So we divide to get per-rank capital (same as individual backtest's rank1Capital)
+        capital_per_rank = initial_capital // num_ranks  # Equal split - each rank gets rank1Capital
+        total_capital_deployed = initial_capital  # Total is what frontend sent (not multiplied again)
+
+        # Initialize combined_logs early for debug logging
+        combined_logs = []
+        combined_logs.append(f"=== PARALLEL EXECUTION MODE ===")
+        combined_logs.append(f"Capital Per Rank: {capital_per_rank:,} | Ranks: {num_ranks} | Total Deployed: {total_capital_deployed:,}")
+        combined_logs.append(f"Interval: {interval}, Duration: {duration_days} days, From: {from_date}")
+
+        # 1. Fetch Data Once (Shared across all ranks)
+        from ..services.market_data import MarketDataService
+        data_service = MarketDataService()
+
+        unique_symbols = set()
+        if global_symbol:
+            unique_symbols.add(global_symbol)
+        for cfg in strategies_config:
+            if 'symbol' in cfg:
+                unique_symbols.add(cfg['symbol'])
+
+        feeds = {}
+        for sym in unique_symbols:
+            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
+            if raw_feed:
+                if from_date:
+                    raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
+                raw_feed.sort(key=lambda x: x['timestamp'])
+                feeds[sym] = raw_feed
+                combined_logs.append(f"Loaded {len(raw_feed)} candles for {sym}")
+
+        if not feeds:
+            return self._empty_result(["No data for any symbol"])
+
+        t_data = time.time()
+
+        # Fetch visualization feeds
+        viz_feeds = await fetch_visualization_feeds(
+            strategies_config=strategies_config,
+            global_symbol=global_symbol,
+            interval=interval,
+            duration_days=duration_days,
+            from_date=from_date,
+            preloaded_feeds=feeds
+        )
+
+        primary_symbol = strategies_config[0].get('symbol', global_symbol)
+
+        # 2. Run Each Rank Using SINGLE SOURCE (run_single_backtest)
+        # This ensures EXACT same execution path as individual backtest
+        rank_results = []
+        all_trades = []
+        combined_equity_curve = []
+        # combined_logs already initialized above
+
+        for rank_idx, cfg_raw in enumerate(strategies_config):
+            rank_capital = capital_per_rank
+            rank_symbol = cfg_raw.get("symbol", global_symbol)
+            feed = feeds.get(rank_symbol, list(feeds.values())[0])
+
+            # DEBUG: Log config
+            combined_logs.append(f"[Rank {rank_idx+1}] === USING run_single_backtest() ===")
+            combined_logs.append(f"[Rank {rank_idx+1}] symbol={rank_symbol}, capital={rank_capital:,}")
+            combined_logs.append(f"[Rank {rank_idx+1}] dip_percent={cfg_raw.get('dip_percent')}, trailing_start={cfg_raw.get('trailing_start_percent')}, max_levels={cfg_raw.get('max_levels')}")
+
+            # *** SINGLE SOURCE OF TRUTH ***
+            # Use run_single_backtest() - same function used by individual backtest endpoint
+            rank_result = await self.run_single_backtest(
+                config=cfg_raw,
+                feed=feed,
+                initial_capital=rank_capital,
+                symbol=rank_symbol,
+                optimize_mode=True,  # Skip chart data for performance
+                rank=rank_idx + 1
+            )
+
+            # Tag trades with rank info for aggregation
+            for t in rank_result.get('trades', []):
+                t['strategy_rank'] = rank_idx + 1
+                t['allocated_capital'] = rank_capital
+
+            # Build rank_results in expected format
+            rank_results.append({
+                "rank": rank_idx + 1,
+                "symbol": rank_symbol,
+                "allocated_capital": rank_capital,
+                "final_equity": rank_result.get('final_equity', rank_capital),
+                "return_pct": rank_result.get('return_pct', 0),
+                "pnl": rank_result.get('pnl', 0),
+                "trades_count": rank_result.get('trades_count', 0),
+                "equity_curve": rank_result.get('equity_curve', []),
+                "config": rank_result.get('config', cfg_raw),
+                "full_stats": rank_result  # Full stats from run_single_backtest
+            })
+
+            all_trades.extend(rank_result.get('trades', []))
+            combined_logs.extend([f"[Rank {rank_idx + 1}] {log}" for log in rank_result.get('logs', [])[-20:]])
+            combined_logs.append(f"[Rank {rank_idx + 1}] === RESULT: {rank_capital:,} -> {rank_result.get('final_equity', 0):,.0f} ({rank_result.get('return_pct', 0):+.2f}%), Trades: {rank_result.get('trades_count', 0)} ===")
+
+        t_exec = time.time()
+
+        # 3. Aggregate Results
+        total_final_equity = sum(r['final_equity'] for r in rank_results)
+        # Use total_capital_deployed as base (each rank got full initial_capital)
+        total_return = ((total_final_equity - total_capital_deployed) / total_capital_deployed * 100) if total_capital_deployed > 0 else 0
+        total_pnl = total_final_equity - total_capital_deployed
+        # Also calculate sum of individual rank returns (for display)
+        sum_of_rank_returns = sum(r['return_pct'] for r in rank_results)
+
+        # Build Combined Equity Curve (sum of all ranks at each timestamp)
+        all_timestamps = set()
+        for r in rank_results:
+            for pt in r['equity_curve']:
+                all_timestamps.add(pt[EQUITY_DATE_KEY])
+
+        sorted_ts = sorted(all_timestamps)
+        combined_equity_curve = []
+
+        # Build lookup for each rank's equity at each timestamp
+        rank_equity_lookup = []
+        for r in rank_results:
+            lookup = {pt[EQUITY_DATE_KEY]: pt[EQUITY_VALUE_KEY] for pt in r['equity_curve']}
+            rank_equity_lookup.append(lookup)
+
+        last_values = [r['allocated_capital'] for r in rank_results]
+        for ts in sorted_ts:
+            combined = 0
+            for i, lookup in enumerate(rank_equity_lookup):
+                if ts in lookup:
+                    last_values[i] = lookup[ts]
+                combined += last_values[i]
+            combined_equity_curve.append(make_equity_point(ts, combined))
+
+        # Calculate Combined MDD
+        max_dd = self._calc_mdd(combined_equity_curve) if combined_equity_curve else 0
+
+        # Sort all trades by time
+        all_trades.sort(key=lambda x: x.get('time', ''))
+
+        # Calculate Activity Rate
+        ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
+        data_dates = set()
+        for c in ref_feed:
+            try:
+                data_dates.add(datetime.fromisoformat(c['timestamp']).date())
+            except:
+                pass
+        traded_dates = set()
+        for t in all_trades:
+            try:
+                traded_dates.add(datetime.fromisoformat(t['time']).date())
+            except:
+                pass
+
+        total_days = len(data_dates)
+        traded_count = len(traded_dates)
+        activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
+
+        # Build OHLCV data for visualization
+        raw_ohlcv = [
+            {
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            } for d in ref_feed
+        ]
+
+        t_stats = time.time()
+        perf_msg = f"[PARALLEL] Data: {t_data - t_start:.4f}s | Exec: {t_exec - t_data:.4f}s | Stats: {t_stats - t_exec:.4f}s | Total: {t_stats - t_start:.4f}s"
+        print(perf_msg)
+
+        # Build rank_stats_list from full_stats using PERFORMANCE_STAT_KEYS (auto-extraction)
+        print(f"[DEBUG] Building rank_stats_list from {len(rank_results)} rank_results")
+        rank_stats_list = []
+        for r in rank_results:
+            fs = r.get('full_stats', {})
+            print(f"[DEBUG] Rank {r['rank']}: full_stats keys = {list(fs.keys())[:10]}")
+            rank_stat = {"rank": r['rank'], "symbol": r['symbol']}
+            for key in PERFORMANCE_STAT_KEYS:
+                rank_stat[key] = fs.get(key)
+            # Override total_return from rank result if not in full_stats
+            if rank_stat.get('total_return') is None:
+                rank_stat['total_return'] = r.get('return_pct', 0)
+            rank_stats_list.append(rank_stat)
+        print(f"[DEBUG] rank_stats_list built with {len(rank_stats_list)} items")
+
+        # Calculate combined trade stats by AGGREGATING per-rank stats (NOT by mixing trades from different symbols)
+        # This is correct for parallel mode where each rank runs independently
+        combined_trade_stats = self._aggregate_rank_stats(rank_results, total_days, initial_capital)
+        print(f"[DEBUG] Combined stats aggregated from {len(rank_results)} ranks: win_rate={combined_trade_stats.get('win_rate')}, total_trades={combined_trade_stats.get('total_trades')}")
+
+        # Return comprehensive result
+        # NOTE: **combined_trade_stats goes FIRST so our specific values can override
+        result = {
+            # Trade analysis aggregated from per-rank stats - spread first
+            **combined_trade_stats,
+            # Override with our calculated values
+            "total_return": total_return,
+            "max_drawdown": max_dd,
+            "activity_rate": activity_rate,
+            "total_days": total_days,
+            "total_trades": combined_trade_stats.get('total_trades', sum(r['trades_count'] for r in rank_results)),
+            "chart_data": combined_equity_curve,
+            "equity_curve": combined_equity_curve,
+            "ohlcv_data": raw_ohlcv,
+            "multi_ohlcv_data": viz_feeds,
+            "trades": all_trades,
+            "logs": combined_logs[-100:],
+            "perf_log": perf_msg,
+            # Parallel-specific data
+            "execution_mode": "parallel",
+            "rank_results": rank_results,
+            "rank_stats_list": rank_stats_list,  # Uses full_stats from _generate_stats (overrides empty from combined_trade_stats)
+            "sum_of_rank_returns": sum_of_rank_returns,  # Sum of individual rank returns (for display)
+            "capital_allocation": {
+                "total": total_capital_deployed,  # Total deployed = initial_capital * num_ranks
+                "per_rank": capital_per_rank,
+                "num_ranks": num_ranks,
+                "initial_capital": initial_capital,
+                "distribution": [{"rank": r['rank'], "capital": r['allocated_capital'], "return_pct": r['return_pct'], "pnl": r['pnl']} for r in rank_results]
+            },
+        }
+
+        return result
+
+    def _analyze_trades_parallel(self, trades: List[Dict], start_date: str, end_date: str, total_days: int, initial_capital: float):
+        """Analyze trades for parallel execution mode"""
+        if not trades:
+            return {
+                "win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "avg_holding_time": 0,
+                "total_profit": 0.0,
+                "total_loss": 0.0,
+                "score": 0
+            }
+
+        # Pair buy/sell trades by rank
+        rank_cycles = {}
+        for t in trades:
+            rank = t.get('strategy_rank', 0)
+            if rank not in rank_cycles:
+                rank_cycles[rank] = {"buys": [], "sells": []}
+            if t['type'] == 'buy':
+                rank_cycles[rank]["buys"].append(t)
+            else:
+                rank_cycles[rank]["sells"].append(t)
+
+        pnls = []
+        holding_times = []
+
+        for rank, cycles in rank_cycles.items():
+            buys = sorted(cycles["buys"], key=lambda x: x.get('time', ''))
+            sells = sorted(cycles["sells"], key=lambda x: x.get('time', ''))
+
+            # Simple pairing: each sell closes accumulated buys
+            buy_queue = []
+            for trade in buys + sells:
+                if trade['type'] == 'buy':
+                    buy_queue.append(trade)
+                elif trade['type'] == 'sell' and buy_queue:
+                    # Close all pending buys
+                    total_buy_cost = sum(b['price'] * b['quantity'] for b in buy_queue)
+                    total_qty = sum(b['quantity'] for b in buy_queue)
+                    avg_buy_price = total_buy_cost / total_qty if total_qty > 0 else 0
+
+                    sell_price = trade['price']
+                    pnl = (sell_price - avg_buy_price) * total_qty
+                    pnls.append(pnl)
+
+                    # Holding time from first buy
+                    if buy_queue:
+                        try:
+                            buy_time = datetime.fromisoformat(buy_queue[0]['time'])
+                            sell_time = datetime.fromisoformat(trade['time'])
+                            holding_minutes = (sell_time - buy_time).total_seconds() / 60
+                            holding_times.append(holding_minutes)
+                        except:
+                            pass
+
+                    buy_queue = []
+
+        if not pnls:
+            return {
+                "win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "avg_holding_time": 0,
+                "total_profit": 0.0,
+                "total_loss": 0.0,
+                "score": 0
+            }
+
+        wins = [p for p in pnls if p > 0]
+        losses = [p for p in pnls if p < 0]
+
+        total_profit = sum(wins)
+        total_loss = abs(sum(losses))
+
+        win_rate = (len(wins) / len(pnls) * 100) if pnls else 0
+        avg_pnl_raw = sum(pnls) / len(pnls) if pnls else 0
+        max_profit_raw = max(pnls) if pnls else 0
+        max_loss_raw = min(pnls) if pnls else 0
+
+        # Convert to percentage of initial capital
+        avg_pnl = (avg_pnl_raw / initial_capital * 100) if initial_capital > 0 else 0
+        max_profit = (max_profit_raw / initial_capital * 100) if initial_capital > 0 else 0
+        max_loss = (max_loss_raw / initial_capital * 100) if initial_capital > 0 else 0
+
+        profit_factor = (total_profit / total_loss) if total_loss > 0 else float('inf') if total_profit > 0 else 0
+        avg_holding = sum(holding_times) / len(holding_times) if holding_times else 0
+
+        # Simple score
+        score = int(win_rate * 0.3 + min(profit_factor * 10, 30) + min(len(pnls), 40))
+
+        return {
+            "win_rate": win_rate,
+            "avg_pnl": avg_pnl,
+            "max_profit": max_profit,
+            "max_loss": max_loss,
+            "profit_factor": profit_factor,
+            "avg_holding_time": int(avg_holding),
+            "total_profit": total_profit,
+            "total_loss": total_loss,
+            "score": score
+        }
+
     # ... _generate_stats, _empty_result, etc. (Existing methods remain) ...
     # ... _generate_stats, _empty_result, etc. (Existing methods remain) ...
     def _generate_stats(self, context: BacktestContext, data_feed: List[Dict], optimize_mode: bool = False):
         if not context.equity_curve:
              return self._empty_result(logs=context.logs)
 
-        final_equity = context.equity_curve[-1]['equity']
-        initial_equity = context.equity_curve[0]['equity']
+        final_equity = context.equity_curve[-1][EQUITY_VALUE_KEY]
+        initial_equity = context.equity_curve[0][EQUITY_VALUE_KEY]
         total_return = (final_equity - initial_equity) / initial_equity * 100
         
         # Activity Rate logic
@@ -690,8 +1155,11 @@ class WaterfallBacktestEngine:
             "decile_stats": monthly_stats,
             "stability_score": stability_score,
             "acceleration_score": acceleration_score,
-            "total_cycles": base_stats.get('total_cycles'),  # Martingale cycle count
-            "avg_pnl_per_cycle": base_stats.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
+            "cycle_count": base_stats.get('cycle_count'),
+            "cycle_avg_pnl": base_stats.get('cycle_avg_pnl'),
+            "cycle_avg_hold": base_stats.get('cycle_avg_hold'),
+            "cycle_max_hold": base_stats.get('cycle_max_hold'),
+            "cycle_min_hold": base_stats.get('cycle_min_hold'),
             "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital) if calc_ranks else []
         }
 
@@ -746,26 +1214,50 @@ class WaterfallBacktestEngine:
 
         # Martingale Cycle Statistics (for strategies using multi-level entries)
         # A cycle is identified by unique cycle_id in metadata
-        cycle_trades = [t for t in completed_trades if t.get('metadata', {}).get('level') == 'CLOSE']
+        # Group ALL trades by cycle_id (not just CLOSE) to compute hold times
+        cycle_data = {}  # {cycle_id: {"pnl": float, "max_hold_sec": float}}
+        for t in completed_trades:
+            meta = t.get('metadata', {})
+            cycle_id = meta.get('cycle_id')
+            if cycle_id is None:
+                continue
+            if cycle_id not in cycle_data:
+                cycle_data[cycle_id] = {"pnl": 0.0, "max_hold_sec": 0.0}
+            # Only sum PnL from CLOSE-level trades (sell trades)
+            if meta.get('level') == 'CLOSE':
+                cycle_data[cycle_id]["pnl"] += t.get('pnl_percent', 0) * 100
+            # Max holding_seconds in cycle = time from first buy to sell (cycle duration)
+            hold_sec = t.get('holding_seconds', 0)
+            if hold_sec > cycle_data[cycle_id]["max_hold_sec"]:
+                cycle_data[cycle_id]["max_hold_sec"] = hold_sec
 
-        # Group trades by cycle_id to count unique cycles and sum PnL per cycle
-        cycle_pnl_map = {}  # {cycle_id: total_pnl_percent}
-        for t in cycle_trades:
-            cycle_id = t.get('metadata', {}).get('cycle_id', 0)
-            pnl_pct = t.get('pnl_percent', 0) * 100  # Convert to %
-            if cycle_id in cycle_pnl_map:
-                cycle_pnl_map[cycle_id] += pnl_pct
-            else:
-                cycle_pnl_map[cycle_id] = pnl_pct
-
-        total_cycles = len(cycle_pnl_map) if cycle_pnl_map else 0
-        avg_pnl_per_cycle = 0.0
+        total_cycles = len(cycle_data) if cycle_data else 0
+        cycle_stats = {
+            "cycle_count": None,
+            "cycle_avg_pnl": None,
+            "cycle_avg_hold": None,
+            "cycle_max_hold": None,
+            "cycle_min_hold": None,
+        }
 
         if total_cycles > 0:
-            # Average PnL per unique cycle
-            total_cycle_pnl_percent = sum(cycle_pnl_map.values())
-            avg_pnl_per_cycle = total_cycle_pnl_percent / total_cycles
-            print(f"[DEBUG] Martingale Cycles: {total_cycles} unique cycles, Avg PnL per cycle: {avg_pnl_per_cycle:.2f}%")
+            total_cycle_pnl = sum(c["pnl"] for c in cycle_data.values())
+            cycle_hold_times = [c["max_hold_sec"] for c in cycle_data.values()]
+            avg_cycle_hold_min = int((sum(cycle_hold_times) / total_cycles) / 60)
+            max_cycle_hold_min = int(max(cycle_hold_times) / 60)
+            min_cycle_hold_min = int(min(cycle_hold_times) / 60)
+            avg_pnl_per_cycle = total_cycle_pnl / total_cycles
+
+            cycle_stats = {
+                "cycle_count": total_cycles,
+                "cycle_avg_pnl": round(avg_pnl_per_cycle, 2),
+                "cycle_avg_hold": avg_cycle_hold_min,
+                "cycle_max_hold": max_cycle_hold_min,
+                "cycle_min_hold": min_cycle_hold_min,
+            }
+            print(f"[DEBUG] Martingale Cycles: {total_cycles} cycles, "
+                  f"Avg PnL: {avg_pnl_per_cycle:.2f}%, "
+                  f"Hold(avg/max/min): {avg_cycle_hold_min}/{max_cycle_hold_min}/{min_cycle_hold_min}m")
 
         return {
             "win_rate": win_rate,
@@ -775,9 +1267,162 @@ class WaterfallBacktestEngine:
             "profit_factor": profit_factor,
             "sharpe_ratio": sharpe,
             "avg_holding_time": avg_holding_min,
-            "total_cycles": total_cycles if total_cycles > 0 else None,  # None if not martingale strategy
-            "avg_pnl_per_cycle": avg_pnl_per_cycle if total_cycles > 0 else None
+            **cycle_stats,
         }
+
+    def _aggregate_rank_stats(self, rank_results: List[Dict], total_days: int, initial_capital: float) -> Dict[str, Any]:
+        """
+        Aggregate statistics from per-rank results for parallel execution mode.
+        This is more accurate than mixing trades from different symbols and doing FIFO matching.
+
+        Each rank's stats come from _generate_stats which does proper FIFO matching per symbol.
+        We aggregate these to get combined portfolio statistics.
+        """
+        if not rank_results:
+            empty = {key: None for key in PERFORMANCE_STAT_KEYS}
+            empty.update({"total_trades": 0, "rank_stats_list": []})
+            return empty
+
+        # Collect stats from each rank's full_stats
+        all_win_rates = []
+        all_avg_pnls = []
+        all_max_profits = []
+        all_max_losses = []
+        all_profit_factors = []
+        all_sharpe_ratios = []
+        all_holding_times = []
+        all_trade_counts = []
+        all_stability_scores = []
+        all_acceleration_scores = []
+
+        total_gross_profit = 0
+        total_gross_loss = 0
+
+        # Cycle stats aggregation
+        total_cycles_sum = 0
+        total_cycle_pnl_sum = 0.0
+        total_cycle_hold_sum = 0.0  # sum of (avg_hold * count) for weighted avg
+        all_cycle_max_holds = []
+        all_cycle_min_holds = []
+        has_any_cycles = False
+
+        for r in rank_results:
+            fs = r.get('full_stats', {})
+            trade_count = r.get('trades_count', 0)
+
+            if trade_count == 0:
+                continue
+
+            all_trade_counts.append(trade_count)
+
+            # Extract stats (handle both numeric and string formats)
+            def parse_pct(v):
+                if isinstance(v, str):
+                    return float(v.replace('%', '').strip())
+                return float(v) if v else 0.0
+
+            win_rate = parse_pct(fs.get('win_rate', 0))
+            avg_pnl = parse_pct(fs.get('avg_pnl', 0))
+            max_profit = parse_pct(fs.get('max_profit', 0))
+            max_loss = parse_pct(fs.get('max_loss', 0))
+
+            pf = fs.get('profit_factor', 0)
+            profit_factor = float(pf) if pf else 0.0
+
+            sr = fs.get('sharpe_ratio', 0)
+            sharpe_ratio = float(sr) if sr else 0.0
+
+            ht = fs.get('avg_holding_time', 0)
+            holding_time = float(ht) if ht else 0.0
+
+            ss = fs.get('stability_score', 0)
+            stability_score = float(ss) if ss else 0.0
+
+            accel = fs.get('acceleration_score', 1.0)
+            acceleration_score = float(accel) if accel else 1.0
+
+            all_win_rates.append((win_rate, trade_count))
+            all_avg_pnls.append((avg_pnl, trade_count))
+            all_max_profits.append(max_profit)
+            all_max_losses.append(max_loss)
+            all_profit_factors.append(profit_factor)
+            all_sharpe_ratios.append((sharpe_ratio, trade_count))
+            all_holding_times.append((holding_time, trade_count))
+            all_stability_scores.append((stability_score, trade_count))
+            all_acceleration_scores.append((acceleration_score, trade_count))
+
+            # Cycle stats from each rank
+            rank_cycles = fs.get('cycle_count')
+            if rank_cycles is not None and rank_cycles > 0:
+                has_any_cycles = True
+                total_cycles_sum += rank_cycles
+                rank_avg_pnl = fs.get('cycle_avg_pnl', 0) or 0
+                total_cycle_pnl_sum += rank_avg_pnl * rank_cycles
+                rank_avg_hold = fs.get('cycle_avg_hold', 0) or 0
+                total_cycle_hold_sum += rank_avg_hold * rank_cycles
+                if fs.get('cycle_max_hold') is not None:
+                    all_cycle_max_holds.append(fs['cycle_max_hold'])
+                if fs.get('cycle_min_hold') is not None:
+                    all_cycle_min_holds.append(fs['cycle_min_hold'])
+
+            # Estimate gross profit/loss from rank PnL and win rate
+            rank_pnl = r.get('pnl', 0)
+            if rank_pnl > 0:
+                total_gross_profit += rank_pnl
+            else:
+                total_gross_loss += abs(rank_pnl)
+
+        total_trades = sum(all_trade_counts) if all_trade_counts else 0
+
+        if total_trades == 0:
+            empty = {key: None for key in PERFORMANCE_STAT_KEYS}
+            empty.update({"total_trades": 0, "rank_stats_list": []})
+            return empty
+
+        # Weighted averages by trade count
+        def weighted_avg(values_with_weights):
+            total_weight = sum(w for _, w in values_with_weights)
+            if total_weight == 0:
+                return 0.0
+            return sum(v * w for v, w in values_with_weights) / total_weight
+
+        combined_win_rate = weighted_avg(all_win_rates)
+        combined_avg_pnl = weighted_avg(all_avg_pnls)
+        combined_sharpe = weighted_avg(all_sharpe_ratios)
+        combined_holding_time = int(weighted_avg(all_holding_times))
+        combined_stability = weighted_avg(all_stability_scores)
+        combined_acceleration = weighted_avg(all_acceleration_scores)
+
+        # Max/Min across all ranks
+        combined_max_profit = max(all_max_profits) if all_max_profits else 0.0
+        combined_max_loss = min(all_max_losses) if all_max_losses else 0.0
+
+        # Profit factor from aggregated gross profit/loss
+        combined_profit_factor = (total_gross_profit / total_gross_loss) if total_gross_loss > 0 else 99.99
+
+        result = {
+            "win_rate": round(combined_win_rate, 1),
+            "avg_pnl": round(combined_avg_pnl, 2),
+            "max_profit": round(combined_max_profit, 2),
+            "max_loss": round(combined_max_loss, 2),
+            "profit_factor": round(combined_profit_factor, 2),
+            "sharpe_ratio": round(combined_sharpe, 2),
+            "avg_holding_time": combined_holding_time,
+            "total_trades": total_trades,
+            "stability_score": round(combined_stability, 2),
+            "acceleration_score": round(combined_acceleration, 2),
+            "rank_stats_list": []  # Will be overridden by explicit rank_stats_list
+        }
+
+        # Add cycle stats if any rank had cycles
+        if has_any_cycles and total_cycles_sum > 0:
+            result["cycle_count"] = total_cycles_sum
+            result["cycle_avg_pnl"] = round(total_cycle_pnl_sum / total_cycles_sum, 2)
+            result["cycle_avg_hold"] = int(total_cycle_hold_sum / total_cycles_sum)
+            result["cycle_max_hold"] = max(all_cycle_max_holds) if all_cycle_max_holds else None
+            result["cycle_min_hold"] = min(all_cycle_min_holds) if all_cycle_min_holds else None
+
+        return result
 
     def _calc_rank_stats(self, trades: List[Dict], total_days: int, start_ts: Any, end_ts: Any, initial_capital: float) -> List[Dict]:
         """
@@ -1002,10 +1647,10 @@ class WaterfallBacktestEngine:
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return 0.0
-        peak = equity_curve[0]['equity']
+        peak = equity_curve[0][EQUITY_VALUE_KEY]
         max_dd = 0.0
         for point in equity_curve:
-            val = point['equity']
+            val = point[EQUITY_VALUE_KEY]
             if val > peak: peak = val
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd

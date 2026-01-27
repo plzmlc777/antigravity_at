@@ -15,6 +15,9 @@ import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
+import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
+import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
+import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, Activity, HelpCircle, ChevronRight } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
@@ -136,8 +139,8 @@ const convertSchemaToParamDefs = (schema) => {
 const DEFAULT_CONFIG = generateDefaultConfig();
 const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 
-// Constant UUID for Integrated View Persistence
-const INTEGRATED_UUID = 'integrated-view-persistence-id';
+// Generate UUID for Integrated View Persistence (strategy-specific)
+const getIntegratedUUID = (strategyId) => `integrated-${strategyId || 'unknown'}`;
 
 const StrategyView = () => {
     // Symbol State
@@ -170,6 +173,10 @@ const StrategyView = () => {
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
     const [liveRankIndex, setLiveRankIndex] = useState(0); // Selected Rank Index for Live Tab
+    const [executionMode, setExecutionMode] = useState(() => {
+        const saved = localStorage.getItem('integratedExecutionMode');
+        return saved || 'exclusive';
+    }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     // Dynamic Config State
@@ -245,6 +252,11 @@ const StrategyView = () => {
     useEffect(() => {
         localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
     }, [savedSymbols]);
+
+    // Save execution mode to localStorage
+    useEffect(() => {
+        localStorage.setItem('integratedExecutionMode', executionMode);
+    }, [executionMode]);
 
     // Persistence logic removed for initialCapital
 
@@ -608,7 +620,7 @@ const StrategyView = () => {
         let targetUUID = null;
 
         if (activeTab === -1) {
-            targetUUID = INTEGRATED_UUID;
+            targetUUID = getIntegratedUUID(selectedStrategy?.id);
         } else {
             targetUUID = configList[activeTab]?.uuid;
         }
@@ -676,7 +688,7 @@ const StrategyView = () => {
         };
 
         restoreResults();
-    }, [activeTab, isConfigLoaded]); // Only re-run when switching tabs, not editing config
+    }, [activeTab, isConfigLoaded, selectedStrategy?.id]); // Re-run on tab change or strategy change
 
     // 4. Persistence & Initialization
     useEffect(() => {
@@ -773,10 +785,13 @@ const StrategyView = () => {
             addLog(`  ${key}: config=${value}, opt="${optValue}" ${options}`, 'info');
         });
 
-        // Reset configList with new strategy's defaults
-        setConfigList([defaultFromSchema]);
-        setActiveTab(0); // Reset to first tab
-    }, [selectedStrategy?.id, currentSymbol]); // Trigger when strategy ID or symbol changes
+        // Only reset configList if configs haven't been loaded from DB yet
+        // This prevents overwriting DB-loaded configs on initial mount
+        // Note: activeTab is NOT reset here - it's managed by localStorage
+        if (!isConfigLoaded) {
+            setConfigList([defaultFromSchema]);
+        }
+    }, [selectedStrategy?.id, currentSymbol, isConfigLoaded]); // Trigger when strategy ID or symbol changes
 
     // Auto-Fetch Symbol Name if Missing
     useEffect(() => {
@@ -987,34 +1002,21 @@ const StrategyView = () => {
             });
             xml += '      </Parameters>\n';
 
-            // Performance Metrics
+            // Performance Metrics - driven by STAT_COLUMNS (statsConfig.js)
             xml += '      <Performance>\n';
-            const metrics = [
-                { key: 'return', label: 'TotalReturn' },
-                { key: 'max_drawdown', label: 'MaxDrawdown' },
-                { key: 'win_rate', label: 'WinRate' },
-                { key: 'profit_factor', label: 'ProfitFactor' },
-                { key: 'sharpe_ratio', label: 'SharpeRatio' },
-                { key: 'avg_pnl', label: 'AvgPnL' },
-                { key: 'activity_rate', label: 'ActivityRate' },
-                { key: 'total_days', label: 'TotalDays' },
-                { key: 'avg_holding_time', label: 'AvgHoldingTime' },
-                { key: 'max_profit', label: 'MaxProfit' },
-                { key: 'max_loss', label: 'MaxLoss' },
-                { key: 'stability_score', label: 'StabilityScore' },
-                { key: 'acceleration_score', label: 'AccelerationScore' },
-                { key: 'trades', label: 'TotalTrades' },
-                { key: 'total_cycles', label: 'TotalCycles' },
-                { key: 'avg_pnl_per_cycle', label: 'AvgPnLPerCycle' },
-                { key: 'score', label: 'OverallScore' }
-            ];
-
-            metrics.forEach(metric => {
-                const value = result[metric.key];
+            STAT_COLUMNS.forEach(col => {
+                const dataKey = col.optKey || col.key;
+                const value = result[dataKey];
                 if (value !== undefined && value !== null) {
-                    xml += `        <${metric.label}>${escapeXML(value)}</${metric.label}>\n`;
+                    // XML tag: camelCase from key (e.g. total_return → TotalReturn)
+                    const xmlTag = col.key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+                    xml += `        <${xmlTag}>${escapeXML(value)}</${xmlTag}>\n`;
                 }
             });
+            // Score (not in STAT_COLUMNS)
+            if (result.score != null) {
+                xml += `        <OverallScore>${escapeXML(result.score)}</OverallScore>\n`;
+            }
             xml += '      </Performance>\n';
 
             xml += '    </Result>\n';
@@ -1715,15 +1717,25 @@ const StrategyView = () => {
                                                     // If Integrated, inherit from Rank 1 (index 0). Fallback to DEFAULT if empty.
                                                     const displayConfig = isIntegrated ? (configList[0] || DEFAULT_CONFIG) : currentConfig;
 
+                                                    // Calculate display capital for parallel mode
+                                                    const activeConfigCount = configList.filter(c => c.is_active).length;
+                                                    const rank1Capital = displayConfig?.initial_capital || 10000000;
+                                                    const displayCapital = (isIntegrated && executionMode === 'parallel')
+                                                        ? rank1Capital * activeConfigCount
+                                                        : rank1Capital;
+
                                                     return (
                                                         <div className="flex justify-center gap-6 mb-8">
                                                             <div className="text-left">
                                                                 <label className="text-xs text-gray-400 mb-1 block">
-                                                                    Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                    {isIntegrated && executionMode === 'parallel'
+                                                                        ? <>Total Capital <span className="text-purple-400">({rank1Capital.toLocaleString()} × {activeConfigCount} Ranks)</span></>
+                                                                        : <>Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}</>
+                                                                    }
                                                                 </label>
                                                                 <input
                                                                     type="text"
-                                                                    value={(displayConfig?.initial_capital || 10000000).toLocaleString()}
+                                                                    value={displayCapital.toLocaleString()}
                                                                     onChange={(e) => {
                                                                         if (isIntegrated) return; // Prevent edit
                                                                         const rawValue = e.target.value.replace(/[^0-9]/g, '');
@@ -1777,6 +1789,26 @@ const StrategyView = () => {
                                                                     <option value="compound">Compound Interest</option>
                                                                 </select>
                                                             </div>
+                                                            {isIntegrated && (
+                                                                <div className="text-left">
+                                                                    <label className="text-xs text-gray-400 mb-1 block">
+                                                                        Execution Mode
+                                                                    </label>
+                                                                    <select
+                                                                        value={executionMode}
+                                                                        onChange={(e) => setExecutionMode(e.target.value)}
+                                                                        className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-44 text-center appearance-none cursor-pointer focus:border-blue-500"
+                                                                    >
+                                                                        <option value="exclusive">Exclusive (Waterfall)</option>
+                                                                        <option value="parallel">Parallel (Equal Split)</option>
+                                                                    </select>
+                                                                    <p className="text-[10px] text-gray-500 mt-1">
+                                                                        {executionMode === 'exclusive'
+                                                                            ? 'Ranks evaluated sequentially, first signal wins'
+                                                                            : 'All Ranks run simultaneously (each gets Rank1 capital)'}
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
@@ -1858,13 +1890,20 @@ const StrategyView = () => {
                                                                     }
                                                                 }
 
+                                                                // Calculate total capital based on execution mode
+                                                                const rank1Capital = leaderConfig?.initial_capital || 10000000;
+                                                                const totalCapital = executionMode === 'parallel'
+                                                                    ? rank1Capital * activeConfigs.length  // Parallel: Rank1 capital × number of active ranks
+                                                                    : rank1Capital;                         // Exclusive: Just Rank1 capital
+
                                                                 const result = await axios.post('/api/v1/strategies/integrated-backtest', {
                                                                     configs: validConfigs,
                                                                     symbol: currentSymbol || "KRW-BTC", // Use global or default
                                                                     interval: leaderConfig?.interval || "1m", // Use selected interval
                                                                     days: diffDays > 0 ? diffDays : 365,
                                                                     from_date: leaderConfig?.from_date || "",
-                                                                    initial_capital: leaderConfig?.initial_capital || 10000000
+                                                                    initial_capital: totalCapital,
+                                                                    execution_mode: executionMode // 'exclusive' or 'parallel'
                                                                 });
 
                                                                 // Update Result State and Store for Visualization
@@ -1872,8 +1911,8 @@ const StrategyView = () => {
                                                                 setIntegratedResults(result.data); // Store full result for visualization
                                                                 setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
 
-                                                                // Save Result for Persistence
-                                                                saveStrategyResult(INTEGRATED_UUID, 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
+                                                                // Save Result for Persistence (strategy-specific UUID)
+                                                                saveStrategyResult(getIntegratedUUID(selectedStrategy?.id), 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
 
                                                             } catch (e) {
                                                                 console.error("Integrated Backtest Failed", e);
@@ -1893,7 +1932,9 @@ const StrategyView = () => {
                                                     </button>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-4">
-                                                    * Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.
+                                                    {executionMode === 'exclusive'
+                                                        ? '* Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.'
+                                                        : '* Simulates Parallel execution: Each Rank gets Rank 1 capital (Total = Rank1 × Active Ranks).'}
                                                 </p>
                                             </div>
 
@@ -2199,98 +2240,7 @@ const StrategyView = () => {
                                                 <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
                                                     {activeAnalysisTab === 'overview' ? (
                                                         <div className="space-y-4">
-                                                            {/* Helpers defined inline for clarity in render block context or use component utils */
-                                                                (() => {
-                                                                    const fmtPct = (v, d = 2) => typeof v === 'number' ? `${v.toFixed(d)}%` : (v || "0.00%");
-                                                                    const fmtNum = (v, d = 2) => typeof v === 'number' ? v.toFixed(d) : (v || "0.00");
-
-                                                                    return (
-                                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Total Return</div>
-                                                                                <div className={`text-xl font-bold ${parseFloat(backtestResult.total_return) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                    {fmtPct(backtestResult.total_return)}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg border border-purple-500/30 bg-purple-500/10">
-                                                                                <div className="text-xs text-purple-300 font-semibold">Profit Factor</div>
-                                                                                <div className="text-xl font-bold text-white">{fmtNum(backtestResult.profit_factor)}</div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Win Rate</div>
-                                                                                <div className="text-xl font-bold text-white">{fmtPct(backtestResult.win_rate, 1)}</div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Sharpe Ratio</div>
-                                                                                <div className="text-xl font-bold text-yellow-400">{fmtNum(backtestResult.sharpe_ratio)}</div>
-                                                                            </div>
-
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Total Trades</div>
-                                                                                <div className="text-xl font-bold text-white">
-                                                                                    {backtestResult.total_trades}
-                                                                                    <span className="text-sm font-normal text-gray-500 ml-2">
-                                                                                        ({backtestResult.total_days} days)
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Stability (R²)</div>
-                                                                                <div className="text-xl font-bold text-purple-400">{fmtNum(backtestResult.stability_score)}</div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Profit Accel</div>
-                                                                                <div className={`text-xl font-bold ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                                    {fmtNum(backtestResult.acceleration_score)}x
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Activity Rate</div>
-                                                                                <div className="text-xl font-bold text-blue-400">{fmtPct(backtestResult.activity_rate, 1)}</div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Avg PnL</div>
-                                                                                <div className={`text-xl font-bold ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                    {fmtPct(backtestResult.avg_pnl)}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Avg Holding</div>
-                                                                                <div className="text-xl font-bold text-white">{backtestResult.avg_holding_time}m</div>
-                                                                            </div>
-
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Max Profit</div>
-                                                                                <div className="text-xl font-bold text-green-400">{fmtPct(backtestResult.max_profit)}</div>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/5 rounded-lg">
-                                                                                <div className="text-xs text-gray-400">Max Loss</div>
-                                                                                <div className="text-xl font-bold text-red-400">{fmtPct(backtestResult.max_loss)}</div>
-                                                                            </div>
-                                                                            {/* Martingale Cycle Metrics */}
-                                                                            {(backtestResult.total_cycles !== undefined && backtestResult.total_cycles !== null) && (
-                                                                                <>
-                                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                                        <div className="text-xs text-gray-400">Cycles</div>
-                                                                                        <div className="text-xl font-bold text-white">{backtestResult.total_cycles}</div>
-                                                                                    </div>
-                                                                                    <div className="p-3 bg-white/5 rounded-lg">
-                                                                                        <div className="text-xs text-gray-400">Avg PnL/Cycle</div>
-                                                                                        <div className={`text-xl font-bold ${backtestResult.avg_pnl_per_cycle >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                            {fmtPct(backtestResult.avg_pnl_per_cycle)}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </>
-                                                                            )}
-                                                                            <div className="col-span-2 md:col-span-4 p-4 bg-white/5 rounded-lg flex flex-col justify-center min-h-[5rem]">
-                                                                                <div className="text-xs text-gray-400 mb-1">Max Drawdown</div>
-                                                                                <div className="text-lg md:text-xl font-bold text-red-400 break-words leading-tight">
-                                                                                    {fmtPct(backtestResult.max_drawdown)}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })()}
+                                                            <PerformanceStatsGrid stats={backtestResult} />
                                                             {/* Monthly Analysis Chart */}
                                                             {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
                                                                 <div className="mt-4 pt-4 border-t border-white/10">
@@ -2382,165 +2332,60 @@ const StrategyView = () => {
                                                     ) : (
                                                         <div className="overflow-x-auto">
                                                             {backtestResult.rank_stats_list && backtestResult.rank_stats_list.length > 0 ? (
-                                                                <table className="w-full text-left border-collapse whitespace-nowrap">
-                                                                    <thead>
-                                                                        <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
-                                                                            <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
-                                                                            <th className="p-3">Total Return</th>
-                                                                            <th className="p-3">Profit Factor</th>
-                                                                            <th className="p-3">Win Rate</th>
-                                                                            <th className="p-3">Sharpe</th>
-                                                                            <th className="p-3">Trades</th>
-                                                                            <th className="p-3">Stability</th>
-                                                                            <th className="p-3">Accel</th>
-                                                                            <th className="p-3">Activity</th>
-                                                                            <th className="p-3">Avg Return</th>
-                                                                            <th className="p-3">Avg Hold</th>
-                                                                            <th className="p-3">Max Profit</th>
-                                                                            <th className="p-3">Max Loss</th>
-                                                                            <th className="p-3 text-right">Max DD</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="text-sm">
-                                                                        {backtestResult.rank_stats_list.map((stat, idx) => (
-                                                                            <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                                                                <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
-                                                                                <td className={`p-3 font-bold ${stat.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                    {typeof stat.total_return === 'number' ? stat.total_return.toFixed(2) : stat.total_return}%
-                                                                                </td>
-                                                                                <td className="p-3 text-white">
-                                                                                    {typeof stat.profit_factor === 'number' ? stat.profit_factor.toFixed(2) : stat.profit_factor}
-                                                                                </td>
-                                                                                <td className="p-3 text-yellow-400 font-bold">
-                                                                                    {stat.win_rate.toFixed(1)}%
-                                                                                </td>
-                                                                                <td className="p-3 text-yellow-400">
-                                                                                    {typeof stat.sharpe_ratio === 'number' ? stat.sharpe_ratio.toFixed(2) : stat.sharpe_ratio}
-                                                                                </td>
-                                                                                <td className="p-3 text-gray-300">
-                                                                                    {stat.total_trades}
-                                                                                </td>
-                                                                                <td className="p-3 text-purple-400">
-                                                                                    {typeof stat.stability_score === 'number' ? stat.stability_score.toFixed(2) : stat.stability_score}
-                                                                                </td>
-                                                                                <td className={`p-3 font-bold ${stat.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                                    {typeof stat.acceleration_score === 'number' ? stat.acceleration_score.toFixed(2) : stat.acceleration_score}x
-                                                                                </td>
-                                                                                <td className="p-3 text-blue-400">
-                                                                                    {typeof stat.activity_rate === 'number' ? stat.activity_rate.toFixed(1) : stat.activity_rate}%
-                                                                                </td>
-                                                                                <td className={`p-3 font-bold ${stat.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                    {stat.avg_pnl > 0 ? "+" : ""}{stat.avg_pnl.toFixed(2)}%
-                                                                                </td>
-                                                                                <td className="p-3 text-gray-400">
-                                                                                    {stat.avg_holding_time}m
-                                                                                </td>
-                                                                                <td className="p-3 text-green-400">
-                                                                                    {typeof stat.max_profit === 'number' ? stat.max_profit.toFixed(2) : stat.max_profit}%
-                                                                                </td>
-                                                                                <td className="p-3 text-red-400">
-                                                                                    {typeof stat.max_loss === 'number' ? stat.max_loss.toFixed(2) : stat.max_loss}%
-                                                                                </td>
-                                                                                <td className="p-3 text-right text-red-400 font-bold">
-                                                                                    {typeof stat.max_drawdown === 'number' ? stat.max_drawdown.toFixed(2) : stat.max_drawdown}%
-                                                                                </td>
-                                                                            </tr>
-                                                                        ))}
-                                                                    </tbody>
-                                                                    <tfoot className="text-sm border-t-2 border-white/20">
-                                                                        {/* 1. Calculated Total / Average Row */}
-                                                                        {(() => {
-                                                                            const stats = backtestResult.rank_stats_list;
-                                                                            const count = stats.length;
-                                                                            const sumReturn = stats.reduce((acc, s) => acc + s.total_return, 0);
-                                                                            const totalTrades = stats.reduce((acc, s) => acc + s.total_trades, 0);
+                                                                (() => {
+                                                                    const visibleCols = getVisibleColumns(backtestResult);
+                                                                    const totalStats = computeTotalStats(backtestResult.rank_stats_list);
 
-                                                                            // Activity Rate: Sum (matches Overview ~81%)
-                                                                            const sumActivity = stats.reduce((acc, s) => acc + s.activity_rate, 0);
+                                                                    // Render a stat cell for any row
+                                                                    const renderCell = (data, col, opacity = '') => {
+                                                                        const value = data[col.key];
+                                                                        const colorClass = getStatColor(value, col) + (opacity ? `/${opacity}` : '');
+                                                                        const formatted = formatStatValue(value, col);
+                                                                        const prefix = col.signed && typeof value === 'number' && value > 0 ? '+' : '';
+                                                                        const align = col.lastColumn ? ' text-right' : '';
+                                                                        const bold = col.bold ? ' font-bold' : '';
+                                                                        return (
+                                                                            <td key={col.key} className={`p-3${bold}${align} ${colorClass}`}>
+                                                                                {prefix}{formatted}
+                                                                            </td>
+                                                                        );
+                                                                    };
 
-                                                                            // Weighted Averages (by Trades) - More accurate for PnL/PF/Sharpe
-                                                                            const getWeightedAvg = (key) => totalTrades > 0
-                                                                                ? stats.reduce((acc, s) => acc + (s[key] * s.total_trades), 0) / totalTrades
-                                                                                : 0;
-
-                                                                            const wWinRate = getWeightedAvg('win_rate');
-                                                                            const wPF = getWeightedAvg('profit_factor');
-                                                                            const wSharpe = getWeightedAvg('sharpe_ratio');
-                                                                            const wStability = getWeightedAvg('stability_score');
-                                                                            const wAccel = getWeightedAvg('acceleration_score');
-                                                                            const wReturn = getWeightedAvg('avg_pnl');
-                                                                            const wHold = getWeightedAvg('avg_holding_time');
-
-                                                                            // Extremes
-                                                                            const maxProfit = stats.length > 0 ? Math.max(...stats.map(s => s.max_profit)) : 0;
-                                                                            const maxLoss = stats.length > 0 ? Math.min(...stats.map(s => s.max_loss)) : 0;
-                                                                            const maxDD = stats.length > 0 ? Math.min(...stats.map(s => s.max_drawdown)) : 0; // Negative values
-
-                                                                            return (
+                                                                    return (
+                                                                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                                            <thead>
+                                                                                <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
+                                                                                    <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
+                                                                                    {visibleCols.map(col => (
+                                                                                        <th key={col.key} className={`p-3${col.lastColumn ? ' text-right' : ''}`}>
+                                                                                            {col.tableLabel || col.label}
+                                                                                        </th>
+                                                                                    ))}
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="text-sm">
+                                                                                {backtestResult.rank_stats_list.map((stat, idx) => (
+                                                                                    <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                                                        <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
+                                                                                        {visibleCols.map(col => renderCell(stat, col))}
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                            <tfoot className="text-sm border-t-2 border-white/20">
+                                                                                {/* TOTAL Row (Sum/Weighted Average) */}
                                                                                 <tr className="bg-[#1a1d24]/50 border-b border-white/10 font-bold text-gray-300">
                                                                                     <td className="p-3 sticky left-0 bg-[#15181e] z-10 shadow-r">TOTAL (Sum/W.Avg)</td>
-                                                                                    <td className={`p-3 ${sumReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{sumReturn.toFixed(2)}%</td>
-                                                                                    <td className="p-3">{wPF.toFixed(2)}</td>
-                                                                                    <td className="p-3 text-yellow-400/80">{wWinRate.toFixed(1)}%</td>
-                                                                                    <td className="p-3">{wSharpe.toFixed(2)}</td>
-                                                                                    <td className="p-3 text-white">{totalTrades}</td>
-                                                                                    <td className="p-3">{wStability.toFixed(2)}</td>
-                                                                                    <td className="p-3">{wAccel.toFixed(2)}x</td>
-                                                                                    <td className="p-3">{sumActivity.toFixed(1)}%</td>
-                                                                                    <td className={`p-3 ${wReturn >= 0 ? "text-green-400" : "text-red-400"}`}>{wReturn > 0 ? "+" : ""}{wReturn.toFixed(2)}%</td>
-                                                                                    <td className="p-3">{Math.round(wHold)}m</td>
-                                                                                    <td className="p-3 text-green-400/80">{maxProfit.toFixed(2)}%</td>
-                                                                                    <td className="p-3 text-red-400/80">{maxLoss.toFixed(2)}%</td>
-                                                                                    <td className="p-3 text-right text-red-400/80">{maxDD.toFixed(2)}%</td>
+                                                                                    {visibleCols.map(col => renderCell(totalStats, col, '80'))}
                                                                                 </tr>
-                                                                            );
-                                                                        })()}
-
-                                                                        {/* 2. Overview Row (Global Stats) */}
-                                                                        <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
-                                                                            <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
-                                                                            <td className={`p-3 ${backtestResult.total_return >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                {typeof backtestResult.total_return === 'number' ? backtestResult.total_return.toFixed(2) : backtestResult.total_return}%
-                                                                            </td>
-                                                                            <td className="p-3 text-white">
-                                                                                {typeof backtestResult.profit_factor === 'number' ? backtestResult.profit_factor.toFixed(2) : backtestResult.profit_factor}
-                                                                            </td>
-                                                                            <td className="p-3 text-yellow-400">
-                                                                                {typeof backtestResult.win_rate === 'number' ? backtestResult.win_rate.toFixed(1) : backtestResult.win_rate}%
-                                                                            </td>
-                                                                            <td className="p-3 text-yellow-400">
-                                                                                {typeof backtestResult.sharpe_ratio === 'number' ? backtestResult.sharpe_ratio.toFixed(2) : backtestResult.sharpe_ratio}
-                                                                            </td>
-                                                                            <td className="p-3 text-gray-300">
-                                                                                {backtestResult.total_trades}
-                                                                            </td>
-                                                                            <td className="p-3 text-purple-400">
-                                                                                {typeof backtestResult.stability_score === 'number' ? backtestResult.stability_score.toFixed(2) : backtestResult.stability_score}
-                                                                            </td>
-                                                                            <td className={`p-3 ${backtestResult.acceleration_score >= 1 ? 'text-green-400' : 'text-orange-400'}`}>
-                                                                                {typeof backtestResult.acceleration_score === 'number' ? backtestResult.acceleration_score.toFixed(2) : backtestResult.acceleration_score}x
-                                                                            </td>
-                                                                            <td className="p-3 text-blue-400">
-                                                                                {typeof backtestResult.activity_rate === 'number' ? backtestResult.activity_rate.toFixed(1) : backtestResult.activity_rate}%
-                                                                            </td>
-                                                                            <td className={`p-3 ${backtestResult.avg_pnl >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                                                                {backtestResult.avg_pnl > 0 ? "+" : ""}{typeof backtestResult.avg_pnl === 'number' ? backtestResult.avg_pnl.toFixed(2) : backtestResult.avg_pnl}%
-                                                                            </td>
-                                                                            <td className="p-3 text-gray-400">
-                                                                                {backtestResult.avg_holding_time}m
-                                                                            </td>
-                                                                            <td className="p-3 text-green-400">
-                                                                                {typeof backtestResult.max_profit === 'number' ? backtestResult.max_profit.toFixed(2) : backtestResult.max_profit}%
-                                                                            </td>
-                                                                            <td className="p-3 text-red-400">
-                                                                                {typeof backtestResult.max_loss === 'number' ? backtestResult.max_loss.toFixed(2) : backtestResult.max_loss}%
-                                                                            </td>
-                                                                            <td className="p-3 text-right text-red-400">
-                                                                                {typeof backtestResult.max_drawdown === 'number' ? backtestResult.max_drawdown.toFixed(2) : backtestResult.max_drawdown}%
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tfoot>
-                                                                </table>
+                                                                                {/* OVERVIEW Row (Global Stats from backend) */}
+                                                                                <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
+                                                                                    <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
+                                                                                    {visibleCols.map(col => renderCell(backtestResult, col))}
+                                                                                </tr>
+                                                                            </tfoot>
+                                                                        </table>
+                                                                    );
+                                                                })()
                                                             ) : (
                                                                 <div className="py-12 text-center">
                                                                     <div className="text-gray-500 italic mb-2">No rank details available</div>
@@ -2563,7 +2408,7 @@ const StrategyView = () => {
                                                         <LineChart data={backtestResult.chart_data}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                                                             <XAxis
-                                                                dataKey="date"
+                                                                dataKey={EQUITY_DATE_KEY}
                                                                 stroke="#666"
                                                                 height={50}
                                                                 ticks={(() => {
@@ -2572,10 +2417,10 @@ const StrategyView = () => {
                                                                     const ticks = [];
                                                                     let lastMonth = -1;
                                                                     backtestResult.chart_data.forEach(d => {
-                                                                        const date = new Date(d.date);
+                                                                        const date = new Date(d[EQUITY_DATE_KEY]);
                                                                         const month = date.getMonth();
                                                                         if (month !== lastMonth) {
-                                                                            ticks.push(d.date);
+                                                                            ticks.push(d[EQUITY_DATE_KEY]);
                                                                             lastMonth = month;
                                                                         }
                                                                     });
@@ -2623,7 +2468,7 @@ const StrategyView = () => {
                                                                 itemStyle={{ color: '#fff' }}
                                                                 formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
                                                             />
-                                                            <Line type="monotone" dataKey="equity" stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                            <Line type="monotone" dataKey={EQUITY_VALUE_KEY} stroke="#8884d8" strokeWidth={2} dot={false} />
                                                         </LineChart>
                                                     </ResponsiveContainer>
                                                 </div>
@@ -2831,44 +2676,34 @@ const StrategyView = () => {
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
                                                                 <thead>
-                                                                    <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
-                                                                        <th className="p-3 text-center w-16">Active</th>
-                                                                        {[
+                                                                    {(() => {
+                                                                        const optCols = getOptVisibleColumns(optResults);
+                                                                        const extraCols = [
                                                                             { key: 'rank', label: 'Rank' },
-                                                                            { key: 'return', label: 'Return' },
-                                                                            { key: 'max_drawdown', label: 'MDD' },
-                                                                            { key: 'win_rate', label: 'Win Rate' },
-                                                                            { key: 'profit_factor', label: 'P.Factor' },
-                                                                            { key: 'sharpe_ratio', label: 'Sharpe' },
-                                                                            { key: 'avg_pnl', label: 'Avg PnL' },
-                                                                            { key: 'activity_rate', label: 'Activity' },
-                                                                            { key: 'total_days', label: 'Days' },
-                                                                            { key: 'avg_holding_time', label: 'Avg Hold' },
-                                                                            { key: 'max_profit', label: 'Max Profit' },
-                                                                            { key: 'max_loss', label: 'Max Loss' },
-                                                                            { key: 'stability_score', label: 'Stability' },
-                                                                            { key: 'acceleration_score', label: 'Profit Accel' },
-                                                                            { key: 'trades', label: 'Trades' },
-                                                                            { key: 'total_cycles', label: 'Cycles' },
-                                                                            { key: 'avg_pnl_per_cycle', label: 'Avg PnL/Cycle' },
+                                                                            ...optCols.map(c => ({ key: c.optKey || c.key, label: c.tableLabel || c.label })),
                                                                             { key: 'score', label: 'Score' },
                                                                             ...convertSchemaToParamDefs(selectedStrategy?.parameter_schema)
-                                                                        ].map((col) => (
-                                                                            <th
-                                                                                key={col.key}
-                                                                                onClick={() => handleSort(col.key)}
-                                                                                className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''
-                                                                                    }`}
-                                                                            >
-                                                                                <div className="flex items-center gap-1">
-                                                                                    {col.label}
-                                                                                    {sortConfig.key === col.key && (
-                                                                                        <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </th>
-                                                                        ))}
-                                                                    </tr>
+                                                                        ];
+                                                                        return (
+                                                                            <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
+                                                                                <th className="p-3 text-center w-16">Active</th>
+                                                                                {extraCols.map((col) => (
+                                                                                    <th
+                                                                                        key={col.key}
+                                                                                        onClick={() => handleSort(col.key)}
+                                                                                        className={`p-3 cursor-pointer hover:text-white transition-colors ${sortConfig.key === col.key ? 'text-purple-300' : ''}`}
+                                                                                    >
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            {col.label}
+                                                                                            {sortConfig.key === col.key && (
+                                                                                                <span>{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </th>
+                                                                                ))}
+                                                                            </tr>
+                                                                        );
+                                                                    })()}
                                                                 </thead>
                                                                 <tbody>
                                                                     {[...optResults]
@@ -2938,38 +2773,20 @@ const StrategyView = () => {
                                                                                     </td>
                                                                                     <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
 
-                                                                                    {/* Helper for Number Formatting - Performance Metrics First */}
-                                                                                    {(() => {
-                                                                                        const fmt = (v) => {
-                                                                                            const n = parseFloat(v);
-                                                                                            return isNaN(n) ? '-' : n.toFixed(2);
-                                                                                        };
+                                                                                    {/* Performance Metrics - driven by STAT_COLUMNS (statsConfig.js) */}
+                                                                                    {getOptVisibleColumns(optResults).map(col => {
+                                                                                        const raw = getOptValue(res, col);
+                                                                                        const parsed = parseStatValue(raw);
+                                                                                        const colorClass = getStatColor(parsed, col);
+                                                                                        const formatted = formatStatValue(parsed, col);
+                                                                                        const prefix = col.signed && typeof parsed === 'number' && parsed > 0 ? '+' : '';
                                                                                         return (
-                                                                                            <>
-                                                                                                <td className={`p-3 ${res.return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                                    {res.return > 0 ? '+' : ''}{fmt(res.return)}%
-                                                                                                </td>
-                                                                                                <td className="p-3 text-red-300">{fmt(res.max_drawdown)}%</td>
-                                                                                                <td className="p-3 text-white">{fmt(res.win_rate)}%</td>
-                                                                                                <td className="p-3 text-white">{fmt(res.profit_factor)}</td>
-                                                                                                <td className="p-3 text-white">{fmt(res.sharpe_ratio)}</td>
-                                                                                                <td className={`p-3 ${parseFloat(res.avg_pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(res.avg_pnl)}%</td>
-                                                                                                <td className="p-3 text-blue-300">{fmt(res.activity_rate)}%</td>
-                                                                                                <td className="p-3 text-gray-400">{res.total_days}</td>
-                                                                                                <td className="p-3 text-gray-400">{res.avg_holding_time}m</td>
-                                                                                                <td className="p-3 text-green-400">{fmt(res.max_profit)}%</td>
-                                                                                                <td className="p-3 text-red-400">{fmt(res.max_loss)}%</td>
-                                                                                                <td className="p-3 text-white">{fmt(res.stability_score)}</td>
-                                                                                                <td className="p-3 text-white">{fmt(res.acceleration_score)}</td>
-                                                                                                <td className="p-3 text-gray-400">{res.trades}</td>
-                                                                                                <td className="p-3 text-gray-400">{res.total_cycles || '-'}</td>
-                                                                                                <td className={`p-3 ${res.avg_pnl_per_cycle && parseFloat(res.avg_pnl_per_cycle) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                                                    {res.avg_pnl_per_cycle ? fmt(res.avg_pnl_per_cycle) + '%' : '-'}
-                                                                                                </td>
-                                                                                                <td className="p-3 text-blue-400 font-bold">{fmt(res.score)}</td>
-                                                                                            </>
+                                                                                            <td key={col.key} className={`p-3 ${colorClass}`}>
+                                                                                                {prefix}{formatted}
+                                                                                            </td>
                                                                                         );
-                                                                                    })()}
+                                                                                    })}
+                                                                                    <td className="p-3 text-blue-400 font-bold">{parseFloat(res.score)?.toFixed(2) ?? '-'}</td>
 
                                                                                     {/* Render All Params - Last */}
                                                                                     {convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map(param => (

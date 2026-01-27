@@ -2,6 +2,7 @@ import random
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
+from .data_schemas import make_equity_point, EQUITY_VALUE_KEY
 
 class BacktestContext(IContext):
     def __init__(self, data_feed: List[Dict], initial_capital: int = 10000000):
@@ -83,10 +84,9 @@ class BacktestContext(IContext):
         for symbol, qty in self.holdings.items():
             equity += qty * self.get_current_price(symbol)
         
-        self.equity_curve.append({
-            "date": self.get_time().strftime("%Y-%m-%d %H:%M"),
-            "equity": int(equity)
-        })
+        self.equity_curve.append(make_equity_point(
+            self.get_time().strftime("%Y-%m-%d %H:%M"), equity
+        ))
 
 class SyntheticDataGenerator:
     @staticmethod
@@ -203,8 +203,8 @@ class BacktestEngine:
                  "ohlcv_data": []
              }
 
-        final_equity = context.equity_curve[-1]['equity']
-        initial_equity = context.equity_curve[0]['equity']
+        final_equity = context.equity_curve[-1][EQUITY_VALUE_KEY]
+        initial_equity = context.equity_curve[0][EQUITY_VALUE_KEY]
         total_return = (final_equity - initial_equity) / initial_equity * 100
         
         # Activity Rate Calculation
@@ -519,10 +519,10 @@ class BacktestEngine:
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return "0%"
-        peak = equity_curve[0]['equity']
+        peak = equity_curve[0][EQUITY_VALUE_KEY]
         max_dd = 0
         for point in equity_curve:
-            val = point['equity']
+            val = point[EQUITY_VALUE_KEY]
             if val > peak: peak = val
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd
@@ -753,8 +753,8 @@ class BacktestEngine:
         # Or better: Extract _analyze_context(context, data_feed) 
         
         # Let's copy the logic part 5 from above for now to ensure robustness.
-        final_equity = context.equity_curve[-1]['equity'] if context.equity_curve else 0
-        initial_equity = context.equity_curve[0]['equity'] if context.equity_curve else 1
+        final_equity = context.equity_curve[-1][EQUITY_VALUE_KEY] if context.equity_curve else 0
+        initial_equity = context.equity_curve[0][EQUITY_VALUE_KEY] if context.equity_curve else 1
         
         if not context.equity_curve:
              return { "total_return": "0%", "logs": context.logs, "win_rate": "0%", "chart_data": [], "ohlcv_data": [] }

@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from datetime import datetime
 from .backtest_engine import BacktestEngine
+from .data_schemas import EQUITY_VALUE_KEY
 
 class IntegratedBacktestEngine(BacktestEngine):
     """
@@ -15,8 +16,8 @@ class IntegratedBacktestEngine(BacktestEngine):
         Reuses base logic where possible, but re-implements return construction.
         """
         # Calculate Base Stats (Equity, Return, etc.)
-        final_equity = context.equity_curve[-1]['equity'] if context.equity_curve else 0
-        initial_equity = context.equity_curve[0]['equity'] if context.equity_curve else 1
+        final_equity = context.equity_curve[-1][EQUITY_VALUE_KEY] if context.equity_curve else 0
+        initial_equity = context.equity_curve[0][EQUITY_VALUE_KEY] if context.equity_curve else 1
         
         if not context.equity_curve:
              return { "total_return": "0%", "logs": context.logs, "win_rate": "0%", "chart_data": [], "ohlcv_data": [], "matched_trades": [] }

@@ -203,8 +203,11 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                         total_days=int(res.get("total_days", 0)),
                         max_profit=str(res.get("max_profit", "-")),
                         max_loss=str(res.get("max_loss", "-")),
-                        total_cycles=res.get("total_cycles"),  # Martingale cycles
-                        avg_pnl_per_cycle=res.get("avg_pnl_per_cycle"),  # Avg PnL per cycle
+                        cycle_count=res.get("cycle_count"),
+                        cycle_avg_pnl=res.get("cycle_avg_pnl"),
+                        cycle_avg_hold=res.get("cycle_avg_hold"),
+                        cycle_max_hold=res.get("cycle_max_hold"),
+                        cycle_min_hold=res.get("cycle_min_hold"),
                         metrics={
                             # Frontend relies on 'metrics' spread, so we must populate these!
                             "max_drawdown": res.get("max_drawdown", "-"),
@@ -218,8 +221,11 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             "total_days": res.get("total_days", 0),
                             "max_profit": res.get("max_profit", "-"),
                             "max_loss": res.get("max_loss", "-"),
-                            "total_cycles": res.get("total_cycles"),
-                            "avg_pnl_per_cycle": res.get("avg_pnl_per_cycle")
+                            "cycle_count": res.get("cycle_count"),
+                            "cycle_avg_pnl": res.get("cycle_avg_pnl"),
+                            "cycle_avg_hold": res.get("cycle_avg_hold"),
+                            "cycle_max_hold": res.get("cycle_max_hold"),
+                            "cycle_min_hold": res.get("cycle_min_hold")
                         }
                     ))
             except Exception as e:
@@ -343,8 +349,11 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "decile_stats": result.get('decile_stats', []),
             "stability_score": result.get('stability_score', "0.00"),
             "acceleration_score": result.get('acceleration_score', "0.00"),
-            "total_cycles": result.get('total_cycles'),  # Martingale cycle count
-            "avg_pnl_per_cycle": result.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
+            "cycle_count": result.get('cycle_count'),
+            "cycle_avg_pnl": result.get('cycle_avg_pnl'),
+            "cycle_avg_hold": result.get('cycle_avg_hold'),
+            "cycle_max_hold": result.get('cycle_max_hold'),
+            "cycle_min_hold": result.get('cycle_min_hold'),
             "chart_data": result['chart_data'],
             "ohlcv_data": result.get('ohlcv_data', []),
             "trades": result.get('trades', []),
@@ -454,23 +463,37 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     )
     actual_interval = config['interval']
 
-    # Initialize Engine (Unified)
+    # Initialize Engine
     engine = WaterfallBacktestEngine(strategy_class, config)
 
     # DEBUG: Log all parameters for comparison with optimization
     logger.info(f"[BACKTEST] symbol={request.symbol}, interval={actual_interval}, days={request.days}, from_date={start_date}, initial_capital={request.initial_capital}")
     logger.info(f"[BACKTEST] config={config}")
 
-    # Run Integrated (League of One)
-    # optimize_mode=False to include chart_data for equity curve visualization
-    result = await engine.run_integrated(
-        strategies_config=[config],
-        global_symbol=request.symbol,
-        interval=actual_interval,
-        duration_days=request.days,
-        from_date=start_date,
+    # *** SINGLE SOURCE OF TRUTH ***
+    # Use run_single_backtest() - same function used by parallel mode
+    # This ensures individual backtest results EXACTLY match parallel mode rank results
+
+    # 1. Fetch Data
+    from ..services.market_data import MarketDataService
+    data_service = MarketDataService()
+    raw_feed = await data_service.get_candles(request.symbol, interval=actual_interval, days=request.days)
+    if raw_feed:
+        if start_date:
+            raw_feed = [c for c in raw_feed if c['timestamp'] >= start_date]
+        raw_feed.sort(key=lambda x: x['timestamp'])
+
+    if not raw_feed:
+        return {"error": "No data available for the specified parameters"}
+
+    # 2. Run Single Backtest (SAME function as parallel mode uses)
+    result = await engine.run_single_backtest(
+        config=config,
+        feed=raw_feed,
         initial_capital=request.initial_capital,
-        optimize_mode=False  # Need chart_data for equity curve display
+        symbol=request.symbol,
+        optimize_mode=False,  # Include chart_data for visualization
+        rank=1
     ) 
     
     return {
@@ -490,8 +513,11 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "decile_stats": result.get('decile_stats', []),
         "stability_score": result.get('stability_score', "0.00"),
         "acceleration_score": result.get('acceleration_score', "0.00"),
-        "total_cycles": result.get('total_cycles'),  # Martingale cycle count
-        "avg_pnl_per_cycle": result.get('avg_pnl_per_cycle'),  # Avg PnL per cycle
+        "cycle_count": result.get('cycle_count'),
+        "cycle_avg_pnl": result.get('cycle_avg_pnl'),
+        "cycle_avg_hold": result.get('cycle_avg_hold'),
+        "cycle_max_hold": result.get('cycle_max_hold'),
+        "cycle_min_hold": result.get('cycle_min_hold'),
         "chart_data": result['chart_data'],
         "ohlcv_data": result.get('ohlcv_data', []),
         "trades": result.get('trades', []),
@@ -625,37 +651,100 @@ class IntegratedBacktestRequest(BaseModel):
     days: int
     from_date: Optional[str] = None
     initial_capital: float
+    execution_mode: str = "exclusive"  # 'exclusive' (waterfall) or 'parallel' (equal split)
 
 @router.post("/integrated-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
     # Full League Mode Implementation
+    import traceback
     from ..core.waterfall_engine import WaterfallBacktestEngine
     from ..strategies.time_momentum import TimeMomentumStrategy
-    
-    if not request.configs:
-        return {"error": "No strategies provided"}
-        
-    # Prepare Strategy Configs
-    # Convert Pydantic models to dicts
-    strategies_config = [c.config for c in request.configs]
-    
-    # Ensure symbols are set fallback
-    for i, cfg in enumerate(strategies_config):
-        if 'symbol' not in cfg:
-            cfg['symbol'] = request.configs[i].symbol or request.symbol
+    from ..strategies.dip_martingale import DipMartingaleStrategy
 
-    engine = WaterfallBacktestEngine(TimeMomentumStrategy, {})
-    
-    # Run Integrated League
-    result = await engine.run_integrated(
-        strategies_config=strategies_config,
-        global_symbol=request.symbol, # Fallback global symbol
-        duration_days=request.days,
-        from_date=request.from_date,
-        interval=request.interval,
-        initial_capital=int(request.initial_capital)
-    )
-    
-    result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
-    return result
+    try:
+        if not request.configs:
+            return {"error": "No strategies provided"}
+
+        # Prepare Strategy Configs - USE SAME NORMALIZATION AS INDIVIDUAL BACKTEST
+        # This ensures parallel mode results match individual rank backtests
+        num_ranks = len(request.configs)
+
+        # For parallel mode: frontend sends totalCapital = rank1Capital * num_ranks
+        # So per-rank capital = initial_capital / num_ranks
+        # For exclusive mode: frontend sends rank1Capital (no multiplication)
+        if request.execution_mode == "parallel":
+            per_rank_capital = int(request.initial_capital) // num_ranks
+        else:
+            per_rank_capital = int(request.initial_capital)
+
+        strategies_config = []
+        for i, c in enumerate(request.configs):
+            # Get the rank's symbol (from config or fallback)
+            rank_symbol = c.config.get('symbol') or c.symbol or request.symbol
+
+            # Apply same normalization as individual backtest (build_backtest_config)
+            normalized_config = build_backtest_config(
+                c.config,
+                symbol=rank_symbol,
+                interval=request.interval,  # Global interval for data consistency
+                days=request.days,
+                from_date=request.from_date,
+                initial_capital=per_rank_capital  # Use per-rank capital (same as individual backtest)
+            )
+            strategies_config.append(normalized_config)
+
+        # Use NORMALIZED config's interval (same as individual backtest)
+        # All ranks should have the same interval after normalization
+        actual_interval = strategies_config[0].get('interval', request.interval)
+
+        # DEBUG: Log configs being passed to engine
+        logger.warning(f"[INTEGRATED] execution_mode={request.execution_mode}")
+        logger.warning(f"[INTEGRATED] request.interval={request.interval}, actual_interval={actual_interval}")
+        logger.warning(f"[INTEGRATED] days={request.days}, from_date={request.from_date}")
+        logger.warning(f"[INTEGRATED] initial_capital={request.initial_capital} (total from frontend)")
+        logger.warning(f"[INTEGRATED] per_rank_capital={per_rank_capital} (each rank gets this - same as individual backtest)")
+        for idx, cfg in enumerate(strategies_config):
+            logger.warning(f"[INTEGRATED] Rank {idx+1} config keys: {list(cfg.keys())}")
+            # Print key DipMartingale params
+            logger.warning(f"[INTEGRATED] Rank {idx+1} symbol={cfg.get('symbol')}, interval={cfg.get('interval')}, initial_capital={cfg.get('initial_capital')}")
+            logger.warning(f"[INTEGRATED] Rank {idx+1} dip_percent={cfg.get('dip_percent')}, trailing_start={cfg.get('trailing_start_percent')}, max_levels={cfg.get('max_levels')}")
+
+        # Determine strategy class based on first config's strategy_id
+        strategy_id = request.configs[0].strategy_id if request.configs else "time_momentum"
+        strategy_class = TimeMomentumStrategy
+        if "dip" in strategy_id.lower() or "martingale" in strategy_id.lower():
+            strategy_class = DipMartingaleStrategy
+
+        engine = WaterfallBacktestEngine(strategy_class, {})
+
+        # Parallel Mode: Equal capital split across all ranks
+        if request.execution_mode == "parallel":
+            result = await engine.run_parallel(
+                strategies_config=strategies_config,
+                global_symbol=request.symbol,
+                duration_days=request.days,
+                from_date=request.from_date,
+                interval=actual_interval,  # Use config's interval (same as individual backtest)
+                initial_capital=int(request.initial_capital)
+            )
+            result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
+            result['execution_mode'] = 'parallel'
+        else:
+            # Exclusive Mode: Waterfall/League - Winner Takes All
+            result = await engine.run_integrated(
+                strategies_config=strategies_config,
+                global_symbol=request.symbol,
+                duration_days=request.days,
+                from_date=request.from_date,
+                interval=actual_interval,  # Use config's interval (same as individual backtest)
+                initial_capital=int(request.initial_capital)
+            )
+            result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
+            result['execution_mode'] = 'exclusive'
+
+        return result
+    except Exception as e:
+        logger.error(f"[INTEGRATED] Error: {str(e)}")
+        logger.error(f"[INTEGRATED] Traceback: {traceback.format_exc()}")
+        raise
 
