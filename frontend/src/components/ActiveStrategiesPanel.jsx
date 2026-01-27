@@ -1,8 +1,35 @@
 import React from 'react';
 
-const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit }) => {
-    // Calculate active count
+/**
+ * ActiveStrategiesPanel - Dynamic strategy configuration table.
+ *
+ * Renders parameter columns dynamically from parameterSchema.
+ * Only fields with show_in_table !== false are displayed as columns.
+ * Fixed columns: Rank, Symbol (always shown regardless of schema).
+ *
+ * @param {Array} configList - List of strategy configurations
+ * @param {Array} savedSymbols - Saved symbol info for name resolution
+ * @param {Function} onEdit - Edit callback (idx) => void
+ * @param {Object} parameterSchema - Strategy parameter schema from API
+ */
+const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit, parameterSchema }) => {
     const activeCount = configList ? configList.filter(c => c.is_active !== false).length : 0;
+
+    // Extract table-visible fields from schema
+    const fields = parameterSchema?.fields || [];
+    const tableFields = fields.filter(f => f.show_in_table !== false);
+
+    const formatValue = (cfg, field) => {
+        const val = cfg[field.name];
+        if (val == null || val === undefined) return '-';
+
+        if (field.type === 'select' || field.type === 'time') {
+            return String(val);
+        }
+        // number: append % if label contains (%)
+        const hasPercent = (field.label || '').includes('%');
+        return hasPercent ? `${val}%` : String(val);
+    };
 
     return (
         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden mb-6">
@@ -22,11 +49,11 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit }) => {
                             <tr>
                                 <th className="px-4 py-3">Rank</th>
                                 <th className="px-4 py-3">Symbol</th>
-                                <th className="px-4 py-3">Interval</th>
-                                <th className="px-4 py-3">Direction</th>
-                                <th className="px-4 py-3">Delay</th>
-                                <th className="px-4 py-3">Target / Stop</th>
-                                <th className="px-4 py-3">Trailing</th>
+                                {tableFields.map(f => (
+                                    <th key={f.name} className="px-4 py-3" title={f.description}>
+                                        {f.label}
+                                    </th>
+                                ))}
                                 {onEdit && <th className="px-4 py-3 text-right">Settings</th>}
                             </tr>
                         </thead>
@@ -35,7 +62,6 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit }) => {
                                 if (cfg.is_active === false) return null;
                                 const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
                                 const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
-                                const isRise = (cfg.direction || 'rise') === 'rise';
 
                                 return (
                                     <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
@@ -47,29 +73,23 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit }) => {
                                         <td className="px-4 py-3 font-medium text-white">
                                             {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
                                         </td>
-                                        <td className="px-4 py-3 text-gray-300">
-                                            {cfg.interval || "1m"}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded font-bold ${isRise ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                {isRise ? '🚀 Rise' : '📉 Fall'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="text-yellow-400 font-bold">{cfg.delay_minutes || 0}m</span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-xs font-medium">
-                                                <span className="text-green-400">{cfg.target_percent}%</span>
-                                                <span className="text-gray-500 mx-1">/</span>
-                                                <span className="text-red-400">{cfg.safety_stop_percent}%</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-xs text-blue-400">
-                                                {cfg.trailing_start_percent}% / {cfg.trailing_stop_drop}%
-                                            </div>
-                                        </td>
+                                        {tableFields.map(field => (
+                                            <td key={field.name} className="px-4 py-3 text-gray-300 text-xs">
+                                                {field.type === 'select' ? (
+                                                    <span className={`px-2 py-1 rounded font-bold ${
+                                                        field.name === 'direction'
+                                                            ? (cfg[field.name] === 'rise' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400')
+                                                            : 'bg-purple-500/20 text-purple-300'
+                                                    }`}>
+                                                        {formatValue(cfg, field)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-300 font-medium">
+                                                        {formatValue(cfg, field)}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        ))}
                                         {onEdit && (
                                             <td className="px-4 py-3 text-right">
                                                 <button

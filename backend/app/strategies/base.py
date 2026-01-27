@@ -42,6 +42,11 @@ class BaseStrategy(ABC):
     """
     Abstract Base Class for all strategies.
     """
+    # Subclasses override with their parameter schema dict.
+    # Format: {"fields": [{"name", "type", "label", "default", ...}]}
+    # This is the Single Source of Truth for parameter metadata.
+    PARAMETER_SCHEMA: Optional[Dict[str, Any]] = None
+
     def __init__(self, context: IContext, config: Dict[str, Any] = None):
         self.context = context
         self.config = config or {}

@@ -387,8 +387,17 @@ class Strategy(BaseModel):
 
 @router.get("/list", response_model=List[Strategy])
 async def list_strategies(db: Session = Depends(get_db)):
+    from ..core.strategy_registry import StrategyRegistry
     strats = db.query(StrategyInfo).all()
-    return strats
+    result = []
+    for s in strats:
+        data = Strategy.from_orm(s)
+        if not data.parameter_schema:
+            class_schema = StrategyRegistry.get_parameter_schema(s.id)
+            if class_schema:
+                data.parameter_schema = class_schema
+        result.append(data)
+    return result
 
 @router.post("/generate")
 async def generate_strategy_code(prompt: Dict[str, str]):

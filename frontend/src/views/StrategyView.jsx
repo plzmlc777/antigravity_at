@@ -1704,6 +1704,7 @@ const StrategyView = () => {
                                                 configList={configList}
                                                 savedSymbols={savedSymbols}
                                                 onEdit={(idx) => setActiveTab(idx)}
+                                                parameterSchema={selectedStrategy?.parameter_schema}
                                             />
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Type, Optional
+from typing import Dict, Type, Optional, Any
 from ..strategies.base import BaseStrategy
 from ..strategies.time_momentum import TimeMomentumStrategy
 from ..strategies.rsi import RSIStrategy
@@ -33,5 +33,23 @@ class StrategyRegistry:
     @classmethod
     def list_strategies(cls) -> list:
         return list(cls._strategies.keys())
+
+    @classmethod
+    def get_parameter_schema(cls, name: str) -> Optional[dict]:
+        """Get PARAMETER_SCHEMA from a registered strategy class."""
+        strategy_class = cls._strategies.get(name)
+        if strategy_class:
+            return getattr(strategy_class, 'PARAMETER_SCHEMA', None)
+        return None
+
+    @classmethod
+    def get_all_parameter_schemas(cls) -> Dict[str, dict]:
+        """Returns {strategy_id: schema_dict} for all strategies with schemas."""
+        schemas = {}
+        for name, strategy_class in cls._strategies.items():
+            schema = getattr(strategy_class, 'PARAMETER_SCHEMA', None)
+            if schema:
+                schemas[name] = schema
+        return schemas
 
 strategy_registry = StrategyRegistry

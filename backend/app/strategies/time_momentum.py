@@ -10,6 +10,52 @@ class TimeMomentumStrategy(BaseStrategy):
     3. If price rises > trailing_start_percent => Activate Trailing Stop.
     4. Force Sell at Stop Time or if Stop Loss hit.
     """
+    PARAMETER_SCHEMA = {
+        "fields": [
+            {"name": "interval", "type": "select", "label": "Interval",
+             "default": "1m",
+             "options": ["1m", "3m", "5m", "10m", "15m", "30m", "60m", "1d"],
+             "description": "Chart candle interval",
+             "show_in_table": False, "defaultOptRange": "1m, 5m, 15m, 60m"},
+            {"name": "start_time", "type": "time", "label": "Start Time",
+             "default": "09:00",
+             "description": "Time to start monitoring price",
+             "show_in_table": True},
+            {"name": "stop_time", "type": "time", "label": "Stop Time",
+             "default": "15:00",
+             "description": "Force exit time",
+             "show_in_table": True},
+            {"name": "delay_minutes", "type": "number", "label": "Delay (min)",
+             "default": 10, "min": 0, "max": 120, "step": 1,
+             "description": "Wait minutes after start before entry check",
+             "show_in_table": True, "defaultOptRange": "5, 10, 30, 60"},
+            {"name": "direction", "type": "select", "label": "Direction",
+             "default": "rise", "options": ["rise", "fall"],
+             "description": "rise=momentum buy, fall=dip buy",
+             "show_in_table": True},
+            {"name": "target_percent", "type": "number", "label": "Target (%)",
+             "default": 2.0, "min": 0.1, "max": 20, "step": 0.1,
+             "description": "Min price change % to trigger buy",
+             "show_in_table": True, "defaultOptRange": "1.0, 2.0, 3.0, 5.0"},
+            {"name": "safety_stop_percent", "type": "number", "label": "Stop Loss (%)",
+             "default": 3.0, "min": 0.1, "max": 20, "step": 0.1,
+             "description": "Loss % threshold for emergency stop",
+             "show_in_table": True, "defaultOptRange": "2.0, 3.0, 5.0"},
+            {"name": "trailing_start_percent", "type": "number", "label": "Trail Start (%)",
+             "default": 5.0, "min": 0.1, "max": 50, "step": 0.1,
+             "description": "Profit % to activate trailing stop",
+             "show_in_table": True, "defaultOptRange": "1.0, 3.0, 5.0, 10.0"},
+            {"name": "trailing_stop_drop", "type": "number", "label": "Trail Drop (%)",
+             "default": 2.0, "min": 0.1, "max": 20, "step": 0.1,
+             "description": "Drop % from peak to trigger sell",
+             "show_in_table": True, "defaultOptRange": "0.5, 1.0, 2.0, 3.0"},
+            {"name": "betting_strategy", "type": "select", "label": "Betting Mode",
+             "default": "fixed", "options": ["fixed", "compound"],
+             "description": "fixed=reset capital each cycle, compound=keep accumulated P&L",
+             "show_in_table": False},
+        ]
+    }
+
     def initialize(self):
         # Helper for robust parsing
         def get_param(key, default, cast_type=float):

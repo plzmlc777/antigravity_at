@@ -2,6 +2,29 @@ from .base import BaseStrategy
 from typing import Dict, Any, List
 
 class RSIStrategy(BaseStrategy):
+
+    PARAMETER_SCHEMA = {
+        "fields": [
+            {"name": "interval", "type": "select", "label": "Interval",
+             "default": "1m",
+             "options": ["1m", "3m", "5m", "10m", "15m", "30m", "60m", "1d"],
+             "description": "Chart candle interval",
+             "show_in_table": False, "defaultOptRange": "1m, 5m, 15m, 60m"},
+            {"name": "period", "type": "number", "label": "RSI Period",
+             "default": 14, "min": 2, "max": 50, "step": 1,
+             "description": "Lookback period for RSI calculation",
+             "show_in_table": True, "defaultOptRange": "7, 14, 21"},
+            {"name": "buy_threshold", "type": "number", "label": "Oversold Level",
+             "default": 30, "min": 10, "max": 40, "step": 1,
+             "description": "RSI level to trigger buy",
+             "show_in_table": True, "defaultOptRange": "20, 25, 30"},
+            {"name": "sell_threshold", "type": "number", "label": "Overbought Level",
+             "default": 70, "min": 60, "max": 90, "step": 1,
+             "description": "RSI level to trigger sell",
+             "show_in_table": True, "defaultOptRange": "65, 70, 80"},
+        ]
+    }
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.period = config.get('period', 14)

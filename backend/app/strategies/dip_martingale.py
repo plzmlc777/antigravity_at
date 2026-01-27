@@ -11,21 +11,73 @@ class DipMartingaleStrategy(BaseStrategy):
     - Risk Management: Max levels, HODL (Max Loss Protection)
     """
 
+    PARAMETER_SCHEMA = {
+        "fields": [
+            {"name": "interval", "type": "select", "label": "Interval",
+             "default": "1m",
+             "options": ["1m", "3m", "5m", "10m", "15m", "30m", "60m", "1d"],
+             "description": "Chart candle interval",
+             "show_in_table": False, "defaultOptRange": "1m, 5m, 15m, 60m"},
+            {"name": "dip_percent", "type": "number", "label": "Dip Threshold (%)",
+             "default": 1.0, "min": 0.1, "max": 20, "step": 0.1,
+             "description": "Initial dip % from reference to trigger L1 entry",
+             "show_in_table": True, "defaultOptRange": "0.5, 1.0, 1.5, 2.0"},
+            {"name": "level_gap_percent", "type": "number", "label": "Level Gap (%)",
+             "default": 2.0, "min": 0.5, "max": 20, "step": 0.5,
+             "description": "Price drop % between martingale levels",
+             "show_in_table": True, "defaultOptRange": "1.0, 2.0, 3.0"},
+            {"name": "max_levels", "type": "number", "label": "Max Levels",
+             "default": 4, "min": 1, "max": 100, "step": 1,
+             "description": "Maximum martingale levels (excluding L0)",
+             "show_in_table": True, "defaultOptRange": "3, 4, 5, 10"},
+            {"name": "lot_size_multiplier", "type": "number", "label": "Pyramid Multiplier",
+             "default": 2.0, "min": 1, "max": 10, "step": 0.5,
+             "description": "Position size multiplier per level (1->2->4->8...)",
+             "show_in_table": False, "defaultOptRange": "1.5, 2.0, 3.0"},
+            {"name": "base_quantity", "type": "number", "label": "Base Qty",
+             "default": 1, "min": 1, "max": 10000, "step": 1,
+             "description": "Starting quantity for Level 1",
+             "show_in_table": False, "defaultOptRange": "1, 5, 10"},
+            {"name": "trailing_start_percent", "type": "number", "label": "Trail Start (%)",
+             "default": 0.01, "min": 0.001, "max": 100, "step": 0.01,
+             "description": "Profit % of capital to activate trailing stop",
+             "show_in_table": True, "defaultOptRange": "0.5, 1.0, 5.0, 10.0, 20.0"},
+            {"name": "trailing_stop_percent", "type": "number", "label": "Trail Stop (%)",
+             "default": 0.003, "min": 0.001, "max": 50, "step": 0.001,
+             "description": "Drop % from peak price to trigger sell",
+             "show_in_table": True, "defaultOptRange": "0.1, 0.3, 0.5, 1.0"},
+            {"name": "max_loss_percent", "type": "number", "label": "Max Loss (%)",
+             "default": 0.10, "min": 0.01, "max": 1000, "step": 0.01,
+             "description": "Capital loss % that triggers HODL mode",
+             "show_in_table": False, "defaultOptRange": "5.0, 10.0, 20.0"},
+            {"name": "betting_strategy", "type": "select", "label": "Betting Mode",
+             "default": "fixed", "options": ["fixed", "compound"],
+             "description": "fixed=reset capital each cycle, compound=keep accumulated P&L",
+             "show_in_table": True},
+            {"name": "safety_margin_percent", "type": "number", "label": "Safety Margin (%)",
+             "default": 1.0, "min": 0, "max": 50, "step": 0.5,
+             "description": "Reserve % of capital not used for trading",
+             "show_in_table": False},
+        ]
+    }
+
     def initialize(self):
         # Configuration parameters
         self.symbol = self.config.get("symbol", "UNKNOWN")
-        self.dip_percent = self.config.get("dip_percent", 1.0) # Condition 1: Initial dip to enter (e.g., -1%)
-        self.level_gap_percent = self.config.get("level_gap_percent", 2.0) # Condition 2: Gap between levels (e.g., -2%)
-        self.max_levels = self.config.get("max_levels", 4) # Max levels (excluding level 0)
-        self.lot_size_multiplier = self.config.get("lot_size_multiplier", 2.0) # Martingale multiplier (e.g., 1, 2, 4, 8)
-        self.base_quantity = self.config.get("base_quantity", 1) # Starting quantity for Level 1
+        self.dip_percent = self.config.get("dip_percent", 1.0)
+        self.level_gap_percent = self.config.get("level_gap_percent", 2.0)
+        self.max_levels = self.config.get("max_levels", 4)
+        self.lot_size_multiplier = self.config.get("lot_size_multiplier",
+            self.config.get("pyramid_multiplier", 2.0))  # backward-compat alias
+        self.base_quantity = self.config.get("base_quantity", 1)
 
-        self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01) # 1% profit starts trailing
-        self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003) # 0.3% drop from peak triggers sell
-        self.max_loss_percent = self.config.get("max_loss_percent", 0.10) # 10% total loss triggers HODL
+        self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01)
+        self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003)
+        self.max_loss_percent = self.config.get("max_loss_percent", 0.10)
 
-        # Betting Strategy: "fixed" = reset to initial_capital each cycle, "compound" = keep accumulated P&L
-        self.betting_strategy = self.config.get("betting_strategy", "fixed")
+        # Betting Strategy
+        self.betting_strategy = self.config.get("betting_strategy",
+            self.config.get("betting_mode", "fixed"))  # backward-compat alias
 
         # Safety margin: reserve this % of capital (not used for trading)
         self.safety_margin_percent = self.config.get("safety_margin_percent", 1.0)  # 1% safety margin
