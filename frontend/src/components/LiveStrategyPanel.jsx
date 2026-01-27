@@ -9,7 +9,7 @@ import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
 import StrategyKPIWidget from './StrategyKPIWidget';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -583,6 +583,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     <ActiveStrategiesPanel
                         configList={configList}
                         savedSymbols={savedSymbols}
+                        parameterSchema={parameterSchema}
                     />
                 </div>
             )}

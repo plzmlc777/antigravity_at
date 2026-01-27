@@ -2005,6 +2005,7 @@ const StrategyView = () => {
                                                 mode="WATCH"
                                                 configList={configList}
                                                 savedSymbols={savedSymbols}
+                                                parameterSchema={selectedStrategy?.parameter_schema}
                                             />
                                         </div>
                                     )}
@@ -2030,6 +2031,7 @@ const StrategyView = () => {
                                                 setCurrentSymbol(configList[index].symbol);
                                             }
                                         }}
+                                        parameterSchema={selectedStrategy?.parameter_schema}
                                     />
                                 </div>
                             )}
