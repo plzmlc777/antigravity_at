@@ -108,7 +108,8 @@ class TimeMomentumStrategy(BaseStrategy):
         self.entry_price = 0 # Fix: Store actual entry price
         self.checked_today = False # Fix: Ensure we only check trigger ONCE per day (Snapshot)
         self.current_trading_date = None # Fix: Track Date for Reset
-        
+        self.cycle_id = 0 # Cycle tracking (unified with DipMartingale)
+
         # Verify Code Loading
         self.context.log(f"DEBUG: TimeMomentumStrategy Loaded (Strict Daily Limit Active) - {datetime.now()}")
 
@@ -219,7 +220,7 @@ class TimeMomentumStrategy(BaseStrategy):
 
 
                 if quantity > 0:
-                    result = self.context.buy(symbol, quantity)
+                    result = self.context.buy(symbol, quantity, metadata={"level": 1})
                     # Only update position state if buy succeeded
                     if result.get("status") != "failed":
                         self.has_bought = True
@@ -260,7 +261,8 @@ class TimeMomentumStrategy(BaseStrategy):
             if current_return <= self.safety_stop_percent:
                  qty = self.context.holdings.get(symbol, 0)
                  if qty > 0:
-                     self.context.sell(symbol, qty)
+                     self.cycle_id += 1
+                     self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
                      self.has_bought = False
                      self.trailing_active = False # Fix: Reset state
                      self.context.log(f"Safety Stop Hit! Sold {qty}")
@@ -277,7 +279,8 @@ class TimeMomentumStrategy(BaseStrategy):
                 if drop_from_peak >= self.trailing_stop_drop:
                     qty = self.context.holdings.get(symbol, 0)
                     if qty > 0:
-                        self.context.sell(symbol, qty)
+                        self.cycle_id += 1
+                        self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
                         self.has_bought = False
                         self.trailing_active = False # Fix: Reset state
                         self.context.log(f"Trailing Stop Hit! Sold {qty}")
@@ -286,7 +289,8 @@ class TimeMomentumStrategy(BaseStrategy):
             if current_time.time() >= self.stop_time:
                  qty = self.context.holdings.get(symbol, 0)
                  if qty > 0:
-                     self.context.sell(symbol, qty)
+                     self.cycle_id += 1
+                     self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
                      self.has_bought = False
                      self.trailing_active = False # Fix: Reset state
                      self.context.log(f"Time Stop (End of Day). Sold {qty}")
