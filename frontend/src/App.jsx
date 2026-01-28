@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './views/Dashboard';
 import ManualTrading from './views/ManualTrading';
-import AutoTrading from './views/AutoTrading';
+
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
 import Settings from './views/Settings';
@@ -89,8 +89,7 @@ function AppContent() {
                         <div className="flex gap-2">
                             <NavLink to="/">Dashboard</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
-                            <NavLink to="/auto">Simple Auto</NavLink>
-                            <NavLink to="/strategies">Pro Strategies</NavLink>
+                            <NavLink to="/strategies">Strategies</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -116,7 +115,6 @@ function AppContent() {
                 <Routes>
                     <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
-                    <Route path="/auto" element={<RequireAuth><AutoTrading /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} /> {/* New Route */}
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />

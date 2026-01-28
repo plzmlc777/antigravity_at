@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Antigravity Auto Trading System - A comprehensive automated trading platform for the Korean stock market, integrating with the Kiwoom Securities API. The system supports manual trading, simple automated bots, advanced strategy backtesting/optimization, and live trading with real-time data feeds.
 
-**Current Version**: v0.9.8.0 (Bukhansan Release)
+**Current Version**: v0.9.9.13 (Unaksan Release)
 
 ## Common Commands
 
@@ -199,23 +199,28 @@ Environment variables are loaded from multiple sources (priority order):
 - `SECRET_KEY` - JWT signing key
 - `KIWOOM_*` - API credentials (keep secret!)
 
-### Version Management (v0.9.9.4+)
+### Version Management
 
 버전은 **코드 2곳**만 수정하면 됨 (DB 저장 없음):
 - `backend/app/core/config.py` — `PROJECT_VERSION` (백엔드 API 반환)
 - `frontend/package.json` — `version` (Vite 빌드 시 주입)
 
-**버전 업데이트 스크립트:**
+**반드시 `bump_version.sh` 스크립트를 사용할 것:**
 ```bash
-./scripts/bump_version.sh 0.9.9.4
-git push origin master --tags
+# 버전업 + 커밋 + 태그 + 푸시 + PM2 재시작 (올인원)
+./scripts/bump_version.sh 0.9.9.14
+
+# 재시작만 (버전 변경 없이)
+./scripts/bump_version.sh --restart
+
+# 현재 버전 확인
+./scripts/bump_version.sh
 ```
 
-**수동 업데이트 (Claude에게 요청 시):**
-"버전업/커밋 해줘" 라고 요청하면:
-1. `backend/app/core/config.py` 버전 수정
-2. `frontend/package.json` 버전 수정
-3. Git commit, tag, push 실행
+**Claude에게 요청 시:**
+- "버전업 해줘" → `bump_version.sh <새버전>` 실행 (수동으로 파일 수정하지 말 것)
+- "재시작 해줘" → `bump_version.sh --restart` 실행
+- 커밋되지 않은 변경사항이 있으면 먼저 커밋 후 버전업 스크립트 실행
 
 ### Real-time WebSocket Endpoints
 - `/api/v1/live/ws/{session_id}` - Live session feed (signals, orders, PnL)

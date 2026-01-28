@@ -1,11 +1,11 @@
 #!/bin/bash
 # Version Bump + Deploy Script
-# Updates version in both backend & frontend, commits, pushes, and restarts PM2.
+# Updates version in both backend & frontend, commits, pushes, and restarts services.
 #
 # Usage:
 #   ./scripts/bump_version.sh 0.9.9.8           # bump + commit + push + restart
 #   ./scripts/bump_version.sh 0.9.9.8 --no-push # bump + commit + restart (no push)
-#   ./scripts/bump_version.sh --restart          # restart PM2 only (no version change)
+#   ./scripts/bump_version.sh --restart          # restart services only (no version change)
 
 set -e
 
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 PM2="$ROOT_DIR/tools/node/bin/pm2"
 
-# --restart flag: just restart PM2, no version change
+# --restart flag: just restart PM2 services, no version change
 if [ "$1" = "--restart" ]; then
     echo "=== PM2 Restart Only ==="
     "$PM2" restart at-backend at-frontend
@@ -30,7 +30,7 @@ if [ -z "$1" ]; then
     echo "Usage:"
     echo "  $0 <new_version>           # bump + commit + push + restart"
     echo "  $0 <new_version> --no-push # bump + commit + restart (skip push)"
-    echo "  $0 --restart               # restart PM2 only"
+    echo "  $0 --restart               # restart services only"
     exit 0
 fi
 
