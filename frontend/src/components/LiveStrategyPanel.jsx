@@ -101,86 +101,66 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     }, [executionMode, configList.length, configList.map(c => c.is_active).join(',')]);
 
     // Fetch Initial Candles for Real-Time View (Hybrid Pattern: History + Live)
+    // When RUNNING with a live session, WebSocket sends the most up-to-date history
+    // (including new candles from the aggregator). We use HTTP API only as fallback
+    // when WebSocket is not available (e.g. WATCH mode, or session not started yet).
+    const wsHistoryReceived = useRef(false);
+
     useEffect(() => {
         // Skip fetch if symbol is missing or we are in STARTING state
         if (!strategyConfig.symbol || status === 'STARTING') return;
 
+        // If we're in TRADE mode with a session, WebSocket will provide history.
+        // Skip HTTP fetch to avoid overwriting WS data with stale REST API data.
+        if (mode === 'TRADE' && sessionId && status === 'RUNNING') {
+            console.log(`[DEBUG] Skipping HTTP fetch - WebSocket will provide history for session ${sessionId}`);
+            return;
+        }
+
         // Deduplication Check: Skip if this specific combination was already fetched
-        // We ignore 'status' here because history doesn't care about bot status, only symbol/interval.
         if (lastFetchRef.current.symbol === strategyConfig.symbol &&
             lastFetchRef.current.interval === selectedInterval) {
             console.log(`[DEBUG] Skipping redundant history fetch for ${strategyConfig.symbol} (${selectedInterval})`);
             return;
         }
 
-        // Log status to debug
         console.log(`[DEBUG] History Fetch Effect Triggered. Status: ${status}, Symbol: ${strategyConfig.symbol}, Interval: ${selectedInterval}`);
-
-        // Update Ref immediately to prevent race conditions during async await
         lastFetchRef.current = { symbol: strategyConfig.symbol, interval: selectedInterval, status: status };
-
-        // Clear existing candles immediately to indicate loading/change
         setRealTimeCandles([]);
 
         (async () => {
             try {
-                // 1. Calculate Today's Date in KST (YYYYMMDD)
                 const now = new Date();
-                const kstOffset = 9 * 60; // KST is UTC+9
+                const kstOffset = 9 * 60;
                 const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
                 const kstDate = new Date(utc + (kstOffset * 60000));
                 const dateStr = kstDate.toISOString().split('T')[0].replace(/-/g, '');
 
-                addLog("System", `[DEBUG] REQ: ${selectedInterval} | Date: ${dateStr}`);
-                console.log(`[DEBUG] Requesting ${selectedInterval} for ${strategyConfig.symbol} on ${dateStr}`);
+                addLog("System", `Fetching ${selectedInterval} candles...`);
 
-                // 2. Fetch History (Today's candles)
                 const candles = await getOHLCV(strategyConfig.symbol, {
                     date: dateStr,
                     interval: selectedInterval
                 });
 
-                console.log("[DEBUG] Response:", candles);
-
-                // 3. Update State
-                if (candles && candles.length > 0) {
-                    setRealTimeCandles(candles);
-                    addLog("System", `[DEBUG] OK: Loaded ${candles.length} candles. Last: ${candles[candles.length - 1].time}`);
-
-                    // Check if we also have current price from liveData
-                    if (liveData && liveData.current_price) {
-                        // Optional: Append/Update last candle with current price if newer?
-                        // Usually WS will handle the next update.
-                    }
-                } else {
-                    // Fallback: If no history (e.g. market just opened or error), try current price
-                    addLog("System", `[DEBUG] EMPTY Response for ${selectedInterval} on ${dateStr}`);
-                    console.warn("[DEBUG] Empty history response");
-
-                    if (liveData && liveData.current_price) {
-                        const nowTs = Math.floor(Date.now() / 1000);
-                        setRealTimeCandles([{
-                            time: nowTs,
-                            open: liveData.current_price,
-                            high: liveData.current_price,
-                            low: liveData.current_price,
-                            close: liveData.current_price,
-                            volume: 0
-                        }]);
-                        addLog("System", "No history found, starting with Current Price.");
+                // Only set if WS history hasn't arrived yet
+                if (!wsHistoryReceived.current) {
+                    if (candles && candles.length > 0) {
+                        setRealTimeCandles(candles);
+                        addLog("System", `Loaded ${candles.length} candles (HTTP). Last: ${candles[candles.length - 1].time}`);
                     } else {
-                        setRealTimeCandles([]);
                         addLog("System", "No history data. Waiting for stream...");
                     }
+                } else {
+                    console.log("[DEBUG] HTTP fetch completed but WS history already received, skipping.");
                 }
             } catch (e) {
                 console.error("Init Error", e);
                 addLog("Error", "Failed to fetch history");
-                // Fallback to empty
                 setRealTimeCandles([]);
             }
         })();
-    }, [status, strategyConfig.symbol, selectedInterval]); // Removed liveData dependency to prevent re-fetching loop
+    }, [status, strategyConfig.symbol, selectedInterval, mode, sessionId]);
 
 
     const startPolling = () => {
@@ -404,7 +384,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         let ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            addLog("System", "Real-time feed connected");
+            addLog("System", `WS connected to: ${wsUrl}`);
         };
 
         ws.onmessage = (event) => {
@@ -413,9 +393,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                 if (data.type === 'tick') {
                     setLiveData(prev => ({ ...prev, current_price: data.price }));
-
-                    // Log tick to Execution Logs
-                    addLog("Market", `Tick: ${data.price.toLocaleString()} (Vol: ${data.volume || 0})`);
 
                     // 1. Update Ticks List (for debug/legacy)
                     setTickData(prev => {
@@ -506,8 +483,65 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         }
                     });
 
-                } else if (data.type === 'history' || data.type === 'candle') {
-                    // Logic to handle history push if needed
+                } else if (data.type === 'history') {
+                    // Backend sends full history on WebSocket connect
+                    const rawData = data.data || [];
+                    const historyCandles = rawData.map(c => {
+                        let t = c.time || c.timestamp;
+                        if (typeof t === 'string') {
+                            // Handle both ISO "2026-01-28T10:36:00" and Kiwoom "20260128103600" formats
+                            if (/^\d{14}$/.test(t)) {
+                                // Kiwoom format: YYYYMMDDHHmmss
+                                const y = t.slice(0,4), mo = t.slice(4,6), d = t.slice(6,8);
+                                const h = t.slice(8,10), mi = t.slice(10,12), s = t.slice(12,14);
+                                t = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}`).getTime() / 1000;
+                            } else {
+                                t = new Date(t).getTime() / 1000;
+                            }
+                        }
+                        return {
+                            time: Number(t),
+                            open: Number(c.open),
+                            high: Number(c.high),
+                            low: Number(c.low),
+                            close: Number(c.close),
+                            volume: Number(c.volume || 0)
+                        };
+                    }).filter(c => !isNaN(c.time));
+
+                    if (historyCandles.length > 0) {
+                        wsHistoryReceived.current = true;
+                        setRealTimeCandles(historyCandles);
+                        addLog("System", `WS History: ${historyCandles.length} candles (last: ${new Date(historyCandles[historyCandles.length - 1].time * 1000).toLocaleTimeString()})`);
+                    }
+                } else if (data.type === 'candle') {
+                    // Real-time candle close event from backend
+                    const c = data.data || {};
+                    addLog("WS-Candle", `New candle: t=${c.time||c.timestamp} O=${c.open} C=${c.close}`);
+                    let t = c.time || c.timestamp;
+                    if (typeof t === 'string') {
+                        t = new Date(t).getTime() / 1000;
+                    }
+                    const newCandle = {
+                        time: Number(t),
+                        open: Number(c.open),
+                        high: Number(c.high),
+                        low: Number(c.low),
+                        close: Number(c.close),
+                        volume: Number(c.volume || 0)
+                    };
+                    if (!isNaN(newCandle.time)) {
+                        setRealTimeCandles(prev => {
+                            // Replace if same time, append if new
+                            const existing = prev.findIndex(x => x.time === newCandle.time);
+                            if (existing >= 0) {
+                                const updated = [...prev];
+                                updated[existing] = newCandle;
+                                return updated;
+                            }
+                            return [...prev, newCandle].sort((a, b) => a.time - b.time);
+                        });
+                    }
                 } else if (data.type === 'strategy_status') {
                     setStrategyState(data.data);
                 }
@@ -521,6 +555,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         };
 
         return () => {
+            wsHistoryReceived.current = false;
             if (ws) ws.close();
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);

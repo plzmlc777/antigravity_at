@@ -85,32 +85,49 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 continue
             
             try:
-                # Official example doesn't use extra headers in connect
+                # Kiwoom uses application-level PING (trnm="PING"), not WebSocket protocol pings
+                # Disable library auto-ping to avoid premature disconnection
                 logger.info(f"WS: Connecting to {self.uri} (Token valid for {remaining_sec // 60} mins)...")
-                async with websockets.connect(self.uri) as websocket:
+                async with websockets.connect(
+                    self.uri,
+                    ping_interval=None,
+                    ping_timeout=None,
+                    close_timeout=10,
+                    max_size=2**20,  # 1MB max message size
+                ) as websocket:
                     self.websocket = websocket
                     retry_count = 0 # Reset on success
                     
                     logger.info("WS: Connected. Sending LOGIN...")
-                    
-                    # 0. Send LOGIN 
+
+                    # 0. Send LOGIN
                     login_payload = {
                         "trnm": "LOGIN",
-                        "refresh": "1",
                         "token": self.access_token
                     }
                     await websocket.send(json.dumps(login_payload))
-                    
-                    # Wait a moment for server to process LOGIN
-                    await asyncio.sleep(1.0)
 
-                    # Send Initial Registrations
+                    # Wait for LOGIN response before sending REGs
+                    try:
+                        login_resp = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+                        login_data = json.loads(login_resp)
+                        if login_data.get("return_code") != 0:
+                            logger.error(f"WS LOGIN Failed: {login_data.get('return_msg')}")
+                            continue
+                        logger.info("WS LOGIN Success (confirmed before REG)")
+                    except asyncio.TimeoutError:
+                        logger.error("WS: LOGIN response timeout")
+                        continue
+
+                    # Send Initial Registrations with delay between each
                     # 1. Account Events (Orders/Balance)
                     await self._send_reg([""], ["00", "04"])
-                    
+                    await asyncio.sleep(0.5)
+
                     # 2. Symbols
                     if self.monitored_symbols:
-                        await self._send_reg(self.monitored_symbols, ["0B"]) 
+                        await self._send_reg(self.monitored_symbols, ["0B"])
+                        await asyncio.sleep(0.5)
 
                     await self._listen_loop()
                     
@@ -123,12 +140,15 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
     async def _listen_loop(self):
         from ..core.token_manager import KiwoomTokenManager
         mgr = KiwoomTokenManager.get_instance()
-        
+        msg_count = 0
+
         try:
             while self.websocket and self.websocket.open:
                 try:
-                    # Use wait_for to allow periodic token checks
                     message = await asyncio.wait_for(self.websocket.recv(), timeout=30.0)
+                    msg_count += 1
+                    if msg_count <= 3 or msg_count % 100 == 0:
+                        logger.info(f"WS: Message #{msg_count}")
                     await self._handle_message(message)
                 except asyncio.TimeoutError:
                     # Periodic Token Check while idle
@@ -138,23 +158,25 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                         await self.websocket.close()
                         break
                     continue
-        except websockets.exceptions.ConnectionClosed:
-            logger.warning("WS: Connection closed by server.")
+            # While loop exited (connection closed)
+            close_code = getattr(self.websocket, 'close_code', None)
+            close_reason = getattr(self.websocket, 'close_reason', None)
+            logger.warning(f"WS: Connection ended. close_code={close_code}, close_reason={close_reason}")
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.warning(f"WS: Connection closed by server. Code={e.code}, Reason={e.reason}")
         except Exception as e:
-            logger.error(f"WS: Listen Loop Error: {e}")
+            logger.error(f"WS: Listen Loop Error: {e}", exc_info=True)
 
     async def _handle_message(self, message):
          try:
             data = json.loads(message)
             trnm = data.get("trnm")
-            
+
             if trnm == "REAL":
-                # logger.debug(f"WS: Received REAL message: {data}")
                 items = data.get("data", [])
                 for item in items:
                     m_type = item.get("type")
                     if m_type == "0B": # Stock Execution
-                        # logger.debug(f"WS: Tick received for {item.get('item')}")
                         if self.on_tick_callback:
                             self._parse_tick(item)
                     else:
@@ -172,7 +194,17 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             elif trnm == "PING":
                 # Responding to PING is essential for maintaining the connection
                 await self.websocket.send(message)
-                # logger.debug("WS: Responded to PING")
+            elif trnm == "SYSTEM":
+                code = data.get("code", "")
+                msg = data.get("message", "")
+                logger.warning(f"WS SYSTEM: code={code}, msg={msg}")
+                if code == "R10001":
+                    # "동일한 App key로 접속이 되었습니다. 기존 세션은 종료가 됩니다"
+                    # Another connection with the same App Key was opened.
+                    # This session will be closed by the server momentarily.
+                    logger.warning("WS: Duplicate session detected. This connection will be closed by server.")
+            else:
+                logger.debug(f"WS: Unknown trnm={trnm}")
          except Exception as e:
              logger.error(f"WS Parse Error: {e}")
 

@@ -197,7 +197,7 @@ class LiveTradingEngine:
         """
         price = tick_data.get('price', 0)
         volume = tick_data.get('volume', 0)
-        
+
         # Deduplication
         if price == self.last_price and volume == self.last_accum_volume:
              if self.last_accum_volume != -1:
@@ -264,7 +264,10 @@ class LiveTradingEngine:
         # 4. Strategy Execution (On Candle Close)
         if closed_candle:
             logger.info(f"Candle Closed: {closed_candle['timestamp']}")
-            
+
+            # Append to history so reconnecting clients get updated data
+            self.history_candles.append(closed_candle)
+
             # Notify Frontend of confirmed candle
             candle_event = {
                 "type": "candle",

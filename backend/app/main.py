@@ -36,6 +36,13 @@ async def lifespan(app: FastAPI):
     
     # Shutdown Logic
     logger.info("Shutting down...")
+    # Close WebSocket before anything else to free Kiwoom session
+    from .adapters.kiwoom_websocket import KiwoomWebSocket
+    ws = KiwoomWebSocket.get_instance()
+    ws.is_running = False
+    if ws.websocket and not ws.websocket.closed:
+        await ws.websocket.close()
+        logger.info("WS: Closed on shutdown")
     await HttpClientManager.get_instance().stop() # Close Global Client
     # await bot_manager.stop_all() # Ensure bots are stopped
     await condition_watcher.stop() # Stop watcher

@@ -41,6 +41,10 @@ class LiveManager:
             # Register Global Tick Listener
             if hasattr(self.adapter, "add_tick_listener"):
                 self.adapter.add_tick_listener(self._on_tick)
+            # Bind this adapter's callback to the singleton WebSocket
+            # Must be called AFTER add_tick_listener so the listener is registered
+            if hasattr(self.adapter, "setup_realtime_callbacks"):
+                self.adapter.setup_realtime_callbacks()
 
     def _on_tick(self, tick_data: Dict):
         """
@@ -48,10 +52,7 @@ class LiveManager:
         """
         symbol = tick_data.get("symbol")
         if not symbol: return
-        
-        # Find engine with this symbol
-        # Ideally engines map by session_id, maybe we need map by symbol too?
-        # For now, iterate (few sessions usually)
+
         for engine in self.engines.values():
             if engine.symbol == symbol:
                 asyncio.create_task(engine.process_realtime_tick(tick_data))

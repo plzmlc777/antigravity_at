@@ -29,12 +29,23 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         self.account_no = account_no or settings.HCP_KIWOOM_ACCOUNT_NO
         self.account_name = account_name or "Unknown"
         
-        # WebSocket Integration
+        # WebSocket Integration (shared singleton)
+        # NOTE: Do NOT set callbacks here — multiple KiwoomRealAdapter instances
+        # are created for REST API calls, and each would overwrite the singleton's
+        # tick callback, breaking LiveManager's real-time tick routing.
+        # Callbacks are set explicitly via setup_realtime_callbacks().
         self.ws_client = KiwoomWebSocket.get_instance()
-        self.ws_client.set_callbacks(on_tick=self._on_ws_tick)
         self.tick_listeners: List[Callable[[Dict], None]] = []
         self._ws_task = None
         
+    def setup_realtime_callbacks(self):
+        """
+        Set this adapter's _on_ws_tick as the WebSocket callback.
+        Should only be called ONCE by the owner (LiveManager).
+        """
+        self.ws_client.set_callbacks(on_tick=self._on_ws_tick)
+        logger.info(f"WebSocket tick callback registered (listeners: {len(self.tick_listeners)})")
+
     async def register_real_listener(self, symbol: str, callback: Callable[[Dict], Any]):
         """
         Special registration for MarketDataRouter/Watching.
