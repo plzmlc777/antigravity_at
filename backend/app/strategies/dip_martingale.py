@@ -1,327 +1,57 @@
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from .base import BaseStrategy, IContext
+from typing import Dict, Any
+from .martingale_base import MartingaleBase
 
-class DipMartingaleStrategy(BaseStrategy):
+
+class DipMartingaleStrategy(MartingaleBase):
     """
     Dip Martingale Strategy
-    - Basic Idea: Buy when price dips from a reference point (e.g., daily open or peak).
-    - Martingale: If price continues to drop, increase position size at fixed intervals to lower average price.
-    - Profit Taking: Use Trailing Stop once a profit target is reached.
-    - Risk Management: Max levels, HODL (Max Loss Protection)
+    - Buy trigger: When a candle drops dip_percent% from its open price.
+    - Additional entries: When a candle drops level_gap_percent% from its open.
+    - All position management, trailing stop, HODL inherited from MartingaleBase.
     """
 
     PARAMETER_SCHEMA = {
         "fields": [
-            {"name": "interval", "type": "select", "label": "Interval",
-             "default": "1m",
-             "options": ["1m", "3m", "5m", "10m", "15m", "30m", "60m", "1d"],
-             "description": "Chart candle interval",
-             "show_in_table": False, "defaultOptRange": "1m, 5m, 15m, 60m"},
+            # Dip-specific trigger parameters (placed before common fields)
             {"name": "dip_percent", "type": "number", "label": "Dip Threshold (%)",
              "default": 1.0, "min": 0.1, "max": 20, "step": 0.1,
-             "description": "Initial dip % from reference to trigger L1 entry",
+             "description": "Initial dip % from candle open to trigger L1 entry",
              "show_in_table": True, "defaultOptRange": "0.5, 1.0, 1.5, 2.0"},
             {"name": "level_gap_percent", "type": "number", "label": "Level Gap (%)",
              "default": 2.0, "min": 0.5, "max": 20, "step": 0.5,
-             "description": "Price drop % between martingale levels",
+             "description": "Price drop % from candle open to trigger L2+ entries",
              "show_in_table": True, "defaultOptRange": "1.0, 2.0, 3.0"},
-            {"name": "max_levels", "type": "number", "label": "Max Levels",
-             "default": 4, "min": 1, "max": 100, "step": 1,
-             "description": "Maximum martingale levels (excluding L0)",
-             "show_in_table": True, "defaultOptRange": "3, 4, 5, 10"},
-            {"name": "lot_size_multiplier", "type": "number", "label": "Pyramid Multiplier",
-             "default": 2.0, "min": 1, "max": 10, "step": 0.5,
-             "description": "Position size multiplier per level (1->2->4->8...)",
-             "show_in_table": False, "defaultOptRange": "1.5, 2.0, 3.0"},
-            {"name": "base_quantity", "type": "number", "label": "Base Qty",
-             "default": 1, "min": 1, "max": 10000, "step": 1,
-             "description": "Starting quantity for Level 1",
-             "show_in_table": False, "defaultOptRange": "1, 5, 10"},
-            {"name": "trailing_start_percent", "type": "number", "label": "Trail Start (%)",
-             "default": 0.01, "min": 0.001, "max": 100, "step": 0.01,
-             "description": "Profit % of capital to activate trailing stop",
-             "show_in_table": True, "defaultOptRange": "0.5, 1.0, 5.0, 10.0, 20.0"},
-            {"name": "trailing_stop_percent", "type": "number", "label": "Trail Stop (%)",
-             "default": 0.003, "min": 0.001, "max": 50, "step": 0.001,
-             "description": "Drop % from peak price to trigger sell",
-             "show_in_table": True, "defaultOptRange": "0.1, 0.3, 0.5, 1.0"},
-            {"name": "max_loss_percent", "type": "number", "label": "Max Loss (%)",
-             "default": 0.10, "min": 0.01, "max": 1000, "step": 0.01,
-             "description": "Capital loss % that triggers HODL mode",
-             "show_in_table": False, "defaultOptRange": "5.0, 10.0, 20.0"},
-            {"name": "betting_strategy", "type": "select", "label": "Betting Mode",
-             "default": "fixed", "options": ["fixed", "compound"],
-             "description": "fixed=reset capital each cycle, compound=keep accumulated P&L",
-             "show_in_table": True},
-            {"name": "safety_margin_percent", "type": "number", "label": "Safety Margin (%)",
-             "default": 1.0, "min": 0, "max": 50, "step": 0.5,
-             "description": "Reserve % of capital not used for trading",
-             "show_in_table": False},
-        ]
+        ] + MartingaleBase.COMMON_PARAMETER_FIELDS
     }
 
-    def initialize(self):
-        # Configuration parameters
-        self.symbol = self.config.get("symbol", "UNKNOWN")
+    def _initialize_trigger(self):
+        """Initialize dip-specific parameters."""
         self.dip_percent = self.config.get("dip_percent", 1.0)
         self.level_gap_percent = self.config.get("level_gap_percent", 2.0)
-        self.max_levels = self.config.get("max_levels", 4)
-        self.lot_size_multiplier = self.config.get("lot_size_multiplier",
-            self.config.get("pyramid_multiplier", 2.0))  # backward-compat alias
-        self.base_quantity = self.config.get("base_quantity", 1)
 
-        self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01)
-        self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003)
-        self.max_loss_percent = self.config.get("max_loss_percent", 0.10)
-
-        # Betting Strategy
-        self.betting_strategy = self.config.get("betting_strategy",
-            self.config.get("betting_mode", "fixed"))  # backward-compat alias
-
-        # Safety margin: reserve this % of capital (not used for trading)
-        self.safety_margin_percent = self.config.get("safety_margin_percent", 1.0)  # 1% safety margin
-
-        # Cycle planning variables (calculated at cycle start)
-        self.cycle_max_level = None  # Max affordable level for this cycle
-        self.cycle_reference_price = None  # Price used for planning
-
-        # State variables
-        self.current_level = 0 # 0: None, 1: First Entry, 2: Second...
-        self.reference_price = None # Point from which dip is measured (Cycle Start)
-        self.peak_price = 0 # Highest price since entry for trailing stop
-        self.average_price = 0
-        self.total_quantity = 0
-        self.trailing_active = False
-        self.is_hodl = False
-        self.last_trade_time = None
-        self.current_trading_date = None
-        self.entries = [] # List of entry records
-        self.paper_cycle_id = 0  # Paper mode cycle counter
-        self.real_cycle_id = 0   # Real mode cycle counter
-
-    def on_data(self, data: Dict[str, Any]):
-        """Called on every price update"""
-        current_time = self.context.get_time()
-        current_date = current_time.date()
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+        """L1: candle drops dip_percent% from its open."""
         current_price = data['close']
-        self.last_price = current_price # Store for state
-        symbol = self.symbol
-        
-        # 1. Reset cycle on new day (if no position)
-        if self.current_trading_date != current_date:
-            self.current_trading_date = current_date
-            if self.current_level == 0:
-                self.reference_price = None
-                self.context.log(f"[DipMartingale] New day {current_date}. Resetting reference price.")
-        
-        # 2. Set Reference Price (Cycle Start)
-        if self.reference_price is None:
-            self.reference_price = current_price
-            self.context.log(f"[DipMartingale] Cycle started for {symbol}. Ref: {self.reference_price:,.0f}")
-            return
+        candle_open = data.get('open', current_price)
+        candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
+        return candle_drop >= (self.dip_percent / 100)
 
-        # 3. Position Management (If holding)
-        if self.current_level > 0 and self.total_quantity > 0:
-            # Calculate return based on INITIAL CAPITAL (not position value)
-            # This makes trailing_start_percent meaningful as "% of capital profit"
-            initial_capital = getattr(self.context, 'initial_capital', 10000000)
-            position_profit = (current_price - self.average_price) * self.total_quantity
-            current_return = position_profit / initial_capital if initial_capital > 0 else 0
+    def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """L2+: candle drops level_gap_percent% from its open."""
+        current_price = data['close']
+        candle_open = data.get('open', current_price)
+        candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
+        return candle_drop >= (self.level_gap_percent / 100)
 
-            # Update peak profit for trailing stop (also capital-based)
-            current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
-            if position_profit > current_peak_profit:
-                self.peak_price = current_price
+    @property
+    def _log_prefix(self) -> str:
+        return "DipMartingale"
 
-            # 3a. Check Trailing Stop Activation (based on capital return)
-            if not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
-                self.trailing_active = True
-                self.peak_price = current_price
-                self.context.log(f"[DipMartingale] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%")
-            
-            # 3b. Check Trailing Stop Liquidation (price-based drop from peak)
-            if self.trailing_active:
-                drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-                if drop_from_peak >= (self.trailing_stop_percent / 100):
-                    self.context.log(f"[DipMartingale] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Capital Return: {current_return*100:.2f}%)")
-                    self._liquidate(current_price)
-                    return
-
-            # 3c. Check Max Loss Protection (HODL) - based on capital loss
-            if not self.is_hodl and current_return <= -(self.max_loss_percent / 100):
-                self.is_hodl = True
-                self.context.log(f"[DipMartingale] CRITICAL: Capital Loss {current_return*100:.1f}%. HODL Mode Engaged.")
-            
-            # 3d. Check Martingale Multi-Entry (If candle drops n% from open)
-            if self.current_level < self.max_levels and not self.trailing_active:
-                next_level = self.current_level + 1
-                # Check if current candle dropped n% from its open price
-                candle_open = data.get('open', current_price)
-                candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
-
-                if candle_drop >= (self.level_gap_percent / 100):
-                    qty = self._calculate_quantity(next_level, current_price)
-                    if qty > 0:
-                        result = self.context.buy(symbol, qty, metadata={"level": next_level})
-                        # Only update position state if buy succeeded
-                        if result.get("status") != "failed":
-                            self._add_position(current_price, qty, next_level)
-                            self.context.log(f"[DipMartingale] L{next_level} Entry @ {current_price:,.0f} (Candle Drop: {candle_drop*100:.2f}%). Avg: {self.average_price:,.0f}")
-                        else:
-                            self.context.log(f"[DipMartingale] L{next_level} Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
-
-        # 4. Initial Entry (Level 1) - When candle drops n% from its open
-        elif self.current_level == 0:
-            candle_open = data.get('open', current_price)
-            candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
-            if candle_drop >= (self.dip_percent / 100):
-                qty = self._calculate_quantity(1, current_price)  # Calculate with cycle planning
-                result = self.context.buy(symbol, qty, metadata={"level": 1})
-                # Only update position state if buy succeeded
-                if result.get("status") != "failed":
-                    self._add_position(current_price, qty, 1)
-                    self.peak_price = current_price
-                    self.context.log(f"[DipMartingale] L1 Initial Entry @ {current_price:,.0f} (Candle Drop: {candle_drop*100:.2f}%)")
-                else:
-                    self.context.log(f"[DipMartingale] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
-
-    def _add_position(self, price: float, quantity: int, level: int):
-        new_total_qty = self.total_quantity + quantity
-        self.average_price = ((self.average_price * self.total_quantity) + (price * quantity)) / new_total_qty
-        self.total_quantity = new_total_qty
-        self.current_level = level
-        self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
-
-    def _liquidate(self, price: float):
-        is_paper = getattr(self.context, 'is_paper', True)
-        if is_paper:
-            self.paper_cycle_id += 1
-            cycle_id = self.paper_cycle_id
-        else:
-            self.real_cycle_id += 1
-            cycle_id = self.real_cycle_id
-        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper})
-
-        # Fixed betting mode: Reset cash to initial_capital for next cycle
-        # Compound mode: Keep accumulated P&L (cash stays as-is)
-        if self.betting_strategy == "fixed":
-            self.context.reset_cycle_capital()
-
-        self.current_level = 0
-        self.total_quantity = 0
-        self.average_price = 0
-        self.peak_price = 0
-        self.trailing_active = False
-        self.is_hodl = False
-        self.reference_price = None # Reset cycle
-        self.entries = []
-        self.cycle_max_level = None  # Reset cycle planning
-        self.cycle_reference_price = None
-
-    def _calculate_max_affordable_level(self, price: float) -> int:
-        """Calculate the maximum level affordable with current capital.
-
-        Returns the highest level where we can still afford all entries up to that level.
-        Considers safety margin to reserve some capital.
-        """
-        available_cash = getattr(self.context, 'cash', 0)
-        safety_reserve = available_cash * (self.safety_margin_percent / 100)
-        usable_capital = available_cash - safety_reserve
-
-        if price <= 0 or usable_capital <= 0:
-            return 0
-
-        cumulative_cost = 0
-        max_level = 0
-
-        for level in range(1, self.max_levels + 1):
-            qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
-            level_cost = qty * price
-            cumulative_cost += level_cost
-
-            if cumulative_cost <= usable_capital:
-                max_level = level
-            else:
-                break
-
-        return max_level
-
-    def _calculate_quantity(self, level: int, price: float = None) -> int:
-        """Calculate quantity for the given level.
-
-        NEW LOGIC: On the final affordable level, invest ALL remaining capital
-        to maximize position size and lower average price.
-
-        - Levels 1 to (max_level - 1): Standard martingale (base_qty * multiplier^(level-1))
-        - Final level (max_level): ALL remaining usable capital
-        """
-        # Get current price if not provided
-        if price is None:
-            price = getattr(self, 'last_price', 0)
-
-        if price <= 0:
-            return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
-
-        # Calculate max affordable level for this cycle (only on L1 entry)
-        if self.cycle_max_level is None or level == 1:
-            self.cycle_max_level = self._calculate_max_affordable_level(price)
-            self.cycle_reference_price = price
-            self.context.log(f"[DipMartingale] Cycle Plan: Max affordable level = L{self.cycle_max_level} @ {price:,.0f}")
-
-        # Determine effective max level (capped by config max_levels)
-        effective_max_level = min(self.cycle_max_level, self.max_levels)
-
-        # If this is the FINAL level, invest all remaining capital
-        if level >= effective_max_level and effective_max_level > 0:
-            available_cash = getattr(self.context, 'cash', 0)
-            safety_reserve = available_cash * (self.safety_margin_percent / 100)
-            usable_capital = available_cash - safety_reserve
-
-            # Calculate how much we've already invested
-            already_invested = self.average_price * self.total_quantity if self.total_quantity > 0 else 0
-
-            # All remaining usable capital goes to this level
-            remaining_capital = usable_capital  # Cash already excludes current positions
-            max_qty = int(remaining_capital / price) if price > 0 else 0
-
-            # Ensure at least the standard quantity
-            standard_qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
-            final_qty = max(max_qty, standard_qty)
-
-            self.context.log(f"[DipMartingale] L{level} FINAL LEVEL: Investing remaining capital → {final_qty} shares")
-            return final_qty
-
-        # Standard martingale for non-final levels
-        return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+    @property
+    def _strategy_id(self) -> str:
+        return "dip_martingale"
 
     def get_state(self) -> Dict[str, Any]:
-        cur_price = getattr(self, 'last_price', 0)
-        dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
-
-        # Calculate profit as % of initial capital (not position value)
-        initial_capital = getattr(self.context, 'initial_capital', 10000000)
-        position_profit = (cur_price - self.average_price) * self.total_quantity if self.average_price > 0 else 0
-        profit_percent = position_profit / initial_capital if initial_capital > 0 else 0
-
-        return {
-            "strategy_id": "dip_martingale",
-            "current_level": self.current_level,
-            "max_levels": self.max_levels,
-            "average_price": self.average_price,
-            "total_quantity": self.total_quantity,
-            "peak_price": self.peak_price,
-            "trailing_active": self.trailing_active,
-            "is_hodl": self.is_hodl,
-            "reference_price": self.reference_price,
-            "symbol": self.symbol,
-            "current_price": cur_price,
-            "dip_percent": dip_percent,
-            "profit_percent": profit_percent,
-            "target_dip": self.dip_percent / 100.0,
-            "target_profit": self.trailing_start_percent / 100.0,
-            "entries": self.entries,
-            "paper_cycle_id": self.paper_cycle_id,
-            "real_cycle_id": self.real_cycle_id,
-            "cycle_id": self.paper_cycle_id if getattr(self.context, 'is_paper', True) else self.real_cycle_id,
-        }
+        state = super().get_state()
+        state["target_dip"] = self.dip_percent / 100.0
+        return state
