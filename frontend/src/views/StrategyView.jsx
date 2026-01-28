@@ -453,7 +453,8 @@ const StrategyView = () => {
 
         // Validate from_date: Use DB data start date if available, otherwise 1 year back
         if (key === 'from_date' && value) {
-            const selectedDate = new Date(value);
+            // Compare dates only (strip time component to avoid timezone issues)
+            const selectedStr = value; // "YYYY-MM-DD"
             const today = new Date();
 
             // Use DB data start date if available, otherwise default to 1 year
@@ -476,8 +477,8 @@ const StrategyView = () => {
                 limitDesc = "1 year (365 days)";
             }
 
-            if (selectedDate < minAllowedDate) {
-                const minDateStr = minAllowedDate.toISOString().split('T')[0];
+            const minDateStr = minAllowedDate.toISOString().split('T')[0];
+            if (selectedStr < minDateStr) {
                 openConfirm(
                     "⚠️ Date Range Limit",
                     `Start date cannot be earlier than ${limitDesc}.\n\nMinimum allowed date: ${minDateStr}\n\nThe date has been adjusted automatically.`,
@@ -486,8 +487,7 @@ const StrategyView = () => {
                     "OK",
                     "" // Hide cancel button
                 );
-                // Set to minimum allowed date instead
-                value = minAllowedDate.toISOString().split('T')[0];
+                value = minDateStr;
             }
         }
 
@@ -1289,7 +1289,7 @@ const StrategyView = () => {
             });
             setDataStatus(data);
 
-            // Auto-set Start Date to Data Start
+            // Auto-set Start Date to Data Start (clamped to 1 year back)
             if (data.start_date) {
                 // Server returns YY.MM.DD -> Convert to YYYY-MM-DD for input type="date"
                 const parts = data.start_date.split('.');
@@ -1297,7 +1297,13 @@ const StrategyView = () => {
                     const yyyy = `20${parts[0]}`;
                     const mm = parts[1];
                     const dd = parts[2];
-                    const newDate = `${yyyy}-${mm}-${dd}`;
+                    let newDate = `${yyyy}-${mm}-${dd}`;
+                    // Clamp to 1 year back silently (no popup on auto-set)
+                    const minDate = new Date();
+                    minDate.setDate(minDate.getDate() - 365);
+                    if (new Date(newDate) < minDate) {
+                        newDate = minDate.toISOString().split('T')[0];
+                    }
                     if (currentConfig?.from_date !== newDate) {
                         handleConfigChange('from_date', newDate);
                     }
