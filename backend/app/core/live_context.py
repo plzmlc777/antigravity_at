@@ -34,6 +34,9 @@ class LiveContext:
         # Initial Balance Sync
         self._sync_balance()
 
+        # Restore trades from DB (for session recovery after restart)
+        self._restore_trades_from_db()
+
     def get_current_price(self, symbol: str) -> float:
         """
         Returns latest price from cache. 
@@ -102,6 +105,65 @@ class LiveContext:
         finally:
             db.close()
 
+    def get_trade_stats(self) -> Dict[str, Any]:
+        """
+        Compute accumulated trade stats separated by Paper/Real.
+        """
+        db = SessionLocal()
+        try:
+            executions = db.query(LiveTradeExecution).filter(
+                LiveTradeExecution.session_id == self.session_id,
+                LiveTradeExecution.status == ExecutionStatus.FILLED
+            ).order_by(LiveTradeExecution.signal_timestamp).all()
+
+            stats = {
+                "paper": {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
+                "real": {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
+            }
+
+            # Track average cost per mode for realized PnL
+            total_bought_cost = {"paper": 0.0, "real": 0.0}
+            total_bought_qty = {"paper": 0.0, "real": 0.0}
+            total_sold_value = {"paper": 0.0, "real": 0.0}
+            total_sold_qty = {"paper": 0.0, "real": 0.0}
+
+            for ex in executions:
+                is_paper = ex.is_paper if ex.is_paper is not None else True
+                key = "paper" if is_paper else "real"
+                s = stats[key]
+                s["trades"] += 1
+                qty = ex.filled_quantity or 0.0
+                val = (ex.executed_price or 0.0) * qty
+
+                if ex.signal_type == "BUY":
+                    s["buys"] += 1
+                    total_bought_cost[key] += val
+                    total_bought_qty[key] += qty
+                elif ex.signal_type == "SELL":
+                    s["sells"] += 1
+                    total_sold_value[key] += val
+                    total_sold_qty[key] += qty
+                    s["cycles"] += 1
+
+            # Realized PnL: only for sold quantity using average buy cost
+            for key in ["paper", "real"]:
+                if total_bought_qty[key] > 0 and total_sold_qty[key] > 0:
+                    avg_cost = total_bought_cost[key] / total_bought_qty[key]
+                    realized = total_sold_value[key] - (total_sold_qty[key] * avg_cost)
+                    sold_cost = total_sold_qty[key] * avg_cost
+                    stats[key]["realized_pnl"] = round(realized, 2)
+                    stats[key]["realized_pnl_pct"] = round((realized / sold_cost) * 100, 2) if sold_cost > 0 else 0.0
+                else:
+                    stats[key]["realized_pnl"] = 0.0
+                    stats[key]["realized_pnl_pct"] = 0.0
+
+            return stats
+        except Exception as e:
+            logger.error(f"Trade stats error: {e}")
+            return {"paper": {}, "real": {}}
+        finally:
+            db.close()
+
     @property
     def holdings(self) -> Dict[str, int]:
         return self._holdings
@@ -143,7 +205,9 @@ class LiveContext:
                 signal_timestamp=self.get_time(),
                 theoretical_price=current_price,
                 requested_quantity=quantity,
-                status=ExecutionStatus.PENDING
+                status=ExecutionStatus.PENDING,
+                is_paper=self._is_paper,
+                trade_metadata=metadata
             )
             db.add(db_exec)
             db.commit() # Save ID
@@ -186,6 +250,36 @@ class LiveContext:
         """
         self.cash = self.initial_capital
         self.log(f"Cycle Capital Reset: Cash → {self.initial_capital:,.0f}")
+
+    def _restore_trades_from_db(self):
+        """Restore in-memory trades list from DB on session recovery."""
+        db = SessionLocal()
+        try:
+            executions = db.query(LiveTradeExecution).filter(
+                LiveTradeExecution.session_id == self.session_id,
+                LiveTradeExecution.status == ExecutionStatus.FILLED
+            ).order_by(LiveTradeExecution.signal_timestamp).all()
+
+            for ex in executions:
+                trade = {
+                    "type": ex.signal_type.lower(),
+                    "symbol": ex.symbol,
+                    "price": ex.executed_price or ex.theoretical_price,
+                    "quantity": ex.filled_quantity or ex.requested_quantity,
+                    "time": ex.order_filled_at.isoformat() if ex.order_filled_at else ex.signal_timestamp.isoformat(),
+                    "order_id": ex.id,
+                    "status": "filled",
+                    "is_paper": ex.is_paper if ex.is_paper is not None else True,
+                    "metadata": ex.trade_metadata or {}
+                }
+                self.trades.append(trade)
+
+            if executions:
+                logger.info(f"Context {self.session_id}: Restored {len(executions)} trades from DB")
+        except Exception as e:
+            logger.error(f"Trade restore error: {e}")
+        finally:
+            db.close()
 
     def _sync_balance(self):
         pass

@@ -269,6 +269,12 @@ class LiveManager:
             except Exception:
                 pass
 
+            trade_stats = {}
+            try:
+                trade_stats = eng.context.get_trade_stats()
+            except Exception:
+                pass
+
             results.append({
                 "session_id": sid,
                 "symbol": eng.symbol,
@@ -280,7 +286,8 @@ class LiveManager:
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),
                 "last_update": datetime.now().isoformat(),
-                "strategy_state": strategy_state
+                "strategy_state": strategy_state,
+                "trade_stats": trade_stats
             })
         return results
 

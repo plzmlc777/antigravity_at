@@ -88,6 +88,10 @@ class LiveTradeExecution(Base):
     
     status = Column(String, default=ExecutionStatus.PENDING)
     error_reason = Column(String, nullable=True) # Logs if failed check or API error
-    
+
+    # 4. Mode & Metadata
+    is_paper = Column(Boolean, default=True) # Paper or Real trade
+    trade_metadata = Column(JSON, nullable=True) # Strategy metadata (cycle_id, level, etc.)
+
     # Relation
     session = relationship("LiveBotSession", back_populates="executions")
