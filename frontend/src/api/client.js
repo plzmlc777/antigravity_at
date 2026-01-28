@@ -235,8 +235,14 @@ export const getTradeHistory = async (limit = 1000) => {
 };
 
 export const getTradeHistoryContext = async (payload) => {
-    // payload: { configs, symbol, interval, days, limit }
-    const { data } = await api.post('/trade/history-context', payload);
+    // payload: { configs, symbol, interval, days, limit, is_paper }
+    const { data } = await api.post('/trade/history-context', payload, { timeout: 60000 });
+    return data;
+};
+
+export const getTradeHistoryList = async (payload) => {
+    // payload: { is_paper, limit }
+    const { data } = await api.post('/trade/history-list', payload);
     return data;
 };
 

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance } from '../api/client';
-import IntegratedAnalysis from './IntegratedAnalysis';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -31,10 +30,148 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [realTimeCandles, setRealTimeCandles] = useState([]);
     const [selectedInterval, setSelectedInterval] = useState('1m');
 
-    // Transaction History View State
+    // Transaction History View State (2-step architecture)
     const [showHistoryView, setShowHistoryView] = useState(false);
-    const [historyData, setHistoryData] = useState(null);
+    const [historyData, setHistoryData] = useState(null); // { cycles, open_cycles, total_cycles, ... }
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [historyMode, setHistoryMode] = useState('paper'); // 'paper' | 'real' | 'all'
+    // Step 2: Selected cycle chart
+    const [selectedCycle, setSelectedCycle] = useState(null);
+    const [cycleChartData, setCycleChartData] = useState(null);
+    const [isCycleChartLoading, setIsCycleChartLoading] = useState(false);
+
+    // Overview Chart: Transform historyData cycles → rank-based chart (like IntegratedAnalysis)
+    const { overviewChartData, overviewTrades, overviewRankFormatter, overviewPriceScaleOptions, overviewSymbolRanks } = useMemo(() => {
+        const empty = { overviewChartData: [], overviewTrades: [], overviewRankFormatter: () => '', overviewPriceScaleOptions: {}, overviewSymbolRanks: null };
+        if (!historyData) return empty;
+
+        const allCycles = [...(historyData.open_cycles || []), ...(historyData.cycles || [])];
+        if (allCycles.length === 0) return empty;
+
+        // 1. Build symbol → rank mapping (configList order first, then extras from history)
+        const symbols = [];
+        const symbolSet = new Set();
+        (configList || []).forEach(cfg => {
+            if (cfg.symbol && !symbolSet.has(cfg.symbol)) {
+                symbols.push(cfg.symbol);
+                symbolSet.add(cfg.symbol);
+            }
+        });
+        allCycles.forEach(c => {
+            if (c.symbol && !symbolSet.has(c.symbol)) {
+                symbols.push(c.symbol);
+                symbolSet.add(c.symbol);
+            }
+        });
+
+        const symbolRankMap = {};
+        symbols.forEach((sym, i) => { symbolRankMap[sym] = i + 1; });
+        const maxRank = symbols.length;
+
+        // 2. Build trade markers with Y = inverted rank
+        const trades = [];
+        const cycleLookupMap = {};
+
+        allCycles.forEach(cycle => {
+            const rank = symbolRankMap[cycle.symbol] || 1;
+            const yVal = (maxRank + 1) - rank;
+
+            if (cycle.buys) {
+                cycle.buys.forEach(buy => {
+                    const timeUnix = Math.floor(new Date(buy.signal_timestamp).getTime() / 1000);
+                    trades.push({
+                        time: buy.signal_timestamp,
+                        price: yVal,
+                        original_price: buy.executed_price,
+                        type: 'buy',
+                        symbol: cycle.symbol,
+                        metadata: buy.trade_metadata || {},
+                    });
+                    const timeMin = Math.floor(timeUnix / 60);
+                    cycleLookupMap[`${timeMin}_${Math.round(yVal)}`] = cycle;
+                });
+            }
+
+            if (cycle.sell) {
+                const avgEntry = cycle.avg_entry_price || 0;
+                const sellPrice = cycle.sell.executed_price || 0;
+                const pnlPct = avgEntry > 0 ? (sellPrice - avgEntry) / avgEntry : 0;
+                const timeUnix = Math.floor(new Date(cycle.sell.signal_timestamp).getTime() / 1000);
+                trades.push({
+                    time: cycle.sell.signal_timestamp,
+                    price: yVal,
+                    original_price: cycle.sell.executed_price,
+                    type: 'sell',
+                    pnl_percent: pnlPct,
+                    symbol: cycle.symbol,
+                    metadata: cycle.sell.trade_metadata || {},
+                });
+                const timeMin = Math.floor(timeUnix / 60);
+                cycleLookupMap[`${timeMin}_${Math.round(yVal)}`] = cycle;
+            }
+        });
+
+        trades.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+        // 3. Build synthetic OHLCV (candle at rank Y position for each trade time)
+        const uniqueTimeMap = new Map();
+        trades.forEach(t => {
+            const timeNum = Math.floor(new Date(t.time).getTime() / 1000);
+            const yVal = t.price;
+            const existing = uniqueTimeMap.get(timeNum);
+            if (existing) {
+                uniqueTimeMap.set(timeNum, {
+                    time: timeNum,
+                    open: existing.open,
+                    high: Math.max(existing.high, yVal),
+                    low: Math.min(existing.low, yVal),
+                    close: yVal,
+                });
+            } else {
+                uniqueTimeMap.set(timeNum, { time: timeNum, open: yVal, high: yVal, low: yVal, close: yVal });
+            }
+        });
+
+        // Anchors for timeline range
+        if (trades.length > 0) {
+            const firstTime = Math.floor(new Date(trades[0].time).getTime() / 1000) - 86400;
+            const lastTime = Math.floor(Date.now() / 1000);
+            if (!uniqueTimeMap.has(firstTime)) uniqueTimeMap.set(firstTime, { time: firstTime, open: 0, high: 0, low: 0, close: 0 });
+            if (!uniqueTimeMap.has(lastTime)) uniqueTimeMap.set(lastTime, { time: lastTime, open: 0, high: 0, low: 0, close: 0 });
+        }
+
+        const chartData = Array.from(uniqueTimeMap.values()).sort((a, b) => a.time - b.time);
+
+        // 4. Rank formatter (Y-axis labels)
+        const formatter = (price) => {
+            const yVal = Math.round(price);
+            if (Math.abs(price - yVal) < 0.1) {
+                const rank = (maxRank + 1) - yVal;
+                if (rank > 0 && rank <= maxRank) {
+                    const sym = symbols[rank - 1];
+                    const match = (savedSymbols || []).find(s => s.code === sym);
+                    const name = match ? match.name : sym;
+                    const cycleCount = allCycles.filter(c => c.symbol === sym).length;
+                    return `R${rank}: ${name} (${cycleCount})`;
+                }
+            }
+            return '';
+        };
+
+        const scaleOptions = {
+            fixedYRange: { min: 0.5, max: maxRank + 0.5 },
+            autoScale: false,
+            minimumWidth: 120,
+        };
+
+        return {
+            overviewChartData: chartData,
+            overviewTrades: trades,
+            overviewRankFormatter: formatter,
+            overviewPriceScaleOptions: scaleOptions,
+            overviewSymbolRanks: { symbolRankMap, symbols, maxRank, cycleLookupMap, allCycles },
+        };
+    }, [historyData, configList, savedSymbols]);
 
     // New: Strategy Internal State
     const [strategyState, setStrategyState] = useState(null);
@@ -43,6 +180,182 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // Polling Ref
     const pollInterval = useRef(null);
     const lastFetchRef = useRef({ symbol: null, interval: null, status: null });
+
+    // Handler: Cycle Click → Fetch 1m OHLCV and show chart
+    const handleCycleClick = async (cycle) => {
+        setSelectedCycle(cycle);
+        setIsCycleChartLoading(true);
+        setCycleChartData(null);
+
+        try {
+            const symbol = cycle.symbol;
+
+            // Step 1: Trigger incremental 1m data fetch → save to DB
+            await fetchMarketData(symbol, { interval: '1m', days: 365, backfill: false });
+
+            // Step 2: Determine date range for chart (entry - 1 day buffer to exit + 1 day buffer)
+            const entryDate = new Date(cycle.entry_time);
+            const exitDate = cycle.exit_time ? new Date(cycle.exit_time) : new Date();
+
+            // Add buffer: 1 day before entry, 1 day after exit
+            const startDate = new Date(entryDate);
+            startDate.setDate(startDate.getDate() - 1);
+            const endDate = new Date(exitDate);
+            endDate.setDate(endDate.getDate() + 1);
+
+            // Step 3: Fetch 1m candles from DB for the date range
+            // We'll fetch day by day and merge
+            const allCandles = [];
+            const current = new Date(startDate);
+            while (current <= endDate) {
+                const dateStr = current.toISOString().slice(0, 10).replace(/-/g, '');
+                try {
+                    const dayCandles = await getOHLCV(symbol, { interval: '1m', date: dateStr });
+                    if (Array.isArray(dayCandles)) {
+                        allCandles.push(...dayCandles);
+                    }
+                } catch (e) {
+                    // Some days may have no data (weekends/holidays)
+                }
+                current.setDate(current.getDate() + 1);
+            }
+
+            // Step 4: Build trade markers from cycle data (matching VisualBacktestChart format)
+            const trades = [];
+            if (cycle.buys) {
+                for (const buy of cycle.buys) {
+                    trades.push({
+                        time: Math.floor(new Date(buy.signal_timestamp).getTime() / 1000),
+                        price: buy.executed_price,
+                        original_price: buy.executed_price,
+                        type: 'buy',
+                        metadata: buy.trade_metadata || {},
+                    });
+                }
+            }
+            if (cycle.sell) {
+                const avgEntry = cycle.avg_entry_price || 0;
+                const sellPrice = cycle.sell.executed_price || 0;
+                const pnlPct = avgEntry > 0 ? (sellPrice - avgEntry) / avgEntry : 0;
+                trades.push({
+                    time: Math.floor(new Date(cycle.sell.signal_timestamp).getTime() / 1000),
+                    price: cycle.sell.executed_price,
+                    original_price: cycle.sell.executed_price,
+                    type: 'sell',
+                    pnl_percent: pnlPct,
+                    metadata: cycle.sell.trade_metadata || {},
+                });
+            }
+
+            // Deduplicate candles by time
+            const seen = new Set();
+            const deduped = allCandles.filter(c => {
+                if (seen.has(c.time)) return false;
+                seen.add(c.time);
+                return true;
+            }).sort((a, b) => a.time - b.time);
+
+            setCycleChartData({ candles: deduped, trades });
+        } catch (err) {
+            console.error("Failed to load cycle chart:", err);
+            addLog('Error', `Cycle chart load failed: ${err?.response?.status || ''} ${err?.response?.data?.detail || err.message}`);
+            setCycleChartData(null);
+        } finally {
+            setIsCycleChartLoading(false);
+        }
+    };
+
+    // Handler: Overview chart click → find cycle → drill down to detail chart
+    const handleOverviewChartClick = (param) => {
+        if (!param || !param.time || param.price === undefined || !overviewSymbolRanks) return;
+
+        const { symbolRankMap, symbols, maxRank, cycleLookupMap, allCycles } = overviewSymbolRanks;
+
+        // Try exact lookup (minute-level key)
+        const clickTimeMin = Math.floor(param.time / 60);
+        const clickY = Math.round(param.price);
+        const key = `${clickTimeMin}_${clickY}`;
+        let cycle = cycleLookupMap[key];
+
+        if (!cycle) {
+            // Fallback: derive rank from Y, find symbol, find nearest cycle
+            const rank = (maxRank + 1) - clickY;
+            if (rank > 0 && rank <= maxRank) {
+                const targetSymbol = symbols[rank - 1];
+                const clickTime = param.time;
+
+                const symbolCycles = allCycles.filter(c => c.symbol === targetSymbol);
+                let bestCycle = null;
+                let bestDist = Infinity;
+
+                for (const c of symbolCycles) {
+                    const entryUnix = new Date(c.entry_time).getTime() / 1000;
+                    const exitUnix = c.exit_time ? new Date(c.exit_time).getTime() / 1000 : Date.now() / 1000;
+
+                    // Click within cycle range
+                    if (clickTime >= entryUnix && clickTime <= exitUnix) {
+                        bestCycle = c;
+                        break;
+                    }
+                    // Otherwise find nearest
+                    const dist = Math.min(Math.abs(clickTime - entryUnix), Math.abs(clickTime - exitUnix));
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestCycle = c;
+                    }
+                }
+
+                cycle = bestCycle;
+            }
+        }
+
+        if (cycle) {
+            handleCycleClick(cycle);
+        }
+    };
+
+    // Helper: Export trade history as CSV
+    const exportHistoryCSV = () => {
+        if (!historyData) return;
+
+        const allCycles = [
+            ...(historyData.open_cycles || []).map(c => ({ ...c, _status: 'Open' })),
+            ...(historyData.cycles || []).map(c => ({ ...c, _status: 'Closed' })),
+        ];
+
+        if (allCycles.length === 0) return;
+
+        const headers = ['Status', 'Symbol', 'Entry Time', 'Exit Time', 'Num Entries', 'Total Buy Qty', 'Avg Entry Price', 'Sell Price', 'Realized PnL', 'Return %', 'Mode'];
+        const rows = allCycles.map(c => [
+            c._status,
+            c.symbol,
+            c.entry_time || '',
+            c.exit_time || '',
+            c.num_entries || 0,
+            c.total_buy_qty || 0,
+            c.avg_entry_price || 0,
+            c.sell_price || 0,
+            c.realized_pnl || 0,
+            c.return_pct != null ? c.return_pct.toFixed(2) : '',
+            c.is_paper ? 'Paper' : 'Real',
+        ]);
+
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        a.download = `trade_history_${historyMode}_${dateStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        addLog('Export', `CSV exported: ${allCycles.length} cycles`);
+    };
 
     // Helper: Logs
     const addLog = (source, msg) => {
@@ -1014,7 +1327,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 </div>
             </div>
 
-            {/* 4. TRANSACTION HISTORY SECTION (Inline) */}
+            {/* 4. TRANSACTION HISTORY SECTION (2-Step Architecture) */}
             <div className="lg:col-span-3 mt-4">
                 {!showHistoryView ? (
                     <div className="flex justify-center">
@@ -1023,75 +1336,238 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             onClick={() => {
                                 setShowHistoryView(true);
                                 setIsHistoryLoading(true);
+                                setSelectedCycle(null);
+                                setCycleChartData(null);
 
-                                // Construct Payload for Context-Aware History
-                                const contextConfigs = configList.map(c => ({
-                                    id: c.id || "temp_id",
-                                    rank: c.rank,
-                                    strategy_id: c.strategy_id || strategyName || "time_momentum",
-                                    symbol: c.symbol,
-                                    config: c.config_json || {}
-                                }));
-
-                                const payload = {
-                                    configs: contextConfigs,
-                                    symbol: strategyConfig.symbol || "KRW-BTC",
-                                    interval: "30m", // Default
-                                    days: 365,
-                                    limit: 1000
-                                };
-
-                                getTradeHistoryContext(payload).then(data => {
+                                const isPaperValue = historyMode === 'paper' ? true : historyMode === 'real' ? false : null;
+                                getTradeHistoryList({ is_paper: isPaperValue, limit: 500 }).then(data => {
                                     setHistoryData(data);
                                     setIsHistoryLoading(false);
                                 }).catch(err => {
-                                    console.error("Failed to load history:", err);
+                                    console.error("Failed to load trade list:", err);
+                                    addLog('Error', `Trade list load failed: ${err?.response?.status || ''} ${err?.response?.data?.detail || err.message}`);
                                     setIsHistoryLoading(false);
                                 });
                             }}
                         >
                             <List size={24} />
-                            <span>Load Transaction History & Visual Analysis</span>
-                            <span className="text-xs font-normal opacity-70">Fetches trade history with context-aware market data</span>
+                            <span>Load Transaction History</span>
+                            <span className="text-xs font-normal opacity-70">View trade cycles — click to load chart</span>
+                            <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                                {['paper', 'real', 'all'].map(m => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setHistoryMode(m); }}
+                                        className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                            historyMode === m
+                                                ? m === 'paper' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                                                : m === 'real' ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                                                : 'bg-white/5 text-gray-500 border-white/10 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        {m === 'paper' ? 'Paper' : m === 'real' ? 'Real' : 'All'}
+                                    </button>
+                                ))}
+                            </div>
                         </button>
                     </div>
                 ) : (
-                    <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-[600px]">
+                    <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col">
                         <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                             <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
-                                <History size={14} className="text-gray-400" />
-                                Transaction History
+                                {selectedCycle ? (
+                                    <>
+                                        <button
+                                            onClick={() => { setSelectedCycle(null); setCycleChartData(null); }}
+                                            className="flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-gray-300 hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-xs font-medium"
+                                        >
+                                            <ChevronLeft size={14} />
+                                            Back
+                                        </button>
+                                        <History size={14} className="text-gray-400" />
+                                        Cycle Chart — {selectedCycle.symbol}
+                                    </>
+                                ) : (
+                                    <>
+                                        <History size={14} className="text-gray-400" />
+                                        Transaction History
+                                    </>
+                                )}
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    historyMode === 'paper' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                    : historyMode === 'real' ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                }`}>
+                                    {historyMode === 'paper' ? 'Paper' : historyMode === 'real' ? 'Real' : 'All'}
+                                </span>
+                                {!selectedCycle && historyData && (
+                                    <span className="text-xs text-gray-500 font-normal">
+                                        ({historyData.total_cycles} cycles, {historyData.total_trades} trades)
+                                    </span>
+                                )}
                             </h3>
-                            <button
-                                onClick={() => {
-                                    setShowHistoryView(false);
-                                    setHistoryData(null); // Optional: Clear data to save memory
-                                }}
-                                className="text-gray-400 hover:text-red-400 text-xs font-bold flex items-center gap-1"
-                            >
-                                <X size={14} /> Close
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {!selectedCycle && (
+                                    <div className="flex items-center gap-1">
+                                        {['paper', 'real', 'all'].map(m => (
+                                            <button
+                                                key={m}
+                                                onClick={() => {
+                                                    setHistoryMode(m);
+                                                    setIsHistoryLoading(true);
+                                                    const isPaperValue = m === 'paper' ? true : m === 'real' ? false : null;
+                                                    getTradeHistoryList({ is_paper: isPaperValue, limit: 500 }).then(data => {
+                                                        setHistoryData(data);
+                                                        setIsHistoryLoading(false);
+                                                    }).catch(err => {
+                                                        console.error("Failed to load trade list:", err);
+                                                        setIsHistoryLoading(false);
+                                                    });
+                                                }}
+                                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                                                    historyMode === m
+                                                        ? m === 'paper' ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                                                        : m === 'real' ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                        : 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                                                        : 'bg-white/5 text-gray-500 border-white/10 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                {m === 'paper' ? 'Paper' : m === 'real' ? 'Real' : 'All'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {!selectedCycle && historyData && (
+                                    <button
+                                        onClick={exportHistoryCSV}
+                                        className="text-gray-400 hover:text-emerald-400 text-xs font-bold flex items-center gap-1"
+                                        title="Export as CSV"
+                                    >
+                                        <Download size={14} /> CSV
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setShowHistoryView(false);
+                                        setHistoryData(null);
+                                        setSelectedCycle(null);
+                                        setCycleChartData(null);
+                                    }}
+                                    className="text-gray-400 hover:text-red-400 text-xs font-bold flex items-center gap-1"
+                                >
+                                    <X size={14} /> Close
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex-1 relative min-h-[550px]">
+                        <div className="flex-1 relative">
                             {isHistoryLoading ? (
-                                <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="flex items-center justify-center py-16">
                                     <div className="flex flex-col items-center gap-4">
-                                        <Activity className="w-12 h-12 text-blue-500 animate-pulse" />
-                                        <span className="text-gray-400 text-lg">Loading System Context...</span>
+                                        <Activity className="w-10 h-10 text-blue-500 animate-pulse" />
+                                        <span className="text-gray-400">Loading trades...</span>
                                     </div>
                                 </div>
+                            ) : selectedCycle ? (
+                                /* Step 2: Cycle Chart View */
+                                <div className="min-h-[500px]">
+                                    {isCycleChartLoading ? (
+                                        <div className="flex items-center justify-center py-16">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <Activity className="w-10 h-10 text-blue-500 animate-pulse" />
+                                                <span className="text-gray-400">Fetching 1m chart data...</span>
+                                                <span className="text-gray-500 text-xs">Incrementally loading from DB</span>
+                                            </div>
+                                        </div>
+                                    ) : cycleChartData ? (
+                                        <div>
+                                            {/* Cycle Summary Bar */}
+                                            <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] flex items-center gap-4 text-xs flex-wrap">
+                                                <span className="text-gray-400">
+                                                    <Clock size={12} className="inline mr-1" />
+                                                    {new Date(selectedCycle.entry_time).toLocaleDateString('ko-KR')} — {selectedCycle.exit_time ? new Date(selectedCycle.exit_time).toLocaleDateString('ko-KR') : 'Open'}
+                                                </span>
+                                                <span className="text-gray-400">Entries: <span className="text-white font-bold">{selectedCycle.num_entries}</span></span>
+                                                <span className="text-gray-400">Avg Entry: <span className="text-white font-bold">{selectedCycle.avg_entry_price?.toLocaleString()}</span></span>
+                                                {selectedCycle.sell && (
+                                                    <span className="text-gray-400">Exit: <span className="text-white font-bold">{selectedCycle.sell_price?.toLocaleString()}</span></span>
+                                                )}
+                                                <span className={selectedCycle.realized_pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                                                    PnL: {selectedCycle.realized_pnl >= 0 ? '+' : ''}{selectedCycle.realized_pnl?.toLocaleString()} ({selectedCycle.return_pct >= 0 ? '+' : ''}{selectedCycle.return_pct?.toFixed(2)}%)
+                                                </span>
+                                            </div>
+                                            <VisualBacktestChart
+                                                data={cycleChartData.candles}
+                                                trades={cycleChartData.trades}
+                                                showOnlyPnl={false}
+                                                priceScaleOptions={{ autoScale: true, scaleMargins: { top: 0.1, bottom: 0.1 } }}
+                                                yAxisFormatter={(price) => price.toLocaleString()}
+                                                selectedInterval="1m"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center py-16 text-red-400">
+                                            Failed to load chart data.
+                                        </div>
+                                    )}
+                                </div>
                             ) : historyData ? (
-                                <IntegratedAnalysis
-                                    mode="real"
-                                    trades={historyData.trades}
-                                    backtestResult={historyData}
-                                    strategiesConfig={configList}
-                                    savedSymbols={savedSymbols}
-                                />
+                                /* Step 1: Rank-based Overview Chart (like IntegratedAnalysis) */
+                                <div className="min-h-[350px]">
+                                    {overviewChartData.length > 0 ? (
+                                        <VisualBacktestChart
+                                            data={overviewChartData}
+                                            trades={overviewTrades}
+                                            yAxisFormatter={overviewRankFormatter}
+                                            priceScaleOptions={overviewPriceScaleOptions}
+                                            showOnlyPnl={true}
+                                            onChartClick={handleOverviewChartClick}
+                                            selectedInterval="1d"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center py-16 text-gray-500">
+                                            No trade cycles to visualize.
+                                        </div>
+                                    )}
+                                    {/* Summary stats below chart */}
+                                    {overviewSymbolRanks && (
+                                        <div className="px-4 py-3 border-t border-white/5 bg-white/[0.02]">
+                                            <div className="flex items-center gap-4 text-xs flex-wrap">
+                                                <span className="text-gray-500 font-bold uppercase tracking-wider">Summary</span>
+                                                <span className="text-gray-400">
+                                                    Closed: <span className="text-white font-bold">{historyData.total_cycles || 0}</span> cycles
+                                                </span>
+                                                <span className="text-gray-400">
+                                                    Open: <span className="text-amber-400 font-bold">{historyData.total_open || 0}</span>
+                                                </span>
+                                                <span className="text-gray-400">
+                                                    Total Trades: <span className="text-white font-bold">{historyData.total_trades || 0}</span>
+                                                </span>
+                                                {historyData.cycles?.length > 0 && (() => {
+                                                    const totalPnl = historyData.cycles.reduce((sum, c) => sum + (c.realized_pnl || 0), 0);
+                                                    const winCount = historyData.cycles.filter(c => c.realized_pnl > 0).length;
+                                                    const winRate = historyData.cycles.length > 0 ? (winCount / historyData.cycles.length * 100) : 0;
+                                                    return (
+                                                        <>
+                                                            <span className={totalPnl >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                                                                PnL: {totalPnl >= 0 ? '+' : ''}{totalPnl.toLocaleString()}
+                                                            </span>
+                                                            <span className="text-gray-400">
+                                                                Win Rate: <span className={winRate >= 50 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{winRate.toFixed(1)}%</span>
+                                                            </span>
+                                                        </>
+                                                    );
+                                                })()}
+                                                <span className="text-gray-600 ml-auto text-[10px]">Click chart to drill down</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
-                                <div className="flex items-center justify-center h-full text-red-400">
-                                    Failed to load data.
+                                <div className="flex items-center justify-center py-16 text-red-400">
+                                    Failed to load trade list.
                                 </div>
                             )}
                         </div>

@@ -353,8 +353,29 @@ class LiveContext:
                         p.order_filled_at = self.get_time()
                         p.executed_price = res.get("price", p.theoretical_price)
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
-                        
-                        # 2. Update Local Context State (In-Memory for Strategy)
+
+                        # 2. Calculate realized_pnl for SELL orders
+                        if p.signal_type == "SELL":
+                            try:
+                                # Query all FILLED BUY executions for this session+symbol
+                                buys = db.query(LiveTradeExecution).filter(
+                                    LiveTradeExecution.session_id == self.session_id,
+                                    LiveTradeExecution.symbol == p.symbol,
+                                    LiveTradeExecution.signal_type == "BUY",
+                                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                ).all()
+                                total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
+                                total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                                if total_buy_qty > 0:
+                                    avg_buy_price = total_buy_cost / total_buy_qty
+                                    p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
+                                    p.slippage = round(p.executed_price - p.theoretical_price, 2)
+                                    p.slippage_percent = round((p.slippage / p.theoretical_price) * 100, 4) if p.theoretical_price else 0
+                                    self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, qty={p.filled_quantity})")
+                            except Exception as pnl_err:
+                                logger.error(f"PnL calc error: {pnl_err}")
+
+                        # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
                         cost = p.executed_price * p.filled_quantity
                         if p.signal_type == "BUY":
@@ -363,7 +384,7 @@ class LiveContext:
                         else:
                             self.cash += cost
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
-                            
+
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
                         
                     elif res:

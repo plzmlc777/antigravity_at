@@ -957,87 +957,46 @@ const StrategyView = () => {
         }));
     };
 
-    // Export Optimization Results to XML
-    const exportOptResultsToXML = () => {
+    // Export Optimization Results to CSV
+    const exportOptResultsToCSV = () => {
         if (!optResults || optResults.length === 0) {
-            addLog('❌ No optimization results to export', 'error');
+            addLog('No optimization results to export', 'error');
             return;
         }
 
-        const escapeXML = (str) => {
-            if (str == null) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&apos;');
-        };
+        const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
 
-        let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-        xml += '<OptimizationResults>\n';
-        xml += `  <Strategy>${escapeXML(selectedStrategy?.id)}</Strategy>\n`;
-        xml += `  <StrategyName>${escapeXML(selectedStrategy?.name)}</StrategyName>\n`;
-        xml += `  <Symbol>${escapeXML(currentConfig?.symbol)}</Symbol>\n`;
-        xml += `  <DateRange>\n`;
-        xml += `    <From>${escapeXML(currentConfig?.from_date)}</From>\n`;
-        xml += `    <To>${escapeXML(new Date().toISOString().split('T')[0])}</To>\n`;
-        xml += `  </DateRange>\n`;
-        xml += `  <TotalResults>${optResults.length}</TotalResults>\n`;
-        xml += `  <GeneratedAt>${new Date().toISOString()}</GeneratedAt>\n`;
-        xml += '  <Results>\n';
+        // Build headers: Rank + Parameter columns + Stat columns + Score
+        const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
+        const paramHeaders = paramDefs.map(p => p.key);
+        const statHeaders = STAT_COLUMNS.map(col => col.key);
+        const headers = ['Rank', ...paramHeaders, ...statHeaders, 'Score'];
 
-        optResults.forEach((result, index) => {
-            xml += `    <Result index="${index + 1}">\n`;
-            xml += `      <Rank>${escapeXML(result.rank)}</Rank>\n`;
-
-            // Parameters
-            xml += '      <Parameters>\n';
-            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
-            paramDefs.forEach(param => {
-                const value = result[param.key];
-                if (value !== undefined && value !== null) {
-                    xml += `        <${param.key}>${escapeXML(value)}</${param.key}>\n`;
-                }
-            });
-            xml += '      </Parameters>\n';
-
-            // Performance Metrics - driven by STAT_COLUMNS (statsConfig.js)
-            xml += '      <Performance>\n';
-            STAT_COLUMNS.forEach(col => {
+        // Build rows
+        const rows = optResults.map(result => {
+            const paramValues = paramDefs.map(p => result[p.key] ?? '');
+            const statValues = STAT_COLUMNS.map(col => {
                 const dataKey = col.optKey || col.key;
-                const value = result[dataKey];
-                if (value !== undefined && value !== null) {
-                    // XML tag: camelCase from key (e.g. total_return → TotalReturn)
-                    const xmlTag = col.key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
-                    xml += `        <${xmlTag}>${escapeXML(value)}</${xmlTag}>\n`;
-                }
+                return result[dataKey] ?? '';
             });
-            // Score (not in STAT_COLUMNS)
-            if (result.score != null) {
-                xml += `        <OverallScore>${escapeXML(result.score)}</OverallScore>\n`;
-            }
-            xml += '      </Performance>\n';
-
-            xml += '    </Result>\n';
+            return [result.rank ?? '', ...paramValues, ...statValues, result.score ?? ''];
         });
 
-        xml += '  </Results>\n';
-        xml += '</OptimizationResults>';
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(v => esc(v)).join(','))
+            .join('\n');
 
-        // Download XML file
-        const blob = new Blob([xml], { type: 'application/xml' });
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const filename = `optimization_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.xml`;
+        const filename = `optimization_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.csv`;
         link.download = filename;
-        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
         URL.revokeObjectURL(url);
 
-        addLog(`✅ Exported ${optResults.length} results to ${filename}`, 'success');
+        addLog(`Exported ${optResults.length} results to ${filename}`, 'success');
     };
 
     // Helper: Parse parameter string
@@ -1387,13 +1346,14 @@ const StrategyView = () => {
 
     return (
         <div className="flex flex-col gap-6 pb-10">
-            {/* Top Bar: Selector & Actions */}
-            <Card className="shrink-0 z-20">
-                <div className="flex flex-col gap-4">
-                    {/* Row 1: Strategy Selection */}
+            {/* Top Bar: Strategy Selector */}
+            <div className="shrink-0 z-20 bg-white/5 border border-white/10 rounded-xl px-4 pt-4 pb-5 overflow-hidden">
+                <div className="flex flex-col gap-3">
+                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                        <HelpCircle size={14} className="text-gray-400" /> Strategy
+                    </h3>
                     <div className="flex flex-col md:flex-row items-center gap-4 w-full">
                         <div className="relative w-full md:max-w-md">
-                            <label className="text-xs text-gray-400 absolute -top-2 left-2 bg-[#0f111a] px-1">Select Strategy</label>
                             <select
                                 value={selectedStrategy?.id || ''}
                                 onChange={(e) => {
@@ -1401,7 +1361,7 @@ const StrategyView = () => {
                                     setSelectedStrategy(strat);
                                     setBacktestResult(null);
                                 }}
-                                className="w-full bg-black/40 border border-white/20 rounded-lg px-4 py-3 text-white appearance-none focus:border-blue-500 outline-none cursor-pointer"
+                                className="w-full bg-black/40 border border-white/20 rounded-lg px-4 py-3 text-white appearance-none focus:border-blue-500 outline-none cursor-pointer text-sm font-medium"
                             >
                                 {strategies.map(strat => (
                                     <option key={strat.id} value={strat.id} className="bg-slate-900 text-white">
@@ -1429,10 +1389,8 @@ const StrategyView = () => {
                             </div>
                         )}
                     </div>
-
-
                 </div>
-            </Card>
+            </div>
 
             {/* Main Content Area (No Scroll Container) */}
             <div className="space-y-6 pb-20">
@@ -1448,7 +1406,8 @@ const StrategyView = () => {
                         {/* SECTION 1: BACKTEST SIMULATION (Config + Execution + Results) */}
                         <div className="space-y-4">
 
-                            <div className="flex items-center gap-1 mb-4 overflow-x-auto p-2 scrollbar-hide">
+                            <div className="bg-white/5 border border-white/10 rounded-xl px-4 pt-4 pb-5 mb-6 overflow-x-auto scrollbar-hide">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 {/* Live Operation Tab */}
                                 <button
                                     type="button"
@@ -1587,6 +1546,12 @@ const StrategyView = () => {
                                 >
                                     +
                                 </button>
+                            </div>
+                            {/* Active tab indicator line */}
+                            <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs text-gray-500">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 animate-pulse" />
+                                <span>{activeTab === -2 ? 'Live Operation' : activeTab === -1 ? 'Integrated Portfolio' : `Rank ${activeTab + 1}`} selected</span>
+                            </div>
                             </div>
 
                             {activeTab === -1 && (
@@ -2846,13 +2811,13 @@ const StrategyView = () => {
                                                                 <span className="font-bold text-white">{optResults.length}</span> optimization results
                                                             </div>
                                                             <button
-                                                                onClick={exportOptResultsToXML}
+                                                                onClick={exportOptResultsToCSV}
                                                                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
                                                             >
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                                 </svg>
-                                                                Export to XML
+                                                                Export CSV
                                                             </button>
                                                         </div>
                                                         <div className="overflow-x-auto">

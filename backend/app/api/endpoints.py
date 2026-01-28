@@ -684,6 +684,7 @@ class TradeHistoryContextRequest(BaseModel):
     days: int = 365
     from_date: Optional[str] = None
     limit: int = 1000
+    is_paper: Optional[bool] = None  # None=all, True=paper only, False=real only
 
 @router.post("/trade/history-context")
 async def get_trade_history_context(request: TradeHistoryContextRequest, db: Session = Depends(get_db)):
@@ -691,7 +692,7 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
     Fetch executed trades matching the provided Frontend Configuration.
     Uses 'fetch_visualization_feeds' to generate identical background charts to Integrated Tab.
     """
-    from ..models.live_trading import LiveTradeExecution
+    from ..models.live_trading import LiveTradeExecution, LiveBotSession
     from sqlalchemy.orm import joinedload
 
     # 1. Extract Configs (Source of Truth is Frontend)
@@ -712,10 +713,11 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
         preloaded_feeds=None # Live mode has no preloaded simulation data
     )
             
-    # 3. Fetch Real Trades (Exclude Paper Trading)
-    trades_query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
-        LiveBotSession.is_paper == False
-    ).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
+    # 3. Fetch Trades (filtered by paper/real mode)
+    trades_q = db.query(LiveTradeExecution).join(LiveBotSession)
+    if request.is_paper is not None:
+        trades_q = trades_q.filter(LiveBotSession.is_paper == request.is_paper)
+    trades_query = trades_q.order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
     
     trades_data = []
     
@@ -763,4 +765,123 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
         "strategy_id": "live_integrated_view",
         "total_trades": len(trades_data),
         "rank1_start_date": rank1_start_date
+    }
+
+
+# --- Lightweight Trade List Endpoint (Step 1 of 2-step architecture) ---
+class TradeListRequest(BaseModel):
+    is_paper: Optional[bool] = None  # None=all, True=paper, False=real
+    limit: int = 500
+
+@router.post("/trade/history-list")
+async def get_trade_history_list(request: TradeListRequest, db: Session = Depends(get_db)):
+    """
+    Lightweight endpoint: returns only trade executions grouped into cycles.
+    No OHLCV data fetched. Fast DB query only.
+    """
+    from ..models.live_trading import LiveTradeExecution, LiveBotSession
+    from sqlalchemy import asc
+
+    trades_q = db.query(LiveTradeExecution).join(LiveBotSession)
+    if request.is_paper is not None:
+        trades_q = trades_q.filter(LiveBotSession.is_paper == request.is_paper)
+
+    trades = trades_q.order_by(asc(LiveTradeExecution.signal_timestamp)).limit(request.limit).all()
+
+    # Group trades into cycles (BUY → SELL pairs)
+    # A cycle starts with a BUY and ends with a SELL for the same symbol+session
+    cycles = []
+    open_positions = {}  # key: (session_id, symbol) -> list of buys
+
+    for t in trades:
+        key = (t.session_id, t.symbol)
+        trade_dict = {
+            "id": t.id,
+            "session_id": t.session_id,
+            "symbol": t.symbol,
+            "signal_type": t.signal_type,
+            "signal_timestamp": t.signal_timestamp.isoformat() if t.signal_timestamp else None,
+            "theoretical_price": float(t.theoretical_price) if t.theoretical_price else 0,
+            "executed_price": float(t.executed_price) if t.executed_price else 0,
+            "filled_quantity": float(t.filled_quantity) if t.filled_quantity else 0,
+            "realized_pnl": float(t.realized_pnl) if t.realized_pnl else 0,
+            "fees": float(t.fees) if t.fees else 0,
+            "is_paper": t.is_paper,
+            "status": t.status,
+            "trade_metadata": t.trade_metadata,
+        }
+
+        if t.signal_type == "BUY":
+            if key not in open_positions:
+                open_positions[key] = []
+            open_positions[key].append(trade_dict)
+        elif t.signal_type == "SELL":
+            buys = open_positions.get(key, [])
+            cycle = {
+                "symbol": t.symbol,
+                "session_id": t.session_id,
+                "is_paper": t.is_paper,
+                "buys": list(buys),
+                "sell": trade_dict,
+                "entry_time": buys[0]["signal_timestamp"] if buys else trade_dict["signal_timestamp"],
+                "exit_time": trade_dict["signal_timestamp"],
+                "total_buy_qty": sum(b["filled_quantity"] for b in buys),
+                "total_buy_cost": sum(b["executed_price"] * b["filled_quantity"] for b in buys),
+                "sell_price": trade_dict["executed_price"],
+                "sell_qty": trade_dict["filled_quantity"],
+                "fees": sum(b["fees"] for b in buys) + trade_dict["fees"],
+                "num_entries": len(buys),
+            }
+            # Calculate avg entry price
+            if cycle["total_buy_qty"] > 0:
+                cycle["avg_entry_price"] = cycle["total_buy_cost"] / cycle["total_buy_qty"]
+            else:
+                cycle["avg_entry_price"] = 0
+            # Calculate return %
+            if cycle["avg_entry_price"] > 0:
+                cycle["return_pct"] = ((cycle["sell_price"] - cycle["avg_entry_price"]) / cycle["avg_entry_price"]) * 100
+            else:
+                cycle["return_pct"] = 0
+            # Calculate realized_pnl: use DB value if set, otherwise compute from prices
+            db_pnl = trade_dict["realized_pnl"]
+            if db_pnl and db_pnl != 0:
+                cycle["realized_pnl"] = db_pnl
+            else:
+                # Fallback: compute from avg entry price and sell price
+                sell_qty = cycle["sell_qty"] or cycle["total_buy_qty"]
+                cycle["realized_pnl"] = round((cycle["sell_price"] - cycle["avg_entry_price"]) * sell_qty, 2) if cycle["avg_entry_price"] > 0 else 0
+
+            cycles.append(cycle)
+            open_positions[key] = []  # Reset for next cycle
+
+    # Any remaining open positions (no SELL yet)
+    open_cycles = []
+    for key, buys in open_positions.items():
+        if buys:
+            open_cycles.append({
+                "symbol": key[1],
+                "session_id": key[0],
+                "is_paper": buys[0]["is_paper"],
+                "buys": buys,
+                "sell": None,
+                "entry_time": buys[0]["signal_timestamp"],
+                "exit_time": None,
+                "total_buy_qty": sum(b["filled_quantity"] for b in buys),
+                "total_buy_cost": sum(b["executed_price"] * b["filled_quantity"] for b in buys),
+                "sell_price": None,
+                "sell_qty": 0,
+                "realized_pnl": 0,
+                "fees": sum(b["fees"] for b in buys),
+                "num_entries": len(buys),
+                "avg_entry_price": sum(b["executed_price"] * b["filled_quantity"] for b in buys) / sum(b["filled_quantity"] for b in buys) if sum(b["filled_quantity"] for b in buys) > 0 else 0,
+                "return_pct": 0,
+                "status": "OPEN",
+            })
+
+    return {
+        "cycles": sorted(cycles, key=lambda c: c["exit_time"] or "", reverse=True),
+        "open_cycles": open_cycles,
+        "total_cycles": len(cycles),
+        "total_open": len(open_cycles),
+        "total_trades": len(trades),
     }
