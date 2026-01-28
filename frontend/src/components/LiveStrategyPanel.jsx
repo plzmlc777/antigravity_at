@@ -6,9 +6,7 @@ import IntegratedAnalysis from './IntegratedAnalysis';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
-import StrategySignalPanel from './StrategySignalPanel';
-import StrategyKPIWidget from './StrategyKPIWidget';
-import ParallelSessionsGrid from './ParallelSessionsGrid';
+import UnifiedSessionCards from './UnifiedSessionCards';
 
 const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema }) => {
     // State
@@ -727,27 +725,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         </div>
                     </div>
 
-                    {/* Section 1.4: Sessions Summary Grid (both parallel & exclusive) */}
-                    {status === 'RUNNING' && configList?.length > 1 && (
-                        <ParallelSessionsGrid
-                            parallelSessions={parallelSessions}
-                            sessionDataList={liveData?._parallel_sessions || []}
-                            configList={configList}
-                            savedSymbols={savedSymbols}
-                            currentRankIndex={currentRankIndex}
-                            onRankSelect={(idx) => onRankChange(idx)}
-                            strategyName={strategyName}
-                            executionMode={executionMode}
-                        />
-                    )}
-
-                    {/* Section 1.5: Strategy-specific KPI Widget */}
-                    <StrategyKPIWidget
-                        strategyId={strategyName || strategyConfig?.strategy_id || 'time_momentum'}
-                        strategyConfig={strategyConfig}
-                        liveData={liveData}
-                        strategyState={strategyState}
-                    />
 
                     {/* Section 2: Configuration & Controls */}
                     <div className="w-full bg-black/40 border border-white/5 rounded-xl p-5 mb-6">
@@ -946,10 +923,23 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 )}
             </div>
 
-            {/* NEW: Strategy Signal Panel (Row 2) - Full Width */}
-            <div className="lg:col-span-3">
-                <StrategySignalPanel strategyState={strategyState} strategyName={strategyName} />
-            </div>
+            {/* Unified Session Cards (Row 2) - Full Width */}
+            {status === 'RUNNING' && configList?.length > 0 && (
+                <div className="lg:col-span-3">
+                    <UnifiedSessionCards
+                        parallelSessions={parallelSessions}
+                        sessionDataList={liveData?._parallel_sessions || []}
+                        configList={configList}
+                        savedSymbols={savedSymbols}
+                        currentRankIndex={currentRankIndex}
+                        onRankSelect={(idx) => onRankChange(idx)}
+                        strategyName={strategyName}
+                        executionMode={executionMode}
+                        strategyState={strategyState}
+                        liveData={liveData}
+                    />
+                </div>
+            )}
 
             {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
             <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">

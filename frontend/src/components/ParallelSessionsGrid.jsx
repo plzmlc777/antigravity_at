@@ -212,7 +212,7 @@ const DipMartingaleMini = ({ state, price, pnl = 0, dimmed = false, isPaper = tr
             {/* Row 3: Trigger price & distance (price unit) */}
             {triggerPrice > 0 && (
                 <div className={`flex items-center justify-between text-[9px] mb-1.5 ${dim}`}>
-                    <span>Trig: {triggerPrice.toLocaleString()}</span>
+                    <span>Trigger: {triggerPrice.toLocaleString()}</span>
                     <span className={!dimmed && Math.abs(price - triggerPrice) < price * 0.003 ? 'text-yellow-400' : ''}>
                         {price >= triggerPrice ? '-' : '+'}{Math.abs(price - triggerPrice).toLocaleString()}
                     </span>
