@@ -18,7 +18,7 @@ import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -1446,17 +1446,7 @@ const StrategyView = () => {
                     <>
 
                         {/* SECTION 1: BACKTEST SIMULATION (Config + Execution + Results) */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/50">
-                                    <span className="text-white font-bold text-lg">1</span>
-                                </div>
-                                <h2 className="text-2xl font-bold text-white tracking-tight">Antigravity Auto Trading</h2>
-                                <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
-                            </div>
-
-                            {/* --- New Tab Bar UI --- */}
-                            {/* --- New Tab Bar UI --- */}
+                        <div className="space-y-4">
 
                             <div className="flex items-center gap-1 mb-4 overflow-x-auto p-2 scrollbar-hide">
                                 {/* Live Operation Tab */}
@@ -1599,126 +1589,26 @@ const StrategyView = () => {
                                 </button>
                             </div>
 
-                            {activeTab !== -2 && (
-                                <Card
-                                    title={
-                                        <div className="flex items-center justify-between w-full">
-                                            <span>Configuration</span>
-                                            {activeTab !== -1 && (
-                                                <div className="flex items-center gap-4 ml-4">
-                                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
-                                                        {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
-                                                    </span>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleConfigChange('is_active', currentConfig.is_active === false); // Toggle
-                                                        }}
-                                                        className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
-                                                    >
-                                                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                    </button>
+                            {activeTab === -1 && (
+                                <div className="space-y-4 mb-6">
+                                            {/* Section 1: Strategy Configurations Card */}
+                                            <div className="[&>div]:mb-0">
+                                                <ActiveStrategiesPanel
+                                                    configList={configList}
+                                                    savedSymbols={savedSymbols}
+                                                    onEdit={(idx) => setActiveTab(idx)}
+                                                    parameterSchema={selectedStrategy?.parameter_schema}
+                                                />
+                                            </div>
+
+
+
+                                            {/* Section 2: Backtest Settings Card */}
+                                            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                                <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2"><Settings size={14} className="text-gray-400" /> Backtest Settings</h3>
                                                 </div>
-                                            )}
-                                        </div>
-                                    }
-                                    className="mb-6 border border-purple-500/50 shadow-lg shadow-purple-900/20"
-                                    variant="major"
-                                >
-                                    {activeTab === -1 ? (
-                                        <div className="p-4">
-                                            <div className="text-center mb-8">
-                                                <h3 className="text-xl font-bold text-white mb-2">🌊 Waterfall Execution Flow</h3>
-                                                <p className="text-sm text-gray-400 max-w-lg mx-auto">
-                                                    Strategies are evaluated sequentially. The first strategy to trigger a BUY signal executes the trade,
-                                                    and the remaining strategies are skipped for the current interval.
-                                                </p>
-                                            </div>
-
-                                            <div className="flex flex-col items-center gap-2">
-                                                {configList.some(c => c.is_active !== false) ? (
-                                                    configList.filter(c => c.is_active !== false).map((cfg, idx, arr) => (
-                                                        <React.Fragment key={idx}>
-                                                            {/* Strategy Node */}
-                                                            <div className="w-full max-w-lg bg-black/40 border-2 border-green-500/30 rounded-lg p-4 relative hover:border-green-500/60 transition-colors group">
-                                                                {/* Rank Badge */}
-                                                                <div className="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-green-600 flex items-center justify-center font-bold text-white shadow-lg border border-black text-sm z-10">
-                                                                    {idx + 1}
-                                                                </div>
-
-                                                                <div className="flex justify-between items-start pl-4">
-                                                                    <div>
-                                                                        <div className="font-bold text-lg text-white group-hover:text-green-400 transition-colors">
-                                                                            {cfg.strategy || "Unknown Strategy"}
-                                                                        </div>
-                                                                        <div className="text-xs text-gray-400 font-mono mt-1">
-                                                                            {cfg.symbol} • {cfg.interval}s interval
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="text-right">
-                                                                        <div className="text-[10px] uppercase tracking-wider text-green-400 font-bold bg-green-900/20 px-2 py-1 rounded">
-                                                                            Active
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Config Preview */}
-                                                                <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-2 text-xs text-gray-500">
-                                                                    {Object.entries(cfg.optEnabled || {}).filter(([_, v]) => v).slice(0, 3).map(([k]) => (
-                                                                        <div key={k} className="bg-white/5 rounded px-2 py-1 truncate">
-                                                                            {k}: {cfg[k]}
-                                                                        </div>
-                                                                    ))}
-                                                                    {(Object.keys(cfg.optEnabled || {}).filter(k => cfg.optEnabled[k]).length > 3) && (
-                                                                        <div className="px-2 py-1">+ More...</div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Connector Arrow */}
-                                                            {idx < arr.length - 1 && (
-                                                                <div className="flex flex-col items-center h-16 justify-center relative">
-                                                                    <div className="absolute w-0.5 h-full bg-gray-700"></div>
-                                                                    <div className="bg-[#1e2029] px-3 py-1 text-[10px] text-gray-500 border border-gray-700 rounded-full z-10">
-                                                                        No Signal? Next 👇
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* End Node */}
-                                                            {idx === arr.length - 1 && (
-                                                                <div className="flex flex-col items-center mt-2 opacity-50">
-                                                                    <div className="h-8 w-0.5 bg-gray-700 mb-1"></div>
-                                                                    <div className="px-3 py-1 rounded-full bg-gray-600 text-gray-400 text-xs border border-gray-500">
-                                                                        End of Validation (Wait)
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </React.Fragment>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-gray-500 italic py-10">
-                                                        No Active Strategies Configured. <br />
-                                                        Enable strategies in the Rank tabs to add them here.
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Unified Strategy Configuration Panel */}
-                                            <ActiveStrategiesPanel
-                                                configList={configList}
-                                                savedSymbols={savedSymbols}
-                                                onEdit={(idx) => setActiveTab(idx)}
-                                                parameterSchema={selectedStrategy?.parameter_schema}
-                                            />
-
-
-
-                                            {/* Action Button & Settings */}
-                                            <div className="mt-12 text-center pb-8 border-t border-white/10 pt-8">
-                                                {/* Integrated Settings */}
-                                                {/* Integrated Settings */}
+                                                <div className="px-4 py-4">
                                                 {(() => {
                                                     const isIntegrated = activeTab === -1;
                                                     // If Integrated, inherit from Rank 1 (index 0). Fallback to DEFAULT if empty.
@@ -1732,7 +1622,7 @@ const StrategyView = () => {
                                                         : rank1Capital;
 
                                                     return (
-                                                        <div className="flex justify-center gap-6 mb-8">
+                                                        <div className="flex flex-wrap gap-6">
                                                             <div className="text-left">
                                                                 <label className="text-xs text-gray-400 mb-1 block">
                                                                     {isIntegrated && executionMode === 'parallel'
@@ -1819,8 +1709,15 @@ const StrategyView = () => {
                                                         </div>
                                                     );
                                                 })()}
+                                                </div>
+                                            </div>
 
-
+                                            {/* Section 3: Actions Card */}
+                                            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                                <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2"><Rocket size={14} className="text-gray-400" /> Actions</h3>
+                                                </div>
+                                                <div className="px-4 py-4">
                                                 <div className="flex gap-4">
                                                     <button
                                                         onClick={() => setShowChart(!showChart)}
@@ -1938,24 +1835,295 @@ const StrategyView = () => {
                                                         )}
                                                     </button>
                                                 </div>
-                                                <p className="text-xs text-gray-500 mt-4">
+                                                <p className="text-xs text-gray-500 mt-3">
                                                     {executionMode === 'exclusive'
                                                         ? '* Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.'
                                                         : '* Simulates Parallel execution: Each Rank gets Rank 1 capital (Total = Rank1 × Active Ranks).'}
                                                 </p>
+
+                                            {/* Integrated Backtest Results (inside Actions card) */}
+                                            {(backtestStatus.status !== 'idle' || !backtestResult) && (
+                                                <div className="mt-4">
+                                                    {backtestStatus.status === 'running' ? (
+                                                        <div className="flex items-center justify-center gap-3 py-8 text-blue-400">
+                                                            <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-lg font-bold animate-pulse">{backtestStatus.message}</span>
+                                                        </div>
+                                                    ) : backtestStatus.status === 'error' ? (
+                                                        <div className="flex items-center justify-center gap-3 py-8 text-red-400">
+                                                            <span className="text-2xl">⚠️</span>
+                                                            <span className="text-lg font-bold">{backtestStatus.message}</span>
+                                                        </div>
+                                                    ) : !backtestResult && (
+                                                        <div className="text-center text-gray-500 py-8 text-sm italic">
+                                                            Click 'Run Integrated Backtest' to see results here.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {showChart && backtestResult && (
+                                                <div className="mt-4 animate-fade-in-down">
+                                                    <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
+                                                        {backtestResult.strategy_id.includes('Integrated') ? (
+                                                            <IntegratedAnalysis
+                                                                mode="backtest"
+                                                                trades={backtestResult.trades || []}
+                                                                backtestResult={backtestResult}
+                                                                strategiesConfig={configList.filter(c => c.is_active !== false)}
+                                                                savedSymbols={savedSymbols || []}
+                                                            />
+                                                        ) : (
+                                                            backtestResult.ohlcv_data ? (
+                                                                <VisualBacktestChart
+                                                                    data={backtestResult.ohlcv_data}
+                                                                    trades={backtestResult.trades}
+                                                                />
+                                                            ) : (
+                                                                <div className="h-[200px] flex items-center justify-center text-gray-500">
+                                                                    No visual data available.
+                                                                </div>
+                                                            )
+                                                        )}
+                                                    </Card>
+                                                </div>
+                                            )}
+
+                                            {backtestResult && (
+                                                <div className="space-y-6 mt-4">
+                                                    <div className="space-y-6">
+                                                        <div className="flex gap-4 mb-4">
+                                                            <button
+                                                                onClick={() => setActiveAnalysisTab('overview')}
+                                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'overview'
+                                                                    ? 'bg-purple-600 text-white shadow-lg'
+                                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                                            >
+                                                                Overview
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveAnalysisTab('rank_details')}
+                                                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeAnalysisTab === 'rank_details'
+                                                                    ? 'bg-purple-600 text-white shadow-lg'
+                                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                                                            >
+                                                                Rank Details
+                                                            </button>
+                                                        </div>
+
+                                                        <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
+                                                            {activeAnalysisTab === 'overview' ? (
+                                                                <div className="space-y-4">
+                                                                    <PerformanceStatsGrid stats={backtestResult} />
+                                                                    {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
+                                                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
+                                                                            <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
+                                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                                                                        <XAxis
+                                                                                            dataKey="block"
+                                                                                            stroke="#666"
+                                                                                            tickLine={false}
+                                                                                            interval={0}
+                                                                                            tick={({ x, y, payload, index }) => {
+                                                                                                const data = backtestResult.decile_stats[index];
+                                                                                                return (
+                                                                                                    <g transform={`translate(${x},${y})`}>
+                                                                                                        <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>{payload.value}</text>
+                                                                                                        <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">{data.count}</text>
+                                                                                                        <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>{data.win_rate}%</text>
+                                                                                                        <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">{data.total_pnl}%</text>
+                                                                                                    </g>
+                                                                                                );
+                                                                                            }}
+                                                                                        />
+                                                                                        <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
+                                                                                        <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
+                                                                                        <Tooltip
+                                                                                            contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
+                                                                                            itemStyle={{ color: '#fff' }}
+                                                                                            formatter={(value, name) => {
+                                                                                                if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
+                                                                                                return [value, name];
+                                                                                            }}
+                                                                                            labelFormatter={(label) => `Month: ${label}`}
+                                                                                        />
+                                                                                        <ReferenceLine yAxisId="left" y={0} stroke="#666" />
+                                                                                        <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
+                                                                                            {backtestResult.decile_stats.map((entry, index) => (
+                                                                                                <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
+                                                                                            ))}
+                                                                                        </Bar>
+                                                                                    </ComposedChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
+                                                                                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-400 rounded-sm"></div><span>Profit</span></div>
+                                                                                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-400 rounded-sm"></div><span>Loss</span></div>
+                                                                                <div className="flex items-center gap-1"><span className="text-blue-400 font-bold">12</span><span>= Count</span></div>
+                                                                                <div className="flex items-center gap-1"><span className="font-bold" style={{ color: '#fbbf24' }}>60%</span><span>= Win Rate</span></div>
+                                                                                <div className="flex items-center gap-1"><span className="text-green-400 font-bold">5.2%</span><span>= Realized PnL</span></div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="overflow-x-auto">
+                                                                    {backtestResult.rank_stats_list && backtestResult.rank_stats_list.length > 0 ? (
+                                                                        (() => {
+                                                                            const visibleCols = getVisibleColumns(backtestResult);
+                                                                            const totalStats = computeTotalStats(backtestResult.rank_stats_list);
+                                                                            const renderCell = (data, col, opacity = '') => {
+                                                                                const value = data[col.key];
+                                                                                const colorClass = getStatColor(value, col) + (opacity ? `/${opacity}` : '');
+                                                                                const formatted = formatStatValue(value, col);
+                                                                                const prefix = col.signed && typeof value === 'number' && value > 0 ? '+' : '';
+                                                                                const align = col.lastColumn ? ' text-right' : '';
+                                                                                const bold = col.bold ? ' font-bold' : '';
+                                                                                return (
+                                                                                    <td key={col.key} className={`p-3${bold}${align} ${colorClass}`}>{prefix}{formatted}</td>
+                                                                                );
+                                                                            };
+                                                                            return (
+                                                                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                                                    <thead>
+                                                                                        <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
+                                                                                            <th className="p-3 sticky left-0 bg-[#0f1115] z-10 shadow-r">Rank</th>
+                                                                                            {visibleCols.map(col => (
+                                                                                                <th key={col.key} className={`p-3${col.lastColumn ? ' text-right' : ''}`}>{col.tableLabel || col.label}</th>
+                                                                                            ))}
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody className="text-sm">
+                                                                                        {backtestResult.rank_stats_list.map((stat, idx) => (
+                                                                                            <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                                                                                <td className="p-3 font-bold text-white sticky left-0 bg-[#0f1115] z-10 shadow-r">#{stat.rank}</td>
+                                                                                                {visibleCols.map(col => renderCell(stat, col))}
+                                                                                            </tr>
+                                                                                        ))}
+                                                                                    </tbody>
+                                                                                    <tfoot className="text-sm border-t-2 border-white/20">
+                                                                                        <tr className="bg-[#1a1d24]/50 border-b border-white/10 font-bold text-gray-300">
+                                                                                            <td className="p-3 sticky left-0 bg-[#15181e] z-10 shadow-r">TOTAL (Sum/W.Avg)</td>
+                                                                                            {visibleCols.map(col => renderCell(totalStats, col, '80'))}
+                                                                                        </tr>
+                                                                                        <tr className="bg-[#2d3748] font-bold text-white border-t border-purple-500/30">
+                                                                                            <td className="p-3 text-purple-300 sticky left-0 bg-[#2d3748] z-10 shadow-r">OVERVIEW</td>
+                                                                                            {visibleCols.map(col => renderCell(backtestResult, col))}
+                                                                                        </tr>
+                                                                                    </tfoot>
+                                                                                </table>
+                                                                            );
+                                                                        })()
+                                                                    ) : (
+                                                                        <div className="py-12 text-center">
+                                                                            <div className="text-gray-500 italic mb-2">No rank details available</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </Card>
+                                                    </div>
+                                                    <Card title="Equity Curve">
+                                                        <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
+                                                            <ResponsiveContainer width="100%" height="100%">
+                                                                <LineChart data={backtestResult.chart_data}>
+                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                                                                    <XAxis
+                                                                        dataKey={EQUITY_DATE_KEY}
+                                                                        stroke="#666"
+                                                                        height={50}
+                                                                        ticks={(() => {
+                                                                            if (!backtestResult.chart_data) return [];
+                                                                            const ticks = [];
+                                                                            let lastMonth = -1;
+                                                                            backtestResult.chart_data.forEach(d => {
+                                                                                const date = new Date(d[EQUITY_DATE_KEY]);
+                                                                                const month = date.getMonth();
+                                                                                if (month !== lastMonth) {
+                                                                                    ticks.push(d[EQUITY_DATE_KEY]);
+                                                                                    lastMonth = month;
+                                                                                }
+                                                                            });
+                                                                            return ticks;
+                                                                        })()}
+                                                                        interval={0}
+                                                                        tick={({ x, y, payload, index }) => {
+                                                                            const dateStr = payload.value;
+                                                                            if (!dateStr) return null;
+                                                                            const date = new Date(dateStr);
+                                                                            const monthStr = `${date.getMonth() + 1}월`;
+                                                                            const year = date.getFullYear();
+                                                                            const isJan = date.getMonth() === 0;
+                                                                            const showYear = index === 0 || isJan;
+                                                                            return (
+                                                                                <g transform={`translate(${x},${y})`}>
+                                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>{monthStr}</text>
+                                                                                    {showYear && (
+                                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">{year}</text>
+                                                                                    )}
+                                                                                </g>
+                                                                            );
+                                                                        }}
+                                                                    />
+                                                                    <YAxis
+                                                                        stroke="#666"
+                                                                        domain={['auto', 'auto']}
+                                                                        tickFormatter={(value) => {
+                                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
+                                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                                                                            return value;
+                                                                        }}
+                                                                        width={60}
+                                                                    />
+                                                                    <Tooltip
+                                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                                                        itemStyle={{ color: '#fff' }}
+                                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
+                                                                    />
+                                                                    <Line type="monotone" dataKey={EQUITY_VALUE_KEY} stroke="#8884d8" strokeWidth={2} dot={false} />
+                                                                </LineChart>
+                                                            </ResponsiveContainer>
+                                                        </div>
+                                                    </Card>
+                                                </div>
+                                            )}
+
+                                                </div>
                                             </div>
 
-                                            {/* Integrated Analysis Visualization Modal */}
+                                </div>
+                            )}
 
+                            {activeTab !== -2 && activeTab !== -1 && (
+                                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                            <Crosshair size={14} className="text-gray-400" /> Configuration
+                                        </h3>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
+                                                {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
+                                            </span>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleConfigChange('is_active', currentConfig.is_active === false);
+                                                }}
+                                                className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
+                                            >
+                                                <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                                            </button>
                                         </div>
-                                    ) : (
+                                    </div>
+                                    <div className="px-4 py-4">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             {/* 1. Target Data */}
                                             <div>
-                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs">1</div>
-                                                    Target Asset
-                                                </h4>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3">Target Asset</h4>
                                                 <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
                                                     <SymbolSelector
                                                         currentSymbol={currentConfig.symbol || currentSymbol} // Use config's symbol
@@ -1982,10 +2150,7 @@ const StrategyView = () => {
 
                                             {/* 2. Parameters */}
                                             <div>
-                                                <h4 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs">2</div>
-                                                    Parameters
-                                                </h4>
+                                                <h4 className="text-sm font-bold text-gray-300 mb-3">Parameters</h4>
                                                 <div className="bg-black/20 p-4 rounded-lg border border-white/5">
                                                     {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
                                                     {selectedStrategy.parameter_schema?.fields?.length > 0 ? (
@@ -2000,7 +2165,6 @@ const StrategyView = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
 
                                     {/* Tick Monitor Section - Added for Phase 3.5 */}
                                     {showTickMonitor && (
@@ -2015,7 +2179,8 @@ const StrategyView = () => {
                                             />
                                         </div>
                                     )}
-                                </Card>
+                                    </div>
+                                </div>
                             )}
 
                             {/* Content Area based on Tab */}
@@ -2043,10 +2208,15 @@ const StrategyView = () => {
                             )}
 
 
-                            {/* Backtest Controls (Relocated) - Hidden in Integrated View and Live View */}
+                            {/* Backtest Settings Card */}
                             {activeTab >= 0 && (
-                                <Card title="Backtest Settings & Execution" variant="major" className="border-t-4 border-t-blue-500">
-                                    <div className="flex flex-col gap-4">
+                                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                            <Settings size={14} className="text-gray-400" /> Backtest Settings
+                                        </h3>
+                                    </div>
+                                    <div className="px-4 py-4 flex flex-col gap-4">
                                         {/* Row 1: Data Status & Actions */}
                                         <div className="flex flex-col md:flex-row justify-between items-center gap-4 w-full">
                                             <div className="flex items-center gap-4 w-full md:w-auto">
@@ -2138,8 +2308,22 @@ const StrategyView = () => {
                                             </div>
                                         </div>
 
-                                        {/* Row 3: Action Buttons */}
-                                        <div className="grid grid-cols-2 gap-4 pt-2">
+
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions Card (Individual Rank Tabs Only) */}
+                            {activeTab >= 0 && (
+                                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                            <Rocket size={14} className="text-gray-400" /> Actions
+                                        </h3>
+                                    </div>
+                                    <div className="px-4 py-4 space-y-4">
+                                        {/* Run Buttons */}
+                                        <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setShowChart(!showChart)}
                                                 disabled={!backtestResult}
@@ -2168,17 +2352,9 @@ const StrategyView = () => {
                                             </button>
                                         </div>
 
-
-                                    </div>
-                                </Card>
-                            )}
-
-                            {/* Results Section (Hidden in Live View) */}
-                            {activeTab >= -1 && (
-                                <>
-                                    {/* SHARED EXECUTION STATUS FEEDBACK (Visible for both Single and Integrated Modes) */}
+                                    {/* Execution Status */}
                                     {(backtestStatus.status !== 'idle' || !backtestResult) && (
-                                        <Card className="mb-6 border-t-2 border-blue-500/30">
+                                        <div>
                                             {backtestStatus.status === 'running' ? (
                                                 <div className="flex items-center justify-center gap-3 py-8 text-blue-400">
                                                     <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -2194,14 +2370,13 @@ const StrategyView = () => {
                                                     Select a strategy and click 'Run Backtest' to see results here.
                                                 </div>
                                             )}
-                                        </Card>
+                                        </div>
                                     )}
 
 
-                                    {/* VISUAL CHART SECTION (Dedicated) */}
+                                    {/* VISUAL CHART SECTION */}
                                     {showChart && backtestResult && (
-                                        <div className="mb-6 animate-fade-in-down">
-                                            <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
+                                        <div>
                                                 {backtestResult.strategy_id.includes('Integrated') ? (
                                                     <IntegratedAnalysis
                                                         mode="backtest"
@@ -2222,15 +2397,13 @@ const StrategyView = () => {
                                                         </div>
                                                     )
                                                 )}
-                                            </Card>
-                                        </div>
+                                            </div>
                                     )}
 
                                     {/* Backtest Results */}
                                     {backtestResult && (
-                                        <div className="space-y-6 mb-6">
-                                            <div className="space-y-6">
-                                                {/* Analysis Mode Tabs (Integrated Only or Global) */}
+                                        <div className="space-y-4">
+                                                {/* Analysis Mode Tabs */}
                                                 <div className="flex gap-4 mb-4">
                                                     <button
                                                         onClick={() => setActiveAnalysisTab('overview')}
@@ -2250,7 +2423,7 @@ const StrategyView = () => {
                                                     </button>
                                                 </div>
 
-                                                <Card title={activeAnalysisTab === 'overview' ? "Performance Stats" : "Rank Performance Breakdown"}>
+                                                <div>
                                                     {activeAnalysisTab === 'overview' ? (
                                                         <div className="space-y-4">
                                                             <PerformanceStatsGrid stats={backtestResult} />
@@ -2411,11 +2584,9 @@ const StrategyView = () => {
                                                             )}
                                                         </div>
                                                     )}
-                                                </Card>
-                                            </div>
-                                            <Card
-                                                title="Equity Curve"
-                                            >
+                                                </div>
+
+                                                {/* Equity Curve */}
                                                 <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
                                                     <ResponsiveContainer width="100%" height="100%">
                                                         <LineChart data={backtestResult.chart_data}>
@@ -2485,10 +2656,11 @@ const StrategyView = () => {
                                                         </LineChart>
                                                     </ResponsiveContainer>
                                                 </div>
-                                            </Card>
                                         </div>
                                     )}
-                                </>
+
+                                    </div>
+                                </div>
                             )}
 
                         </div> {/* End of Backtest Simulation Group */}
@@ -2496,16 +2668,13 @@ const StrategyView = () => {
                         {/* OPTIMIZATION SECTION */}
                         {
                             activeTab >= 0 && (
-                                <div className="space-y-6 pt-10">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-lg shadow-purple-900/50">
-                                            <span className="text-white font-bold text-lg">2</span>
-                                        </div>
-                                        <h2 className="text-2xl font-bold text-white tracking-tight">Parameter Optimization</h2>
-                                        <div className="h-px bg-gradient-to-r from-white/20 to-transparent flex-1"></div>
+                                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                            <Sparkles size={14} className="text-gray-400" /> Parameter Optimization
+                                        </h3>
                                     </div>
-
-                                    <Card title="Parameter Optimization (Grid Search)" variant="major" className="border-t-4 border-t-purple-500">
+                                    <div className="px-4 py-4">
                                         <div className="space-y-6">
                                             <div className="space-y-6">
                                                 {/* Dynamic Grid Inputs */}
@@ -2817,18 +2986,19 @@ const StrategyView = () => {
                                                 )}
                                             </div>
                                         </div>
-                                    </Card>
-
-
-
-
+                                    </div>
                                 </div>
                             )
                         }
 
-                        {/* Execution Logs Panel */}
-                        <div className="pt-10">
-                            <Card title="🔍 Execution Logs">
+                        {/* Execution Logs Panel (hidden on live tab - LiveStrategyPanel has its own) */}
+                        {activeTab !== -2 && <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                            <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                    <Terminal size={14} className="text-gray-400" /> Execution Logs
+                                </h3>
+                            </div>
+                            <div className="px-4 py-4">
                                 <div className="bg-black/50 p-4 rounded-lg border border-white/5 max-h-[400px] overflow-y-auto">
                                     {executionLogs.length === 0 ? (
                                         <div className="text-gray-500 text-sm text-center py-8">
@@ -2860,8 +3030,8 @@ const StrategyView = () => {
                                         Clear Logs
                                     </button>
                                 </div>
-                            </Card>
-                        </div>
+                            </div>
+                        </div>}
                     </>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">

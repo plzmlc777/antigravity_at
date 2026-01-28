@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistory, getTradeHistoryContext, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance } from '../api/client';
 import IntegratedAnalysis from './IntegratedAnalysis';
@@ -653,21 +653,23 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             />
 
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
-            <div className="lg:col-span-3 relative">
-                <div className={`bg-[#1e1e24] border border-white/5 rounded-xl p-6 relative overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
-                    {/* Header */}
-                    <div className="flex items-center gap-3 mb-6">
-                        <Activity className={`w-5 h-5 ${status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-500'}`} />
-                        <h2 className="font-bold text-lg text-white">Live Operation</h2>
-                        <span className={`ml-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${executionMode === 'parallel' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
-                            {executionMode === 'parallel' ? 'Parallel' : 'Exclusive'}
-                        </span>
-                        {executionMode === 'parallel' && Object.keys(parallelSessions).length > 0 && (
-                            <span className="text-xs text-blue-400">
-                                ({Object.keys(parallelSessions).length} ranks active)
+            <div className={`lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
+                    <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                            <Radio size={14} className={status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-400'} /> Live Operation
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${executionMode === 'parallel' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
+                                {executionMode === 'parallel' ? 'Parallel' : 'Exclusive'}
                             </span>
-                        )}
+                            {executionMode === 'parallel' && Object.keys(parallelSessions).length > 0 && (
+                                <span className="text-xs text-blue-400">
+                                    ({Object.keys(parallelSessions).length} ranks active)
+                                </span>
+                            )}
+                        </div>
                     </div>
+                <div className="px-4 py-4">
 
                     {/* Section 1: Dashboard Stats (Status | PnL | Balance | Target) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -942,19 +944,16 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             )}
 
             {/* 3. BOTTOM ROW: Chart Area (Real-time Tick Chart) - Full Width */}
-            <div className="lg:col-span-3 lg:row-span-1 flex-1 bg-[#1e1e24] border border-white/5 rounded-xl flex flex-col min-h-[400px] overflow-hidden">
-                {/* Tab Header */}
-                <div className="flex border-b border-white/5 bg-black/20">
-                    <div
-                        className="flex items-center gap-2 px-4 py-3 text-sm font-bold transition-colors border-b-2 border-purple-500 text-purple-400 bg-purple-500/5"
-                    >
-                        <Activity size={14} />
+            <div className="lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-[400px]">
+                <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                        <BarChart3 size={14} className="text-gray-400" />
                         Real-time Ticks {(() => {
                             const match = savedSymbols.find(s => s.code === strategyConfig.symbol);
                             return match && match.name ? `(${match.name})` : `(${strategyConfig.symbol})`;
                         })()}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                    </div>
+                    </h3>
                 </div>
 
                 <div className="flex-1 p-4 relative min-h-[350px] flex flex-col">
@@ -1057,24 +1056,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         </button>
                     </div>
                 ) : (
-                    <div className="bg-[#1e1e24] border border-white/5 rounded-xl overflow-hidden flex flex-col min-h-[600px]">
-                        <div className="px-6 py-4 border-b border-gray-800 bg-[#1f2937] flex justify-between items-center">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <List className="text-blue-400" />
-                                Transaction History & Visual Context
-                            </h2>
+                    <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-[600px]">
+                        <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                            <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                <History size={14} className="text-gray-400" />
+                                Transaction History
+                            </h3>
                             <button
                                 onClick={() => {
                                     setShowHistoryView(false);
                                     setHistoryData(null); // Optional: Clear data to save memory
                                 }}
-                                className="text-gray-400 hover:text-red-400 text-sm font-bold flex items-center gap-1"
+                                className="text-gray-400 hover:text-red-400 text-xs font-bold flex items-center gap-1"
                             >
-                                <X size={16} /> Close View
+                                <X size={14} /> Close
                             </button>
                         </div>
 
-                        <div className="flex-1 relative min-h-[550px] bg-[#111827]">
+                        <div className="flex-1 relative min-h-[550px]">
                             {isHistoryLoading ? (
                                 <div className="absolute inset-0 flex items-center justify-center">
                                     <div className="flex flex-col items-center gap-4">
@@ -1101,11 +1100,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             </div>
 
             {/* 5. EXECUTION LOGS (Moved to Bottom) */}
-            <div className="lg:col-span-3 bg-[#1e1e24] border border-white/5 rounded-xl p-4 font-mono text-xs overflow-hidden flex flex-col min-h-[200px] max-h-[400px]">
-                <div className="flex items-center gap-2 text-gray-400 mb-2 border-b border-white/5 pb-2">
-                    <Terminal size={12} />
-                    <span>Execution Logs</span>
+            <div className="lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-[200px] max-h-[400px]">
+                <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                        <Terminal size={14} className="text-gray-400" /> Execution Logs
+                    </h3>
                 </div>
+                <div className="px-4 py-4 flex-1 overflow-hidden flex flex-col font-mono text-xs">
                 <div className="flex-1 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
                     {logs.length === 0 && <div className="text-gray-600 italic">No logs yet...</div>}
                     {logs.map((log, i) => (
@@ -1115,6 +1116,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             <span className="text-gray-300">{log.msg}</span>
                         </div>
                     ))}
+                </div>
                 </div>
             </div>
         </div>

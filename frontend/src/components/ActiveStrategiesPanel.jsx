@@ -1,4 +1,5 @@
 import React from 'react';
+import { List } from 'lucide-react';
 
 /**
  * ActiveStrategiesPanel - Dynamic strategy configuration table.
@@ -34,7 +35,7 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit, parameterSche
     return (
         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden mb-6">
             <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
-                <h3 className="font-bold text-gray-200 text-sm">Active Strategy Configurations</h3>
+                <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2"><List size={14} className="text-gray-400" /> Active Strategy Configurations</h3>
                 <span className="text-xs text-gray-400">{activeCount} Active</span>
             </div>
             <div className="overflow-x-auto">
