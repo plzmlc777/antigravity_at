@@ -8,6 +8,7 @@ import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import StrategySignalPanel from './StrategySignalPanel';
 import StrategyKPIWidget from './StrategyKPIWidget';
+import ParallelSessionsGrid from './ParallelSessionsGrid';
 
 const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema }) => {
     // State
@@ -682,11 +683,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                         {/* PnL */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Unrealized PnL</span>
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">
+                                Unrealized PnL{liveData?.is_paper ? ' (Paper)' : ''}
+                            </span>
                             {liveData ? (
-                                <div className={`text-2xl font-mono tracking-tight ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
-                                </div>
+                                liveData.is_paper ? (
+                                    <span className="text-gray-600 text-sm">Paper Mode</span>
+                                ) : (
+                                    <div className={`text-2xl font-mono tracking-tight ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
+                                    </div>
+                                )
                             ) : (
                                 <span className="text-gray-600 text-sm">-</span>
                             )}
@@ -719,6 +726,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             })()}
                         </div>
                     </div>
+
+                    {/* Section 1.4: Sessions Summary Grid (both parallel & exclusive) */}
+                    {status === 'RUNNING' && configList?.length > 1 && (
+                        <ParallelSessionsGrid
+                            parallelSessions={parallelSessions}
+                            sessionDataList={liveData?._parallel_sessions || []}
+                            configList={configList}
+                            savedSymbols={savedSymbols}
+                            currentRankIndex={currentRankIndex}
+                            onRankSelect={(idx) => onRankChange(idx)}
+                            strategyName={strategyName}
+                            executionMode={executionMode}
+                        />
+                    )}
 
                     {/* Section 1.5: Strategy-specific KPI Widget */}
                     <StrategyKPIWidget

@@ -262,6 +262,13 @@ class LiveManager:
             # Context Summary (Isolated PnL based on trades)
             pnl = eng.context.calculate_pnl()
             
+            strategy_state = {}
+            try:
+                if hasattr(eng, 'strategy_instance') and hasattr(eng.strategy_instance, 'get_state'):
+                    strategy_state = eng.strategy_instance.get_state()
+            except Exception:
+                pass
+
             results.append({
                 "session_id": sid,
                 "symbol": eng.symbol,
@@ -272,7 +279,8 @@ class LiveManager:
                 "current_price": eng.context.get_current_price(eng.symbol),
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),
-                "last_update": datetime.now().isoformat()
+                "last_update": datetime.now().isoformat(),
+                "strategy_state": strategy_state
             })
         return results
 

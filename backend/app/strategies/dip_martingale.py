@@ -97,7 +97,8 @@ class DipMartingaleStrategy(BaseStrategy):
         self.last_trade_time = None
         self.current_trading_date = None
         self.entries = [] # List of entry records
-        self.cycle_id = 0  # Unique cycle identifier for tracking
+        self.paper_cycle_id = 0  # Paper mode cycle counter
+        self.real_cycle_id = 0   # Real mode cycle counter
 
     def on_data(self, data: Dict[str, Any]):
         """Called on every price update"""
@@ -193,8 +194,14 @@ class DipMartingaleStrategy(BaseStrategy):
         self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
 
     def _liquidate(self, price: float):
-        self.cycle_id += 1  # Increment cycle ID before closing
-        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
+        is_paper = getattr(self.context, 'is_paper', True)
+        if is_paper:
+            self.paper_cycle_id += 1
+            cycle_id = self.paper_cycle_id
+        else:
+            self.real_cycle_id += 1
+            cycle_id = self.real_cycle_id
+        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper})
 
         # Fixed betting mode: Reset cash to initial_capital for next cycle
         # Compound mode: Keep accumulated P&L (cash stays as-is)
@@ -314,5 +321,7 @@ class DipMartingaleStrategy(BaseStrategy):
             "target_dip": self.dip_percent / 100.0,
             "target_profit": self.trailing_start_percent / 100.0,
             "entries": self.entries,
-            "cycle_id": self.cycle_id,
+            "paper_cycle_id": self.paper_cycle_id,
+            "real_cycle_id": self.real_cycle_id,
+            "cycle_id": self.paper_cycle_id if getattr(self.context, 'is_paper', True) else self.real_cycle_id,
         }
