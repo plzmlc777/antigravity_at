@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import VisualBacktestChart from './VisualBacktestChart';
 
 const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSymbols, mode = 'backtest' }) => {
+    const [isChartReady, setIsChartReady] = useState(false);
     // Helper to normalize trades from different sources (Backtest vs Real)
     const normalizeTrade = useCallback((t) => {
         if (mode === 'real') {
@@ -685,6 +686,27 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
         injectionStatus: syntheticData.length > 0 ? (syntheticData[0].open === 0 && syntheticData[1]?.open > 0 ? "Potential Zero Start" : "Normal") : "Empty",
         rank1StartDate: backtestResult?.rank1_start_date || "Missing"
     };
+
+    // Set chart ready after data is computed
+    useEffect(() => {
+        if (syntheticData.length > 0) {
+            // Small delay to allow React to render the loading state first
+            const timer = setTimeout(() => setIsChartReady(true), 100);
+            return () => clearTimeout(timer);
+        }
+        setIsChartReady(false);
+    }, [syntheticData]);
+
+    // Show loading spinner while chart is preparing
+    if (!isChartReady) {
+        return (
+            <div className="w-full h-[500px] flex flex-col items-center justify-center bg-black/20 rounded-lg">
+                <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-4"></div>
+                <div className="text-gray-400 text-sm">차트 데이터 준비 중...</div>
+                <div className="text-gray-500 text-xs mt-1">Preparing {syntheticData.length > 0 ? syntheticData.length.toLocaleString() : '...'} data points</div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full relative flex flex-col">

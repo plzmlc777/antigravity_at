@@ -704,6 +704,7 @@ const StrategyView = () => {
             // Clearing is safer to avoid confusion.
             setBacktestResult(null);
             setOptResults(null);
+            setShowChart(false); // Reset visual chart (saved results don't include visualization data)
             setBacktestStatus({ status: 'idle', message: 'Restoring history...' });
 
             try {
@@ -1896,8 +1897,8 @@ const StrategyView = () => {
                                                 <div className="flex gap-4">
                                                     <button
                                                         onClick={() => setShowChart(!showChart)}
-                                                        disabled={!integratedResults}
-                                                        className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults
+                                                        disabled={!integratedResults?.multi_ohlcv_data}
+                                                        className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!integratedResults?.multi_ohlcv_data
                                                             ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
                                                             : 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
                                                             }`}
@@ -2041,7 +2042,7 @@ const StrategyView = () => {
                                                 </div>
                                             )}
 
-                                            {showChart && backtestResult && (
+                                            {showChart && backtestResult && backtestResult.multi_ohlcv_data && (
                                                 <div className="mt-4 animate-fade-in-down">
                                                     <Card title={backtestResult.strategy_id.includes('Integrated') ? "Integrated Replay Analysis" : "Visual Backtest Analysis"}>
                                                         {backtestResult.strategy_id.includes('Integrated') ? (
@@ -2398,8 +2399,8 @@ const StrategyView = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <button
                                                 onClick={() => setShowChart(!showChart)}
-                                                disabled={!backtestResult}
-                                                className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult
+                                                disabled={!backtestResult?.ohlcv_data}
+                                                className={`px-4 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 ${!backtestResult?.ohlcv_data
                                                     ? 'bg-gray-800 text-gray-600 cursor-not-allowed opacity-50'
                                                     : showChart
                                                         ? 'bg-purple-600 text-white hover:bg-purple-500 shadow-purple-500/30'
@@ -2447,29 +2448,13 @@ const StrategyView = () => {
 
 
                                     {/* VISUAL CHART SECTION */}
-                                    {showChart && backtestResult && (
+                                    {showChart && backtestResult?.ohlcv_data && (
                                         <div>
-                                                {backtestResult.strategy_id.includes('Integrated') ? (
-                                                    <IntegratedAnalysis
-                                                        mode="backtest"
-                                                        trades={backtestResult.trades || []}
-                                                        backtestResult={backtestResult}
-                                                        strategiesConfig={configList.filter(c => c.is_active !== false)}
-                                                        savedSymbols={savedSymbols || []}
-                                                    />
-                                                ) : (
-                                                    backtestResult.ohlcv_data ? (
-                                                        <VisualBacktestChart
-                                                            data={backtestResult.ohlcv_data}
-                                                            trades={backtestResult.trades}
-                                                        />
-                                                    ) : (
-                                                        <div className="h-[200px] flex items-center justify-center text-gray-500">
-                                                            No visual data available.
-                                                        </div>
-                                                    )
-                                                )}
-                                            </div>
+                                            <VisualBacktestChart
+                                                data={backtestResult.ohlcv_data}
+                                                trades={backtestResult.trades}
+                                            />
+                                        </div>
                                     )}
 
                                     {/* Backtest Results */}
