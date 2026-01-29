@@ -700,6 +700,9 @@ const IntegratedAnalysis = ({ trades, backtestResult, strategiesConfig, savedSym
                 debugInfo={debugInfo}
             />
 
+            {/* Monthly Analysis is now rendered externally via PerformanceStatsGrid + MonthlyAnalysisChart */}
+            {/* This keeps the structure identical to Rank Tab backtest results */}
+
             {/* Drill-Down Modal */}
             {isModalOpen && (
                 <div

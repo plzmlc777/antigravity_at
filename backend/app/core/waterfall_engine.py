@@ -787,16 +787,8 @@ class WaterfallBacktestEngine:
         traded_count = len(traded_dates)
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
 
-        # Build OHLCV data for visualization
-        raw_ohlcv = [
-            {
-                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
-                "open": d['open'],
-                "high": d['high'],
-                "low": d['low'],
-                "close": d['close']
-            } for d in ref_feed
-        ]
+        # Build resampled OHLCV data for visualization (performance optimization)
+        resampled_ohlcv = self._resample_ohlcv(ref_feed, 3000)
 
         t_stats = time.time()
         perf_msg = f"[PARALLEL] Data: {t_data - t_start:.4f}s | Exec: {t_exec - t_data:.4f}s | Stats: {t_stats - t_exec:.4f}s | Total: {t_stats - t_start:.4f}s"
@@ -820,6 +812,22 @@ class WaterfallBacktestEngine:
         # Calculate combined trade stats by AGGREGATING per-rank stats (NOT by mixing trades from different symbols)
         # This is correct for parallel mode where each rank runs independently
         combined_trade_stats = self._aggregate_rank_stats(rank_results, total_days, initial_capital)
+
+        # Calculate decile_stats (Monthly Analysis) from all_trades
+        # Use _analyze_trades to get FIFO-matched completed trades and decile stats
+        ref_feed = feeds.get(primary_symbol, list(feeds.values())[0])
+        start_ts = ref_feed[0]['timestamp'] if ref_feed else None
+        end_ts = ref_feed[-1]['timestamp'] if ref_feed else None
+
+        trade_analysis = self._analyze_trades(
+            all_trades, start_ts, end_ts,
+            total_days=total_days,
+            calc_ranks=False,  # Already have rank_stats_list
+            initial_capital=initial_capital,
+            optimize_mode=False,  # Include monthly_stats
+            equity_curve=combined_equity_curve
+        )
+        decile_stats = trade_analysis.get('decile_stats', [])
         print(f"[DEBUG] Combined stats aggregated from {len(rank_results)} ranks: win_rate={combined_trade_stats.get('win_rate')}, total_trades={combined_trade_stats.get('total_trades')}")
 
         # Return comprehensive result
@@ -835,7 +843,7 @@ class WaterfallBacktestEngine:
             "total_trades": combined_trade_stats.get('total_trades', sum(r.get('full_stats', {}).get('total_trades', 0) for r in rank_results)),
             "chart_data": combined_equity_curve,
             "equity_curve": combined_equity_curve,
-            "ohlcv_data": raw_ohlcv,
+            "ohlcv_data": resampled_ohlcv,
             "multi_ohlcv_data": viz_feeds,
             "trades": all_trades,
             "logs": combined_logs[-100:],
@@ -844,6 +852,7 @@ class WaterfallBacktestEngine:
             "execution_mode": "parallel",
             "rank_results": rank_results,
             "rank_stats_list": rank_stats_list,  # Uses full_stats from _generate_stats (overrides empty from combined_trade_stats)
+            "decile_stats": decile_stats,  # Monthly Analysis chart data
             "sum_of_rank_returns": sum_of_rank_returns,  # Sum of individual rank returns (for display)
             "capital_allocation": {
                 "total": total_capital_deployed,  # Total deployed = initial_capital * num_ranks
@@ -986,28 +995,14 @@ class WaterfallBacktestEngine:
         total_days = len(data_dates)
         traded_count = len(traded_dates)
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
-        
-        # DEBUG: Force Raw OHLCV inline
-        raw_ohlcv = []
-        if not optimize_mode:
-            raw_ohlcv = [
-                {
-                    "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
-                    "open": d['open'],
-                    "high": d['high'],
-                    "low": d['low'],
-                    "close": d['close']
-                } for d in data_feed
-            ]
-        
+
         return {
             "total_return": total_return,
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": activity_rate,
             "total_days": total_days,
-            "total_days": total_days,
-            "chart_data": self._resample_equity(context.equity_curve, 50000) if not optimize_mode else [],
-            "ohlcv_data": raw_ohlcv,
+            "chart_data": self._resample_equity(context.equity_curve, 3000) if not optimize_mode else [],
+            "ohlcv_data": self._resample_ohlcv(data_feed, 3000) if not optimize_mode else [],
             "logs": context.logs[-50:],
             "trades": context.trades,
             **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp'], total_days=total_days, initial_capital=initial_equity, optimize_mode=optimize_mode, equity_curve=context.equity_curve)
@@ -1704,20 +1699,61 @@ class WaterfallBacktestEngine:
             "acceleration_score": acceleration_score
         }
 
-    def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        # User requested to REMOVE LIMIT. Returning all data.
-        if not data: return []
-        
-        return [{
-            "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp
-            "open": d['open'],
-            "high": d['high'],
-            "low": d['low'],
-            "close": d['close']
-        } for d in data]
+    def _resample_ohlcv(self, data: List[Dict], target_count: int = 3000) -> List[Dict]:
+        """Resample OHLCV data to target_count for chart performance."""
+        if not data:
+            return []
 
-    def _resample_equity(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        return data
+        # If data is small enough, return all
+        if len(data) <= target_count:
+            return [{
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            } for d in data]
+
+        # Resample by picking every N-th candle
+        step = len(data) / target_count
+        result = []
+        for i in range(target_count):
+            idx = int(i * step)
+            d = data[idx]
+            result.append({
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            })
+
+        # Always include the last candle for accurate end time
+        last = data[-1]
+        if result[-1]["time"] != int(datetime.fromisoformat(last['timestamp']).timestamp()):
+            result.append({
+                "time": int(datetime.fromisoformat(last['timestamp']).timestamp()),
+                "open": last['open'],
+                "high": last['high'],
+                "low": last['low'],
+                "close": last['close']
+            })
+
+        return result
+
+    def _resample_equity(self, data: List[Dict], target_count: int = 3000) -> List[Dict]:
+        """Resample equity curve data to target_count for chart performance."""
+        if not data or len(data) <= target_count:
+            return data
+
+        step = len(data) / target_count
+        result = [data[int(i * step)] for i in range(target_count)]
+
+        # Always include the last point
+        if result[-1] != data[-1]:
+            result.append(data[-1])
+
+        return result
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return 0.0

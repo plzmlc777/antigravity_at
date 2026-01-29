@@ -153,7 +153,8 @@ export const saveStrategyResult = async (tabId, type, resultData) => {
 };
 
 export const getStrategyResults = async (tabId) => {
-    const { data } = await api.get(`/strategy-results/${tabId}`);
+    // Increase timeout for large backtest results (especially integrated)
+    const { data } = await api.get(`/strategy-results/${tabId}`, { timeout: 30000 });
     return data;
 };
 
@@ -183,8 +184,17 @@ export const syncStrategyConfigs = async (strategyId, configs) => {
     const { data } = await api.post(`/strategy-configs/${strategyId}/sync`, configs);
     return data;
 };
+
+export const syncStrategyConfigsSelective = async (strategyId, configs, preserveInactive = true) => {
+    const { data } = await api.post(
+        `/strategy-configs/${strategyId}/sync-selective?preserve_inactive=${preserveInactive}`,
+        configs
+    );
+    return data;
+};
+
 export const startLiveBot = async (config) => {
-    const { data } = await api.post('/live/start', config);
+    const { data} = await api.post('/live/start', config);
     return data;
 };
 

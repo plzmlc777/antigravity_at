@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -16,9 +16,10 @@ import DynamicParameterForm from '../components/DynamicParameterForm';
 import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
+import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -187,17 +188,19 @@ const StrategyView = () => {
         title: '',
         message: '',
         onConfirm: () => { },
+        onCancel: null,
         isDanger: false,
         confirmText: 'Confirm',
         cancelText: 'Cancel'
     });
 
-    const openConfirm = (title, message, onConfirm, isDanger = false, confirmText = 'Confirm', cancelText = 'Cancel') => {
+    const openConfirm = (title, message, onConfirm, isDanger = false, confirmText = 'Confirm', cancelText = 'Cancel', onCancel = null) => {
         setConfirmModal({
             isOpen: true,
             title,
             message,
             onConfirm,
+            onCancel,
             isDanger,
             confirmText,
             cancelText
@@ -225,11 +228,14 @@ const StrategyView = () => {
         const saved = localStorage.getItem('strategyViewActiveTab');
         return saved !== null ? parseInt(saved, 10) : 0;
     });
+    const [isDirty, setIsDirty] = useState(false); // Track unsaved configuration changes
+    const [pendingTabSwitch, setPendingTabSwitch] = useState(null); // Store pending tab switch during confirmation
 
     useEffect(() => {
         localStorage.setItem('strategyViewActiveTab', activeTab);
     }, [activeTab]);
     const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+    const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
 
 
 
@@ -274,25 +280,45 @@ const StrategyView = () => {
                     const savedList = await getStrategyConfigs(selectedStrategy.id);
 
                     if (savedList && savedList.length > 0) {
+                        // Debug: Log what we received from API
+                        console.log("[Load] API response:", savedList.map(c => ({
+                            tab_name: c.tab_name,
+                            db_is_active: c.is_active,
+                            config_json_is_active: c.config_json?.is_active
+                        })));
+
+                        // Build dynamic default config from current strategy's schema
+                        let dynamicDefault = { ...DEFAULT_CONFIG };
+                        const schema = selectedStrategy?.parameter_schema;
+                        if (schema?.fields && schema.fields.length > 0) {
+                            schema.fields.forEach(field => {
+                                const key = field.key || field.name;
+                                if (field.default !== undefined) {
+                                    dynamicDefault[key] = field.default;
+                                }
+                            });
+                        }
+
                         const migratedList = savedList.map(cfg => {
                             // cfg is StrategyConfig object from DB (rank, is_active, tab_name, config_json)
                             // Flatten for UI state
                             let configData = cfg.config_json || {};
 
-                            // Merge with DEFAULT
-                            let mergedCfg = { ...DEFAULT_CONFIG, ...configData };
+                            // Merge with dynamic default (strategy-specific schema defaults)
+                            let mergedCfg = { ...dynamicDefault, ...configData };
 
-                            // Restore UI meta-fields from DB columns
+                            // Restore UI meta-fields from DB columns (OVERRIDE config_json values)
                             mergedCfg.rank = cfg.rank;
-                            mergedCfg.is_active = cfg.is_active;
+                            // Explicit boolean conversion to handle null/undefined from DB
+                            mergedCfg.is_active = cfg.is_active === false ? false : (cfg.is_active === true ? true : true);
                             mergedCfg.tabName = cfg.tab_name;
                             mergedCfg.uuid = cfg.tab_id;
 
-                            // Sanitization: Ensure defaults
-                            Object.keys(DEFAULT_CONFIG).forEach(key => {
+                            // Sanitization: Ensure defaults using dynamic schema
+                            Object.keys(dynamicDefault).forEach(key => {
                                 if (key === 'from_date' || key === 'uuid') return;
                                 const val = mergedCfg[key];
-                                const defaultVal = DEFAULT_CONFIG[key];
+                                const defaultVal = dynamicDefault[key];
                                 if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
                                     mergedCfg[key] = defaultVal;
                                 }
@@ -304,9 +330,17 @@ const StrategyView = () => {
                             return mergedCfg;
                         });
 
+                        // Debug: Log final migrated list
+                        console.log("[Load] Migrated configs:", migratedList.map(c => ({
+                            tabName: c.tabName,
+                            is_active: c.is_active,
+                            uuid: c.uuid?.slice(0, 8)
+                        })));
+
                         if (isMounted) setConfigList(migratedList);
                     } else {
                         // DB empty -> Init Default
+                        console.log("[Load] DB empty for strategy, initializing default");
                         if (isMounted) initDefaultList();
                     }
                 } catch (e) {
@@ -324,6 +358,7 @@ const StrategyView = () => {
     }, [selectedStrategy]);
 
     const initDefaultList = () => {
+        console.log("[initDefaultList] Creating default Rank 1 tab (is_active: true)");
         setConfigList([{
             ...getDynamicDefaultConfig(),
             is_active: true,
@@ -332,34 +367,33 @@ const StrategyView = () => {
             optEnabled: {},
             optValues: { ...getDynamicOptValues() }
         }]);
-
     };
 
-    // Save Strategy Config List on Change (Debounced DB Sync)
-    useEffect(() => {
-        const timer = setTimeout(async () => {
-            if (isConfigLoaded && selectedStrategy && configList.length > 0) {
-                // Map UI Config to DB Schema
-                const configsToSave = configList.map((cfg, index) => ({
-                    tab_id: cfg.uuid,
-                    strategy_id: selectedStrategy.id,
-                    rank: index, // 0-based for list order
-                    is_active: cfg.is_active !== false,
-                    tab_name: cfg.tabName,
-                    config_json: cfg
-                }));
+    // Save Strategy Config List on Change (Debounced DB Sync) - DISABLED (Manual Save with Apply button)
+    // useEffect(() => {
+    //     const timer = setTimeout(async () => {
+    //         if (isConfigLoaded && selectedStrategy && configList.length > 0) {
+    //             // Map UI Config to DB Schema
+    //             const configsToSave = configList.map((cfg, index) => ({
+    //                 tab_id: cfg.uuid,
+    //                 strategy_id: selectedStrategy.id,
+    //                 rank: index, // 0-based for list order
+    //                 is_active: cfg.is_active !== false,
+    //                 tab_name: cfg.tabName,
+    //                 config_json: cfg
+    //             }));
 
-                try {
-                    await syncStrategyConfigs(selectedStrategy.id, configsToSave);
-                    // console.log("Strategy configs saved to DB");
-                } catch (e) {
-                    console.error("Failed to save configs to DB", e);
-                }
-            }
-        }, 1000); // 1s debounce
+    //             try {
+    //                 await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+    //                 // console.log("Strategy configs saved to DB (Inactive tabs preserved)");
+    //             } catch (e) {
+    //                 console.error("Failed to save configs to DB", e);
+    //             }
+    //         }
+    //     }, 1000); // 1s debounce
 
-        return () => clearTimeout(timer);
-    }, [configList, selectedStrategy, isConfigLoaded]);
+    //     return () => clearTimeout(timer);
+    // }, [configList, selectedStrategy, isConfigLoaded]);
 
     const moveRankTab = (index, direction, e) => {
         if (e) e.stopPropagation(); // Prevent tab selection
@@ -412,10 +446,14 @@ const StrategyView = () => {
             return;
         }
 
+        const tabToDelete = configList[index];
+        const tabName = tabToDelete?.tabName || `Tab ${index + 1}`;
+        const tabType = tabToDelete?.is_active === false ? "Draft" : "Rank";
+
         openConfirm(
-            "Delete Strategy Tab",
-            "Are you sure you want to delete this strategy tab? This action cannot be undone and all configuration in this tab will be lost.",
-            () => {
+            `Delete "${tabName}"?`,
+            `You are about to delete the ${tabType} tab "${tabName}".\n\nThis action cannot be undone and all configuration in this tab will be permanently lost.`,
+            async () => {
                 const newList = [...configList];
                 newList.splice(index, 1);
 
@@ -442,6 +480,23 @@ const StrategyView = () => {
                     setActiveTab(newActive);
                 } else if (activeTab > index) {
                     setActiveTab(activeTab - 1);
+                }
+
+                // Auto-save to DB after deletion
+                try {
+                    const configsToSave = reLabeledList.map((cfg, idx) => ({
+                        tab_id: cfg.uuid,
+                        strategy_id: selectedStrategy.id,
+                        rank: idx,
+                        is_active: cfg.is_active === false ? false : true,
+                        tab_name: cfg.tabName,
+                        config_json: cfg
+                    }));
+                    console.log("[Delete] Saving after tab deletion:", configsToSave.map(c => c.tab_name));
+                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, false); // preserve_inactive=false to allow deletion
+                    setIsDirty(false);
+                } catch (err) {
+                    console.error("Failed to save after deletion:", err);
                 }
             },
             true // isDanger
@@ -493,7 +548,7 @@ const StrategyView = () => {
 
         const newList = [...configList];
         // Ensure we don't start with partial object if configList[activeTab] is missing
-        const currentItem = newList[activeTab] || { ...DEFAULT_CONFIG, is_active: true, tabName: `Rank ${activeTab + 1}` };
+        const currentItem = newList[activeTab] || { ...getDynamicDefaultConfig(), is_active: true, tabName: `Rank ${activeTab + 1}` };
         const targetConfig = { ...currentItem, [key]: value };
         newList[activeTab] = targetConfig;
 
@@ -537,6 +592,7 @@ const StrategyView = () => {
         }
 
         setConfigList(newList);
+        setIsDirty(true); // Mark configuration as dirty (unsaved changes)
     };
 
     // Helper to get current config for UI rendering
@@ -605,6 +661,8 @@ const StrategyView = () => {
 
     // 3. Persistence: Load Results when switching tabs
     useEffect(() => {
+        console.log('[Persistence] useEffect triggered - activeTab:', activeTab, 'isConfigLoaded:', isConfigLoaded, 'strategyId:', selectedStrategy?.id);
+
         // Reset transient states
         setShowChart(false);
         setIsOptimizing(false);
@@ -615,14 +673,19 @@ const StrategyView = () => {
         // Restore Results on Tab Change
 
         // If not loaded yet, wait
-        if (!isConfigLoaded) return;
+        if (!isConfigLoaded) {
+            console.log('[Persistence] Skipping: isConfigLoaded is false');
+            return;
+        }
 
         let targetUUID = null;
 
         if (activeTab === -1) {
             targetUUID = getIntegratedUUID(selectedStrategy?.id);
+            console.log('[Persistence] Integrated tab - UUID:', targetUUID, 'strategyId:', selectedStrategy?.id);
         } else {
             targetUUID = configList[activeTab]?.uuid;
+            console.log('[Persistence] Rank tab', activeTab, '- UUID:', targetUUID);
         }
 
         if (!targetUUID) {
@@ -645,18 +708,20 @@ const StrategyView = () => {
 
             try {
                 const data = await getStrategyResults(targetUUID);
-                console.log('[Persistence] Data Received:', data);
+                console.log('[Persistence] Data Received for UUID', targetUUID, ':', data);
+                console.log('[Persistence] data.backtest exists?', !!data.backtest);
 
                 // Restore Backtest
                 if (data.backtest) {
-                    console.log('[Persistence] Restoring Backtest Data');
+                    console.log('[Persistence] Restoring Backtest Data - total_return:', data.backtest.total_return);
                     setBacktestResult(data.backtest);
                     if (activeTab === -1) {
+                        console.log('[Persistence] Setting integratedResults');
                         setIntegratedResults(data.backtest);
                     }
                     setBacktestStatus({ status: 'success', message: 'Result Restored' });
                 } else {
-                    console.log('[Persistence] No Backtest Data found');
+                    console.log('[Persistence] No Backtest Data found for UUID:', targetUUID);
                     setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
                 }
 
@@ -683,6 +748,12 @@ const StrategyView = () => {
                 }
             } catch (e) {
                 console.error("[Persistence] Failed to restore results", e);
+                console.error("[Persistence] Error details:", {
+                    status: e.response?.status,
+                    statusText: e.response?.statusText,
+                    data: e.response?.data,
+                    message: e.message
+                });
                 setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
             }
         };
@@ -722,12 +793,17 @@ const StrategyView = () => {
         }
     };
 
-    // Initialize configList with default values from selectedStrategy's parameter_schema
+    // Log schema information when strategy changes (NO configList initialization - handled by loadConfigs)
     useEffect(() => {
         if (!selectedStrategy || !selectedStrategy.parameter_schema) {
-            addLog('❌ No selectedStrategy or parameter_schema', 'error');
             return;
         }
+
+        // Skip if we've already logged for this strategy
+        if (lastInitializedStrategyRef.current === selectedStrategy.id) {
+            return;
+        }
+        lastInitializedStrategyRef.current = selectedStrategy.id;
 
         const schema = selectedStrategy.parameter_schema;
         if (!schema.fields || schema.fields.length === 0) {
@@ -735,63 +811,28 @@ const StrategyView = () => {
             return;
         }
 
-        addLog(`✅ Initializing config from schema: ${selectedStrategy.id}`, 'info');
+        addLog(`✅ Schema loaded for: ${selectedStrategy.id}`, 'info');
         addLog(`📋 Schema has ${schema.fields.length} fields`, 'info');
 
         // Verify interval options are correctly loaded from schema
         const intervalField = schema.fields.find(f => (f.key || f.name) === 'interval');
         if (intervalField && intervalField.options) {
             addLog(`✅ Interval options: [${intervalField.options.join(', ')}]`, 'info');
-            addLog(`   (These options will be used in both Backtest Settings and Optimization panels)`, 'info');
         }
 
-        // Build default config from schema
-        const defaultFromSchema = {
-            initial_capital: 10000000,
-            from_date: "",
-            interval: "30m",
-            symbol: currentSymbol,
-            betting_strategy: "fixed",
-            uuid: generateUUID(),
-            is_active: true,
-            tabName: "Rank 1",
-            optEnabled: {},
-            optValues: {}
-        };
-
-        // Merge parameter defaults and optimization ranges from schema
+        // Log parameter defaults for verification
+        addLog(`🔍 Schema parameter defaults:`, 'info');
         schema.fields.forEach(field => {
             const key = field.key || field.name;
-            if (field.default !== undefined) {
-                defaultFromSchema[key] = field.default;
-                addLog(`  ➜ Set ${key} = ${field.default}`, 'success');
-            }
-            if (field.defaultOptRange !== undefined) {
-                defaultFromSchema.optValues[key] = field.defaultOptRange;
-                addLog(`  ➜ Set optValues.${key} = ${field.defaultOptRange}`, 'success');
-            }
-        });
-
-        addLog(`✅ Config initialized with ${Object.keys(defaultFromSchema).length} keys`, 'success');
-        addLog(`✅ OptValues initialized with ${Object.keys(defaultFromSchema.optValues).length} ranges`, 'success');
-
-        // Log parameter values for verification
-        addLog(`🔍 Parameter values:`, 'info');
-        schema.fields.forEach(field => {
-            const key = field.key || field.name;
-            const value = defaultFromSchema[key];
-            const optValue = defaultFromSchema.optValues[key];
+            const defaultVal = field.default;
+            const optRange = field.defaultOptRange;
             const options = field.options ? `options=[${field.options.join(', ')}]` : '';
-            addLog(`  ${key}: config=${value}, opt="${optValue}" ${options}`, 'info');
+            addLog(`  ${key}: default=${defaultVal}, optRange="${optRange}" ${options}`, 'info');
         });
 
-        // Only reset configList if configs haven't been loaded from DB yet
-        // This prevents overwriting DB-loaded configs on initial mount
-        // Note: activeTab is NOT reset here - it's managed by localStorage
-        if (!isConfigLoaded) {
-            setConfigList([defaultFromSchema]);
-        }
-    }, [selectedStrategy?.id, currentSymbol, isConfigLoaded]); // Trigger when strategy ID or symbol changes
+        // NOTE: configList initialization is handled ONLY by loadConfigs useEffect
+        // This prevents race conditions where schema useEffect overwrites DB-loaded configs
+    }, [selectedStrategy?.id]); // Only trigger when strategy ID changes
 
     // Auto-Fetch Symbol Name if Missing
     useEffect(() => {
@@ -884,6 +925,157 @@ const StrategyView = () => {
         } finally {
             setIsGenerating(false);
         }
+    };
+
+    // Manual Save & Backtest (Apply button handler)
+    const handleApplyConfig = async () => {
+        if (!selectedStrategy || !isConfigLoaded || configList.length === 0) return;
+
+        try {
+            // 1. Save configuration to DB
+            const configsToSave = configList.map((cfg, index) => ({
+                tab_id: cfg.uuid,
+                strategy_id: selectedStrategy.id,
+                rank: index,
+                is_active: cfg.is_active === false ? false : true, // Explicit boolean conversion
+                tab_name: cfg.tabName,
+                config_json: cfg
+            }));
+
+            // Debug: Log what we're saving
+            console.log("[Apply] Saving configs:", configsToSave.map(c => ({
+                tab_name: c.tab_name,
+                is_active: c.is_active,
+                original_is_active: configList.find(cfg => cfg.uuid === c.tab_id)?.is_active
+            })));
+
+            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+            console.log("Configuration saved to DB");
+
+            // Clear dirty flag after successful save
+            setIsDirty(false);
+
+            // 2. Automatically trigger backtest
+            if (activeTab !== -1 && selectedStrategy?.id) {
+                await runBacktest(selectedStrategy.id);
+            }
+        } catch (e) {
+            console.error("Failed to save configuration:", e);
+            alert("Failed to save configuration. Please try again.");
+        }
+    };
+
+    // Tab Switch with Unsaved Changes Confirmation
+    const handleTabSwitch = (newTabIndex) => {
+        // If no unsaved changes, switch immediately
+        if (!isDirty) {
+            setActiveTab(newTabIndex);
+            localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+            return;
+        }
+
+        // If there are unsaved changes, show confirmation
+        setPendingTabSwitch(newTabIndex);
+        openConfirm(
+            "⚠️ Unsaved Changes",
+            "You have unsaved configuration changes.\n\nWhat would you like to do?",
+            async () => {
+                // Save & Switch
+                try {
+                    const configsToSave = configList.map((cfg, index) => ({
+                        tab_id: cfg.uuid,
+                        strategy_id: selectedStrategy.id,
+                        rank: index,
+                        is_active: cfg.is_active === false ? false : true, // Explicit boolean
+                        tab_name: cfg.tabName,
+                        config_json: cfg
+                    }));
+
+                    // Debug: Log what we're saving
+                    console.log("[TabSwitch Save] Saving configs:", configsToSave.map(c => ({
+                        tab_name: c.tab_name,
+                        is_active: c.is_active
+                    })));
+
+                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                    console.log("Configuration saved before tab switch");
+                    setIsDirty(false);
+                    setActiveTab(newTabIndex);
+                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    setPendingTabSwitch(null);
+                } catch (e) {
+                    console.error("Failed to save configuration:", e);
+                    alert("Failed to save configuration. Tab switch cancelled.");
+                    setPendingTabSwitch(null);
+                }
+            },
+            false, // not danger
+            "Save & Switch",
+            "Discard & Switch",
+            () => {
+                // Discard & Switch
+                setIsDirty(false);
+                setActiveTab(newTabIndex);
+                localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                setPendingTabSwitch(null);
+                // Reload config from configList to discard changes
+                // (changes are already in configList, so no action needed)
+            }
+        );
+    };
+
+    // Strategy Change with Unsaved Changes Confirmation
+    const handleStrategyChange = (newStrategy) => {
+        // If no unsaved changes, change immediately
+        if (!isDirty) {
+            setSelectedStrategy(newStrategy);
+            setBacktestResult(null);
+            setIsDirty(false); // Reset dirty flag for new strategy
+            return;
+        }
+
+        // If there are unsaved changes, show confirmation
+        openConfirm(
+            "⚠️ Unsaved Changes",
+            "You have unsaved configuration changes.\n\nWhat would you like to do before switching strategies?",
+            async () => {
+                // Save & Switch Strategy
+                try {
+                    const configsToSave = configList.map((cfg, index) => ({
+                        tab_id: cfg.uuid,
+                        strategy_id: selectedStrategy.id,
+                        rank: index,
+                        is_active: cfg.is_active === false ? false : true, // Explicit boolean
+                        tab_name: cfg.tabName,
+                        config_json: cfg
+                    }));
+
+                    // Debug: Log what we're saving
+                    console.log("[StrategyChange Save] Saving configs:", configsToSave.map(c => ({
+                        tab_name: c.tab_name,
+                        is_active: c.is_active
+                    })));
+
+                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                    console.log("Configuration saved before strategy change");
+                    setIsDirty(false);
+                    setSelectedStrategy(newStrategy);
+                    setBacktestResult(null);
+                } catch (e) {
+                    console.error("Failed to save configuration:", e);
+                    alert("Failed to save configuration. Strategy change cancelled.");
+                }
+            },
+            false, // not danger
+            "Save & Switch",
+            "Discard & Switch",
+            () => {
+                // Discard & Switch Strategy
+                setIsDirty(false);
+                setSelectedStrategy(newStrategy);
+                setBacktestResult(null);
+            }
+        );
     };
 
     // ... (Data Management logic stays here) ...
@@ -1358,8 +1550,7 @@ const StrategyView = () => {
                                 value={selectedStrategy?.id || ''}
                                 onChange={(e) => {
                                     const strat = strategies.find(s => s.id === e.target.value);
-                                    setSelectedStrategy(strat);
-                                    setBacktestResult(null);
+                                    handleStrategyChange(strat);
                                 }}
                                 className="w-full bg-black/40 border border-white/20 rounded-lg px-4 py-3 text-white appearance-none focus:border-blue-500 outline-none cursor-pointer text-sm font-medium"
                             >
@@ -1412,7 +1603,7 @@ const StrategyView = () => {
                                 <button
                                     type="button"
                                     key="live-tab"
-                                    onClick={(e) => { e.preventDefault(); setActiveTab(-2); }}
+                                    onClick={(e) => { e.preventDefault(); handleTabSwitch(-2); }}
                                     className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -2
                                         ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-400 shadow-[0_0_15px_rgba(225,29,72,0.4)] scale-105'
                                         : 'bg-gradient-to-r from-gray-800 to-gray-900 text-rose-500 border-rose-500/30 hover:border-rose-500 hover:text-rose-400 hover:shadow-[0_0_10px_rgba(225,29,72,0.2)]'
@@ -1440,7 +1631,7 @@ const StrategyView = () => {
 
                                 {/* Integrated Tab */}
                                 <button
-                                    onClick={() => setActiveTab(-1)}
+                                    onClick={() => handleTabSwitch(-1)}
                                     className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -1
                                         ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
                                         : 'bg-gradient-to-r from-gray-800 to-gray-900 text-amber-500 border-amber-500/30 hover:border-amber-500 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)]'
@@ -1482,7 +1673,7 @@ const StrategyView = () => {
                                         return (
                                             <button
                                                 key={idx}
-                                                onClick={() => setActiveTab(idx)}
+                                                onClick={() => handleTabSwitch(idx)}
                                                 className={`group px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
                                                     ? isActive
                                                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
@@ -1531,16 +1722,35 @@ const StrategyView = () => {
 
                                 {/* Add Tab Button */}
                                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                         const newConfig = {
-                                            ...DEFAULT_CONFIG,
+                                            ...getDynamicDefaultConfig(),
                                             is_active: false,
-                                            tabName: `Draft ${configList.length + 1}`,
+                                            tabName: `Draft ${configList.filter(c => c.is_active === false).length + 1}`,
                                             symbol: currentSymbol,
                                             uuid: generateUUID() // Generate UUID for new tab
                                         };
-                                        setConfigList([...configList, newConfig]);
-                                        setActiveTab(configList.length);
+                                        const newList = [...configList, newConfig];
+                                        setConfigList(newList);
+                                        setActiveTab(newList.length - 1);
+                                        localStorage.setItem('strategyViewActiveTab', (newList.length - 1).toString());
+
+                                        // Auto-save to DB after adding new tab
+                                        try {
+                                            const configsToSave = newList.map((cfg, idx) => ({
+                                                tab_id: cfg.uuid,
+                                                strategy_id: selectedStrategy.id,
+                                                rank: idx,
+                                                is_active: cfg.is_active === false ? false : true,
+                                                tab_name: cfg.tabName,
+                                                config_json: cfg
+                                            }));
+                                            console.log("[Add Tab] Saving new tab:", configsToSave.map(c => ({ name: c.tab_name, is_active: c.is_active })));
+                                            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                                            setIsDirty(false);
+                                        } catch (err) {
+                                            console.error("Failed to save new tab:", err);
+                                        }
                                     }}
                                     className="px-3 py-2 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all"
                                 >
@@ -1561,7 +1771,7 @@ const StrategyView = () => {
                                                 <ActiveStrategiesPanel
                                                     configList={configList}
                                                     savedSymbols={savedSymbols}
-                                                    onEdit={(idx) => setActiveTab(idx)}
+                                                    onEdit={(idx) => handleTabSwitch(idx)}
                                                     parameterSchema={selectedStrategy?.parameter_schema}
                                                 />
                                             </div>
@@ -1781,7 +1991,11 @@ const StrategyView = () => {
                                                                 setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
 
                                                                 // Save Result for Persistence (strategy-specific UUID)
-                                                                saveStrategyResult(getIntegratedUUID(selectedStrategy?.id), 'backtest', result.data).catch(err => console.error("Failed to save Integrated Result", err));
+                                                                const integratedUUID = getIntegratedUUID(selectedStrategy?.id);
+                                                                console.log('[Integrated] Saving result with UUID:', integratedUUID);
+                                                                saveStrategyResult(integratedUUID, 'backtest', result.data)
+                                                                    .then(() => console.log('[Integrated] Result saved successfully'))
+                                                                    .catch(err => console.error("Failed to save Integrated Result", err));
 
                                                             } catch (e) {
                                                                 console.error("Integrated Backtest Failed", e);
@@ -1880,59 +2094,7 @@ const StrategyView = () => {
                                                             {activeAnalysisTab === 'overview' ? (
                                                                 <div className="space-y-4">
                                                                     <PerformanceStatsGrid stats={backtestResult} />
-                                                                    {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
-                                                                        <div className="mt-4 pt-4 border-t border-white/10">
-                                                                            <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
-                                                                            <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
-                                                                                <ResponsiveContainer width="100%" height="100%">
-                                                                                    <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
-                                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                                                                                        <XAxis
-                                                                                            dataKey="block"
-                                                                                            stroke="#666"
-                                                                                            tickLine={false}
-                                                                                            interval={0}
-                                                                                            tick={({ x, y, payload, index }) => {
-                                                                                                const data = backtestResult.decile_stats[index];
-                                                                                                return (
-                                                                                                    <g transform={`translate(${x},${y})`}>
-                                                                                                        <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>{payload.value}</text>
-                                                                                                        <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">{data.count}</text>
-                                                                                                        <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>{data.win_rate}%</text>
-                                                                                                        <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">{data.total_pnl}%</text>
-                                                                                                    </g>
-                                                                                                );
-                                                                                            }}
-                                                                                        />
-                                                                                        <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
-                                                                                        <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
-                                                                                        <Tooltip
-                                                                                            contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                                                                                            itemStyle={{ color: '#fff' }}
-                                                                                            formatter={(value, name) => {
-                                                                                                if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
-                                                                                                return [value, name];
-                                                                                            }}
-                                                                                            labelFormatter={(label) => `Month: ${label}`}
-                                                                                        />
-                                                                                        <ReferenceLine yAxisId="left" y={0} stroke="#666" />
-                                                                                        <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
-                                                                                            {backtestResult.decile_stats.map((entry, index) => (
-                                                                                                <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
-                                                                                            ))}
-                                                                                        </Bar>
-                                                                                    </ComposedChart>
-                                                                                </ResponsiveContainer>
-                                                                            </div>
-                                                                            <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
-                                                                                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-400 rounded-sm"></div><span>Profit</span></div>
-                                                                                <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-400 rounded-sm"></div><span>Loss</span></div>
-                                                                                <div className="flex items-center gap-1"><span className="text-blue-400 font-bold">12</span><span>= Count</span></div>
-                                                                                <div className="flex items-center gap-1"><span className="font-bold" style={{ color: '#fbbf24' }}>60%</span><span>= Win Rate</span></div>
-                                                                                <div className="flex items-center gap-1"><span className="text-green-400 font-bold">5.2%</span><span>= Realized PnL</span></div>
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
+                                                                    <MonthlyAnalysisChart decileStats={backtestResult.decile_stats} />
                                                                 </div>
                                                             ) : (
                                                                 <div className="overflow-x-auto">
@@ -1991,69 +2153,6 @@ const StrategyView = () => {
                                                             )}
                                                         </Card>
                                                     </div>
-                                                    <Card title="Equity Curve">
-                                                        <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
-                                                            <ResponsiveContainer width="100%" height="100%">
-                                                                <LineChart data={backtestResult.chart_data}>
-                                                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                                    <XAxis
-                                                                        dataKey={EQUITY_DATE_KEY}
-                                                                        stroke="#666"
-                                                                        height={50}
-                                                                        ticks={(() => {
-                                                                            if (!backtestResult.chart_data) return [];
-                                                                            const ticks = [];
-                                                                            let lastMonth = -1;
-                                                                            backtestResult.chart_data.forEach(d => {
-                                                                                const date = new Date(d[EQUITY_DATE_KEY]);
-                                                                                const month = date.getMonth();
-                                                                                if (month !== lastMonth) {
-                                                                                    ticks.push(d[EQUITY_DATE_KEY]);
-                                                                                    lastMonth = month;
-                                                                                }
-                                                                            });
-                                                                            return ticks;
-                                                                        })()}
-                                                                        interval={0}
-                                                                        tick={({ x, y, payload, index }) => {
-                                                                            const dateStr = payload.value;
-                                                                            if (!dateStr) return null;
-                                                                            const date = new Date(dateStr);
-                                                                            const monthStr = `${date.getMonth() + 1}월`;
-                                                                            const year = date.getFullYear();
-                                                                            const isJan = date.getMonth() === 0;
-                                                                            const showYear = index === 0 || isJan;
-                                                                            return (
-                                                                                <g transform={`translate(${x},${y})`}>
-                                                                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>{monthStr}</text>
-                                                                                    {showYear && (
-                                                                                        <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">{year}</text>
-                                                                                    )}
-                                                                                </g>
-                                                                            );
-                                                                        }}
-                                                                    />
-                                                                    <YAxis
-                                                                        stroke="#666"
-                                                                        domain={['auto', 'auto']}
-                                                                        tickFormatter={(value) => {
-                                                                            if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
-                                                                            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                                                                            if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                                                            return value;
-                                                                        }}
-                                                                        width={60}
-                                                                    />
-                                                                    <Tooltip
-                                                                        contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                                        itemStyle={{ color: '#fff' }}
-                                                                        formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
-                                                                    />
-                                                                    <Line type="monotone" dataKey={EQUITY_VALUE_KEY} stroke="#8884d8" strokeWidth={2} dot={false} />
-                                                                </LineChart>
-                                                            </ResponsiveContainer>
-                                                        </div>
-                                                    </Card>
                                                 </div>
                                             )}
 
@@ -2070,6 +2169,14 @@ const StrategyView = () => {
                                             <Crosshair size={14} className="text-gray-400" /> Configuration
                                         </h3>
                                         <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={handleApplyConfig}
+                                                disabled={isLoading || !selectedStrategy}
+                                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                            >
+                                                <Save size={14} />
+                                                Apply
+                                            </button>
                                             <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
                                                 {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
                                             </span>
@@ -2392,93 +2499,7 @@ const StrategyView = () => {
                                                     {activeAnalysisTab === 'overview' ? (
                                                         <div className="space-y-4">
                                                             <PerformanceStatsGrid stats={backtestResult} />
-                                                            {/* Monthly Analysis Chart */}
-                                                            {backtestResult.decile_stats && backtestResult.decile_stats.length > 0 && (
-                                                                <div className="mt-4 pt-4 border-t border-white/10">
-                                                                    <h4 className="text-sm font-bold text-gray-400 mb-2">Strategy Stability (Monthly Analysis)</h4>
-                                                                    <div className="h-[200px] w-full bg-black/20 rounded-lg p-2">
-                                                                        <ResponsiveContainer width="100%" height="100%">
-                                                                            <ComposedChart data={backtestResult.decile_stats} margin={{ bottom: 60, left: 0, right: 0 }}>
-                                                                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-
-                                                                                {/* Custom X-Axis with Multi-Row Data */}
-                                                                                <XAxis
-                                                                                    dataKey="block"
-                                                                                    stroke="#666"
-                                                                                    tickLine={false}
-                                                                                    interval={0}
-                                                                                    tick={({ x, y, payload, index }) => {
-                                                                                        const data = backtestResult.decile_stats[index];
-                                                                                        return (
-                                                                                            <g transform={`translate(${x},${y})`}>
-                                                                                                {/* Row 1: Month */}
-                                                                                                <text x={0} y={10} dy={0} textAnchor="middle" fill="#9ca3af" fontSize={10}>
-                                                                                                    {payload.value}
-                                                                                                </text>
-                                                                                                {/* Row 2: Trade Count */}
-                                                                                                <text x={0} y={10} dy={12} textAnchor="middle" fill="#60a5fa" fontSize={10} fontWeight="bold">
-                                                                                                    {data.count}
-                                                                                                </text>
-                                                                                                {/* Row 3: Win Rate */}
-                                                                                                <text x={0} y={10} dy={24} textAnchor="middle" fill="#fbbf24" fontSize={10}>
-                                                                                                    {data.win_rate}%
-                                                                                                </text>
-                                                                                                {/* Row 4: Realized PnL */}
-                                                                                                <text x={0} y={10} dy={36} textAnchor="middle" fill={data.total_pnl >= 0 ? "#4ade80" : "#ef4444"} fontSize={10} fontWeight="bold">
-                                                                                                    {data.total_pnl}%
-                                                                                                </text>
-                                                                                            </g>
-                                                                                        );
-                                                                                    }}
-                                                                                />
-
-                                                                                <YAxis yAxisId="left" stroke="#666" tick={{ fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
-                                                                                <YAxis yAxisId="right" orientation="right" hide domain={[0, 100]} />
-
-                                                                                <Tooltip
-                                                                                    contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                                                                                    itemStyle={{ color: '#fff' }}
-                                                                                    formatter={(value, name) => {
-                                                                                        if (name === "total_pnl") return [`${value}%`, 'Realized PnL'];
-                                                                                        return [value, name];
-                                                                                    }}
-                                                                                    labelFormatter={(label) => `Month: ${label}`}
-                                                                                />
-                                                                                <ReferenceLine yAxisId="left" y={0} stroke="#666" />
-
-                                                                                <Bar yAxisId="left" dataKey="total_pnl" radius={[4, 4, 0, 0]}>
-                                                                                    {backtestResult.decile_stats.map((entry, index) => (
-                                                                                        <Cell key={`cell-${index}`} fill={entry.total_pnl >= 0 ? '#4ade80' : '#ef4444'} />
-                                                                                    ))}
-                                                                                </Bar>
-                                                                            </ComposedChart>
-                                                                        </ResponsiveContainer>
-                                                                    </div>
-                                                                    <div className="flex justify-center gap-4 mt-1 text-[10px] text-gray-500">
-                                                                        <div className="flex items-center gap-1">
-                                                                            <div className="w-2 h-2 bg-green-400 rounded-sm"></div>
-                                                                            <span>Profit</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <div className="w-2 h-2 bg-red-400 rounded-sm"></div>
-                                                                            <span>Loss</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="text-blue-400 font-bold">12</span>
-                                                                            <span>= Count</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="font-bold" style={{ color: '#fbbf24' }}>60%</span>
-                                                                            <span>= Win Rate</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <span className="text-green-400 font-bold">5.2%</span>
-                                                                            <span>= Realized PnL</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
+                                                            <MonthlyAnalysisChart decileStats={backtestResult.decile_stats} />
                                                         </div>
                                                     ) : (
                                                         <div className="overflow-x-auto">
@@ -2549,77 +2570,6 @@ const StrategyView = () => {
                                                             )}
                                                         </div>
                                                     )}
-                                                </div>
-
-                                                {/* Equity Curve */}
-                                                <div className="h-[500px] w-full bg-black/20 rounded-lg p-2 overflow-hidden">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <LineChart data={backtestResult.chart_data}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                                            <XAxis
-                                                                dataKey={EQUITY_DATE_KEY}
-                                                                stroke="#666"
-                                                                height={50}
-                                                                ticks={(() => {
-                                                                    // Generate ticks only for month changes
-                                                                    if (!backtestResult.chart_data) return [];
-                                                                    const ticks = [];
-                                                                    let lastMonth = -1;
-                                                                    backtestResult.chart_data.forEach(d => {
-                                                                        const date = new Date(d[EQUITY_DATE_KEY]);
-                                                                        const month = date.getMonth();
-                                                                        if (month !== lastMonth) {
-                                                                            ticks.push(d[EQUITY_DATE_KEY]);
-                                                                            lastMonth = month;
-                                                                        }
-                                                                    });
-                                                                    return ticks;
-                                                                })()}
-                                                                interval={0} // Force show all passed ticks (recharts might still hide if overlapping, but usually fine for monthly)
-                                                                tick={({ x, y, payload, index }) => {
-                                                                    const dateStr = payload.value;
-                                                                    if (!dateStr) return null;
-                                                                    const date = new Date(dateStr);
-                                                                    const monthStr = `${date.getMonth() + 1}월`; // Show Month only (e.g., "1월")
-                                                                    const year = date.getFullYear();
-
-                                                                    // Show Year if it's Jan (Month 0) OR it's the very first tick
-                                                                    const isJan = date.getMonth() === 0;
-                                                                    const showYear = index === 0 || isJan;
-
-                                                                    return (
-                                                                        <g transform={`translate(${x},${y})`}>
-                                                                            <text x={0} y={0} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
-                                                                                {monthStr}
-                                                                            </text>
-                                                                            {showYear && (
-                                                                                <text x={0} y={0} dy={32} textAnchor="middle" fill="#444" fontSize={10} fontWeight="bold">
-                                                                                    {year}
-                                                                                </text>
-                                                                            )}
-                                                                        </g>
-                                                                    );
-                                                                }}
-                                                            />
-                                                            <YAxis
-                                                                stroke="#666"
-                                                                domain={['auto', 'auto']}
-                                                                tickFormatter={(value) => {
-                                                                    if (value >= 100000000) return `${(value / 100000000).toFixed(1)}억`;
-                                                                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                                                                    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
-                                                                    return value;
-                                                                }}
-                                                                width={60}
-                                                            />
-                                                            <Tooltip
-                                                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                                                itemStyle={{ color: '#fff' }}
-                                                                formatter={(value) => new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(value)}
-                                                            />
-                                                            <Line type="monotone" dataKey={EQUITY_VALUE_KEY} stroke="#8884d8" strokeWidth={2} dot={false} />
-                                                        </LineChart>
-                                                    </ResponsiveContainer>
                                                 </div>
                                         </div>
                                     )}
@@ -2892,8 +2842,9 @@ const StrategyView = () => {
                                                                                                 openConfirm(
                                                                                                     "Apply Optimization Config?",
                                                                                                     `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
-                                                                                                    () => {
+                                                                                                    async () => {
                                                                                                         // 1. Update Configuration
+                                                                                                        let updatedConfigList;
                                                                                                         setConfigList(prev => {
                                                                                                             const next = [...prev];
                                                                                                             const configToApply = res.full_config || {};
@@ -2901,10 +2852,34 @@ const StrategyView = () => {
                                                                                                                 ...next[activeTab],
                                                                                                                 ...configToApply
                                                                                                             };
+                                                                                                            updatedConfigList = next;
                                                                                                             return next;
                                                                                                         });
 
-                                                                                                        // 2. Trigger Real Backtest (User Request)
+                                                                                                        // 2. Save to DB
+                                                                                                        try {
+                                                                                                            const configsToSave = updatedConfigList.map((cfg, index) => ({
+                                                                                                                tab_id: cfg.uuid,
+                                                                                                                strategy_id: selectedStrategy.id,
+                                                                                                                rank: index,
+                                                                                                                is_active: cfg.is_active === false ? false : true, // Explicit boolean
+                                                                                                                tab_name: cfg.tabName,
+                                                                                                                config_json: cfg
+                                                                                                            }));
+
+                                                                                                            // Debug: Log what we're saving
+                                                                                                            console.log("[Optimization Save] Saving configs:", configsToSave.map(c => ({
+                                                                                                                tab_name: c.tab_name,
+                                                                                                                is_active: c.is_active
+                                                                                                            })));
+
+                                                                                                            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                                                                                                            console.log("Optimization config saved to DB");
+                                                                                                        } catch (e) {
+                                                                                                            console.error("Failed to save optimization config:", e);
+                                                                                                        }
+
+                                                                                                        // 3. Trigger Real Backtest (User Request)
                                                                                                         runBacktest(selectedStrategy.id, res.full_config || {});
                                                                                                     }
                                                                                                 );
@@ -3035,6 +3010,7 @@ const StrategyView = () => {
                 isOpen={confirmModal.isOpen}
                 onClose={closeConfirm}
                 onConfirm={confirmModal.onConfirm}
+                onCancel={confirmModal.onCancel}
                 title={confirmModal.title}
                 message={confirmModal.message}
                 isDanger={confirmModal.isDanger}

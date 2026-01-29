@@ -33,5 +33,31 @@ def sync_strategy_configs(
     # Ensure strategy_id in config objects matches path (optional but good for consistency)
     for c in configs:
         c.strategy_id = strategy_id
-        
+
     return strategy_config.replace_all(db, strategy_id=strategy_id, configs=configs)
+
+@router.post("/{strategy_id}/sync-selective", response_model=List[StrategyConfig])
+def sync_strategy_configs_selective(
+    *,
+    strategy_id: str,
+    db: Session = Depends(get_db),
+    configs: List[StrategyConfigCreate],
+    preserve_inactive: bool = True
+):
+    """
+    Selectively sync strategy configurations for a specific strategy.
+    Preserves inactive (Draft) tabs while synchronizing active tabs.
+
+    Parameters:
+    - strategy_id: Strategy identifier
+    - configs: List of configurations to sync
+    - preserve_inactive: If True, keep is_active=False tabs (default: True)
+
+    Returns:
+    - List of all configurations for this strategy (including preserved inactive tabs)
+    """
+    # Ensure strategy_id in config objects matches path
+    for c in configs:
+        c.strategy_id = strategy_id
+
+    return strategy_config.sync_selective(db, strategy_id=strategy_id, configs=configs, preserve_inactive=preserve_inactive)

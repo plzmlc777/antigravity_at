@@ -54,6 +54,99 @@ def build_backtest_config(
     return config
 
 
+# ============================================================================
+# UNIFIED BACKTEST CORE - Single Source of Truth for ALL backtest operations
+# ============================================================================
+async def _run_unified_backtest(
+    strategy_id: str,
+    configs: List[Dict[str, Any]],  # List of normalized configs
+    symbol: str,  # Global/fallback symbol
+    interval: str,
+    days: int,
+    from_date: str,
+    initial_capital: int,
+    execution_mode: str = "single"  # "single", "parallel", "exclusive"
+) -> Dict[str, Any]:
+    """
+    Unified backtest execution function.
+
+    - "single": Single config backtest (individual rank tab)
+    - "parallel": Multiple configs, each with equal capital split
+    - "exclusive": Waterfall mode, winner takes all
+
+    This is the SINGLE SOURCE OF TRUTH for all backtest operations.
+    """
+    from ..core.waterfall_engine import WaterfallBacktestEngine
+    from ..core.strategy_registry import StrategyRegistry
+    from ..services.market_data import MarketDataService
+
+    # 1. Get Strategy Class from Registry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+    if not strategy_class:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Strategy '{strategy_id}' not found. Available: {StrategyRegistry.list_strategies()}"
+        )
+
+    logger.info(f"[UNIFIED_BACKTEST] mode={execution_mode}, strategy={strategy_class.__name__}, configs={len(configs)}")
+
+    # 2. Initialize Engine
+    engine = WaterfallBacktestEngine(strategy_class, {})
+
+    # 3. Execute based on mode
+    if execution_mode == "single" or len(configs) == 1:
+        # Single backtest - use run_single_backtest directly
+        data_service = MarketDataService()
+        config = configs[0]
+        rank_symbol = config.get('symbol', symbol)
+
+        raw_feed = await data_service.get_candles(rank_symbol, interval=interval, days=days)
+        if raw_feed:
+            if from_date:
+                raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
+            raw_feed.sort(key=lambda x: x['timestamp'])
+
+        if not raw_feed:
+            return {"error": "No data available for the specified parameters"}
+
+        result = await engine.run_single_backtest(
+            config=config,
+            feed=raw_feed,
+            initial_capital=initial_capital,
+            symbol=rank_symbol,
+            optimize_mode=False,
+            rank=1
+        )
+        result['strategy_id'] = strategy_id
+        result['execution_mode'] = 'single'
+
+    elif execution_mode == "parallel":
+        result = await engine.run_parallel(
+            strategies_config=configs,
+            global_symbol=symbol,
+            duration_days=days,
+            from_date=from_date,
+            interval=interval,
+            initial_capital=initial_capital
+        )
+        result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
+        result['execution_mode'] = 'parallel'
+
+    else:  # exclusive
+        result = await engine.run_integrated(
+            strategies_config=configs,
+            global_symbol=symbol,
+            duration_days=days,
+            from_date=from_date,
+            interval=interval,
+            initial_capital=initial_capital
+        )
+        result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
+        result['execution_mode'] = 'exclusive'
+
+    return result
+
+
 # Global Task Registry
 OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
 
@@ -424,91 +517,42 @@ class BacktestRequest(BaseModel):
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
-    # [FIX 2026-01-26] Force reload strategy modules to ensure latest code is used
-    # This fixes the issue where backtest uses cached (old) code while optimization uses fresh code
-    import sys
-    import importlib
-
-    # Reload strategy modules in CORRECT ORDER (base class first, then implementations, then registry)
-    strategy_modules_to_reload = [
-        'app.strategies.base',           # 1. Base class first
-        'app.strategies.dip_martingale', # 2. Strategy implementations
-        'app.strategies.time_momentum',
-        'app.core.strategy_registry',    # 3. Registry (imports strategies)
-        'app.core.waterfall_engine',     # 4. Engine (uses registry)
-    ]
-
-    for mod_name in strategy_modules_to_reload:
-        if mod_name in sys.modules:
-            try:
-                importlib.reload(sys.modules[mod_name])
-            except Exception:
-                pass  # Silently continue if reload fails
-
-    # [MIGRATION] Use WaterfallBacktestEngine for consistent logic with Integrated Tab
-    from ..core.waterfall_engine import WaterfallBacktestEngine
-
-    # Select Strategy Class from Registry (now with fresh imports)
-    from ..core.strategy_registry import StrategyRegistry
-    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
-
-    if not strategy_class:
-        # Fallback for others (or raise 404)
-        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found in registry.")
-
-    # Select Strategy Config
-    raw_config = request.config
+    """
+    Individual backtest endpoint.
+    Uses _run_unified_backtest() for consistent behavior with integrated backtest.
+    """
     start_date = request.start_date or request.from_date
 
-    # Use unified config builder (Single Source of Truth - same as optimization)
+    # Build normalized config (Single Source of Truth)
     config = build_backtest_config(
-        raw_config,
+        request.config,
         symbol=request.symbol,
         interval=request.interval,
         days=request.days,
         from_date=start_date,
         initial_capital=request.initial_capital
     )
-    actual_interval = config['interval']
 
-    # Initialize Engine
-    engine = WaterfallBacktestEngine(strategy_class, config)
+    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={config['interval']}, days={request.days}, from_date={start_date}")
 
-    # DEBUG: Log all parameters for comparison with optimization
-    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={actual_interval}, days={request.days}, from_date={start_date}, initial_capital={request.initial_capital}")
-    logger.info(f"[BACKTEST] config={config}")
-
-    # *** SINGLE SOURCE OF TRUTH ***
-    # Use run_single_backtest() - same function used by parallel mode
-    # This ensures individual backtest results EXACTLY match parallel mode rank results
-
-    # 1. Fetch Data
-    from ..services.market_data import MarketDataService
-    data_service = MarketDataService()
-    raw_feed = await data_service.get_candles(request.symbol, interval=actual_interval, days=request.days)
-    if raw_feed:
-        if start_date:
-            raw_feed = [c for c in raw_feed if c['timestamp'] >= start_date]
-        raw_feed.sort(key=lambda x: x['timestamp'])
-
-    if not raw_feed:
-        return {"error": "No data available for the specified parameters"}
-
-    # 2. Run Single Backtest (SAME function as parallel mode uses)
-    result = await engine.run_single_backtest(
-        config=config,
-        feed=raw_feed,
-        initial_capital=request.initial_capital,
+    # Use unified backtest function (Single Source of Truth)
+    result = await _run_unified_backtest(
+        strategy_id=strategy_id,
+        configs=[config],  # Single config wrapped in list
         symbol=request.symbol,
-        optimize_mode=False,  # Include chart_data for visualization
-        rank=1
-    ) 
-    
+        interval=config['interval'],
+        days=request.days,
+        from_date=start_date,
+        initial_capital=request.initial_capital,
+        execution_mode="single"
+    )
+
+    # Return standardized response
     return {
         "strategy_id": strategy_id,
-        "total_return": result['total_return'],
-        "win_rate": result['win_rate'],
-        "max_drawdown": result['max_drawdown'],
+        "total_return": result.get('total_return', 0),
+        "win_rate": result.get('win_rate', 0),
+        "max_drawdown": result.get('max_drawdown', 0),
         "total_trades": result.get('total_trades', 0),
         "avg_pnl": result.get('avg_pnl', "0%"),
         "max_profit": result.get('max_profit', "0%"),
@@ -526,7 +570,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "cycle_avg_hold": result.get('cycle_avg_hold'),
         "cycle_max_hold": result.get('cycle_max_hold'),
         "cycle_min_hold": result.get('cycle_min_hold'),
-        "chart_data": result['chart_data'],
+        "chart_data": result.get('chart_data', []),
         "ohlcv_data": result.get('ohlcv_data', []),
         "trades": result.get('trades', []),
         "logs": result.get('logs', []),
@@ -663,94 +707,58 @@ class IntegratedBacktestRequest(BaseModel):
 
 @router.post("/integrated-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
-    # Full League Mode Implementation
+    """
+    Integrated backtest endpoint for multiple strategies.
+    Uses _run_unified_backtest() for consistent behavior with individual backtest.
+    """
     import traceback
-    from ..core.waterfall_engine import WaterfallBacktestEngine
-    from ..strategies.time_momentum import TimeMomentumStrategy
-    from ..strategies.dip_martingale import DipMartingaleStrategy
 
     try:
         if not request.configs:
             return {"error": "No strategies provided"}
 
         # Prepare Strategy Configs - USE SAME NORMALIZATION AS INDIVIDUAL BACKTEST
-        # This ensures parallel mode results match individual rank backtests
         num_ranks = len(request.configs)
 
-        # For parallel mode: frontend sends totalCapital = rank1Capital * num_ranks
-        # So per-rank capital = initial_capital / num_ranks
-        # For exclusive mode: frontend sends rank1Capital (no multiplication)
+        # Capital allocation based on execution mode
         if request.execution_mode == "parallel":
             per_rank_capital = int(request.initial_capital) // num_ranks
         else:
             per_rank_capital = int(request.initial_capital)
 
+        # Normalize all configs
         strategies_config = []
-        for i, c in enumerate(request.configs):
-            # Get the rank's symbol (from config or fallback)
+        for c in request.configs:
             rank_symbol = c.config.get('symbol') or c.symbol or request.symbol
-
-            # Apply same normalization as individual backtest (build_backtest_config)
             normalized_config = build_backtest_config(
                 c.config,
                 symbol=rank_symbol,
-                interval=request.interval,  # Global interval for data consistency
+                interval=request.interval,
                 days=request.days,
                 from_date=request.from_date,
-                initial_capital=per_rank_capital  # Use per-rank capital (same as individual backtest)
+                initial_capital=per_rank_capital
             )
             strategies_config.append(normalized_config)
 
-        # Use NORMALIZED config's interval (same as individual backtest)
-        # All ranks should have the same interval after normalization
         actual_interval = strategies_config[0].get('interval', request.interval)
-
-        # DEBUG: Log configs being passed to engine
-        logger.warning(f"[INTEGRATED] execution_mode={request.execution_mode}")
-        logger.warning(f"[INTEGRATED] request.interval={request.interval}, actual_interval={actual_interval}")
-        logger.warning(f"[INTEGRATED] days={request.days}, from_date={request.from_date}")
-        logger.warning(f"[INTEGRATED] initial_capital={request.initial_capital} (total from frontend)")
-        logger.warning(f"[INTEGRATED] per_rank_capital={per_rank_capital} (each rank gets this - same as individual backtest)")
-        for idx, cfg in enumerate(strategies_config):
-            logger.warning(f"[INTEGRATED] Rank {idx+1} config keys: {list(cfg.keys())}")
-            # Print key DipMartingale params
-            logger.warning(f"[INTEGRATED] Rank {idx+1} symbol={cfg.get('symbol')}, interval={cfg.get('interval')}, initial_capital={cfg.get('initial_capital')}")
-            logger.warning(f"[INTEGRATED] Rank {idx+1} dip_percent={cfg.get('dip_percent')}, trailing_start={cfg.get('trailing_start_percent')}, max_levels={cfg.get('max_levels')}")
-
-        # Determine strategy class based on first config's strategy_id
         strategy_id = request.configs[0].strategy_id if request.configs else "time_momentum"
-        strategy_class = TimeMomentumStrategy
-        if "dip" in strategy_id.lower() or "martingale" in strategy_id.lower():
-            strategy_class = DipMartingaleStrategy
 
-        engine = WaterfallBacktestEngine(strategy_class, {})
+        logger.info(f"[INTEGRATED] mode={request.execution_mode}, strategy={strategy_id}, ranks={num_ranks}")
 
-        # Parallel Mode: Equal capital split across all ranks
-        if request.execution_mode == "parallel":
-            result = await engine.run_parallel(
-                strategies_config=strategies_config,
-                global_symbol=request.symbol,
-                duration_days=request.days,
-                from_date=request.from_date,
-                interval=actual_interval,  # Use config's interval (same as individual backtest)
-                initial_capital=int(request.initial_capital)
-            )
-            result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
-            result['execution_mode'] = 'parallel'
-        else:
-            # Exclusive Mode: Waterfall/League - Winner Takes All
-            result = await engine.run_integrated(
-                strategies_config=strategies_config,
-                global_symbol=request.symbol,
-                duration_days=request.days,
-                from_date=request.from_date,
-                interval=actual_interval,  # Use config's interval (same as individual backtest)
-                initial_capital=int(request.initial_capital)
-            )
-            result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
-            result['execution_mode'] = 'exclusive'
+        # Use unified backtest function (Single Source of Truth)
+        result = await _run_unified_backtest(
+            strategy_id=strategy_id,
+            configs=strategies_config,
+            symbol=request.symbol,
+            interval=actual_interval,
+            days=request.days,
+            from_date=request.from_date,
+            initial_capital=int(request.initial_capital),
+            execution_mode=request.execution_mode
+        )
 
         return result
+
     except Exception as e:
         logger.error(f"[INTEGRATED] Error: {str(e)}")
         logger.error(f"[INTEGRATED] Traceback: {traceback.format_exc()}")

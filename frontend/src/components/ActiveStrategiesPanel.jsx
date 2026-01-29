@@ -20,8 +20,23 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit, parameterSche
     const fields = parameterSchema?.fields || [];
     const tableFields = fields.filter(f => f.show_in_table !== false);
 
+    // Debug: Log configList and schema fields to diagnose value display issues
+    console.log("[ActiveStrategiesPanel] tableFields keys:", tableFields.map(f => f.key || f.name));
+    console.log("[ActiveStrategiesPanel] configList values:", configList?.filter(c => c.is_active !== false).map(cfg => {
+        const values = {};
+        tableFields.forEach(f => {
+            const key = f.key || f.name;
+            values[key] = cfg[key];
+        });
+        return { tabName: cfg.tabName, values };
+    }));
+
+    // Get the actual key from a field (schema may use 'key' or 'name')
+    const getFieldKey = (field) => field.key || field.name;
+
     const formatValue = (cfg, field) => {
-        const val = cfg[field.name];
+        const key = getFieldKey(field);
+        const val = cfg[key];
         if (val == null || val === undefined) return '-';
 
         if (field.type === 'select' || field.type === 'time') {
@@ -51,7 +66,7 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit, parameterSche
                                 <th className="px-4 py-3">Rank</th>
                                 <th className="px-4 py-3">Symbol</th>
                                 {tableFields.map(f => (
-                                    <th key={f.name} className="px-4 py-3" title={f.description}>
+                                    <th key={getFieldKey(f)} className="px-4 py-3" title={f.description}>
                                         {f.label}
                                     </th>
                                 ))}
@@ -74,23 +89,26 @@ const ActiveStrategiesPanel = ({ configList, savedSymbols, onEdit, parameterSche
                                         <td className="px-4 py-3 font-medium text-white">
                                             {symbolName} <span className="text-xs text-gray-500 ml-1">({cfg.symbol})</span>
                                         </td>
-                                        {tableFields.map(field => (
-                                            <td key={field.name} className="px-4 py-3 text-gray-300 text-xs">
-                                                {field.type === 'select' ? (
-                                                    <span className={`px-2 py-1 rounded font-bold ${
-                                                        field.name === 'direction'
-                                                            ? (cfg[field.name] === 'rise' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400')
-                                                            : 'bg-purple-500/20 text-purple-300'
-                                                    }`}>
-                                                        {formatValue(cfg, field)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-300 font-medium">
-                                                        {formatValue(cfg, field)}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        ))}
+                                        {tableFields.map(field => {
+                                            const fieldKey = getFieldKey(field);
+                                            return (
+                                                <td key={fieldKey} className="px-4 py-3 text-gray-300 text-xs">
+                                                    {field.type === 'select' ? (
+                                                        <span className={`px-2 py-1 rounded font-bold ${
+                                                            fieldKey === 'direction'
+                                                                ? (cfg[fieldKey] === 'rise' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400')
+                                                                : 'bg-purple-500/20 text-purple-300'
+                                                        }`}>
+                                                            {formatValue(cfg, field)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-300 font-medium">
+                                                            {formatValue(cfg, field)}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
                                         {onEdit && (
                                             <td className="px-4 py-3 text-right">
                                                 <button

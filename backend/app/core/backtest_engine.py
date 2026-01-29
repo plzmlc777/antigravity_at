@@ -234,25 +234,14 @@ class BacktestEngine:
         total_days = len(data_dates)
         traded_count = len(traded_dates)
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
-        
-        # DEBUG: Force Raw OHLCV inline
-        raw_ohlcv = [
-            {
-                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
-                "open": d['open'],
-                "high": d['high'],
-                "low": d['low'],
-                "close": d['close']
-            } for d in data_feed
-        ]
-        
+
         return {
             "total_return": f"{total_return:.2f}%",
             "max_drawdown": self._calc_mdd(context.equity_curve),
             "activity_rate": f"{activity_rate:.1f}%",
             "total_days": total_days, # Expose for UI
-            "chart_data": self._resample_equity(context.equity_curve, 50000), # Resampled Equity for LineChart
-            "ohlcv_data": raw_ohlcv, # Direct Raw Data
+            "chart_data": self._resample_equity(context.equity_curve, 3000), # Resampled Equity for LineChart
+            "ohlcv_data": self._resample_ohlcv(data_feed, 3000), # Resampled OHLCV for Chart Performance
             "logs": context.logs[-50:], # Return last 50 logs
             "trades": context.trades, # List of trades for visual markers
             **self._analyze_trades(context.trades, data_feed[0]['timestamp'], data_feed[-1]['timestamp']) # Inject detailed trade stats
@@ -501,21 +490,61 @@ class BacktestEngine:
             "acceleration_score": float(f"{acceleration_score:.2f}")
         }
 
-    def _resample_ohlcv(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        # User requested to REMOVE LIMIT. Returning all data.
-        if not data: return []
-        
-        return [{
-            "time": int(datetime.fromisoformat(d['timestamp']).timestamp()), # Use Unix Timestamp
-            "open": d['open'],
-            "high": d['high'],
-            "low": d['low'],
-            "close": d['close']
-        } for d in data]
+    def _resample_ohlcv(self, data: List[Dict], target_count: int = 3000) -> List[Dict]:
+        """Resample OHLCV data to target_count for chart performance."""
+        if not data:
+            return []
 
-    def _resample_equity(self, data: List[Dict], target_count: int = 50000) -> List[Dict]:
-        # User requested to REMOVE LIMIT. Returning all data.
-        return data
+        # If data is small enough, return all
+        if len(data) <= target_count:
+            return [{
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            } for d in data]
+
+        # Resample by picking every N-th candle
+        step = len(data) / target_count
+        result = []
+        for i in range(target_count):
+            idx = int(i * step)
+            d = data[idx]
+            result.append({
+                "time": int(datetime.fromisoformat(d['timestamp']).timestamp()),
+                "open": d['open'],
+                "high": d['high'],
+                "low": d['low'],
+                "close": d['close']
+            })
+
+        # Always include the last candle for accurate end time
+        last = data[-1]
+        if result[-1]["time"] != int(datetime.fromisoformat(last['timestamp']).timestamp()):
+            result.append({
+                "time": int(datetime.fromisoformat(last['timestamp']).timestamp()),
+                "open": last['open'],
+                "high": last['high'],
+                "low": last['low'],
+                "close": last['close']
+            })
+
+        return result
+
+    def _resample_equity(self, data: List[Dict], target_count: int = 3000) -> List[Dict]:
+        """Resample equity curve data to target_count for chart performance."""
+        if not data or len(data) <= target_count:
+            return data
+
+        step = len(data) / target_count
+        result = [data[int(i * step)] for i in range(target_count)]
+
+        # Always include the last point
+        if result[-1] != data[-1]:
+            result.append(data[-1])
+
+        return result
 
     def _calc_mdd(self, equity_curve):
         if not equity_curve: return "0%"
@@ -662,7 +691,7 @@ class BacktestEngine:
             from ..core.strategy_registry import StrategyRegistry
             strat_class = StrategyRegistry.get_strategy_class(strat_name)
             if not strat_class:
-                strat_class = TimeMomentumStrategy  # fallback
+                raise ValueError(f"Strategy '{strat_name}' not found in StrategyRegistry. Available: {StrategyRegistry.list_strategies()}")
             strat_instance = strat_class(context, cfg)
                 
             strat_instance.initialize()

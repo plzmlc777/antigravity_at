@@ -25,20 +25,11 @@ class IntegratedBacktestEngine(BacktestEngine):
         total_return = (final_equity - initial_equity) / initial_equity * 100
         
         # Multi-Symbol OHLCV Processing (Exclusive to Integrated Engine)
+        # Resample to 3000 points for chart performance (trade markers have exact timestamps)
         multi_ohlcv_data = {}
         if feeds_map:
             for sym, feed in feeds_map.items():
-                # Critical Fix: Return FULL resolution data (formatted as Unix Seconds) 
-                # instead of resampling to 2000 points. This ensures drill-down charts 
-                # show exact trade timings (e.g., 09:30 vs 09:00).
-                multi_ohlcv_data[sym] = [{
-                    "time": int(datetime.fromisoformat(c['timestamp']).timestamp()),
-                    "open": c['open'],
-                    "high": c['high'],
-                    "low": c['low'],
-                    "close": c['close'],
-                    # "volume": c['volume'] # Optional: Add volume if needed
-                } for c in feed]
+                multi_ohlcv_data[sym] = self._resample_ohlcv(feed, 3000)
         
         # Activity Rate Logic (Copied from Base or potentially refactored if Base exposes it)
         # For now, duplicate specific small logic to ensure independence.

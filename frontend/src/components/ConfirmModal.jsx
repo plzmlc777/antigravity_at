@@ -1,7 +1,16 @@
 import React from 'react';
 
-const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText = "Confirm", cancelText = "Cancel", isDanger = false }) => {
+const ConfirmModal = ({ isOpen, onClose, onConfirm, onCancel, title, message, confirmText = "Confirm", cancelText = "Cancel", isDanger = false }) => {
     if (!isOpen) return null;
+
+    const handleCancelClick = () => {
+        if (onCancel) {
+            onCancel();
+            onClose();
+        } else {
+            onClose();
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -27,8 +36,11 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message, confirmText 
                 <div className="flex justify-end gap-3">
                     {cancelText && (
                         <button
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                            onClick={handleCancelClick}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${onCancel
+                                ? 'bg-orange-600 hover:bg-orange-500 text-white font-bold shadow-lg shadow-orange-900/30'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
                         >
                             {cancelText}
                         </button>
