@@ -18,13 +18,13 @@ class KiwoomTokenManager:
              self.token_expiry: Optional[datetime] = None
              
              # Force Real API for Data/Token regardless of mode (Unless user explicitly overrides differently)
-             # Defaulting to openapi.kiwoom.com because Mock API lacks historical data.
+             # Using api.kiwoom.com as the standard endpoint for token acquisition.
              # If settings url is mockapi, we override it back to real for this manager.
              if "mockapi" in settings.HCP_KIWOOM_API_URL:
-                 self.base_url = "https://openapi.kiwoom.com"
-                 logger.info("Forcing Standard Open API URL for Token Manager in Mock Mode.")
+                 self.base_url = "https://api.kiwoom.com"
+                 logger.info("Forcing Standard API URL for Token Manager in Mock Mode.")
              else:
-                 self.base_url = settings.HCP_KIWOOM_API_URL or "https://openapi.kiwoom.com"
+                 self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
 
              # Load from disk
              self._load_cache()
