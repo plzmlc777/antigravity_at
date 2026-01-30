@@ -12,9 +12,10 @@ from ..adapters.kiwoom_mock import KiwoomMockAdapter
 # from ..strategies.time_momentum import TimeMomentumStrategy # Removed
 from ..core.config import settings
 from ..db.session import SessionLocal
-from ..models.live_trading import LiveBotSession, SessionStatus
+from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..models.strategy_config import StrategyConfig
 from ..core.market_data_router import market_data_router
+from ..services.error_logger import error_logger
 
 logger = logging.getLogger("LiveManager")
 
@@ -32,7 +33,9 @@ class LiveManager:
 
     def __init__(self):
         self.engines: Dict[str, LiveTradingEngine] = {} # session_id -> Engine
-        
+        # Track pending orders: order_no -> {session_id, db_execution_id, ...}
+        self.pending_orders: Dict[str, Dict[str, Any]] = {}
+
         if settings.TRADING_MODE == "MOCK":
             logger.info("LiveManager: Using KIWOOM MOCK ADAPTER")
             self.adapter = KiwoomMockAdapter()
@@ -41,8 +44,11 @@ class LiveManager:
             # Register Global Tick Listener
             if hasattr(self.adapter, "add_tick_listener"):
                 self.adapter.add_tick_listener(self._on_tick)
+            # Register Order Fill Listener (체결 확인)
+            if hasattr(self.adapter, "add_order_listener"):
+                self.adapter.add_order_listener(self._on_order_fill)
             # Bind this adapter's callback to the singleton WebSocket
-            # Must be called AFTER add_tick_listener so the listener is registered
+            # Must be called AFTER adding listeners so they are registered
             if hasattr(self.adapter, "setup_realtime_callbacks"):
                 self.adapter.setup_realtime_callbacks()
 
@@ -57,8 +63,122 @@ class LiveManager:
             if engine.symbol == symbol:
                 asyncio.create_task(engine.process_realtime_tick(tick_data))
 
-        # KiwoomRealAdapter in this project seems to be stateless http wrapper?
-        # If it holds WebSocket state, it must be shared carefully.
+    def _on_order_fill(self, order_data: Dict):
+        """
+        Handle order execution notification from WebSocket.
+        Updates DB with actual fill price/quantity.
+        """
+        try:
+            order_no = order_data.get("order_no")
+            filled_qty = order_data.get("filled_qty", 0)
+            exec_price = order_data.get("exec_price", 0)
+            symbol = order_data.get("symbol")
+
+            # 체결 수량이 있는 경우만 처리 (접수 이벤트 무시)
+            if not filled_qty or filled_qty <= 0:
+                return
+
+            logger.info(f"Order Fill Received: order_no={order_no}, symbol={symbol}, "
+                       f"qty={filled_qty}, price={exec_price}")
+
+            # Find and update the execution in DB
+            asyncio.create_task(self._update_execution_fill(order_no, order_data))
+
+        except Exception as e:
+            logger.error(f"Error handling order fill: {e}", exc_info=True)
+            error_logger.log_order_error(
+                message=f"Error handling order fill: {e}",
+                session_id=None,
+                symbol=order_data.get("symbol") if order_data else None,
+                exception=e,
+                context=order_data
+            )
+
+    async def _update_execution_fill(self, order_no: str, order_data: Dict):
+        """
+        Update LiveTradeExecution with actual fill data from WebSocket.
+        Matches by Kiwoom order_no (exchange_order_no) stored during order placement.
+        """
+        from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+
+        db = SessionLocal()
+        try:
+            symbol = order_data.get("symbol")
+            filled_qty = order_data.get("filled_qty", 0)
+            exec_price = order_data.get("exec_price", 0)
+
+            execution = None
+
+            # 1. First try: Match by exchange_order_no (가장 정확)
+            if order_no:
+                execution = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.exchange_order_no == order_no,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                ).first()
+
+                if execution:
+                    logger.debug(f"Matched by exchange_order_no: {order_no}")
+
+            # 2. Fallback: Match by symbol + quantity + pending update
+            if not execution:
+                executions = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.symbol == symbol,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                    LiveTradeExecution.is_paper == False,  # Real 모드만
+                    LiveTradeExecution.executed_price == LiveTradeExecution.theoretical_price  # 아직 업데이트 안됨
+                ).order_by(LiveTradeExecution.order_filled_at.desc()).limit(5).all()
+
+                for ex in executions:
+                    if ex.filled_quantity == filled_qty or ex.requested_quantity == filled_qty:
+                        execution = ex
+                        logger.debug(f"Matched by symbol+quantity fallback: {symbol}, qty={filled_qty}")
+                        break
+
+            if not execution:
+                logger.debug(f"No pending execution found for order_no={order_no}, symbol={symbol}")
+                return
+
+            # 3. Update execution with actual fill data
+            old_price = execution.executed_price
+            execution.executed_price = exec_price
+            execution.slippage = round(exec_price - execution.theoretical_price, 2)
+            execution.slippage_percent = round(
+                (execution.slippage / execution.theoretical_price) * 100, 4
+            ) if execution.theoretical_price else 0
+
+            # 4. Recalculate realized_pnl for SELL orders
+            if execution.signal_type == "SELL":
+                buys = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == execution.session_id,
+                    LiveTradeExecution.symbol == execution.symbol,
+                    LiveTradeExecution.signal_type == "BUY",
+                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                ).all()
+                total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
+                total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                if total_buy_qty > 0:
+                    avg_buy_price = total_buy_cost / total_buy_qty
+                    execution.realized_pnl = round(
+                        (execution.executed_price - avg_buy_price) * execution.filled_quantity, 2
+                    )
+
+            db.commit()
+            logger.info(f"✓ Execution Fill Updated: {execution.signal_type} {symbol} "
+                       f"price {old_price:,.0f} → {exec_price:,.0f} (slippage: {execution.slippage:+,.0f})")
+
+        except Exception as e:
+            logger.error(f"Error updating execution fill: {e}", exc_info=True)
+            error_logger.log_error(
+                error_type=ErrorType.DB_ERROR,
+                message=f"Error updating execution fill: {e}",
+                symbol=symbol,
+                exception=e,
+                context={"order_no": order_no, "order_data": order_data},
+                source_function="_update_execution_fill"
+            )
+            db.rollback()
+        finally:
+            db.close()
         
     async def initialize(self):
         """
@@ -98,6 +218,14 @@ class LiveManager:
                 except Exception as e:
                     logger.error(f"Failed to restore session {sess.id}: {e}")
                     traceback.print_exc()
+                    error_logger.log_critical(
+                        error_type=ErrorType.SYSTEM_ERROR,
+                        message=f"Failed to restore session: {e}",
+                        session_id=sess.id,
+                        symbol=sess.symbol,
+                        exception=e,
+                        context={"strategy_name": sess.strategy_name}
+                    )
                     sess.status = SessionStatus.ERROR
                     sess.error_log = str(e)
                     db.commit()

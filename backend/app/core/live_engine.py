@@ -4,13 +4,14 @@ import logging
 import traceback
 from typing import List, Dict, Any, Callable
 from datetime import datetime
-from ..models.live_trading import LiveBotSession, SessionStatus
+from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..db.session import SessionLocal
 from ..models.ohlcv import OHLCV
 from ..core.strategy_registry import strategy_registry
+from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,14 @@ class LiveTradingEngine:
             logger.info("Live Loop Cancelled")
         except Exception as e:
             logger.error(f"Unexpected error in run_loop: {e}", exc_info=True)
+            error_logger.log_critical(
+                error_type=ErrorType.SYSTEM_ERROR,
+                message=f"Unexpected error in run_loop: {e}",
+                session_id=self.session_id,
+                symbol=self.symbol,
+                exception=e,
+                context={"is_running": self.is_running}
+            )
         finally:
             self.is_running = False
             logger.info("Live Loop Stopped")
@@ -292,7 +301,14 @@ class LiveTradingEngine:
                 # Check if context is linked (Safety)
                 if not hasattr(self.strategy_instance, 'context') or self.strategy_instance.context is None:
                         self.strategy_instance.context = self.context
-                        
+
+                # Set config snapshot for parameter versioning (before any trades)
+                self.context.set_config_snapshot(
+                    config=self.strategy_config,
+                    strategy_id=self.strategy_config.get("strategy_id", "unknown"),
+                    symbol=self.symbol
+                )
+
                 # Call Strategy with Correct Signature (single argument)
                 self.strategy_instance.on_data(closed_candle)
                 
@@ -306,12 +322,27 @@ class LiveTradingEngine:
                 logger.error(f"Strategy Execution Error: {e}")
                 import traceback
                 traceback.print_exc()
+                error_logger.log_strategy_error(
+                    message=f"Strategy Execution Error: {e}",
+                    session_id=self.session_id,
+                    symbol=self.symbol,
+                    exception=e,
+                    context={"strategy_name": self.strategy_name, "candle": closed_candle}
+                )
 
             # 6. Persistence (Phase 3.5)
             try:
                 self._save_candle(closed_candle)
             except Exception as e:
-                 logger.error(f"Candle Persistence Error: {e}")
+                logger.error(f"Candle Persistence Error: {e}")
+                error_logger.log_error(
+                    error_type=ErrorType.DB_ERROR,
+                    message=f"Candle Persistence Error: {e}",
+                    session_id=self.session_id,
+                    symbol=self.symbol,
+                    exception=e,
+                    source_function="_save_candle"
+                )
 
     @staticmethod
     def _parse_interval(interval_str: str) -> int:

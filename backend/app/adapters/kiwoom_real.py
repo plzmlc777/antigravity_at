@@ -9,6 +9,8 @@ from ..core.config import settings
 from ..core.token_manager import KiwoomTokenManager
 from .kiwoom_websocket import KiwoomWebSocket
 from .kiwoom_base import KiwoomBaseAdapter
+from ..models.live_trading import ErrorType
+from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +38,21 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         # Callbacks are set explicitly via setup_realtime_callbacks().
         self.ws_client = KiwoomWebSocket.get_instance()
         self.tick_listeners: List[Callable[[Dict], None]] = []
+        self.order_listeners: List[Callable[[Dict], None]] = []
+        self.balance_listeners: List[Callable[[Dict], None]] = []
         self._ws_task = None
-        
+
     def setup_realtime_callbacks(self):
         """
-        Set this adapter's _on_ws_tick as the WebSocket callback.
+        Set this adapter's callbacks for WebSocket events.
         Should only be called ONCE by the owner (LiveManager).
         """
-        self.ws_client.set_callbacks(on_tick=self._on_ws_tick)
-        logger.info(f"WebSocket tick callback registered (listeners: {len(self.tick_listeners)})")
+        self.ws_client.set_callbacks(
+            on_tick=self._on_ws_tick,
+            on_order=self._on_ws_order,
+            on_balance=self._on_ws_balance
+        )
+        logger.info(f"WebSocket callbacks registered (tick: {len(self.tick_listeners)}, order: {len(self.order_listeners)})")
 
     async def register_real_listener(self, symbol: str, callback: Callable[[Dict], Any]):
         """
@@ -56,14 +64,54 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     def _on_ws_tick(self, tick_data: Dict):
         for listener in self.tick_listeners:
             try:
-                # Some listeners might be async (MarketDataRouter._handle_tick)
-                # Others might be sync.
                 if asyncio.iscoroutinefunction(listener):
                     asyncio.create_task(listener(tick_data))
                 else:
                     listener(tick_data)
             except Exception as e:
                 logger.error(f"Error in tick listener: {e}")
+                error_logger.log_api_error(
+                    message=f"Error in tick listener: {e}",
+                    symbol=tick_data.get("symbol"),
+                    exception=e
+                )
+
+    def _on_ws_order(self, order_data: Dict):
+        """Handle order execution events from WebSocket"""
+        for listener in self.order_listeners:
+            try:
+                if asyncio.iscoroutinefunction(listener):
+                    asyncio.create_task(listener(order_data))
+                else:
+                    listener(order_data)
+            except Exception as e:
+                logger.error(f"Error in order listener: {e}")
+                error_logger.log_order_error(
+                    message=f"Error in order listener: {e}",
+                    session_id=None,
+                    symbol=order_data.get("symbol"),
+                    exception=e,
+                    context=order_data
+                )
+
+    def _on_ws_balance(self, balance_data: Dict):
+        """Handle balance change events from WebSocket"""
+        for listener in self.balance_listeners:
+            try:
+                if asyncio.iscoroutinefunction(listener):
+                    asyncio.create_task(listener(balance_data))
+                else:
+                    listener(balance_data)
+            except Exception as e:
+                logger.error(f"Error in balance listener: {e}")
+                error_logger.log_error(
+                    error_type=ErrorType.BALANCE_SYNC_ERROR,
+                    message=f"Error in balance listener: {e}",
+                    symbol=balance_data.get("symbol"),
+                    exception=e,
+                    context=balance_data,
+                    source_function="_on_ws_balance"
+                )
 
     async def start_realtime(self, symbols: List[str] = None):
         """
@@ -94,6 +142,30 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         if callback in self.tick_listeners:
             self.tick_listeners.remove(callback)
             logger.debug(f"Removed tick listener. Total: {len(self.tick_listeners)}")
+
+    def add_order_listener(self, callback: Callable[[Dict], None]):
+        """Add an order execution listener callback."""
+        if callback not in self.order_listeners:
+            self.order_listeners.append(callback)
+            logger.debug(f"Added order listener. Total: {len(self.order_listeners)}")
+
+    def remove_order_listener(self, callback: Callable[[Dict], None]):
+        """Remove an order execution listener callback."""
+        if callback in self.order_listeners:
+            self.order_listeners.remove(callback)
+            logger.debug(f"Removed order listener. Total: {len(self.order_listeners)}")
+
+    def add_balance_listener(self, callback: Callable[[Dict], None]):
+        """Add a balance change listener callback."""
+        if callback not in self.balance_listeners:
+            self.balance_listeners.append(callback)
+            logger.debug(f"Added balance listener. Total: {len(self.balance_listeners)}")
+
+    def remove_balance_listener(self, callback: Callable[[Dict], None]):
+        """Remove a balance change listener callback."""
+        if callback in self.balance_listeners:
+            self.balance_listeners.remove(callback)
+            logger.debug(f"Removed balance listener. Total: {len(self.balance_listeners)}")
 
 
     def get_name(self) -> str:
@@ -134,6 +206,11 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             }
         except Exception as e:
             logger.error(f"Error fetching price for {symbol}: {e}")
+            error_logger.log_api_error(
+                message=f"Error fetching price for {symbol}: {e}",
+                symbol=symbol,
+                exception=e
+            )
             return {
                 "symbol": symbol,
                 "price": 0.0,
@@ -194,6 +271,12 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             }
         except Exception as e:
             logger.error(f"Error fetching balance: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.BALANCE_SYNC_ERROR,
+                message=f"Error fetching balance: {e}",
+                exception=e,
+                source_function="get_balance"
+            )
             return {"cash": {"KRW": 0}, "holdings": {}}
 
     async def place_buy_order(self, symbol: str, price: float, quantity: float) -> Dict[str, Any]:
@@ -265,6 +348,13 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         except Exception as e:
             logger.error(f"Order placement failed: {e}")
+            error_logger.log_order_error(
+                message=f"Order placement failed: {e}",
+                session_id=None,
+                symbol=symbol,
+                exception=e,
+                context={"tr_id": tr_id, "price": price, "quantity": quantity, "trade_type": trade_type}
+            )
             return {"status": "failed", "message": str(e)}
 
     async def get_outstanding_orders(self) -> list:
@@ -314,6 +404,10 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         except Exception as e:
             logger.error(f"Error fetching outstanding orders: {e}")
+            error_logger.log_api_error(
+                message=f"Error fetching outstanding orders: {e}",
+                exception=e
+            )
             return []
 
     async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
@@ -357,6 +451,13 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         except Exception as e:
             logger.error(f"Cancel order failed: {e}")
+            error_logger.log_order_error(
+                message=f"Cancel order failed: {e}",
+                session_id=None,
+                symbol=symbol,
+                exception=e,
+                context={"order_id": order_id, "origin_order_id": origin_order_id, "quantity": quantity}
+            )
             return {"status": "failed", "message": str(e)}
 
     async def get_minute_candles(self, symbol: str, interval_minutes: int = 1) -> list:
@@ -424,6 +525,12 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         except Exception as e:
             logger.error(f"Exception in get_minute_candles: {e}")
+            error_logger.log_api_error(
+                message=f"Exception in get_minute_candles: {e}",
+                symbol=symbol,
+                exception=e,
+                context={"interval_minutes": interval_minutes}
+            )
             return []
 
     async def get_daily_candles(self, symbol: str) -> list:
@@ -492,6 +599,11 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         except Exception as e:
             logger.error(f"Exception in get_daily_candles: {e}")
+            error_logger.log_api_error(
+                message=f"Exception in get_daily_candles: {e}",
+                symbol=symbol,
+                exception=e
+            )
             return []
 
     async def get_candles(self, symbol: str, interval: str, days: int = 30, limit: int = 1000) -> list:

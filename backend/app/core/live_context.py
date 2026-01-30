@@ -4,9 +4,10 @@ from datetime import datetime
 import logging
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
-from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+from ..models.live_trading import LiveTradeExecution, ExecutionStatus, ErrorType
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,12 @@ class LiveContext:
         self.trades = [] # Keep local copy for strategy logic
         self.logs = []
         self.equity_curve = []
-        
+
         # Real-time Price Cache (Updated by Engine)
         self.price_map = {} # {symbol: price}
+
+        # Strategy Config Snapshot (for parameter versioning)
+        self._config_snapshot = None  # Set by engine before strategy execution
         
         # Initial Balance Sync
         self._sync_balance()
@@ -56,6 +60,18 @@ class LiveContext:
     def is_paper(self, value: bool):
         self._is_paper = value
         logger.info(f"Context {self.session_id}: Mode switched to {'PAPER' if value else 'REAL'}")
+
+    def set_config_snapshot(self, config: Dict[str, Any], strategy_id: str = None, symbol: str = None):
+        """
+        Set the current strategy config snapshot for parameter versioning.
+        Called by LiveEngine before each strategy tick.
+        """
+        self._config_snapshot = {
+            "strategy_id": strategy_id,
+            "symbol": symbol,
+            "params": config,
+            "snapshot_at": datetime.now().isoformat()
+        }
 
     def get_total_equity(self) -> float:
         """
@@ -101,6 +117,13 @@ class LiveContext:
             
         except Exception as e:
             logger.error(f"PnL Calculation Error: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.DB_ERROR,
+                message=f"PnL Calculation Error: {e}",
+                session_id=self.session_id,
+                exception=e,
+                source_function="calculate_pnl"
+            )
             return 0.0
         finally:
             db.close()
@@ -160,6 +183,13 @@ class LiveContext:
             return stats
         except Exception as e:
             logger.error(f"Trade stats error: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.DB_ERROR,
+                message=f"Trade stats error: {e}",
+                session_id=self.session_id,
+                exception=e,
+                source_function="get_trade_stats"
+            )
             return {"paper": {}, "real": {}}
         finally:
             db.close()
@@ -207,7 +237,8 @@ class LiveContext:
                 requested_quantity=quantity,
                 status=ExecutionStatus.PENDING,
                 is_paper=self._is_paper,
-                trade_metadata=metadata
+                trade_metadata=metadata,
+                config_snapshot=self._config_snapshot  # 전략 파라미터 스냅샷
             )
             db.add(db_exec)
             db.commit() # Save ID
@@ -235,6 +266,13 @@ class LiveContext:
             
         except Exception as e:
             self.log(f"ORDER ERROR: {e}")
+            error_logger.log_order_error(
+                message=f"Order execution error: {e}",
+                session_id=self.session_id,
+                symbol=symbol,
+                exception=e,
+                context={"side": side.value, "quantity": quantity, "price": price}
+            )
             return {"status": "failed", "reason": str(e)}
         finally:
             db.close()
@@ -278,6 +316,13 @@ class LiveContext:
                 logger.info(f"Context {self.session_id}: Restored {len(executions)} trades from DB")
         except Exception as e:
             logger.error(f"Trade restore error: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.DB_ERROR,
+                message=f"Trade restore error: {e}",
+                session_id=self.session_id,
+                exception=e,
+                source_function="_restore_trades_from_db"
+            )
         finally:
             db.close()
 
@@ -311,6 +356,13 @@ class LiveContext:
                         
         except Exception as e:
             logger.error(f"Balance Sync Error: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.BALANCE_SYNC_ERROR,
+                message=f"Balance Sync Error: {e}",
+                session_id=self.session_id,
+                exception=e,
+                source_function="async_sync_balance"
+            )
 
     async def process_queue(self):
         """
@@ -340,18 +392,23 @@ class LiveContext:
                         }
                         self.log(f"PAPER SIGNAL: {p.signal_type} {p.symbol} @ {p.theoretical_price}")
                     else:
-                        # REAL Trading: Call Adapter
+                        # REAL Trading: Call Adapter with MARKET ORDER (price=0)
+                        # 시장가 주문으로 즉시 체결 보장, theoretical_price는 슬리피지 분석용 보존
                         if p.signal_type == "BUY":
-                            res = await self.adapter.place_buy_order(p.symbol, p.theoretical_price, p.requested_quantity)
+                            res = await self.adapter.place_buy_order(p.symbol, 0, p.requested_quantity)
                         elif p.signal_type == "SELL":
-                            res = await self.adapter.place_sell_order(p.symbol, p.theoretical_price, p.requested_quantity)
-                    
+                            res = await self.adapter.place_sell_order(p.symbol, 0, p.requested_quantity)
+
                     if res and res.get("status") == "success":
                         # 1. Update DB Record
                         p.status = ExecutionStatus.FILLED
                         p.order_submitted_at = self.get_time()
                         p.order_filled_at = self.get_time()
-                        p.executed_price = res.get("price", p.theoretical_price)
+                        # Kiwoom 주문번호 저장 (WebSocket 체결 이벤트 매칭용)
+                        p.exchange_order_no = res.get("order_id")
+                        # 시장가 주문은 Kiwoom이 체결가를 즉시 반환하지 않으므로 theoretical_price를 추정치로 사용
+                        # WebSocket 체결 콜백에서 실제 체결가로 업데이트됨
+                        p.executed_price = res.get("price") or p.theoretical_price
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
 
                         # 2. Calculate realized_pnl for SELL orders
@@ -391,12 +448,32 @@ class LiveContext:
                         p.status = ExecutionStatus.FAILED
                         p.error_reason = res.get("message", "Unknown Error")
                         self.log(f"ORDER FAILED: {p.error_reason}")
+                        error_logger.log_order_error(
+                            message=f"Order failed: {p.error_reason}",
+                            session_id=self.session_id,
+                            symbol=p.symbol,
+                            context={"signal_type": p.signal_type, "quantity": p.requested_quantity}
+                        )
                         
                     db.commit()
                 except Exception as e:
                     logger.error(f"Queue Process Error: {e}")
+                    error_logger.log_order_error(
+                        message=f"Queue Process Error: {e}",
+                        session_id=self.session_id,
+                        symbol=p.symbol if p else None,
+                        exception=e,
+                        context={"execution_id": p.id if p else None}
+                    )
                     db.rollback()
         except Exception as e:
             logger.error(f"Queue DB Error: {e}")
+            error_logger.log_error(
+                error_type=ErrorType.DB_ERROR,
+                message=f"Queue DB Error: {e}",
+                session_id=self.session_id,
+                exception=e,
+                source_function="process_queue"
+            )
         finally:
             db.close()

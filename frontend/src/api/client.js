@@ -223,6 +223,12 @@ export const liquidateLiveBot = async (sessionId) => {
     return data;
 };
 
+export const getAccumulatedStats = async (symbols = []) => {
+    const symbolsParam = symbols.join(',');
+    const { data } = await api.get(`/live/accumulated-stats?symbols=${symbolsParam}`);
+    return data;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;
@@ -268,5 +274,51 @@ export const resetMarketData = async (symbol) => {
 
 export const getMarketDataStatus = async (symbol, params = {}) => {
     const { data } = await api.get(`/market-data/status/${symbol}`, { params });
+    return data;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Parameter Version Management API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const listParameterVersions = async (strategyId = '', symbol = '') => {
+    const params = {};
+    if (strategyId) params.strategy_id = strategyId;
+    if (symbol) params.symbol = symbol;
+    const { data } = await api.get('/live/parameter-versions', { params });
+    return data;
+};
+
+export const createParameterVersion = async (payload) => {
+    // payload: { strategy_id, symbol?, version_name, description?, params, is_default? }
+    const { data } = await api.post('/live/parameter-versions', payload);
+    return data;
+};
+
+export const getParameterVersion = async (versionId) => {
+    const { data } = await api.get(`/live/parameter-versions/${versionId}`);
+    return data;
+};
+
+export const updateParameterVersion = async (versionId, payload) => {
+    // payload: { version_name?, description?, params?, is_default? }
+    const { data } = await api.put(`/live/parameter-versions/${versionId}`, payload);
+    return data;
+};
+
+export const deleteParameterVersion = async (versionId, hardDelete = false) => {
+    const { data } = await api.delete(`/live/parameter-versions/${versionId}`, {
+        params: { hard_delete: hardDelete }
+    });
+    return data;
+};
+
+export const restoreParameterVersion = async (versionId) => {
+    const { data } = await api.post(`/live/parameter-versions/${versionId}/restore`);
+    return data;
+};
+
+export const updateVersionStats = async (versionId) => {
+    const { data } = await api.post(`/live/parameter-versions/${versionId}/update-stats`);
     return data;
 };

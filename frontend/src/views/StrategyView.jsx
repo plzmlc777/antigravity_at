@@ -13,13 +13,14 @@ import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
+import ParameterVersionManager from '../components/ParameterVersionManager';
 import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -174,11 +175,15 @@ const StrategyView = () => {
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
     const [liveRankIndex, setLiveRankIndex] = useState(0); // Selected Rank Index for Live Tab
+    const [isLiveRunning, setIsLiveRunning] = useState(false); // Live session running status (locks strategy change)
     const [executionMode, setExecutionMode] = useState(() => {
         const saved = localStorage.getItem('integratedExecutionMode');
         return saved || 'exclusive';
     }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+    // Parameter Copy/Paste State
+    const [copiedParams, setCopiedParams] = useState(null);
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -593,6 +598,51 @@ const StrategyView = () => {
 
         setConfigList(newList);
         setIsDirty(true); // Mark configuration as dirty (unsaved changes)
+    };
+
+    // Parameter Copy/Paste Handlers
+    const SYSTEM_FIELDS = ['symbol', 'uuid', 'tabName', 'is_active', 'rank', 'initial_capital', 'from_date', 'interval', 'betting_strategy'];
+
+    const handleCopyParams = () => {
+        if (activeTab < 0 || !configList[activeTab]) return;
+
+        const currentCfg = configList[activeTab];
+        const paramsToCopy = {};
+
+        // Copy only strategy parameters (exclude system fields)
+        Object.keys(currentCfg).forEach(key => {
+            if (!SYSTEM_FIELDS.includes(key)) {
+                paramsToCopy[key] = currentCfg[key];
+            }
+        });
+
+        setCopiedParams({
+            params: paramsToCopy,
+            sourceTab: currentCfg.tabName || `Tab ${activeTab + 1}`,
+            sourceSymbol: currentCfg.symbol,
+            timestamp: Date.now()
+        });
+
+        // Show toast-like feedback
+        addLog(`📋 Parameters copied from ${currentCfg.tabName || `Tab ${activeTab + 1}`}`, 'info');
+    };
+
+    const handlePasteParams = () => {
+        if (activeTab < 0 || !copiedParams || !configList[activeTab]) return;
+
+        const newList = [...configList];
+        const currentItem = { ...newList[activeTab] };
+
+        // Merge copied params into current config (overwrite strategy params only)
+        Object.keys(copiedParams.params).forEach(key => {
+            currentItem[key] = copiedParams.params[key];
+        });
+
+        newList[activeTab] = currentItem;
+        setConfigList(newList);
+        setIsDirty(true);
+
+        addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
     };
 
     // Helper to get current config for UI rendering
@@ -1544,6 +1594,11 @@ const StrategyView = () => {
                 <div className="flex flex-col gap-3">
                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                         <HelpCircle size={14} className="text-gray-400" /> Strategy
+                        {isLiveRunning && (
+                            <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full ml-2">
+                                <Lock size={10} /> Live Running
+                            </span>
+                        )}
                     </h3>
                     <div className="flex flex-col md:flex-row items-center gap-4 w-full">
                         <div className="relative w-full md:max-w-md">
@@ -1553,7 +1608,12 @@ const StrategyView = () => {
                                     const strat = strategies.find(s => s.id === e.target.value);
                                     handleStrategyChange(strat);
                                 }}
-                                className="w-full bg-black/40 border border-white/20 rounded-lg px-4 py-3 text-white appearance-none focus:border-blue-500 outline-none cursor-pointer text-sm font-medium"
+                                disabled={isLiveRunning}
+                                className={`w-full bg-black/40 border rounded-lg px-4 py-3 appearance-none outline-none text-sm font-medium ${
+                                    isLiveRunning
+                                        ? 'border-amber-500/30 text-gray-500 cursor-not-allowed opacity-60'
+                                        : 'border-white/20 text-white cursor-pointer focus:border-blue-500'
+                                }`}
                             >
                                 {strategies.map(strat => (
                                     <option key={strat.id} value={strat.id} className="bg-slate-900 text-white">
@@ -1561,11 +1621,17 @@ const StrategyView = () => {
                                     </option>
                                 ))}
                             </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                ▼
+                            <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isLiveRunning ? 'text-gray-600' : 'text-gray-400'}`}>
+                                {isLiveRunning ? <Lock size={14} /> : '▼'}
                             </div>
                         </div>
-                        {selectedStrategy && (
+                        {isLiveRunning && (
+                            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
+                                <Lock size={12} />
+                                <span>라이브 세션 실행 중 - 전략 변경 불가</span>
+                            </div>
+                        )}
+                        {selectedStrategy && !isLiveRunning && (
                             <div className="hidden md:flex items-center gap-2 text-sm text-gray-400 border-l border-white/10 pl-4 h-10 flex-1">
                                 <span className="flex-1 truncate">{selectedStrategy.description}</span>
                                 <button
@@ -2170,6 +2236,33 @@ const StrategyView = () => {
                                             <Crosshair size={14} className="text-gray-400" /> Configuration
                                         </h3>
                                         <div className="flex items-center gap-4">
+                                            {/* Copy/Paste Buttons */}
+                                            <div className="flex items-center gap-1 border-r border-white/10 pr-4">
+                                                <button
+                                                    onClick={handleCopyParams}
+                                                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+                                                    title="Copy parameters"
+                                                >
+                                                    <Copy size={14} />
+                                                    Copy
+                                                </button>
+                                                <button
+                                                    onClick={handlePasteParams}
+                                                    disabled={!copiedParams}
+                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                                        copiedParams
+                                                            ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 hover:text-white border border-purple-500/30'
+                                                            : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                                    }`}
+                                                    title={copiedParams ? `Paste from ${copiedParams.sourceTab}` : 'No parameters copied'}
+                                                >
+                                                    <ClipboardPaste size={14} />
+                                                    Paste
+                                                    {copiedParams && (
+                                                        <span className="text-[10px] text-purple-400 ml-1">({copiedParams.sourceTab})</span>
+                                                    )}
+                                                </button>
+                                            </div>
                                             <button
                                                 onClick={handleApplyConfig}
                                                 disabled={isLoading || !selectedStrategy}
@@ -2235,6 +2328,18 @@ const StrategyView = () => {
                                                     ) : (
                                                         <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
                                                     )}
+
+                                                    {/* Parameter Version Manager */}
+                                                    <ParameterVersionManager
+                                                        strategyId={selectedStrategy?.id}
+                                                        symbol={currentConfig?.symbol || currentSymbol}
+                                                        currentParams={currentConfig}
+                                                        onRestore={(restoredParams) => {
+                                                            // Merge restored params with current config
+                                                            handleConfigChange({...currentConfig, ...restoredParams});
+                                                        }}
+                                                        className="mt-4"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -2249,6 +2354,7 @@ const StrategyView = () => {
                                                 configList={configList}
                                                 savedSymbols={savedSymbols}
                                                 parameterSchema={selectedStrategy?.parameter_schema}
+                                                onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
                                             />
                                         </div>
                                     )}
@@ -2276,6 +2382,7 @@ const StrategyView = () => {
                                             }
                                         }}
                                         parameterSchema={selectedStrategy?.parameter_schema}
+                                        onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
                                     />
                                 </div>
                             )}

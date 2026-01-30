@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import UnifiedSessionCards from './UnifiedSessionCards';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -30,6 +30,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [realTimeCandles, setRealTimeCandles] = useState([]);
     const [selectedInterval, setSelectedInterval] = useState('1m');
 
+    // WebSocket Connection State
+    const [wsConnected, setWsConnected] = useState(false);
+
     // Transaction History View State (2-step architecture)
     const [showHistoryView, setShowHistoryView] = useState(false);
     const [historyData, setHistoryData] = useState(null); // { cycles, open_cycles, total_cycles, ... }
@@ -39,6 +42,32 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [selectedCycle, setSelectedCycle] = useState(null);
     const [cycleChartData, setCycleChartData] = useState(null);
     const [isCycleChartLoading, setIsCycleChartLoading] = useState(false);
+
+    // Accumulated stats for symbols (fetched from DB, persists even when session stops)
+    const [accumulatedStats, setAccumulatedStats] = useState({}); // { symbol: { paper: {...}, real: {...} } }
+
+    // Notify parent of status changes (for strategy change lock)
+    useEffect(() => {
+        if (onStatusChange) {
+            onStatusChange(status);
+        }
+    }, [status, onStatusChange]);
+
+    // Fetch accumulated stats on mount and when configList changes
+    useEffect(() => {
+        const fetchAccumulatedStats = async () => {
+            if (!configList || configList.length === 0) return;
+            const symbols = configList.map(c => c.symbol).filter(Boolean);
+            if (symbols.length === 0) return;
+            try {
+                const stats = await getAccumulatedStats(symbols);
+                setAccumulatedStats(stats || {});
+            } catch (err) {
+                console.error('Failed to fetch accumulated stats:', err);
+            }
+        };
+        fetchAccumulatedStats();
+    }, [configList]);
 
     // Overview Chart: Transform historyData cycles → rank-based chart (like IntegratedAnalysis)
     const { overviewChartData, overviewTrades, overviewRankFormatter, overviewPriceScaleOptions, overviewSymbolRanks } = useMemo(() => {
@@ -325,10 +354,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
         if (allCycles.length === 0) return;
 
-        const headers = ['Status', 'Symbol', 'Entry Time', 'Exit Time', 'Num Entries', 'Total Buy Qty', 'Avg Entry Price', 'Sell Price', 'Realized PnL', 'Return %', 'Mode'];
+        const headers = ['Status', 'Symbol', 'Strategy', 'Entry Time', 'Exit Time', 'Num Entries', 'Total Buy Qty', 'Avg Entry Price', 'Sell Price', 'Realized PnL', 'Return %', 'Mode', 'Config Snapshot'];
         const rows = allCycles.map(c => [
             c._status,
             c.symbol,
+            c.strategy_name || '',
             c.entry_time || '',
             c.exit_time || '',
             c.num_entries || 0,
@@ -338,6 +368,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             c.realized_pnl || 0,
             c.return_pct != null ? c.return_pct.toFixed(2) : '',
             c.is_paper ? 'Paper' : 'Real',
+            c.config_snapshot ? JSON.stringify(c.config_snapshot) : '',
         ]);
 
         const csvContent = [headers, ...rows]
@@ -530,14 +561,27 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     return false;
                 }
             } else {
-                // Exclusive: single session by symbol
+                // Exclusive: single session by symbol, but show all configured symbols in overview
                 const currentSymbol = strategyConfig.symbol;
                 const mySession = sessions.find(s => s.symbol === currentSymbol && s.is_running);
 
                 if (mySession) {
                     setStatus('RUNNING');
                     setSessionId(mySession.session_id);
-                    setLiveData(mySession);
+                    // Include all session data for configured symbols in _parallel_sessions
+                    const configuredSymbols = configList.map(c => c.symbol);
+                    const allConfiguredSessions = sessions.filter(s => configuredSymbols.includes(s.symbol));
+                    // Track which rank index has active session
+                    const activeSessions = {};
+                    configList.forEach((cfg, idx) => {
+                        const match = sessions.find(s => s.symbol === cfg.symbol && s.is_running);
+                        if (match) activeSessions[idx] = match.session_id;
+                    });
+                    setParallelSessions(activeSessions);
+                    setLiveData({
+                        ...mySession,
+                        _parallel_sessions: allConfiguredSessions.length > 0 ? allConfiguredSessions : [mySession]
+                    });
                     startPolling();
                     return true;
                 } else {
@@ -696,7 +740,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         let ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
+            setWsConnected(true);
             addLog("System", `WS connected to: ${wsUrl}`);
+        };
+
+        ws.onerror = (error) => {
+            setWsConnected(false);
+            addLog("System", `WS error: ${error.message || 'Connection error'}`);
         };
 
         ws.onmessage = (event) => {
@@ -863,11 +913,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         };
 
         ws.onclose = () => {
+            setWsConnected(false);
             addLog("System", "Real-time feed disconnected");
         };
 
         return () => {
             wsHistoryReceived.current = false;
+            setWsConnected(false);
             if (ws) ws.close();
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);
@@ -1238,8 +1290,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 )}
             </div>
 
-            {/* Unified Session Cards (Row 2) - Full Width */}
-            {status === 'RUNNING' && configList?.length > 0 && (
+            {/* Unified Session Cards (Row 2) - Full Width - Always show for accumulated stats */}
+            {configList?.length > 0 && (
                 <div className="lg:col-span-3">
                     <UnifiedSessionCards
                         parallelSessions={parallelSessions}
@@ -1252,6 +1304,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         executionMode={executionMode}
                         strategyState={strategyState}
                         liveData={liveData}
+                        accumulatedStats={accumulatedStats}
                     />
                 </div>
             )}
@@ -1267,6 +1320,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         })()}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     </h3>
+                    {/* WebSocket Connection Status Indicator */}
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                        wsConnected
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}>
+                        {wsConnected ? (
+                            <>
+                                <Wifi size={12} />
+                                <span>Connected</span>
+                            </>
+                        ) : (
+                            <>
+                                <WifiOff size={12} />
+                                <span>Disconnected</span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex-1 p-4 relative min-h-[350px] flex flex-col">
@@ -1485,6 +1556,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         <div>
                                             {/* Cycle Summary Bar */}
                                             <div className="px-4 py-3 border-b border-white/5 bg-white/[0.02] flex items-center gap-4 text-xs flex-wrap">
+                                                {selectedCycle.strategy_name && (
+                                                    <span className="text-blue-400 font-semibold bg-blue-500/10 px-2 py-0.5 rounded">
+                                                        {selectedCycle.strategy_name}
+                                                    </span>
+                                                )}
                                                 <span className="text-gray-400">
                                                     <Clock size={12} className="inline mr-1" />
                                                     {new Date(selectedCycle.entry_time).toLocaleDateString('ko-KR')} — {selectedCycle.exit_time ? new Date(selectedCycle.exit_time).toLocaleDateString('ko-KR') : 'Open'}
@@ -1497,6 +1573,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 <span className={selectedCycle.realized_pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
                                                     PnL: {selectedCycle.realized_pnl >= 0 ? '+' : ''}{selectedCycle.realized_pnl?.toLocaleString()} ({selectedCycle.return_pct >= 0 ? '+' : ''}{selectedCycle.return_pct?.toFixed(2)}%)
                                                 </span>
+                                                {selectedCycle.config_snapshot && (
+                                                    <span className="text-gray-500 hover:text-gray-300 cursor-help relative group">
+                                                        <span className="underline decoration-dashed">Params</span>
+                                                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block z-50 bg-gray-900 border border-white/10 rounded-lg p-3 text-xs max-w-sm max-h-48 overflow-auto shadow-xl whitespace-pre-wrap">
+                                                            {JSON.stringify(selectedCycle.config_snapshot, null, 2)}
+                                                        </div>
+                                                    </span>
+                                                )}
                                             </div>
                                             <VisualBacktestChart
                                                 data={cycleChartData.candles}

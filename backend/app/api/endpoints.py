@@ -809,6 +809,8 @@ async def get_trade_history_list(request: TradeListRequest, db: Session = Depend
             "is_paper": t.is_paper,
             "status": t.status,
             "trade_metadata": t.trade_metadata,
+            "config_snapshot": t.config_snapshot,
+            "strategy_name": t.session.strategy_name if t.session else None,
         }
 
         if t.signal_type == "BUY":
@@ -817,10 +819,15 @@ async def get_trade_history_list(request: TradeListRequest, db: Session = Depend
             open_positions[key].append(trade_dict)
         elif t.signal_type == "SELL":
             buys = open_positions.get(key, [])
+            # Get strategy_name and config_snapshot from first BUY or SELL
+            first_config = buys[0]["config_snapshot"] if buys and buys[0].get("config_snapshot") else trade_dict.get("config_snapshot")
+            strategy_name = buys[0]["strategy_name"] if buys and buys[0].get("strategy_name") else trade_dict.get("strategy_name")
             cycle = {
                 "symbol": t.symbol,
                 "session_id": t.session_id,
                 "is_paper": t.is_paper,
+                "strategy_name": strategy_name,
+                "config_snapshot": first_config,
                 "buys": list(buys),
                 "sell": trade_dict,
                 "entry_time": buys[0]["signal_timestamp"] if buys else trade_dict["signal_timestamp"],
@@ -862,6 +869,8 @@ async def get_trade_history_list(request: TradeListRequest, db: Session = Depend
                 "symbol": key[1],
                 "session_id": key[0],
                 "is_paper": buys[0]["is_paper"],
+                "strategy_name": buys[0].get("strategy_name"),
+                "config_snapshot": buys[0].get("config_snapshot"),
                 "buys": buys,
                 "sell": None,
                 "entry_time": buys[0]["signal_timestamp"],

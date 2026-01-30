@@ -3,11 +3,19 @@ import json
 import logging
 import websockets
 from typing import Optional, Dict, List, Callable, Any
-from datetime import datetime
+from datetime import datetime, time
 from ..core.config import settings
 from .kiwoom_base import KiwoomBaseAdapter
+from ..models.live_trading import ErrorType
+from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
+
+# Market Hours Configuration
+MARKET_OPEN_TIME = time(9, 0)
+MARKET_CLOSE_TIME = time(15, 30)
+TICK_HEALTH_CHECK_INTERVAL = 60  # seconds - check for tick health every 60s
+TICK_STALE_THRESHOLD = 90  # seconds - if no tick for 90s during market hours, reconnect
 
 class KiwoomWebSocket(KiwoomBaseAdapter):
     _instance = None
@@ -16,16 +24,31 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
     def __init__(self):
         # Initialize Base Class
         KiwoomBaseAdapter.__init__(self)
-        
+
         self.uri = f"{settings.HCP_KIWOOM_API_URL.replace('https://', 'wss://')}:10000/api/dostk/websocket"
         self.websocket = None
         self.is_running = False
         self.monitored_symbols: List[str] = []
-        
+
         # Callbacks
         self.on_tick_callback: Optional[Callable[[Dict], None]] = None
         self.on_order_callback: Optional[Callable[[Dict], None]] = None
         self.on_balance_callback: Optional[Callable[[Dict], None]] = None
+
+        # Health Check State
+        self.last_tick_time: Optional[datetime] = None
+        self._health_check_task: Optional[asyncio.Task] = None
+
+    @staticmethod
+    def is_market_open() -> bool:
+        """Check if Korean stock market is currently open (09:00-15:30, weekdays)"""
+        now = datetime.now()
+        # Weekend check (Saturday=5, Sunday=6)
+        if now.weekday() >= 5:
+            return False
+        # Time check
+        current_time = now.time()
+        return MARKET_OPEN_TIME <= current_time <= MARKET_CLOSE_TIME
         
     @staticmethod
     def get_instance():
@@ -45,14 +68,17 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         if self.is_running and self.websocket and self.websocket.open:
             logger.info("WS: Already connected and running.")
             return
-            
+
         self.access_token = token
-        
+
         if not self.is_running:
             self.is_running = True
             if KiwoomWebSocket._monitor_task is None or KiwoomWebSocket._monitor_task.done():
                 logger.info(f"WS: Starting connection loop to {self.uri}")
                 KiwoomWebSocket._monitor_task = asyncio.create_task(self._monitor_connection())
+            # Start health check task
+            if self._health_check_task is None or self._health_check_task.done():
+                self._health_check_task = asyncio.create_task(self._tick_health_check())
         else:
             logger.info("WS: Connection loop already running, token updated.")
 
@@ -164,8 +190,17 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             logger.warning(f"WS: Connection ended. close_code={close_code}, close_reason={close_reason}")
         except websockets.exceptions.ConnectionClosed as e:
             logger.warning(f"WS: Connection closed by server. Code={e.code}, Reason={e.reason}")
+            error_logger.log_websocket_error(
+                message=f"WS: Connection closed by server. Code={e.code}, Reason={e.reason}",
+                exception=e,
+                context={"close_code": e.code, "close_reason": e.reason}
+            )
         except Exception as e:
             logger.error(f"WS: Listen Loop Error: {e}", exc_info=True)
+            error_logger.log_websocket_error(
+                message=f"WS: Listen Loop Error: {e}",
+                exception=e
+            )
 
     async def _handle_message(self, message):
          try:
@@ -176,9 +211,15 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 items = data.get("data", [])
                 for item in items:
                     m_type = item.get("type")
-                    if m_type == "0B": # Stock Execution
+                    if m_type == "0B":  # Stock Price Tick
                         if self.on_tick_callback:
                             self._parse_tick(item)
+                    elif m_type == "00":  # Order Execution Notification (주문체결통보)
+                        if self.on_order_callback:
+                            self._parse_order_event(item)
+                    elif m_type == "04":  # Balance Change Notification (잔고변동통보)
+                        if self.on_balance_callback:
+                            self._parse_balance_event(item)
                     else:
                         logger.debug(f"WS: Received REAL type {m_type}")
             elif trnm == "REG":
@@ -216,16 +257,146 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             price = float(price_str)
             volume_str = vals.get("13", "0").strip()
             volume = int(volume_str)
-            
+
             tick = {
                 "symbol": item.get("item"),
                 "price": price,
                 "volume": volume,
                 "timestamp": datetime.now().isoformat()
             }
+            # Update last tick time for health check
+            self.last_tick_time = datetime.now()
             self.on_tick_callback(tick)
         except Exception as e:
             logger.error(f"Tick Parse Error: {e}")
+            error_logger.log_websocket_error(
+                message=f"Tick Parse Error: {e}",
+                exception=e,
+                context={"item": item}
+            )
+
+    def _parse_order_event(self, item):
+        """
+        Parse Order Execution Notification (type "00")
+        Kiwoom WebSocket 주문체결통보 파싱
+
+        Key fields (based on Kiwoom API docs):
+        - 9201: 주문번호 (order_no)
+        - 9001: 종목코드 (symbol)
+        - 302: 종목명 (name)
+        - 913: 주문/체결구분 (order_status: 접수/체결/확인 등)
+        - 905: 주문수량 (order_qty)
+        - 904: 미체결수량 (unfilled_qty)
+        - 908: 체결수량 (filled_qty)
+        - 909: 주문가격 (order_price)
+        - 910: 체결가격 (exec_price)
+        - 901: 매도수구분 (side: 1=매도, 2=매수)
+        """
+        try:
+            vals = item.get("values", {})
+
+            def safe_str(v):
+                return str(v).strip() if v else ""
+
+            def safe_int(v):
+                if not v:
+                    return 0
+                return int(str(v).strip().replace("+", "").replace("-", ""))
+
+            def safe_float(v):
+                if not v:
+                    return 0.0
+                return float(str(v).strip().replace("+", "").replace("-", ""))
+
+            order_event = {
+                "event_type": "order",
+                "order_no": safe_str(vals.get("9201")),
+                "symbol": safe_str(vals.get("9001")),
+                "name": safe_str(vals.get("302")),
+                "order_status": safe_str(vals.get("913")),  # 접수, 체결, 확인 등
+                "side": "SELL" if safe_str(vals.get("901")) == "1" else "BUY",
+                "order_qty": safe_int(vals.get("905")),
+                "order_price": safe_float(vals.get("909")),
+                "filled_qty": safe_int(vals.get("908")),
+                "exec_price": safe_float(vals.get("910")),
+                "unfilled_qty": safe_int(vals.get("904")),
+                "timestamp": datetime.now().isoformat(),
+                "raw_values": vals  # 디버깅용 원본 데이터
+            }
+
+            # 체결 이벤트만 로깅 (접수는 너무 많음)
+            if order_event["filled_qty"] > 0:
+                logger.info(f"WS Order Fill: {order_event['side']} {order_event['symbol']} "
+                           f"qty={order_event['filled_qty']} @ {order_event['exec_price']} "
+                           f"(order_no={order_event['order_no']})")
+            else:
+                logger.debug(f"WS Order Event: {order_event['order_status']} {order_event['symbol']} order_no={order_event['order_no']}")
+
+            self.on_order_callback(order_event)
+
+        except Exception as e:
+            logger.error(f"Order Event Parse Error: {e}", exc_info=True)
+            error_logger.log_websocket_error(
+                message=f"Order Event Parse Error: {e}",
+                exception=e,
+                context={"item": item}
+            )
+
+    def _parse_balance_event(self, item):
+        """
+        Parse Balance Change Notification (type "04")
+        Kiwoom WebSocket 잔고변동통보 파싱
+
+        Key fields:
+        - 9001: 종목코드
+        - 302: 종목명
+        - 930: 보유수량
+        - 931: 매입단가
+        - 932: 총매입가
+        - 933: 현재가
+        - 945: 평가손익
+        """
+        try:
+            vals = item.get("values", {})
+
+            def safe_str(v):
+                return str(v).strip() if v else ""
+
+            def safe_int(v):
+                if not v:
+                    return 0
+                return int(str(v).strip().replace("+", "").replace("-", ""))
+
+            def safe_float(v):
+                if not v:
+                    return 0.0
+                return float(str(v).strip().replace("+", "").replace("-", ""))
+
+            balance_event = {
+                "event_type": "balance",
+                "symbol": safe_str(vals.get("9001")),
+                "name": safe_str(vals.get("302")),
+                "holding_qty": safe_int(vals.get("930")),
+                "avg_price": safe_float(vals.get("931")),
+                "total_cost": safe_float(vals.get("932")),
+                "current_price": safe_float(vals.get("933")),
+                "profit_loss": safe_float(vals.get("945")),
+                "timestamp": datetime.now().isoformat(),
+                "raw_values": vals
+            }
+
+            logger.info(f"WS Balance Update: {balance_event['symbol']} "
+                       f"qty={balance_event['holding_qty']} @ avg={balance_event['avg_price']}")
+
+            self.on_balance_callback(balance_event)
+
+        except Exception as e:
+            logger.error(f"Balance Event Parse Error: {e}", exc_info=True)
+            error_logger.log_websocket_error(
+                message=f"Balance Event Parse Error: {e}",
+                exception=e,
+                context={"item": item}
+            )
 
     async def subscribe_symbols(self, symbols: List[str]):
         if not symbols: return
@@ -236,10 +407,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             await self._send_reg(symbols, ["0B"]) 
             
     async def _send_reg(self, items: List[str], types: List[str]):
-        if not self.websocket or not self.websocket.open: 
+        if not self.websocket or not self.websocket.open:
             logger.warning(f"WS: Skip REG (WS not open): {items} {types}")
             return
-        
+
         logger.info(f"WS: Sending REG for items: {items}, types: {types}")
         payload = {
             "trnm": "REG",
@@ -248,3 +419,63 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             "data": [{ "item": items, "type": types }]
         }
         await self.websocket.send(json.dumps(payload))
+
+    async def _tick_health_check(self):
+        """
+        Monitor tick data health during market hours.
+        If no tick received for TICK_STALE_THRESHOLD seconds during market hours,
+        force reconnection to recover from stale connections.
+        """
+        logger.info("WS: Tick health check task started")
+        while self.is_running:
+            try:
+                await asyncio.sleep(TICK_HEALTH_CHECK_INTERVAL)
+
+                # Only check during market hours
+                if not self.is_market_open():
+                    continue
+
+                # Skip if no symbols registered
+                if not self.monitored_symbols:
+                    continue
+
+                # Check tick staleness
+                if self.last_tick_time:
+                    elapsed = (datetime.now() - self.last_tick_time).total_seconds()
+                    if elapsed > TICK_STALE_THRESHOLD:
+                        logger.warning(
+                            f"WS Health: No tick for {elapsed:.0f}s during market hours. "
+                            f"Triggering reconnection..."
+                        )
+                        await self._force_reconnect()
+                else:
+                    # No tick ever received during market hours - might be stale from startup
+                    if self.websocket and self.websocket.open:
+                        logger.warning("WS Health: Market open but no tick received yet. Re-registering symbols...")
+                        await self._send_reg(self.monitored_symbols, ["0B"])
+
+            except asyncio.CancelledError:
+                logger.info("WS: Tick health check task cancelled")
+                break
+            except Exception as e:
+                logger.error(f"WS Health Check Error: {e}")
+                error_logger.log_websocket_error(
+                    message=f"WS Health Check Error: {e}",
+                    exception=e
+                )
+                await asyncio.sleep(10)
+
+    async def _force_reconnect(self):
+        """Force close and reconnect the WebSocket"""
+        try:
+            if self.websocket and self.websocket.open:
+                logger.info("WS: Force closing connection for reconnect...")
+                await self.websocket.close()
+            # Reset tick time so we don't immediately trigger another reconnect
+            self.last_tick_time = None
+        except Exception as e:
+            logger.error(f"WS Force Reconnect Error: {e}")
+            error_logger.log_websocket_error(
+                message=f"WS Force Reconnect Error: {e}",
+                exception=e
+            )
