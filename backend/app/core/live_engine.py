@@ -128,6 +128,14 @@ class LiveTradingEngine:
                     if history:
                         self.history_candles = history
                         logger.info(f"Loaded {len(history)} historical candles (Attempt {attempt+1}).")
+                        # Set initial price from last candle (for when market is closed)
+                        if history:
+                            last_candle = history[-1]
+                            initial_price = last_candle.get('close', 0)
+                            if initial_price > 0:
+                                self.context.price_map[self.symbol] = initial_price
+                                self.last_price = initial_price
+                                logger.info(f"Initial price set from history: {initial_price}")
                         break
                     else:
                         logger.warning(f"History fetch returned empty (Attempt {attempt+1}). Retrying...")

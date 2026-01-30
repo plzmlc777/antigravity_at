@@ -111,8 +111,20 @@ class LiveContext:
             
             # Unrealized part of current holding
             current_price = self.get_current_price(executions[0].symbol if executions else "")
+
+            # If current_price is 0 (market closed/unavailable), use average purchase price
+            # This prevents showing large negative PnL when price data is unavailable
+            if current_price == 0 and current_qty > 0 and total_bought_cost > 0:
+                # Calculate average purchase price from remaining holdings
+                total_bought_qty = sum(
+                    (ex.filled_quantity or 0.0) for ex in executions if ex.signal_type == "BUY"
+                )
+                if total_bought_qty > 0:
+                    avg_price = total_bought_cost / total_bought_qty
+                    current_price = avg_price
+
             unrealized_value = current_qty * current_price
-            
+
             return total_sold_value + unrealized_value - total_bought_cost
             
         except Exception as e:

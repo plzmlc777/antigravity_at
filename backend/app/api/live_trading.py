@@ -74,25 +74,38 @@ async def get_live_status():
     """
     Get status of all active Live Sessions.
     """
-    return live_manager.get_status()
+    return await live_manager.get_status()
 
 @router.get("/accumulated-stats")
-async def get_accumulated_stats(symbols: str = ""):
+async def get_accumulated_stats(symbols: str = "", strategy_name: str = ""):
     """
     Get accumulated trade stats for symbols (even when no session is running).
-    Query params: symbols=005930,000660 (comma-separated)
+    Query params:
+        - symbols=005930,000660 (comma-separated)
+        - strategy_name=rsi_martingale (optional, filter by strategy)
     Returns detailed stats including win rate, recent 10 cycles, max/min/avg PnL
+    Aggregates ALL historical cycles across all sessions with matching (symbol, strategy_name).
     """
     from ..db.session import SessionLocal
-    from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+    from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveBotSession
 
     db = SessionLocal()
     try:
         symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else []
 
+        # Build query with optional strategy_name filter
         query = db.query(LiveTradeExecution).filter(
             LiveTradeExecution.status == ExecutionStatus.FILLED
         )
+
+        # If strategy_name is provided, filter by sessions with that strategy
+        if strategy_name:
+            # Get session IDs that match the strategy
+            matching_sessions = db.query(LiveBotSession.id).filter(
+                LiveBotSession.strategy_name == strategy_name
+            ).subquery()
+            query = query.filter(LiveTradeExecution.session_id.in_(matching_sessions))
+
         if symbol_list:
             query = query.filter(LiveTradeExecution.symbol.in_(symbol_list))
 

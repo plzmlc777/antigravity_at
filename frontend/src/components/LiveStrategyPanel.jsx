@@ -53,21 +53,23 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     }, [status, onStatusChange]);
 
-    // Fetch accumulated stats on mount and when configList changes
+    // Fetch accumulated stats on mount and when configList/strategyName changes
+    // This aggregates ALL historical cycles across all sessions with matching (symbol, strategy)
     useEffect(() => {
         const fetchAccumulatedStats = async () => {
             if (!configList || configList.length === 0) return;
             const symbols = configList.map(c => c.symbol).filter(Boolean);
             if (symbols.length === 0) return;
             try {
-                const stats = await getAccumulatedStats(symbols);
+                // Pass strategyName to filter by strategy (aggregates all historical sessions)
+                const stats = await getAccumulatedStats(symbols, strategyName);
                 setAccumulatedStats(stats || {});
             } catch (err) {
                 console.error('Failed to fetch accumulated stats:', err);
             }
         };
         fetchAccumulatedStats();
-    }, [configList]);
+    }, [configList, strategyName]);
 
     // Overview Chart: Transform historyData cycles → rank-based chart (like IntegratedAnalysis)
     const { overviewChartData, overviewTrades, overviewRankFormatter, overviewPriceScaleOptions, overviewSymbolRanks } = useMemo(() => {

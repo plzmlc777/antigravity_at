@@ -128,15 +128,12 @@ const UnifiedSessionCards = ({
                     const price = session?.current_price || 0;
                     const pnl = session?.pnl || 0;
                     const isPaper = session?.is_paper ?? true;
-                    // Use session trade_stats if it has actual trades, otherwise use accumulated stats from DB
-                    const sessionTradeStats = session?.trade_stats || {};
+                    // Always use accumulated stats from API (filtered by strategy_name)
+                    // This includes ALL historical cycles across all sessions with the same strategy
                     const symbolAccStats = accumulatedStats[cfg.symbol] || {};
-                    // Check if session has actual trade data (not just empty structure)
-                    const sessionHasTrades = (sessionTradeStats.paper?.trades > 0) || (sessionTradeStats.real?.trades > 0);
                     const accHasTrades = (symbolAccStats.paper?.trades > 0) || (symbolAccStats.real?.trades > 0);
-                    // Use accumulated stats if session doesn't have trades yet
-                    const tradeStats = sessionHasTrades ? sessionTradeStats : (accHasTrades ? symbolAccStats : sessionTradeStats);
-                    const hasAccumulatedData = sessionHasTrades || accHasTrades;
+                    const tradeStats = symbolAccStats;
+                    const hasAccumulatedData = accHasTrades;
 
                     // Use strategyState for selected rank (more up-to-date from WebSocket)
                     const activeState = (isSelected && strategyState) ? strategyState : state;

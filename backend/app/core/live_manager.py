@@ -376,20 +376,32 @@ class LiveManager:
         finally:
             db.close()
 
-    def get_status(self, session_id: str = None) -> List[Dict]:
+    async def get_status(self, session_id: str = None) -> List[Dict]:
         """
         Return status of specific session or all managed sessions.
         """
         results = []
         targets = [session_id] if session_id else self.engines.keys()
-        
+
         for sid in targets:
             if sid not in self.engines: continue
             eng = self.engines[sid]
-            
+
+            # Get current price - fallback to API if price_map is empty
+            current_price = eng.context.get_current_price(eng.symbol)
+            if current_price == 0:
+                try:
+                    price_data = await self.adapter.get_current_price(eng.symbol)
+                    current_price = price_data.get('price', 0)
+                    # Update price_map for future calls
+                    if current_price > 0:
+                        eng.context.price_map[eng.symbol] = current_price
+                except Exception as e:
+                    logger.warning(f"Failed to fetch price for {eng.symbol}: {e}")
+
             # Context Summary (Isolated PnL based on trades)
             pnl = eng.context.calculate_pnl()
-            
+
             strategy_state = {}
             try:
                 if hasattr(eng, 'strategy_instance') and hasattr(eng.strategy_instance, 'get_state'):
@@ -410,7 +422,7 @@ class LiveManager:
                 "is_running": eng.is_running,
                 "orders_enabled": eng.orders_enabled,
                 "is_paper": getattr(eng, 'is_paper', True),
-                "current_price": eng.context.get_current_price(eng.symbol),
+                "current_price": current_price,
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),
                 "last_update": datetime.now().isoformat(),

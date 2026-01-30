@@ -223,9 +223,10 @@ export const liquidateLiveBot = async (sessionId) => {
     return data;
 };
 
-export const getAccumulatedStats = async (symbols = []) => {
+export const getAccumulatedStats = async (symbols = [], strategyName = '') => {
     const symbolsParam = symbols.join(',');
-    const { data } = await api.get(`/live/accumulated-stats?symbols=${symbolsParam}`);
+    const strategyParam = strategyName ? `&strategy_name=${encodeURIComponent(strategyName)}` : '';
+    const { data } = await api.get(`/live/accumulated-stats?symbols=${symbolsParam}${strategyParam}`);
     return data;
 };
 
