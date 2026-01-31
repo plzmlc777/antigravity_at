@@ -1004,16 +1004,72 @@ const StrategyView = () => {
             await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
             console.log("Configuration saved to DB");
 
+            // 2. Save pending optimization results if exists
+            if (pendingOptResult) {
+                await saveStrategyResult(pendingOptResult.tabUuid, 'optimization', pendingOptResult.data);
+                addLog('💾 Optimization results saved to DB', 'info');
+                setPendingOptResult(null);
+            }
+
             // Clear dirty flag after successful save
             setIsDirty(false);
 
-            // 2. Automatically trigger backtest
+            // 3. Automatically trigger backtest
             if (activeTab !== -1 && selectedStrategy?.id) {
                 await runBacktest(selectedStrategy.id);
             }
         } catch (e) {
             console.error("Failed to save configuration:", e);
             alert("Failed to save configuration. Please try again.");
+        }
+    };
+
+    // Discard all changes (reload from DB)
+    const handleDiscardChanges = async () => {
+        if (!selectedStrategy) return;
+
+        try {
+            // 1. Reload configs from DB
+            const savedList = await getStrategyConfigs(selectedStrategy.id);
+
+            if (savedList && savedList.length > 0) {
+                // Build dynamic default config from current strategy's schema
+                let dynamicDefault = { ...DEFAULT_CONFIG };
+                const schema = selectedStrategy?.parameter_schema;
+                if (schema?.fields && schema.fields.length > 0) {
+                    schema.fields.forEach(field => {
+                        const key = field.key || field.name;
+                        if (field.default !== undefined) {
+                            dynamicDefault[key] = field.default;
+                        }
+                    });
+                }
+
+                const migratedList = savedList.map(cfg => {
+                    let configData = cfg.config_json || {};
+                    let mergedCfg = { ...dynamicDefault, ...configData };
+                    mergedCfg.rank = cfg.rank;
+                    mergedCfg.is_active = cfg.is_active === false ? false : true;
+                    mergedCfg.tabName = cfg.tab_name;
+                    mergedCfg.uuid = cfg.tab_id;
+                    if (!mergedCfg.uuid) mergedCfg.uuid = generateUUID();
+                    return mergedCfg;
+                });
+
+                setConfigList(migratedList);
+            }
+
+            // 2. Discard pending optimization results
+            if (pendingOptResult) {
+                setPendingOptResult(null);
+            }
+
+            // 3. Clear dirty flag
+            setIsDirty(false);
+            addLog('🔄 Changes discarded, reverted to saved state', 'info');
+        } catch (e) {
+            console.error("Failed to discard changes:", e);
+            addLog('Failed to discard changes', 'error');
         }
     };
 
@@ -2317,14 +2373,28 @@ const StrategyView = () => {
                                                     )}
                                                 </button>
                                             </div>
-                                            <button
-                                                onClick={handleApplyConfig}
-                                                disabled={isLoading || !selectedStrategy}
-                                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                                            >
-                                                <Save size={14} />
-                                                Apply
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={handleApplyConfig}
+                                                    disabled={isLoading || !selectedStrategy}
+                                                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                                >
+                                                    <Save size={14} />
+                                                    Apply
+                                                </button>
+                                                {(isDirty || pendingOptResult) && (
+                                                    <button
+                                                        onClick={handleDiscardChanges}
+                                                        disabled={isLoading}
+                                                        className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                        Discard
+                                                    </button>
+                                                )}
+                                            </div>
                                             <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
                                                 {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
                                             </span>
@@ -2911,39 +2981,15 @@ const StrategyView = () => {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {pendingOptResult && (
-                                                                    <>
-                                                                        <button
-                                                                            onClick={savePendingOptResult}
-                                                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                                            </svg>
-                                                                            Save Results
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={discardPendingOptResult}
-                                                                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                                            </svg>
-                                                                            Discard
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                                <button
-                                                                    onClick={exportOptResultsToCSV}
-                                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                    </svg>
-                                                                    Export CSV
-                                                                </button>
-                                                            </div>
+                                                            <button
+                                                                onClick={exportOptResultsToCSV}
+                                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                </svg>
+                                                                Export CSV
+                                                            </button>
                                                         </div>
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
