@@ -122,11 +122,6 @@ export const cancelOrder = async (orderData) => {
     return data;
 };
 
-export const setSystemMode = async (mode) => {
-    const { data } = await api.post('/system/mode', { mode });
-    return data;
-};
-
 export const setAuthToken = (token) => {
     if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;

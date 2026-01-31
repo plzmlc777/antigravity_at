@@ -13,7 +13,7 @@ load_dotenv("backend/.env")    # child (if running from root)
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
     PROJECT_NAME: str = "Antigravity Trading System"
-    PROJECT_VERSION: str = "0.9.9.37"
+    PROJECT_VERSION: str = "0.9.9.43"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
@@ -31,38 +31,10 @@ class Settings(BaseSettings):
     MIN_CONNECTIONS_COUNT: int = 10
 
     # PostgreSQL
-    POSTGRES_SERVER: str 
-    POSTGRES_USER: str 
-    POSTGRES_PASSWORD: str 
-    POSTGRES_DB: str 
-
-    # Trading Mode (MOCK / REAL) - REQUIRED NO DEFAULT
-    TRADING_MODE: str 
-
-    @model_validator(mode='after')
-    def validate_config(self):
-        if self.TRADING_MODE.upper() == "REAL":
-            missing = []
-            if not self.HCP_KIWOOM_APP_KEY: missing.append("HCP_KIWOOM_APP_KEY")
-            if not self.HCP_KIWOOM_SECRET_KEY: missing.append("HCP_KIWOOM_SECRET_KEY")
-            # if not self.HCP_KIWOOM_ACCOUNT_NO: missing.append("HCP_KIWOOM_ACCOUNT_NO") # Account No might be needed or verified later
-            
-            if missing:
-                # We now allow missing keys because they might be provided via DB.
-                # Just log a warning or pass.
-                pass 
-        elif self.TRADING_MODE.upper() == "MOCK":
-             # Auto-switch to Mock API if still default
-             if self.HCP_KIWOOM_API_URL == "https://api.kiwoom.com":
-                  self.HCP_KIWOOM_API_URL = "https://mockapi.kiwoom.com"
-                  print(f"DEBUG: Switched to Mock URL: {self.HCP_KIWOOM_API_URL}")
-                  
-        return self
-
-    def set_mode(self, mode: str):
-        self.TRADING_MODE = mode.upper()
-        # Re-validate
-        self.validate_config()
+    POSTGRES_SERVER: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
 
     class Config:
         model_config = {

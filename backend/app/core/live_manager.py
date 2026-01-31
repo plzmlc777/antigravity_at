@@ -8,8 +8,6 @@ from datetime import datetime
 
 from ..core.live_engine import LiveTradingEngine
 from ..adapters.kiwoom_real import KiwoomRealAdapter
-from ..adapters.kiwoom_mock import KiwoomMockAdapter
-# from ..strategies.time_momentum import TimeMomentumStrategy # Removed
 from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
@@ -36,21 +34,100 @@ class LiveManager:
         # Track pending orders: order_no -> {session_id, db_execution_id, ...}
         self.pending_orders: Dict[str, Dict[str, Any]] = {}
 
-        if settings.TRADING_MODE == "MOCK":
-            logger.info("LiveManager: Using KIWOOM MOCK ADAPTER")
-            self.adapter = KiwoomMockAdapter()
-        else:
-            self.adapter = KiwoomRealAdapter()
-            # Register Global Tick Listener
-            if hasattr(self.adapter, "add_tick_listener"):
-                self.adapter.add_tick_listener(self._on_tick)
-            # Register Order Fill Listener (체결 확인)
-            if hasattr(self.adapter, "add_order_listener"):
-                self.adapter.add_order_listener(self._on_order_fill)
-            # Bind this adapter's callback to the singleton WebSocket
-            # Must be called AFTER adding listeners so they are registered
-            if hasattr(self.adapter, "setup_realtime_callbacks"):
-                self.adapter.setup_realtime_callbacks()
+        # Always use KiwoomRealAdapter (paper/real trading controlled by session's is_paper flag)
+        # Initially created without credentials; will be reinitialized in initialize() with DB account
+        self.adapter = KiwoomRealAdapter()
+        self._setup_adapter_listeners()
+
+    def _setup_adapter_listeners(self):
+        """Setup listeners on the current adapter instance."""
+        # Register Global Tick Listener
+        if hasattr(self.adapter, "add_tick_listener"):
+            self.adapter.add_tick_listener(self._on_tick)
+        # Register Order Fill Listener (체결 확인)
+        if hasattr(self.adapter, "add_order_listener"):
+            self.adapter.add_order_listener(self._on_order_fill)
+        # Bind this adapter's callback to the singleton WebSocket
+        # Must be called AFTER adding listeners so they are registered
+        if hasattr(self.adapter, "setup_realtime_callbacks"):
+            self.adapter.setup_realtime_callbacks()
+
+    async def _reinitialize_adapter(self):
+        """
+        Reinitialize adapter with active account credentials from DB.
+        Called during initialize() to get proper credentials for token acquisition.
+        """
+        from ..models.account import ExchangeAccount
+        from ..core import security
+
+        db = SessionLocal()
+        try:
+            active_account = db.query(ExchangeAccount).filter(
+                ExchangeAccount.is_active == True
+            ).first()
+
+            if active_account:
+                try:
+                    decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
+                    decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
+
+                    # Create new adapter with DB credentials
+                    self.adapter = KiwoomRealAdapter(
+                        app_key=decrypted_app,
+                        secret_key=decrypted_secret,
+                        account_no=active_account.account_number,
+                        account_name=active_account.account_name,
+                        api_url=active_account.api_url,
+                        is_virtual=active_account.is_virtual
+                    )
+                    self._setup_adapter_listeners()
+                    logger.info(f"LiveManager: Adapter reinitialized with account '{active_account.account_name}' "
+                               f"(virtual={active_account.is_virtual}, url={active_account.api_url or 'default'})")
+                    return True
+                except Exception as e:
+                    logger.error(f"Failed to decrypt account keys: {e}")
+                    return False
+            else:
+                logger.warning("LiveManager: No active account found in DB. Using default adapter.")
+                return False
+        finally:
+            db.close()
+
+    async def on_account_changed(self):
+        """
+        Called when the active account is changed in Settings.
+        Reinitializes the adapter and acquires a new token.
+        """
+        logger.info("LiveManager: Account change detected. Reinitializing adapter...")
+
+        # Reinitialize adapter with new account
+        success = await self._reinitialize_adapter()
+        if not success:
+            logger.error("LiveManager: Failed to reinitialize adapter on account change.")
+            return {"status": "error", "message": "Failed to reinitialize adapter"}
+
+        # Acquire token for new adapter
+        if hasattr(self.adapter, '_ensure_token'):
+            try:
+                await self.adapter._ensure_token()
+                if self.adapter.access_token:
+                    logger.info("LiveManager: Token acquired for new account.")
+                else:
+                    logger.warning("LiveManager: Failed to acquire token for new account.")
+            except Exception as e:
+                logger.error(f"LiveManager: Token acquisition failed: {e}")
+
+        # Update all running engines with new adapter reference
+        for session_id, engine in self.engines.items():
+            engine.adapter = self.adapter
+            logger.info(f"LiveManager: Updated adapter for session {session_id}")
+
+        return {
+            "status": "success",
+            "message": f"Adapter switched to {self.adapter.get_name()}",
+            "account_name": self.adapter.get_account_name(),
+            "is_virtual": self.adapter.is_virtual
+        }
 
     def _on_tick(self, tick_data: Dict):
         """
@@ -186,6 +263,9 @@ class LiveManager:
         """
         # Connect to MarketRouter
         market_data_router.set_live_manager(self)
+
+        # Reinitialize adapter with active account credentials from DB
+        await self._reinitialize_adapter()
 
         # Ensure token is ready BEFORE restoring sessions (prevents "Cannot start Realtime: No Token")
         if hasattr(self.adapter, '_ensure_token'):

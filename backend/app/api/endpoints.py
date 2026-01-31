@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
-from ..adapters.kiwoom_mock import KiwoomMockAdapter
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
@@ -13,61 +12,63 @@ from ..core.waterfall_engine import fetch_visualization_feeds
 router = APIRouter()
 
 # Dependency Injection for Exchange Adapter
-# Dependency Injection for Exchange Adapter
 def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
-    if settings.TRADING_MODE.upper() == "REAL":
-        # 0. Check Cache First (Using a default user_id=1 for single-user system MVP)
-        # In multi-user, we'd extract user_id from token/request
-        SYSTEM_USER_ID = 1 
-        
-        from ..core.account_cache import AccountCache
-        cache = AccountCache.get_instance()
-        cached_config = cache.get_active_account_config(SYSTEM_USER_ID)
-        
-        if cached_config:
-            return KiwoomRealAdapter(
-                app_key=cached_config['app_key'],
-                secret_key=cached_config['secret_key'],
-                account_no=cached_config['account_no'],
-                account_name=cached_config['account_name']
-            )
+    # 0. Check Cache First (Using a default user_id=1 for single-user system MVP)
+    # In multi-user, we'd extract user_id from token/request
+    SYSTEM_USER_ID = 1
 
-        # 1. Fetch active account from DB
-        from ..models.account import ExchangeAccount
-        from ..core import security
-        
-        # Assume user_id=1 for now, or pick first active
-        active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
-        
-        if active_account:
-            try:
-                decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
-                decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
-                
-                # 2. Update Cache
-                config = {
-                    'app_key': decrypted_app,
-                    'secret_key': decrypted_secret,
-                    'account_no': active_account.account_number,
-                    'account_name': active_account.account_name
-                }
-                cache.set_active_account_config(SYSTEM_USER_ID, config)
-                
-                return KiwoomRealAdapter(
-                    app_key=decrypted_app,
-                    secret_key=decrypted_secret,
-                    account_no=active_account.account_number,
-                    account_name=active_account.account_name
-                )
-            except Exception as e:
-                # Log error and fallback (or fail)
-                print(f"Error decrypting keys: {e}")
-                pass
-                
-        # Fallback to .env if DB lookup fails or no active account
-        return KiwoomRealAdapter()
-        
-    return KiwoomMockAdapter()
+    from ..core.account_cache import AccountCache
+    cache = AccountCache.get_instance()
+    cached_config = cache.get_active_account_config(SYSTEM_USER_ID)
+
+    if cached_config:
+        return KiwoomRealAdapter(
+            app_key=cached_config['app_key'],
+            secret_key=cached_config['secret_key'],
+            account_no=cached_config['account_no'],
+            account_name=cached_config['account_name'],
+            api_url=cached_config.get('api_url'),
+            is_virtual=cached_config.get('is_virtual', False)
+        )
+
+    # 1. Fetch active account from DB
+    from ..models.account import ExchangeAccount
+    from ..core import security
+
+    # Assume user_id=1 for now, or pick first active
+    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+
+    if active_account:
+        try:
+            decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
+            decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
+
+            # 2. Update Cache (include api_url and is_virtual for virtual accounts)
+            config = {
+                'app_key': decrypted_app,
+                'secret_key': decrypted_secret,
+                'account_no': active_account.account_number,
+                'account_name': active_account.account_name,
+                'api_url': active_account.api_url,
+                'is_virtual': active_account.is_virtual
+            }
+            cache.set_active_account_config(SYSTEM_USER_ID, config)
+
+            return KiwoomRealAdapter(
+                app_key=decrypted_app,
+                secret_key=decrypted_secret,
+                account_no=active_account.account_number,
+                account_name=active_account.account_name,
+                api_url=active_account.api_url,
+                is_virtual=active_account.is_virtual
+            )
+        except Exception as e:
+            # Log error and fallback (or fail)
+            print(f"Error decrypting keys: {e}")
+            pass
+
+    # Fallback to .env if DB lookup fails or no active account
+    return KiwoomRealAdapter()
 
 class OrderRequest(BaseModel):
     symbol: str
@@ -107,26 +108,14 @@ class ConditionalOrderRequest(BaseModel):
 @router.get("/status")
 async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
     return {
-        "exchange": adapter.get_name(), 
+        "exchange": adapter.get_name(),
         "status": "online",
-        "mode": settings.TRADING_MODE,
         "account_name": adapter.get_account_name()
     }
 
 @router.get("/system/version")
 async def get_system_version():
     return {"version": settings.PROJECT_VERSION}
-
-class SystemModeRequest(BaseModel):
-    mode: str # REAL or MOCK
-
-@router.post("/system/mode")
-async def set_system_mode(request: SystemModeRequest):
-    try:
-        settings.set_mode(request.mode)
-        return {"status": "success", "mode": settings.TRADING_MODE}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 import time
 
@@ -388,8 +377,7 @@ async def conditional_order(
             # Trailing Stop specific
             trailing_percent=order.trailing_percent if order.condition_type == "TRAILING_STOP" else None,
             highest_price=order.trigger_price if order.condition_type == "TRAILING_STOP" else None, # Initialize High Water Mark
-            # System Mode
-            mode=settings.TRADING_MODE.upper()
+            mode="REAL"
         )
         db.add(cond_order)
         db.commit()
@@ -451,10 +439,9 @@ async def get_auto_trading_status():
 async def get_active_conditions(db: Session = Depends(get_db)):
     from ..models.condition import ConditionalOrder, ConditionStatus
     try:
-        # Filter by both Status AND System Mode
+        # Filter by Status
         conditions = db.query(ConditionalOrder).filter(
-            ConditionalOrder.status == ConditionStatus.PENDING,
-            ConditionalOrder.mode == settings.TRADING_MODE.upper()
+            ConditionalOrder.status == ConditionStatus.PENDING
         ).order_by(ConditionalOrder.created_at.desc()).all()
         return conditions
     except Exception as e:

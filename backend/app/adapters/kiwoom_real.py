@@ -20,16 +20,19 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     Implemented based on 'Kiwoom REST API Documentation'.
     """
     
-    def __init__(self, app_key: str = None, secret_key: str = None, account_no: str = None, account_name: str = None):
+    def __init__(self, app_key: str = None, secret_key: str = None, account_no: str = None, account_name: str = None, api_url: str = None, is_virtual: bool = False):
         # Initialize Base Class
         KiwoomBaseAdapter.__init__(self, app_key or settings.HCP_KIWOOM_APP_KEY, secret_key or settings.HCP_KIWOOM_SECRET_KEY)
-        
-        # Base URL from docs: https://api.kiwoom.com (Production)
-        # But we respect the config if user wants to override (e.g. mock server)
-        self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
-        
+
+        # Base URL - Priority:
+        # 1. Explicit api_url parameter (for per-account virtual/real server)
+        # 2. Global config HCP_KIWOOM_API_URL
+        # 3. Default production server
+        self.base_url = api_url or settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+
         self.account_no = account_no or settings.HCP_KIWOOM_ACCOUNT_NO
         self.account_name = account_name or "Unknown"
+        self.is_virtual = is_virtual  # 가상 계좌 (모의투자) 여부
         
         # WebSocket Integration (shared singleton)
         # NOTE: Do NOT set callbacks here — multiple KiwoomRealAdapter instances
@@ -169,7 +172,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
 
     def get_name(self) -> str:
-        return "KIWOOM (REAL)"
+        return "KIWOOM (VIRTUAL)" if self.is_virtual else "KIWOOM (REAL)"
 
     def get_account_name(self) -> str:
         return self.account_name

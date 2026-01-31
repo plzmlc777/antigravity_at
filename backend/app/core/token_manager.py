@@ -1,6 +1,6 @@
 import logging
 import httpx
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from .config import settings
 
@@ -8,23 +8,19 @@ logger = logging.getLogger(__name__)
 
 class KiwoomTokenManager:
     _instance = None
-    
+
     def __init__(self):
         if KiwoomTokenManager._instance is not None:
              raise Exception("This class is a singleton!")
         else:
              KiwoomTokenManager._instance = self
+             # Store tokens per API URL (supports both real and virtual servers)
+             self._tokens: Dict[str, Dict[str, Any]] = {}  # {base_url: {"token": str, "expiry": datetime}}
+             self.default_base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+
+             # Legacy single token support (for backward compatibility)
              self.access_token: Optional[str] = None
              self.token_expiry: Optional[datetime] = None
-             
-             # Force Real API for Data/Token regardless of mode (Unless user explicitly overrides differently)
-             # Using api.kiwoom.com as the standard endpoint for token acquisition.
-             # If settings url is mockapi, we override it back to real for this manager.
-             if "mockapi" in settings.HCP_KIWOOM_API_URL:
-                 self.base_url = "https://api.kiwoom.com"
-                 logger.info("Forcing Standard API URL for Token Manager in Mock Mode.")
-             else:
-                 self.base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
 
              # Load from disk
              self._load_cache()
@@ -36,118 +32,167 @@ class KiwoomTokenManager:
             if os.path.exists("token_cache.json"):
                 with open("token_cache.json", "r") as f:
                     data = json.load(f)
-                    self.access_token = data.get("access_token")
-                    expiry_str = data.get("token_expiry")
-                    if expiry_str:
-                        self.token_expiry = datetime.fromisoformat(expiry_str)
-                        
-                    # Check if expired
-                    if self.token_expiry and datetime.now() > self.token_expiry:
-                        logger.info("Cached token expired.")
-                        self.access_token = None
-                    elif self.access_token:
-                        logger.info("Loaded valid Access Token from disk cache.")
+
+                    # New format: multiple tokens
+                    if "tokens" in data:
+                        for url, token_data in data["tokens"].items():
+                            expiry_str = token_data.get("expiry")
+                            expiry = datetime.fromisoformat(expiry_str) if expiry_str else None
+                            if expiry and datetime.now() < expiry:
+                                self._tokens[url] = {
+                                    "token": token_data.get("token"),
+                                    "expiry": expiry
+                                }
+                                logger.info(f"Loaded valid token for {url}")
+                            else:
+                                logger.info(f"Cached token for {url} expired.")
+                    else:
+                        # Legacy format: single token
+                        self.access_token = data.get("access_token")
+                        expiry_str = data.get("token_expiry")
+                        if expiry_str:
+                            self.token_expiry = datetime.fromisoformat(expiry_str)
+
+                        if self.token_expiry and datetime.now() > self.token_expiry:
+                            logger.info("Cached token expired.")
+                            self.access_token = None
+                        elif self.access_token:
+                            # Migrate to new format
+                            self._tokens[self.default_base_url] = {
+                                "token": self.access_token,
+                                "expiry": self.token_expiry
+                            }
+                            logger.info("Loaded and migrated legacy token to new format.")
         except Exception as e:
             logger.error(f"Failed to load token cache: {e}")
 
     def _save_cache(self):
         try:
             import json
-            data = {
-                "access_token": self.access_token,
-                "token_expiry": self.token_expiry.isoformat() if self.token_expiry else None
-            }
+            # Save in new multi-token format
+            tokens_data = {}
+            for url, token_info in self._tokens.items():
+                tokens_data[url] = {
+                    "token": token_info.get("token"),
+                    "expiry": token_info.get("expiry").isoformat() if token_info.get("expiry") else None
+                }
+            data = {"tokens": tokens_data}
             with open("token_cache.json", "w") as f:
                 json.dump(data, f)
-            logger.info("Access Token saved to disk cache.")
+            logger.info("Access Tokens saved to disk cache.")
         except Exception as e:
             logger.error(f"Failed to save token cache: {e}")
 
-             
     @staticmethod
     def get_instance():
         if KiwoomTokenManager._instance is None:
             KiwoomTokenManager()
         return KiwoomTokenManager._instance
 
-    def is_token_valid(self) -> bool:
+    def is_token_valid(self, base_url: str = None) -> bool:
         """
-        Only checks if the current token is physically present and not expired.
-        Does NOT trigger a network request for a new one.
+        Check if token for the given base_url is valid.
+        Falls back to default_base_url if not specified.
         """
-        if not self.access_token or not self.token_expiry:
+        url = base_url or self.default_base_url
+        token_info = self._tokens.get(url)
+        if not token_info:
             return False
-            
-        return datetime.now() < self.token_expiry
+        token = token_info.get("token")
+        expiry = token_info.get("expiry")
+        if not token or not expiry:
+            return False
+        return datetime.now() < expiry
 
-    def get_remaining_seconds(self) -> int:
+    def get_cached_token(self, base_url: str = None) -> Optional[str]:
+        """
+        Get cached token for the given base_url without fetching a new one.
+        """
+        url = base_url or self.default_base_url
+        token_info = self._tokens.get(url)
+        if token_info and self.is_token_valid(url):
+            return token_info.get("token")
+        return None
+
+    def get_remaining_seconds(self, base_url: str = None) -> int:
         """
         Returns the number of seconds remaining until the token expires.
-        Returns 0 if no token exists or if it has already expired.
         """
-        if not self.access_token or not self.token_expiry:
+        url = base_url or self.default_base_url
+        token_info = self._tokens.get(url)
+        if not token_info:
             return 0
-        
-        remaining = (self.token_expiry - datetime.now()).total_seconds()
+        expiry = token_info.get("expiry")
+        if not expiry:
+            return 0
+        remaining = (expiry - datetime.now()).total_seconds()
         return max(0, int(remaining))
-        
-    async def get_token(self, app_key: str, secret_key: str) -> Optional[str]:
+
+    async def get_token(self, app_key: str, secret_key: str, base_url: str = None) -> Optional[str]:
         """
-        Returns a valid access token.
+        Returns a valid access token for the given base_url.
         If existing token is valid, return it.
         Otherwise, fetch a new one.
         """
-        if self.access_token and self.token_expiry and datetime.now() < self.token_expiry:
-            return self.access_token
-            
-        logger.info("Fetching new Kiwoom Access Token...")
-        return await self._fetch_new_token(app_key, secret_key)
-        
-    async def _fetch_new_token(self, app_key: str, secret_key: str) -> Optional[str]:
-        # Import inside method to avoid circular import if needed, 
-        # or use the one imported at top if safe.
-        # Assuming http_client.py is in same package or accessible.
+        url = base_url or self.default_base_url
+
+        # Check if we have a valid cached token
+        if self.is_token_valid(url):
+            token = self._tokens[url].get("token")
+            # Also update legacy fields for backward compatibility
+            self.access_token = token
+            self.token_expiry = self._tokens[url].get("expiry")
+            return token
+
+        logger.info(f"Fetching new Kiwoom Access Token for {url}...")
+        return await self._fetch_new_token(app_key, secret_key, url)
+
+    async def _fetch_new_token(self, app_key: str, secret_key: str, base_url: str) -> Optional[str]:
         from .http_client import HttpClientManager
-        
-        # Determine Path based on URL (Standard vs HCP)
-        # Reverting to oauth2/token as openapi.kiwoom.com/oauth2.0 failed.
-        # api.kiwoom.com accepts oauth2/token.
-        url = f"{self.base_url}/oauth2/token"
-            
+
+        url = f"{base_url}/oauth2/token"
+
         headers = {
             "Content-Type": "application/json;charset=UTF-8",
             "api-id": "au10001"
         }
-        
+
         payload = {
             "grant_type": "client_credentials",
             "appkey": app_key,
             "secretkey": secret_key
         }
-        
-        # Use Shared Client
+
         client = HttpClientManager.get_instance().get_client()
         try:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            
-            self.access_token = data.get("token")
-            if not self.access_token:
+
+            token = data.get("token")
+            if not token:
                  logger.error(f"Token missing in response: {data}")
                  return None
 
-            expires_in = int(data.get("expires_in", 86400)) # Default 24h
-            
-            # Set expiry with a buffer (e.g. 60 seconds earlier)
-            self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)
-            
+            expires_in = int(data.get("expires_in", 86400))  # Default 24h
+            expiry = datetime.now() + timedelta(seconds=expires_in - 60)
+
+            # Store in multi-token cache
+            self._tokens[base_url] = {
+                "token": token,
+                "expiry": expiry
+            }
+
+            # Update legacy fields for backward compatibility
+            self.access_token = token
+            self.token_expiry = expiry
+
             # Save to disk
             self._save_cache()
-            
-            logger.info(f"Kiwoom Access Token acquired successfully. Expires in {expires_in} seconds.")
-            return self.access_token
-            
+
+            logger.info(f"Kiwoom Access Token acquired for {base_url}. Expires in {expires_in} seconds.")
+            return token
+
         except Exception as e:
-            logger.error(f"Failed to get Kiwoom Token: {e}")
+            logger.error(f"Failed to get Kiwoom Token from {base_url}: {e}")
             return None

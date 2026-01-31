@@ -16,6 +16,10 @@ class UserCreate(BaseModel):
     email: str
     password: str
 
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -80,7 +84,27 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Ses
     # but for now we'll just return it in the response if the model allows it.
     access_token = security.create_access_token(subject=user.email)
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "is_admin": user.is_admin
     }
+
+@router.put("/password")
+async def change_password(
+    password_data: PasswordChange,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify current password
+    if not security.verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다")
+
+    # Validate new password
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="새 비밀번호는 6자 이상이어야 합니다")
+
+    # Update password
+    current_user.hashed_password = security.get_password_hash(password_data.new_password)
+    db.commit()
+
+    return {"status": "success", "message": "비밀번호가 변경되었습니다"}

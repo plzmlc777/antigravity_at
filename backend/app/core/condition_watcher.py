@@ -6,8 +6,6 @@ from sqlalchemy import func
 from ..db.session import SessionLocal
 from ..models.condition import ConditionalOrder, ConditionType, ConditionStatus
 from ..adapters.kiwoom_real import KiwoomRealAdapter
-from ..adapters.kiwoom_mock import KiwoomMockAdapter
-from ..core.config import settings
 
 logger = logging.getLogger("ConditionWatcher")
 
@@ -16,22 +14,11 @@ class ConditionWatcher:
         self.is_running = False
         self._task = None
         # We need an adapter to fetch prices and execute orders.
-        # Ideally, we should reuse the same logic as endpoints.
-        self.adapter = None 
+        self.adapter = None
 
     def _get_adapter(self):
-        # Determine adapter based on mode (Real vs Mock)
-        # Note: In real mode, we need keys. For simplicity MVP, we rely on endpoints/adapter logic
-        # or we instantiate a transient adapter here.
-        if settings.TRADING_MODE.upper() == "REAL":
-            # For simplicity, we assume we can instantiate KiwoomRealAdapter without keys for just price checks?
-            # No, we need keys for orders. 
-            # We will use the same fallback logic: Try to get form DB or Env.
-            # But creating a new adapter every second is expensive.
-            # We should initialize it once or lazily.
-            return KiwoomRealAdapter() 
-        else:
-            return KiwoomMockAdapter()
+        # Always use KiwoomRealAdapter
+        return KiwoomRealAdapter()
 
     async def start(self):
         if self.is_running:
