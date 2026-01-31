@@ -28,6 +28,9 @@ tools/node/bin/pm2*
 *.db.pre_pg_migration
 db_backup_pre_cleanup.sql
 
+# Runtime Cache
+backend/token_cache.json
+
 # Temporary Debug Scripts
 debug_log.py
 debug_log_search.py
