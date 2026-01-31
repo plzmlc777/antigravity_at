@@ -236,16 +236,19 @@ async def manual_order(
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Calculated quantity is 0 or invalid")
 
-    # 2. Execute Order
-    if order.order_type.lower() == "buy":
-        result = await adapter.place_buy_order(order.symbol, calculated_price, quantity)
-    elif order.order_type.lower() == "sell":
-        result = await adapter.place_sell_order(order.symbol, calculated_price, quantity)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid order type")
+    # 2. Execute Order using OrderExecutionService
+    from ..services.order_execution_service import OrderExecutionService, OrderExecutionError
 
-    if result.get("status") == "failed":
-        raise HTTPException(status_code=400, detail=result.get("message"))
+    service = OrderExecutionService(adapter)
+    try:
+        result = await service.execute_order(
+            symbol=order.symbol,
+            side=order.order_type.lower(),
+            quantity=quantity,
+            price=calculated_price
+        )
+    except OrderExecutionError as e:
+        raise HTTPException(status_code=400, detail=e.message)
 
     # 3. Register Conditional Orders (Stop Loss / Take Profit)
     # Only valid for BUY orders for now (as we are setting exit conditions)

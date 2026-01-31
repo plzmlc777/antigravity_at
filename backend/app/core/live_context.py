@@ -390,26 +390,24 @@ class LiveContext:
             ).all()
             
             for p in pendings:
-                # Execute
+                # Execute using OrderExecutionService
                 try:
-                    res = None
-                    if self.is_paper:
-                        # Paper Trading: Skip Adapter Call
-                        res = {
-                            "status": "success",
-                            "order_id": f"PAPER-{p.id[:8]}",
-                            "price": p.theoretical_price,
-                            "quantity": p.requested_quantity,
-                            "message": "Paper Execution (Simulated)"
-                        }
-                        self.log(f"PAPER SIGNAL: {p.signal_type} {p.symbol} @ {p.theoretical_price}")
-                    else:
-                        # REAL Trading: Call Adapter with MARKET ORDER (price=0)
-                        # 시장가 주문으로 즉시 체결 보장, theoretical_price는 슬리피지 분석용 보존
-                        if p.signal_type == "BUY":
-                            res = await self.adapter.place_buy_order(p.symbol, 0, p.requested_quantity)
-                        elif p.signal_type == "SELL":
-                            res = await self.adapter.place_sell_order(p.symbol, 0, p.requested_quantity)
+                    from ..services.order_execution_service import OrderExecutionService, OrderExecutionError
+
+                    service = OrderExecutionService(self.adapter)
+                    try:
+                        res = await service.execute_order(
+                            symbol=p.symbol,
+                            side=p.signal_type.lower(),
+                            quantity=p.requested_quantity,
+                            price=0,  # Market order
+                            is_paper=self.is_paper,
+                            theoretical_price=p.theoretical_price
+                        )
+                        if self.is_paper:
+                            self.log(f"PAPER SIGNAL: {p.signal_type} {p.symbol} @ {p.theoretical_price}")
+                    except OrderExecutionError as e:
+                        res = {"status": "failed", "message": e.message}
 
                     if res and res.get("status") == "success":
                         # 1. Update DB Record
