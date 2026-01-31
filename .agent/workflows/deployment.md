@@ -9,17 +9,8 @@ This workflow defines the standard operating procedure for developing, testing, 
 ## 1. Local Development & Testing
 
 1.  **Start Services (Unified Script)**:
-    Use the provided script which handles everything (installation, updates, starting).
     ```bash
     ./deploy_with_pm2.sh
-    ```
-    *   **Features**:
-        *   Automatically uses local `tools/node` if global `npm` is missing.
-        *   Installs/Updates `pm2` automatically.
-    
-    *   **Manual Start (Alternative)**:
-    ```bash
-    pm2 start ecosystem.config.cjs
     ```
 
 2.  **Verify Status**:
@@ -29,8 +20,6 @@ This workflow defines the standard operating procedure for developing, testing, 
     Ensure `at-backend` and `at-frontend` are 'online'.
 
 3.  **Apply Changes**:
-    When code is changed, PM2 usually auto-reloads the backend (python).
-    For frontend, Vite HMR handles it. If issues arise:
     ```bash
     pm2 restart all
     ```
@@ -58,37 +47,91 @@ This workflow defines the standard operating procedure for developing, testing, 
 
 3.  **Push Code & Tags**:
     ```bash
-    git push
+    git push origin master
     git push --tags
     ```
 
-## 3. Remote Server Deployment
+## 3. Remote Server Deployment (SSH Direct)
 
-On the remote server:
+> [!IMPORTANT]
+> 로컬에서 SSH로 직접 리모트 서버에 접속하여 배포합니다.
 
-1.  **Execute Deployment Script**:
-    The strictly standardized way to deploy is running the provided script. Do not manually pull or restart services piecemeal unless debugging.
+### Remote Server Info
+
+| 항목 | 값 |
+|------|-----|
+| Host | 121.183.229.140 |
+| User | mint |
+| Path | ~/auto_trading |
+| PM2 | /usr/local/bin/pm2 (global) |
+
+### Quick Deploy (One-liner)
+
+```bash
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend && pm2 status"
+```
+
+### Step-by-Step Deploy
+
+1. **Pull Latest Code**:
     ```bash
-    ./deploy_with_pm2.sh
+    ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master"
     ```
 
-    > [!WARNING]
-    > **Do NOT use Systemd directly.**
-    > The old `setup_services.sh` method is **DEPRECATED**. We have standardized on PM2. 
-    > Using Systemd services directly will cause configuration conflicts.
+2. **Restart Services**:
+    ```bash
+    ssh mint@121.183.229.140 "pm2 restart at-backend at-frontend"
+    ```
 
-    **What this script does:**
-    - `git pull`: Fetches latest code.
-    - Checks/Installs `pm2`.
-    - Installs Python dependencies (`requirements.txt`).
-    - Installs Node dependencies (`npm install`).
-    - `pm2 start ecosystem.config.cjs` & `pm2 save`: Restarts services and saves state.
+3. **Verify Status**:
+    ```bash
+    ssh mint@121.183.229.140 "pm2 status"
+    ```
+
+4. **Check Logs (if needed)**:
+    ```bash
+    ssh mint@121.183.229.140 "pm2 logs --lines 50"
+    ```
+
+### Full Deploy (with dependencies)
+
+Dependencies가 변경된 경우:
+
+```bash
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pip3 install -r requirements.txt && npm install && pm2 restart at-backend at-frontend"
+```
 
 ## 4. Configuration Standards
 
-- **Backend**: Uses `/usr/bin/python3` (System Python), NOT venv. Dependencies are installed with `--break-system-packages` or globally as per environment support.
-- **Frontend**: Runs via `npm run dev` (Vite) managed by PM2.
+- **Backend**: Uses `/usr/bin/python3` (System Python)
+- **Frontend**: Runs via `npm run dev` (Vite) managed by PM2
 - **Ports**:
     - Frontend: 5173
     - Backend: 8001
-- **PM2 Config**: Always maintained in `ecosystem.config.cjs`.
+- **PM2 Config**: `ecosystem.config.cjs`
+
+## 5. Troubleshooting
+
+### SSH 접속 실패
+
+SSH 키가 등록되어 있어야 합니다:
+```bash
+# 로컬 공개키 확인
+cat ~/.ssh/id_ed25519.pub
+
+# 리모트에 등록 (최초 1회)
+ssh mint@121.183.229.140 "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ssh/authorized_keys"
+```
+
+### 서비스 상태 확인
+
+```bash
+ssh mint@121.183.229.140 "pm2 status && pm2 logs --lines 20"
+```
+
+### 브랜치 불일치
+
+리모트 서버는 항상 `master` 브랜치를 사용합니다:
+```bash
+ssh mint@121.183.229.140 "cd ~/auto_trading && git branch && git status"
+```
