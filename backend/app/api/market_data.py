@@ -8,7 +8,6 @@ from .auth import get_current_active_admin
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from pydantic import BaseModel
-from ..adapters.kiwoom_real import KiwoomRealAdapter
 from typing import List, Optional
 
 router = APIRouter()
@@ -65,10 +64,12 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
 async def get_symbol_info(symbol: str):
     """
     Get Real-time Symbol Info (Name, Price) to populate UI.
-    Uses KiwoomRealAdapter.
+    Uses LiveManager's adapter which has active account credentials from DB.
     """
     try:
-        adapter = KiwoomRealAdapter()
+        from ..core.live_manager import LiveManager
+        live_manager = LiveManager.get_instance()
+        adapter = live_manager.adapter
         data = await adapter.get_current_price(symbol)
         return {
             "symbol": symbol,

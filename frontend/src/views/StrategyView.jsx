@@ -167,7 +167,6 @@ const StrategyView = () => {
     const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
     const [activeDropdown, setActiveDropdown] = useState(null); // Key of the currently open optimization dropdown
     const [selectedHistoryId, setSelectedHistoryId] = useState(null); // For Live History
-    const [showTickMonitor, setShowTickMonitor] = useState(false); // For Watch Mode
 
     // Integrated Analysis State - Added for v0.8.7
     const [showIntegratedAnalysis, setShowIntegratedAnalysis] = useState(false);
@@ -886,11 +885,11 @@ const StrategyView = () => {
         // This prevents race conditions where schema useEffect overwrites DB-loaded configs
     }, [selectedStrategy?.id]); // Only trigger when strategy ID changes
 
-    // Auto-Fetch Symbol Name if Missing
+    // Auto-Fetch Symbol Name if Missing or Same as Code
     useEffect(() => {
         const target = savedSymbols.find(s => s.code === currentSymbol);
-        if (target && !target.name) {
-            // Debounce or just fetch
+        // Fetch if name is missing OR name equals code (invalid cached data)
+        if (target && (!target.name || target.name === target.code)) {
             axios.get(`/api/v1/market-data/info/${currentSymbol}`)
                 .then(res => {
                     if (res.data.name && res.data.name !== currentSymbol) {
@@ -2421,20 +2420,6 @@ const StrategyView = () => {
                                                         savedSymbols={savedSymbols}
                                                         setSavedSymbols={setSavedSymbols}
                                                     />
-
-                                                    {/* Watch Monitor Toggle */}
-                                                    <div className="mt-4 pt-4 border-t border-white/5">
-                                                        <button
-                                                            onClick={() => setShowTickMonitor(!showTickMonitor)}
-                                                            className={`w-full py-2 rounded text-xs font-bold flex items-center justify-center gap-2 transition-colors ${showTickMonitor
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                                                }`}
-                                                        >
-                                                            <Activity size={14} className={showTickMonitor ? "animate-pulse" : ""} />
-                                                            {showTickMonitor ? 'Stop Monitoring' : 'Monitor Real-time Ticks'}
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             </div>
 
@@ -2467,21 +2452,6 @@ const StrategyView = () => {
                                                 </div>
                                             </div>
                                         </div>
-
-                                    {/* Tick Monitor Section - Added for Phase 3.5 */}
-                                    {showTickMonitor && (
-                                        <div className="mt-6 h-[400px] animate-fade-in-down border-t border-white/5 pt-6">
-                                            <LiveStrategyPanel
-                                                strategyConfig={currentConfig}
-                                                strategyName={selectedStrategy?.id}
-                                                mode="WATCH"
-                                                configList={configList}
-                                                savedSymbols={savedSymbols}
-                                                parameterSchema={selectedStrategy?.parameter_schema}
-                                                onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
-                                            />
-                                        </div>
-                                    )}
                                     </div>
                                 </div>
                             )}
