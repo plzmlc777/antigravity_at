@@ -222,52 +222,89 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
     async def get_balance(self) -> Dict[str, Any]:
         """
-        Get Balance using TR: ka01690 (Daily Balance & Return)
+        Get Balance using:
+        - kt00004 (계좌평가현황요청) for mock server (mockapi.kiwoom.com)
+        - ka01690 (일별잔고수익률) for real server (api.kiwoom.com)
+
+        Note: ka01690 does NOT support mock trading, so we use kt00004 for virtual accounts.
         """
         await self._ensure_token()
-        
-        url = f"{self.base_url}/api/dostk/acnt"
-        headers = self._get_auth_headers(tr_id="ka01690")
-        
-        today_str = datetime.now().strftime("%Y%m%d")
-        
-        payload = {
-            "qry_dt": today_str
-        }
-        
-        client = HttpClientManager.get_instance().get_client()
-        try:
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            data = response.json()
-            
-            # Parse Response logic (omitted for brevity, assume similar structure)
-            # 'dbst_bal': Deposit Balance (Cash)
-            
-            def safe_float(v):
-                if not v: return 0.0
-                return float(str(v).replace("+", "").replace("-", ""))
 
-            def safe_int(v):
-                if not v: return 0
-                return int(str(v).replace("+", "").replace("-", ""))
-            
-            cash_balance = safe_float(data.get("dbst_bal", "0"))
-            holdings_data = data.get("day_bal_rt", [])
-            
-            holdings = {}
-            for item in holdings_data:
-                code = item.get("stk_cd")
-                qty = safe_int(item.get("rmnd_qty", "0"))
-                if code and qty > 0:
-                    holdings[code] = {
-                        "quantity": qty,
-                        "avg_price": safe_float(item.get("buy_uv", "0")),
-                        "current_price": safe_float(item.get("cur_prc", "0")),
-                        "profit_rate": safe_float(item.get("prft_rt", "0")),
-                        "profit_amount": safe_float(item.get("evltv_prft", "0"))
-                    }
-            
+        url = f"{self.base_url}/api/dostk/acnt"
+
+        def safe_float(v):
+            if not v: return 0.0
+            return float(str(v).replace("+", "").replace("-", ""))
+
+        def safe_int(v):
+            if not v: return 0
+            return int(str(v).replace("+", "").replace("-", ""))
+
+        client = HttpClientManager.get_instance().get_client()
+
+        # Use different TR ID based on server type
+        is_mock_server = "mockapi" in self.base_url.lower()
+
+        try:
+            if is_mock_server:
+                # Use kt00004 for mock server (ka01690 doesn't support mock trading)
+                headers = self._get_auth_headers(tr_id="kt00004")
+                payload = {
+                    "qry_tp": "0",      # 전체
+                    "dmst_stex_tp": "KRX"  # 한국거래소
+                }
+
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+
+                # Parse kt00004 response
+                # 'entr': 예수금, 'prsm_dpst_aset_amt': 추정예탁자산
+                cash_balance = safe_float(data.get("entr", "0"))
+                holdings_data = data.get("stk_acnt_evlt_prst", [])
+
+                holdings = {}
+                for item in holdings_data:
+                    code = item.get("stk_cd", "").replace("A", "")  # Remove 'A' prefix
+                    qty = safe_int(item.get("rmnd_qty", "0"))
+                    if code and qty > 0:
+                        holdings[code] = {
+                            "quantity": qty,
+                            "avg_price": safe_float(item.get("avg_prc", "0")),
+                            "current_price": safe_float(item.get("cur_prc", "0")),
+                            "profit_rate": safe_float(item.get("pl_rt", "0")),
+                            "profit_amount": safe_float(item.get("pl_amt", "0"))
+                        }
+            else:
+                # Use ka01690 for real server
+                headers = self._get_auth_headers(tr_id="ka01690")
+                today_str = datetime.now().strftime("%Y%m%d")
+                payload = {
+                    "qry_dt": today_str
+                }
+
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+
+                # Parse ka01690 response
+                # 'dbst_bal': Deposit Balance (Cash)
+                cash_balance = safe_float(data.get("dbst_bal", "0"))
+                holdings_data = data.get("day_bal_rt", [])
+
+                holdings = {}
+                for item in holdings_data:
+                    code = item.get("stk_cd")
+                    qty = safe_int(item.get("rmnd_qty", "0"))
+                    if code and qty > 0:
+                        holdings[code] = {
+                            "quantity": qty,
+                            "avg_price": safe_float(item.get("buy_uv", "0")),
+                            "current_price": safe_float(item.get("cur_prc", "0")),
+                            "profit_rate": safe_float(item.get("prft_rt", "0")),
+                            "profit_amount": safe_float(item.get("evltv_prft", "0"))
+                        }
+
             return {
                 "cash": {"KRW": cash_balance},
                 "holdings": holdings
