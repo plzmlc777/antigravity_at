@@ -592,13 +592,11 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     keys = list(request.parameter_ranges.keys())
     values = list(request.parameter_ranges.values())
     combinations = list(itertools.product(*values))
-    
-    # Limit max combinations to avoid DOS
-    if len(combinations) > 500:
-         # raise HTTPException(status_code=400, detail="Too many combinations. Max 500.")
-         combinations = combinations[:500] 
 
-    logger.info(f"[Optimization] Running {len(combinations)} combinations for {strategy_id}")
+    # No limit - user can stop manually via cancel button if needed
+    # Accurate optimization results are more important than speed
+    total_combinations = len(combinations)
+    logger.info(f"[Optimization] Running {total_combinations} combinations for {strategy_id}")
 
     # 3. Prepare Tasks
     tasks = []
@@ -676,8 +674,9 @@ async def get_optimization_status(task_id: str):
             progress_total=0,
             message="Task not found"
         )
-        
-    return OptimizationStatus(
+
+    # Build response first
+    response = OptimizationStatus(
         task_id=task_id,
         status=task["status"],
         progress_current=task.get("progress_current", 0),
@@ -685,6 +684,14 @@ async def get_optimization_status(task_id: str):
         message=task.get("message", ""),
         result=task.get("result")
     )
+
+    # Memory cleanup: Delete completed/failed/cancelled tasks after returning result
+    # Frontend saves to DB, so we don't need to keep it in memory
+    if task["status"] in ("completed", "failed", "cancelled") and task.get("result"):
+        del OPTIMIZATION_TASKS[task_id]
+        logger.info(f"[Memory Cleanup] Deleted optimization task {task_id} from memory after result delivery")
+
+    return response
 
 
 # --- Integrated Backtest Logic ---

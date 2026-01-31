@@ -235,6 +235,7 @@ const StrategyView = () => {
     });
     const [isDirty, setIsDirty] = useState(false); // Track unsaved configuration changes
     const [pendingTabSwitch, setPendingTabSwitch] = useState(null); // Store pending tab switch during confirmation
+    const [pendingOptResult, setPendingOptResult] = useState(null); // Unsaved optimization result (tab_uuid -> resultData)
 
     useEffect(() => {
         localStorage.setItem('strategyViewActiveTab', activeTab);
@@ -1018,6 +1019,33 @@ const StrategyView = () => {
 
     // Tab Switch with Unsaved Changes Confirmation
     const handleTabSwitch = (newTabIndex) => {
+        // Check for pending optimization results first
+        if (pendingOptResult) {
+            setPendingTabSwitch(newTabIndex);
+            openConfirm(
+                "📊 Unsaved Optimization Results",
+                "You have unsaved optimization results.\n\nWould you like to save them before switching tabs?",
+                async () => {
+                    // Save & Switch
+                    await savePendingOptResult();
+                    setActiveTab(newTabIndex);
+                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    setPendingTabSwitch(null);
+                },
+                false,
+                "Save & Switch",
+                "Discard & Switch",
+                () => {
+                    // Discard & Switch
+                    discardPendingOptResult();
+                    setActiveTab(newTabIndex);
+                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    setPendingTabSwitch(null);
+                }
+            );
+            return;
+        }
+
         // If no unsaved changes, switch immediately
         if (!isDirty) {
             setActiveTab(newTabIndex);
@@ -1198,6 +1226,28 @@ const StrategyView = () => {
             key,
             direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
         }));
+    };
+
+    // Save Pending Optimization Results to DB
+    const savePendingOptResult = async () => {
+        if (!pendingOptResult) {
+            addLog('No pending optimization results to save', 'warning');
+            return;
+        }
+        try {
+            await saveStrategyResult(pendingOptResult.tabUuid, 'optimization', pendingOptResult.data);
+            addLog('💾 Optimization results saved to DB', 'info');
+            setPendingOptResult(null);
+        } catch (err) {
+            console.error("Failed to save opt result", err);
+            addLog('Failed to save optimization results', 'error');
+        }
+    };
+
+    // Discard Pending Optimization Results
+    const discardPendingOptResult = () => {
+        setPendingOptResult(null);
+        addLog('🗑️ Optimization results discarded', 'info');
     };
 
     // Export Optimization Results to CSV
@@ -1399,9 +1449,13 @@ const StrategyView = () => {
                                 }));
                                 setOptResults(formattedResults);
 
-                                // Persistence
+                                // Pending Save: Store in state, save to DB only on Apply/Tab switch confirmation
                                 if (currentConfig.uuid && statusData.status === 'completed') {
-                                    saveStrategyResult(currentConfig.uuid, 'optimization', resultData).catch(err => console.error("Failed to save opt result", err));
+                                    setPendingOptResult({
+                                        tabUuid: currentConfig.uuid,
+                                        data: resultData
+                                    });
+                                    addLog('✅ Optimization complete. Click "Save Results" or apply a config to save to DB.', 'info');
                                 }
 
                                 if (statusData.status === 'cancelled') {
@@ -2847,20 +2901,49 @@ const StrategyView = () => {
 
                                                 {optResults && optResults.length > 0 && (
                                                     <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
-                                                        {/* Export Button */}
+                                                        {/* Export & Save Buttons */}
                                                         <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                                                            <div className="text-sm text-gray-400">
-                                                                <span className="font-bold text-white">{optResults.length}</span> optimization results
+                                                            <div className="text-sm text-gray-400 flex items-center gap-3">
+                                                                <span><span className="font-bold text-white">{optResults.length}</span> optimization results</span>
+                                                                {pendingOptResult && (
+                                                                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full animate-pulse">
+                                                                        ⚠️ Unsaved
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            <button
-                                                                onClick={exportOptResultsToCSV}
-                                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                </svg>
-                                                                Export CSV
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                {pendingOptResult && (
+                                                                    <>
+                                                                        <button
+                                                                            onClick={savePendingOptResult}
+                                                                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                            Save Results
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={discardPendingOptResult}
+                                                                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                            </svg>
+                                                                            Discard
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                                <button
+                                                                    onClick={exportOptResultsToCSV}
+                                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                    </svg>
+                                                                    Export CSV
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
