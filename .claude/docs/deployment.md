@@ -8,6 +8,8 @@ This workflow defines the standard operating procedure for developing, testing, 
 
 ## 1. Local Development & Testing
 
+모든 명령은 `auto_trading/` 디렉토리에서 실행:
+
 1.  **Start Services (Unified Script)**:
     ```bash
     ./deploy_with_pm2.sh
@@ -15,18 +17,25 @@ This workflow defines the standard operating procedure for developing, testing, 
 
 2.  **Verify Status**:
     ```bash
-    pm2 status
+    npm run status
+    # 또는: pm2 status
     ```
     Ensure `at-backend` and `at-frontend` are 'online'.
 
-3.  **Apply Changes**:
+3.  **Apply Changes / Restart**:
     ```bash
-    pm2 restart all
+    npm run restart
+    # 또는: pm2 restart all
+
+    # 개별 재시작
+    ./tools/node/bin/pm2 restart at-backend
+    ./tools/node/bin/pm2 restart at-frontend
     ```
 
 4.  **Check Logs**:
     ```bash
-    pm2 logs
+    npm run logs
+    # 또는: pm2 logs
     ```
 
 ## 2. Checkpoints & Pushing Changes
@@ -110,7 +119,21 @@ ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pip3 in
     - Backend: 8001
 - **PM2 Config**: `ecosystem.config.cjs`
 
-## 5. Troubleshooting
+## 5. Auto-Start Configuration
+
+| 이벤트 | 자동 시작 | 방식 |
+|--------|----------|------|
+| 시스템 재부팅 | ✅ | systemd (pm2-admin-ubuntu.service) |
+| 로그아웃/로그인 | ✅ | ~/.bashrc (pm2 resurrect) |
+
+```bash
+# 현재 프로세스 목록 저장 (설정 변경 후 필수)
+pm2 save
+
+# 저장된 프로세스 파일: ~/.pm2/dump.pm2
+```
+
+## 6. Troubleshooting
 
 ### SSH 접속 실패
 

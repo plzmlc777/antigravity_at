@@ -1,8 +1,7 @@
 {
-    "name": "auto-trading-frontend",
+    "name": "auto-trading",
     "private": true,
-    "version": "0.9.8.2",
-    "description": "Unified control scripts for Auto Trading System",
+    "description": "PM2 control scripts for Auto Trading System",
     "scripts": {
         "pm2": "./tools/node/lib/node_modules/pm2/bin/pm2",
         "start": "./tools/node/lib/node_modules/pm2/bin/pm2 start ecosystem.config.cjs",

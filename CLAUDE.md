@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Antigravity Auto Trading System - A comprehensive automated trading platform for the Korean stock market, integrating with the Kiwoom Securities API. The system supports manual trading, simple automated bots, advanced strategy backtesting/optimization, and live trading with real-time data feeds.
 
-**Current Version**: v0.9.9.13 (Unaksan Release)
+**Current Version**: v0.9.9.50
 
 ## Common Commands
 
@@ -187,8 +187,8 @@ LiveTradeExecution  [DB Logging: slippage, fees, PnL]
 
 ### Configuration Management
 Environment variables are loaded from multiple sources (priority order):
-1. `backend/.env` (backend-specific)
-2. `.env` (project root)
+1. `.env` (project root) — **메인 설정 파일**
+2. `backend/.env` — Python 전용 (`PYTHONDONTWRITEBYTECODE` 만)
 3. System environment variables
 
 **Key Variables**:
@@ -274,3 +274,17 @@ When adding new strategies:
 - **Backend API**: http://localhost:8001
 - **API Docs**: http://localhost:8001/docs (FastAPI auto-generated Swagger UI)
 - **Health Check**: http://localhost:8001/api/v1/status
+
+## Workflow Documents
+
+상세 절차가 필요한 작업은 아래 문서를 참조:
+
+| 작업 | 문서 경로 | 설명 |
+|------|-----------|------|
+| **배포** | `.claude/docs/deployment.md` | 로컬/리모트 서버 배포, PM2, SSH |
+| **DB 마이그레이션** | `.claude/docs/database_migration.md` | 스키마 변경, 백업, 복구 |
+| **버전 릴리스** | `.claude/docs/release_protocol.md` | 버전업, 체인지로그, 태그 |
+| **롤백** | `.claude/docs/rollback_protocol.md` | Git 롤백, DB 복구 |
+| **문법 검사** | `.claude/docs/syntax_check.md` | Python/JS 린트 체크 |
+
+> **사용법**: 특정 작업 수행 전 해당 문서를 읽고 절차를 따를 것

@@ -28,22 +28,34 @@ description: Standard Version Release & Reporting Protocol
 #### 3. Modified Files
 *List of all files modified in this release.*
 
-## 3. Apply Version Bump & DB Sync
-1.  Update `package.json` (Frontend)
-2.  Update `backend/app/core/config.py` (Backend VERSION variable)
-3.  **MANDATORY**: Update `system_metadata` table in PostgreSQL:
-    ```sql
-    UPDATE system_metadata SET value = 'vX.Y.Z', updated_at = NOW() WHERE key = 'version';
-    ```
-4.  (If applicable) Verify dynamic version injection works.
+## 3. Apply Version Bump (Use Script Only!)
+
+> **IMPORTANT**: 버전은 **코드 2곳**만 수정하면 됨 (DB 저장 없음)
+
+**반드시 `bump_version.sh` 스크립트를 사용:**
+```bash
+# 버전업 + 커밋 + 태그 + 푸시 + PM2 재시작 (올인원)
+./scripts/bump_version.sh X.Y.Z
+
+# 푸시 없이 (로컬 테스트용)
+./scripts/bump_version.sh X.Y.Z --no-push
+```
+
+스크립트가 자동으로 수정하는 파일:
+- `frontend/package.json` — `version` 필드
+- `backend/app/core/config.py` — `PROJECT_VERSION` 변수
 
 ## 4. Commit, Tag & Push
-**MANDATORY**: You MUST push the changes to density the remote repository immediately.
+
+> **NOTE**: `bump_version.sh` 스크립트가 커밋, 태그, 푸시를 자동 처리합니다.
+> 수동으로 할 필요 없음!
+
+스크립트 미사용 시 (비권장):
 ```bash
 git add .
 git commit -m "chore: bump version to vX.Y.Z"
-# git tag vX.Y.Z (Optional but recommended)
-git push
+git tag vX.Y.Z
+git push && git push --tags
 ```
 
 ## 5. Post-Release

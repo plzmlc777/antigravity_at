@@ -19,6 +19,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
+    const [isRealModeModalOpen, setIsRealModeModalOpen] = useState(false);
+    const [isLiquidateModalOpen, setIsLiquidateModalOpen] = useState(false);
 
     // Parallel mode: track multiple sessions {rankIndex: sessionId}
     const [parallelSessions, setParallelSessions] = useState({});
@@ -706,8 +708,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     };
 
     const handleEmergencyLiquidation = async () => {
-        if (!window.confirm("EMERGENCY: Do you want to sell ALL holdings and pause trading?")) return;
-
         try {
             if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
                 for (const sid of Object.values(parallelSessions)) {
@@ -1019,6 +1019,36 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 isDanger={true}
             />
 
+            {/* Real Mode Switch Modal */}
+            <ConfirmModal
+                isOpen={isRealModeModalOpen}
+                onClose={() => setIsRealModeModalOpen(false)}
+                onConfirm={() => {
+                    setIsRealModeModalOpen(false);
+                    handleToggleMode();
+                }}
+                title="Switch to REAL MODE?"
+                message="This will send actual orders to the exchange. Real money will be used for trading. Make sure you understand the risks before proceeding."
+                confirmText="Enable REAL MODE"
+                isDanger={true}
+            />
+
+            {/* Emergency Liquidation Modal */}
+            <ConfirmModal
+                isOpen={isLiquidateModalOpen}
+                onClose={() => setIsLiquidateModalOpen(false)}
+                onConfirm={() => {
+                    setIsLiquidateModalOpen(false);
+                    handleEmergencyLiquidation();
+                }}
+                title="Emergency Liquidation"
+                message={executionMode === 'parallel'
+                    ? `This will immediately liquidate ALL holdings across ${Object.keys(parallelSessions).length} sessions and pause all orders. This action cannot be undone.`
+                    : "This will immediately liquidate ALL holdings and pause all orders. This action cannot be undone."}
+                confirmText="LIQUIDATE NOW"
+                isDanger={true}
+            />
+
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
             <div className={`lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
                     <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
@@ -1162,7 +1192,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         alert("Cannot enable REAL MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
                                                         return;
                                                     }
-                                                    if (!window.confirm("Switch to REAL MODE? This will send actual orders to the exchange.")) return;
+                                                    setIsRealModeModalOpen(true);
+                                                    return;
                                                 }
                                                 handleToggleMode();
                                             }}
@@ -1272,7 +1303,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         {status === 'RUNNING' && (
                             <button
                                 className="w-full mt-4 h-12 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2"
-                                onClick={handleEmergencyLiquidation}
+                                onClick={() => setIsLiquidateModalOpen(true)}
                             >
                                 <AlertTriangle size={14} />
                                 EMERGENCY LIQUIDATION & KILL SWITCH
