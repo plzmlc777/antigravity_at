@@ -4,6 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { useMarketData } from '../context/MarketDataContext';
 import Toast from '../components/Toast';
 
+// Trading Environment options (matches backend TradingEnvironment enum)
+const ENVIRONMENTS = [
+    { value: 'real', label: '실거래', labelEn: 'Real', color: 'green' },
+    { value: 'virtual', label: '모의투자', labelEn: 'Virtual', color: 'purple' },
+    { value: 'paper', label: '페이퍼', labelEn: 'Paper', color: 'yellow' }
+];
+
+const getEnvConfig = (envValue) => ENVIRONMENTS.find(e => e.value === envValue) || ENVIRONMENTS[0];
+
 const Settings = () => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +37,7 @@ const Settings = () => {
         access_key: '',
         secret_key: '',
         account_number: '',
-        is_virtual: false
+        environment: 'real'  // 'real', 'virtual', 'paper'
     });
 
     // Password Change State
@@ -82,7 +91,7 @@ const Settings = () => {
                 access_key: '',
                 secret_key: '',
                 account_number: '',
-                is_virtual: false
+                environment: 'real'
             });
             fetchAccounts();
             showToast('계좌가 추가되었습니다', 'success');
@@ -174,6 +183,24 @@ const Settings = () => {
         } finally {
             setPasswordChanging(false);
         }
+    };
+
+    // Environment badge renderer
+    const renderEnvBadge = (acc) => {
+        if (acc.is_disabled) return null;
+
+        const env = getEnvConfig(acc.environment);
+        const colorClasses = {
+            green: 'bg-green-500/20 text-green-400 border-green-500/20',
+            purple: 'bg-purple-500/20 text-purple-400 border-purple-500/20',
+            yellow: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20'
+        };
+
+        return (
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${colorClasses[env.color]}`}>
+                {env.label}
+            </span>
+        );
     };
 
     return (
@@ -288,6 +315,20 @@ const Settings = () => {
                             </select>
                         </div>
                         <div>
+                            <label className="block text-xs text-gray-400 mb-1">Trading Environment</label>
+                            <select
+                                value={formData.environment}
+                                onChange={e => setFormData({ ...formData, environment: e.target.value })}
+                                className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
+                            >
+                                {ENVIRONMENTS.map(env => (
+                                    <option key={env.value} value={env.value}>
+                                        {env.label} ({env.labelEn})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="md:col-span-2">
                             <label className="block text-xs text-gray-400 mb-1">Account Alias</label>
                             <input
                                 type="text"
@@ -327,19 +368,12 @@ const Settings = () => {
                                 className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
                             />
                         </div>
-                        <div className="md:col-span-2">
-                            <label className="flex items-center gap-3 cursor-pointer py-2">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.is_virtual}
-                                    onChange={e => setFormData({ ...formData, is_virtual: e.target.checked })}
-                                    className="w-4 h-4 rounded border-white/20 bg-black/20 text-blue-500 focus:ring-blue-500"
-                                />
-                                <div>
-                                    <span className="text-sm text-white">가상 계좌 (Virtual Account)</span>
-                                    <p className="text-xs text-gray-500">모의투자 서버 (mockapi.kiwoom.com) 사용</p>
-                                </div>
-                            </label>
+                        <div className="md:col-span-2 p-3 bg-black/20 rounded-lg border border-white/5">
+                            <div className="text-xs text-gray-400 space-y-1">
+                                <p><strong className="text-green-400">실거래:</strong> Kiwoom 실서버 (api.kiwoom.com) - 실제 자금 거래</p>
+                                <p><strong className="text-purple-400">모의투자:</strong> Kiwoom 모의서버 (mockapi.kiwoom.com) - 가상 자금 거래</p>
+                                <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
+                            </div>
                         </div>
                         <div className="md:col-span-2 mt-2">
                             <button type="submit" className="w-full bg-green-600 hover:bg-green-500 py-2 rounded text-sm font-medium">Save Account</button>
@@ -386,11 +420,7 @@ const Settings = () => {
                                             사용 안함
                                         </span>
                                     )}
-                                    {acc.is_virtual && !acc.is_disabled && (
-                                        <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-[10px] font-bold tracking-wider uppercase border border-purple-500/20">
-                                            가상
-                                        </span>
-                                    )}
+                                    {renderEnvBadge(acc)}
                                     {acc.is_active && (
                                         <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-500/20">
                                             Active

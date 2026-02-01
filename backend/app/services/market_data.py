@@ -535,38 +535,36 @@ class MarketDataService:
         # 1. Fetch Credentials from DB (Active Account)
         from ..db.session import SessionLocal
         # Ensure User model is loaded for relationship resolution in worker process
-        from ..models.user import User 
+        from ..models.user import User
         from ..models.account import ExchangeAccount
         from ..core import security
-        
+
         app_key = None
         secret_key = None
-        
+        account_api_url = None
+
         with SessionLocal() as session:
             account = session.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
             if account:
                 app_key = security.decrypt_key(account.encrypted_access_key)
                 secret_key = security.decrypt_key(account.encrypted_secret_key)
-        
+                account_api_url = account.api_url
+
         if not app_key or not secret_key:
              logger.error("No active account or missing credentials in DB. Cannot fetch market data.")
              return
-        
-        await self.token_manager.get_token(app_key, secret_key)
+
+        # Use account's api_url for token acquisition
+        await self.token_manager.get_token(app_key, secret_key, base_url=account_api_url)
         token = self.token_manager.access_token
-        
+
         if not token:
             logger.error("Token fetch failed. Token is None.")
             return
 
-        from ..core.config import settings
-        
-        # Enforce Real API (HCP REST)
-        if "mockapi" in getattr(settings, "HCP_KIWOOM_API_URL", ""):
-             base_url = "https://api.kiwoom.com"
-             print("DEBUG: MarketDataService forcing Real API URL (HCP).")
-        else:
-             base_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+        # Use account's api_url or default to real server
+        base_url = account_api_url or "https://api.kiwoom.com"
+        logger.info(f"MarketDataService using API URL: {base_url}")
         
         # HCP REST API uses /api/dostk/chart
         url = f"{base_url}/api/dostk/chart" 

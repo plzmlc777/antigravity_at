@@ -96,7 +96,7 @@ class LiveManager:
     async def on_account_changed(self):
         """
         Called when the active account is changed in Settings.
-        Reinitializes the adapter and acquires a new token.
+        Reinitializes the adapter, WebSocket, and acquires a new token.
         """
         logger.info("LiveManager: Account change detected. Reinitializing adapter...")
 
@@ -105,6 +105,15 @@ class LiveManager:
         if not success:
             logger.error("LiveManager: Failed to reinitialize adapter on account change.")
             return {"status": "error", "message": "Failed to reinitialize adapter"}
+
+        # Update WebSocket URI to match new account's api_url
+        if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
+            uri_changed = self.adapter.ws_client.update_uri(self.adapter.base_url)
+            if uri_changed:
+                logger.info(f"LiveManager: WebSocket URI updated for account change")
+                # Force reconnect if WebSocket is running
+                if self.adapter.ws_client.is_running:
+                    await self.adapter.ws_client._force_reconnect()
 
         # Acquire token for new adapter
         if hasattr(self.adapter, '_ensure_token'):
@@ -266,6 +275,11 @@ class LiveManager:
 
         # Reinitialize adapter with active account credentials from DB
         await self._reinitialize_adapter()
+
+        # Update WebSocket URI to match active account's api_url
+        if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
+            self.adapter.ws_client.update_uri(self.adapter.base_url)
+            logger.info(f"LiveManager: WebSocket URI set to match account api_url: {self.adapter.base_url}")
 
         # Ensure token is ready BEFORE restoring sessions (prevents "Cannot start Realtime: No Token")
         if hasattr(self.adapter, '_ensure_token'):
@@ -575,6 +589,55 @@ class LiveManager:
             tick_l, candle_l = listeners
             engine.remove_tick_listener(tick_l)
             engine.remove_candle_listener(candle_l)
+
+    def get_active_sessions_count(self) -> int:
+        """Return count of currently running sessions"""
+        return len(self.engines)
+
+    def get_active_session_ids(self) -> List[str]:
+        """Return list of active session IDs"""
+        return list(self.engines.keys())
+
+    async def stop_all_sessions(self):
+        """Stop all running sessions (for logout/shutdown)"""
+        session_ids = list(self.engines.keys())
+        for session_id in session_ids:
+            try:
+                await self.stop_session(session_id)
+                logger.info(f"Stopped session {session_id}")
+            except Exception as e:
+                logger.error(f"Failed to stop session {session_id}: {e}")
+
+    async def cleanup_for_logout(self, user_id: int):
+        """
+        Clean up all state for user logout.
+        Called after verifying no live sessions are running.
+        """
+        from ..core.account_cache import AccountCache
+        from ..core.token_manager import KiwoomTokenManager
+        from ..adapters.kiwoom_websocket import KiwoomWebSocket
+
+        # 1. Clear account cache
+        cache = AccountCache.get_instance()
+        cache.invalidate(user_id)
+        logger.info(f"Account cache cleared for user {user_id}")
+
+        # 2. Clear all Kiwoom tokens
+        token_manager = KiwoomTokenManager.get_instance()
+        token_manager.clear_all()
+        logger.info("Kiwoom tokens cleared")
+
+        # 3. Clear WebSocket monitored symbols and stop
+        ws = KiwoomWebSocket.get_instance()
+        ws.clear_symbols()
+        logger.info("WebSocket symbols cleared")
+
+        # 4. Clear MarketDataRouter
+        market_data_router.clear_all()
+        logger.info("MarketDataRouter cleared")
+
+        return {"status": "success", "message": "Logout cleanup completed"}
+
 
 # Global Access
 live_manager = LiveManager.get_instance()

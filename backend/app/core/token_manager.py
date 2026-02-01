@@ -196,3 +196,11 @@ class KiwoomTokenManager:
         except Exception as e:
             logger.error(f"Failed to get Kiwoom Token from {base_url}: {e}")
             return None
+
+    def clear_all(self):
+        """Clear all cached tokens (used on logout/account switch)"""
+        self._tokens.clear()
+        self.access_token = None
+        self.token_expiry = None
+        self._save_cache()
+        logger.info("TokenManager: All tokens cleared")

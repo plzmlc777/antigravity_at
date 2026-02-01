@@ -89,6 +89,37 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Ses
         "is_admin": user.is_admin
     }
 
+@router.post("/logout")
+async def logout(current_user: User = Depends(get_current_user)):
+    """
+    Logout endpoint - cleans up all user state.
+    Blocks logout if live trading sessions are running.
+    """
+    from ..core.live_manager import LiveManager
+
+    live_manager = LiveManager.get_instance()
+    active_count = live_manager.get_active_sessions_count()
+
+    # Block logout if live sessions are running
+    if active_count > 0:
+        session_ids = live_manager.get_active_session_ids()
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": f"Live 세션 {active_count}개 실행 중입니다. 먼저 중지해주세요.",
+                "active_sessions": session_ids
+            }
+        )
+
+    # Clean up all state for this user
+    await live_manager.cleanup_for_logout(current_user.id)
+
+    return {
+        "status": "success",
+        "message": "로그아웃 완료. 모든 상태가 정리되었습니다."
+    }
+
+
 @router.put("/password")
 async def change_password(
     password_data: PasswordChange,

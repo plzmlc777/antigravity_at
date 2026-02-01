@@ -172,7 +172,9 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
 
     def get_name(self) -> str:
-        return "KIWOOM (VIRTUAL)" if self.is_virtual else "KIWOOM (REAL)"
+        # Use base_url to determine actual server type (more reliable than is_virtual flag)
+        is_mock_server = "mockapi" in self.base_url.lower() if self.base_url else False
+        return "KIWOOM (VIRTUAL)" if is_mock_server else "KIWOOM (REAL)"
 
     def get_account_name(self) -> str:
         return self.account_name

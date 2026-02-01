@@ -77,5 +77,14 @@ class MarketDataRouter:
             if not q.full():
                 q.put_nowait(payload)
 
+    def clear_all(self):
+        """Clear all listeners and subscriptions (used on logout/account switch)"""
+        old_listeners = len(self.listeners)
+        old_subs = len(self.active_subscriptions)
+        self.listeners.clear()
+        self.active_subscriptions.clear()
+        logger.info(f"MarketDataRouter: Cleared {old_listeners} listener groups, {old_subs} subscriptions")
+
+
 # Singleton Instance
 market_data_router = MarketDataRouter()

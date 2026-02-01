@@ -25,7 +25,9 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         # Initialize Base Class
         KiwoomBaseAdapter.__init__(self)
 
-        self.uri = f"{settings.HCP_KIWOOM_API_URL.replace('https://', 'wss://')}:10000/api/dostk/websocket"
+        # Default URI from settings, can be updated via update_uri()
+        self._api_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+        self.uri = self._build_ws_uri(self._api_url)
         self.websocket = None
         self.is_running = False
         self.monitored_symbols: List[str] = []
@@ -38,6 +40,36 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         # Health Check State
         self.last_tick_time: Optional[datetime] = None
         self._health_check_task: Optional[asyncio.Task] = None
+
+    def _build_ws_uri(self, api_url: str) -> str:
+        """Build WebSocket URI from HTTP API URL"""
+        return f"{api_url.replace('https://', 'wss://')}:10000/api/dostk/websocket"
+
+    def update_uri(self, api_url: str):
+        """
+        Update WebSocket URI based on account's api_url.
+        Should be called when active account changes.
+        Also clears monitored symbols to prevent cross-account data leakage.
+        """
+        if not api_url:
+            api_url = "https://api.kiwoom.com"
+
+        new_uri = self._build_ws_uri(api_url)
+        if new_uri != self.uri:
+            logger.info(f"WS: URI updated from {self.uri} to {new_uri}")
+            self._api_url = api_url
+            self.uri = new_uri
+            # Clear symbols when switching accounts to prevent data leakage
+            self.clear_symbols()
+            return True
+        return False
+
+    def clear_symbols(self):
+        """Clear all monitored symbols (used on logout/account switch)"""
+        old_count = len(self.monitored_symbols)
+        self.monitored_symbols.clear()
+        self.last_tick_time = None
+        logger.info(f"WS: Cleared {old_count} monitored symbols")
 
     @staticmethod
     def is_market_open() -> bool:

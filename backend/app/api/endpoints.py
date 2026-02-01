@@ -3,6 +3,7 @@ from typing import Dict, Any
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
+from ..core.trading_env import TradingEnvironment, get_api_url, env_from_string
 from ..db.session import get_db
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -22,13 +23,18 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
     cached_config = cache.get_active_account_config(SYSTEM_USER_ID)
 
     if cached_config:
+        # Derive api_url from environment (Single Source of Truth)
+        env = env_from_string(cached_config.get('environment', 'real'))
+        api_url = get_api_url(env)
+        is_virtual = env == TradingEnvironment.VIRTUAL
+
         return KiwoomRealAdapter(
             app_key=cached_config['app_key'],
             secret_key=cached_config['secret_key'],
             account_no=cached_config['account_no'],
             account_name=cached_config['account_name'],
-            api_url=cached_config.get('api_url'),
-            is_virtual=cached_config.get('is_virtual', False)
+            api_url=api_url,
+            is_virtual=is_virtual
         )
 
     # 1. Fetch active account from DB
@@ -43,17 +49,17 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
             decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
             decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
 
-            # 2. Update Cache (include api_url and is_virtual for virtual accounts)
+            # 2. Update Cache with environment (Single Source of Truth)
             config = {
                 'app_key': decrypted_app,
                 'secret_key': decrypted_secret,
                 'account_no': active_account.account_number,
                 'account_name': active_account.account_name,
-                'api_url': active_account.api_url,
-                'is_virtual': active_account.is_virtual
+                'environment': active_account.environment or TradingEnvironment.REAL.value
             }
             cache.set_active_account_config(SYSTEM_USER_ID, config)
 
+            # api_url and is_virtual are computed properties from the model
             return KiwoomRealAdapter(
                 app_key=decrypted_app,
                 secret_key=decrypted_secret,
