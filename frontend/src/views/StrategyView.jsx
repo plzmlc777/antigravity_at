@@ -20,7 +20,7 @@ import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -181,8 +181,32 @@ const StrategyView = () => {
     }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+    // Symbol Comparison State (with localStorage persistence)
+    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState(() => {
+        try {
+            const saved = localStorage.getItem('symbolCompare_selectedSymbols');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [stockCompareResults, setStockCompareResults] = useState(() => {
+        try {
+            const saved = localStorage.getItem('symbolCompare_results');
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
+    });
+    const [isStockComparing, setIsStockComparing] = useState(false); // Running status
+    const [stockCompareProgress, setStockCompareProgress] = useState({ current: 0, total: 0, phase: 'data' });
+    const [symbolCompareConfig, setSymbolCompareConfig] = useState(() => {
+        try {
+            const saved = localStorage.getItem('symbolCompare_config');
+            return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
+    });
+    const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false); // Track unsaved changes
+
     // Parameter Copy/Paste State
     const [copiedParams, setCopiedParams] = useState(null);
+    const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -511,6 +535,21 @@ const StrategyView = () => {
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
 
+        // Handle full config replacement (e.g., from Parameter Version restore)
+        if (typeof key === 'object' && key !== null && value === undefined) {
+            const newConfig = key;
+            if (activeTab === -3) {
+                setSymbolCompareConfig(newConfig);
+                setIsDirty(true);
+                return;
+            }
+            const newList = [...configList];
+            newList[activeTab] = newConfig;
+            setConfigList(newList);
+            setIsDirty(true);
+            return;
+        }
+
         // Validate from_date: Use DB data start date if available, otherwise 1 year back
         if (key === 'from_date' && value) {
             // Compare dates only (strip time component to avoid timezone issues)
@@ -549,6 +588,14 @@ const StrategyView = () => {
                 );
                 value = minDateStr;
             }
+        }
+
+        // Handle Symbol Compare tab separately
+        if (activeTab === -3) {
+            const baseConfig = symbolCompareConfig || configList[0] || getDynamicDefaultConfig();
+            setSymbolCompareConfig({ ...baseConfig, [key]: value });
+            setIsDirty(true);
+            return;
         }
 
         const newList = [...configList];
@@ -623,12 +670,39 @@ const StrategyView = () => {
             timestamp: Date.now()
         });
 
-        // Show toast-like feedback
+        // Show visual feedback
+        setCopyPasteFeedback('copied');
+        setTimeout(() => setCopyPasteFeedback(null), 2000);
+
         addLog(`📋 Parameters copied from ${currentCfg.tabName || `Tab ${activeTab + 1}`}`, 'info');
     };
 
     const handlePasteParams = () => {
-        if (activeTab < 0 || !copiedParams || !configList[activeTab]) return;
+        if (!copiedParams) return;
+
+        // Handle Symbol Compare tab (activeTab === -3)
+        if (activeTab === -3) {
+            const baseConfig = symbolCompareConfig || configList[0] || {};
+            const newConfig = { ...baseConfig };
+
+            // Merge copied params into Symbol Compare config
+            Object.keys(copiedParams.params).forEach(key => {
+                newConfig[key] = copiedParams.params[key];
+            });
+
+            setSymbolCompareConfig(newConfig);
+            setIsSymbolCompareDirty(true);
+
+            // Show visual feedback
+            setCopyPasteFeedback('pasted');
+            setTimeout(() => setCopyPasteFeedback(null), 2000);
+
+            addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
+            return;
+        }
+
+        // Handle Rank tabs (activeTab >= 0)
+        if (activeTab < 0 || !configList[activeTab]) return;
 
         const newList = [...configList];
         const currentItem = { ...newList[activeTab] };
@@ -641,6 +715,10 @@ const StrategyView = () => {
         newList[activeTab] = currentItem;
         setConfigList(newList);
         setIsDirty(true);
+
+        // Show visual feedback
+        setCopyPasteFeedback('pasted');
+        setTimeout(() => setCopyPasteFeedback(null), 2000);
 
         addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
     };
@@ -700,9 +778,19 @@ const StrategyView = () => {
         return dynamicOptValues;
     };
 
+    // Initialize symbolCompareConfig from Rank 1 if null
+    const getSymbolCompareConfig = () => {
+        if (symbolCompareConfig) return symbolCompareConfig;
+        // Initialize from Rank 1 or default
+        const baseConfig = configList[0] || getDynamicDefaultConfig();
+        return { ...baseConfig, symbol: '', tabName: 'Symbol Compare' };
+    };
+
     const currentConfig = (activeTab >= 0 && configList[activeTab])
         ? configList[activeTab]
-        : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig());
+        : (activeTab === -3
+            ? getSymbolCompareConfig()  // Symbol Compare tab
+            : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig()));
 
     // Check Symbol Validity for UI
     const activeSymbol = currentConfig?.symbol || currentSymbol;
@@ -1744,6 +1832,217 @@ const StrategyView = () => {
         }
     };
 
+    // Symbol Comparison: Run backtest for multiple symbols with same strategy params
+    const handleStockCompareBacktest = async () => {
+        if (selectedCompareSymbols.length === 0) {
+            addLog('No symbols selected for comparison', 'error');
+            return;
+        }
+
+        // Use symbolCompareConfig if available, fallback to Rank 1
+        const baseConfig = symbolCompareConfig || configList[0];
+        if (!baseConfig) {
+            addLog('No configuration available for comparison', 'error');
+            return;
+        }
+
+        setIsStockComparing(true);
+        setStockCompareResults([]);
+        const totalSymbols = selectedCompareSymbols.length;
+        setStockCompareProgress({ current: 0, total: totalSymbols, phase: 'data' });
+        const results = [];
+
+        try {
+            // Step 1: Update chart data for all selected symbols
+            addLog(`Updating chart data for ${totalSymbols} symbols...`, 'info');
+            let totalDataAdded = 0;
+            for (let i = 0; i < totalSymbols; i++) {
+                const symbol = selectedCompareSymbols[i];
+                setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
+                try {
+                    const res = await axios.post(`/api/v1/market-data/fetch/${symbol}`, {
+                        interval: "1m",
+                        days: 365
+                    });
+                    const added = res.data?.added || 0;
+                    totalDataAdded += added;
+                    if (added > 0) {
+                        addLog(`${symbol}: +${added} candles updated`, 'info');
+                    }
+                } catch (err) {
+                    console.warn(`Failed to update data for ${symbol}`, err);
+                    addLog(`${symbol}: data update failed`, 'warning');
+                }
+            }
+            addLog(`Data update completed: +${totalDataAdded} total candles`, totalDataAdded > 0 ? 'success' : 'info');
+
+            // Step 2: Run backtest for each symbol sequentially
+            addLog(`Running backtests for ${totalSymbols} symbols...`, 'info');
+            for (let i = 0; i < totalSymbols; i++) {
+                const symbol = selectedCompareSymbols[i];
+                setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'backtest' });
+
+                try {
+                    const payload = {
+                        symbol: symbol,
+                        interval: baseConfig.interval || "1m",
+                        days: baseConfig.days || 365,
+                        from_date: baseConfig.from_date || "",
+                        initial_capital: baseConfig.initial_capital || 10000000,
+                        config: {
+                            ...baseConfig,
+                            symbol: symbol
+                        }
+                    };
+
+                    const response = await axios.post(
+                        `/api/v1/strategies/${selectedStrategy.id}/backtest`,
+                        payload
+                    );
+
+                    const data = response.data;
+                    const ret = parseFloat(String(data.total_return || 0).replace('%', '').replace(',', ''));
+                    const wr = parseFloat(String(data.win_rate || 0).replace('%', ''));
+                    const score = ret * (wr / 100);
+
+                    results.push({
+                        symbol: symbol,
+                        name: savedSymbols?.find(s => s.code === symbol)?.name || '',
+                        total_return: data.total_return,
+                        win_rate: data.win_rate,
+                        max_drawdown: data.max_drawdown,
+                        total_trades: data.total_trades,
+                        profit_factor: data.profit_factor,
+                        sharpe_ratio: data.sharpe_ratio,
+                        avg_pnl: data.avg_pnl,
+                        score: score
+                    });
+
+                    // Update results in real-time
+                    setStockCompareResults([...results]);
+
+                } catch (err) {
+                    console.error(`Backtest failed for ${symbol}`, err);
+                    results.push({
+                        symbol: symbol,
+                        name: savedSymbols?.find(s => s.code === symbol)?.name || '',
+                        total_return: 'Error',
+                        win_rate: '-',
+                        max_drawdown: '-',
+                        total_trades: 0,
+                        profit_factor: '-',
+                        sharpe_ratio: '-',
+                        avg_pnl: '-',
+                        score: -999
+                    });
+                    setStockCompareResults([...results]);
+                }
+            }
+
+            addLog(`Stock comparison completed: ${results.length} symbols tested`, 'success');
+            setIsSymbolCompareDirty(true); // Mark as dirty after comparison
+
+        } catch (e) {
+            console.error("Symbol Comparison Failed", e);
+            addLog(`Stock comparison failed: ${e.message}`, 'error');
+        } finally {
+            setIsStockComparing(false);
+            setStockCompareProgress({ current: 0, total: 0, phase: 'data' });
+        }
+    };
+
+    // Export Symbol Compare results to CSV
+    const handleExportCompareResults = () => {
+        if (stockCompareResults.length === 0) {
+            addLog('No results to export', 'warning');
+            return;
+        }
+
+        // Sort by score descending
+        const sortedResults = [...stockCompareResults].sort((a, b) => b.score - a.score);
+
+        // CSV header
+        const headers = ['Rank', 'Symbol', 'Name', 'Total Return', 'Win Rate', 'Max DD', 'Trades', 'Profit Factor', 'Sharpe', 'Avg PnL', 'Score'];
+
+        // CSV rows
+        const rows = sortedResults.map((result, idx) => [
+            idx + 1,
+            result.symbol,
+            result.name || '',
+            parseStatValue(result.total_return) ?? result.total_return,
+            parseStatValue(result.win_rate) ?? result.win_rate,
+            parseStatValue(result.max_drawdown) ?? result.max_drawdown,
+            result.total_trades,
+            parseStatValue(result.profit_factor) ?? result.profit_factor,
+            parseStatValue(result.sharpe_ratio) ?? result.sharpe_ratio,
+            parseStatValue(result.avg_pnl) ?? result.avg_pnl,
+            result.score?.toFixed(2) ?? ''
+        ]);
+
+        // Build CSV content
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => {
+                // Escape cells that contain commas or quotes
+                const str = String(cell);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            }).join(','))
+        ].join('\n');
+
+        // Create and download file
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        link.download = `symbol_compare_${timestamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        addLog(`Exported ${sortedResults.length} results to CSV`, 'success');
+    };
+
+    // Apply Symbol Compare settings (save to localStorage)
+    const handleApplySymbolCompare = () => {
+        try {
+            // Save selected symbols
+            localStorage.setItem('symbolCompare_selectedSymbols', JSON.stringify(selectedCompareSymbols));
+            // Save results
+            localStorage.setItem('symbolCompare_results', JSON.stringify(stockCompareResults));
+            // Save config
+            if (symbolCompareConfig) {
+                localStorage.setItem('symbolCompare_config', JSON.stringify(symbolCompareConfig));
+            }
+            setIsSymbolCompareDirty(false);
+            addLog('Symbol Compare settings saved', 'success');
+        } catch (e) {
+            console.error('Failed to save Symbol Compare settings:', e);
+            addLog('Failed to save settings', 'error');
+        }
+    };
+
+    // Discard Symbol Compare changes (reload from localStorage)
+    const handleDiscardSymbolCompare = () => {
+        try {
+            const savedSymbols = localStorage.getItem('symbolCompare_selectedSymbols');
+            const savedResults = localStorage.getItem('symbolCompare_results');
+            const savedConfig = localStorage.getItem('symbolCompare_config');
+
+            setSelectedCompareSymbols(savedSymbols ? JSON.parse(savedSymbols) : []);
+            setStockCompareResults(savedResults ? JSON.parse(savedResults) : []);
+            setSymbolCompareConfig(savedConfig ? JSON.parse(savedConfig) : null);
+            setIsSymbolCompareDirty(false);
+            addLog('Symbol Compare settings restored', 'info');
+        } catch (e) {
+            console.error('Failed to restore Symbol Compare settings:', e);
+        }
+    };
+
     return (
         <div className="flex flex-col gap-6 pb-10">
             {/* Top Bar: Strategy Selector */}
@@ -1822,7 +2121,8 @@ const StrategyView = () => {
                         <div className="space-y-4">
 
                             <div className="bg-white/5 border border-white/10 rounded-xl px-4 pt-4 pb-5 mb-6 overflow-x-auto scrollbar-hide">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            {/* Row 1: Main Tabs (Live, Integrated, Symbol Compare) */}
+                            <div className="flex items-center gap-2 mb-3">
                                 {/* Live Operation Tab */}
                                 <button
                                     type="button"
@@ -1846,8 +2146,6 @@ const StrategyView = () => {
                                     )}
                                 </button>
 
-
-
                                 {/* Workflow Arrow: Live → Portfolio */}
                                 <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
                                     <ChevronRight size={16} />
@@ -1865,11 +2163,26 @@ const StrategyView = () => {
                                     <span>Integrated Portfolio</span>
                                 </button>
 
-                                {/* Workflow Arrow: Portfolio → Ranks */}
+                                {/* Workflow Arrow: Portfolio → Symbol Compare */}
                                 <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
                                     <ChevronRight size={16} />
                                 </div>
 
+                                {/* Symbol Comparison Tab */}
+                                <button
+                                    onClick={() => handleTabSwitch(-3)}
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -3
+                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-105'
+                                        : 'bg-gradient-to-r from-gray-800 to-gray-900 text-emerald-500 border-emerald-500/30 hover:border-emerald-500 hover:text-emerald-400 hover:shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                        }`}
+                                >
+                                    <span className="text-lg">📊</span>
+                                    <span>Symbol Compare</span>
+                                </button>
+                            </div>
+
+                            {/* Row 2: Rank/Draft Tabs */}
+                            <div className="flex items-center gap-2 flex-wrap">
                                 {/* Rank/Draft Tabs */}
                                 {(() => {
                                     let rankCount = 0;
@@ -1984,7 +2297,7 @@ const StrategyView = () => {
                             {/* Active tab indicator line */}
                             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs text-gray-500">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 animate-pulse" />
-                                <span>{activeTab === -2 ? 'Live Operation' : activeTab === -1 ? 'Integrated Portfolio' : `Rank ${activeTab + 1}`} selected</span>
+                                <span>{activeTab === -2 ? 'Live Operation' : activeTab === -1 ? 'Integrated Portfolio' : activeTab === -3 ? 'Symbol Compare' : `Rank ${activeTab + 1}`} selected</span>
                             </div>
                             </div>
 
@@ -2063,27 +2376,6 @@ const StrategyView = () => {
                                                                         return undefined;
                                                                     })() : undefined}
                                                                 />
-                                                            </div>
-                                                            <div className="text-left">
-                                                                <label className="text-xs text-gray-400 mb-1 block">
-                                                                    Betting Logic {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
-                                                                </label>
-                                                                <select
-                                                                    value={displayConfig?.betting_strategy || "fixed"}
-                                                                    onChange={(e) => {
-                                                                        if (isIntegrated) return;
-                                                                        // We need to handle betting_strategy in handleConfigChange if it's not already there.
-                                                                        // Alternatively, update specific state if it was separate.
-                                                                        // But user wants inheritance, so it implies Rank 1 has this property.
-                                                                        // Let's assume handleConfigChange handles generic keys.
-                                                                        handleConfigChange('betting_strategy', e.target.value);
-                                                                    }}
-                                                                    disabled={isIntegrated}
-                                                                    className={`bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-40 text-center appearance-none cursor-pointer focus:border-blue-500 ${isIntegrated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                                >
-                                                                    <option value="fixed">Fixed Amount</option>
-                                                                    <option value="compound">Compound Interest</option>
-                                                                </select>
                                                             </div>
                                                             {isIntegrated && (
                                                                 <div className="text-left">
@@ -2397,107 +2689,225 @@ const StrategyView = () => {
                                             <div className="flex items-center gap-1 border-r border-white/10 pr-4">
                                                 <button
                                                     onClick={handleCopyParams}
-                                                    className="bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                                        copyPasteFeedback === 'copied'
+                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                            : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white'
+                                                    }`}
                                                     title="Copy parameters"
                                                 >
                                                     <Copy size={14} />
-                                                    Copy
+                                                    {copyPasteFeedback === 'copied' ? 'Copied!' : 'Copy'}
                                                 </button>
                                                 <button
                                                     onClick={handlePasteParams}
                                                     disabled={!copiedParams}
                                                     className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                                        copiedParams
-                                                            ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 hover:text-white border border-purple-500/30'
-                                                            : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                                        copyPasteFeedback === 'pasted'
+                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                            : copiedParams
+                                                                ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 hover:text-white border border-purple-500/30'
+                                                                : 'bg-white/5 text-gray-500 cursor-not-allowed'
                                                     }`}
                                                     title={copiedParams ? `Paste from ${copiedParams.sourceTab}` : 'No parameters copied'}
                                                 >
                                                     <ClipboardPaste size={14} />
-                                                    Paste
-                                                    {copiedParams && (
+                                                    {copyPasteFeedback === 'pasted' ? 'Pasted!' : 'Paste'}
+                                                    {copiedParams && copyPasteFeedback !== 'pasted' && (
                                                         <span className="text-[10px] text-purple-400 ml-1">({copiedParams.sourceTab})</span>
                                                     )}
                                                 </button>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={handleApplyConfig}
-                                                    disabled={isLoading || !selectedStrategy}
-                                                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                                                >
-                                                    <Save size={14} />
-                                                    Apply
-                                                </button>
-                                                {(isDirty || pendingOptResult) && (
+                                            {/* Apply/Discard - Only for Rank tabs */}
+                                            {activeTab >= 0 && (
+                                                <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={handleDiscardChanges}
-                                                        disabled={isLoading}
-                                                        className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                                        onClick={handleApplyConfig}
+                                                        disabled={isLoading || !selectedStrategy}
+                                                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
                                                     >
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                        Discard
+                                                        <Save size={14} />
+                                                        Apply
                                                     </button>
-                                                )}
-                                            </div>
-                                            <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
-                                                {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
-                                            </span>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleConfigChange('is_active', currentConfig.is_active === false);
-                                                }}
-                                                className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
-                                            >
-                                                <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
-                                            </button>
+                                                    {(isDirty || pendingOptResult) && (
+                                                        <button
+                                                            onClick={handleDiscardChanges}
+                                                            disabled={isLoading}
+                                                            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                            Discard
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {/* Apply/Discard/Reset - Only for Symbol Compare */}
+                                            {activeTab === -3 && (
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={handleApplySymbolCompare}
+                                                        disabled={isStockComparing}
+                                                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <Save size={14} />
+                                                        Apply
+                                                    </button>
+                                                    {isSymbolCompareDirty && (
+                                                        <button
+                                                            onClick={handleDiscardSymbolCompare}
+                                                            disabled={isStockComparing}
+                                                            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                            Discard
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            if (configList[0]) {
+                                                                setSymbolCompareConfig({ ...configList[0], symbol: '', tabName: 'Symbol Compare' });
+                                                                setIsSymbolCompareDirty(true);
+                                                                addLog('Reset to Rank 1 parameters', 'success');
+                                                            }
+                                                        }}
+                                                        className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+                                                    >
+                                                        <RefreshCw size={14} />
+                                                        Reset to Rank 1
+                                                    </button>
+                                                    <span className="text-[10px] uppercase font-bold tracking-wider text-blue-400">
+                                                        Symbol Compare Mode
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {/* Active/Draft Toggle - Only for Rank tabs */}
+                                            {activeTab >= 0 && (
+                                                <>
+                                                    <span className={`text-[10px] uppercase font-bold tracking-wider ${currentConfig.is_active !== false ? 'text-green-400' : 'text-gray-500'}`}>
+                                                        {currentConfig.is_active !== false ? 'Active Strategy' : 'Draft Mode'}
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleConfigChange('is_active', currentConfig.is_active === false);
+                                                        }}
+                                                        className={`w-8 h-4 rounded-full p-0.5 transition-colors ${currentConfig.is_active !== false ? 'bg-green-500' : 'bg-gray-600'}`}
+                                                    >
+                                                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${currentConfig.is_active !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="px-4 py-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            {/* 1. Target Data */}
-                                            <div>
-                                                <h4 className="text-sm font-bold text-gray-300 mb-3">Target Asset</h4>
-                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5 h-full">
-                                                    <SymbolSelector
-                                                        currentSymbol={currentConfig.symbol || currentSymbol} // Use config's symbol
-                                                        setCurrentSymbol={(newSymbol) => handleConfigChange('symbol', newSymbol)} // Update config's symbol
-                                                        savedSymbols={savedSymbols}
-                                                        setSavedSymbols={setSavedSymbols}
-                                                    />
-                                                </div>
+                                    <div className="px-4 py-4 space-y-4">
+                                        {/* Row 1: Target Asset */}
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-300 mb-3">
+                                                Target Asset
+                                                {activeTab === -3 && <span className="text-xs text-blue-400 ml-2">(Multi-Select for Compare)</span>}
+                                            </h4>
+                                            <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
+                                                {/* SymbolSelector - shared for both Rank and Symbol Compare */}
+                                                <SymbolSelector
+                                                    currentSymbol={activeTab === -3 ? '' : (currentConfig.symbol || currentSymbol)} // No single selection for Symbol Compare
+                                                    setCurrentSymbol={activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol)}
+                                                    savedSymbols={savedSymbols}
+                                                    setSavedSymbols={setSavedSymbols}
+                                                    hideSymbolList={activeTab === -3} // Hide symbol list for Symbol Compare (uses multi-select below)
+                                                />
+
+                                                {/* Multi-Select UI - Only for Symbol Compare */}
+                                                {activeTab === -3 && savedSymbols && savedSymbols.length > 0 && (
+                                                    <div className="border-t border-white/10 pt-4">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <span className="text-xs text-gray-400 font-medium">Select Symbols for Comparison</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => setSelectedCompareSymbols(savedSymbols.map(s => s.code))}
+                                                                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded transition-colors"
+                                                                >
+                                                                    Select All ({savedSymbols.length})
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setSelectedCompareSymbols([])}
+                                                                    className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
+                                                                >
+                                                                    Clear
+                                                                </button>
+                                                                <span className="text-xs text-gray-500">
+                                                                    {selectedCompareSymbols.length} / {savedSymbols.length}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {savedSymbols.map(item => (
+                                                                <label
+                                                                    key={item.code}
+                                                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                                                                        selectedCompareSymbols.includes(item.code)
+                                                                            ? 'bg-emerald-600/30 border border-emerald-500'
+                                                                            : 'bg-black/30 border border-white/10 hover:border-white/30'
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedCompareSymbols.includes(item.code)}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                setSelectedCompareSymbols(prev => [...prev, item.code]);
+                                                                            } else {
+                                                                                setSelectedCompareSymbols(prev => prev.filter(s => s !== item.code));
+                                                                            }
+                                                                        }}
+                                                                        className="w-4 h-4 rounded accent-emerald-500"
+                                                                    />
+                                                                    <span className="text-sm text-white font-mono">{item.code}</span>
+                                                                    {item.name && (
+                                                                        <span className="text-xs text-gray-400">{item.name}</span>
+                                                                    )}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                        {savedSymbols.length === 0 && (
+                                                            <p className="text-gray-500 text-sm text-center py-2">
+                                                                Add symbols above to enable comparison
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
+                                        </div>
 
-                                            {/* 2. Parameters */}
-                                            <div>
-                                                <h4 className="text-sm font-bold text-gray-300 mb-3">Parameters</h4>
-                                                <div className="bg-black/20 p-4 rounded-lg border border-white/5">
-                                                    {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
-                                                    {selectedStrategy.parameter_schema?.fields?.length > 0 ? (
-                                                        <DynamicParameterForm
-                                                            schema={selectedStrategy.parameter_schema}
-                                                            values={currentConfig}
-                                                            onChange={handleConfigChange}
-                                                        />
-                                                    ) : (
-                                                        <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
-                                                    )}
-
-                                                    {/* Parameter Version Manager */}
-                                                    <ParameterVersionManager
-                                                        strategyId={selectedStrategy?.id}
-                                                        symbol={currentConfig?.symbol || currentSymbol}
-                                                        currentParams={currentConfig}
-                                                        onRestore={(restoredParams) => {
-                                                            // Merge restored params with current config
-                                                            handleConfigChange({...currentConfig, ...restoredParams});
-                                                        }}
-                                                        className="mt-4"
+                                        {/* Row 2: Parameters */}
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-300 mb-3">Parameters</h4>
+                                            <div className="bg-black/20 p-4 rounded-lg border border-white/5">
+                                                {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
+                                                {selectedStrategy.parameter_schema?.fields?.length > 0 ? (
+                                                    <DynamicParameterForm
+                                                        schema={selectedStrategy.parameter_schema}
+                                                        values={currentConfig}
+                                                        onChange={handleConfigChange}
                                                     />
-                                                </div>
+                                                ) : (
+                                                    <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
+                                                )}
+
+                                                {/* Parameter Version Manager */}
+                                                <ParameterVersionManager
+                                                    strategyId={selectedStrategy?.id}
+                                                    symbol={currentConfig?.symbol || currentSymbol}
+                                                    currentParams={currentConfig}
+                                                    onRestore={(restoredParams) => {
+                                                        // Merge restored params with current config
+                                                        handleConfigChange({...currentConfig, ...restoredParams});
+                                                    }}
+                                                    className="mt-4"
+                                                />
                                             </div>
                                         </div>
                                     </div>
@@ -2526,6 +2936,175 @@ const StrategyView = () => {
                                         parameterSchema={selectedStrategy?.parameter_schema}
                                         onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
                                     />
+                                </div>
+                            )}
+
+                            {/* Symbol Comparison Tab Content */}
+                            {activeTab === -3 && (
+                                <div className="animate-fade-in-up space-y-4">
+                                    {/* Backtest Settings & Run Button */}
+                                    <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                        <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                            <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                                <Settings size={14} className="text-gray-400" /> Backtest Settings
+                                            </h3>
+                                        </div>
+                                        <div className="px-4 py-4 flex flex-col gap-4">
+                                            {/* Row 1: Info display */}
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-blue-400 text-xs font-bold px-2 py-1 bg-blue-500/10 rounded border border-blue-500/20 whitespace-nowrap" title="모든 데이터는 1분봉으로 수집 후 집계됩니다">
+                                                    1m
+                                                </span>
+                                                <span className="text-gray-400 text-xs">
+                                                    Data will be fetched for each symbol during comparison
+                                                </span>
+                                            </div>
+
+                                            {/* Row 2: Capital & Date inputs */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
+                                                    <input
+                                                        type="text"
+                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value.replace(/,/g, ''), 10);
+                                                            if (!isNaN(val)) handleConfigChange('initial_capital', val);
+                                                        }}
+                                                        className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                                                    />
+                                                </div>
+
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
+                                                        Start Date (Max 1yr)
+                                                    </label>
+                                                    <DateDropdown
+                                                        value={currentConfig?.from_date || ""}
+                                                        onChange={(dateStr) => handleConfigChange('from_date', dateStr)}
+                                                    />
+                                                </div>
+
+                                                <div className="flex items-center justify-end">
+                                                    <button
+                                                        onClick={handleStockCompareBacktest}
+                                                        disabled={isStockComparing || selectedCompareSymbols.length === 0}
+                                                        className={`px-6 py-2.5 rounded-lg font-bold text-white transition-all flex items-center gap-2 ${
+                                                            isStockComparing || selectedCompareSymbols.length === 0
+                                                                ? 'bg-gray-600 cursor-not-allowed'
+                                                                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg'
+                                                        }`}
+                                                    >
+                                                        {isStockComparing ? (
+                                                            <>
+                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                {stockCompareProgress.phase === 'data' ? 'Updating' : 'Testing'} ({stockCompareProgress.current}/{stockCompareProgress.total})
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                🚀 Run Comparison ({selectedCompareSymbols.length})
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Results Table */}
+                                    {stockCompareResults.length > 0 && (() => {
+                                        // Helper to parse and format stat values for Symbol Compare results
+                                        const formatCompareValue = (value, format, decimals = 2) => {
+                                            if (value == null || value === '-' || value === 'Error') return value;
+                                            // Parse numeric value (strip % and other suffixes)
+                                            const num = typeof value === 'number' ? value : parseStatValue(value);
+                                            if (num == null) return value;
+                                            switch (format) {
+                                                case 'pct': return `${num >= 0 ? '+' : ''}${num.toFixed(decimals)}%`;
+                                                case 'pct_unsigned': return `${num.toFixed(decimals)}%`;
+                                                case 'num': return num.toFixed(decimals);
+                                                case 'int': return String(Math.round(num));
+                                                default: return String(value);
+                                            }
+                                        };
+                                        const getReturnColor = (value) => {
+                                            const num = typeof value === 'number' ? value : parseStatValue(value);
+                                            return num >= 0 ? 'text-green-400' : 'text-red-400';
+                                        };
+                                        return (
+                                            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                                <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                                                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                                        📊 Comparison Results ({stockCompareResults.length} symbols)
+                                                    </h3>
+                                                    <button
+                                                        onClick={handleExportCompareResults}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 rounded-lg text-xs font-medium transition-colors border border-emerald-500/30"
+                                                    >
+                                                        <Download size={14} />
+                                                        Export CSV
+                                                    </button>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                                                        <thead>
+                                                            <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
+                                                                <th className="p-3">Rank</th>
+                                                                <th className="p-3">Symbol</th>
+                                                                <th className="p-3">Name</th>
+                                                                <th className="p-3 text-right">Total Return</th>
+                                                                <th className="p-3 text-right">Win Rate</th>
+                                                                <th className="p-3 text-right">Max DD</th>
+                                                                <th className="p-3 text-right">Trades</th>
+                                                                <th className="p-3 text-right">Profit Factor</th>
+                                                                <th className="p-3 text-right">Sharpe</th>
+                                                                <th className="p-3 text-right">Avg PnL</th>
+                                                                <th className="p-3 text-right">Score</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {stockCompareResults
+                                                                .sort((a, b) => b.score - a.score)
+                                                                .map((result, idx) => (
+                                                                    <tr
+                                                                        key={result.symbol}
+                                                                        className={`border-b border-white/5 hover:bg-white/5 transition-colors ${idx === 0 ? 'bg-emerald-900/20' : ''}`}
+                                                                    >
+                                                                        <td className="p-3 text-white font-bold">{idx + 1}</td>
+                                                                        <td className="p-3 text-white font-mono">{result.symbol}</td>
+                                                                        <td className="p-3 text-gray-300">{result.name || '-'}</td>
+                                                                        <td className={`p-3 text-right font-bold ${getReturnColor(result.total_return)}`}>
+                                                                            {formatCompareValue(result.total_return, 'pct', 2)}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-yellow-400 font-bold">
+                                                                            {formatCompareValue(result.win_rate, 'pct_unsigned', 1)}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-red-400">
+                                                                            {formatCompareValue(result.max_drawdown, 'pct_unsigned', 2)}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-white">
+                                                                            {formatCompareValue(result.total_trades, 'int')}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-white">
+                                                                            {formatCompareValue(result.profit_factor, 'num', 2)}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-yellow-400">
+                                                                            {formatCompareValue(result.sharpe_ratio, 'num', 2)}
+                                                                        </td>
+                                                                        <td className={`p-3 text-right ${getReturnColor(result.avg_pnl)}`}>
+                                                                            {formatCompareValue(result.avg_pnl, 'pct', 2)}
+                                                                        </td>
+                                                                        <td className="p-3 text-right text-purple-400 font-bold">
+                                                                            {result.score != null && result.score !== -999 ? result.score.toFixed(2) : '-'}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -2616,21 +3195,7 @@ const StrategyView = () => {
                                                     })() : undefined}
                                                 />
                                             </div>
-
-                                            <div className="relative">
-                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Betting Logic</label>
-                                                <select
-                                                    value={currentConfig.betting_strategy || "fixed"}
-                                                    onChange={(e) => handleConfigChange('betting_strategy', e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none appearance-none cursor-pointer"
-                                                >
-                                                    <option value="fixed">Fixed Amount</option>
-                                                    <option value="compound">Compound Interest</option>
-                                                </select>
-                                            </div>
                                         </div>
-
-
                                     </div>
                                 </div>
                             )}

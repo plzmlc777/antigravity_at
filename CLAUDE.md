@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Antigravity Auto Trading System - A comprehensive automated trading platform for the Korean stock market, integrating with the Kiwoom Securities API. The system supports manual trading, simple automated bots, advanced strategy backtesting/optimization, and live trading with real-time data feeds.
 
-**Current Version**: v0.9.9.50
+**Current Version**: v0.9.9.57
 
 ## Common Commands
 
@@ -201,6 +201,8 @@ Environment variables are loaded from multiple sources (priority order):
 
 ### Version Management
 
+> ⚠️ **MEMORY: 버전업 요청 시 반드시 이 섹션을 따를 것!**
+
 버전은 **코드 2곳**만 수정하면 됨 (DB 저장 없음):
 - `backend/app/core/config.py` — `PROJECT_VERSION` (백엔드 API 반환)
 - `frontend/package.json` — `version` (Vite 빌드 시 주입)
@@ -217,10 +219,17 @@ Environment variables are loaded from multiple sources (priority order):
 ./scripts/bump_version.sh
 ```
 
+**Claude 버전업 체크리스트** (이 순서대로 실행):
+1. ✅ `.claude/docs/release_protocol.md` 읽기 (상세 절차 확인)
+2. ✅ 커밋되지 않은 변경사항이 있으면 먼저 커밋
+3. ✅ Change Log Report 생성 (User Ordered / Self-Initiated / Modified Files)
+4. ✅ `./scripts/bump_version.sh <새버전>` 실행 (절대 수동 편집 금지!)
+5. ✅ 사용자에게 결과 보고
+
 **Claude에게 요청 시:**
-- "버전업 해줘" → `bump_version.sh <새버전>` 실행 (수동으로 파일 수정하지 말 것)
+- "버전업 해줘" / "배포해줘" / "Version Up" → 위 체크리스트 실행
 - "재시작 해줘" → `bump_version.sh --restart` 실행
-- 커밋되지 않은 변경사항이 있으면 먼저 커밋 후 버전업 스크립트 실행
+- 수동으로 config.py, package.json 수정하지 말 것!
 
 ### Real-time WebSocket Endpoints
 - `/api/v1/live/ws/{session_id}` - Live session feed (signals, orders, PnL)
@@ -281,6 +290,7 @@ When adding new strategies:
 
 | 작업 | 문서 경로 | 설명 |
 |------|-----------|------|
+| **Claude 메모리** | `.claude/memories.md` | 반복 지침, 트리거 키워드 |
 | **배포** | `.claude/docs/deployment.md` | 로컬/리모트 서버 배포, PM2, SSH |
 | **DB 마이그레이션** | `.claude/docs/database_migration.md` | 스키마 변경, 백업, 복구 |
 | **버전 릴리스** | `.claude/docs/release_protocol.md` | 버전업, 체인지로그, 태그 |
@@ -288,3 +298,4 @@ When adding new strategies:
 | **문법 검사** | `.claude/docs/syntax_check.md` | Python/JS 린트 체크 |
 
 > **사용법**: 특정 작업 수행 전 해당 문서를 읽고 절차를 따를 것
+> **Claude**: 버전업/배포 요청 시 `.claude/memories.md` 먼저 확인!

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols }) => {
+const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols, hideSymbolList = false }) => {
     const [inputValue, setInputValue] = useState('');
     const [draggedIndex, setDraggedIndex] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -101,39 +101,43 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
                 </button>
             </form>
 
-            <div className="h-6 w-px bg-white/10 mx-2 hidden md:block"></div>
+            {!hideSymbolList && (
+                <>
+                    <div className="h-6 w-px bg-white/10 mx-2 hidden md:block"></div>
 
-            <div className="flex flex-wrap gap-2">
-                {savedSymbols.map((sym, index) => (
-                    <div
-                        key={sym.code}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragOver={(e) => handleDragOver(e, index)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, index)}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => setCurrentSymbol(sym.code)}
-                        className={`group flex items-center gap-2 px-3 py-1 rounded cursor-grab border transition-all ${
-                            currentSymbol === sym.code
-                                ? 'bg-blue-900/30 border-blue-500 text-blue-300'
-                                : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
-                        } ${draggedIndex === index ? 'opacity-50' : ''} ${
-                            dragOverIndex === index ? 'border-yellow-500 border-dashed' : ''
-                        }`}
-                    >
-                        <span className="text-sm font-mono">
-                            {sym.code} <span className="text-xs opacity-70">{sym.name && `(${sym.name})`}</span>
-                        </span>
-                        <button
-                            onClick={(e) => removeSymbol(e, sym.code)}
-                            className="w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 transition-all text-xs"
-                        >
-                            ×
-                        </button>
+                    <div className="flex flex-wrap gap-2">
+                        {savedSymbols.map((sym, index) => (
+                            <div
+                                key={sym.code}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, index)}
+                                onDragEnd={handleDragEnd}
+                                onClick={() => setCurrentSymbol(sym.code)}
+                                className={`group flex items-center gap-2 px-3 py-1 rounded cursor-grab border transition-all ${
+                                    currentSymbol === sym.code
+                                        ? 'bg-blue-900/30 border-blue-500 text-blue-300'
+                                        : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
+                                } ${draggedIndex === index ? 'opacity-50' : ''} ${
+                                    dragOverIndex === index ? 'border-yellow-500 border-dashed' : ''
+                                }`}
+                            >
+                                <span className="text-sm font-mono">
+                                    {sym.code} <span className="text-xs opacity-70">{sym.name && `(${sym.name})`}</span>
+                                </span>
+                                <button
+                                    onClick={(e) => removeSymbol(e, sym.code)}
+                                    className="w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 transition-all text-xs"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </>
+            )}
         </div>
     );
 };
