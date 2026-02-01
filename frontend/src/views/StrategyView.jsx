@@ -207,6 +207,7 @@ const StrategyView = () => {
     // Parameter Copy/Paste State
     const [copiedParams, setCopiedParams] = useState(null);
     const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
+    const [applyFeedback, setApplyFeedback] = useState(null); // 'saved' | null
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -2040,6 +2041,11 @@ const StrategyView = () => {
                 localStorage.setItem('symbolCompare_config', JSON.stringify(symbolCompareConfig));
             }
             setIsSymbolCompareDirty(false);
+
+            // Visual feedback
+            setApplyFeedback('saved');
+            setTimeout(() => setApplyFeedback(null), 2000);
+
             addLog('Symbol Compare settings saved', 'success');
         } catch (e) {
             console.error('Failed to save Symbol Compare settings:', e);
@@ -2770,10 +2776,14 @@ const StrategyView = () => {
                                                     <button
                                                         onClick={handleApplySymbolCompare}
                                                         disabled={isStockComparing}
-                                                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                            applyFeedback === 'saved'
+                                                                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/30'
+                                                        }`}
                                                     >
                                                         <Save size={14} />
-                                                        Apply
+                                                        {applyFeedback === 'saved' ? 'Saved!' : 'Apply'}
                                                     </button>
                                                     {isSymbolCompareDirty && (
                                                         <button
