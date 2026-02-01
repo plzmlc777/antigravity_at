@@ -271,8 +271,47 @@ const StrategyView = () => {
     // Helper functions for account-specific localStorage keys
     const getAccountKey = (baseKey, accountId) => accountId ? `${baseKey}_account_${accountId}` : baseKey;
 
+    // Migrate legacy localStorage data to account-specific keys (one-time migration)
+    const migrateLegacyLocalStorage = (accountId) => {
+        const MIGRATION_FLAG = `localStorage_migrated_account_${accountId}`;
+        if (localStorage.getItem(MIGRATION_FLAG)) {
+            return; // Already migrated
+        }
+
+        console.log(`[Migration] Migrating legacy localStorage to account ${accountId}...`);
+
+        // List of keys to migrate
+        const keysToMigrate = [
+            'savedSymbols',
+            'lastSymbol',
+            'symbolCompare_selectedSymbols',
+            'symbolCompare_results',
+            'symbolCompare_config'
+        ];
+
+        let migratedCount = 0;
+        keysToMigrate.forEach(key => {
+            const legacyValue = localStorage.getItem(key);
+            const newKey = getAccountKey(key, accountId);
+
+            // Only migrate if legacy exists and new doesn't
+            if (legacyValue && !localStorage.getItem(newKey)) {
+                localStorage.setItem(newKey, legacyValue);
+                migratedCount++;
+                console.log(`  [Migrated] ${key} -> ${newKey}`);
+            }
+        });
+
+        // Mark as migrated
+        localStorage.setItem(MIGRATION_FLAG, 'true');
+        console.log(`[Migration] Complete. Migrated ${migratedCount} keys.`);
+    };
+
     // Load symbols for specific account from localStorage
     const loadSymbolsForAccount = (accountId) => {
+        // First, migrate legacy data if needed
+        migrateLegacyLocalStorage(accountId);
+
         const symbolKey = getAccountKey('savedSymbols', accountId);
         const lastSymbolKey = getAccountKey('lastSymbol', accountId);
         const compareSymbolsKey = getAccountKey('symbolCompare_selectedSymbols', accountId);
