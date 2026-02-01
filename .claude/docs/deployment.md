@@ -74,10 +74,17 @@ This workflow defines the standard operating procedure for developing, testing, 
 | Path | ~/auto_trading |
 | PM2 | /usr/local/bin/pm2 (global) |
 
-### Quick Deploy (One-liner)
+### Quick Deploy (코드만 변경된 경우)
 
 ```bash
 ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend && pm2 status"
+```
+
+### Full Deploy with DB Migration (스키마 변경 포함)
+
+```bash
+# 1. Pull + Migration + Restart (올인원)
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && cd backend && python3 -m migrations.run_migrations && cd .. && pm2 restart at-backend at-frontend && pm2 status"
 ```
 
 ### Step-by-Step Deploy
@@ -87,17 +94,27 @@ ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 res
     ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master"
     ```
 
-2. **Restart Services**:
+2. **Run DB Migration (스키마 변경 시)**:
+    ```bash
+    ssh mint@121.183.229.140 "cd ~/auto_trading/backend && python3 -m migrations.run_migrations"
+    ```
+    > 마이그레이션 스크립트는 멱등성(idempotent)이 있어 이미 적용된 경우 자동 skip
+
+3. **Restart Services**:
     ```bash
     ssh mint@121.183.229.140 "pm2 restart at-backend at-frontend"
     ```
 
-3. **Verify Status**:
+4. **Verify Deployment**:
     ```bash
+    # 서비스 상태 확인
     ssh mint@121.183.229.140 "pm2 status"
+
+    # 버전 확인
+    ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
     ```
 
-4. **Check Logs (if needed)**:
+5. **Check Logs (if needed)**:
     ```bash
     ssh mint@121.183.229.140 "pm2 logs --lines 50"
     ```
@@ -107,7 +124,7 @@ ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 res
 Dependencies가 변경된 경우:
 
 ```bash
-ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pip3 install -r requirements.txt && npm install && pm2 restart at-backend at-frontend"
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pip3 install -r backend/requirements.txt && cd frontend && npm install && cd .. && pm2 restart at-backend at-frontend"
 ```
 
 ## 4. Configuration Standards
@@ -133,7 +150,41 @@ pm2 save
 # 저장된 프로세스 파일: ~/.pm2/dump.pm2
 ```
 
-## 6. Troubleshooting
+## 6. Database Backup & Migration
+
+### Pre-Deployment Backup (권장)
+
+DB 스키마 변경 전 백업:
+
+```bash
+# 로컬 서버
+PGPASSWORD=antigravity_password pg_dump -h localhost -U antigravity_user -d antigravity_db > backup_v$(date +%Y%m%d).sql
+
+# 리모트 서버 (SSH 경유)
+ssh mint@121.183.229.140 "cd ~/auto_trading && PGPASSWORD=<password> pg_dump -h localhost -U <user> -d <db> > backup_$(date +%Y%m%d).sql"
+```
+
+### Migration Scripts
+
+마이그레이션 파일 위치: `backend/migrations/`
+
+| 파일 | 설명 |
+|------|------|
+| `run_migrations.py` | 마이그레이션 실행 스크립트 |
+| `001_add_environment_field.sql` | environment 컬럼 추가 |
+
+```bash
+# 마이그레이션 실행 (멱등성 보장)
+cd backend && python3 -m migrations.run_migrations
+```
+
+### Migration 작성 규칙
+
+1. 파일명: `NNN_description.sql` (예: `002_add_new_column.sql`)
+2. `run_migrations.py`에 함수 추가
+3. `IF NOT EXISTS` / `IF EXISTS` 사용하여 멱등성 보장
+
+## 7. Troubleshooting
 
 ### SSH 접속 실패
 
@@ -158,3 +209,16 @@ ssh mint@121.183.229.140 "pm2 status && pm2 logs --lines 20"
 ```bash
 ssh mint@121.183.229.140 "cd ~/auto_trading && git branch && git status"
 ```
+
+### 배포 롤백
+
+문제 발생 시 이전 버전으로 롤백:
+```bash
+# 특정 커밋으로 롤백
+ssh mint@121.183.229.140 "cd ~/auto_trading && git reset --hard <commit_hash> && pm2 restart at-backend at-frontend"
+
+# 또는 특정 태그로 롤백
+ssh mint@121.183.229.140 "cd ~/auto_trading && git checkout v0.9.9.53 && pm2 restart at-backend at-frontend"
+```
+
+> ⚠️ DB 스키마 변경이 포함된 경우 백업에서 복구 필요
