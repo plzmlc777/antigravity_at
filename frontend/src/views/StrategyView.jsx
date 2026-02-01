@@ -656,9 +656,24 @@ const StrategyView = () => {
     };
 
     const handleCopyParams = () => {
-        if (activeTab < 0 || !configList[activeTab]) return;
+        // Determine source config based on active tab
+        let currentCfg;
+        let sourceLabel;
 
-        const currentCfg = configList[activeTab];
+        if (activeTab === -3) {
+            // Symbol Compare tab - use fallback if symbolCompareConfig is null
+            currentCfg = symbolCompareConfig || configList[0] || {};
+            sourceLabel = 'Symbol Compare';
+        } else if (activeTab >= 0 && configList[activeTab]) {
+            // Rank tabs
+            currentCfg = configList[activeTab];
+            sourceLabel = currentCfg.tabName || `Tab ${activeTab + 1}`;
+        } else {
+            return;
+        }
+
+        if (!currentCfg) return;
+
         const paramsToCopy = {};
 
         // Copy only strategy parameters defined in schema (whitelist approach)
@@ -671,8 +686,8 @@ const StrategyView = () => {
 
         setCopiedParams({
             params: paramsToCopy,
-            sourceTab: currentCfg.tabName || `Tab ${activeTab + 1}`,
-            sourceSymbol: currentCfg.symbol,
+            sourceTab: sourceLabel,
+            sourceSymbol: currentCfg.symbol || 'Multi',
             timestamp: Date.now()
         });
 
@@ -680,7 +695,7 @@ const StrategyView = () => {
         setCopyPasteFeedback('copied');
         setTimeout(() => setCopyPasteFeedback(null), 2000);
 
-        addLog(`📋 Parameters copied from ${currentCfg.tabName || `Tab ${activeTab + 1}`}`, 'info');
+        addLog(`📋 Parameters copied from ${sourceLabel}`, 'info');
     };
 
     const handlePasteParams = () => {
