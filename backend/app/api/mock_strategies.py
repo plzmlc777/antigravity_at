@@ -335,6 +335,16 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
             # Update Progress
             OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
 
+            # Update partial results every 10 items (for live preview)
+            if len(results) > 0 and (i + 1) % 10 == 0:
+                # Sort current results and take top 20 for preview
+                sorted_partial = sorted(results, key=lambda x: x.score, reverse=True)[:20]
+                # Assign temporary ranks
+                partial_with_ranks = []
+                for idx, item in enumerate(sorted_partial):
+                    partial_with_ranks.append(item.model_copy(update={"rank": idx + 1}))
+                OPTIMIZATION_TASKS[task_id]["partial_results"] = partial_with_ranks
+
             # Check for Cancellation
             if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
                 logger.info(f"Task {task_id} cancellation requested.")
@@ -743,7 +753,8 @@ async def get_optimization_status(task_id: str):
         progress_total=task.get("progress_total", 0),
         message=task.get("message", ""),
         result=task.get("result"),
-        csv_file=task.get("csv_file")
+        csv_file=task.get("csv_file"),
+        partial_results=task.get("partial_results") if task["status"] == "running" else None
     )
 
     # Memory cleanup: Delete completed/failed/cancelled tasks after returning result

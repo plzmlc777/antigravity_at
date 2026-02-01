@@ -56,3 +56,4 @@ class OptimizationStatus(BaseModel):
     message: str
     result: Optional[OptimizationResponse] = None
     csv_file: Optional[str] = None  # CSV filename for full results download
+    partial_results: Optional[List[OptimizationResultItem]] = None  # Top N results so far (during running)

@@ -1519,6 +1519,22 @@ const StrategyView = () => {
                             setOptStatusMessage(statusData.message);
                         }
 
+                        // Show partial results during optimization (live preview)
+                        if (statusData.status === 'running' && statusData.partial_results && statusData.partial_results.length > 0) {
+                            const formattedPartial = statusData.partial_results.map((item, index) => ({
+                                ...item.config,
+                                ...item.metrics,
+                                return: item.total_return,
+                                win_rate: item.win_rate,
+                                trades: item.total_trades,
+                                score: item.score,
+                                full_config: item.config,
+                                rank: item.rank > 0 ? item.rank : (index + 1),
+                                _isPartial: true  // Mark as partial result
+                            }));
+                            setOptResults(formattedPartial);
+                        }
+
                         if (statusData.status === 'completed' || statusData.status === 'cancelled') {
                             // Finished (or Cancelled)
                             const resultData = statusData.result;
@@ -2977,6 +2993,11 @@ const StrategyView = () => {
                                                         <div className="p-4 border-b border-white/10 flex items-center justify-between">
                                                             <div className="text-sm text-gray-400 flex items-center gap-3">
                                                                 <span><span className="font-bold text-white">{optResults.length}</span> optimization results</span>
+                                                                {isOptimizing && optResults[0]?._isPartial && (
+                                                                    <span className="px-2 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full animate-pulse">
+                                                                        Live Preview (Top 20)
+                                                                    </span>
+                                                                )}
                                                                 {pendingOptResult && (
                                                                     <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full animate-pulse">
                                                                         ⚠️ Unsaved
