@@ -1272,6 +1272,7 @@ const StrategyView = () => {
     };
 
     const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
+    const [completedOptTaskId, setCompletedOptTaskId] = useState(null); // For CSV download
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
@@ -1345,6 +1346,36 @@ const StrategyView = () => {
         URL.revokeObjectURL(url);
 
         addLog(`Exported ${optResults.length} results to ${filename}`, 'success');
+    };
+
+    // Download FULL optimization results from backend (all combinations, not just top 200)
+    const downloadFullOptResultsCSV = async () => {
+        if (!completedOptTaskId) {
+            addLog('No optimization task available for download', 'error');
+            return;
+        }
+
+        try {
+            const response = await axios.get(`/api/v1/strategies/optimize/download/${completedOptTaskId}`, {
+                responseType: 'blob'
+            });
+
+            const blob = new Blob([response.data], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const filename = `optimization_full_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            addLog(`Downloaded full optimization results (all combinations)`, 'success');
+        } catch (error) {
+            const msg = error.response?.status === 404
+                ? 'CSV file not found. It may have been cleaned up.'
+                : error.message;
+            addLog(`Failed to download CSV: ${msg}`, 'error');
+        }
     };
 
     // Helper: Parse parameter string
@@ -1503,6 +1534,7 @@ const StrategyView = () => {
                                     rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
                                 }));
                                 setOptResults(formattedResults);
+                                setCompletedOptTaskId(taskId); // For full CSV download
 
                                 // Pending Save: Store in state, save to DB only on Apply/Tab switch confirmation
                                 if (currentConfig.uuid && statusData.status === 'completed') {
@@ -2951,15 +2983,30 @@ const StrategyView = () => {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <button
-                                                                onClick={exportOptResultsToCSV}
-                                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                                </svg>
-                                                                Export CSV
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={exportOptResultsToCSV}
+                                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                    title="Export top 200 results shown in this table"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                    </svg>
+                                                                    Export Top 200
+                                                                </button>
+                                                                {completedOptTaskId && (
+                                                                    <button
+                                                                        onClick={downloadFullOptResultsCSV}
+                                                                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                        title="Download ALL optimization results (full dataset)"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                        </svg>
+                                                                        Download Full CSV
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">

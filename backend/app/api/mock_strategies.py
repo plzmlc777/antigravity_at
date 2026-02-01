@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -8,8 +9,14 @@ import random
 import time
 import itertools
 import functools
+import csv
+import os
 from concurrent.futures import ProcessPoolExecutor
 from ..schemas.optimization import OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus
+
+# CSV output directory
+CSV_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "optimization_results")
+os.makedirs(CSV_OUTPUT_DIR, exist_ok=True)
 
 import logging
 
@@ -345,6 +352,59 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
             ranked_results.append(ranked_item)
         results = ranked_results
 
+        # Write ALL results to CSV file
+        csv_filename = f"optimization_{task_id}.csv"
+        csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+        try:
+            with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                if results:
+                    # Define CSV columns
+                    csv_columns = [
+                        'rank', 'score', 'total_return', 'win_rate', 'total_trades',
+                        'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
+                        'stability_score', 'acceleration_score', 'activity_rate',
+                        'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
+                        'cycle_count', 'cycle_avg_pnl', 'cycle_avg_hold'
+                    ]
+                    # Add config keys from first result
+                    config_keys = list(results[0].config.keys())
+                    all_columns = csv_columns + [f"config_{k}" for k in config_keys]
+
+                    writer = csv.DictWriter(csvfile, fieldnames=all_columns)
+                    writer.writeheader()
+
+                    for item in results:
+                        row = {
+                            'rank': item.rank,
+                            'score': item.score,
+                            'total_return': item.total_return,
+                            'win_rate': item.win_rate,
+                            'total_trades': item.total_trades,
+                            'max_drawdown': item.max_drawdown,
+                            'profit_factor': item.profit_factor,
+                            'sharpe_ratio': item.sharpe_ratio,
+                            'avg_pnl': item.avg_pnl,
+                            'stability_score': item.stability_score,
+                            'acceleration_score': item.acceleration_score,
+                            'activity_rate': item.activity_rate,
+                            'avg_holding_time': item.avg_holding_time,
+                            'max_profit': item.max_profit,
+                            'max_loss': item.max_loss,
+                            'total_days': item.total_days,
+                            'cycle_count': item.cycle_count,
+                            'cycle_avg_pnl': item.cycle_avg_pnl,
+                            'cycle_avg_hold': item.cycle_avg_hold,
+                        }
+                        # Add config values
+                        for k in config_keys:
+                            row[f"config_{k}"] = item.config.get(k, "")
+                        writer.writerow(row)
+
+            OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
+            logger.info(f"[CSV] Saved {len(results)} results to {csv_filepath}")
+        except Exception as csv_err:
+            logger.error(f"[CSV] Failed to save CSV: {csv_err}")
+
         execution_time = time.time() - start_time
         
         # Determine final status
@@ -355,7 +415,7 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         response = OptimizationResponse(
             strategy_id=strategy_id,
             best_config=results[0].config if results else {},
-            results=results[:50],
+            results=results[:200],
             failures=failures,
             total_combinations=total_combos,
             elapsed_time=execution_time,
@@ -682,7 +742,8 @@ async def get_optimization_status(task_id: str):
         progress_current=task.get("progress_current", 0),
         progress_total=task.get("progress_total", 0),
         message=task.get("message", ""),
-        result=task.get("result")
+        result=task.get("result"),
+        csv_file=task.get("csv_file")
     )
 
     # Memory cleanup: Delete completed/failed/cancelled tasks after returning result
@@ -692,6 +753,25 @@ async def get_optimization_status(task_id: str):
         logger.info(f"[Memory Cleanup] Deleted optimization task {task_id} from memory after result delivery")
 
     return response
+
+
+@router.get("/optimize/download/{task_id}")
+async def download_optimization_csv(task_id: str):
+    """
+    Download the full optimization results as a CSV file.
+    The file contains ALL results, not just the top 200.
+    """
+    csv_filename = f"optimization_{task_id}.csv"
+    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+
+    if not os.path.exists(csv_filepath):
+        raise HTTPException(status_code=404, detail="CSV file not found. Optimization may still be running or task_id is invalid.")
+
+    return FileResponse(
+        path=csv_filepath,
+        filename=csv_filename,
+        media_type="text/csv"
+    )
 
 
 # --- Integrated Backtest Logic ---

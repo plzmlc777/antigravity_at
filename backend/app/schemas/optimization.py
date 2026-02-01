@@ -55,3 +55,4 @@ class OptimizationStatus(BaseModel):
     progress_total: int
     message: str
     result: Optional[OptimizationResponse] = None
+    csv_file: Optional[str] = None  # CSV filename for full results download
