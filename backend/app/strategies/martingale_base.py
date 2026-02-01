@@ -39,9 +39,9 @@ class MartingaleBase(BaseStrategy):
          "default": 0.003, "min": 0.001, "max": 50, "step": 0.001,
          "description": "Drop % from peak price to trigger sell",
          "show_in_table": True, "defaultOptRange": "0.1, 0.3, 0.5, 1.0"},
-        {"name": "max_loss_percent", "type": "number", "label": "Max Loss (%)",
+        {"name": "max_loss_percent", "type": "number", "label": "Stop Loss (%)",
          "default": 0.10, "min": 0.01, "max": 1000, "step": 0.01,
-         "description": "Capital loss % that triggers HODL mode",
+         "description": "Capital loss % that triggers forced sell",
          "show_in_table": False, "defaultOptRange": "5.0, 10.0, 20.0"},
         {"name": "betting_strategy", "type": "select", "label": "Betting Mode",
          "default": "fixed", "options": ["fixed", "compound"],
@@ -50,6 +50,14 @@ class MartingaleBase(BaseStrategy):
         {"name": "safety_margin_percent", "type": "number", "label": "Safety Margin (%)",
          "default": 1.0, "min": 0, "max": 50, "step": 0.5,
          "description": "Reserve % of capital not used for trading",
+         "show_in_table": False},
+        {"name": "cycle_max_hours", "type": "number", "label": "Cycle Max Hours",
+         "default": 0, "min": 0, "max": 720, "step": 1,
+         "description": "Force close cycle after N hours (0=unlimited)",
+         "show_in_table": False, "defaultOptRange": "0, 4, 8, 24, 48"},
+        {"name": "last_level_allin", "type": "select", "label": "Last Level All-In",
+         "default": "off", "options": ["off", "on"],
+         "description": "Use all remaining capital on final level (off=standard martingale qty)",
          "show_in_table": False},
     ]
 
@@ -75,9 +83,17 @@ class MartingaleBase(BaseStrategy):
         # Safety margin: reserve this % of capital (not used for trading)
         self.safety_margin_percent = self.config.get("safety_margin_percent", 1.0)
 
+        # Cycle time limit (0 = unlimited)
+        self.cycle_max_hours = self.config.get("cycle_max_hours", 0)
+
+        # Last level all-in mode (True = use remaining capital, False = standard qty)
+        allin_val = self.config.get("last_level_allin", "off")
+        self.last_level_allin = allin_val == "on" or allin_val is True
+
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
         self.cycle_reference_price = None
+        self.cycle_start_time = None
 
         # State variables
         self.current_level = 0
@@ -142,18 +158,27 @@ class MartingaleBase(BaseStrategy):
             position_profit = (current_price - self.average_price) * self.total_quantity
             current_return = position_profit / initial_capital if initial_capital > 0 else 0
 
+            # 3a. Check Cycle Time Limit
+            if self.cycle_max_hours > 0 and self.cycle_start_time:
+                current_time = self.context.get_time()
+                elapsed_hours = (current_time - self.cycle_start_time).total_seconds() / 3600
+                if elapsed_hours >= self.cycle_max_hours:
+                    self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
+                    self._liquidate(current_price)
+                    return
+
             # Update peak profit for trailing stop
             current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
             if position_profit > current_peak_profit:
                 self.peak_price = current_price
 
-            # 3a. Check Trailing Stop Activation
+            # 3b. Check Trailing Stop Activation
             if not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
                 self.trailing_active = True
                 self.peak_price = current_price
                 self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%")
 
-            # 3b. Check Trailing Stop Liquidation
+            # 3c. Check Trailing Stop Liquidation
             if self.trailing_active:
                 drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
                 if drop_from_peak >= (self.trailing_stop_percent / 100):
@@ -161,12 +186,13 @@ class MartingaleBase(BaseStrategy):
                     self._liquidate(current_price)
                     return
 
-            # 3c. Check Max Loss Protection (HODL)
-            if not self.is_hodl and current_return <= -(self.max_loss_percent / 100):
-                self.is_hodl = True
-                self.context.log(f"[{self._log_prefix}] CRITICAL: Capital Loss {current_return*100:.1f}%. HODL Mode Engaged.")
+            # 3d. Check Max Loss Stop-Loss
+            if current_return <= -(self.max_loss_percent / 100):
+                self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. Sell @ {current_price:,.0f}")
+                self._liquidate(current_price)
+                return
 
-            # 3d. Check Additional Entry (L2+)
+            # 3e. Check Additional Entry (L2+)
             if self.current_level < self.max_levels and not self.trailing_active:
                 if self._check_additional_trigger(data):
                     next_level = self.current_level + 1
@@ -187,6 +213,7 @@ class MartingaleBase(BaseStrategy):
                 if result.get("status") != "failed":
                     self._add_position(current_price, qty, 1)
                     self.peak_price = current_price
+                    self.cycle_start_time = self.context.get_time()
                     self.context.log(f"[{self._log_prefix}] L1 Initial Entry @ {current_price:,.0f}")
                 else:
                     self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
@@ -226,6 +253,7 @@ class MartingaleBase(BaseStrategy):
         self.entries = []
         self.cycle_max_level = None
         self.cycle_reference_price = None
+        self.cycle_start_time = None
 
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)
@@ -265,18 +293,23 @@ class MartingaleBase(BaseStrategy):
         effective_max_level = min(self.cycle_max_level, self.max_levels)
 
         if level >= effective_max_level and effective_max_level > 0:
-            available_cash = getattr(self.context, 'cash', 0)
-            safety_reserve = available_cash * (self.safety_margin_percent / 100)
-            usable_capital = available_cash - safety_reserve
-
-            remaining_capital = usable_capital
-            max_qty = int(remaining_capital / price) if price > 0 else 0
-
             standard_qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
-            final_qty = max(max_qty, standard_qty)
 
-            self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Investing remaining capital → {final_qty} shares")
-            return final_qty
+            # Check if all-in mode is enabled for final level
+            if self.last_level_allin:
+                available_cash = getattr(self.context, 'cash', 0)
+                safety_reserve = available_cash * (self.safety_margin_percent / 100)
+                usable_capital = available_cash - safety_reserve
+
+                remaining_capital = usable_capital
+                max_qty = int(remaining_capital / price) if price > 0 else 0
+                final_qty = max(max_qty, standard_qty)
+
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): Investing remaining capital → {final_qty} shares")
+                return final_qty
+            else:
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} shares")
+                return standard_qty
 
         return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
 

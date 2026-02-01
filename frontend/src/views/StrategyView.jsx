@@ -648,7 +648,12 @@ const StrategyView = () => {
     };
 
     // Parameter Copy/Paste Handlers
-    const SYSTEM_FIELDS = ['symbol', 'uuid', 'tabName', 'is_active', 'rank', 'initial_capital', 'from_date', 'interval', 'betting_strategy'];
+    // Strategy parameters are determined from parameter_schema (no manual maintenance needed)
+    const getStrategyParamNames = () => {
+        const schema = selectedStrategy?.parameter_schema;
+        if (!schema?.fields) return [];
+        return schema.fields.map(f => f.name);
+    };
 
     const handleCopyParams = () => {
         if (activeTab < 0 || !configList[activeTab]) return;
@@ -656,9 +661,10 @@ const StrategyView = () => {
         const currentCfg = configList[activeTab];
         const paramsToCopy = {};
 
-        // Copy only strategy parameters (exclude system fields)
-        Object.keys(currentCfg).forEach(key => {
-            if (!SYSTEM_FIELDS.includes(key)) {
+        // Copy only strategy parameters defined in schema (whitelist approach)
+        const strategyParams = getStrategyParamNames();
+        strategyParams.forEach(key => {
+            if (key in currentCfg) {
                 paramsToCopy[key] = currentCfg[key];
             }
         });
