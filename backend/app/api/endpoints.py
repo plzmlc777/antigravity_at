@@ -112,11 +112,14 @@ class ConditionalOrderRequest(BaseModel):
     trailing_percent: float | None = None # Required for TRAILING_STOP
 
 @router.get("/status")
-async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter), db: Session = Depends(get_db)):
+    from ..models.account import ExchangeAccount
+    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
     return {
         "exchange": adapter.get_name(),
         "status": "online",
-        "account_name": adapter.get_account_name()
+        "account_name": adapter.get_account_name(),
+        "account_id": active_account.id if active_account else None
     }
 
 @router.get("/system/version")

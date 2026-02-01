@@ -20,8 +20,9 @@ import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
+import { useMarketData } from '../context/MarketDataContext';
 
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -145,17 +146,17 @@ const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 const getIntegratedUUID = (strategyId) => `integrated-${strategyId || 'unknown'}`;
 
 const StrategyView = () => {
-    // Symbol State
-    const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem('lastSymbol') || '005930');
-    const [savedSymbols, setSavedSymbols] = useState(() => {
-        const saved = localStorage.getItem('savedSymbols');
-        if (!saved) return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        try {
-            return JSON.parse(saved);
-        } catch {
-            return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        }
-    });
+    // Market Data Context (for account change detection)
+    const { systemStatus } = useMarketData();
+    const [lastAccountName, setLastAccountName] = useState(null);
+    const [lastAccountId, setLastAccountId] = useState(null);
+
+    // Default symbols (used when account has no saved symbols)
+    const DEFAULT_SYMBOLS = [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
+
+    // Symbol State (initialized with defaults, will be replaced when account_id is known)
+    const [currentSymbol, setCurrentSymbol] = useState('005930');
+    const [savedSymbols, setSavedSymbols] = useState(DEFAULT_SYMBOLS);
 
     const [strategies, setStrategies] = useState([]);
     const [selectedStrategy, setSelectedStrategy] = useState(null);
@@ -181,33 +182,20 @@ const StrategyView = () => {
     }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-    // Symbol Comparison State (with localStorage persistence)
-    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_selectedSymbols');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
-    });
-    const [stockCompareResults, setStockCompareResults] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_results');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
-    });
+    // Symbol Comparison State (initialized with defaults, loaded per-account when account_id is known)
+    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
+    const [stockCompareResults, setStockCompareResults] = useState([]);
     const [isStockComparing, setIsStockComparing] = useState(false); // Running status
     const [stockCompareProgress, setStockCompareProgress] = useState({ current: 0, total: 0, phase: 'data' });
-    const [symbolCompareConfig, setSymbolCompareConfig] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_config');
-            return saved ? JSON.parse(saved) : null;
-        } catch { return null; }
-    });
+    const [symbolCompareConfig, setSymbolCompareConfig] = useState(null);
     const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false); // Track unsaved changes
 
     // Parameter Copy/Paste State
     const [copiedParams, setCopiedParams] = useState(null);
     const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
     const [applyFeedback, setApplyFeedback] = useState(null); // 'saved' | null
+    const [exportImportFeedback, setExportImportFeedback] = useState(null); // 'exported' | 'imported' | null
+    const fileInputRef = React.useRef(null);
 
     // Dynamic Config State
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
@@ -280,14 +268,101 @@ const StrategyView = () => {
     // Custom Confirmation Modal State
 
 
-    // Save to LocalStorage
+    // Helper functions for account-specific localStorage keys
+    const getAccountKey = (baseKey, accountId) => accountId ? `${baseKey}_account_${accountId}` : baseKey;
+
+    // Load symbols for specific account from localStorage
+    const loadSymbolsForAccount = (accountId) => {
+        const symbolKey = getAccountKey('savedSymbols', accountId);
+        const lastSymbolKey = getAccountKey('lastSymbol', accountId);
+        const compareSymbolsKey = getAccountKey('symbolCompare_selectedSymbols', accountId);
+        const compareResultsKey = getAccountKey('symbolCompare_results', accountId);
+        const compareConfigKey = getAccountKey('symbolCompare_config', accountId);
+
+        // Load saved symbols
+        try {
+            const saved = localStorage.getItem(symbolKey);
+            if (saved) {
+                setSavedSymbols(JSON.parse(saved));
+            } else {
+                setSavedSymbols(DEFAULT_SYMBOLS);
+            }
+        } catch {
+            setSavedSymbols(DEFAULT_SYMBOLS);
+        }
+
+        // Load last symbol
+        const lastSym = localStorage.getItem(lastSymbolKey);
+        setCurrentSymbol(lastSym || '005930');
+
+        // Load compare symbols
+        try {
+            const saved = localStorage.getItem(compareSymbolsKey);
+            setSelectedCompareSymbols(saved ? JSON.parse(saved) : []);
+        } catch { setSelectedCompareSymbols([]); }
+
+        // Load compare results
+        try {
+            const saved = localStorage.getItem(compareResultsKey);
+            setStockCompareResults(saved ? JSON.parse(saved) : []);
+        } catch { setStockCompareResults([]); }
+
+        // Load compare config
+        try {
+            const saved = localStorage.getItem(compareConfigKey);
+            setSymbolCompareConfig(saved ? JSON.parse(saved) : null);
+        } catch { setSymbolCompareConfig(null); }
+
+        console.log(`[Symbols] Loaded for account ${accountId}`);
+    };
+
+    // Save symbols for specific account to localStorage
+    const saveSymbolsForAccount = (accountId) => {
+        if (!accountId) return;
+
+        const symbolKey = getAccountKey('savedSymbols', accountId);
+        const lastSymbolKey = getAccountKey('lastSymbol', accountId);
+        const compareSymbolsKey = getAccountKey('symbolCompare_selectedSymbols', accountId);
+        const compareResultsKey = getAccountKey('symbolCompare_results', accountId);
+        const compareConfigKey = getAccountKey('symbolCompare_config', accountId);
+
+        localStorage.setItem(symbolKey, JSON.stringify(savedSymbols));
+        localStorage.setItem(lastSymbolKey, currentSymbol);
+        localStorage.setItem(compareSymbolsKey, JSON.stringify(selectedCompareSymbols));
+        localStorage.setItem(compareResultsKey, JSON.stringify(stockCompareResults));
+        localStorage.setItem(compareConfigKey, JSON.stringify(symbolCompareConfig));
+    };
+
+    // Save to LocalStorage (account-specific)
     useEffect(() => {
-        localStorage.setItem('lastSymbol', currentSymbol);
-    }, [currentSymbol]);
+        if (lastAccountId) {
+            localStorage.setItem(getAccountKey('lastSymbol', lastAccountId), currentSymbol);
+        }
+    }, [currentSymbol, lastAccountId]);
 
     useEffect(() => {
-        localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
-    }, [savedSymbols]);
+        if (lastAccountId) {
+            localStorage.setItem(getAccountKey('savedSymbols', lastAccountId), JSON.stringify(savedSymbols));
+        }
+    }, [savedSymbols, lastAccountId]);
+
+    useEffect(() => {
+        if (lastAccountId) {
+            localStorage.setItem(getAccountKey('symbolCompare_selectedSymbols', lastAccountId), JSON.stringify(selectedCompareSymbols));
+        }
+    }, [selectedCompareSymbols, lastAccountId]);
+
+    useEffect(() => {
+        if (lastAccountId) {
+            localStorage.setItem(getAccountKey('symbolCompare_results', lastAccountId), JSON.stringify(stockCompareResults));
+        }
+    }, [stockCompareResults, lastAccountId]);
+
+    useEffect(() => {
+        if (lastAccountId) {
+            localStorage.setItem(getAccountKey('symbolCompare_config', lastAccountId), JSON.stringify(symbolCompareConfig));
+        }
+    }, [symbolCompareConfig, lastAccountId]);
 
     // Save execution mode to localStorage
     useEffect(() => {
@@ -386,6 +461,66 @@ const StrategyView = () => {
 
         return () => { isMounted = false; };
     }, [selectedStrategy]);
+
+    // Load symbols when account_id becomes available (initial load)
+    useEffect(() => {
+        const currentAccountId = systemStatus?.account_id;
+        if (currentAccountId && !lastAccountId) {
+            // Initial load - load symbols for this account
+            console.log(`[Account Init] Loading symbols for account ${currentAccountId}`);
+            loadSymbolsForAccount(currentAccountId);
+            setLastAccountId(currentAccountId);
+        }
+    }, [systemStatus?.account_id]);
+
+    // Reload configs and symbols when account changes
+    useEffect(() => {
+        const currentAccountName = systemStatus?.account_name;
+        const currentAccountId = systemStatus?.account_id;
+
+        if (currentAccountId && lastAccountId && currentAccountId !== lastAccountId) {
+            console.log(`[Account Changed] ID: ${lastAccountId} -> ${currentAccountId}, Name: ${lastAccountName} -> ${currentAccountName}`);
+
+            // Load symbols for new account
+            loadSymbolsForAccount(currentAccountId);
+
+            // Trigger reload configs by resetting configList and re-fetching
+            setConfigList([]);
+            setIsConfigLoaded(false);
+
+            // Reload after a short delay to ensure backend has updated
+            const timer = setTimeout(async () => {
+                if (selectedStrategy) {
+                    try {
+                        const savedList = await getStrategyConfigs(selectedStrategy.id);
+                        if (savedList && savedList.length > 0) {
+                            // Migrate and set configs (simplified version)
+                            const migratedList = savedList.map(cfg => ({
+                                ...getDynamicDefaultConfig(),
+                                ...cfg.config_json,
+                                rank: cfg.rank,
+                                is_active: cfg.is_active !== false,
+                                tabName: cfg.tab_name,
+                                uuid: cfg.tab_id
+                            }));
+                            setConfigList(migratedList);
+                        } else {
+                            initDefaultList();
+                        }
+                    } catch (e) {
+                        console.error("Failed to reload configs after account change", e);
+                        initDefaultList();
+                    } finally {
+                        setIsConfigLoaded(true);
+                    }
+                }
+            }, 300);
+
+            setLastAccountId(currentAccountId);
+            return () => clearTimeout(timer);
+        }
+        setLastAccountName(currentAccountName);
+    }, [systemStatus?.account_name, systemStatus?.account_id]);
 
     const initDefaultList = () => {
         console.log("[initDefaultList] Creating default Rank 1 tab (is_active: true)");
@@ -743,6 +878,168 @@ const StrategyView = () => {
         setTimeout(() => setCopyPasteFeedback(null), 2000);
 
         addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
+    };
+
+    // Export/Import Handlers for cross-server parameter transfer
+    const handleExportParams = () => {
+        let currentCfg;
+        let sourceLabel;
+
+        if (activeTab === -3) {
+            currentCfg = symbolCompareConfig || configList[0] || {};
+            sourceLabel = 'SymbolCompare';
+        } else if (activeTab >= 0 && configList[activeTab]) {
+            currentCfg = configList[activeTab];
+            sourceLabel = currentCfg.tabName || `Tab${activeTab + 1}`;
+        } else {
+            return;
+        }
+
+        if (!currentCfg) return;
+
+        const paramsToExport = {};
+        const strategyParams = getStrategyParamNames();
+        strategyParams.forEach(key => {
+            if (key in currentCfg) {
+                paramsToExport[key] = currentCfg[key];
+            }
+        });
+
+        const exportData = {
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            strategy: selectedStrategy?.name || 'Unknown',
+            sourceTab: sourceLabel,
+            params: paramsToExport
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `strategy_params_${selectedStrategy?.name || 'config'}_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setExportImportFeedback('exported');
+        setTimeout(() => setExportImportFeedback(null), 2000);
+        addLog(`📤 Parameters exported to file`, 'success');
+    };
+
+    const handleImportParams = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importData = JSON.parse(e.target.result);
+
+                if (!importData.params || typeof importData.params !== 'object') {
+                    addLog('❌ Invalid file format: missing params', 'error');
+                    return;
+                }
+
+                // Apply imported params
+                if (activeTab === -3) {
+                    const baseConfig = symbolCompareConfig || configList[0] || {};
+                    const newConfig = { ...baseConfig };
+                    Object.keys(importData.params).forEach(key => {
+                        newConfig[key] = importData.params[key];
+                    });
+                    setSymbolCompareConfig(newConfig);
+                    setIsSymbolCompareDirty(true);
+                } else if (activeTab >= 0 && configList[activeTab]) {
+                    const newList = [...configList];
+                    const currentItem = { ...newList[activeTab] };
+                    Object.keys(importData.params).forEach(key => {
+                        currentItem[key] = importData.params[key];
+                    });
+                    newList[activeTab] = currentItem;
+                    setConfigList(newList);
+                    setIsDirty(true);
+                }
+
+                setExportImportFeedback('imported');
+                setTimeout(() => setExportImportFeedback(null), 2000);
+                addLog(`📥 Parameters imported from ${importData.strategy || 'file'} (${importData.sourceTab || 'unknown'})`, 'success');
+            } catch (err) {
+                addLog(`❌ Failed to parse file: ${err.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset file input
+    };
+
+    // Symbol Export/Import Handlers
+    const symbolFileInputRef = React.useRef(null);
+    const [symbolExportImportFeedback, setSymbolExportImportFeedback] = useState(null); // 'exported' | 'imported' | null
+
+    const handleExportSymbols = () => {
+        const exportData = {
+            version: '1.0',
+            type: 'symbols',
+            exportedAt: new Date().toISOString(),
+            accountId: lastAccountId,
+            symbols: savedSymbols
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const timestamp = new Date().toISOString().split('T')[0];
+        a.download = `symbols_${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setSymbolExportImportFeedback('exported');
+        setTimeout(() => setSymbolExportImportFeedback(null), 2000);
+        addLog(`📤 Exported ${savedSymbols.length} symbols to file`, 'success');
+    };
+
+    const handleImportSymbols = (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importData = JSON.parse(e.target.result);
+
+                // Validate file structure
+                if (!importData.symbols || !Array.isArray(importData.symbols)) {
+                    addLog('❌ Invalid symbols file format', 'error');
+                    return;
+                }
+
+                // Validate each symbol has code
+                const validSymbols = importData.symbols.filter(s => s.code);
+                if (validSymbols.length === 0) {
+                    addLog('❌ No valid symbols found in file', 'error');
+                    return;
+                }
+
+                // Merge with existing symbols (avoid duplicates)
+                const existingCodes = new Set(savedSymbols.map(s => s.code));
+                const newSymbols = validSymbols.filter(s => !existingCodes.has(s.code));
+                const mergedSymbols = [...savedSymbols, ...newSymbols];
+
+                setSavedSymbols(mergedSymbols);
+
+                setSymbolExportImportFeedback('imported');
+                setTimeout(() => setSymbolExportImportFeedback(null), 2000);
+                addLog(`📥 Imported ${newSymbols.length} new symbols (${validSymbols.length - newSymbols.length} duplicates skipped)`, 'success');
+            } catch (err) {
+                addLog(`❌ Failed to parse file: ${err.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset file input
     };
 
     // Helper to get current config for UI rendering
@@ -2712,39 +3009,6 @@ const StrategyView = () => {
                                             <Crosshair size={14} className="text-gray-400" /> Configuration
                                         </h3>
                                         <div className="flex items-center gap-4">
-                                            {/* Copy/Paste Buttons */}
-                                            <div className="flex items-center gap-1 border-r border-white/10 pr-4">
-                                                <button
-                                                    onClick={handleCopyParams}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                                        copyPasteFeedback === 'copied'
-                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                                                            : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white'
-                                                    }`}
-                                                    title="Copy parameters"
-                                                >
-                                                    <Copy size={14} />
-                                                    {copyPasteFeedback === 'copied' ? 'Copied!' : 'Copy'}
-                                                </button>
-                                                <button
-                                                    onClick={handlePasteParams}
-                                                    disabled={!copiedParams}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                                        copyPasteFeedback === 'pasted'
-                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                                                            : copiedParams
-                                                                ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 hover:text-white border border-purple-500/30'
-                                                                : 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                                    }`}
-                                                    title={copiedParams ? `Paste from ${copiedParams.sourceTab}` : 'No parameters copied'}
-                                                >
-                                                    <ClipboardPaste size={14} />
-                                                    {copyPasteFeedback === 'pasted' ? 'Pasted!' : 'Paste'}
-                                                    {copiedParams && copyPasteFeedback !== 'pasted' && (
-                                                        <span className="text-[10px] text-purple-400 ml-1">({copiedParams.sourceTab})</span>
-                                                    )}
-                                                </button>
-                                            </div>
                                             {/* Apply/Discard - Only for Rank tabs */}
                                             {activeTab >= 0 && (
                                                 <div className="flex items-center gap-2">
@@ -2837,10 +3101,46 @@ const StrategyView = () => {
                                     <div className="px-4 py-4 space-y-4">
                                         {/* Row 1: Target Asset */}
                                         <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3">
-                                                Target Asset
-                                                {activeTab === -3 && <span className="text-xs text-blue-400 ml-2">(Multi-Select for Compare)</span>}
-                                            </h4>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                                                    Target Asset
+                                                    {activeTab === -3 && <span className="text-xs text-blue-400">(Multi-Select for Compare)</span>}
+                                                </h4>
+                                                {/* Symbol Export/Import Buttons */}
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={handleExportSymbols}
+                                                        className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                            symbolExportImportFeedback === 'exported'
+                                                                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
+                                                        }`}
+                                                        title="Export symbols to file"
+                                                    >
+                                                        <Download size={12} />
+                                                        {symbolExportImportFeedback === 'exported' ? 'Exported!' : 'Export'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => symbolFileInputRef.current?.click()}
+                                                        className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                            symbolExportImportFeedback === 'imported'
+                                                                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                : 'bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 hover:text-white'
+                                                        }`}
+                                                        title="Import symbols from file"
+                                                    >
+                                                        <Upload size={12} />
+                                                        {symbolExportImportFeedback === 'imported' ? 'Imported!' : 'Import'}
+                                                    </button>
+                                                    <input
+                                                        ref={symbolFileInputRef}
+                                                        type="file"
+                                                        accept=".json"
+                                                        onChange={handleImportSymbols}
+                                                        className="hidden"
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
                                                 {/* SymbolSelector - shared for both Rank and Symbol Compare */}
                                                 <SymbolSelector
@@ -2915,7 +3215,77 @@ const StrategyView = () => {
 
                                         {/* Row 2: Parameters */}
                                         <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3">Parameters</h4>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-bold text-gray-300">Parameters</h4>
+                                                {/* Copy/Paste/Export/Import Buttons */}
+                                                <div className="flex items-center gap-2">
+                                                    {/* Copy/Paste */}
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={handleCopyParams}
+                                                            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                                copyPasteFeedback === 'copied'
+                                                                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                    : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
+                                                            }`}
+                                                            title="Copy parameters"
+                                                        >
+                                                            <Copy size={12} />
+                                                            {copyPasteFeedback === 'copied' ? 'Copied!' : 'Copy'}
+                                                        </button>
+                                                        <button
+                                                            onClick={handlePasteParams}
+                                                            disabled={!copiedParams}
+                                                            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                                copyPasteFeedback === 'pasted'
+                                                                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                    : copiedParams
+                                                                        ? 'bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 hover:text-white'
+                                                                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                                            }`}
+                                                            title={copiedParams ? `Paste from ${copiedParams.sourceTab}` : 'No parameters copied'}
+                                                        >
+                                                            <ClipboardPaste size={12} />
+                                                            {copyPasteFeedback === 'pasted' ? 'Pasted!' : 'Paste'}
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-gray-600">|</span>
+                                                    {/* Export/Import */}
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={handleExportParams}
+                                                            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                                exportImportFeedback === 'exported'
+                                                                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                    : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
+                                                            }`}
+                                                            title="Export parameters to file"
+                                                        >
+                                                            <Download size={12} />
+                                                            {exportImportFeedback === 'exported' ? 'Exported!' : 'Export'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                                                                exportImportFeedback === 'imported'
+                                                                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                                                                    : 'bg-orange-600/20 hover:bg-orange-600/40 text-orange-300 hover:text-white'
+                                                            }`}
+                                                            title="Import parameters from file"
+                                                        >
+                                                            <Upload size={12} />
+                                                            {exportImportFeedback === 'imported' ? 'Imported!' : 'Import'}
+                                                        </button>
+                                                        <input
+                                                            ref={fileInputRef}
+                                                            type="file"
+                                                            accept=".json"
+                                                            onChange={handleImportParams}
+                                                            className="hidden"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5">
                                                 {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
                                                 {selectedStrategy.parameter_schema?.fields?.length > 0 ? (

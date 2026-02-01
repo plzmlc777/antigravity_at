@@ -46,10 +46,48 @@ def migration_001_add_environment_field():
         return True
 
 
+def migration_003_add_account_id_to_strategy_configs():
+    """Add 'account_id' field to strategy_configs for account-level configurations"""
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('strategy_configs')]
+
+        # Check if migration is needed
+        if 'account_id' in columns:
+            print("  [SKIP] 'account_id' column already exists")
+            return False
+
+        print("  [RUN] Adding 'account_id' column to strategy_configs...")
+
+        # Add account_id column
+        conn.execute(text("""
+            ALTER TABLE strategy_configs
+            ADD COLUMN account_id INTEGER
+        """))
+
+        # Create index
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_strategy_configs_account_id
+            ON strategy_configs(account_id)
+        """))
+
+        # Assign existing configs to the active account (if any)
+        conn.execute(text("""
+            UPDATE strategy_configs
+            SET account_id = (SELECT id FROM exchange_accounts WHERE is_active = true LIMIT 1)
+            WHERE account_id IS NULL
+        """))
+
+        conn.commit()
+        print("  [OK] Added account_id column and assigned existing configs to active account")
+        return True
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
         ("001_add_environment_field", migration_001_add_environment_field),
+        ("003_add_account_id_to_strategy_configs", migration_003_add_account_id_to_strategy_configs),
     ]
 
     print("=" * 50)

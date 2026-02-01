@@ -7,6 +7,7 @@ class StrategyConfig(Base):
 
     tab_id = Column(String, primary_key=True, index=True)
     strategy_id = Column(String, index=True) # Added for Multi-Strategy Support
+    account_id = Column(Integer, index=True, nullable=True)  # Account-level configs
     rank = Column(Integer, index=True)
     is_active = Column(Boolean, default=True)
     tab_name = Column(String)

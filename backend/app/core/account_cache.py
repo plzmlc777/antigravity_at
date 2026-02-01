@@ -31,3 +31,8 @@ class AccountCache:
         if key in self._cache:
             del self._cache[key]
             logger.info(f"Account cache invalidated for user {user_id}")
+        # Also invalidate SYSTEM_USER_ID (1) for MVP single-user compatibility
+        system_key = "active_1"
+        if system_key in self._cache and system_key != key:
+            del self._cache[system_key]
+            logger.info("Account cache invalidated for SYSTEM_USER_ID (1)")

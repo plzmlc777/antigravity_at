@@ -25,6 +25,9 @@ const Settings = () => {
     // Confirm Dialog State
     const [confirmDialog, setConfirmDialog] = useState(null);
 
+    // Alert Dialog State (for warnings/errors)
+    const [alertDialog, setAlertDialog] = useState(null);
+
     // Edit Modal State
     const [editModal, setEditModal] = useState(null);
     const [editData, setEditData] = useState({ account_name: '', is_disabled: false });
@@ -129,7 +132,18 @@ const Settings = () => {
             showToast('계좌가 활성화되었습니다', 'success');
         } catch (error) {
             console.error(error);
-            showToast('계좌 활성화 실패', 'error');
+            const detail = error.response?.data?.detail;
+
+            // Check if error is due to active live sessions
+            if (detail && typeof detail === 'object' && detail.active_sessions) {
+                setAlertDialog({
+                    title: '계정 전환 불가',
+                    message: detail.message || 'Live 세션이 실행 중입니다.',
+                    sessions: detail.active_sessions
+                });
+            } else {
+                showToast(typeof detail === 'string' ? detail : '계좌 활성화 실패', 'error');
+            }
         }
     };
 
@@ -231,6 +245,46 @@ const Settings = () => {
                                 className="px-4 py-2 rounded text-sm bg-red-600 hover:bg-red-500 text-white transition-colors"
                             >
                                 삭제
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Alert Dialog (for warnings) */}
+            {alertDialog && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-gray-900 border border-yellow-500/30 rounded-xl p-6 max-w-md w-full mx-4 animate-scale-in">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-yellow-500">{alertDialog.title}</h3>
+                        </div>
+                        <p className="text-white text-sm mb-4">{alertDialog.message}</p>
+                        {alertDialog.sessions && alertDialog.sessions.length > 0 && (
+                            <div className="bg-black/30 rounded-lg p-3 mb-4">
+                                <p className="text-xs text-gray-400 mb-2">실행 중인 세션:</p>
+                                <div className="space-y-1">
+                                    {alertDialog.sessions.map((sessionId, idx) => (
+                                        <div key={idx} className="text-xs font-mono text-yellow-400/80 truncate">
+                                            {sessionId}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <p className="text-xs text-gray-400 mb-4">
+                            Live 탭에서 세션을 중지한 후 다시 시도해주세요.
+                        </p>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setAlertDialog(null)}
+                                className="px-4 py-2 rounded text-sm bg-yellow-600 hover:bg-yellow-500 text-white transition-colors"
+                            >
+                                확인
                             </button>
                         </div>
                     </div>
