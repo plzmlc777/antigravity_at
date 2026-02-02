@@ -9,26 +9,24 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from ..core.waterfall_engine import fetch_visualization_feeds
+from .auth import get_current_user
+from ..models.user import User
 
 router = APIRouter()
 
 # Dependency Injection for Exchange Adapter
-def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
-    # 0. Check Cache First
-    # Single-user system: 활성 계좌의 user_id를 먼저 조회하여 캐시 키로 사용
+def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterface:
+    """Get exchange adapter for a specific user's active account"""
     from ..core.account_cache import AccountCache
     from ..models.account import ExchangeAccount
+    from ..core import security
 
     cache = AccountCache.get_instance()
 
-    # 활성 계좌의 user_id 조회 (캐시 키 동기화용)
-    active_account_for_key = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
-    cache_user_id = active_account_for_key.user_id if active_account_for_key else 1
-
-    cached_config = cache.get_active_account_config(cache_user_id)
+    # Check cache first
+    cached_config = cache.get_active_account_config(user_id)
 
     if cached_config:
-        # Derive api_url from environment (Single Source of Truth)
         env = env_from_string(cached_config.get('environment', 'real'))
         api_url = get_api_url(env)
         is_virtual = env == TradingEnvironment.VIRTUAL
@@ -42,17 +40,17 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
             is_virtual=is_virtual
         )
 
-    # 1. Fetch active account from DB (재사용: active_account_for_key)
-    from ..core import security
-
-    active_account = active_account_for_key  # 이미 조회한 결과 재사용
+    # Fetch active account for this user from DB
+    active_account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.user_id == user_id,
+        ExchangeAccount.is_active == True
+    ).first()
 
     if active_account:
         try:
             decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
             decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
 
-            # 2. Update Cache with environment (Single Source of Truth)
             config = {
                 'app_key': decrypted_app,
                 'secret_key': decrypted_secret,
@@ -60,9 +58,8 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
                 'account_name': active_account.account_name,
                 'environment': active_account.environment or TradingEnvironment.REAL.value
             }
-            cache.set_active_account_config(cache_user_id, config)  # 동일한 user_id 사용
+            cache.set_active_account_config(user_id, config)
 
-            # api_url and is_virtual are computed properties from the model
             return KiwoomRealAdapter(
                 app_key=decrypted_app,
                 secret_key=decrypted_secret,
@@ -72,12 +69,22 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
                 is_virtual=active_account.is_virtual
             )
         except Exception as e:
-            # Log error and fallback (or fail)
             print(f"Error decrypting keys: {e}")
             pass
 
-    # Fallback to .env if DB lookup fails or no active account
+    # Fallback to .env
     return KiwoomRealAdapter()
+
+
+def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
+    """Get exchange adapter (legacy - uses first active account across all users)"""
+    from ..models.account import ExchangeAccount
+
+    # Find first active account to get user_id
+    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+    user_id = active_account.user_id if active_account else 1
+
+    return get_exchange_adapter_for_user(db, user_id)
 
 class OrderRequest(BaseModel):
     symbol: str
@@ -115,10 +122,19 @@ class ConditionalOrderRequest(BaseModel):
     trailing_percent: float | None = None # Required for TRAILING_STOP
 
 @router.get("/status")
-async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter), db: Session = Depends(get_db)):
-    # 활성 계좌 ID 조회
+async def get_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Get adapter for the current user's active account
     from ..models.account import ExchangeAccount
-    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+    adapter = get_exchange_adapter_for_user(db, current_user.id)
+
+    # Query for current user's active account
+    active_account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.user_id == current_user.id,
+        ExchangeAccount.is_active == True
+    ).first()
     account_id = active_account.id if active_account else None
 
     return {
