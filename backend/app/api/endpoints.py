@@ -152,7 +152,7 @@ import time
 
 # Simple In-Memory Cache
 PRICE_CACHE = {} # { symbol: { 'data': ..., 'ts': ... } }
-BALANCE_CACHE = { 'data': None, 'ts': 0 }
+BALANCE_CACHE = {} # { user_id: { 'data': ..., 'ts': ... } }
 
 @router.get("/price/{symbol}")
 async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
@@ -177,20 +177,26 @@ async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchan
     return data
 
 @router.get("/balance")
-async def get_balance(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+async def get_balance(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     current_time = time.time()
-    
-    # 1. Check Cache (TTL 2.0s)
-    if BALANCE_CACHE['data'] and (current_time - BALANCE_CACHE['ts'] < 2.0):
-        return BALANCE_CACHE['data']
-        
-    # 2. Fetch Real
+    user_id = current_user.id
+
+    # 1. Check User-specific Cache (TTL 2.0s)
+    if user_id in BALANCE_CACHE:
+        cache_entry = BALANCE_CACHE[user_id]
+        if cache_entry['data'] and (current_time - cache_entry['ts'] < 2.0):
+            return cache_entry['data']
+
+    # 2. Get user-specific adapter and fetch balance
+    adapter = get_exchange_adapter_for_user(db, user_id)
     data = await adapter.get_balance()
-    
-    # 3. Update Cache
-    BALANCE_CACHE['data'] = data
-    BALANCE_CACHE['ts'] = current_time
-    
+
+    # 3. Update User-specific Cache
+    BALANCE_CACHE[user_id] = {'data': data, 'ts': current_time}
+
     return data
 
 @router.post("/order/buy")
