@@ -30,6 +30,13 @@ db_backup_pre_cleanup.sql
 
 # Runtime Cache
 backend/token_cache.json
+token_cache.json
+
+# Optimization Results
+backend/optimization_results/
+
+# Database Backups
+backup_*.sql
 
 # Temporary Debug Scripts
 debug_log.py
