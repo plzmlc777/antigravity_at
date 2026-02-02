@@ -22,13 +22,13 @@ class KiwoomBaseAdapter:
         """
         Fetch Access Token using TokenManager (Singleton).
         This method will trigger a renewal if the token is expired.
-        Passes base_url to support multiple API servers (real/virtual).
+        Passes base_url and app_key to support multiple accounts on same server.
         """
         mgr = KiwoomTokenManager.get_instance()
 
-        # Check if we have a valid token for this specific base_url
-        if mgr.is_token_valid(self.base_url):
-            self.access_token = mgr.get_cached_token(self.base_url)
+        # Check if we have a valid token for this specific base_url + app_key
+        if mgr.is_token_valid(self.base_url, self.app_key):
+            self.access_token = mgr.get_cached_token(self.base_url, self.app_key)
             return
 
         if not self.app_key or not self.secret_key:
@@ -59,4 +59,4 @@ class KiwoomBaseAdapter:
         """
         Check if current token is valid without attempting a refresh.
         """
-        return KiwoomTokenManager.get_instance().is_token_valid(self.base_url)
+        return KiwoomTokenManager.get_instance().is_token_valid(self.base_url, self.app_key)

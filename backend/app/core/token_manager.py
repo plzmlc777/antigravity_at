@@ -89,13 +89,21 @@ class KiwoomTokenManager:
             KiwoomTokenManager()
         return KiwoomTokenManager._instance
 
-    def is_token_valid(self, base_url: str = None) -> bool:
+    def _get_cache_key(self, base_url: str, app_key: str = None) -> str:
+        """Generate cache key from base_url and app_key for account-specific token caching."""
+        if app_key:
+            # Use first 8 chars of app_key for uniqueness
+            return f"{base_url}:{app_key[:8]}"
+        return base_url
+
+    def is_token_valid(self, base_url: str = None, app_key: str = None) -> bool:
         """
-        Check if token for the given base_url is valid.
+        Check if token for the given base_url + app_key is valid.
         Falls back to default_base_url if not specified.
         """
         url = base_url or self.default_base_url
-        token_info = self._tokens.get(url)
+        cache_key = self._get_cache_key(url, app_key)
+        token_info = self._tokens.get(cache_key)
         if not token_info:
             return False
         token = token_info.get("token")
@@ -104,22 +112,24 @@ class KiwoomTokenManager:
             return False
         return datetime.now() < expiry
 
-    def get_cached_token(self, base_url: str = None) -> Optional[str]:
+    def get_cached_token(self, base_url: str = None, app_key: str = None) -> Optional[str]:
         """
-        Get cached token for the given base_url without fetching a new one.
+        Get cached token for the given base_url + app_key without fetching a new one.
         """
         url = base_url or self.default_base_url
-        token_info = self._tokens.get(url)
-        if token_info and self.is_token_valid(url):
+        cache_key = self._get_cache_key(url, app_key)
+        token_info = self._tokens.get(cache_key)
+        if token_info and self.is_token_valid(url, app_key):
             return token_info.get("token")
         return None
 
-    def get_remaining_seconds(self, base_url: str = None) -> int:
+    def get_remaining_seconds(self, base_url: str = None, app_key: str = None) -> int:
         """
         Returns the number of seconds remaining until the token expires.
         """
         url = base_url or self.default_base_url
-        token_info = self._tokens.get(url)
+        cache_key = self._get_cache_key(url, app_key)
+        token_info = self._tokens.get(cache_key)
         if not token_info:
             return 0
         expiry = token_info.get("expiry")
@@ -130,27 +140,29 @@ class KiwoomTokenManager:
 
     async def get_token(self, app_key: str, secret_key: str, base_url: str = None) -> Optional[str]:
         """
-        Returns a valid access token for the given base_url.
+        Returns a valid access token for the given base_url + app_key.
         If existing token is valid, return it.
         Otherwise, fetch a new one.
         """
         url = base_url or self.default_base_url
+        cache_key = self._get_cache_key(url, app_key)
 
-        # Check if we have a valid cached token
-        if self.is_token_valid(url):
-            token = self._tokens[url].get("token")
+        # Check if we have a valid cached token for this account
+        if self.is_token_valid(url, app_key):
+            token = self._tokens[cache_key].get("token")
             # Also update legacy fields for backward compatibility
             self.access_token = token
-            self.token_expiry = self._tokens[url].get("expiry")
+            self.token_expiry = self._tokens[cache_key].get("expiry")
             return token
 
-        logger.info(f"Fetching new Kiwoom Access Token for {url}...")
+        logger.info(f"Fetching new Kiwoom Access Token for {cache_key}...")
         return await self._fetch_new_token(app_key, secret_key, url)
 
     async def _fetch_new_token(self, app_key: str, secret_key: str, base_url: str) -> Optional[str]:
         from .http_client import HttpClientManager
 
         url = f"{base_url}/oauth2/token"
+        cache_key = self._get_cache_key(base_url, app_key)
 
         headers = {
             "Content-Type": "application/json;charset=UTF-8",
@@ -177,8 +189,8 @@ class KiwoomTokenManager:
             expires_in = int(data.get("expires_in", 86400))  # Default 24h
             expiry = datetime.now() + timedelta(seconds=expires_in - 60)
 
-            # Store in multi-token cache
-            self._tokens[base_url] = {
+            # Store in multi-token cache (keyed by base_url + app_key)
+            self._tokens[cache_key] = {
                 "token": token,
                 "expiry": expiry
             }
@@ -190,11 +202,11 @@ class KiwoomTokenManager:
             # Save to disk
             self._save_cache()
 
-            logger.info(f"Kiwoom Access Token acquired for {base_url}. Expires in {expires_in} seconds.")
+            logger.info(f"Kiwoom Access Token acquired for {cache_key}. Expires in {expires_in} seconds.")
             return token
 
         except Exception as e:
-            logger.error(f"Failed to get Kiwoom Token from {base_url}: {e}")
+            logger.error(f"Failed to get Kiwoom Token from {cache_key}: {e}")
             return None
 
     def clear_all(self):
