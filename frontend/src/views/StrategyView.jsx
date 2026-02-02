@@ -22,6 +22,7 @@ import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
+import DualScrollContainer from '../components/DualScrollContainer';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
@@ -3486,7 +3487,7 @@ const StrategyView = () => {
                                                         Export CSV
                                                     </button>
                                                 </div>
-                                                <div className="overflow-x-auto">
+                                                <DualScrollContainer>
                                                     <table className="w-full text-left border-collapse whitespace-nowrap">
                                                         <thead>
                                                             <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
@@ -3525,7 +3526,7 @@ const StrategyView = () => {
                                                             ))}
                                                         </tbody>
                                                     </table>
-                                                </div>
+                                                </DualScrollContainer>
                                             </div>
                                         );
                                     })()}
@@ -4018,7 +4019,7 @@ const StrategyView = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className="overflow-x-auto">
+                                                        <DualScrollContainer>
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
                                                                 <thead>
                                                                     {(() => {
@@ -4163,7 +4164,7 @@ const StrategyView = () => {
                                                                         })}
                                                                 </tbody>
                                                             </table>
-                                                        </div>
+                                                        </DualScrollContainer>
                                                     </div>
                                                 )}
                                             </div>
