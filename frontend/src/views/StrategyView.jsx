@@ -6,6 +6,9 @@ import SymbolSelector from '../components/SymbolSelector';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective } from '../api/client';
+import { useStrategyConfig } from '../hooks/useStrategyConfig';
+import { isValidScope } from '../types/ConfigScope';
+import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
@@ -20,7 +23,7 @@ import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download } from 'lucide-react';
+import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -71,10 +74,15 @@ const PARAM_DEFINITIONS = [
 
 // Helper: Generate Defaults from Definitions
 const generateDefaultConfig = () => {
+    // 기본 시작일: 1년 전
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const defaultFromDate = oneYearAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+
     const config = {
         // System Defaults (Non-Param)
         initial_capital: 10000000,
-        from_date: "",
+        from_date: defaultFromDate,
         interval: "1m",
         symbol: "005930",
         betting_strategy: "fixed",
@@ -139,12 +147,129 @@ const convertSchemaToParamDefs = (schema) => {
 };
 
 const DEFAULT_CONFIG = generateDefaultConfig();
+
+// 공통 ApplyButton 컴포넌트 - 중앙 집중화된 Apply/Saved 버튼
+const ApplyButton = ({ onClick, disabled, feedback }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+            feedback === 'saved'
+                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/30 disabled:bg-gray-700'
+        }`}
+    >
+        <Save size={14} />
+        {feedback === 'saved' ? 'Saved!' : 'Apply'}
+    </button>
+);
+
+// 공통 CopyPasteButtons 컴포넌트 - 중앙 집중화된 Copy/Paste 버튼
+const CopyPasteButtons = ({ onCopy, onPaste, feedback, hasCopied, sourceLabel }) => (
+    <div className="flex items-center gap-1">
+        <button
+            onClick={onCopy}
+            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                feedback === 'copied'
+                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                    : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white'
+            }`}
+            title="Copy"
+        >
+            <Copy size={12} />
+            {feedback === 'copied' ? '✓' : 'Copy'}
+        </button>
+        <button
+            onClick={onPaste}
+            disabled={!hasCopied}
+            className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                feedback === 'pasted'
+                    ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                    : hasCopied
+                        ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/30'
+                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
+            }`}
+            title={hasCopied ? `Paste from ${sourceLabel}` : 'No data copied'}
+        >
+            <ClipboardPaste size={12} />
+            {feedback === 'pasted' ? '✓' : 'Paste'}
+        </button>
+    </div>
+);
+
+// 공통 ImportExportButtons 컴포넌트 - 중앙 집중화된 Import/Export 버튼
+// feedback: 'exported' | 'imported' | 'importing' | 'error' | null
+const ImportExportButtons = ({ onExport, onImport, feedback, disabled = false, errorMessage = '' }) => {
+    const getImportButtonStyle = () => {
+        switch (feedback) {
+            case 'imported':
+                return 'bg-green-600/30 text-green-300 border border-green-500/30';
+            case 'importing':
+                return 'bg-blue-600/30 text-blue-300 border border-blue-500/30 cursor-wait';
+            case 'error':
+                return 'bg-red-600/30 text-red-300 border border-red-500/30';
+            default:
+                return 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white';
+        }
+    };
+
+    const getImportLabel = () => {
+        switch (feedback) {
+            case 'imported':
+                return '✓';
+            case 'importing':
+                return '...';
+            case 'error':
+                return '✗';
+            default:
+                return 'Import';
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                onClick={onExport}
+                disabled={disabled}
+                className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                    feedback === 'exported'
+                        ? 'bg-green-600/30 text-green-300 border border-green-500/30'
+                        : 'bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+                title="Export to file"
+            >
+                <Download size={12} />
+                {feedback === 'exported' ? '✓' : 'Export'}
+            </button>
+            <label
+                className={`px-2 py-1 rounded text-xs font-medium transition-all flex items-center gap-1 ${
+                    feedback === 'importing' ? 'cursor-wait' : 'cursor-pointer'
+                } ${getImportButtonStyle()}`}
+                title={feedback === 'error' && errorMessage ? errorMessage : 'Import from file'}
+            >
+                <Upload size={12} />
+                {getImportLabel()}
+                <input
+                    type="file"
+                    accept=".json"
+                    onChange={onImport}
+                    className="hidden"
+                    disabled={feedback === 'importing'}
+                />
+            </label>
+        </div>
+    );
+};
 const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 
 // Generate UUID for Integrated View Persistence (strategy-specific)
 const getIntegratedUUID = (strategyId) => `integrated-${strategyId || 'unknown'}`;
 
 const StrategyView = () => {
+    // 계좌 중심: 활성 계좌 ID 가져오기
+    const { systemStatus } = useMarketData();
+    const activeAccountId = systemStatus?.account_id || null;
+
     // Symbol State
     const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem('lastSymbol') || '005930');
     const [savedSymbols, setSavedSymbols] = useState(() => {
@@ -161,8 +286,6 @@ const StrategyView = () => {
     const [selectedStrategy, setSelectedStrategy] = useState(null);
     const [backtestResult, setBacktestResult] = useState(null);
     const [executionLogs, setExecutionLogs] = useState([]);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [aiPrompt, setAiPrompt] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [showChart, setShowChart] = useState(false); // Toggle for Visual Chart
     const [activeDropdown, setActiveDropdown] = useState(null); // Key of the currently open optimization dropdown
@@ -209,9 +332,33 @@ const StrategyView = () => {
     const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
     const [applyFeedback, setApplyFeedback] = useState(null); // 'saved' | null
 
-    // Dynamic Config State
+    // Import/Export Feedback State
+    const [assetImportExportFeedback, setAssetImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
+    const [assetImportError, setAssetImportError] = useState('');
+    const [paramImportExportFeedback, setParamImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
+    const [paramImportError, setParamImportError] = useState('');
+
     // Dynamic Config State (Refactored for Multi-Symbol Tabs)
-    const [configList, setConfigList] = useState([]); // Array of config objects
+    // 커스텀 훅을 사용한 중앙 집중화된 설정 관리
+    // ConfigScope(accountId + strategyId)를 함께 관리
+    const {
+        configList,
+        setConfigList,
+        isLoaded: isConfigLoaded,
+        needsInit,       // 초기화 필요 플래그
+        setNeedsInit,    // 플래그 리셋용
+        saveConfigs,
+        reloadConfigs,
+        scope,           // ConfigScope: { accountId, strategyId }
+        transformUiToDbConfig,  // UI → DB 변환 함수
+        getDynamicDefaultConfig: getHookDefaultConfig
+        // initDefaultList는 기존 함수 사용 (getDynamicOptValues 의존성)
+    } = useStrategyConfig({
+        selectedStrategy,
+        accountId: activeAccountId,  // 계좌 중심: 활성 계좌 ID 전달
+        defaultConfig: DEFAULT_CONFIG,
+        generateUUID
+    });
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: '',
@@ -264,7 +411,7 @@ const StrategyView = () => {
     useEffect(() => {
         localStorage.setItem('strategyViewActiveTab', activeTab);
     }, [activeTab]);
-    const [isConfigLoaded, setIsConfigLoaded] = useState(false);
+    // isConfigLoaded는 useStrategyConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
 
 
@@ -296,96 +443,10 @@ const StrategyView = () => {
 
     // Persistence logic removed for initialCapital
 
-    // Load Strategy Config List on Selection
-    // Load Strategy Config List from API
-    // Load Strategy Config List from API
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadConfigs = async () => {
-            if (selectedStrategy) {
-                setIsConfigLoaded(false);
-
-                try {
-                    const savedList = await getStrategyConfigs(selectedStrategy.id);
-
-                    if (savedList && savedList.length > 0) {
-                        // Debug: Log what we received from API
-                        console.log("[Load] API response:", savedList.map(c => ({
-                            tab_name: c.tab_name,
-                            db_is_active: c.is_active,
-                            config_json_is_active: c.config_json?.is_active
-                        })));
-
-                        // Build dynamic default config from current strategy's schema
-                        let dynamicDefault = { ...DEFAULT_CONFIG };
-                        const schema = selectedStrategy?.parameter_schema;
-                        if (schema?.fields && schema.fields.length > 0) {
-                            schema.fields.forEach(field => {
-                                const key = field.key || field.name;
-                                if (field.default !== undefined) {
-                                    dynamicDefault[key] = field.default;
-                                }
-                            });
-                        }
-
-                        const migratedList = savedList.map(cfg => {
-                            // cfg is StrategyConfig object from DB (rank, is_active, tab_name, config_json)
-                            // Flatten for UI state
-                            let configData = cfg.config_json || {};
-
-                            // Merge with dynamic default (strategy-specific schema defaults)
-                            let mergedCfg = { ...dynamicDefault, ...configData };
-
-                            // Restore UI meta-fields from DB columns (OVERRIDE config_json values)
-                            mergedCfg.rank = cfg.rank;
-                            // Explicit boolean conversion to handle null/undefined from DB
-                            mergedCfg.is_active = cfg.is_active === false ? false : (cfg.is_active === true ? true : true);
-                            mergedCfg.tabName = cfg.tab_name;
-                            mergedCfg.uuid = cfg.tab_id;
-
-                            // Sanitization: Ensure defaults using dynamic schema
-                            Object.keys(dynamicDefault).forEach(key => {
-                                if (key === 'from_date' || key === 'uuid') return;
-                                const val = mergedCfg[key];
-                                const defaultVal = dynamicDefault[key];
-                                if ((val === "" || val === null || val === undefined) && defaultVal !== "") {
-                                    mergedCfg[key] = defaultVal;
-                                }
-                            });
-
-                            // Re-generate UUID if missing (should not happen from DB)
-                            if (!mergedCfg.uuid) mergedCfg.uuid = generateUUID();
-
-                            return mergedCfg;
-                        });
-
-                        // Debug: Log final migrated list
-                        console.log("[Load] Migrated configs:", migratedList.map(c => ({
-                            tabName: c.tabName,
-                            is_active: c.is_active,
-                            uuid: c.uuid?.slice(0, 8)
-                        })));
-
-                        if (isMounted) setConfigList(migratedList);
-                    } else {
-                        // DB empty -> Init Default
-                        console.log("[Load] DB empty for strategy, initializing default");
-                        if (isMounted) initDefaultList();
-                    }
-                } catch (e) {
-                    console.error("Failed to load strategy configs from DB", e);
-                    if (isMounted) initDefaultList(); // Fallback
-                } finally {
-                    if (isMounted) setIsConfigLoaded(true);
-                }
-            }
-        };
-
-        loadConfigs();
-
-        return () => { isMounted = false; };
-    }, [selectedStrategy]);
+    // [REFACTORED] 설정 로드 로직이 useStrategyConfig 훅으로 이동됨
+    // 핵심 변경: 의존성 배열에 accountId 포함 → 계좌 전환 시에도 설정 자동 로드
+    // 기존 코드: }, [selectedStrategy]);
+    // 새 코드 (훅 내부): }, [selectedStrategy, accountId]);
 
     const initDefaultList = () => {
         console.log("[initDefaultList] Creating default Rank 1 tab (is_active: true)");
@@ -398,6 +459,20 @@ const StrategyView = () => {
             optValues: { ...getDynamicOptValues() }
         }]);
     };
+
+    // needsInit 플래그 처리 - 훅에서 DB가 비어있을 때 호출
+    useEffect(() => {
+        if (needsInit && selectedStrategy) {
+            console.log("[StrategyView] needsInit detected, configList.length:", configList.length);
+            // 훅에서 이미 기본 설정을 생성했으면 initDefaultList 호출 생략
+            if (configList.length === 0) {
+                console.log("[StrategyView] configList empty, calling initDefaultList");
+                initDefaultList();
+            }
+            setNeedsInit(false);
+            setIsDirty(false);  // 초기화는 "변경"이 아니므로 dirty 리셋
+        }
+    }, [needsInit, selectedStrategy, configList.length]);
 
     // Save Strategy Config List on Change (Debounced DB Sync) - DISABLED (Manual Save with Apply button)
     // useEffect(() => {
@@ -512,18 +587,11 @@ const StrategyView = () => {
                     setActiveTab(activeTab - 1);
                 }
 
-                // Auto-save to DB after deletion
+                // Auto-save to DB after deletion (ConfigScope 사용)
                 try {
-                    const configsToSave = reLabeledList.map((cfg, idx) => ({
-                        tab_id: cfg.uuid,
-                        strategy_id: selectedStrategy.id,
-                        rank: idx,
-                        is_active: cfg.is_active === false ? false : true,
-                        tab_name: cfg.tabName,
-                        config_json: cfg
-                    }));
+                    const configsToSave = reLabeledList.map((cfg, idx) => transformUiToDbConfig(cfg, idx));
                     console.log("[Delete] Saving after tab deletion:", configsToSave.map(c => c.tab_name));
-                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, false); // preserve_inactive=false to allow deletion
+                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, false); // preserve_inactive=false to allow deletion
                     setIsDirty(false);
                 } catch (err) {
                     console.error("Failed to save after deletion:", err);
@@ -745,6 +813,227 @@ const StrategyView = () => {
         addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
     };
 
+    // Target Asset Import/Export Handlers
+    const handleExportAssets = () => {
+        if (!savedSymbols || savedSymbols.length === 0) {
+            addLog('⚠️ No symbols to export', 'warn');
+            return;
+        }
+
+        // 계좌 별칭 (파일명에 사용)
+        const accountAlias = (systemStatus?.account_name || 'Unknown').replace(/\s+/g, '_');
+
+        const exportData = {
+            type: 'target_assets',
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            accountName: systemStatus?.account_name,
+            symbols: savedSymbols
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `target_assets_${accountAlias}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        setAssetImportExportFeedback('exported');
+        setTimeout(() => setAssetImportExportFeedback(null), 2000);
+        addLog(`📤 Exported ${savedSymbols.length} symbols`, 'info');
+    };
+
+    const handleImportAssets = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Show loading state
+        setAssetImportExportFeedback('importing');
+        setAssetImportError('');
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+
+                // Validate format
+                if (!data.type || data.type !== 'target_assets') {
+                    const errMsg = 'Invalid file: missing or wrong "type" field (expected: target_assets)';
+                    setAssetImportError(errMsg);
+                    setAssetImportExportFeedback('error');
+                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                if (!Array.isArray(data.symbols)) {
+                    const errMsg = 'Invalid file: "symbols" must be an array';
+                    setAssetImportError(errMsg);
+                    setAssetImportExportFeedback('error');
+                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                if (data.symbols.length === 0) {
+                    const errMsg = 'Import file contains no symbols';
+                    setAssetImportError(errMsg);
+                    setAssetImportExportFeedback('error');
+                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                setSavedSymbols(data.symbols);
+                setAssetImportExportFeedback('imported');
+                setTimeout(() => setAssetImportExportFeedback(null), 2000);
+                addLog(`📥 Imported ${data.symbols.length} symbols`, 'info');
+            } catch (err) {
+                const errMsg = 'Failed to parse JSON file';
+                setAssetImportError(errMsg);
+                setAssetImportExportFeedback('error');
+                setTimeout(() => setAssetImportExportFeedback(null), 3000);
+                addLog(`⚠️ ${errMsg}: ${err.message}`, 'error');
+            }
+        };
+        reader.onerror = () => {
+            const errMsg = 'Failed to read file';
+            setAssetImportError(errMsg);
+            setAssetImportExportFeedback('error');
+            setTimeout(() => setAssetImportExportFeedback(null), 3000);
+            addLog(`⚠️ ${errMsg}`, 'error');
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset input
+    };
+
+    // Parameters Import/Export Handlers
+    const handleExportParams = () => {
+        let currentCfg;
+        let sourceLabel;
+
+        if (activeTab === -3) {
+            currentCfg = symbolCompareConfig || configList[0] || {};
+            sourceLabel = 'SymbolCompare';
+        } else if (activeTab >= 0 && configList[activeTab]) {
+            currentCfg = configList[activeTab];
+            sourceLabel = (currentCfg.tabName || `Tab${activeTab + 1}`).replace(/\s/g, '');
+        } else {
+            addLog('⚠️ No configuration to export', 'warn');
+            return;
+        }
+
+        // 계좌 별칭 (파일명에 사용)
+        const accountAlias = (systemStatus?.account_name || 'Unknown').replace(/\s+/g, '_');
+
+        // Extract only strategy parameters
+        const paramNames = getStrategyParamNames();
+        const paramsToExport = {};
+        paramNames.forEach(key => {
+            if (key in currentCfg) {
+                paramsToExport[key] = currentCfg[key];
+            }
+        });
+
+        const exportData = {
+            type: 'strategy_parameters',
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            accountName: systemStatus?.account_name,
+            strategyId: selectedStrategy?.id || 'unknown',
+            params: paramsToExport
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `params_${accountAlias}_${selectedStrategy?.id || 'strategy'}_${sourceLabel}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        setParamImportExportFeedback('exported');
+        setTimeout(() => setParamImportExportFeedback(null), 2000);
+        addLog(`📤 Exported parameters from ${sourceLabel}`, 'info');
+    };
+
+    const handleImportParams = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Show loading state
+        setParamImportExportFeedback('importing');
+        setParamImportError('');
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+
+                // Validate format
+                if (!data.type || data.type !== 'strategy_parameters') {
+                    const errMsg = 'Invalid file: missing or wrong "type" field (expected: strategy_parameters)';
+                    setParamImportError(errMsg);
+                    setParamImportExportFeedback('error');
+                    setTimeout(() => setParamImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                if (!data.params || typeof data.params !== 'object') {
+                    const errMsg = 'Invalid file: "params" field is missing or invalid';
+                    setParamImportError(errMsg);
+                    setParamImportExportFeedback('error');
+                    setTimeout(() => setParamImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                if (Object.keys(data.params).length === 0) {
+                    const errMsg = 'Import file contains no parameters';
+                    setParamImportError(errMsg);
+                    setParamImportExportFeedback('error');
+                    setTimeout(() => setParamImportExportFeedback(null), 3000);
+                    addLog(`⚠️ ${errMsg}`, 'error');
+                    return;
+                }
+
+                // Apply imported params to current config
+                if (activeTab === -3) {
+                    const baseConfig = symbolCompareConfig || configList[0] || {};
+                    const newConfig = { ...baseConfig, ...data.params };
+                    setSymbolCompareConfig(newConfig);
+                    setIsSymbolCompareDirty(true);
+                } else if (activeTab >= 0 && configList[activeTab]) {
+                    const newList = [...configList];
+                    newList[activeTab] = { ...newList[activeTab], ...data.params };
+                    setConfigList(newList);
+                    setIsDirty(true);
+                }
+
+                setParamImportExportFeedback('imported');
+                setTimeout(() => setParamImportExportFeedback(null), 2000);
+                addLog(`📥 Imported parameters (${Object.keys(data.params).length} fields)`, 'info');
+            } catch (err) {
+                const errMsg = 'Failed to parse JSON file';
+                setParamImportError(errMsg);
+                setParamImportExportFeedback('error');
+                setTimeout(() => setParamImportExportFeedback(null), 3000);
+                addLog(`⚠️ ${errMsg}: ${err.message}`, 'error');
+            }
+        };
+        reader.onerror = () => {
+            const errMsg = 'Failed to read file';
+            setParamImportError(errMsg);
+            setParamImportExportFeedback('error');
+            setTimeout(() => setParamImportExportFeedback(null), 3000);
+            addLog(`⚠️ ${errMsg}`, 'error');
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset input
+    };
+
     // Helper to get current config for UI rendering
     // Build dynamic default config from selectedStrategy's schema if configList is empty
     const getDynamicDefaultConfig = () => {
@@ -934,20 +1223,16 @@ const StrategyView = () => {
             setStrategies(res.data);
 
             if (res.data.length > 0) {
-                // Try to restore last selected strategy
+                // Try to restore last selected strategy from localStorage only
                 const savedId = localStorage.getItem('lastStrategyId');
-                let target = null;
-
                 if (savedId) {
-                    target = res.data.find(s => s.id === savedId);
+                    const target = res.data.find(s => s.id === savedId);
+                    if (target) {
+                        setSelectedStrategy(target);
+                    }
+                    // savedId가 있지만 해당 전략이 없으면 placeholder 유지
                 }
-
-                // Fallback to first if saved not found or not set
-                if (!target) {
-                    target = res.data[0];
-                }
-
-                setSelectedStrategy(target);
+                // savedId가 없으면 placeholder ("전략을 선택하세요") 유지
             }
         } catch (e) {
             console.error(e);
@@ -1073,44 +1358,28 @@ const StrategyView = () => {
         }
     };
 
-    const handleAiGenerate = async () => {
-        if (!aiPrompt) return;
-        setIsGenerating(true);
-        try {
-            const res = await axios.post('/api/v1/strategies/generate', { prompt: aiPrompt });
-            setStrategies([...strategies, res.data]);
-            setSelectedStrategy(res.data);
-            setAiPrompt("");
-        } catch (e) {
-            alert("Generation failed");
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
     // Manual Save & Backtest (Apply button handler)
     const handleApplyConfig = async () => {
         if (!selectedStrategy || !isConfigLoaded || configList.length === 0) return;
 
         try {
             // 1. Save configuration to DB
-            const configsToSave = configList.map((cfg, index) => ({
-                tab_id: cfg.uuid,
-                strategy_id: selectedStrategy.id,
-                rank: index,
-                is_active: cfg.is_active === false ? false : true, // Explicit boolean conversion
-                tab_name: cfg.tabName,
-                config_json: cfg
-            }));
+            if (!isValidScope(scope)) {
+                openConfirm("⚠️ No Active Account", "활성화된 계좌가 없습니다. Settings에서 계좌를 활성화해주세요.", () => {}, true);
+                return;
+            }
+
+            // ConfigScope를 사용하여 configsToSave 생성
+            const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
             // Debug: Log what we're saving
             console.log("[Apply] Saving configs:", configsToSave.map(c => ({
                 tab_name: c.tab_name,
                 is_active: c.is_active,
-                original_is_active: configList.find(cfg => cfg.uuid === c.tab_id)?.is_active
+                account_id: c.account_id
             })));
 
-            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
             console.log("Configuration saved to DB");
 
             // 2. Save pending optimization results if exists
@@ -1123,13 +1392,17 @@ const StrategyView = () => {
             // Clear dirty flag after successful save
             setIsDirty(false);
 
+            // Visual feedback (Saved!)
+            setApplyFeedback('saved');
+            setTimeout(() => setApplyFeedback(null), 2000);
+
             // 3. Automatically trigger backtest
             if (activeTab !== -1 && selectedStrategy?.id) {
                 await runBacktest(selectedStrategy.id);
             }
         } catch (e) {
             console.error("Failed to save configuration:", e);
-            alert("Failed to save configuration. Please try again.");
+            openConfirm("❌ Save Failed", `설정 저장에 실패했습니다.\n\n${e.message || "다시 시도해주세요."}`, () => {}, true);
         }
     };
 
@@ -1224,24 +1497,18 @@ const StrategyView = () => {
             "⚠️ Unsaved Changes",
             "You have unsaved configuration changes.\n\nWhat would you like to do?",
             async () => {
-                // Save & Switch
+                // Save & Switch (ConfigScope 사용)
                 try {
-                    const configsToSave = configList.map((cfg, index) => ({
-                        tab_id: cfg.uuid,
-                        strategy_id: selectedStrategy.id,
-                        rank: index,
-                        is_active: cfg.is_active === false ? false : true, // Explicit boolean
-                        tab_name: cfg.tabName,
-                        config_json: cfg
-                    }));
+                    const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
                     // Debug: Log what we're saving
                     console.log("[TabSwitch Save] Saving configs:", configsToSave.map(c => ({
                         tab_name: c.tab_name,
-                        is_active: c.is_active
+                        is_active: c.is_active,
+                        account_id: c.account_id
                     })));
 
-                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
                     console.log("Configuration saved before tab switch");
                     setIsDirty(false);
                     setActiveTab(newTabIndex);
@@ -1249,7 +1516,7 @@ const StrategyView = () => {
                     setPendingTabSwitch(null);
                 } catch (e) {
                     console.error("Failed to save configuration:", e);
-                    alert("Failed to save configuration. Tab switch cancelled.");
+                    openConfirm("❌ Save Failed", `설정 저장에 실패했습니다. 탭 전환이 취소되었습니다.\n\n${e.message || ""}`, () => {}, true);
                     setPendingTabSwitch(null);
                 }
             },
@@ -1283,31 +1550,25 @@ const StrategyView = () => {
             "⚠️ Unsaved Changes",
             "You have unsaved configuration changes.\n\nWhat would you like to do before switching strategies?",
             async () => {
-                // Save & Switch Strategy
+                // Save & Switch Strategy (ConfigScope 사용)
                 try {
-                    const configsToSave = configList.map((cfg, index) => ({
-                        tab_id: cfg.uuid,
-                        strategy_id: selectedStrategy.id,
-                        rank: index,
-                        is_active: cfg.is_active === false ? false : true, // Explicit boolean
-                        tab_name: cfg.tabName,
-                        config_json: cfg
-                    }));
+                    const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
                     // Debug: Log what we're saving
                     console.log("[StrategyChange Save] Saving configs:", configsToSave.map(c => ({
                         tab_name: c.tab_name,
-                        is_active: c.is_active
+                        is_active: c.is_active,
+                        account_id: c.account_id
                     })));
 
-                    await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
                     console.log("Configuration saved before strategy change");
                     setIsDirty(false);
                     setSelectedStrategy(newStrategy);
                     setBacktestResult(null);
                 } catch (e) {
                     console.error("Failed to save configuration:", e);
-                    alert("Failed to save configuration. Strategy change cancelled.");
+                    openConfirm("❌ Save Failed", `설정 저장에 실패했습니다. 전략 변경이 취소되었습니다.\n\n${e.message || ""}`, () => {}, true);
                 }
             },
             false, // not danger
@@ -1741,6 +2002,7 @@ const StrategyView = () => {
     // Check Data Status
     useEffect(() => {
         if (!isConfigLoaded) return; // Prevent race condition before config loads
+        if (activeTab < 0) return; // Only check for Rank tabs (not Live, Integrated, Symbol Compare)
 
         // Use currentConfig.symbol for data status check
         const symbolToCheck = currentConfig.symbol || currentSymbol;
@@ -1748,7 +2010,7 @@ const StrategyView = () => {
             checkDataStatus(symbolToCheck);
         }
         setFetchMessage(null);
-    }, [currentConfig?.symbol, currentSymbol, isConfigLoaded]); // Depend on isConfigLoaded (interval removed - always 1m)
+    }, [currentConfig?.symbol, currentSymbol, isConfigLoaded, activeTab]); // activeTab 추가: Rank 탭 전환 시 from_date 자동 설정
 
     const checkDataStatus = async (symbol) => {
         try {
@@ -1774,7 +2036,13 @@ const StrategyView = () => {
                         newDate = minDate.toISOString().split('T')[0];
                     }
                     if (currentConfig?.from_date !== newDate) {
-                        handleConfigChange('from_date', newDate);
+                        // 자동 설정은 isDirty를 트리거하지 않음 - 직접 configList 업데이트
+                        if (activeTab >= 0 && activeTab < configList.length) {
+                            const newList = [...configList];
+                            newList[activeTab] = { ...newList[activeTab], from_date: newDate };
+                            setConfigList(newList);
+                            // isDirty는 설정하지 않음 - 자동 설정은 사용자 변경이 아님
+                        }
                     }
                 }
             }
@@ -2088,6 +2356,14 @@ const StrategyView = () => {
                             <select
                                 value={selectedStrategy?.id || ''}
                                 onChange={(e) => {
+                                    if (!e.target.value) {
+                                        // 플레이스홀더 선택 시 전략 선택 해제
+                                        setSelectedStrategy(null);
+                                        setBacktestResult(null);
+                                        setIsDirty(false);
+                                        localStorage.removeItem('lastStrategyId');
+                                        return;
+                                    }
                                     const strat = strategies.find(s => s.id === e.target.value);
                                     handleStrategyChange(strat);
                                 }}
@@ -2098,6 +2374,9 @@ const StrategyView = () => {
                                         : 'border-white/20 text-white cursor-pointer focus:border-blue-500'
                                 }`}
                             >
+                                <option value="" className="bg-slate-900 text-gray-400">
+                                    전략을 선택하세요
+                                </option>
                                 {strategies.map(strat => (
                                     <option key={strat.id} value={strat.id} className="bg-slate-900 text-white">
                                         {strat.name}
@@ -2135,13 +2414,19 @@ const StrategyView = () => {
 
             {/* Main Content Area (No Scroll Container) */}
             <div className="space-y-6 pb-20">
-                {(!isConfigLoaded || !configList || configList.length === 0) ? (
+                {!selectedStrategy ? (
+                    <div className="flex flex-col items-center justify-center p-20 text-gray-400 bg-white/5 border border-white/10 rounded-xl">
+                        <Crosshair size={48} className="mb-4 text-blue-500/50" />
+                        <p className="text-lg font-medium">전략을 선택해주세요</p>
+                        <p className="text-sm text-gray-500 mt-2">위의 드롭다운에서 백테스트할 전략을 선택하세요</p>
+                    </div>
+                ) : !isConfigLoaded ? (
                     <div className="flex flex-col items-center justify-center p-20 text-gray-500">
                         <div className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
                         <p>Loading Strategy Configuration...</p>
                         <p className="text-xs text-gray-600 mt-2">Synchronizing with Database...</p>
                     </div>
-                ) : selectedStrategy ? (
+                ) : configList.length > 0 ? (
                     <>
 
                         {/* SECTION 1: BACKTEST SIMULATION (Config + Execution + Results) */}
@@ -2299,18 +2584,11 @@ const StrategyView = () => {
                                         setActiveTab(newList.length - 1);
                                         localStorage.setItem('strategyViewActiveTab', (newList.length - 1).toString());
 
-                                        // Auto-save to DB after adding new tab
+                                        // Auto-save to DB after adding new tab (ConfigScope 사용)
                                         try {
-                                            const configsToSave = newList.map((cfg, idx) => ({
-                                                tab_id: cfg.uuid,
-                                                strategy_id: selectedStrategy.id,
-                                                rank: idx,
-                                                is_active: cfg.is_active === false ? false : true,
-                                                tab_name: cfg.tabName,
-                                                config_json: cfg
-                                            }));
+                                            const configsToSave = newList.map((cfg, idx) => transformUiToDbConfig(cfg, idx));
                                             console.log("[Add Tab] Saving new tab:", configsToSave.map(c => ({ name: c.tab_name, is_active: c.is_active })));
-                                            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                                            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
                                             setIsDirty(false);
                                         } catch (err) {
                                             console.error("Failed to save new tab:", err);
@@ -2712,50 +2990,14 @@ const StrategyView = () => {
                                             <Crosshair size={14} className="text-gray-400" /> Configuration
                                         </h3>
                                         <div className="flex items-center gap-4">
-                                            {/* Copy/Paste Buttons */}
-                                            <div className="flex items-center gap-1 border-r border-white/10 pr-4">
-                                                <button
-                                                    onClick={handleCopyParams}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                                        copyPasteFeedback === 'copied'
-                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                                                            : 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white'
-                                                    }`}
-                                                    title="Copy parameters"
-                                                >
-                                                    <Copy size={14} />
-                                                    {copyPasteFeedback === 'copied' ? 'Copied!' : 'Copy'}
-                                                </button>
-                                                <button
-                                                    onClick={handlePasteParams}
-                                                    disabled={!copiedParams}
-                                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                                        copyPasteFeedback === 'pasted'
-                                                            ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                                                            : copiedParams
-                                                                ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 hover:text-white border border-purple-500/30'
-                                                                : 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                                    }`}
-                                                    title={copiedParams ? `Paste from ${copiedParams.sourceTab}` : 'No parameters copied'}
-                                                >
-                                                    <ClipboardPaste size={14} />
-                                                    {copyPasteFeedback === 'pasted' ? 'Pasted!' : 'Paste'}
-                                                    {copiedParams && copyPasteFeedback !== 'pasted' && (
-                                                        <span className="text-[10px] text-purple-400 ml-1">({copiedParams.sourceTab})</span>
-                                                    )}
-                                                </button>
-                                            </div>
                                             {/* Apply/Discard - Only for Rank tabs */}
                                             {activeTab >= 0 && (
                                                 <div className="flex items-center gap-2">
-                                                    <button
+                                                    <ApplyButton
                                                         onClick={handleApplyConfig}
                                                         disabled={isLoading || !selectedStrategy}
-                                                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-blue-500/30 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                                                    >
-                                                        <Save size={14} />
-                                                        Apply
-                                                    </button>
+                                                        feedback={applyFeedback}
+                                                    />
                                                     {(isDirty || pendingOptResult) && (
                                                         <button
                                                             onClick={handleDiscardChanges}
@@ -2773,18 +3015,11 @@ const StrategyView = () => {
                                             {/* Apply/Discard/Reset - Only for Symbol Compare */}
                                             {activeTab === -3 && (
                                                 <div className="flex items-center gap-2">
-                                                    <button
+                                                    <ApplyButton
                                                         onClick={handleApplySymbolCompare}
                                                         disabled={isStockComparing}
-                                                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                                                            applyFeedback === 'saved'
-                                                                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                                                                : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/30'
-                                                        }`}
-                                                    >
-                                                        <Save size={14} />
-                                                        {applyFeedback === 'saved' ? 'Saved!' : 'Apply'}
-                                                    </button>
+                                                        feedback={applyFeedback}
+                                                    />
                                                     {isSymbolCompareDirty && (
                                                         <button
                                                             onClick={handleDiscardSymbolCompare}
@@ -2837,10 +3072,19 @@ const StrategyView = () => {
                                     <div className="px-4 py-4 space-y-4">
                                         {/* Row 1: Target Asset */}
                                         <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3">
-                                                Target Asset
-                                                {activeTab === -3 && <span className="text-xs text-blue-400 ml-2">(Multi-Select for Compare)</span>}
-                                            </h4>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">
+                                                    Target Asset
+                                                    {activeTab === -3 && <span className="text-xs text-blue-400">(Multi-Select for Compare)</span>}
+                                                </h4>
+                                                <ImportExportButtons
+                                                    onExport={handleExportAssets}
+                                                    onImport={handleImportAssets}
+                                                    feedback={assetImportExportFeedback}
+                                                    disabled={!savedSymbols || savedSymbols.length === 0}
+                                                    errorMessage={assetImportError}
+                                                />
+                                            </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
                                                 {/* SymbolSelector - shared for both Rank and Symbol Compare */}
                                                 <SymbolSelector
@@ -2915,7 +3159,25 @@ const StrategyView = () => {
 
                                         {/* Row 2: Parameters */}
                                         <div>
-                                            <h4 className="text-sm font-bold text-gray-300 mb-3">Parameters</h4>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-sm font-bold text-gray-300">Parameters</h4>
+                                                <div className="flex items-center gap-3">
+                                                    <CopyPasteButtons
+                                                        onCopy={handleCopyParams}
+                                                        onPaste={handlePasteParams}
+                                                        feedback={copyPasteFeedback}
+                                                        hasCopied={!!copiedParams}
+                                                        sourceLabel={copiedParams?.sourceTab}
+                                                    />
+                                                    <div className="w-px h-4 bg-white/10" />
+                                                    <ImportExportButtons
+                                                        onExport={handleExportParams}
+                                                        onImport={handleImportParams}
+                                                        feedback={paramImportExportFeedback}
+                                                        errorMessage={paramImportError}
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5">
                                                 {/* Dynamic Parameter Form - Renders based on strategy's parameter_schema */}
                                                 {selectedStrategy.parameter_schema?.fields?.length > 0 ? (
@@ -3711,24 +3973,18 @@ const StrategyView = () => {
                                                                                                             return next;
                                                                                                         });
 
-                                                                                                        // 2. Save to DB
+                                                                                                        // 2. Save to DB (ConfigScope 사용)
                                                                                                         try {
-                                                                                                            const configsToSave = updatedConfigList.map((cfg, index) => ({
-                                                                                                                tab_id: cfg.uuid,
-                                                                                                                strategy_id: selectedStrategy.id,
-                                                                                                                rank: index,
-                                                                                                                is_active: cfg.is_active === false ? false : true, // Explicit boolean
-                                                                                                                tab_name: cfg.tabName,
-                                                                                                                config_json: cfg
-                                                                                                            }));
+                                                                                                            const configsToSave = updatedConfigList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
                                                                                                             // Debug: Log what we're saving
                                                                                                             console.log("[Optimization Save] Saving configs:", configsToSave.map(c => ({
                                                                                                                 tab_name: c.tab_name,
-                                                                                                                is_active: c.is_active
+                                                                                                                is_active: c.is_active,
+                                                                                                                account_id: c.account_id
                                                                                                             })));
 
-                                                                                                            await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
+                                                                                                            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
                                                                                                             console.log("Optimization config saved to DB");
                                                                                                         } catch (e) {
                                                                                                             console.error("Failed to save optimization config:", e);
@@ -3837,27 +4093,6 @@ const StrategyView = () => {
                 }
             </div >
 
-            {/* AI Generator Input - Fixed Bottom */}
-            < Card className="shrink-0 mt-auto border-t border-white/10 bg-gradient-to-b from-[#1a1c23] to-[#111]" >
-                <div className="flex gap-4">
-                    <input
-                        type="text"
-                        className="flex-1 bg-black/40 border border-white/10 rounded-lg p-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none placeholder-gray-600"
-                        placeholder="Describe a new strategy... (e.g., 'Buy when RSI < 30 and price is above 200MA')"
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleAiGenerate()}
-                    />
-                    <button
-                        onClick={handleAiGenerate}
-                        disabled={isGenerating || !aiPrompt}
-                        className={`px-8 rounded-lg font-bold transition-all flex items-center gap-2 whitespace-nowrap ${isGenerating ? 'bg-purple-900 text-purple-300' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-purple-500/30'
-                            }`}
-                    >
-                        {isGenerating ? 'Generatin...' : 'Ask AI'}
-                    </button>
-                </div>
-            </Card >
 
 
             {/* Dynamic Confirm Modal */}

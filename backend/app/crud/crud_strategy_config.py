@@ -1,15 +1,35 @@
-from typing import List
+from typing import List, Union
 from sqlalchemy.orm import Session
 from ..models.strategy_config import StrategyConfig
-from ..schemas.strategy_config import StrategyConfigCreate
+from ..schemas.strategy_config import StrategyConfigCreate, ConfigScope
+
 
 class CRUDStrategyConfig:
-    def get_multi(self, db: Session, strategy_id: str, skip: int = 0, limit: int = 100) -> List[StrategyConfig]:
-        return db.query(StrategyConfig).filter(StrategyConfig.strategy_id == strategy_id).order_by(StrategyConfig.rank).offset(skip).limit(limit).all()
+    def get_multi(
+        self,
+        db: Session,
+        scope: Union[ConfigScope, None] = None,
+        *,
+        account_id: int = None,
+        strategy_id: str = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[StrategyConfig]:
+        """계좌 + 전략 기준으로 설정 조회"""
+        # ConfigScope 객체 또는 개별 파라미터 지원
+        if scope:
+            account_id = scope.account_id
+            strategy_id = scope.strategy_id
+
+        return db.query(StrategyConfig).filter(
+            StrategyConfig.account_id == account_id,
+            StrategyConfig.strategy_id == strategy_id
+        ).order_by(StrategyConfig.rank).offset(skip).limit(limit).all()
 
     def create(self, db: Session, obj_in: StrategyConfigCreate) -> StrategyConfig:
         db_obj = StrategyConfig(
             tab_id=obj_in.tab_id,
+            account_id=obj_in.account_id,
             strategy_id=obj_in.strategy_id,
             rank=obj_in.rank,
             is_active=obj_in.is_active,
@@ -21,15 +41,33 @@ class CRUDStrategyConfig:
         db.refresh(db_obj)
         return db_obj
 
-    def replace_all(self, db: Session, strategy_id: str, configs: List[StrategyConfigCreate]) -> List[StrategyConfig]:
-        # Delete only configs for THIS strategy
-        db.query(StrategyConfig).filter(StrategyConfig.strategy_id == strategy_id).delete()
+    def replace_all(
+        self,
+        db: Session,
+        scope: Union[ConfigScope, None] = None,
+        configs: List[StrategyConfigCreate] = None,
+        *,
+        account_id: int = None,
+        strategy_id: str = None
+    ) -> List[StrategyConfig]:
+        """계좌 + 전략에 해당하는 모든 설정 교체"""
+        # ConfigScope 객체 또는 개별 파라미터 지원
+        if scope:
+            account_id = scope.account_id
+            strategy_id = scope.strategy_id
+
+        # Delete only configs for THIS account + strategy
+        db.query(StrategyConfig).filter(
+            StrategyConfig.account_id == account_id,
+            StrategyConfig.strategy_id == strategy_id
+        ).delete()
 
         new_objs = []
         for conf in configs:
             db_obj = StrategyConfig(
                 tab_id=conf.tab_id,
-                strategy_id=strategy_id, # Enforce ID from URL context
+                account_id=account_id,
+                strategy_id=strategy_id,
                 rank=conf.rank,
                 is_active=conf.is_active,
                 tab_name=conf.tab_name,
@@ -44,19 +82,29 @@ class CRUDStrategyConfig:
 
         return new_objs
 
-    def sync_selective(self, db: Session, strategy_id: str, configs: List[StrategyConfigCreate],
-                      preserve_inactive: bool = True) -> List[StrategyConfig]:
+    def sync_selective(
+        self,
+        db: Session,
+        scope: Union[ConfigScope, None] = None,
+        configs: List[StrategyConfigCreate] = None,
+        preserve_inactive: bool = True,
+        *,
+        account_id: int = None,
+        strategy_id: str = None
+    ) -> List[StrategyConfig]:
         """
-        Selective sync: Preserve inactive tabs while synchronizing active tabs
+        Selective sync: 계좌 + 전략 기준으로 설정 동기화
+        - 비활성 탭 보존
+        - Upsert 방식
+        """
+        # ConfigScope 객체 또는 개별 파라미터 지원
+        if scope:
+            account_id = scope.account_id
+            strategy_id = scope.strategy_id
 
-        Logic:
-        1. Query all existing tabs for this strategy from DB
-        2. If preserve_inactive=True, keep is_active=False tabs
-        3. Upsert configs (update if exists, insert if not)
-        4. Delete tabs that are not in configs and not inactive
-        """
-        # 1. Get all existing tabs for this strategy
+        # 1. Get all existing tabs for this account + strategy
         existing_tabs = db.query(StrategyConfig).filter(
+            StrategyConfig.account_id == account_id,
             StrategyConfig.strategy_id == strategy_id
         ).all()
 
@@ -77,10 +125,9 @@ class CRUDStrategyConfig:
 
         # 5. Upsert configs
         for conf in configs:
-            conf.strategy_id = strategy_id  # Enforce strategy_id from URL
-
-            # Check if tab already exists
+            # Check if tab already exists (account + tab_id 조합으로 확인)
             db_obj = db.query(StrategyConfig).filter(
+                StrategyConfig.account_id == account_id,
                 StrategyConfig.tab_id == conf.tab_id
             ).first()
 
@@ -95,6 +142,7 @@ class CRUDStrategyConfig:
                 # Insert new tab
                 db_obj = StrategyConfig(
                     tab_id=conf.tab_id,
+                    account_id=account_id,
                     strategy_id=strategy_id,
                     rank=conf.rank,
                     is_active=conf.is_active,
@@ -105,6 +153,7 @@ class CRUDStrategyConfig:
 
         # 6. Commit and return all tabs (including inactive)
         db.commit()
-        return self.get_multi(db, strategy_id)
+        return self.get_multi(db, account_id=account_id, strategy_id=strategy_id)
+
 
 strategy_config = CRUDStrategyConfig()
