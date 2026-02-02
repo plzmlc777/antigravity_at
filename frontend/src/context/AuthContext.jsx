@@ -14,8 +14,9 @@ export const AuthProvider = ({ children }) => {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             setAuthToken(token);
 
+            const storedEmail = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
             const storedIsAdmin = localStorage.getItem('is_admin') === 'true' || sessionStorage.getItem('is_admin') === 'true';
-            setUser({ email: 'user@example.com', is_admin: storedIsAdmin });
+            setUser({ email: storedEmail, is_admin: storedIsAdmin });
         } else {
             delete axios.defaults.headers.common['Authorization'];
             setAuthToken(null);
@@ -57,13 +58,17 @@ export const AuthProvider = ({ children }) => {
             if (remember) {
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('is_admin', is_admin ? 'true' : 'false');
+                localStorage.setItem('user_email', email);
                 sessionStorage.removeItem('token');
                 sessionStorage.removeItem('is_admin');
+                sessionStorage.removeItem('user_email');
             } else {
                 sessionStorage.setItem('token', access_token);
                 sessionStorage.setItem('is_admin', is_admin ? 'true' : 'false');
+                sessionStorage.setItem('user_email', email);
                 localStorage.removeItem('token');
                 localStorage.removeItem('is_admin');
+                localStorage.removeItem('user_email');
             }
 
             setToken(access_token);
@@ -94,8 +99,10 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('is_admin');
+        localStorage.removeItem('user_email');
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('is_admin');
+        sessionStorage.removeItem('user_email');
         setToken(null);
         setUser(null);
         window.location.href = '/login';

@@ -16,7 +16,7 @@ const getEnvConfig = (envValue) => ENVIRONMENTS.find(e => e.value === envValue) 
 const Settings = () => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const { refresh: refreshMarketData } = useMarketData();
 
     // Toast State
@@ -287,6 +287,26 @@ const Settings = () => {
                     </div>
                 </div>
             )}
+
+            {/* User Info Section */}
+            <div className="mb-8 p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 flex items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div className="text-xs text-gray-400">로그인 계정</div>
+                        <div className="text-white font-medium">{user?.email || '-'}</div>
+                    </div>
+                </div>
+                {user?.is_admin && (
+                    <span className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold tracking-wider uppercase border border-amber-500/20">
+                        Admin
+                    </span>
+                )}
+            </div>
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Exchange Accounts</h1>
