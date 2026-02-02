@@ -106,16 +106,7 @@ class LiveManager:
             logger.error("LiveManager: Failed to reinitialize adapter on account change.")
             return {"status": "error", "message": "Failed to reinitialize adapter"}
 
-        # Update WebSocket URI to match new account's api_url
-        if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
-            uri_changed = self.adapter.ws_client.update_uri(self.adapter.base_url)
-            if uri_changed:
-                logger.info(f"LiveManager: WebSocket URI updated for account change")
-                # Force reconnect if WebSocket is running
-                if self.adapter.ws_client.is_running:
-                    await self.adapter.ws_client._force_reconnect()
-
-        # Acquire token for new adapter
+        # Acquire token for new adapter FIRST (before updating WebSocket)
         if hasattr(self.adapter, '_ensure_token'):
             try:
                 await self.adapter._ensure_token()
@@ -125,6 +116,28 @@ class LiveManager:
                     logger.warning("LiveManager: Failed to acquire token for new account.")
             except Exception as e:
                 logger.error(f"LiveManager: Token acquisition failed: {e}")
+
+        # Update WebSocket URI and credentials to match new account
+        if hasattr(self.adapter, 'ws_client'):
+            ws = self.adapter.ws_client
+
+            # Update URI
+            if hasattr(ws, 'update_uri'):
+                uri_changed = ws.update_uri(self.adapter.base_url)
+                if uri_changed:
+                    logger.info("LiveManager: WebSocket URI updated for account change")
+
+            # Update credentials for token refresh (with new token)
+            if hasattr(ws, 'update_credentials'):
+                ws.update_credentials(
+                    self.adapter.app_key,
+                    self.adapter.secret_key,
+                    self.adapter.access_token
+                )
+
+            # Force reconnect if WebSocket is running
+            if ws.is_running:
+                await ws._force_reconnect()
 
         # Update all running engines with new adapter reference
         for session_id, engine in self.engines.items():
@@ -470,12 +483,29 @@ class LiveManager:
         finally:
             db.close()
 
-    async def get_status(self, session_id: str = None) -> List[Dict]:
+    async def get_status(self, session_id: str = None, account_id: int = None) -> List[Dict]:
         """
         Return status of specific session or all managed sessions.
+        If account_id is provided, filter sessions by that account.
         """
         results = []
-        targets = [session_id] if session_id else self.engines.keys()
+
+        # Determine targets based on session_id or filter by account_id
+        if session_id:
+            targets = [session_id]
+        elif account_id is not None:
+            # Filter sessions by account_id from DB
+            db = SessionLocal()
+            try:
+                sessions = db.query(LiveBotSession).filter(
+                    LiveBotSession.account_id == account_id,
+                    LiveBotSession.is_active == True
+                ).all()
+                targets = [s.id for s in sessions if s.id in self.engines]
+            finally:
+                db.close()
+        else:
+            targets = list(self.engines.keys())
 
         for sid in targets:
             if sid not in self.engines: continue

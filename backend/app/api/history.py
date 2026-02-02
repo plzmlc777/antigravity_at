@@ -7,16 +7,26 @@ from datetime import datetime
 from ..db.session import get_db
 from ..models.live_trading import LiveBotSession, LiveTradeExecution
 from ..models.ohlcv import OHLCV
+from ..core.user_context import UserAccountContext, get_user_context
 
 router = APIRouter()
 
 @router.get("/sessions", response_model=List[Dict[str, Any]])
-def get_history_sessions(db: Session = Depends(get_db)):
+def get_history_sessions(
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
-    List all recorded Live Sessions (descending start time).
+    List all recorded Live Sessions for current user's account (descending start time).
     """
-    sessions = db.query(LiveBotSession).order_by(desc(LiveBotSession.started_at)).all()
-    
+    if not ctx.has_active_account:
+        return []
+
+    # Filter sessions by account_id
+    sessions = db.query(LiveBotSession).filter(
+        LiveBotSession.account_id == ctx.account_id
+    ).order_by(desc(LiveBotSession.started_at)).all()
+
     results = []
     for s in sessions:
         results.append({
@@ -33,13 +43,22 @@ def get_history_sessions(db: Session = Depends(get_db)):
     return results
 
 @router.get("/sessions/{session_id}", response_model=Dict[str, Any])
-def get_session_details(session_id: str, db: Session = Depends(get_db)):
+def get_session_details(
+    session_id: str,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Get generic details + executions + candles for replay.
     """
-    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    # Find session that belongs to user's account
+    session = db.query(LiveBotSession).filter(
+        LiveBotSession.id == session_id,
+        LiveBotSession.account_id == ctx.account_id
+    ).first()
+
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Session not found or access denied")
         
     # 1. Executions
     executions = db.query(LiveTradeExecution).filter(

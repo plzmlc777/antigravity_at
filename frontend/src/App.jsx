@@ -128,12 +128,14 @@ function App() {
     return (
         <Router>
             <AuthProvider>
-                <MarketDataProvider>
-                    <Routes>
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/*" element={<AppContent />} />
-                    </Routes>
-                </MarketDataProvider>
+                <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/*" element={
+                        <MarketDataProvider>
+                            <AppContent />
+                        </MarketDataProvider>
+                    } />
+                </Routes>
             </AuthProvider>
         </Router>
     );

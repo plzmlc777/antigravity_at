@@ -21,6 +21,7 @@ class ConditionalOrder(Base):
     __tablename__ = "conditional_orders"
 
     id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("exchange_accounts.id"), index=True, nullable=True)  # 계좌별 조건부 주문 분리
     symbol = Column(String, index=True, nullable=False)
     
     # Condition Config

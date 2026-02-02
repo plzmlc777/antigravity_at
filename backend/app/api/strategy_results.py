@@ -5,20 +5,25 @@ from typing import Dict, Any
 from ..db.session import get_db
 from ..models.strategy_result import StrategyAnalysisResult
 from ..schemas.strategy_result import StrategyResultCreate
+from ..core.user_context import UserAccountContext, get_user_context
 
 router = APIRouter()
 
 @router.post("/{tab_id}/{result_type}")
 def save_strategy_result(
-    tab_id: str, 
-    result_type: str, 
-    result_in: StrategyResultCreate, 
-    db: Session = Depends(get_db)
+    tab_id: str,
+    result_type: str,
+    result_in: StrategyResultCreate,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
 ):
-    # Upsert Logic
+    account_id = ctx.account_id
+
+    # Upsert Logic - filter by account_id as well
     db_obj = db.query(StrategyAnalysisResult).filter(
         StrategyAnalysisResult.tab_id == tab_id,
-        StrategyAnalysisResult.result_type == result_type
+        StrategyAnalysisResult.result_type == result_type,
+        StrategyAnalysisResult.account_id == account_id
     ).first()
 
     if db_obj:
@@ -27,10 +32,11 @@ def save_strategy_result(
         db_obj = StrategyAnalysisResult(
             tab_id=tab_id,
             result_type=result_type,
+            account_id=account_id,
             data=result_in.data
         )
         db.add(db_obj)
-    
+
     db.commit()
     db.refresh(db_obj)
     return {"status": "ok"}
@@ -50,15 +56,23 @@ def _strip_graphics_data(data):
 
 
 @router.get("/{tab_id}")
-def get_strategy_results(tab_id: str, db: Session = Depends(get_db), include_graphics: bool = False):
+def get_strategy_results(
+    tab_id: str,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context),
+    include_graphics: bool = False
+):
     import logging
     logger = logging.getLogger(__name__)
 
     try:
-        logger.info(f"[StrategyResults] Fetching results for tab_id: {tab_id}, include_graphics: {include_graphics}")
+        account_id = ctx.account_id
+
+        logger.info(f"[StrategyResults] Fetching results for tab_id: {tab_id}, account_id: {account_id}, include_graphics: {include_graphics}")
 
         results = db.query(StrategyAnalysisResult).filter(
-            StrategyAnalysisResult.tab_id == tab_id
+            StrategyAnalysisResult.tab_id == tab_id,
+            StrategyAnalysisResult.account_id == account_id
         ).all()
 
         logger.info(f"[StrategyResults] Found {len(results)} results for tab_id: {tab_id}")

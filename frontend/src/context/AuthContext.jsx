@@ -26,24 +26,12 @@ export const AuthProvider = ({ children }) => {
     }, [token]);
 
     // Setup Axios Interceptor for 401s (Global & Client)
+    // NOTE: We do NOT auto-logout on 401 anymore.
+    // 401 can happen for various reasons (no active account, etc.)
+    // The app should handle 401s gracefully and redirect to appropriate pages.
     useEffect(() => {
-        // 1. Global Axios
-        const interceptor = axios.interceptors.response.use(
-            (response) => response,
-            (error) => {
-                if (error.response && error.response.status === 401) {
-                    logout();
-                }
-                return Promise.reject(error);
-            }
-        );
-
-        // 2. Client.js Instance
-        setupInterceptors(() => logout());
-
-        return () => {
-            axios.interceptors.response.eject(interceptor);
-        };
+        // Only setup client interceptor for logging, not for auto-logout
+        setupInterceptors(null);
     }, []);
 
     const login = async (email, password, remember = true) => {
@@ -53,27 +41,36 @@ export const AuthProvider = ({ children }) => {
 
         try {
             const response = await axios.post('/api/v1/auth/token', formData);
-            const { access_token, is_admin } = response.data;
+            const { access_token, is_admin, has_active_account } = response.data;
+
+            // Set axios headers IMMEDIATELY before any state updates
+            // This prevents race condition where API calls happen before headers are set
+            axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+            setAuthToken(access_token);
 
             if (remember) {
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('is_admin', is_admin ? 'true' : 'false');
                 localStorage.setItem('user_email', email);
+                localStorage.setItem('has_active_account', has_active_account ? 'true' : 'false');
                 sessionStorage.removeItem('token');
                 sessionStorage.removeItem('is_admin');
                 sessionStorage.removeItem('user_email');
+                sessionStorage.removeItem('has_active_account');
             } else {
                 sessionStorage.setItem('token', access_token);
                 sessionStorage.setItem('is_admin', is_admin ? 'true' : 'false');
                 sessionStorage.setItem('user_email', email);
+                sessionStorage.setItem('has_active_account', has_active_account ? 'true' : 'false');
                 localStorage.removeItem('token');
                 localStorage.removeItem('is_admin');
                 localStorage.removeItem('user_email');
+                localStorage.removeItem('has_active_account');
             }
 
             setToken(access_token);
             setUser({ email, is_admin });
-            return { success: true };
+            return { success: true, has_active_account };
         } catch (error) {
             const message = error.response?.data?.detail || error.message || 'Login failed';
             return {
@@ -100,9 +97,11 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
         localStorage.removeItem('is_admin');
         localStorage.removeItem('user_email');
+        localStorage.removeItem('has_active_account');
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('is_admin');
         sessionStorage.removeItem('user_email');
+        sessionStorage.removeItem('has_active_account');
         setToken(null);
         setUser(null);
         window.location.href = '/login';

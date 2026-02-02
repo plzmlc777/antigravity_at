@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
+from sqlalchemy.orm import Session
 from ..core.live_manager import live_manager
+from ..db.session import get_db
+from ..core.user_context import UserAccountContext, get_user_context
 
 router = APIRouter()
 
@@ -70,41 +73,44 @@ async def liquidate_session(session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
-async def get_live_status():
+async def get_live_status(ctx: UserAccountContext = Depends(get_user_context)):
     """
-    Get status of all active Live Sessions.
+    Get status of active Live Sessions for current user's account.
     """
-    return await live_manager.get_status()
+    return await live_manager.get_status(account_id=ctx.account_id)
 
 @router.get("/accumulated-stats")
-async def get_accumulated_stats(symbols: str = "", strategy_name: str = ""):
+async def get_accumulated_stats(
+    symbols: str = "",
+    strategy_name: str = "",
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Get accumulated trade stats for symbols (even when no session is running).
     Query params:
         - symbols=005930,000660 (comma-separated)
         - strategy_name=rsi_martingale (optional, filter by strategy)
     Returns detailed stats including win rate, recent 10 cycles, max/min/avg PnL
-    Aggregates ALL historical cycles across all sessions with matching (symbol, strategy_name).
+    Aggregates cycles for current user's account sessions with matching (symbol, strategy_name).
     """
-    from ..db.session import SessionLocal
     from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveBotSession
 
-    db = SessionLocal()
+    if not ctx.has_active_account:
+        return {}
+
     try:
         symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else []
 
-        # Build query with optional strategy_name filter
-        query = db.query(LiveTradeExecution).filter(
-            LiveTradeExecution.status == ExecutionStatus.FILLED
+        # Build query - filter by user's account
+        query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+            LiveBotSession.account_id == ctx.account_id
         )
 
         # If strategy_name is provided, filter by sessions with that strategy
         if strategy_name:
-            # Get session IDs that match the strategy
-            matching_sessions = db.query(LiveBotSession.id).filter(
-                LiveBotSession.strategy_name == strategy_name
-            ).subquery()
-            query = query.filter(LiveTradeExecution.session_id.in_(matching_sessions))
+            query = query.filter(LiveBotSession.strategy_name == strategy_name)
 
         if symbol_list:
             query = query.filter(LiveTradeExecution.symbol.in_(symbol_list))
@@ -218,8 +224,8 @@ async def get_accumulated_stats(symbols: str = "", strategy_name: str = ""):
                 }
 
         return result
-    finally:
-        db.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
@@ -326,7 +332,12 @@ def _extract_key_params(config_snapshot: dict) -> dict:
 
 
 @router.get("/parameter-analysis")
-async def get_parameter_analysis(symbol: str = "", mode: str = "paper"):
+async def get_parameter_analysis(
+    symbol: str = "",
+    mode: str = "paper",
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Analyze trade performance grouped by config_snapshot (parameter versions).
 
@@ -343,18 +354,20 @@ async def get_parameter_analysis(symbol: str = "", mode: str = "paper"):
     - symbol: filter by symbol (optional)
     - mode: "paper" or "real" (default: paper)
     """
-    from ..db.session import SessionLocal
-    from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+    from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveBotSession
 
-    db = SessionLocal()
+    if not ctx.has_active_account:
+        return {"message": "No active account found", "data": []}
+
     try:
         is_paper = mode.lower() == "paper"
 
-        # Query filled executions with config_snapshot
-        query = db.query(LiveTradeExecution).filter(
+        # Query filled executions with config_snapshot - filter by user's account
+        query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
             LiveTradeExecution.status == ExecutionStatus.FILLED,
             LiveTradeExecution.is_paper == is_paper,
-            LiveTradeExecution.config_snapshot.isnot(None)
+            LiveTradeExecution.config_snapshot.isnot(None),
+            LiveBotSession.account_id == ctx.account_id
         )
 
         if symbol:
@@ -450,8 +463,8 @@ async def get_parameter_analysis(symbol: str = "", mode: str = "paper"):
             "data": results
         }
 
-    finally:
-        db.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

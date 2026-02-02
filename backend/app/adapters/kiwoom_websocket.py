@@ -71,6 +71,22 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         self.last_tick_time = None
         logger.info(f"WS: Cleared {old_count} monitored symbols")
 
+    def update_credentials(self, app_key: str, secret_key: str, token: str = None):
+        """
+        Update credentials for token refresh (used on account switch).
+
+        Args:
+            app_key: New app_key
+            secret_key: New secret_key
+            token: Optional new token (if already acquired)
+        """
+        self.app_key = app_key
+        self.secret_key = secret_key
+        self.base_url = self._api_url  # Sync base_url
+        if token:
+            self.access_token = token
+        logger.info(f"WS: Credentials updated for account switch (base_url={self.base_url})")
+
     @staticmethod
     def is_market_open() -> bool:
         """Check if Korean stock market is currently open (09:00-15:30, weekdays)"""
@@ -96,12 +112,31 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         self.on_order_callback = on_order
         self.on_balance_callback = on_balance
 
-    async def connect(self, token: str):
+    async def connect(self, token: str, app_key: str = None, secret_key: str = None):
+        """
+        Connect to WebSocket with provided token and credentials.
+
+        Args:
+            token: Access token for authentication
+            app_key: Optional app_key for token refresh (if not provided, won't refresh)
+            secret_key: Optional secret_key for token refresh
+        """
         if self.is_running and self.websocket and self.websocket.open:
             logger.info("WS: Already connected and running.")
+            # Update credentials even if already connected (for token refresh)
+            if app_key and secret_key:
+                self.app_key = app_key
+                self.secret_key = secret_key
             return
 
         self.access_token = token
+
+        # Store credentials for token refresh
+        if app_key and secret_key:
+            self.app_key = app_key
+            self.secret_key = secret_key
+            self.base_url = self._api_url  # Sync base_url for _ensure_token()
+            logger.info(f"WS: Credentials stored for token refresh (base_url={self.base_url})")
 
         if not self.is_running:
             self.is_running = True
@@ -132,11 +167,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 await asyncio.sleep(60)
                 continue
                 
-            # 2. Check token validity
+            # 2. Check token validity (use app_key for account-specific lookup)
             from ..core.token_manager import KiwoomTokenManager
             mgr = KiwoomTokenManager.get_instance()
-            remaining_sec = mgr.get_remaining_seconds()
-            
+            remaining_sec = mgr.get_remaining_seconds(self.base_url, self.app_key)
+
             if remaining_sec < 60:
                 logger.warning(f"WS: Token almost expired ({remaining_sec}s). Waiting for refresh...")
                 await asyncio.sleep(30)

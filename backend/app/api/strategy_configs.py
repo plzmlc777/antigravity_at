@@ -4,24 +4,20 @@ from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..crud.crud_strategy_config import strategy_config
 from ..schemas.strategy_config import StrategyConfig, StrategyConfigCreate, ConfigScope
-from ..models.account import ExchangeAccount
+from ..core.user_context import UserAccountContext, get_user_context
 
 router = APIRouter()
 
 
-def get_active_account_id(db: Session = Depends(get_db)) -> int:
+def get_active_account_id(ctx: UserAccountContext = Depends(get_user_context)) -> int:
     """
-    현재 활성화된 계좌 ID를 반환하는 의존성
+    현재 로그인한 사용자의 활성화된 계좌 ID를 반환하는 의존성
     - 활성 계좌가 없으면 404 에러
     """
-    active_account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not active_account:
+    if not ctx.has_active_account:
         raise HTTPException(status_code=404, detail="No active account found. Please activate an account first.")
 
-    return active_account.id
+    return ctx.account_id
 
 
 def get_config_scope(

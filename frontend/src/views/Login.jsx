@@ -23,7 +23,13 @@ const Login = () => {
         }
 
         if (result.success) {
-            navigate('/');
+            // Redirect based on active account status
+            if (result.has_active_account) {
+                navigate('/');
+            } else {
+                // No active account - go to settings to set one up
+                navigate('/settings');
+            }
         } else {
             setError(result.message);
         }

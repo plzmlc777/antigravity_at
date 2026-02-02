@@ -24,6 +24,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     is_admin: bool = False
+    has_active_account: bool = False
 
 # Dependency to get current user
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -76,17 +77,24 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token)
 def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    from ..models.account import ExchangeAccount
+
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
-    
-    # We could include is_admin in the token payload if we want, 
-    # but for now we'll just return it in the response if the model allows it.
+
+    # Check if user has an active account
+    active_account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.user_id == user.id,
+        ExchangeAccount.is_active == True
+    ).first()
+
     access_token = security.create_access_token(subject=user.email)
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "is_admin": user.is_admin
+        "is_admin": user.is_admin,
+        "has_active_account": active_account is not None
     }
 
 @router.post("/logout")

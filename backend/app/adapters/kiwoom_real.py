@@ -126,7 +126,8 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             return
 
         if not self.ws_client.is_running:
-            await self.ws_client.connect(self.access_token)
+            # Pass credentials for token refresh capability
+            await self.ws_client.connect(self.access_token, self.app_key, self.secret_key)
             
         if symbols:
             await self.ws_client.subscribe_symbols(symbols)

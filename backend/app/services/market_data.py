@@ -533,6 +533,10 @@ class MarketDataService:
             return
 
         # 1. Fetch Credentials from DB (Active Account)
+        # NOTE: Market data (stock prices) is universal - same for all users.
+        # We use any valid API credentials to fetch this shared data.
+        # Currently uses the first active account found. In a production multi-user
+        # system, consider using a dedicated "system" account for market data fetching.
         from ..db.session import SessionLocal
         # Ensure User model is loaded for relationship resolution in worker process
         from ..models.user import User
@@ -544,11 +548,17 @@ class MarketDataService:
         account_api_url = None
 
         with SessionLocal() as session:
-            account = session.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+            # Get any active account for API credentials (market data is the same for all)
+            # Priority: most recently activated account (by id desc)
+            account = session.query(ExchangeAccount).filter(
+                ExchangeAccount.is_active == True,
+                ExchangeAccount.is_disabled == False
+            ).order_by(ExchangeAccount.id.desc()).first()
             if account:
                 app_key = security.decrypt_key(account.encrypted_access_key)
                 secret_key = security.decrypt_key(account.encrypted_secret_key)
                 account_api_url = account.api_url
+                logger.info(f"Using account '{account.account_name}' (id={account.id}) for market data API access")
 
         if not app_key or not secret_key:
              logger.error("No active account or missing credentials in DB. Cannot fetch market data.")

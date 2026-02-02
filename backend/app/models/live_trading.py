@@ -47,7 +47,8 @@ class LiveBotSession(Base):
     __tablename__ = "live_bot_sessions"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    
+    account_id = Column(Integer, ForeignKey("exchange_accounts.id"), index=True, nullable=True)  # 계좌별 세션 분리
+
     # Configuration Snapshot (For Comparisons)
     symbol = Column(String, index=True, nullable=False)
     strategy_name = Column(String, nullable=False)

@@ -11,6 +11,7 @@ from typing import List, Optional
 from ..core.waterfall_engine import fetch_visualization_feeds
 from .auth import get_current_user
 from ..models.user import User
+from ..core.user_context import UserAccountContext, get_user_context
 
 router = APIRouter()
 
@@ -76,15 +77,12 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
     return KiwoomRealAdapter()
 
 
-def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
-    """Get exchange adapter (legacy - uses first active account across all users)"""
-    from ..models.account import ExchangeAccount
-
-    # Find first active account to get user_id
-    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
-    user_id = active_account.user_id if active_account else 1
-
-    return get_exchange_adapter_for_user(db, user_id)
+def get_exchange_adapter(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> ExchangeInterface:
+    """Get exchange adapter for current user's active account"""
+    return get_exchange_adapter_for_user(db, current_user.id)
 
 class OrderRequest(BaseModel):
     symbol: str
@@ -122,26 +120,14 @@ class ConditionalOrderRequest(BaseModel):
     trailing_percent: float | None = None # Required for TRAILING_STOP
 
 @router.get("/status")
-async def get_status(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    # Get adapter for the current user's active account
-    from ..models.account import ExchangeAccount
-    adapter = get_exchange_adapter_for_user(db, current_user.id)
-
-    # Query for current user's active account
-    active_account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-    account_id = active_account.id if active_account else None
+async def get_status(ctx: UserAccountContext = Depends(get_user_context)):
+    adapter = ctx.get_exchange_adapter()
 
     return {
         "exchange": adapter.get_name(),
         "status": "online",
         "account_name": adapter.get_account_name(),
-        "account_id": account_id  # 계좌 중심: 프론트엔드에서 사용
+        "account_id": ctx.account_id  # 계좌 중심: 프론트엔드에서 사용
     }
 
 @router.get("/system/version")
@@ -177,12 +163,9 @@ async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchan
     return data
 
 @router.get("/balance")
-async def get_balance(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+async def get_balance(ctx: UserAccountContext = Depends(get_user_context)):
     current_time = time.time()
-    user_id = current_user.id
+    user_id = ctx.user_id
 
     # 1. Check User-specific Cache (TTL 2.0s)
     if user_id in BALANCE_CACHE:
@@ -191,7 +174,7 @@ async def get_balance(
             return cache_entry['data']
 
     # 2. Get user-specific adapter and fetch balance
-    adapter = get_exchange_adapter_for_user(db, user_id)
+    adapter = ctx.get_exchange_adapter()
     data = await adapter.get_balance()
 
     # 3. Update User-specific Cache
@@ -227,10 +210,13 @@ async def cancel_order(req: CancelOrderRequest, adapter: ExchangeInterface = Dep
 
 @router.post("/order/manual")
 async def manual_order(
-    order: ManualOrderRequest, 
-    adapter: ExchangeInterface = Depends(get_exchange_adapter),
-    db: Session = Depends(get_db)
+    order: ManualOrderRequest,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
 ):
+    adapter = ctx.get_exchange_adapter()
+    account_id = ctx.account_id
+
     quantity = 0
     calculated_price = order.price
 
@@ -313,6 +299,7 @@ async def manual_order(
                          # We could raise error, but since the main order is done, we just skip SL
                     else:
                         sl_order = ConditionalOrder(
+                            account_id=account_id,
                             symbol=order.symbol,
                             condition_type=ConditionType.STOP_LOSS,
                             trigger_price=trigger_price,
@@ -333,13 +320,14 @@ async def manual_order(
                          print(f"Warning: Invalid Take Profit {trigger_price} <= Base {base_price}")
                     else:
                         tp_order = ConditionalOrder(
+                            account_id=account_id,
                             symbol=order.symbol,
                             condition_type=ConditionType.TAKE_PROFIT,
                             trigger_price=trigger_price,
                             order_type="sell", # Exit
                             price_type="limit", # Profit taking usually limit, but market for simplicity now
                             # For limits, we might want trigger_price or slightly lower to ensure fill
-                            order_price=trigger_price, 
+                            order_price=trigger_price,
                             quantity=quantity,
                             status="PENDING"
                         )
@@ -357,12 +345,16 @@ async def manual_order(
 @router.post("/order/conditional")
 async def conditional_order(
     order: ConditionalOrderRequest,
-    adapter: ExchangeInterface = Depends(get_exchange_adapter),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
 ):
     # Validation
     if order.trigger_price <= 0:
         raise HTTPException(status_code=400, detail="Trigger price must be > 0")
+
+    # Require active account
+    active_account = ctx.require_account()
+    adapter = ctx.get_exchange_adapter()
 
     # Calculate Quantity based on trigger price as default expectation
     quantity = 0
@@ -373,20 +365,20 @@ async def conditional_order(
          if not order.quantity or order.quantity <= 0:
              raise HTTPException(status_code=400, detail="Quantity required")
          quantity = order.quantity
-         
+
     elif order.mode == "amount":
          if not order.amount or order.amount <= 0:
              raise HTTPException(status_code=400, detail="Amount required")
-         
+
          quantity = int(order.amount // calculated_price)
-    
+
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Calculated quantity is 0")
 
     # Register to DB
     try:
         from ..models.condition import ConditionalOrder, ConditionType
-        
+
         # Determine strict mapping
         allowed_buy = ["BUY_STOP", "BUY_LIMIT"]
         allowed_sell = ["STOP_LOSS", "TAKE_PROFIT", "TRAILING_STOP"] # Stop Loss = Sell Stop, Take Profit = Sell Limit
@@ -399,13 +391,14 @@ async def conditional_order(
                   raise HTTPException(status_code=400, detail=f"Invalid condition {order.condition_type} for SELL order")
         else:
              raise HTTPException(status_code=400, detail="Invalid order type")
-             
+
         # Validation for Trailing Stop
         if order.condition_type == "TRAILING_STOP":
             if not order.trailing_percent or order.trailing_percent <= 0:
                 raise HTTPException(status_code=400, detail="Trailing percent is required for TRAILING_STOP")
-                
+
         cond_order = ConditionalOrder(
+            account_id=active_account.id,  # 계좌별 분리
             symbol=order.symbol,
             condition_type=order.condition_type,
             trigger_price=order.trigger_price, # Initial activation price (optional for TS? usually immediate or specific level)
@@ -422,13 +415,15 @@ async def conditional_order(
         db.add(cond_order)
         db.commit()
         db.refresh(cond_order)
-        
+
         return {
-            "status": "success", 
+            "status": "success",
             "message": f"Watch Order Registered: {order.order_type.upper()} {order.condition_type}",
             "id": cond_order.id
         }
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error registering conditional order: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -476,28 +471,46 @@ async def get_auto_trading_status():
     return bot_manager.get_status()
 
 @router.get("/orders/conditions/active")
-async def get_active_conditions(db: Session = Depends(get_db)):
+async def get_active_conditions(
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     from ..models.condition import ConditionalOrder, ConditionStatus
     try:
-        # Filter by Status
+        if not ctx.has_active_account:
+            return []
+
+        # Filter by Status AND account_id
         conditions = db.query(ConditionalOrder).filter(
-            ConditionalOrder.status == ConditionStatus.PENDING
+            ConditionalOrder.status == ConditionStatus.PENDING,
+            ConditionalOrder.account_id == ctx.account_id
         ).order_by(ConditionalOrder.created_at.desc()).all()
         return conditions
     except Exception as e:
          raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/orders/conditions/{condition_id}")
-async def cancel_condition(condition_id: int, db: Session = Depends(get_db)):
+async def cancel_condition(
+    condition_id: int,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     from ..models.condition import ConditionalOrder, ConditionStatus
     try:
-        condition = db.query(ConditionalOrder).filter(ConditionalOrder.id == condition_id).first()
+        # Find condition that belongs to user's account
+        condition = db.query(ConditionalOrder).filter(
+            ConditionalOrder.id == condition_id,
+            ConditionalOrder.account_id == ctx.account_id
+        ).first()
+
         if not condition:
-            raise HTTPException(status_code=404, detail="Condition not found")
-            
+            raise HTTPException(status_code=404, detail="Condition not found or access denied")
+
         condition.status = ConditionStatus.CANCELLED
         db.commit()
         return {"status": "success", "message": f"Condition {condition_id} cancelled"}
+    except HTTPException:
+        raise
     except Exception as e:
          raise HTTPException(status_code=500, detail=str(e))
 
@@ -527,7 +540,11 @@ async def get_ohlcv(
     return data
 
 @router.get("/trade/history")
-async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(get_db)):
+async def get_trade_history_integrated(
+    limit: int = 1000,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Fetch executed trades AND composite market data for Visual Analysis.
     Returns composite object: { trades: [], multi_ohlcv_data: { sym: [] }, strategies_config: [] }
@@ -536,14 +553,16 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
     from ..models.strategy_config import StrategyConfig
     from ..services.market_data import MarketDataService
     from sqlalchemy.orm import joinedload
-    
+
+    account_id = ctx.account_id
+
     # 1. Get Active Strategies Config (Source of Truth for "Screen Context")
-    # We query ALL active configurations to determine what "Should be displayed"
+    # We query active configurations for the user's account
     strategies_config = []
-    
-    # Fetch all active configs sorted by rank (assuming default strategy 'time_momentum' for now or all)
-    # Filter by user's active intent.
+
+    # Fetch all active configs sorted by rank for the user's account
     db_configs = db.query(StrategyConfig).filter(
+        StrategyConfig.account_id == account_id,
         StrategyConfig.is_active == True
     ).order_by(StrategyConfig.rank).all()
     
@@ -557,9 +576,11 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
                 strategies_config.append(cfg)
                 involved_symbols.add(cfg['symbol'])
                 
-    # If no active configs found, try fallback to latest session
-    if not strategies_config:
-        last_session = db.query(LiveBotSession).order_by(LiveBotSession.started_at.desc()).first()
+    # If no active configs found, try fallback to latest session for user's account
+    if not strategies_config and account_id:
+        last_session = db.query(LiveBotSession).filter(
+            LiveBotSession.account_id == account_id
+        ).order_by(LiveBotSession.started_at.desc()).first()
         if last_session and last_session.strategy_config:
             strategies_config = last_session.strategy_config
             # Collect symbols
@@ -600,9 +621,10 @@ async def get_trade_history_integrated(limit: int = 1000, db: Session = Depends(
                 candles = [c for c in candles if c['timestamp'] >= from_date]
             multi_ohlcv_data[sym] = candles
             
-    # 3. Fetch Real Trades (Exclude Paper Trading)
+    # 3. Fetch Real Trades (Exclude Paper Trading) - filter by user's account
     trades_query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
-        LiveBotSession.is_paper == False
+        LiveBotSession.is_paper == False,
+        LiveBotSession.account_id == account_id
     ).order_by(LiveTradeExecution.signal_timestamp.desc()).limit(limit).all()
     
     trades_data = []
@@ -714,7 +736,11 @@ class TradeHistoryContextRequest(BaseModel):
     is_paper: Optional[bool] = None  # None=all, True=paper only, False=real only
 
 @router.post("/trade/history-context")
-async def get_trade_history_context(request: TradeHistoryContextRequest, db: Session = Depends(get_db)):
+async def get_trade_history_context(
+    request: TradeHistoryContextRequest,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Fetch executed trades matching the provided Frontend Configuration.
     Uses 'fetch_visualization_feeds' to generate identical background charts to Integrated Tab.
@@ -722,9 +748,11 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
     from ..models.live_trading import LiveTradeExecution, LiveBotSession
     from sqlalchemy.orm import joinedload
 
+    account_id = ctx.account_id
+
     # 1. Extract Configs (Source of Truth is Frontend)
     strategies_config = [c.config for c in request.configs]
-    
+
     # Ensure symbols are set fallback
     for i, cfg in enumerate(strategies_config):
         if 'symbol' not in cfg:
@@ -739,9 +767,11 @@ async def get_trade_history_context(request: TradeHistoryContextRequest, db: Ses
         from_date=request.from_date,
         preloaded_feeds=None # Live mode has no preloaded simulation data
     )
-            
-    # 3. Fetch Trades (filtered by paper/real mode)
-    trades_q = db.query(LiveTradeExecution).join(LiveBotSession)
+
+    # 3. Fetch Trades (filtered by paper/real mode and user's account)
+    trades_q = db.query(LiveTradeExecution).join(LiveBotSession).filter(
+        LiveBotSession.account_id == account_id
+    )
     if request.is_paper is not None:
         trades_q = trades_q.filter(LiveBotSession.is_paper == request.is_paper)
     trades_query = trades_q.order_by(LiveTradeExecution.signal_timestamp.desc()).limit(request.limit).all()
@@ -801,7 +831,11 @@ class TradeListRequest(BaseModel):
     limit: int = 500
 
 @router.post("/trade/history-list")
-async def get_trade_history_list(request: TradeListRequest, db: Session = Depends(get_db)):
+async def get_trade_history_list(
+    request: TradeListRequest,
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Lightweight endpoint: returns only trade executions grouped into cycles.
     No OHLCV data fetched. Fast DB query only.
@@ -809,7 +843,12 @@ async def get_trade_history_list(request: TradeListRequest, db: Session = Depend
     from ..models.live_trading import LiveTradeExecution, LiveBotSession
     from sqlalchemy import asc
 
-    trades_q = db.query(LiveTradeExecution).join(LiveBotSession)
+    account_id = ctx.account_id
+
+    # Filter by user's account
+    trades_q = db.query(LiveTradeExecution).join(LiveBotSession).filter(
+        LiveBotSession.account_id == account_id
+    )
     if request.is_paper is not None:
         trades_q = trades_q.filter(LiveBotSession.is_paper == request.is_paper)
 
