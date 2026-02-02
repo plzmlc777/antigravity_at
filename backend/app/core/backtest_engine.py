@@ -372,122 +372,83 @@ class BacktestEngine:
             # "activity_rate": activity_rate, # Removed to prevent overwrite
             "avg_holding_time": f"{avg_holding_min}m",
             "decile_stats": decile_data['monthly_stats'],
+            "bucket_stats": decile_data['bucket_stats'],
             "stability_score": str(decile_data['stability_score']),
             "acceleration_score": str(decile_data['acceleration_score'])
         }
 
-    def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any) -> List[Dict]:
+    def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any, n_buckets: int = 12) -> List[Dict]:
         """
-        Calculates Periodic Stats (Monthly).
-        Returns a list of stats for each month in the range.
-        Key 'decile_stats' is kept for frontend compatibility but now represents 'Monthly Stats'.
+        Calculates Periodic Stats using N-bucket approach (CENTRALIZED).
+
+        Uses stats_utils.calc_stability_stats for stability/acceleration calculation.
+        Also generates monthly_stats for UI chart display (legacy support).
+
+        Args:
+            trades: List of completed trades
+            start_ts: Start timestamp
+            end_ts: End timestamp
+            n_buckets: Number of buckets for stability calculation (default: 12)
         """
-        # Helper to parse TS
+        from collections import defaultdict
+        from .stats_utils import calc_stability_stats
+
+        # --- 1. Calculate Stability/Acceleration using N-bucket approach (CENTRALIZED) ---
+        stability_data = calc_stability_stats(trades, n_buckets=n_buckets)
+        stability_score = stability_data['stability_score']
+        acceleration_score = stability_data['acceleration_score']
+        bucket_stats = stability_data['bucket_stats']
+
+        # --- 2. Generate Monthly Stats for UI Chart (Legacy Support) ---
         def parse(t): return t if isinstance(t, datetime) else datetime.fromisoformat(t)
-        
+
         start_dt = parse(start_ts).date()
         end_dt = parse(end_ts).date()
-        
-        # Normalize to start of month
+
         curr = start_dt.replace(day=1)
         end_cap = end_dt.replace(day=1)
-        
-        stats = []
-        block_idx = 1
-        
+
+        monthly_trades = defaultdict(list)
+        for t in trades:
+            t_date = parse(t['time']).date()
+            month_key = t_date.strftime("%Y-%m")
+            monthly_trades[month_key].append(t)
+
+        monthly_stats = []
         while curr <= end_cap:
-            # Calculate Next Month
-            if curr.month == 12:
-                next_month = curr.replace(year=curr.year + 1, month=1)
-            else:
-                next_month = curr.replace(month=curr.month + 1)
-                
-            # Define Range [curr, next_month)
-            # Filter trades
-            chunk = []
-            for t in trades:
-                t_date = parse(t['time']).date()
-                if curr <= t_date < next_month:
-                    chunk.append(t)
-            
-            # Stats
+            month_key = curr.strftime("%Y-%m")
+            chunk = monthly_trades.get(month_key, [])
+
             if chunk:
-                # User requested Realized Return (Total PnL for the month)
-                # We sum the PnL percentages to show the total monthly performance.
                 total_pnl = sum(t['pnl_percent'] for t in chunk) * 100
                 avg_pnl = total_pnl / len(chunk)
-                
                 wins = len([t for t in chunk if t['pnl'] > 0])
                 win_rate = wins / len(chunk) * 100
             else:
                 total_pnl = 0.0
                 avg_pnl = 0.0
                 win_rate = 0.0
-                
+
             date_label = curr.strftime("%y-%m")
-            
-            stats.append({
-                "block": date_label, 
-                "avg_pnl": float(f"{avg_pnl:.2f}"), # Keep for legacy/tooltip if needed, or just use total
-                "total_pnl": float(f"{total_pnl:.2f}"), # New Metric: Monthly Total Return
+            monthly_stats.append({
+                "block": date_label,
+                "avg_pnl": float(f"{avg_pnl:.2f}"),
+                "total_pnl": float(f"{total_pnl:.2f}"),
                 "win_rate": float(f"{win_rate:.1f}"),
                 "date_range": date_label,
                 "count": len(chunk)
             })
-            
-            curr = next_month
-            block_idx += 1
-            
-        # Calculate Stability Score (R-squared of Cumulative PnL)
-        # This measures how close the equity curve is to a straight line (consistent growth).
-        try:
-            if stats:
-                import numpy as np
-                from scipy import stats as scipy_stats
-                
-                # Cumulative PnL Curve
-                daily_returns = [s['total_pnl'] for s in stats]
-                cumulative = np.cumsum(daily_returns)
-                
-                # Linear Regression vs Time Index
-                x = np.arange(len(cumulative))
-                slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, cumulative)
-                
-                # Stability Score
-                if len(cumulative) > 1:
-                    stability_score = r_value ** 2 
-                else:
-                    stability_score = 0.0
 
-                # Calculate Profit Acceleration (Recent Slope / Total Slope)
-                # Recent = Last 25% of data (min 5 points)
-                n_recent = max(5, int(len(cumulative) * 0.25))
-                
-                if len(cumulative) >= 10: # Only calculate if we have enough data
-                    recent_cum = cumulative[-n_recent:]
-                    x_recent = np.arange(len(recent_cum))
-                    slope_recent, _, _, _, _ = scipy_stats.linregress(x_recent, recent_cum)
-                    
-                    # Avoid division by zero
-                    if abs(slope) > 0.0001:
-                        acceleration_score = slope_recent / slope
-                    else:
-                        acceleration_score = 0.0 # Define as 0 if overall is flat
-                else:
-                    acceleration_score = 1.0 # Neutral if not enough data
-
+            if curr.month == 12:
+                curr = curr.replace(year=curr.year + 1, month=1)
             else:
-                stability_score = 0.0
-                acceleration_score = 0.0
-        except Exception as e:
-            print(f"Error calculating stats: {e}")
-            stability_score = 0.0
-            acceleration_score = 0.0
+                curr = curr.replace(month=curr.month + 1)
 
         return {
-            "monthly_stats": stats,
-            "stability_score": float(f"{stability_score:.2f}"),
-            "acceleration_score": float(f"{acceleration_score:.2f}")
+            "monthly_stats": monthly_stats,
+            "bucket_stats": bucket_stats,
+            "stability_score": stability_score,
+            "acceleration_score": acceleration_score
         }
 
     def _resample_ohlcv(self, data: List[Dict], target_count: int = 3000) -> List[Dict]:

@@ -315,7 +315,15 @@ const StrategyView = () => {
     const [stockCompareResults, setStockCompareResults] = useState(() => {
         try {
             const saved = localStorage.getItem('symbolCompare_results');
-            return saved ? JSON.parse(saved) : [];
+            if (!saved) return [];
+            const parsed = JSON.parse(saved);
+            // Validate data has required fields (v2 format with all stats)
+            if (parsed.length > 0 && parsed[0].stability_score === undefined) {
+                console.log('[Compare] Clearing old format data from localStorage');
+                localStorage.removeItem('symbolCompare_results');
+                return [];
+            }
+            return parsed;
         } catch { return []; }
     });
     const [isStockComparing, setIsStockComparing] = useState(false); // Running status
@@ -327,6 +335,7 @@ const StrategyView = () => {
         } catch { return null; }
     });
     const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false); // Track unsaved changes
+    const [compareSortConfig, setCompareSortConfig] = useState({ key: 'score', direction: 'desc' }); // Sort config for comparison results
 
     // Parameter Copy/Paste State
     const [copiedParams, setCopiedParams] = useState(null);
@@ -2249,16 +2258,33 @@ const StrategyView = () => {
                     const wr = parseFloat(String(data.win_rate || 0).replace('%', ''));
                     const score = ret * (wr / 100);
 
+                    // Extract ALL stats from STAT_COLUMNS (consistent with backtest results)
                     results.push({
                         symbol: symbol,
                         name: savedSymbols?.find(s => s.code === symbol)?.name || '',
+                        // Core stats
                         total_return: data.total_return,
-                        win_rate: data.win_rate,
-                        max_drawdown: data.max_drawdown,
-                        total_trades: data.total_trades,
                         profit_factor: data.profit_factor,
+                        win_rate: data.win_rate,
                         sharpe_ratio: data.sharpe_ratio,
+                        // Trading activity
+                        total_trades: data.total_trades,
+                        stability_score: data.stability_score,
+                        acceleration_score: data.acceleration_score,
+                        activity_rate: data.activity_rate,
+                        // PnL details
                         avg_pnl: data.avg_pnl,
+                        avg_holding_time: data.avg_holding_time,
+                        max_profit: data.max_profit,
+                        max_loss: data.max_loss,
+                        // Cycle metrics (may be null)
+                        cycle_count: data.cycle_count,
+                        cycle_avg_pnl: data.cycle_avg_pnl,
+                        cycle_avg_hold: data.cycle_avg_hold,
+                        cycle_max_hold: data.cycle_max_hold,
+                        cycle_min_hold: data.cycle_min_hold,
+                        // Max drawdown & score
+                        max_drawdown: data.max_drawdown,
                         score: score
                     });
 
@@ -2271,12 +2297,23 @@ const StrategyView = () => {
                         symbol: symbol,
                         name: savedSymbols?.find(s => s.code === symbol)?.name || '',
                         total_return: 'Error',
-                        win_rate: '-',
-                        max_drawdown: '-',
+                        profit_factor: null,
+                        win_rate: null,
+                        sharpe_ratio: null,
                         total_trades: 0,
-                        profit_factor: '-',
-                        sharpe_ratio: '-',
-                        avg_pnl: '-',
+                        stability_score: null,
+                        acceleration_score: null,
+                        activity_rate: null,
+                        avg_pnl: null,
+                        avg_holding_time: null,
+                        max_profit: null,
+                        max_loss: null,
+                        cycle_count: null,
+                        cycle_avg_pnl: null,
+                        cycle_avg_hold: null,
+                        cycle_max_hold: null,
+                        cycle_min_hold: null,
+                        max_drawdown: null,
                         score: -999
                     });
                     setStockCompareResults([...results]);
@@ -2974,7 +3011,7 @@ const StrategyView = () => {
                                                             {activeAnalysisTab === 'overview' ? (
                                                                 <div className="space-y-4">
                                                                     <PerformanceStatsGrid stats={backtestResult} />
-                                                                    <MonthlyAnalysisChart decileStats={backtestResult.decile_stats} />
+                                                                    <MonthlyAnalysisChart bucketStats={backtestResult.bucket_stats} decileStats={backtestResult.decile_stats} />
                                                                 </div>
                                                             ) : (
                                                                 <div className="overflow-x-auto">
@@ -3355,31 +3392,91 @@ const StrategyView = () => {
                                         </div>
                                     </div>
 
-                                    {/* Results Table */}
+                                    {/* Results Table - Sortable Grid */}
                                     {stockCompareResults.length > 0 && (() => {
-                                        // Helper to parse and format stat values for Symbol Compare results
-                                        const formatCompareValue = (value, format, decimals = 2) => {
-                                            if (value == null || value === '-' || value === 'Error') return value;
-                                            // Parse numeric value (strip % and other suffixes)
-                                            const num = typeof value === 'number' ? value : parseStatValue(value);
-                                            if (num == null) return value;
-                                            switch (format) {
-                                                case 'pct': return `${num >= 0 ? '+' : ''}${num.toFixed(decimals)}%`;
-                                                case 'pct_unsigned': return `${num.toFixed(decimals)}%`;
-                                                case 'num': return num.toFixed(decimals);
-                                                case 'int': return String(Math.round(num));
-                                                default: return String(value);
+                                        // Use STAT_COLUMNS for consistent display with backtest results
+                                        const visibleCols = getVisibleColumns(stockCompareResults[0] || {});
+
+                                        // Sort handler
+                                        const handleCompareSort = (key) => {
+                                            setCompareSortConfig(prev => ({
+                                                key,
+                                                direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+                                            }));
+                                        };
+
+                                        // Sort indicator component
+                                        const SortIndicator = ({ colKey }) => {
+                                            if (compareSortConfig.key !== colKey) {
+                                                return <span className="text-gray-600 ml-1">↕</span>;
                                             }
+                                            return (
+                                                <span className="text-blue-400 ml-1">
+                                                    {compareSortConfig.direction === 'desc' ? '↓' : '↑'}
+                                                </span>
+                                            );
                                         };
-                                        const getReturnColor = (value) => {
-                                            const num = typeof value === 'number' ? value : parseStatValue(value);
-                                            return num >= 0 ? 'text-green-400' : 'text-red-400';
+
+                                        // Sortable header component
+                                        const SortableHeader = ({ colKey, label, align = 'left', sticky = false }) => (
+                                            <th
+                                                onClick={() => handleCompareSort(colKey)}
+                                                className={`p-3 cursor-pointer hover:bg-white/10 transition-colors select-none ${
+                                                    align === 'right' ? 'text-right' : ''
+                                                } ${sticky ? 'sticky left-0 bg-[#1a1d24] z-10' : ''} ${
+                                                    compareSortConfig.key === colKey ? 'text-blue-300' : ''
+                                                }`}
+                                            >
+                                                <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
+                                                    {label}
+                                                    <SortIndicator colKey={colKey} />
+                                                </div>
+                                            </th>
+                                        );
+
+                                        // Sort the results
+                                        const sortedResults = [...stockCompareResults].sort((a, b) => {
+                                            const key = compareSortConfig.key;
+                                            const dir = compareSortConfig.direction === 'desc' ? -1 : 1;
+
+                                            // Handle special keys
+                                            if (key === 'symbol' || key === 'name') {
+                                                const aVal = (a[key] || '').toLowerCase();
+                                                const bVal = (b[key] || '').toLowerCase();
+                                                return aVal.localeCompare(bVal) * dir;
+                                            }
+
+                                            // Numeric comparison with null handling
+                                            const aVal = parseStatValue(a[key]);
+                                            const bVal = parseStatValue(b[key]);
+                                            if (aVal == null && bVal == null) return 0;
+                                            if (aVal == null) return 1;
+                                            if (bVal == null) return -1;
+                                            return (aVal - bVal) * dir;
+                                        });
+
+                                        // Render cell for a stat column
+                                        const renderStatCell = (data, col) => {
+                                            const value = data[col.key];
+                                            const colorClass = getStatColor(value, col);
+                                            const formatted = formatStatValue(value, col);
+                                            const prefix = col.signed && typeof value === 'number' && value > 0 ? '+' : '';
+                                            const bold = col.bold ? ' font-bold' : '';
+                                            return (
+                                                <td key={col.key} className={`p-3 text-right${bold} ${colorClass}`}>
+                                                    {prefix}{formatted}
+                                                </td>
+                                            );
                                         };
+
                                         return (
                                             <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                                                 <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                                                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                                                         📊 Comparison Results ({stockCompareResults.length} symbols)
+                                                        <span className="text-xs text-gray-500 font-normal">
+                                                            (Click headers to sort)
+                                                        </span>
                                                     </h3>
                                                     <button
                                                         onClick={handleExportCompareResults}
@@ -3393,56 +3490,39 @@ const StrategyView = () => {
                                                     <table className="w-full text-left border-collapse whitespace-nowrap">
                                                         <thead>
                                                             <tr className="bg-white/5 text-xs font-bold text-gray-400 border-b border-white/10">
-                                                                <th className="p-3">Rank</th>
-                                                                <th className="p-3">Symbol</th>
-                                                                <th className="p-3">Name</th>
-                                                                <th className="p-3 text-right">Total Return</th>
-                                                                <th className="p-3 text-right">Win Rate</th>
-                                                                <th className="p-3 text-right">Max DD</th>
-                                                                <th className="p-3 text-right">Trades</th>
-                                                                <th className="p-3 text-right">Profit Factor</th>
-                                                                <th className="p-3 text-right">Sharpe</th>
-                                                                <th className="p-3 text-right">Avg PnL</th>
-                                                                <th className="p-3 text-right">Score</th>
+                                                                <th className="p-3 sticky left-0 bg-[#1a1d24] z-10">#</th>
+                                                                <SortableHeader colKey="symbol" label="Symbol" />
+                                                                <SortableHeader colKey="name" label="Name" />
+                                                                {visibleCols.map(col => (
+                                                                    <SortableHeader
+                                                                        key={col.key}
+                                                                        colKey={col.key}
+                                                                        label={col.tableLabel || col.label}
+                                                                        align="right"
+                                                                    />
+                                                                ))}
+                                                                <SortableHeader colKey="score" label="Score" align="right" />
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {stockCompareResults
-                                                                .sort((a, b) => b.score - a.score)
-                                                                .map((result, idx) => (
-                                                                    <tr
-                                                                        key={result.symbol}
-                                                                        className={`border-b border-white/5 hover:bg-white/5 transition-colors ${idx === 0 ? 'bg-emerald-900/20' : ''}`}
-                                                                    >
-                                                                        <td className="p-3 text-white font-bold">{idx + 1}</td>
-                                                                        <td className="p-3 text-white font-mono">{result.symbol}</td>
-                                                                        <td className="p-3 text-gray-300">{result.name || '-'}</td>
-                                                                        <td className={`p-3 text-right font-bold ${getReturnColor(result.total_return)}`}>
-                                                                            {formatCompareValue(result.total_return, 'pct', 2)}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-yellow-400 font-bold">
-                                                                            {formatCompareValue(result.win_rate, 'pct_unsigned', 1)}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-red-400">
-                                                                            {formatCompareValue(result.max_drawdown, 'pct_unsigned', 2)}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-white">
-                                                                            {formatCompareValue(result.total_trades, 'int')}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-white">
-                                                                            {formatCompareValue(result.profit_factor, 'num', 2)}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-yellow-400">
-                                                                            {formatCompareValue(result.sharpe_ratio, 'num', 2)}
-                                                                        </td>
-                                                                        <td className={`p-3 text-right ${getReturnColor(result.avg_pnl)}`}>
-                                                                            {formatCompareValue(result.avg_pnl, 'pct', 2)}
-                                                                        </td>
-                                                                        <td className="p-3 text-right text-purple-400 font-bold">
-                                                                            {result.score != null && result.score !== -999 ? result.score.toFixed(2) : '-'}
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
+                                                            {sortedResults.map((result, idx) => (
+                                                                <tr
+                                                                    key={result.symbol}
+                                                                    className={`border-b border-white/5 hover:bg-white/5 transition-colors ${
+                                                                        idx === 0 && compareSortConfig.key === 'score' && compareSortConfig.direction === 'desc'
+                                                                            ? 'bg-emerald-900/20'
+                                                                            : ''
+                                                                    }`}
+                                                                >
+                                                                    <td className="p-3 text-gray-500 sticky left-0 bg-[#0f1115] z-10">{idx + 1}</td>
+                                                                    <td className="p-3 text-white font-mono font-bold">{result.symbol}</td>
+                                                                    <td className="p-3 text-gray-300">{result.name || '-'}</td>
+                                                                    {visibleCols.map(col => renderStatCell(result, col))}
+                                                                    <td className="p-3 text-right text-purple-400 font-bold">
+                                                                        {result.score != null && result.score !== -999 ? result.score.toFixed(2) : '-'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -3642,7 +3722,7 @@ const StrategyView = () => {
                                                     {activeAnalysisTab === 'overview' ? (
                                                         <div className="space-y-4">
                                                             <PerformanceStatsGrid stats={backtestResult} />
-                                                            <MonthlyAnalysisChart decileStats={backtestResult.decile_stats} />
+                                                            <MonthlyAnalysisChart bucketStats={backtestResult.bucket_stats} decileStats={backtestResult.decile_stats} />
                                                         </div>
                                                     ) : (
                                                         <div className="overflow-x-auto">

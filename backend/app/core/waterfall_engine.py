@@ -1134,8 +1134,10 @@ class WaterfallBacktestEngine:
         # Monthly stats only needed for detailed view (not optimization)
         if not optimize_mode:
             monthly_stats = decile_data['monthly_stats']
+            bucket_stats = decile_data['bucket_stats']
         else:
             monthly_stats = []
+            bucket_stats = []
 
         return {
             "total_trades": len(completed_trades),
@@ -1148,6 +1150,7 @@ class WaterfallBacktestEngine:
             # "activity_rate": activity_rate, # Removed to prevent overwrite
             "avg_holding_time": avg_holding_min, # minutes
             "decile_stats": monthly_stats,
+            "bucket_stats": bucket_stats,  # N-bucket stats for UI
             "stability_score": stability_score,
             "acceleration_score": acceleration_score,
             "cycle_count": base_stats.get('cycle_count'),
@@ -1571,53 +1574,54 @@ class WaterfallBacktestEngine:
                     max_dd_ratio = dd_ratio
         return -(max_dd_ratio * 100) if initial_capital > 0 else 0.0
 
-    def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any) -> List[Dict]:
+    def _calc_deciles(self, trades: List[Dict], start_ts: Any, end_ts: Any, n_buckets: int = 12) -> List[Dict]:
         """
-        Calculates Periodic Stats (Monthly).
-        Returns a list of stats for each month in the range.
-        Key 'decile_stats' is kept for frontend compatibility but now represents 'Monthly Stats'.
+        Calculates Periodic Stats using N-bucket approach (CENTRALIZED).
 
-        OPTIMIZED: O(N + M) instead of O(M × N)
-        - N = number of trades
-        - M = number of months
+        Uses stats_utils.calc_stability_stats for stability/acceleration calculation.
+        Also generates monthly_stats for UI chart display (legacy support).
+
+        Args:
+            trades: List of completed trades
+            start_ts: Start timestamp
+            end_ts: End timestamp
+            n_buckets: Number of buckets for stability calculation (default: 12)
         """
         import time
         from collections import defaultdict
+        from .stats_utils import calc_stability_stats
 
         start_time = time.time()
 
-        # Helper to parse TS
+        # --- 1. Calculate Stability/Acceleration using N-bucket approach (CENTRALIZED) ---
+        stability_data = calc_stability_stats(trades, n_buckets=n_buckets)
+        stability_score = stability_data['stability_score']
+        acceleration_score = stability_data['acceleration_score']
+        bucket_stats = stability_data['bucket_stats']  # N-bucket stats for UI
+
+        # --- 2. Generate Monthly Stats for UI Chart (Legacy Support) ---
         def parse(t): return t if isinstance(t, datetime) else datetime.fromisoformat(t)
 
         start_dt = parse(start_ts).date()
         end_dt = parse(end_ts).date()
 
-        # Normalize to start of month
         curr = start_dt.replace(day=1)
         end_cap = end_dt.replace(day=1)
 
-        # OPTIMIZATION: Group trades by month in O(N) instead of O(M × N)
         monthly_trades = defaultdict(list)
         for t in trades:
-            t_date = parse(t['time']).date()  # Parse only once per trade
+            t_date = parse(t['time']).date()
             month_key = t_date.strftime("%Y-%m")
             monthly_trades[month_key].append(t)
 
-        stats = []
-        block_idx = 1
-
-        # Iterate through months and lookup pre-grouped trades in O(1)
+        monthly_stats = []
         while curr <= end_cap:
             month_key = curr.strftime("%Y-%m")
-            chunk = monthly_trades.get(month_key, [])  # O(1) lookup
+            chunk = monthly_trades.get(month_key, [])
 
-            # Stats
             if chunk:
-                # User requested Realized Return (Total PnL for the month)
-                # We sum the PnL percentages to show the total monthly performance.
                 total_pnl = sum(t['pnl_percent'] for t in chunk) * 100
                 avg_pnl = total_pnl / len(chunk)
-
                 wins = len([t for t in chunk if t['pnl'] > 0])
                 win_rate = wins / len(chunk) * 100
             else:
@@ -1626,75 +1630,26 @@ class WaterfallBacktestEngine:
                 win_rate = 0.0
 
             date_label = curr.strftime("%y-%m")
-
-            stats.append({
+            monthly_stats.append({
                 "block": date_label,
-                "avg_pnl": float(f"{avg_pnl:.2f}"), # Keep for legacy/tooltip if needed, or just use total
-                "total_pnl": float(f"{total_pnl:.2f}"), # New Metric: Monthly Total Return
+                "avg_pnl": float(f"{avg_pnl:.2f}"),
+                "total_pnl": float(f"{total_pnl:.2f}"),
                 "win_rate": float(f"{win_rate:.1f}"),
                 "date_range": date_label,
                 "count": len(chunk)
             })
 
-            # Calculate next month
             if curr.month == 12:
                 curr = curr.replace(year=curr.year + 1, month=1)
             else:
                 curr = curr.replace(month=curr.month + 1)
 
-            block_idx += 1
-            
-        # Calculate Stability Score (R-squared of Cumulative PnL)
-        # This measures how close the equity curve is to a straight line (consistent growth).
-        try:
-            if stats:
-                import numpy as np
-                from scipy import stats as scipy_stats
-                
-                # Cumulative PnL Curve
-                daily_returns = [s['total_pnl'] for s in stats]
-                cumulative = np.cumsum(daily_returns)
-                
-                # Linear Regression vs Time Index
-                x = np.arange(len(cumulative))
-                slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, cumulative)
-                
-                # Stability Score
-                if len(cumulative) > 1:
-                    stability_score = r_value ** 2 
-                else:
-                    stability_score = 0.0
-
-                # Calculate Profit Acceleration (Recent Slope / Total Slope)
-                # Recent = Last 25% of data (min 5 points)
-                n_recent = max(5, int(len(cumulative) * 0.25))
-                
-                if len(cumulative) >= 10: # Only calculate if we have enough data
-                    recent_cum = cumulative[-n_recent:]
-                    x_recent = np.arange(len(recent_cum))
-                    slope_recent, _, _, _, _ = scipy_stats.linregress(x_recent, recent_cum)
-                    
-                    # Avoid division by zero
-                    if abs(slope) > 0.0001:
-                        acceleration_score = slope_recent / slope
-                    else:
-                        acceleration_score = 0.0 # Define as 0 if overall is flat
-                else:
-                    acceleration_score = 1.0 # Neutral if not enough data
-
-            else:
-                stability_score = 0.0
-                acceleration_score = 0.0
-        except Exception as e:
-            print(f"Error calculating stats: {e}")
-            stability_score = 0.0
-            acceleration_score = 0.0
-
         elapsed_ms = (time.time() - start_time) * 1000
-        print(f"[PERF] _calc_deciles: {len(trades)} trades, {len(stats)} months → {elapsed_ms:.2f}ms")
+        print(f"[PERF] _calc_deciles: {len(trades)} trades, {n_buckets} buckets → {elapsed_ms:.2f}ms")
 
         return {
-            "monthly_stats": stats,
+            "monthly_stats": monthly_stats,
+            "bucket_stats": bucket_stats,  # N-bucket stats for UI
             "stability_score": stability_score,
             "acceleration_score": acceleration_score
         }
