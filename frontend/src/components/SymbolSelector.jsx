@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import SymbolChip from './SymbolChip';
 
 const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols, hideSymbolList = false }) => {
     const [inputValue, setInputValue] = useState('');
@@ -36,8 +37,7 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
         setCurrentSymbol(code);
     };
 
-    const removeSymbol = (e, code) => {
-        e.stopPropagation();
+    const removeSymbol = (code) => {
         setSavedSymbols(prev => prev.filter(s => s.code !== code));
 
         // If current was removed, switch to another
@@ -54,7 +54,6 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
     };
 
     const handleDragOver = (e, index) => {
-        e.preventDefault();
         if (draggedIndex === null || draggedIndex === index) return;
         setDragOverIndex(index);
     };
@@ -64,7 +63,6 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
     };
 
     const handleDrop = (e, dropIndex) => {
-        e.preventDefault();
         if (draggedIndex === null || draggedIndex === dropIndex) {
             setDraggedIndex(null);
             setDragOverIndex(null);
@@ -107,33 +105,22 @@ const SymbolSelector = ({ currentSymbol, setCurrentSymbol, savedSymbols, setSave
 
                     <div className="flex flex-wrap gap-2">
                         {savedSymbols.map((sym, index) => (
-                            <div
+                            <SymbolChip
                                 key={sym.code}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, index)}
-                                onDragOver={(e) => handleDragOver(e, index)}
+                                symbol={sym}
+                                index={index}
+                                isSelected={currentSymbol === sym.code}
+                                onSelect={setCurrentSymbol}
+                                onDelete={removeSymbol}
+                                draggable={true}
+                                isDragging={draggedIndex === index}
+                                isDragOver={dragOverIndex === index}
+                                onDragStart={handleDragStart}
+                                onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
-                                onDrop={(e) => handleDrop(e, index)}
+                                onDrop={handleDrop}
                                 onDragEnd={handleDragEnd}
-                                onClick={() => setCurrentSymbol(sym.code)}
-                                className={`group flex items-center gap-2 px-3 py-1 rounded cursor-grab border transition-all ${
-                                    currentSymbol === sym.code
-                                        ? 'bg-blue-900/30 border-blue-500 text-blue-300'
-                                        : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'
-                                } ${draggedIndex === index ? 'opacity-50' : ''} ${
-                                    dragOverIndex === index ? 'border-yellow-500 border-dashed' : ''
-                                }`}
-                            >
-                                <span className="text-sm font-mono">
-                                    {sym.code} <span className="text-xs opacity-70">{sym.name && `(${sym.name})`}</span>
-                                </span>
-                                <button
-                                    onClick={(e) => removeSymbol(e, sym.code)}
-                                    className="w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 hover:text-red-400 transition-all text-xs"
-                                >
-                                    ×
-                                </button>
-                            </div>
+                            />
                         ))}
                     </div>
                 </>

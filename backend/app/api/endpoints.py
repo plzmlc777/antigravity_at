@@ -14,13 +14,18 @@ router = APIRouter()
 
 # Dependency Injection for Exchange Adapter
 def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
-    # 0. Check Cache First (Using a default user_id=1 for single-user system MVP)
-    # In multi-user, we'd extract user_id from token/request
-    SYSTEM_USER_ID = 1
-
+    # 0. Check Cache First
+    # Single-user system: 활성 계좌의 user_id를 먼저 조회하여 캐시 키로 사용
     from ..core.account_cache import AccountCache
+    from ..models.account import ExchangeAccount
+
     cache = AccountCache.get_instance()
-    cached_config = cache.get_active_account_config(SYSTEM_USER_ID)
+
+    # 활성 계좌의 user_id 조회 (캐시 키 동기화용)
+    active_account_for_key = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+    cache_user_id = active_account_for_key.user_id if active_account_for_key else 1
+
+    cached_config = cache.get_active_account_config(cache_user_id)
 
     if cached_config:
         # Derive api_url from environment (Single Source of Truth)
@@ -37,12 +42,10 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
             is_virtual=is_virtual
         )
 
-    # 1. Fetch active account from DB
-    from ..models.account import ExchangeAccount
+    # 1. Fetch active account from DB (재사용: active_account_for_key)
     from ..core import security
 
-    # Assume user_id=1 for now, or pick first active
-    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+    active_account = active_account_for_key  # 이미 조회한 결과 재사용
 
     if active_account:
         try:
@@ -57,7 +60,7 @@ def get_exchange_adapter(db: Session = Depends(get_db)) -> ExchangeInterface:
                 'account_name': active_account.account_name,
                 'environment': active_account.environment or TradingEnvironment.REAL.value
             }
-            cache.set_active_account_config(SYSTEM_USER_ID, config)
+            cache.set_active_account_config(cache_user_id, config)  # 동일한 user_id 사용
 
             # api_url and is_virtual are computed properties from the model
             return KiwoomRealAdapter(
@@ -112,11 +115,17 @@ class ConditionalOrderRequest(BaseModel):
     trailing_percent: float | None = None # Required for TRAILING_STOP
 
 @router.get("/status")
-async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter)):
+async def get_status(adapter: ExchangeInterface = Depends(get_exchange_adapter), db: Session = Depends(get_db)):
+    # 활성 계좌 ID 조회
+    from ..models.account import ExchangeAccount
+    active_account = db.query(ExchangeAccount).filter(ExchangeAccount.is_active == True).first()
+    account_id = active_account.id if active_account else None
+
     return {
         "exchange": adapter.get_name(),
         "status": "online",
-        "account_name": adapter.get_account_name()
+        "account_name": adapter.get_account_name(),
+        "account_id": account_id  # 계좌 중심: 프론트엔드에서 사용
     }
 
 @router.get("/system/version")

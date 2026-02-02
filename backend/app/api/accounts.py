@@ -188,9 +188,28 @@ async def activate_account(
     account.is_active = True
     db.commit()
 
-    # 4. Invalidate Cache
+    # 4. 캐시를 새 계좌 정보로 즉시 업데이트 (invalidate 대신 직접 설정)
     from ..core.account_cache import AccountCache
-    AccountCache.get_instance().invalidate(current_user.id)
+    from ..core.trading_env import TradingEnvironment
+
+    try:
+        decrypted_app = security.decrypt_key(account.encrypted_access_key)
+        decrypted_secret = security.decrypt_key(account.encrypted_secret_key)
+
+        new_config = {
+            'app_key': decrypted_app,
+            'secret_key': decrypted_secret,
+            'account_no': account.account_number,
+            'account_name': account.account_name,
+            'environment': account.environment or TradingEnvironment.REAL.value
+        }
+
+        # 캐시에 새 값 직접 설정 (race condition 방지)
+        AccountCache.get_instance().set_active_account_config(current_user.id, new_config)
+    except Exception as e:
+        # 복호화 실패 시 캐시 무효화 (fallback)
+        AccountCache.get_instance().invalidate(current_user.id)
+        print(f"[Activate] Cache update failed, invalidated instead: {e}")
 
     # 5. Notify LiveManager to reinitialize adapter with new account
     from ..core.live_manager import LiveManager

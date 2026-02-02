@@ -3,6 +3,7 @@ import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
+import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective } from '../api/client';
@@ -853,7 +854,7 @@ const StrategyView = () => {
         setAssetImportError('');
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const data = JSON.parse(event.target.result);
 
@@ -885,10 +886,49 @@ const StrategyView = () => {
                     return;
                 }
 
-                setSavedSymbols(data.symbols);
+                // 1. 먼저 종목 코드만 즉시 표시
+                const symbolsWithoutNames = data.symbols.map(s => ({
+                    code: s.code,
+                    name: s.name || ''  // 기존 이름이 있으면 유지
+                }));
+                setSavedSymbols(symbolsWithoutNames);
+                addLog(`📥 Importing ${data.symbols.length} symbols...`, 'info');
+
+                // 2. 종목명을 순차적으로 가져오기 (API 부하 방지를 위해 딜레이 적용)
+                const DELAY_MS = 300;  // 종목 간 300ms 딜레이
+                let fetchedCount = 0;
+
+                for (let i = 0; i < data.symbols.length; i++) {
+                    const sym = data.symbols[i];
+
+                    // 이미 이름이 있으면 스킵
+                    if (sym.name) {
+                        fetchedCount++;
+                        continue;
+                    }
+
+                    try {
+                        const res = await axios.get(`/api/v1/market-data/info/${sym.code}`);
+                        if (res.data.name && res.data.name !== sym.code) {
+                            // 종목명 업데이트
+                            setSavedSymbols(prev => prev.map(s =>
+                                s.code === sym.code ? { ...s, name: res.data.name } : s
+                            ));
+                        }
+                        fetchedCount++;
+                    } catch (err) {
+                        console.warn(`Failed to fetch name for ${sym.code}:`, err.message);
+                    }
+
+                    // 마지막이 아니면 딜레이
+                    if (i < data.symbols.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+                    }
+                }
+
                 setAssetImportExportFeedback('imported');
                 setTimeout(() => setAssetImportExportFeedback(null), 2000);
-                addLog(`📥 Imported ${data.symbols.length} symbols`, 'info');
+                addLog(`✅ Imported ${data.symbols.length} symbols (${fetchedCount} names fetched)`, 'info');
             } catch (err) {
                 const errMsg = 'Failed to parse JSON file';
                 setAssetImportError(errMsg);
@@ -971,9 +1011,14 @@ const StrategyView = () => {
             try {
                 const data = JSON.parse(event.target.result);
 
-                // Validate format
-                if (!data.type || data.type !== 'strategy_parameters') {
-                    const errMsg = 'Invalid file: missing or wrong "type" field (expected: strategy_parameters)';
+                // Validate format - support two formats:
+                // 1. Original: { type: 'strategy_parameters', params: {...} }
+                // 2. Exported: { version: '...', strategy: '...', params: {...} }
+                const isOriginalFormat = data.type === 'strategy_parameters';
+                const isExportedFormat = data.version && data.strategy && data.params;
+
+                if (!isOriginalFormat && !isExportedFormat) {
+                    const errMsg = 'Invalid file format: expected "type: strategy_parameters" or exported format with "version", "strategy", and "params"';
                     setParamImportError(errMsg);
                     setParamImportExportFeedback('error');
                     setTimeout(() => setParamImportExportFeedback(null), 3000);
@@ -1014,7 +1059,9 @@ const StrategyView = () => {
 
                 setParamImportExportFeedback('imported');
                 setTimeout(() => setParamImportExportFeedback(null), 2000);
-                addLog(`📥 Imported parameters (${Object.keys(data.params).length} fields)`, 'info');
+                const strategyInfo = data.strategy ? ` from "${data.strategy}"` : '';
+                const sourceInfo = data.sourceTab ? ` (${data.sourceTab})` : '';
+                addLog(`📥 Imported parameters${strategyInfo}${sourceInfo} (${Object.keys(data.params).length} fields)`, 'info');
             } catch (err) {
                 const errMsg = 'Failed to parse JSON file';
                 setParamImportError(errMsg);
@@ -2144,6 +2191,8 @@ const StrategyView = () => {
 
         try {
             // Step 1: Update chart data for all selected symbols
+            // Add delay between API calls to avoid Kiwoom rate limiting
+            const DATA_FETCH_DELAY_MS = 500; // 500ms delay between data fetches
             addLog(`Updating chart data for ${totalSymbols} symbols...`, 'info');
             let totalDataAdded = 0;
             for (let i = 0; i < totalSymbols; i++) {
@@ -2163,10 +2212,15 @@ const StrategyView = () => {
                     console.warn(`Failed to update data for ${symbol}`, err);
                     addLog(`${symbol}: data update failed`, 'warning');
                 }
+                // Delay before next API call (skip delay after last item)
+                if (i < totalSymbols - 1) {
+                    await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
+                }
             }
             addLog(`Data update completed: +${totalDataAdded} total candles`, totalDataAdded > 0 ? 'success' : 'info');
 
             // Step 2: Run backtest for each symbol sequentially
+            const BACKTEST_DELAY_MS = 200; // 200ms delay between backtests
             addLog(`Running backtests for ${totalSymbols} symbols...`, 'info');
             for (let i = 0; i < totalSymbols; i++) {
                 const symbol = selectedCompareSymbols[i];
@@ -2226,6 +2280,11 @@ const StrategyView = () => {
                         score: -999
                     });
                     setStockCompareResults([...results]);
+                }
+
+                // Delay before next backtest (skip delay after last item)
+                if (i < totalSymbols - 1) {
+                    await new Promise(resolve => setTimeout(resolve, BACKTEST_DELAY_MS));
                 }
             }
 
@@ -3120,31 +3179,23 @@ const StrategyView = () => {
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
                                                             {savedSymbols.map(item => (
-                                                                <label
+                                                                <SymbolChip
                                                                     key={item.code}
-                                                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
-                                                                        selectedCompareSymbols.includes(item.code)
-                                                                            ? 'bg-emerald-600/30 border border-emerald-500'
-                                                                            : 'bg-black/30 border border-white/10 hover:border-white/30'
-                                                                    }`}
-                                                                >
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={selectedCompareSymbols.includes(item.code)}
-                                                                        onChange={(e) => {
-                                                                            if (e.target.checked) {
-                                                                                setSelectedCompareSymbols(prev => [...prev, item.code]);
-                                                                            } else {
-                                                                                setSelectedCompareSymbols(prev => prev.filter(s => s !== item.code));
-                                                                            }
-                                                                        }}
-                                                                        className="w-4 h-4 rounded accent-emerald-500"
-                                                                    />
-                                                                    <span className="text-sm text-white font-mono">{item.code}</span>
-                                                                    {item.name && (
-                                                                        <span className="text-xs text-gray-400">{item.name}</span>
-                                                                    )}
-                                                                </label>
+                                                                    symbol={item}
+                                                                    showCheckbox={true}
+                                                                    isChecked={selectedCompareSymbols.includes(item.code)}
+                                                                    onCheckChange={(checked) => {
+                                                                        if (checked) {
+                                                                            setSelectedCompareSymbols(prev => [...prev, item.code]);
+                                                                        } else {
+                                                                            setSelectedCompareSymbols(prev => prev.filter(s => s !== item.code));
+                                                                        }
+                                                                    }}
+                                                                    onDelete={(code) => {
+                                                                        setSavedSymbols(prev => prev.filter(s => s.code !== code));
+                                                                        setSelectedCompareSymbols(prev => prev.filter(s => s !== code));
+                                                                    }}
+                                                                />
                                                             ))}
                                                         </div>
                                                         {savedSymbols.length === 0 && (
