@@ -1153,6 +1153,14 @@ const StrategyView = () => {
     const activeSymbol = currentConfig?.symbol || currentSymbol;
     const isSymbolValid = !!activeSymbol && activeSymbol.trim().length > 0;
 
+    // DEBUG: Log symbol selection info to Execution Logs
+    useEffect(() => {
+        if (activeTab >= 0 && isConfigLoaded) {
+            const finalSymbol = currentConfig?.symbol || currentSymbol;
+            const match = savedSymbols?.some(s => s.code === finalSymbol);
+            addLog(`🔍 [DEBUG] Symbol Selection: configSymbol=${currentConfig?.symbol}, contextSymbol=${currentSymbol}, finalSymbol=${finalSymbol}, match=${match}, savedCount=${savedSymbols?.length || 0}`, 'info');
+        }
+    }, [activeTab, isConfigLoaded, currentConfig?.symbol, currentSymbol, savedSymbols]);
 
     // 3. Persistence: Load Results when switching tabs
     useEffect(() => {
@@ -3242,8 +3250,6 @@ const StrategyView = () => {
                                                 />
                                             </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
-                                                {/* DEBUG: Show current selection */}
-                                                {console.log('[SymbolSelector Debug]', { activeTab, configSymbol: currentConfig?.symbol, contextSymbol: currentSymbol, finalSymbol: activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol), savedSymbolsCodes: savedSymbols?.slice(0,5).map(s => s.code), match: savedSymbols?.some(s => s.code === (currentConfig?.symbol || currentSymbol)) })}
                                                 {/* SymbolSelector - shared for both Rank and Symbol Compare */}
                                                 <SymbolSelector
                                                     currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)} // No single selection for Symbol Compare
