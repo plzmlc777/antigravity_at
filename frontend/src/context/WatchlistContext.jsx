@@ -44,13 +44,43 @@ export const WatchlistProvider = ({ children }) => {
         const loadFromDB = async () => {
             try {
                 const prefs = await getAccountPreferences();
-                if (prefs.last_symbol) {
-                    setCurrentSymbolState(prefs.last_symbol);
+
+                // Check if DB has data
+                const dbHasSymbol = prefs.last_symbol;
+                const dbHasSavedSymbols = prefs.saved_symbols && Array.isArray(prefs.saved_symbols) && prefs.saved_symbols.length > 0;
+
+                // Load from localStorage
+                const localSymbol = localStorage.getItem('lastSymbol');
+                const localSavedRaw = localStorage.getItem('savedSymbols');
+                let localSaved = null;
+                if (localSavedRaw) {
+                    try {
+                        const parsed = JSON.parse(localSavedRaw);
+                        localSaved = parsed.map(item =>
+                            typeof item === 'string' ? { code: item, name: '' } : item
+                        );
+                    } catch (e) {
+                        localSaved = null;
+                    }
                 }
-                if (prefs.saved_symbols && Array.isArray(prefs.saved_symbols)) {
-                    setSavedSymbolsState(prefs.saved_symbols);
-                }
+
+                // Use DB data if available, otherwise fallback to localStorage
+                const finalSymbol = dbHasSymbol ? prefs.last_symbol : (localSymbol || '005930');
+                const finalSavedSymbols = dbHasSavedSymbols ? prefs.saved_symbols : (localSaved || DEFAULT_SYMBOLS);
+
+                setCurrentSymbolState(finalSymbol);
+                setSavedSymbolsState(finalSavedSymbols);
                 setIsLoaded(true);
+
+                // If DB was empty but localStorage had data, sync to DB
+                if ((!dbHasSymbol || !dbHasSavedSymbols) && (localSymbol || localSaved)) {
+                    console.log('Migrating localStorage watchlist to DB...');
+                    try {
+                        await updateWatchlist(finalSymbol, finalSavedSymbols);
+                    } catch (e) {
+                        console.warn('Failed to migrate watchlist to DB:', e);
+                    }
+                }
             } catch (e) {
                 console.warn('Failed to load watchlist from DB, using localStorage fallback:', e);
                 // Fallback to localStorage
