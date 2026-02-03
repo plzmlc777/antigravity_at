@@ -329,3 +329,21 @@ export const updateLastSelectedStrategy = async (strategyId) => {
     const { data } = await api.put('/accounts/preferences/strategy', { strategy_id: strategyId });
     return data;
 };
+
+export const updateWatchlist = async (lastSymbol, savedSymbols) => {
+    const payload = {};
+    if (lastSymbol !== undefined) payload.last_symbol = lastSymbol;
+    if (savedSymbols !== undefined) payload.saved_symbols = savedSymbols;
+    const { data } = await api.put('/accounts/preferences/watchlist', payload);
+    return data;
+};
+
+export const updateSymbolCompareSettings = async (settings) => {
+    const { data } = await api.put('/accounts/preferences/symbol-compare', { symbol_compare_settings: settings });
+    return data;
+};
+
+export const updateExecutionMode = async (mode) => {
+    const { data } = await api.put('/accounts/preferences/execution-mode', { execution_mode: mode });
+    return data;
+};

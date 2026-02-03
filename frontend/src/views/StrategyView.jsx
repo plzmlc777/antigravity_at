@@ -6,7 +6,8 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode } from '../api/client';
+import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategyConfig } from '../hooks/useStrategyConfig';
 import { isValidScope } from '../types/ConfigScope';
 import { useMarketData } from '../context/MarketDataContext';
@@ -272,17 +273,8 @@ const StrategyView = () => {
     const { systemStatus } = useMarketData();
     const activeAccountId = systemStatus?.account_id || null;
 
-    // Symbol State
-    const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem('lastSymbol') || '005930');
-    const [savedSymbols, setSavedSymbols] = useState(() => {
-        const saved = localStorage.getItem('savedSymbols');
-        if (!saved) return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        try {
-            return JSON.parse(saved);
-        } catch {
-            return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        }
-    });
+    // Symbol State - Use shared watchlist context (synced with DB)
+    const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
 
     const [strategies, setStrategies] = useState([]);
     const [selectedStrategy, setSelectedStrategy] = useState(null);
@@ -438,18 +430,15 @@ const StrategyView = () => {
     // Custom Confirmation Modal State
 
 
-    // Save to LocalStorage
-    useEffect(() => {
-        localStorage.setItem('lastSymbol', currentSymbol);
-    }, [currentSymbol]);
+    // Note: currentSymbol and savedSymbols are now managed by WatchlistContext (synced with DB)
 
-    useEffect(() => {
-        localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
-    }, [savedSymbols]);
-
-    // Save execution mode to localStorage
+    // Save execution mode to DB (with localStorage fallback)
     useEffect(() => {
         localStorage.setItem('integratedExecutionMode', executionMode);
+        // Sync to DB (debounced in API client)
+        updateExecutionMode(executionMode).catch(e => {
+            console.warn('Failed to save execution mode to DB:', e);
+        });
     }, [executionMode]);
 
     // Persistence logic removed for initialCapital
@@ -1302,6 +1291,19 @@ const StrategyView = () => {
                                 await updateLastSelectedStrategy(localStorageId).catch(e => console.warn('Failed to migrate strategy to DB:', e));
                             }
                         }
+                    }
+
+                    // Load execution mode from DB (with localStorage fallback)
+                    if (preferences?.execution_mode) {
+                        setExecutionMode(preferences.execution_mode);
+                    }
+
+                    // Load symbol compare settings from DB (with localStorage migration)
+                    if (preferences?.symbol_compare_settings) {
+                        const settings = preferences.symbol_compare_settings;
+                        if (settings.selectedSymbols) setSelectedCompareSymbols(settings.selectedSymbols);
+                        if (settings.results) setStockCompareResults(settings.results);
+                        if (settings.config) setSymbolCompareConfig(settings.config);
                     }
                 } catch (e) {
                     console.warn('Failed to load account preferences:', e);
@@ -2424,33 +2426,63 @@ const StrategyView = () => {
         addLog(`Exported ${sortedResults.length} results to CSV`, 'success');
     };
 
-    // Apply Symbol Compare settings (save to localStorage)
-    const handleApplySymbolCompare = () => {
+    // Apply Symbol Compare settings (save to DB with localStorage cache)
+    const handleApplySymbolCompare = async () => {
         try {
-            // Save selected symbols
+            const settings = {
+                selectedSymbols: selectedCompareSymbols,
+                results: stockCompareResults,
+                config: symbolCompareConfig
+            };
+
+            // Save to localStorage (cache)
             localStorage.setItem('symbolCompare_selectedSymbols', JSON.stringify(selectedCompareSymbols));
-            // Save results
             localStorage.setItem('symbolCompare_results', JSON.stringify(stockCompareResults));
-            // Save config
             if (symbolCompareConfig) {
                 localStorage.setItem('symbolCompare_config', JSON.stringify(symbolCompareConfig));
             }
+
+            // Save to DB
+            await updateSymbolCompareSettings(settings);
+
             setIsSymbolCompareDirty(false);
 
             // Visual feedback
             setApplyFeedback('saved');
             setTimeout(() => setApplyFeedback(null), 2000);
 
-            addLog('Symbol Compare settings saved', 'success');
+            addLog('Symbol Compare settings saved to DB', 'success');
         } catch (e) {
             console.error('Failed to save Symbol Compare settings:', e);
-            addLog('Failed to save settings', 'error');
+            addLog('Failed to save settings (saved to cache only)', 'error');
         }
     };
 
-    // Discard Symbol Compare changes (reload from localStorage)
-    const handleDiscardSymbolCompare = () => {
+    // Discard Symbol Compare changes (reload from DB/localStorage)
+    const handleDiscardSymbolCompare = async () => {
         try {
+            // Try to reload from DB first
+            const preferences = await getAccountPreferences();
+            if (preferences?.symbol_compare_settings) {
+                const settings = preferences.symbol_compare_settings;
+                setSelectedCompareSymbols(settings.selectedSymbols || []);
+                setStockCompareResults(settings.results || []);
+                setSymbolCompareConfig(settings.config || null);
+            } else {
+                // Fallback to localStorage
+                const savedSymbols = localStorage.getItem('symbolCompare_selectedSymbols');
+                const savedResults = localStorage.getItem('symbolCompare_results');
+                const savedConfig = localStorage.getItem('symbolCompare_config');
+
+                setSelectedCompareSymbols(savedSymbols ? JSON.parse(savedSymbols) : []);
+                setStockCompareResults(savedResults ? JSON.parse(savedResults) : []);
+                setSymbolCompareConfig(savedConfig ? JSON.parse(savedConfig) : null);
+            }
+            setIsSymbolCompareDirty(false);
+            addLog('Symbol Compare settings restored', 'info');
+        } catch (e) {
+            console.error('Failed to restore Symbol Compare settings:', e);
+            // Fallback to localStorage on error
             const savedSymbols = localStorage.getItem('symbolCompare_selectedSymbols');
             const savedResults = localStorage.getItem('symbolCompare_results');
             const savedConfig = localStorage.getItem('symbolCompare_config');
@@ -2459,9 +2491,6 @@ const StrategyView = () => {
             setStockCompareResults(savedResults ? JSON.parse(savedResults) : []);
             setSymbolCompareConfig(savedConfig ? JSON.parse(savedConfig) : null);
             setIsSymbolCompareDirty(false);
-            addLog('Symbol Compare settings restored', 'info');
-        } catch (e) {
-            console.error('Failed to restore Symbol Compare settings:', e);
         }
     };
 

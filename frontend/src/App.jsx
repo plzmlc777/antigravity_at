@@ -13,6 +13,7 @@ import { getSystemStatus, getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { MarketDataProvider } from './context/MarketDataContext';
+import { WatchlistProvider } from './context/WatchlistContext';
 import { APP_VERSION, COMMIT_HASH, CODE_NAME } from './version';
 
 const NavLink = ({ to, children }) => {
@@ -132,7 +133,9 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/*" element={
                         <MarketDataProvider>
-                            <AppContent />
+                            <WatchlistProvider>
+                                <AppContent />
+                            </WatchlistProvider>
                         </MarketDataProvider>
                     } />
                 </Routes>

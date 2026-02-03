@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, JSON, Text
 from sqlalchemy.orm import relationship
 from ..db.base import Base
 from ..core.trading_env import (
@@ -39,6 +39,16 @@ class ExchangeAccount(Base):
 
     # User Preferences (계좌별 환경설정)
     last_selected_strategy_id = Column(String, nullable=True)  # 마지막 선택 전략
+
+    # Watchlist (종목 관리)
+    last_symbol = Column(String, nullable=True, default='005930')  # 마지막 선택 종목
+    saved_symbols = Column(JSON, nullable=True)  # 저장된 종목 목록 [{code, name}, ...]
+
+    # Symbol Compare Settings (종목 비교 설정)
+    symbol_compare_settings = Column(JSON, nullable=True)  # {selectedSymbols, results, config}
+
+    # Execution Settings (실행 설정)
+    execution_mode = Column(String, nullable=True, default='exclusive')  # 'exclusive' | 'parallel'
 
     user = relationship("User", backref="accounts")
 

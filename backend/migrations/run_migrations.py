@@ -70,11 +70,74 @@ def migration_002_add_last_selected_strategy():
         return True
 
 
+def migration_003_add_watchlist_and_settings():
+    """Add watchlist and symbol compare settings to exchange_accounts"""
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        columns = [col['name'] for col in inspector.get_columns('exchange_accounts')]
+
+        added_any = False
+
+        # 1. last_symbol
+        if 'last_symbol' not in columns:
+            print("  [RUN] Adding 'last_symbol' column...")
+            conn.execute(text("""
+                ALTER TABLE exchange_accounts
+                ADD COLUMN last_symbol VARCHAR(20) DEFAULT '005930'
+            """))
+            added_any = True
+            print("  [OK] Added 'last_symbol' column")
+        else:
+            print("  [SKIP] 'last_symbol' column already exists")
+
+        # 2. saved_symbols (JSON)
+        if 'saved_symbols' not in columns:
+            print("  [RUN] Adding 'saved_symbols' column...")
+            conn.execute(text("""
+                ALTER TABLE exchange_accounts
+                ADD COLUMN saved_symbols JSONB
+            """))
+            added_any = True
+            print("  [OK] Added 'saved_symbols' column")
+        else:
+            print("  [SKIP] 'saved_symbols' column already exists")
+
+        # 3. symbol_compare_settings (JSON)
+        if 'symbol_compare_settings' not in columns:
+            print("  [RUN] Adding 'symbol_compare_settings' column...")
+            conn.execute(text("""
+                ALTER TABLE exchange_accounts
+                ADD COLUMN symbol_compare_settings JSONB
+            """))
+            added_any = True
+            print("  [OK] Added 'symbol_compare_settings' column")
+        else:
+            print("  [SKIP] 'symbol_compare_settings' column already exists")
+
+        # 4. execution_mode
+        if 'execution_mode' not in columns:
+            print("  [RUN] Adding 'execution_mode' column...")
+            conn.execute(text("""
+                ALTER TABLE exchange_accounts
+                ADD COLUMN execution_mode VARCHAR(20) DEFAULT 'exclusive'
+            """))
+            added_any = True
+            print("  [OK] Added 'execution_mode' column")
+        else:
+            print("  [SKIP] 'execution_mode' column already exists")
+
+        if added_any:
+            conn.commit()
+
+        return added_any
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
         ("001_add_environment_field", migration_001_add_environment_field),
         ("002_add_last_selected_strategy", migration_002_add_last_selected_strategy),
+        ("003_add_watchlist_and_settings", migration_003_add_watchlist_and_settings),
     ]
 
     print("=" * 50)

@@ -1,22 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import SymbolSelector from '../components/SymbolSelector';
 import BotFlowChart from '../components/BotFlowChart';
 import Card from '../components/common/Card';
+import { useWatchlist } from '../context/WatchlistContext';
 
 const AutoTrading = () => {
-    // --- State ---
-    const [currentSymbol, setCurrentSymbol] = useState(() => localStorage.getItem('lastSymbol') || '005930');
-    const [savedSymbols, setSavedSymbols] = useState(() => {
-        const saved = localStorage.getItem('savedSymbols');
-        if (!saved) return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        try {
-            const parsed = JSON.parse(saved);
-            return parsed.map(item => typeof item === 'string' ? { code: item, name: '' } : item);
-        } catch {
-            return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        }
-    });
+    // Use shared watchlist context (synced with DB)
+    const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
 
     const [strategy, setStrategy] = useState('rsi');
     const [intervalSec, setIntervalSec] = useState(5); // Testing default 5s
@@ -25,12 +16,6 @@ const AutoTrading = () => {
     // Bots
     const [bots, setBots] = useState([]);
     const [selectedBotId, setSelectedBotId] = useState(null);
-
-    // --- Effects ---
-    useEffect(() => {
-        localStorage.setItem('lastSymbol', currentSymbol);
-        localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
-    }, [currentSymbol, savedSymbols]);
 
     const fetchBots = async () => {
         try {

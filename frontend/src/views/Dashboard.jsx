@@ -1,37 +1,13 @@
-import React, { useState, useEffect } from 'react';
 import Diagram from '../components/Diagram';
 import SymbolSelector from '../components/SymbolSelector';
 import TradingInfoPanel from '../components/TradingInfoPanel';
 import ApiLogPanel from '../components/ApiLogPanel';
 import Card from '../components/common/Card';
+import { useWatchlist } from '../context/WatchlistContext';
 
 const Dashboard = () => {
-    // Symbol State Management
-    const [currentSymbol, setCurrentSymbol] = useState(() =>
-        localStorage.getItem('lastSymbol') || '005930'
-    );
-
-    const [savedSymbols, setSavedSymbols] = useState(() => {
-        const saved = localStorage.getItem('savedSymbols');
-        // Default init
-        if (!saved) return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-
-        try {
-            const parsed = JSON.parse(saved);
-            // Migration logic: convert strings to objects
-            return parsed.map(item => {
-                if (typeof item === 'string') return { code: item, name: '' };
-                return item;
-            });
-        } catch {
-            return [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
-        }
-    });
-
-    useEffect(() => {
-        localStorage.setItem('lastSymbol', currentSymbol);
-        localStorage.setItem('savedSymbols', JSON.stringify(savedSymbols));
-    }, [currentSymbol, savedSymbols]);
+    // Use shared watchlist context (synced with DB)
+    const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
 
     return (
         <div className="space-y-6">
@@ -67,8 +43,6 @@ const Dashboard = () => {
             </div>
         </div>
     );
-
-
 };
 
 export default Dashboard;
