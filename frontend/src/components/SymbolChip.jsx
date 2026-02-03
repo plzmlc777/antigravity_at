@@ -83,6 +83,11 @@ const SymbolChip = ({
                 />
             )}
 
+            {/* 선택 표시 아이콘 (체크박스 모드가 아닐 때만) */}
+            {!showCheckbox && isSelected && (
+                <span className="text-green-400 font-bold">✓</span>
+            )}
+
             {/* 종목 코드 및 이름 */}
             <span className="text-sm font-mono">
                 {symbol.code}
