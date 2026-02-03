@@ -3242,9 +3242,11 @@ const StrategyView = () => {
                                                 />
                                             </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
+                                                {/* DEBUG: Show current selection */}
+                                                {console.log('[SymbolSelector Debug]', { activeTab, configSymbol: currentConfig?.symbol, contextSymbol: currentSymbol, finalSymbol: activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol) })}
                                                 {/* SymbolSelector - shared for both Rank and Symbol Compare */}
                                                 <SymbolSelector
-                                                    currentSymbol={activeTab === -3 ? '' : (currentConfig.symbol || currentSymbol)} // No single selection for Symbol Compare
+                                                    currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)} // No single selection for Symbol Compare
                                                     setCurrentSymbol={activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol)}
                                                     savedSymbols={savedSymbols}
                                                     setSavedSymbols={setSavedSymbols}
