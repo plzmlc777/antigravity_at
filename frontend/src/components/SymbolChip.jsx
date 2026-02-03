@@ -39,8 +39,8 @@ const SymbolChip = ({
         } else {
             // 선택 모드 (Rank 탭)
             return isSelected
-                ? "bg-blue-600 border-2 border-blue-400 text-white font-bold"
-                : "bg-gray-700 border border-gray-600 text-gray-300 hover:bg-gray-600";
+                ? "bg-yellow-500 border-2 border-yellow-300 text-black font-bold"
+                : "bg-zinc-800 border border-zinc-600 text-zinc-400 hover:bg-zinc-700";
         }
     };
 
