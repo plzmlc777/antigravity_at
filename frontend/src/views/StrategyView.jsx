@@ -2609,6 +2609,7 @@ const StrategyView = () => {
                                         : 'bg-gradient-to-r from-gray-800 to-gray-900 text-rose-500 border-rose-500/30 hover:border-rose-500 hover:text-rose-400 hover:shadow-[0_0_10px_rgba(225,29,72,0.2)]'
                                         }`}
                                 >
+                                    {activeTab === -2 && <span className="text-green-400 font-bold">✓</span>}
                                     <span className="text-lg">🔴</span>
                                     <Activity size={16} className={activeTab === -2 ? "animate-pulse" : ""} />
                                     <span>Live Operation</span>
@@ -2635,6 +2636,7 @@ const StrategyView = () => {
                                         : 'bg-gradient-to-r from-gray-800 to-gray-900 text-amber-500 border-amber-500/30 hover:border-amber-500 hover:text-amber-400 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                                         }`}
                                 >
+                                    {activeTab === -1 && <span className="text-green-400 font-bold">✓</span>}
                                     <span className="text-lg">💎</span>
                                     <span>Integrated Portfolio</span>
                                 </button>
@@ -2652,6 +2654,7 @@ const StrategyView = () => {
                                         : 'bg-gradient-to-r from-gray-800 to-gray-900 text-emerald-500 border-emerald-500/30 hover:border-emerald-500 hover:text-emerald-400 hover:shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                                         }`}
                                 >
+                                    {activeTab === -3 && <span className="text-green-400 font-bold">✓</span>}
                                     <span className="text-lg">📊</span>
                                     <span>Symbol Compare</span>
                                 </button>
@@ -2707,6 +2710,11 @@ const StrategyView = () => {
                                                 )}
 
                                                 <span>{label}</span>
+
+                                                {/* Selection Checkmark */}
+                                                {isSelected && (
+                                                    <span className="text-green-400 font-bold">✓</span>
+                                                )}
 
                                                 {/* Right Arrow */}
                                                 {showRight && (
