@@ -25,22 +25,22 @@ const SymbolChip = ({
     onDragEnd,
     index,
 }) => {
-    const baseStyles = "group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-all";
+    const baseStyles = "group flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all";
 
     const getStateStyles = () => {
-        if (isDragOver) return "border-yellow-500 border-dashed";
-        if (isDragging) return "opacity-50";
+        if (isDragOver) return "border-2 border-yellow-500 border-dashed";
+        if (isDragging) return "border border-white/10 opacity-50";
 
         if (showCheckbox) {
             // 체크박스 모드 (Symbol Compare)
             return isChecked
-                ? "bg-emerald-600/30 border-emerald-500 text-white"
-                : "bg-black/30 border-white/10 hover:border-white/30 text-gray-400";
+                ? "bg-emerald-600/30 border-2 border-emerald-500 text-white"
+                : "bg-black/30 border border-white/10 hover:border-white/30 text-gray-400";
         } else {
             // 선택 모드 (Rank 탭)
             return isSelected
-                ? "bg-blue-900/30 border-blue-500 text-blue-300"
-                : "bg-black/20 border-white/10 text-gray-400 hover:bg-white/5";
+                ? "bg-blue-600/20 border-2 border-blue-500 text-blue-300 shadow-lg shadow-blue-500/20"
+                : "bg-black/20 border border-white/10 text-gray-400 hover:bg-white/5";
         }
     };
 
