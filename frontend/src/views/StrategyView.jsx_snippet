@@ -1,0 +1,14 @@
+
+useEffect(() => {
+    // Clear results when switching tabs
+    setBacktestResult(null);
+    setBacktestStatus({ status: 'idle', message: 'Ready to Backtest' });
+    setShowChart(false);
+    
+    // Clear Optimization results
+    setOptResults(null);
+    setOptError(null);
+    setOptProgress({ current: 0, total: 0 });
+    setIsOptimizing(false);
+    setIsCancelling(false);
+}, [activeTab]);

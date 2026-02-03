@@ -1,0 +1,16 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.2
+pydantic-settings==2.1.0
+httpx==0.25.1
+python-dotenv==1.0.0
+python-multipart==0.0.6
+websockets==12.0
+sqlalchemy==2.0.23
+python-jose[cryptography]==3.3.0
+passlib[argon2]==1.7.4
+argon2-cffi==23.1.0
+cryptography==41.0.7
+psycopg2-binary
+pandas
+scipy>=1.11.0

@@ -1,0 +1,53 @@
+# Claude Code Ignore File
+# Excludes unnecessary files from Claude Code scanning
+
+# Git
+.git/
+
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Bundled tools
+tools/node/
+
+# Build outputs
+dist/
+build/
+coverage/
+*.egg-info/
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Database & backups
+*.db
+*.sqlite
+*.sql
+backups/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large data files
+*.csv
+*.parquet
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/

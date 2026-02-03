@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# JavaScript/Node
+# tools/node/bin/pm2* (Commented out to allow tracking)
+# JavaScript/Node
+tools/node/
+dist/
+coverage/
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# System
+thumbs.db
+*.db
+backend/sql_app.db
+
+# Logs
+*.log
+tools/node/bin/pm2*
+*.db.pre_pg_migration
+db_backup_pre_cleanup.sql
+
+# Runtime Cache
+backend/token_cache.json
+token_cache.json
+
+# Optimization Results
+backend/optimization_results/
+
+# Database Backups
+backup_*.sql
+*_backup_*.sql
+db_backup_*.sql
+
+# Temporary Debug Scripts
+debug_log.py
+debug_log_search.py
+
+# Node Modules (Frontend)
+frontend/node_modules/
+
+# Utils
+tools/cleanup_ohlcv.py
+
+backups/

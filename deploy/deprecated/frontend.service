@@ -1,0 +1,15 @@
+[Unit]
+Description=Auto Trading Frontend
+After=network.target
+
+[Service]
+Type=simple
+User=admin-ubuntu
+WorkingDirectory=/home/admin-ubuntu/ai/antigravity/auto_trading/frontend
+Environment=PATH=/home/admin-ubuntu/ai/antigravity/auto_trading/tools/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/admin-ubuntu/ai/antigravity/auto_trading/tools/node/bin/npm run dev -- --host 0.0.0.0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

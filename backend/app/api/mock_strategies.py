@@ -1,0 +1,866 @@
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from ..db.session import get_db
+from ..models.strategy_info import StrategyInfo
+import random
+import time
+import itertools
+import functools
+import csv
+import os
+from concurrent.futures import ProcessPoolExecutor
+from ..schemas.optimization import OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus
+
+# CSV output directory
+CSV_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "optimization_results")
+os.makedirs(CSV_OUTPUT_DIR, exist_ok=True)
+
+import logging
+
+logger = logging.getLogger("optimization")
+logger.setLevel(logging.INFO)
+
+# Removed file logging function in favor of direct print/file write in exception block
+
+
+# ============================================================================
+# UNIFIED CONFIG BUILDER - Single Source of Truth
+# ============================================================================
+def build_backtest_config(
+    strategy_config: Dict[str, Any],
+    symbol: str,
+    interval: str,
+    days: int,
+    from_date: str,
+    initial_capital: int
+) -> Dict[str, Any]:
+    """
+    Builds a complete, normalized config for backtest execution.
+
+    This function is the SINGLE SOURCE OF TRUTH for config building.
+    Used by BOTH optimization and individual backtest to ensure consistency.
+
+    Returns a new config dict with all required parameters.
+    """
+    config = strategy_config.copy()
+
+    # 1. Symbol (required for data fetching)
+    config['symbol'] = symbol
+
+    # 2. Interval - use config value if present, otherwise use passed value
+    config['interval'] = config.get('interval', interval)
+
+    # 3. Request-level params - MUST be included for Select/Active to work correctly
+    config['days'] = days
+    config['from_date'] = from_date
+    config['initial_capital'] = initial_capital
+
+    return config
+
+
+# ============================================================================
+# UNIFIED BACKTEST CORE - Single Source of Truth for ALL backtest operations
+# ============================================================================
+async def _run_unified_backtest(
+    strategy_id: str,
+    configs: List[Dict[str, Any]],  # List of normalized configs
+    symbol: str,  # Global/fallback symbol
+    interval: str,
+    days: int,
+    from_date: str,
+    initial_capital: int,
+    execution_mode: str = "single"  # "single", "parallel", "exclusive"
+) -> Dict[str, Any]:
+    """
+    Unified backtest execution function.
+
+    - "single": Single config backtest (individual rank tab)
+    - "parallel": Multiple configs, each with equal capital split
+    - "exclusive": Waterfall mode, winner takes all
+
+    This is the SINGLE SOURCE OF TRUTH for all backtest operations.
+    """
+    from ..core.waterfall_engine import WaterfallBacktestEngine
+    from ..core.strategy_registry import StrategyRegistry
+    from ..services.market_data import MarketDataService
+
+    # 1. Get Strategy Class from Registry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+    if not strategy_class:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Strategy '{strategy_id}' not found. Available: {StrategyRegistry.list_strategies()}"
+        )
+
+    logger.info(f"[UNIFIED_BACKTEST] mode={execution_mode}, strategy={strategy_class.__name__}, configs={len(configs)}")
+
+    # 2. Initialize Engine
+    engine = WaterfallBacktestEngine(strategy_class, {})
+
+    # 3. Execute based on mode
+    if execution_mode == "single" or len(configs) == 1:
+        # Single backtest - use run_single_backtest directly
+        data_service = MarketDataService()
+        config = configs[0]
+        rank_symbol = config.get('symbol', symbol)
+
+        raw_feed = await data_service.get_candles(rank_symbol, interval=interval, days=days)
+        if raw_feed:
+            if from_date:
+                raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
+            raw_feed.sort(key=lambda x: x['timestamp'])
+
+        if not raw_feed:
+            return {"error": "No data available for the specified parameters"}
+
+        result = await engine.run_single_backtest(
+            config=config,
+            feed=raw_feed,
+            initial_capital=initial_capital,
+            symbol=rank_symbol,
+            optimize_mode=False,
+            rank=1
+        )
+        result['strategy_id'] = strategy_id
+        result['execution_mode'] = 'single'
+
+    elif execution_mode == "parallel":
+        result = await engine.run_parallel(
+            strategies_config=configs,
+            global_symbol=symbol,
+            duration_days=days,
+            from_date=from_date,
+            interval=interval,
+            initial_capital=initial_capital
+        )
+        result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
+        result['execution_mode'] = 'parallel'
+
+    else:  # exclusive
+        result = await engine.run_integrated(
+            strategies_config=configs,
+            global_symbol=symbol,
+            duration_days=days,
+            from_date=from_date,
+            interval=interval,
+            initial_capital=initial_capital
+        )
+        result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
+        result['execution_mode'] = 'exclusive'
+
+    return result
+
+
+# Global Task Registry
+OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
+
+import uuid
+
+# Helper for Parallel Execution
+# Must be top-level for pickling
+def _run_backtest_wrapper(args):
+    strategy_cls, config, symbol, interval, days, from_date, initial_capital = args
+    from ..core.backtest_engine import BacktestEngine
+    
+    # Initialize implementation of run
+    engine = BacktestEngine(strategy_cls, config)
+    try:
+        # Run simplified backtest (we don't need charts for optimization, just metrics)
+        # But BacktestEngine.run might be heavy. 
+        # Ideally, we should add a 'lite' mode to run() to skip chart generation.
+        # For now, we just run it.
+        result = engine.run_sync( # Assuming valid sync method or using asyncio.run in wrapper if needed.
+             # Wait, engine.run is async? 
+             # If engine.run is async, we can't easily call it from ProcessPool without new event loop.
+             # Let's check imports. BacktestEngine is usually sync or has sync wrapper?
+             # Based on previous usage: result = await engine.run(...)
+             # If it's async, we should use ThreadPool or run_in_executor with loop.
+             # BUT Backtest is CPU bound.
+             # We should probably run it synchronously in the process.
+             # Let's assume we can call the core logic synchronously or use asyncio.run(engine.run(...))
+             symbol, interval, days, from_date, initial_capital
+        )
+        return config, result
+    except Exception as e:
+        return config, {"error": str(e)}
+
+def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital):
+    # Force close inherited DB connections to prevent SSL/OperationalError in worker process
+    try:
+        from ..db.session import engine
+        engine.dispose()
+    except Exception as e:
+        print(f"Warning: Failed to dispose engine in worker: {e}")
+
+    # Force reload modules to ensure latest code is used (worker process caching issue)
+    import sys
+    import importlib
+    modules_to_reload = [
+        'app.strategies.base',
+        'app.strategies.dip_martingale',
+        'app.strategies.time_momentum',
+        'app.core.strategy_registry',
+        'app.core.waterfall_engine',
+        'app.services.market_data'
+    ]
+    for mod_name in modules_to_reload:
+        if mod_name in sys.modules:
+            try:
+                importlib.reload(sys.modules[mod_name])
+            except Exception:
+                pass  # Continue if reload fails
+
+    import asyncio
+    # [MIGRATION] Use WaterfallBacktestEngine for consistent logic (Unified, Standard MDD, StockOrder)
+    from ..core.waterfall_engine import WaterfallBacktestEngine
+
+    # IMPORTANT: After module reload, get FRESH strategy class from registry
+    # The strategy_cls parameter is the OLD class reference from before reload
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_id = config.get('strategy_id', 'dip_martingale')
+    fresh_strategy_cls = StrategyRegistry.get_strategy_class(strategy_id) or strategy_cls
+
+    # Initialize Engine with Unified Logic (using fresh class)
+    engine = WaterfallBacktestEngine(fresh_strategy_cls, config)
+    
+    # create new loop for this process
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+    # Use unified config builder (Single Source of Truth)
+    config = build_backtest_config(config, symbol, interval, days, from_date, initial_capital)
+    actual_interval = config['interval']
+
+    result = loop.run_until_complete(engine.run_integrated(
+        strategies_config=[config],
+        global_symbol=symbol,
+        interval=actual_interval,
+        duration_days=days,
+        from_date=from_date,
+        initial_capital=initial_capital,
+        optimize_mode=True
+    ))
+
+    return config, result
+
+def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
+    """
+    Background wrapper that runs the sync process pool and updates Global Status.
+    """
+    try:
+        results = []
+        failures = []
+        
+        # Update Status to Running
+        OPTIMIZATION_TASKS[task_id]["status"] = "running"
+        OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
+        
+        # TEMPORARY: Sequential execution to fix ProcessPoolExecutor module caching issue
+        logger.info(f"[TEMP] Running {total_combos} combinations sequentially (no multiprocessing)")
+
+        for i, args in enumerate(run_args):
+            try:
+                config, res = _run_sync_in_process(*args)
+
+                if "error" in res:
+                    err_msg = str(res['error'])
+                    if len(failures) < 10:
+                         failures.append(f"Config failed: {err_msg}")
+                else:
+                    # Update Status Message
+                    if 'perf_log' in res:
+                         OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})... {res['perf_log']}"
+
+                    # Calculate Score
+                    ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
+                    wr = float(str(res['win_rate']).replace('%', ''))
+                    trades = int(res.get('total_trades', 0))
+
+                    score = ret * (wr / 100.0)
+
+                    results.append(OptimizationResultItem(
+                        rank=0,
+                        config=config,
+                        total_return=ret,
+                        win_rate=wr,
+                        total_trades=trades,
+                        score=round(score, 2),
+                        # Explicit Top-Level Promoted Fields
+                        max_drawdown=str(res.get("max_drawdown", "-")),
+                        profit_factor=str(res.get("profit_factor", "-")),
+                        avg_pnl=str(res.get("avg_pnl", "-")),
+                        sharpe_ratio=str(res.get("sharpe_ratio", "-")),
+                        avg_holding_time=str(res.get("avg_holding_time", "-")),
+                        stability_score=str(res.get("stability_score", "-")),
+                        acceleration_score=str(res.get("acceleration_score", "-")),
+                        activity_rate=str(res.get("activity_rate", "-")),
+                        total_days=int(res.get("total_days", 0)),
+                        max_profit=str(res.get("max_profit", "-")),
+                        max_loss=str(res.get("max_loss", "-")),
+                        cycle_count=res.get("cycle_count"),
+                        cycle_avg_pnl=res.get("cycle_avg_pnl"),
+                        cycle_avg_hold=res.get("cycle_avg_hold"),
+                        cycle_max_hold=res.get("cycle_max_hold"),
+                        cycle_min_hold=res.get("cycle_min_hold"),
+                        metrics={
+                            # Frontend relies on 'metrics' spread, so we must populate these!
+                            "max_drawdown": res.get("max_drawdown", "-"),
+                            "profit_factor": res.get("profit_factor", "-"),
+                            "avg_pnl": res.get("avg_pnl", "-"),
+                            "sharpe_ratio": res.get("sharpe_ratio", "-"),
+                            "avg_holding_time": res.get("avg_holding_time", "-"),
+                            "stability_score": res.get("stability_score", "-"),
+                            "acceleration_score": res.get("acceleration_score", "-"),
+                            "activity_rate": res.get("activity_rate", "-"),
+                            "total_days": res.get("total_days", 0),
+                            "max_profit": res.get("max_profit", "-"),
+                            "max_loss": res.get("max_loss", "-"),
+                            "cycle_count": res.get("cycle_count"),
+                            "cycle_avg_pnl": res.get("cycle_avg_pnl"),
+                            "cycle_avg_hold": res.get("cycle_avg_hold"),
+                            "cycle_max_hold": res.get("cycle_max_hold"),
+                            "cycle_min_hold": res.get("cycle_min_hold")
+                        }
+                    ))
+            except Exception as e:
+                logger.error(f"Result Error: {e}")
+                failures.append(str(e))
+
+            # Update Progress
+            OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+
+            # Update partial results every 10 items (for live preview)
+            if len(results) > 0 and (i + 1) % 10 == 0:
+                # Sort current results and take top 20 for preview
+                sorted_partial = sorted(results, key=lambda x: x.score, reverse=True)[:20]
+                # Assign temporary ranks
+                partial_with_ranks = []
+                for idx, item in enumerate(sorted_partial):
+                    partial_with_ranks.append(item.model_copy(update={"rank": idx + 1}))
+                OPTIMIZATION_TASKS[task_id]["partial_results"] = partial_with_ranks
+
+            # Check for Cancellation
+            if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                logger.info(f"Task {task_id} cancellation requested.")
+                OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                break
+        
+        # Finished - Sort by score and assign ranks
+        results.sort(key=lambda x: x.score, reverse=True)
+
+        # Use model_copy to properly update rank (Pydantic v2 safe)
+        ranked_results = []
+        for i, item in enumerate(results):
+            ranked_item = item.model_copy(update={"rank": i + 1})
+            ranked_results.append(ranked_item)
+        results = ranked_results
+
+        # Write ALL results to CSV file
+        csv_filename = f"optimization_{task_id}.csv"
+        csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+        try:
+            with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
+                if results:
+                    # Define CSV columns
+                    csv_columns = [
+                        'rank', 'score', 'total_return', 'win_rate', 'total_trades',
+                        'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
+                        'stability_score', 'acceleration_score', 'activity_rate',
+                        'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
+                        'cycle_count', 'cycle_avg_pnl', 'cycle_avg_hold'
+                    ]
+                    # Add config keys from first result
+                    config_keys = list(results[0].config.keys())
+                    all_columns = csv_columns + [f"config_{k}" for k in config_keys]
+
+                    writer = csv.DictWriter(csvfile, fieldnames=all_columns)
+                    writer.writeheader()
+
+                    for item in results:
+                        row = {
+                            'rank': item.rank,
+                            'score': item.score,
+                            'total_return': item.total_return,
+                            'win_rate': item.win_rate,
+                            'total_trades': item.total_trades,
+                            'max_drawdown': item.max_drawdown,
+                            'profit_factor': item.profit_factor,
+                            'sharpe_ratio': item.sharpe_ratio,
+                            'avg_pnl': item.avg_pnl,
+                            'stability_score': item.stability_score,
+                            'acceleration_score': item.acceleration_score,
+                            'activity_rate': item.activity_rate,
+                            'avg_holding_time': item.avg_holding_time,
+                            'max_profit': item.max_profit,
+                            'max_loss': item.max_loss,
+                            'total_days': item.total_days,
+                            'cycle_count': item.cycle_count,
+                            'cycle_avg_pnl': item.cycle_avg_pnl,
+                            'cycle_avg_hold': item.cycle_avg_hold,
+                        }
+                        # Add config values
+                        for k in config_keys:
+                            row[f"config_{k}"] = item.config.get(k, "")
+                        writer.writerow(row)
+
+            OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
+            logger.info(f"[CSV] Saved {len(results)} results to {csv_filepath}")
+        except Exception as csv_err:
+            logger.error(f"[CSV] Failed to save CSV: {csv_err}")
+
+        execution_time = time.time() - start_time
+        
+        # Determine final status
+        final_status = "completed"
+        if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+             final_status = "cancelled"
+        
+        response = OptimizationResponse(
+            strategy_id=strategy_id,
+            best_config=results[0].config if results else {},
+            results=results[:200],
+            failures=failures,
+            total_combinations=total_combos,
+            elapsed_time=execution_time,
+            task_id=task_id,
+            status=final_status
+        )
+        
+        OPTIMIZATION_TASKS[task_id]["status"] = final_status
+        OPTIMIZATION_TASKS[task_id]["result"] = response
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        msg = f"CRITICAL FAILURE: {e}\n{tb}"
+        
+        # Log to stdout for Docker/Shell capture
+        print(f"\n[OPTIMIZATION ERROR] {msg}\n", flush=True)
+        
+        # Log to simple file
+        try:
+            with open("optimization_crash.log", "a") as f:
+                f.write(f"{time.ctime()}\n{msg}\n")
+        except:
+            pass
+
+        logger.error(f"Background Task Failed: {e}")
+        OPTIMIZATION_TASKS[task_id]["status"] = "failed"
+        OPTIMIZATION_TASKS[task_id]["message"] = str(e)
+
+# Removed old _optimize_sync_wrapper as it is replaced by _optimize_background_task logic
+
+
+router = APIRouter()
+
+@router.get("/debug-probe")
+async def debug_probe():
+    return {"status": "alive", "message": "Router is active"}
+
+class IntegratedBacktestRequest(BaseModel):
+    symbol: str = "TEST"
+    interval: str = "1m"
+    days: int = 365
+    from_date: Optional[str] = None
+    initial_capital: int = 10000000
+    configs: List[Dict[str, Any]] = [] # Ordered list of configs
+
+@router.post("/integrated/v2-backtest")
+async def run_integrated_backtest(request: IntegratedBacktestRequest):
+    try:
+        from ..core.backtest_engine import BacktestEngine
+        from ..core.integrated_backtest_engine import IntegratedBacktestEngine
+        
+        # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
+        from ..strategies.base import BaseStrategy
+        class MockStrategy(BaseStrategy):
+             def initialize(self): pass
+             def on_data(self, data): pass
+        
+        engine = IntegratedBacktestEngine(MockStrategy, {}) # Use Subclass for Integrated Mode
+        
+        result = await engine.run_integrated_simulation(
+            strategies_config=request.configs,
+            symbol=request.symbol,
+            interval=request.interval,
+            duration_days=request.days,
+            from_date=request.from_date,
+            initial_capital=request.initial_capital
+        )
+        
+        return {
+            "strategy_id": "integrated_waterfall",
+            "total_return": result['total_return'],
+            "win_rate": result['win_rate'],
+            "max_drawdown": result['max_drawdown'],
+            "total_trades": result.get('total_trades', 0),
+            "avg_pnl": result.get('avg_pnl', "0%"),
+            "max_profit": result.get('max_profit', "0%"),
+            "max_loss": result.get('max_loss', "0%"),
+            "profit_factor": result.get('profit_factor', "0.00"),
+            "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
+            "activity_rate": result.get('activity_rate', "0%"),
+            "total_days": result.get('total_days', 0),
+            "avg_holding_time": result.get('avg_holding_time', "0m"),
+            "decile_stats": result.get('decile_stats', []),
+            "bucket_stats": result.get('bucket_stats', []),
+            "stability_score": result.get('stability_score', "0.00"),
+            "acceleration_score": result.get('acceleration_score', "0.00"),
+            "cycle_count": result.get('cycle_count'),
+            "cycle_avg_pnl": result.get('cycle_avg_pnl'),
+            "cycle_avg_hold": result.get('cycle_avg_hold'),
+            "cycle_max_hold": result.get('cycle_max_hold'),
+            "cycle_min_hold": result.get('cycle_min_hold'),
+            "chart_data": result['chart_data'],
+            "ohlcv_data": result.get('ohlcv_data', []),
+            "trades": result.get('trades', []),
+            "matched_trades": result.get('matched_trades', []),
+            "multi_ohlcv_data": result.get('multi_ohlcv_data', {}),
+            "rank_stats_list": result.get('rank_stats_list', []),
+            "logs": result.get('logs', [])
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc(),
+            "logs": ["CRASHED"]
+        }
+
+class Strategy(BaseModel):
+    id: str
+    name: str
+    description: str
+    code: str
+    tags: List[str]
+    detailed_description: Optional[str] = None
+    parameter_schema: Optional[Dict[str, Any]] = None  # UI parameter configuration
+
+    class Config:
+        from_attributes = True
+
+# Hardcoded strategies removed in favor of DB persistence.
+
+@router.get("/list", response_model=List[Strategy])
+async def list_strategies(db: Session = Depends(get_db)):
+    from ..core.strategy_registry import StrategyRegistry
+    strats = db.query(StrategyInfo).all()
+    result = []
+    for s in strats:
+        data = Strategy.from_orm(s)
+        if not data.parameter_schema:
+            class_schema = StrategyRegistry.get_parameter_schema(s.id)
+            if class_schema:
+                data.parameter_schema = class_schema
+        result.append(data)
+    return result
+
+@router.post("/generate")
+async def generate_strategy_code(prompt: Dict[str, str]):
+    # Mock AI Delay
+    time.sleep(1.5)
+    return {
+        "id": f"ai_gen_{random.randint(1000, 9999)}",
+        "name": "AI Generated Strategy",
+        "description": f"Generated based on: {prompt.get('prompt')}",
+        "code": f"# AI Generated Code for: {prompt.get('prompt')}\n\nclass MyStrategy(BaseStrategy):\n    def on_data(self, data):\n        # Logic derived from AI\n        if data.close > data.open * 1.05:\n            self.buy()",
+        "tags": ["AI-Generated"]
+    }
+
+
+
+class BacktestRequest(BaseModel):
+    symbol: str = "TEST"
+    interval: str = "1m"
+    days: int = 365
+    from_date: Optional[str] = None # Or start_date
+    start_date: Optional[str] = None # Aliases
+    initial_capital: int = 10000000
+    config: Dict[str, Any] = {} # Nested config from frontend strategy selector
+
+@router.post("/{strategy_id}/backtest")
+async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
+    """
+    Individual backtest endpoint.
+    Uses _run_unified_backtest() for consistent behavior with integrated backtest.
+    """
+    start_date = request.start_date or request.from_date
+
+    # Build normalized config (Single Source of Truth)
+    config = build_backtest_config(
+        request.config,
+        symbol=request.symbol,
+        interval=request.interval,
+        days=request.days,
+        from_date=start_date,
+        initial_capital=request.initial_capital
+    )
+
+    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={config['interval']}, days={request.days}, from_date={start_date}")
+
+    # Use unified backtest function (Single Source of Truth)
+    result = await _run_unified_backtest(
+        strategy_id=strategy_id,
+        configs=[config],  # Single config wrapped in list
+        symbol=request.symbol,
+        interval=config['interval'],
+        days=request.days,
+        from_date=start_date,
+        initial_capital=request.initial_capital,
+        execution_mode="single"
+    )
+
+    # Return standardized response
+    return {
+        "strategy_id": strategy_id,
+        "total_return": result.get('total_return', 0),
+        "win_rate": result.get('win_rate', 0),
+        "max_drawdown": result.get('max_drawdown', 0),
+        "total_trades": result.get('total_trades', 0),
+        "avg_pnl": result.get('avg_pnl', "0%"),
+        "max_profit": result.get('max_profit', "0%"),
+        "max_loss": result.get('max_loss', "0%"),
+        "profit_factor": result.get('profit_factor', "0.00"),
+        "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
+        "activity_rate": result.get('activity_rate', "0%"),
+        "total_days": result.get('total_days', 0),
+        "avg_holding_time": result.get('avg_holding_time', "0m"),
+        "decile_stats": result.get('decile_stats', []),
+        "bucket_stats": result.get('bucket_stats', []),
+        "stability_score": result.get('stability_score', "0.00"),
+        "acceleration_score": result.get('acceleration_score', "0.00"),
+        "cycle_count": result.get('cycle_count'),
+        "cycle_avg_pnl": result.get('cycle_avg_pnl'),
+        "cycle_avg_hold": result.get('cycle_avg_hold'),
+        "cycle_max_hold": result.get('cycle_max_hold'),
+        "cycle_min_hold": result.get('cycle_min_hold'),
+        "chart_data": result.get('chart_data', []),
+        "ohlcv_data": result.get('ohlcv_data', []),
+        "trades": result.get('trades', []),
+        "logs": result.get('logs', []),
+        "rank_stats_list": result.get('rank_stats_list', [])
+    }
+
+@router.post("/{strategy_id}/optimize", response_model=OptimizationResponse)
+async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
+    start_time = time.time()
+    
+    # 1. Select Strategy Class from Registry
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+    
+    if not strategy_class:
+        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found for optimization.")
+
+    # 2. Generate Cartesian Product
+    keys = list(request.parameter_ranges.keys())
+    values = list(request.parameter_ranges.values())
+    combinations = list(itertools.product(*values))
+
+    # No limit - user can stop manually via cancel button if needed
+    # Accurate optimization results are more important than speed
+    total_combinations = len(combinations)
+    logger.info(f"[Optimization] Running {total_combinations} combinations for {strategy_id}")
+
+    # 3. Prepare Tasks
+    tasks = []
+    base_config = request.base_config.copy()
+    
+    run_args = []
+    for idx, combo in enumerate(combinations):
+        # Merge combo into config
+        current_config = base_config.copy()
+        current_config['strategy_id'] = strategy_id  # Required for fresh class lookup after module reload
+        for i, key in enumerate(keys):
+            current_config[key] = combo[i]
+
+        # Debug: Log first few combinations
+        if idx < 5:
+            logger.info(f"[DEBUG] Combo {idx}: interval={current_config.get('interval', 'NOT_SET')}, request.interval={request.interval}")
+
+        run_args.append((
+            strategy_class,
+            current_config,
+            request.symbol,
+            request.interval,
+            request.days,
+            request.from_date,
+            request.initial_capital
+        ))
+
+    # 4. Async Execution (Fire and Forget)
+    task_id = str(uuid.uuid4())
+    
+    OPTIMIZATION_TASKS[task_id] = {
+        "status": "initializing",
+        "progress_current": 0,
+        "progress_total": len(combinations),
+        "message": "Initializing...",
+        "result": None,
+        "task_id": task_id
+    }
+    
+    # Run in Thread (to allow Thread to manage ProcessPool and updates)
+    import asyncio
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(
+        None, 
+        _optimize_background_task, 
+        task_id, 
+        run_args, 
+        strategy_id, 
+        start_time, 
+        len(combinations)
+    )
+    
+    # Return Immediate Response
+    return OptimizationResponse(
+        strategy_id=strategy_id,
+        best_config={},
+        results=[],
+        failures=[],
+        total_combinations=len(combinations),
+        elapsed_time=0,
+        task_id=task_id,
+        status="running"
+    )
+
+@router.get("/optimize/status/{task_id}", response_model=OptimizationStatus)
+async def get_optimization_status(task_id: str):
+    from ..schemas.optimization import OptimizationStatus
+    task = OPTIMIZATION_TASKS.get(task_id)
+    if not task:
+        # Fallback for invalid ID
+        return OptimizationStatus(
+            task_id=task_id,
+            status="not_found",
+            progress_current=0,
+            progress_total=0,
+            message="Task not found"
+        )
+
+    # Build response first
+    response = OptimizationStatus(
+        task_id=task_id,
+        status=task["status"],
+        progress_current=task.get("progress_current", 0),
+        progress_total=task.get("progress_total", 0),
+        message=task.get("message", ""),
+        result=task.get("result"),
+        csv_file=task.get("csv_file"),
+        partial_results=task.get("partial_results") if task["status"] == "running" else None
+    )
+
+    # Memory cleanup: Delete completed/failed/cancelled tasks after returning result
+    # Frontend saves to DB, so we don't need to keep it in memory
+    if task["status"] in ("completed", "failed", "cancelled") and task.get("result"):
+        del OPTIMIZATION_TASKS[task_id]
+        logger.info(f"[Memory Cleanup] Deleted optimization task {task_id} from memory after result delivery")
+
+    return response
+
+
+@router.get("/optimize/download/{task_id}")
+async def download_optimization_csv(task_id: str):
+    """
+    Download the full optimization results as a CSV file.
+    The file contains ALL results, not just the top 200.
+    """
+    csv_filename = f"optimization_{task_id}.csv"
+    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+
+    if not os.path.exists(csv_filepath):
+        raise HTTPException(status_code=404, detail="CSV file not found. Optimization may still be running or task_id is invalid.")
+
+    return FileResponse(
+        path=csv_filepath,
+        filename=csv_filename,
+        media_type="text/csv"
+    )
+
+
+# --- Integrated Backtest Logic ---
+
+class IntegratedConfig(BaseModel):
+    id: str
+    rank: int
+    config: Dict[str, Any]
+    strategy_id: str
+    symbol: str
+
+class IntegratedBacktestRequest(BaseModel):
+    configs: List[IntegratedConfig]
+    symbol: str # Primary/Global symbol (fallback)
+    interval: str
+    days: int
+    from_date: Optional[str] = None
+    initial_capital: float
+    execution_mode: str = "exclusive"  # 'exclusive' (waterfall) or 'parallel' (equal split)
+
+@router.post("/integrated-backtest")
+async def run_integrated_backtest(request: IntegratedBacktestRequest):
+    """
+    Integrated backtest endpoint for multiple strategies.
+    Uses _run_unified_backtest() for consistent behavior with individual backtest.
+    """
+    import traceback
+
+    try:
+        if not request.configs:
+            return {"error": "No strategies provided"}
+
+        # Prepare Strategy Configs - USE SAME NORMALIZATION AS INDIVIDUAL BACKTEST
+        num_ranks = len(request.configs)
+
+        # Capital allocation based on execution mode
+        if request.execution_mode == "parallel":
+            per_rank_capital = int(request.initial_capital) // num_ranks
+        else:
+            per_rank_capital = int(request.initial_capital)
+
+        # Normalize all configs
+        strategies_config = []
+        for c in request.configs:
+            rank_symbol = c.config.get('symbol') or c.symbol or request.symbol
+            normalized_config = build_backtest_config(
+                c.config,
+                symbol=rank_symbol,
+                interval=request.interval,
+                days=request.days,
+                from_date=request.from_date,
+                initial_capital=per_rank_capital
+            )
+            strategies_config.append(normalized_config)
+
+        actual_interval = strategies_config[0].get('interval', request.interval)
+        strategy_id = request.configs[0].strategy_id if request.configs else "time_momentum"
+
+        logger.info(f"[INTEGRATED] mode={request.execution_mode}, strategy={strategy_id}, ranks={num_ranks}")
+
+        # Use unified backtest function (Single Source of Truth)
+        result = await _run_unified_backtest(
+            strategy_id=strategy_id,
+            configs=strategies_config,
+            symbol=request.symbol,
+            interval=actual_interval,
+            days=request.days,
+            from_date=request.from_date,
+            initial_capital=int(request.initial_capital),
+            execution_mode=request.execution_mode
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"[INTEGRATED] Error: {str(e)}")
+        logger.error(f"[INTEGRATED] Traceback: {traceback.format_exc()}")
+        raise
+
