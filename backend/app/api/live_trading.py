@@ -16,12 +16,19 @@ class LiveBotStartRequest(BaseModel):
     is_paper: bool = True
 
 @router.post("/start")
-async def start_live_bot(req: LiveBotStartRequest):
+async def start_live_bot(
+    req: LiveBotStartRequest,
+    ctx: UserAccountContext = Depends(get_user_context)
+):
     """
     Start a new Live Trading Session.
     """
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account selected")
+
     try:
         config = req.dict()
+        config["account_id"] = ctx.account_id  # 계좌 ID 추가
         session_id = await live_manager.start_session(config)
         return {"status": "success", "session_id": session_id, "message": "Live Session Started"}
     except Exception as e:

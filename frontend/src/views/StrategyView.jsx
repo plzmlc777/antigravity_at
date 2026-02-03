@@ -2650,11 +2650,11 @@ const StrategyView = () => {
                                             <button
                                                 key={idx}
                                                 onClick={() => handleTabSwitch(idx)}
-                                                className={`group px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 ${isSelected
+                                                className={`group px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap flex items-center gap-2 border-2 ${isSelected
                                                     ? isActive
-                                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                                                        : 'bg-gray-600 text-white shadow-lg'
-                                                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200'
+                                                        ? 'bg-blue-600 text-white border-yellow-400 shadow-lg shadow-blue-900/30'
+                                                        : 'bg-gray-600 text-white border-yellow-400 shadow-lg'
+                                                    : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200'
                                                     }`}
                                             >
                                                 <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />

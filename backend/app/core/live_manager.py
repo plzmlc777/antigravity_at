@@ -359,12 +359,17 @@ class LiveManager:
         strat_config = config.get("strategy_config", {})
         initial_capital = config.get("initial_capital", 0)
         is_paper = config.get("is_paper", True)
-        
+        account_id = config.get("account_id")  # 계좌 ID 필수
+
+        if not account_id:
+            raise ValueError("account_id is required to start a live session")
+
         # 1. DB Record
         db = SessionLocal()
         try:
             sess = LiveBotSession(
                 id=session_id,
+                account_id=account_id,  # 계좌 ID 저장
                 symbol=symbol,
                 strategy_name=strategy_name,
                 strategy_config=strat_config,
