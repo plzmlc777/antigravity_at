@@ -3379,6 +3379,21 @@ const StrategyView = () => {
                                                                 selected_version_name: versionInfo.version_name,
                                                             });
                                                         }}
+                                                        onRevertParams={(params) => {
+                                                            // Revert to selected version's params (cancel modification)
+                                                            const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
+                                                            const filteredParams = {};
+                                                            parameterFields.forEach(key => {
+                                                                if (params[key] !== undefined) {
+                                                                    filteredParams[key] = params[key];
+                                                                }
+                                                            });
+
+                                                            handleConfigChange({
+                                                                ...currentConfig,
+                                                                ...filteredParams,
+                                                            });
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className="flex items-center gap-3">
