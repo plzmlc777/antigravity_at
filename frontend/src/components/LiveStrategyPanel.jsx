@@ -7,7 +7,7 @@ import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import UnifiedSessionCards from './UnifiedSessionCards';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange, onCapitalChange }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -15,7 +15,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [logs, setLogs] = useState([]);
     const [error, setError] = useState(null);
     const [availableBalance, setAvailableBalance] = useState(null);
-    const [inputCapital, setInputCapital] = useState(10000000); // 10M default
+    // Initialize from strategyConfig, fallback to 10M default
+    const [inputCapital, setInputCapital] = useState(strategyConfig?.initial_capital || 10000000);
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
@@ -54,6 +55,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             onStatusChange(status);
         }
     }, [status, onStatusChange]);
+
+    // Sync inputCapital when strategyConfig.initial_capital changes (e.g., after page refresh/DB load)
+    useEffect(() => {
+        if (strategyConfig?.initial_capital !== undefined && strategyConfig.initial_capital !== null) {
+            setInputCapital(strategyConfig.initial_capital);
+        }
+    }, [strategyConfig?.initial_capital]);
 
     // Fetch accumulated stats on mount and when configList/strategyName changes
     // This aggregates ALL historical cycles across all sessions with matching (symbol, strategy)
@@ -1138,7 +1146,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         type="number"
                                         disabled={status === 'RUNNING' || status === 'STARTING'}
                                         value={inputCapital}
-                                        onChange={(e) => setInputCapital(e.target.value)}
+                                        onChange={(e) => {
+                                            const newValue = e.target.value;
+                                            setInputCapital(newValue);
+                                            // Notify parent to persist the change
+                                            if (onCapitalChange) {
+                                                onCapitalChange(parseFloat(newValue) || 0);
+                                            }
+                                        }}
                                         className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         placeholder="Enter amount..."
                                     />

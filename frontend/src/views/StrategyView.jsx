@@ -416,6 +416,7 @@ const StrategyView = () => {
     }, [activeTab]);
     // isConfigLoaded는 useStrategyConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
+    const capitalSaveTimeoutRef = useRef(null); // Debounce timeout for auto-saving capital changes in Live tab
 
 
 
@@ -3392,6 +3393,32 @@ const StrategyView = () => {
                                         }}
                                         parameterSchema={selectedStrategy?.parameter_schema}
                                         onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
+                                        onCapitalChange={(newCapital) => {
+                                            // Update initial_capital in configList for the current liveRankIndex
+                                            const targetIndex = liveRankIndex >= 0 && liveRankIndex < configList.length ? liveRankIndex : 0;
+                                            setConfigList(prev => {
+                                                const newList = [...prev];
+                                                if (newList[targetIndex]) {
+                                                    newList[targetIndex] = {
+                                                        ...newList[targetIndex],
+                                                        initial_capital: newCapital
+                                                    };
+                                                }
+                                                return newList;
+                                            });
+                                            // Auto-save with debounce for Live tab capital (critical setting)
+                                            if (capitalSaveTimeoutRef.current) {
+                                                clearTimeout(capitalSaveTimeoutRef.current);
+                                            }
+                                            capitalSaveTimeoutRef.current = setTimeout(async () => {
+                                                try {
+                                                    await saveConfigs();
+                                                    console.log('[Live] Capital auto-saved:', newCapital);
+                                                } catch (e) {
+                                                    console.error('[Live] Failed to auto-save capital:', e);
+                                                }
+                                            }, 1000); // 1 second debounce
+                                        }}
                                     />
                                 </div>
                             )}
