@@ -214,7 +214,7 @@ async def activate_account(
     # 5. Notify LiveManager to reinitialize adapter with new account
     from ..core.live_manager import LiveManager
     live_manager = LiveManager.get_instance()
-    adapter_result = await live_manager.on_account_changed()
+    adapter_result = await live_manager.on_account_changed(account_id=account_id)
 
     return {
         "status": "success",

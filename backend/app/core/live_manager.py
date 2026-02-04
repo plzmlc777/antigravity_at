@@ -52,19 +52,29 @@ class LiveManager:
         if hasattr(self.adapter, "setup_realtime_callbacks"):
             self.adapter.setup_realtime_callbacks()
 
-    async def _reinitialize_adapter(self):
+    async def _reinitialize_adapter(self, account_id: int = None):
         """
-        Reinitialize adapter with active account credentials from DB.
-        Called during initialize() to get proper credentials for token acquisition.
+        Reinitialize adapter with account credentials from DB.
+
+        Args:
+            account_id: Specific account ID to use. If None, uses the first active account
+                       (but this can cause issues with multiple users - prefer passing account_id).
         """
         from ..models.account import ExchangeAccount
         from ..core import security
 
         db = SessionLocal()
         try:
-            active_account = db.query(ExchangeAccount).filter(
-                ExchangeAccount.is_active == True
-            ).first()
+            if account_id:
+                # Use specific account by ID
+                active_account = db.query(ExchangeAccount).filter(
+                    ExchangeAccount.id == account_id
+                ).first()
+            else:
+                # Fallback: first active account (legacy behavior, may pick wrong account)
+                active_account = db.query(ExchangeAccount).filter(
+                    ExchangeAccount.is_active == True
+                ).first()
 
             if active_account:
                 try:
@@ -93,15 +103,18 @@ class LiveManager:
         finally:
             db.close()
 
-    async def on_account_changed(self):
+    async def on_account_changed(self, account_id: int = None):
         """
         Called when the active account is changed in Settings.
         Reinitializes the adapter, WebSocket, and acquires a new token.
+
+        Args:
+            account_id: The ID of the newly activated account.
         """
-        logger.info("LiveManager: Account change detected. Reinitializing adapter...")
+        logger.info(f"LiveManager: Account change detected (account_id={account_id}). Reinitializing adapter...")
 
         # Reinitialize adapter with new account
-        success = await self._reinitialize_adapter()
+        success = await self._reinitialize_adapter(account_id=account_id)
         if not success:
             logger.error("LiveManager: Failed to reinitialize adapter on account change.")
             return {"status": "error", "message": "Failed to reinitialize adapter"}
@@ -282,42 +295,75 @@ class LiveManager:
     async def initialize(self):
         """
         Load active sessions from DB on server startup.
+        Only restores sessions for ONE account to prevent token/credential conflicts.
         """
         # Connect to MarketRouter
         market_data_router.set_live_manager(self)
 
-        # Reinitialize adapter with active account credentials from DB
-        await self._reinitialize_adapter()
-
-        # Update WebSocket URI to match active account's api_url
-        if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
-            self.adapter.ws_client.update_uri(self.adapter.base_url)
-            logger.info(f"LiveManager: WebSocket URI set to match account api_url: {self.adapter.base_url}")
-
-        # Ensure token is ready BEFORE restoring sessions (prevents "Cannot start Realtime: No Token")
-        if hasattr(self.adapter, '_ensure_token'):
-            logger.info("LiveManager: Acquiring Kiwoom token before session restore...")
-            for attempt in range(3):
-                try:
-                    await self.adapter._ensure_token()
-                    if self.adapter.access_token:
-                        logger.info("LiveManager: Token acquired successfully.")
-                        break
-                except Exception as e:
-                    logger.warning(f"Token acquisition attempt {attempt + 1} failed: {e}")
-                await asyncio.sleep(2)
-            else:
-                logger.error("LiveManager: Failed to acquire token after 3 attempts. Sessions may not have real-time data.")
-
         db = SessionLocal()
         try:
-            # 1. Restore sessions that were already RUNNING
+            # 1. Get all RUNNING sessions and group by account_id
             active_sessions = db.query(LiveBotSession).filter(
                 LiveBotSession.status == SessionStatus.RUNNING
             ).all()
-            
-            restored_ids = set()
+
+            if not active_sessions:
+                logger.info("LiveManager: No RUNNING sessions to restore.")
+                # Still initialize adapter with first active account for API calls
+                await self._reinitialize_adapter()
+                return
+
+            # 2. Group sessions by account_id
+            sessions_by_account: Dict[int, List] = {}
             for sess in active_sessions:
+                acc_id = sess.account_id
+                if acc_id not in sessions_by_account:
+                    sessions_by_account[acc_id] = []
+                sessions_by_account[acc_id].append(sess)
+
+            # 3. Select primary account (the one with most sessions, or first if tie)
+            primary_account_id = max(sessions_by_account.keys(),
+                                     key=lambda k: len(sessions_by_account[k]))
+
+            # 4. Mark sessions from OTHER accounts as ERROR (cannot run with different credentials)
+            for acc_id, sessions in sessions_by_account.items():
+                if acc_id != primary_account_id:
+                    for sess in sessions:
+                        logger.warning(f"Stopping session {sess.id} - belongs to different account {acc_id} "
+                                      f"(primary is {primary_account_id})")
+                        sess.status = SessionStatus.ERROR
+                        sess.error_log = f"Server restart: Session belongs to account {acc_id}, but account {primary_account_id} is primary."
+                    db.commit()
+
+            logger.info(f"LiveManager: Will restore {len(sessions_by_account[primary_account_id])} sessions "
+                       f"for account_id={primary_account_id}")
+
+            # 5. Reinitialize adapter with the PRIMARY account's credentials
+            await self._reinitialize_adapter(account_id=primary_account_id)
+
+            # Update WebSocket URI to match active account's api_url
+            if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
+                self.adapter.ws_client.update_uri(self.adapter.base_url)
+                logger.info(f"LiveManager: WebSocket URI set to match account api_url: {self.adapter.base_url}")
+
+            # 6. Ensure token is ready BEFORE restoring sessions
+            if hasattr(self.adapter, '_ensure_token'):
+                logger.info("LiveManager: Acquiring Kiwoom token before session restore...")
+                for attempt in range(3):
+                    try:
+                        await self.adapter._ensure_token()
+                        if self.adapter.access_token:
+                            logger.info("LiveManager: Token acquired successfully.")
+                            break
+                    except Exception as e:
+                        logger.warning(f"Token acquisition attempt {attempt + 1} failed: {e}")
+                    await asyncio.sleep(2)
+                else:
+                    logger.error("LiveManager: Failed to acquire token after 3 attempts. Sessions may not have real-time data.")
+
+            # 7. Restore sessions for the primary account only
+            restored_ids = set()
+            for sess in sessions_by_account[primary_account_id]:
                 try:
                     logger.info(f"Restoring Live Session: {sess.id} ({sess.symbol})")
                     await self._restore_engine(sess)
@@ -339,7 +385,7 @@ class LiveManager:
 
             # NOTE: Auto-Start logic removed in v0.9.7.3 due to duplicate key errors
             # and conflicts with existing RUNNING sessions. Users must manually start strategies.
-                    
+
         finally:
             db.close()
 
