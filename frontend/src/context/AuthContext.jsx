@@ -25,13 +25,20 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, [token]);
 
-    // Setup Axios Interceptor for 401s (Global & Client)
-    // NOTE: We do NOT auto-logout on 401 anymore.
-    // 401 can happen for various reasons (no active account, etc.)
-    // The app should handle 401s gracefully and redirect to appropriate pages.
+    // Setup Axios Interceptor for 401s - auto logout on token expiration
     useEffect(() => {
-        // Only setup client interceptor for logging, not for auto-logout
-        setupInterceptors(null);
+        setupInterceptors(() => {
+            // JWT 만료 시 자동 로그아웃 → 로그인 페이지로 이동
+            localStorage.removeItem('token');
+            localStorage.removeItem('is_admin');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('has_active_account');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('is_admin');
+            sessionStorage.removeItem('user_email');
+            sessionStorage.removeItem('has_active_account');
+            window.location.href = '/login';
+        });
     }, []);
 
     const login = async (email, password, remember = true) => {
