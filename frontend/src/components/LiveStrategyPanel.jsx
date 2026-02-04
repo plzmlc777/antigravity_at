@@ -993,6 +993,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         configList={configList}
                         savedSymbols={savedSymbols}
                         parameterSchema={parameterSchema}
+                        strategyId={strategyName}
+                        disabled={true}
                     />
                 </div>
             )}

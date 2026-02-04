@@ -19,6 +19,7 @@ import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import ParameterVersionManager from '../components/ParameterVersionManager';
+import RankVersionSelector from '../components/RankVersionSelector';
 import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
@@ -2786,8 +2787,36 @@ const StrategyView = () => {
                                                 <ActiveStrategiesPanel
                                                     configList={configList}
                                                     savedSymbols={savedSymbols}
-                                                    onEdit={(idx) => handleTabSwitch(idx)}
+                                                    strategyId={selectedStrategy?.id}
                                                     parameterSchema={selectedStrategy?.parameter_schema}
+                                                    onVersionChange={(idx, newParams, versionInfo) => {
+                                                        // Update configList with new params from selected version
+                                                        // IMPORTANT: Only apply strategy parameters, preserve metadata
+                                                        const metadataFields = ['uuid', 'tabName', 'is_active', 'symbol', 'selected_version_id', 'selected_version_name', 'initial_capital', 'start_date'];
+                                                        const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
+
+                                                        setConfigList(prev => {
+                                                            const updated = [...prev];
+                                                            if (updated[idx]) {
+                                                                // Only copy parameter fields from newParams
+                                                                const filteredParams = {};
+                                                                parameterFields.forEach(key => {
+                                                                    if (newParams[key] !== undefined) {
+                                                                        filteredParams[key] = newParams[key];
+                                                                    }
+                                                                });
+
+                                                                updated[idx] = {
+                                                                    ...updated[idx],  // Preserve all existing fields (including is_active, tabName, etc.)
+                                                                    ...filteredParams,  // Only apply strategy parameters
+                                                                    selected_version_id: versionInfo.id,
+                                                                    selected_version_name: versionInfo.version_name,
+                                                                };
+                                                            }
+                                                            return updated;
+                                                        });
+                                                        setIsDirty(true);
+                                                    }}
                                                 />
                                             </div>
 
@@ -3325,7 +3354,33 @@ const StrategyView = () => {
                                         {/* Row 2: Parameters */}
                                         <div>
                                             <div className="flex items-center justify-between mb-3">
-                                                <h4 className="text-sm font-bold text-gray-300">Parameters</h4>
+                                                <div className="flex items-center gap-4">
+                                                    <h4 className="text-sm font-bold text-gray-300">Parameters</h4>
+                                                    <RankVersionSelector
+                                                        strategyId={selectedStrategy?.id}
+                                                        symbol={currentConfig?.symbol || currentSymbol}
+                                                        currentParams={currentConfig}
+                                                        selectedVersionId={currentConfig?.selected_version_id}
+                                                        parameterSchema={selectedStrategy?.parameter_schema}
+                                                        onVersionSelect={(params, versionInfo) => {
+                                                            // Only apply strategy parameters, preserve metadata
+                                                            const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
+                                                            const filteredParams = {};
+                                                            parameterFields.forEach(key => {
+                                                                if (params[key] !== undefined) {
+                                                                    filteredParams[key] = params[key];
+                                                                }
+                                                            });
+
+                                                            handleConfigChange({
+                                                                ...currentConfig,
+                                                                ...filteredParams,
+                                                                selected_version_id: versionInfo.id,
+                                                                selected_version_name: versionInfo.version_name,
+                                                            });
+                                                        }}
+                                                    />
+                                                </div>
                                                 <div className="flex items-center gap-3">
                                                     <CopyPasteButtons
                                                         onCopy={handleCopyParams}
@@ -3361,8 +3416,15 @@ const StrategyView = () => {
                                                     symbol={currentConfig?.symbol || currentSymbol}
                                                     currentParams={currentConfig}
                                                     onRestore={(restoredParams) => {
-                                                        // Merge restored params with current config
-                                                        handleConfigChange({...currentConfig, ...restoredParams});
+                                                        // Only apply strategy parameters, preserve metadata
+                                                        const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
+                                                        const filteredParams = {};
+                                                        parameterFields.forEach(key => {
+                                                            if (restoredParams[key] !== undefined) {
+                                                                filteredParams[key] = restoredParams[key];
+                                                            }
+                                                        });
+                                                        handleConfigChange({...currentConfig, ...filteredParams});
                                                     }}
                                                     className="mt-4"
                                                 />
