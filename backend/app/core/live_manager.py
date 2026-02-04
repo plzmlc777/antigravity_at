@@ -689,6 +689,37 @@ class LiveManager:
             except Exception as e:
                 logger.error(f"Failed to stop session {session_id}: {e}")
 
+    async def stop_all_sessions_for_account(self, account_id: int) -> int:
+        """
+        Stop all RUNNING sessions for a specific account.
+        Returns the number of sessions stopped.
+        Used before starting new sessions to prevent duplicates.
+        """
+        db = SessionLocal()
+        stopped_count = 0
+        try:
+            # Find all RUNNING sessions for this account
+            running_sessions = db.query(LiveBotSession).filter(
+                LiveBotSession.account_id == account_id,
+                LiveBotSession.status == SessionStatus.RUNNING
+            ).all()
+
+            for sess in running_sessions:
+                try:
+                    await self.stop_session(sess.id)
+                    stopped_count += 1
+                    logger.info(f"Stopped existing session {sess.id} (symbol: {sess.symbol}) for account {account_id}")
+                except Exception as e:
+                    logger.error(f"Failed to stop session {sess.id}: {e}")
+                    # Mark as ERROR in DB if stop failed
+                    sess.status = SessionStatus.ERROR
+                    sess.error_log = f"Failed to stop: {e}"
+                    db.commit()
+
+            return stopped_count
+        finally:
+            db.close()
+
     async def cleanup_for_logout(self, user_id: int):
         """
         Clean up all state for user logout.

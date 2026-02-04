@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -620,6 +620,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setError(null);
             setStatus('STARTING');
 
+            // First, stop all existing sessions for this account to prevent duplicates
+            try {
+                const stopResult = await stopAllLiveBots();
+                if (stopResult.stopped_count > 0) {
+                    addLog("System", `Stopped ${stopResult.stopped_count} existing session(s) before starting new ones`);
+                }
+            } catch (stopErr) {
+                console.warn("Failed to stop existing sessions:", stopErr);
+                // Continue anyway - the sessions might not exist
+            }
+
             if (executionMode === 'parallel') {
                 // Validate weights sum to 100%
                 const weightSum = Object.entries(rankWeights)
@@ -1005,16 +1016,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 onClose={() => setIsStopModalOpen(false)}
                 onConfirm={async () => {
                     try {
-                        if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
-                            for (const sid of Object.values(parallelSessions)) {
-                                await stopLiveBot(sid);
-                            }
-                            setParallelSessions({});
-                            addLog("System", `All ${Object.keys(parallelSessions).length} parallel sessions stopped`);
-                        } else {
-                            await stopLiveBot(sessionId);
-                            addLog("System", "Session Stopped by User");
-                        }
+                        // Stop all sessions for this account
+                        const result = await stopAllLiveBots();
+                        setParallelSessions({});
+                        setSessionId(null);
+                        addLog("System", `Stopped ${result.stopped_count} session(s)`);
                         setStatus('STOPPED');
                         stopPolling();
                     } catch (err) {

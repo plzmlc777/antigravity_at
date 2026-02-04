@@ -198,6 +198,11 @@ export const stopLiveBot = async (sessionId) => {
     return data;
 };
 
+export const stopAllLiveBots = async () => {
+    const { data } = await api.post('/live/stop-all');
+    return data;
+};
+
 export const getLiveStatus = async () => {
     const { data } = await api.get('/live/status');
     return data;

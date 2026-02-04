@@ -15,6 +15,29 @@ class LiveBotStartRequest(BaseModel):
     initial_capital: float = 10000000
     is_paper: bool = True
 
+@router.post("/stop-all")
+async def stop_all_live_bots(
+    ctx: UserAccountContext = Depends(get_user_context)
+):
+    """
+    Stop all RUNNING sessions for the current account.
+    Call this before starting multiple new sessions to prevent duplicates.
+    """
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account selected")
+
+    try:
+        stopped_count = await live_manager.stop_all_sessions_for_account(ctx.account_id)
+        return {
+            "status": "success",
+            "stopped_count": stopped_count,
+            "message": f"Stopped {stopped_count} session(s)"
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/start")
 async def start_live_bot(
     req: LiveBotStartRequest,
@@ -22,6 +45,7 @@ async def start_live_bot(
 ):
     """
     Start a new Live Trading Session.
+    Note: Call /live/stop-all first if starting multiple sessions to prevent duplicates.
     """
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account selected")
