@@ -344,12 +344,15 @@ ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
 1. PM2 재시작: `pm2 restart all`
 2. UI 버전 확인
 3. Change Log Report 사용자에게 보고
-4. 리모트 배포 (Quick Deploy 명령어 사용)
+
+> ⚠️ **리모트 배포는 사용자가 명시적으로 요청할 때만 수행!**
+> "리모트 배포 해줘", "원격 서버에도 배포해줘" 등 요청이 있을 때만 Quick Deploy 실행
 
 ### 금지 사항
 - ❌ `backend/app/core/config.py` 수동 수정
 - ❌ `frontend/package.json` 수동 수정
 - ❌ 스크립트 없이 git tag 생성
+- ❌ **사용자 요청 없이 리모트 배포 금지**
 
 ---
 
