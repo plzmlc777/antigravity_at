@@ -291,18 +291,186 @@ When adding new strategies:
 - **API Docs**: http://localhost:8001/docs (FastAPI auto-generated Swagger UI)
 - **Health Check**: http://localhost:8001/api/v1/status
 
-## Workflow Documents
+---
 
-상세 절차가 필요한 작업은 아래 문서를 참조:
+## Remote Server Deployment
 
-| 작업 | 문서 경로 | 설명 |
-|------|-----------|------|
-| **Claude 메모리** | `.claude/memories.md` | 반복 지침, 트리거 키워드 |
-| **배포** | `.claude/docs/deployment.md` | 로컬/리모트 서버 배포, PM2, SSH |
-| **DB 마이그레이션** | `.claude/docs/database_migration.md` | 스키마 변경, 백업, 복구 |
-| **버전 릴리스** | `.claude/docs/release_protocol.md` | 버전업, 체인지로그, 태그 |
-| **롤백** | `.claude/docs/rollback_protocol.md` | Git 롤백, DB 복구 |
-| **문법 검사** | `.claude/docs/syntax_check.md` | Python/JS 린트 체크 |
+### Server Info
 
-> **사용법**: 특정 작업 수행 전 해당 문서를 읽고 절차를 따를 것
-> **Claude**: 버전업/배포 요청 시 `.claude/memories.md` 먼저 확인!
+| 항목 | 값 |
+|------|-----|
+| Host | 121.183.229.140 |
+| User | mint |
+| Path | ~/auto_trading |
+
+### Quick Deploy (코드만 변경된 경우)
+```bash
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+```
+
+### Full Deploy with DB Migration
+```bash
+ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && cd backend && python3 -m migrations.run_migrations && cd .. && pm2 restart at-backend at-frontend"
+```
+
+### Verify Deployment
+```bash
+ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
+```
+
+---
+
+## Version Release Protocol
+
+> ⚠️ **트리거 키워드**: "버전업", "배포", "Version Up"
+
+### Pre-Release
+1. 커밋되지 않은 변경사항 확인 및 커밋
+2. Change Log Report 생성:
+   - **User Ordered Changes**: 사용자 요청 변경
+   - **Self-Initiated Changes**: 자체 개선
+   - **Modified Files**: 수정된 파일 목록
+
+### Apply Version Bump
+```bash
+# 버전업 + 커밋 + 태그 + 푸시 + PM2 재시작 (올인원)
+./scripts/bump_version.sh X.Y.Z
+
+# 재시작만
+./scripts/bump_version.sh --restart
+```
+
+### Post-Release
+1. PM2 재시작: `pm2 restart all`
+2. UI 버전 확인
+3. Change Log Report 사용자에게 보고
+4. 리모트 배포 (Quick Deploy 명령어 사용)
+
+### 금지 사항
+- ❌ `backend/app/core/config.py` 수동 수정
+- ❌ `frontend/package.json` 수동 수정
+- ❌ 스크립트 없이 git tag 생성
+
+---
+
+## Database Migration Protocol
+
+> **CRITICAL**: 절대 DB를 DROP하거나 RESET하지 말 것. 데이터 손실은 용납되지 않음.
+
+### Pre-Migration
+1. 중요 데이터 확인:
+   ```bash
+   psql -h localhost -U antigravity_user -d antigravity_db -c "SELECT count(*) FROM exchange_accounts;"
+   ```
+2. 백업 생성:
+   ```bash
+   pg_dump -h localhost -U antigravity_user antigravity_db > backups/db_backup_$(date +%Y%m%d_%H%M%S).sql
+   ```
+
+### Migration Script (권장)
+```python
+# backend/migrate_add_new_column.py
+from app.db.session import engine
+from sqlalchemy import text
+
+def migrate():
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'your_table'
+        """))
+        existing = {row[0] for row in result}
+
+        if 'new_column' not in existing:
+            conn.execute(text("ALTER TABLE your_table ADD COLUMN new_column VARCHAR(255)"))
+            print("Added: new_column")
+        conn.commit()
+
+if __name__ == "__main__":
+    migrate()
+```
+
+### Post-Migration Verification
+```bash
+psql -h localhost -U antigravity_user -d antigravity_db -c "\d your_table"
+```
+
+### Emergency Recovery
+```bash
+pm2 stop all
+psql -h localhost -U antigravity_user -d antigravity_db < backups/db_backup_YYYYMMDD.sql
+pm2 restart all
+```
+
+---
+
+## Rollback Protocol
+
+> **Default**: DB 롤백 없이 Git 롤백만 수행. DB 롤백은 명시적 요청 시에만.
+
+### Procedure
+```bash
+# 1. 서비스 중지
+pm2 stop all
+
+# 2. 코드 롤백
+git stash
+git checkout <version_tag_or_hash>
+
+# 3. (선택) DB 롤백 - 요청 시에만
+PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost -d antigravity_db < backups/db_backup_XXXX.sql
+
+# 4. 서비스 재시작
+pm2 restart all
+```
+
+---
+
+## Syntax Check Protocol
+
+> 코드 수정 후 반드시 문법 검사 실행
+
+### Python Files
+```bash
+python3 -m py_compile <file_path>
+```
+- Exit Code 0: PASS
+- Exit Code != 0: 즉시 수정 필요
+
+### JavaScript/React Files
+```bash
+cd frontend && npm run lint
+```
+
+---
+
+## Troubleshooting
+
+### SSH 접속 실패
+
+**Host key verification failed:**
+```bash
+ssh-keyscan -H 121.183.229.140 >> ~/.ssh/known_hosts
+```
+
+**SSH 키 인증 실패:**
+```bash
+cat ~/.ssh/id_ed25519.pub
+ssh mint@121.183.229.140 "mkdir -p ~/.ssh && echo 'YOUR_PUBLIC_KEY' >> ~/.ssh/authorized_keys"
+```
+
+### WSL Git Push 실패
+
+**Credential 문제:**
+```bash
+git config --global credential.helper '/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe'
+```
+
+### 서비스 상태 확인
+```bash
+# 로컬
+pm2 status && pm2 logs --lines 20
+
+# 리모트
+ssh mint@121.183.229.140 "pm2 status && pm2 logs --lines 20"
+```
