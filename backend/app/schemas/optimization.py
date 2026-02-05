@@ -3,16 +3,18 @@ from typing import Dict, List, Union, Any, Optional
 
 class OptimizationRequest(BaseModel):
     symbol: str
+    symbols: Optional[List[str]] = None  # Multi-symbol cross-optimization
     interval: str = "1m"
     days: int = 365  # Default 1 year, max 730 (2 years)
     from_date: Optional[str] = None
     initial_capital: float = 10000000
     # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }
-    parameter_ranges: Dict[str, List[Union[str, int, float]]] 
+    parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {} # Default/Fixed values
 
 class OptimizationResultItem(BaseModel):
     rank: int
+    symbol: Optional[str] = None  # Which symbol this result belongs to (cross-optimization)
     config: Dict[str, Any]
     total_return: float
     win_rate: float

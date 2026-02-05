@@ -269,6 +269,9 @@ const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 // Generate UUID for Integrated View Persistence (strategy-specific)
 const getIntegratedUUID = (strategyId) => `integrated-${strategyId || 'unknown'}`;
 
+// Generate UUID for Cross-Optimization Persistence (strategy-specific)
+const getCrossOptUUID = (strategyId) => `cross-opt-${strategyId || 'unknown'}`;
+
 const StrategyView = () => {
     // 계좌 중심: 활성 계좌 ID 가져오기
     const { systemStatus } = useMarketData();
@@ -1188,15 +1191,17 @@ const StrategyView = () => {
         if (activeTab === -1) {
             targetUUID = getIntegratedUUID(selectedStrategy?.id);
             console.log('[Persistence] Integrated tab - UUID:', targetUUID, 'strategyId:', selectedStrategy?.id);
+        } else if (activeTab === -3) {
+            targetUUID = getCrossOptUUID(selectedStrategy?.id);
+            console.log('[Persistence] Cross-opt tab - UUID:', targetUUID, 'strategyId:', selectedStrategy?.id);
         } else {
             targetUUID = configList[activeTab]?.uuid;
             console.log('[Persistence] Rank tab', activeTab, '- UUID:', targetUUID);
         }
 
         if (!targetUUID) {
-            // Should not happen for activeTab !== -1 if configList is valid
-            // But if it is -1, we use constant.
-            if (activeTab !== -1) {
+            // Should not happen for activeTab !== -1/-3 if configList is valid
+            if (activeTab !== -1 && activeTab !== -3) {
                 console.warn('[Persistence] Skipping restore: No UUID for tab', activeTab);
                 return;
             }
@@ -1237,6 +1242,8 @@ const StrategyView = () => {
                     const formattedResults = data.optimization.results.map((item, index) => ({
                         ...(item.config || {}),
                         ...(item.metrics || {}), // Flatten metrics
+                        symbol: item.symbol || item.config?.symbol || '',
+                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                         return: item.total_return,
                         win_rate: item.win_rate,
                         trades: item.total_trades,
@@ -1708,6 +1715,14 @@ const StrategyView = () => {
 
 
     const handleOptEnableChange = (key, checked) => {
+        // Symbol Compare tab: store opt settings in symbolCompareConfig
+        if (activeTab === -3) {
+            setSymbolCompareConfig(prev => {
+                const base = prev || configList[0] || getDynamicDefaultConfig();
+                return { ...base, optEnabled: { ...(base.optEnabled || {}), [key]: checked } };
+            });
+            return;
+        }
         if (activeTab === -1 || !configList[activeTab]) return;
 
         setConfigList(prev => {
@@ -1722,6 +1737,14 @@ const StrategyView = () => {
     };
 
     const handleOptValueChange = (key, value) => {
+        // Symbol Compare tab: store opt settings in symbolCompareConfig
+        if (activeTab === -3) {
+            setSymbolCompareConfig(prev => {
+                const base = prev || configList[0] || getDynamicDefaultConfig();
+                return { ...base, optValues: { ...(base.optValues || getDynamicOptValues()), [key]: value } };
+            });
+            return;
+        }
         if (activeTab === -1 || !configList[activeTab]) return;
 
         setConfigList(prev => {
@@ -1779,11 +1802,12 @@ const StrategyView = () => {
 
         const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
 
-        // Build headers: Rank + Parameter columns + Stat columns + Score
+        // Build headers: Rank + (Symbol) + Parameter columns + Stat columns + Score
         const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
         const paramHeaders = paramDefs.map(p => p.key);
         const statHeaders = STAT_COLUMNS.map(col => col.key);
-        const headers = ['Rank', ...paramHeaders, ...statHeaders, 'Score'];
+        const hasSymbol = optResults.some(r => r.symbol);
+        const headers = ['Rank', ...(hasSymbol ? ['Symbol', 'Name'] : []), ...paramHeaders, ...statHeaders, 'Score'];
 
         // Build rows
         const rows = optResults.map(result => {
@@ -1792,7 +1816,7 @@ const StrategyView = () => {
                 const dataKey = col.optKey || col.key;
                 return result[dataKey] ?? '';
             });
-            return [result.rank ?? '', ...paramValues, ...statValues, result.score ?? ''];
+            return [result.rank ?? '', ...(hasSymbol ? [result.symbol ?? '', result.symbolName ?? ''] : []), ...paramValues, ...statValues, result.score ?? ''];
         });
 
         const csvContent = [headers, ...rows]
@@ -1804,7 +1828,8 @@ const StrategyView = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const filename = `optimization_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.csv`;
+        const symbolPart = hasSymbol ? 'cross' : (currentConfig?.symbol || 'unknown');
+        const filename = `optimization_${selectedStrategy?.id}_${symbolPart}_${new Date().toISOString().split('T')[0]}.csv`;
         link.download = filename;
         link.click();
         URL.revokeObjectURL(url);
@@ -1884,6 +1909,13 @@ const StrategyView = () => {
             return;
         }
 
+        // Cross-optimization: validate symbol selection
+        const isCrossOpt = activeTab === -3;
+        if (isCrossOpt && selectedCompareSymbols.length === 0) {
+            setOptError("Please select symbols for cross-optimization.");
+            return;
+        }
+
         // Validation: Check for empty optimization inputs
         const currentOptEnabled = currentConfig.optEnabled || {};
         const currentOptValues = currentConfig.optValues || getDynamicOptValues();
@@ -1903,7 +1935,7 @@ const StrategyView = () => {
             }
             parameter_ranges[key] = values;
             // Log parsed values for verification
-            addLog(`📊 Parsed ${key}: [${values.join(', ')}]`, 'info');
+            addLog(`Parsed ${key}: [${values.join(', ')}]`, 'info');
         }
 
         setIsOptimizing(true);
@@ -1914,6 +1946,28 @@ const StrategyView = () => {
         setOptProgress({ current: 0, total: 0 }); // Reset
 
         try {
+            // Cross-optimization: pre-fetch data for all selected symbols
+            if (isCrossOpt) {
+                const DATA_FETCH_DELAY_MS = 500;
+                addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
+                setOptStatusMessage(`Updating data (0/${selectedCompareSymbols.length})...`);
+                for (let i = 0; i < selectedCompareSymbols.length; i++) {
+                    const sym = selectedCompareSymbols[i];
+                    setOptStatusMessage(`Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`);
+                    try {
+                        await axios.post(`/api/v1/market-data/fetch/${sym}`, { interval: "1m", days: 365 });
+                    } catch (err) {
+                        console.warn(`Failed to update data for ${sym}`, err);
+                        addLog(`${sym}: data update failed`, 'warning');
+                    }
+                    if (i < selectedCompareSymbols.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
+                    }
+                }
+                addLog('Data update completed. Starting optimization...', 'info');
+                setOptStatusMessage("Starting optimization...");
+            }
+
             // Sanitize Config for Base - Include ALL schema defaults first
             const base_config = {};
 
@@ -1940,7 +1994,8 @@ const StrategyView = () => {
             });
 
             const payload = {
-                symbol: currentConfig.symbol || currentSymbol || "SEC", // Use config's symbol if available, else global
+                symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
+                symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
                 interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
                 days: currentConfig?.days || 365, // Must match Backtest payload
                 from_date: currentConfig?.from_date || "",
@@ -1988,6 +2043,8 @@ const StrategyView = () => {
                             const formattedPartial = statusData.partial_results.map((item, index) => ({
                                 ...item.config,
                                 ...item.metrics,
+                                symbol: item.symbol || item.config?.symbol || '',
+                                symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                                 return: item.total_return,
                                 win_rate: item.win_rate,
                                 trades: item.total_trades,
@@ -2006,6 +2063,8 @@ const StrategyView = () => {
                                 const formattedResults = resultData.results.map((item, index) => ({
                                     ...item.config,
                                     ...item.metrics, // Flatten metrics
+                                    symbol: item.symbol || item.config?.symbol || '',
+                                symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                                     return: item.total_return,
                                     win_rate: item.win_rate,
                                     trades: item.total_trades,
@@ -2016,13 +2075,26 @@ const StrategyView = () => {
                                 setOptResults(formattedResults);
                                 setCompletedOptTaskId(taskId); // For full CSV download
 
-                                // Pending Save: Store in state, save to DB only on Apply/Tab switch confirmation
-                                if (currentConfig.uuid && statusData.status === 'completed') {
-                                    setPendingOptResult({
-                                        tabUuid: currentConfig.uuid,
-                                        data: resultData
-                                    });
-                                    addLog('✅ Optimization complete. Click "Save Results" or apply a config to save to DB.', 'info');
+                                // Save optimization results
+                                if (statusData.status === 'completed') {
+                                    if (isCrossOpt) {
+                                        // Cross-optimization: auto-save to DB immediately (no Apply button flow)
+                                        const crossOptUuid = getCrossOptUUID(selectedStrategy?.id);
+                                        try {
+                                            await saveStrategyResult(crossOptUuid, 'optimization', resultData);
+                                            addLog('Cross-optimization results saved to DB.', 'info');
+                                        } catch (err) {
+                                            console.error("Failed to save cross-opt result", err);
+                                            addLog('Failed to save cross-optimization results', 'error');
+                                        }
+                                    } else if (currentConfig.uuid) {
+                                        // Rank tab: Pending Save - save to DB only on Apply/Tab switch confirmation
+                                        setPendingOptResult({
+                                            tabUuid: currentConfig.uuid,
+                                            data: resultData
+                                        });
+                                        addLog('Optimization complete. Click "Save Results" or apply a config to save to DB.', 'info');
+                                    }
                                 }
 
                                 if (statusData.status === 'cancelled') {
@@ -3985,7 +4057,7 @@ const StrategyView = () => {
 
                         {/* OPTIMIZATION SECTION */}
                         {
-                            activeTab >= 0 && (
+                            (activeTab >= 0 || activeTab === -3) && (
                                 <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                                     <div className="bg-white/5 px-4 py-3 border-b border-white/10">
                                         <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
@@ -4099,7 +4171,7 @@ const StrategyView = () => {
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={runOptimization}
-                                                        disabled={isOptimizing || activeTab === -1}
+                                                        disabled={isOptimizing || activeTab === -1 || (activeTab === -3 && selectedCompareSymbols.length === 0)}
                                                         className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
                                                     >
                                                         {isOptimizing ? (
@@ -4107,10 +4179,15 @@ const StrategyView = () => {
                                                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                                 {optProgress.total > 0
                                                                     ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                                    : "Initializing..."}
+                                                                    : (optStatusMessage || "Initializing...")}
                                                             </>
                                                         ) : (
-                                                            <>{activeTab === -1 ? 'Optimization Unavailable (Integrated)' : `🧪 Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`}</>
+                                                            <>{activeTab === -1
+                                                                ? 'Optimization Unavailable (Integrated)'
+                                                                : activeTab === -3
+                                                                    ? `Cross-Optimize (${selectedCompareSymbols.length} Symbols × ${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
+                                                                    : `Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
+                                                            }</>
                                                         )}
                                                     </button>
 
@@ -4203,8 +4280,10 @@ const StrategyView = () => {
                                                                 <thead>
                                                                     {(() => {
                                                                         const optCols = getOptVisibleColumns(optResults);
+                                                                        const hasSymbolCol = optResults.some(r => r.symbol);
                                                                         const extraCols = [
                                                                             { key: 'rank', label: 'Rank' },
+                                                                            ...(hasSymbolCol ? [{ key: 'symbol', label: 'Symbol' }, { key: 'symbolName', label: 'Name' }] : []),
                                                                             ...optCols.map(c => ({ key: c.optKey || c.key, label: c.tableLabel || c.label })),
                                                                             { key: 'score', label: 'Score' },
                                                                             ...convertSchemaToParamDefs(selectedStrategy?.parameter_schema)
@@ -4267,42 +4346,44 @@ const StrategyView = () => {
                                                                                         <button
                                                                                             disabled={isActiveConfig}
                                                                                             onClick={() => {
+                                                                                                const symbolInfo = res.symbol ? `Symbol: ${res.symbol} (${res.symbolName || ''})\n` : '';
                                                                                                 openConfirm(
                                                                                                     "Apply Optimization Config?",
-                                                                                                    `Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
+                                                                                                    `${symbolInfo}Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
                                                                                                     async () => {
-                                                                                                        // 1. Update Configuration
-                                                                                                        let updatedConfigList;
-                                                                                                        setConfigList(prev => {
-                                                                                                            const next = [...prev];
-                                                                                                            const configToApply = res.full_config || {};
-                                                                                                            next[activeTab] = {
-                                                                                                                ...next[activeTab],
+                                                                                                        const configToApply = res.full_config || {};
+
+                                                                                                        if (activeTab === -3) {
+                                                                                                            // Symbol tab: apply to symbolCompareConfig
+                                                                                                            setSymbolCompareConfig(prev => ({
+                                                                                                                ...(prev || {}),
                                                                                                                 ...configToApply
-                                                                                                            };
-                                                                                                            updatedConfigList = next;
-                                                                                                            return next;
-                                                                                                        });
+                                                                                                            }));
+                                                                                                            addLog(`Applied config from ${res.symbol || 'optimization'} #${res.rank}`, 'success');
+                                                                                                        } else {
+                                                                                                            // Rank tab: apply to configList[activeTab]
+                                                                                                            let updatedConfigList;
+                                                                                                            setConfigList(prev => {
+                                                                                                                const next = [...prev];
+                                                                                                                next[activeTab] = {
+                                                                                                                    ...next[activeTab],
+                                                                                                                    ...configToApply
+                                                                                                                };
+                                                                                                                updatedConfigList = next;
+                                                                                                                return next;
+                                                                                                            });
 
-                                                                                                        // 2. Save to DB (ConfigScope 사용)
-                                                                                                        try {
-                                                                                                            const configsToSave = updatedConfigList.map((cfg, index) => transformUiToDbConfig(cfg, index));
+                                                                                                            // Save to DB
+                                                                                                            try {
+                                                                                                                const configsToSave = updatedConfigList.map((cfg, index) => transformUiToDbConfig(cfg, index));
+                                                                                                                await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
+                                                                                                            } catch (e) {
+                                                                                                                console.error("Failed to save optimization config:", e);
+                                                                                                            }
 
-                                                                                                            // Debug: Log what we're saving
-                                                                                                            console.log("[Optimization Save] Saving configs:", configsToSave.map(c => ({
-                                                                                                                tab_name: c.tab_name,
-                                                                                                                is_active: c.is_active,
-                                                                                                                account_id: c.account_id
-                                                                                                            })));
-
-                                                                                                            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                                                                                                            console.log("Optimization config saved to DB");
-                                                                                                        } catch (e) {
-                                                                                                            console.error("Failed to save optimization config:", e);
+                                                                                                            // Trigger Real Backtest
+                                                                                                            runBacktest(selectedStrategy.id, configToApply);
                                                                                                         }
-
-                                                                                                        // 3. Trigger Real Backtest (User Request)
-                                                                                                        runBacktest(selectedStrategy.id, res.full_config || {});
                                                                                                     }
                                                                                                 );
                                                                                             }}
@@ -4316,6 +4397,13 @@ const StrategyView = () => {
                                                                                         </button>
                                                                                     </td>
                                                                                     <td className={`p-3 font-bold ${res.rank === 1 ? 'text-green-400' : 'text-gray-500'}`}>#{res.rank}</td>
+                                                                                    {/* Symbol column for cross-optimization */}
+                                                                                    {optResults.some(r => r.symbol) && (
+                                                                                        <td className="p-3 text-white font-mono font-bold">{res.symbol || '-'}</td>
+                                                                                    )}
+                                                                                    {optResults.some(r => r.symbol) && (
+                                                                                        <td className="p-3 text-gray-300 text-xs">{res.symbolName || '-'}</td>
+                                                                                    )}
 
                                                                                     {/* Performance Metrics - driven by STAT_COLUMNS (statsConfig.js) */}
                                                                                     {getOptVisibleColumns(optResults).map(col => {

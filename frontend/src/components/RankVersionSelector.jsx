@@ -214,9 +214,9 @@ const RankVersionSelector = ({
             </span>
 
             {/* Modified indicator and action buttons */}
-            {isModified && (
+            {(isModified || isCustom) && (
                 <>
-                    <span className="text-xs text-yellow-400 font-medium">(수정됨)</span>
+                    {isModified && <span className="text-xs text-yellow-400 font-medium">(수정됨)</span>}
                     <button
                         onClick={() => setShowSaveDialog(true)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
@@ -225,7 +225,7 @@ const RankVersionSelector = ({
                         <Save className="w-3 h-3" />
                         새 버전 저장
                     </button>
-                    {onRevertParams && (
+                    {isModified && onRevertParams && (
                         <button
                             onClick={handleCancel}
                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-600/80 hover:bg-gray-600 text-gray-200 text-xs rounded transition-colors"

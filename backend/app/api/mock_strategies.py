@@ -275,7 +275,8 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                 else:
                     # Update Status Message
                     if 'perf_log' in res:
-                         OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})... {res['perf_log']}"
+                         sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
+                         OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
 
                     # Calculate Score
                     ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
@@ -286,6 +287,7 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
 
                     results.append(OptimizationResultItem(
                         rank=0,
+                        symbol=config.get('symbol', ''),
                         config=config,
                         total_return=ret,
                         win_rate=wr,
@@ -368,9 +370,9 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         try:
             with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
                 if results:
-                    # Define CSV columns
+                    # Define CSV columns (symbol included for cross-optimization)
                     csv_columns = [
-                        'rank', 'score', 'total_return', 'win_rate', 'total_trades',
+                        'rank', 'symbol', 'score', 'total_return', 'win_rate', 'total_trades',
                         'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
                         'stability_score', 'acceleration_score', 'activity_rate',
                         'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
@@ -386,6 +388,7 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                     for item in results:
                         row = {
                             'rank': item.rank,
+                            'symbol': item.symbol or '',
                             'score': item.score,
                             'total_return': item.total_return,
                             'win_rate': item.win_rate,
@@ -660,74 +663,77 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     if not strategy_class:
         raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found for optimization.")
 
-    # 2. Generate Cartesian Product
+    # 2. Generate Cartesian Product (with optional multi-symbol cross-optimization)
+    symbols = request.symbols if request.symbols else [request.symbol]
     keys = list(request.parameter_ranges.keys())
     values = list(request.parameter_ranges.values())
-    combinations = list(itertools.product(*values))
+    param_combinations = list(itertools.product(*values))
 
     # No limit - user can stop manually via cancel button if needed
     # Accurate optimization results are more important than speed
-    total_combinations = len(combinations)
-    logger.info(f"[Optimization] Running {total_combinations} combinations for {strategy_id}")
+    total_combinations = len(symbols) * len(param_combinations)
+    logger.info(f"[Optimization] Running {total_combinations} combinations ({len(symbols)} symbols x {len(param_combinations)} params) for {strategy_id}")
 
     # 3. Prepare Tasks
     tasks = []
     base_config = request.base_config.copy()
-    
+
     run_args = []
-    for idx, combo in enumerate(combinations):
-        # Merge combo into config
-        current_config = base_config.copy()
-        current_config['strategy_id'] = strategy_id  # Required for fresh class lookup after module reload
-        for i, key in enumerate(keys):
-            current_config[key] = combo[i]
+    for symbol in symbols:
+        for idx, combo in enumerate(param_combinations):
+            # Merge combo into config
+            current_config = base_config.copy()
+            current_config['strategy_id'] = strategy_id  # Required for fresh class lookup after module reload
+            current_config['symbol'] = symbol  # Override symbol for cross-optimization
+            for i, key in enumerate(keys):
+                current_config[key] = combo[i]
 
-        # Debug: Log first few combinations
-        if idx < 5:
-            logger.info(f"[DEBUG] Combo {idx}: interval={current_config.get('interval', 'NOT_SET')}, request.interval={request.interval}")
+            # Debug: Log first few combinations
+            if len(run_args) < 5:
+                logger.info(f"[DEBUG] Combo {len(run_args)}: symbol={symbol}, interval={current_config.get('interval', 'NOT_SET')}")
 
-        run_args.append((
-            strategy_class,
-            current_config,
-            request.symbol,
-            request.interval,
-            request.days,
-            request.from_date,
-            request.initial_capital
-        ))
+            run_args.append((
+                strategy_class,
+                current_config,
+                symbol,
+                request.interval,
+                request.days,
+                request.from_date,
+                request.initial_capital
+            ))
 
     # 4. Async Execution (Fire and Forget)
     task_id = str(uuid.uuid4())
-    
+
     OPTIMIZATION_TASKS[task_id] = {
         "status": "initializing",
         "progress_current": 0,
-        "progress_total": len(combinations),
+        "progress_total": total_combinations,
         "message": "Initializing...",
         "result": None,
         "task_id": task_id
     }
-    
+
     # Run in Thread (to allow Thread to manage ProcessPool and updates)
     import asyncio
     loop = asyncio.get_running_loop()
     loop.run_in_executor(
-        None, 
-        _optimize_background_task, 
-        task_id, 
-        run_args, 
-        strategy_id, 
-        start_time, 
-        len(combinations)
+        None,
+        _optimize_background_task,
+        task_id,
+        run_args,
+        strategy_id,
+        start_time,
+        total_combinations
     )
-    
+
     # Return Immediate Response
     return OptimizationResponse(
         strategy_id=strategy_id,
         best_config={},
         results=[],
         failures=[],
-        total_combinations=len(combinations),
+        total_combinations=total_combinations,
         elapsed_time=0,
         task_id=task_id,
         status="running"
