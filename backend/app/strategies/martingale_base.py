@@ -1,7 +1,10 @@
 from abc import abstractmethod
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import logging
 from .base import BaseStrategy, IContext
+
+logger = logging.getLogger(__name__)
 
 
 class MartingaleBase(BaseStrategy):
@@ -111,6 +114,111 @@ class MartingaleBase(BaseStrategy):
 
         # Hook for subclass-specific initialization
         self._initialize_trigger()
+
+        # Reconstruct position state from DB execution records (survives PM2 restart)
+        self._reconstruct_position_from_db()
+
+    def _reconstruct_position_from_db(self):
+        """
+        Reconstruct position state from DB execution records after PM2 restart.
+        Prevents the strategy from "forgetting" its open position.
+        """
+        try:
+            from ..db.session import SessionLocal
+            from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+
+            session_id = getattr(self.context, 'session_id', None)
+            if not session_id:
+                return
+
+            db = SessionLocal()
+            try:
+                executions = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == session_id,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED
+                ).order_by(LiveTradeExecution.signal_timestamp).all()
+
+                if not executions:
+                    return  # No trades yet, fresh session
+
+                # 1. Count completed cycles and find last SELL index
+                last_sell_idx = -1
+                paper_cycles = 0
+                real_cycles = 0
+
+                for i, ex in enumerate(executions):
+                    if ex.signal_type == "SELL":
+                        is_paper = ex.is_paper if ex.is_paper is not None else True
+                        if is_paper:
+                            paper_cycles += 1
+                        else:
+                            real_cycles += 1
+                        last_sell_idx = i
+
+                # 2. Restore cycle counters
+                self.paper_cycle_id = paper_cycles
+                self.real_cycle_id = real_cycles
+
+                # 3. Get BUY orders in current open cycle (after last SELL)
+                open_buys = []
+                for i, ex in enumerate(executions):
+                    if i > last_sell_idx and ex.signal_type == "BUY":
+                        open_buys.append(ex)
+
+                if not open_buys:
+                    if paper_cycles > 0 or real_cycles > 0:
+                        self.context.log(
+                            f"[{self._log_prefix}] DB restore: No open position. "
+                            f"Cycles: paper={paper_cycles} real={real_cycles}"
+                        )
+                    return  # No open position, at L0
+
+                # 4. Reconstruct position state from open BUYs
+                total_qty = 0
+                total_cost = 0.0
+                entries = []
+                max_level = 0
+
+                for ex in open_buys:
+                    qty = ex.filled_quantity or ex.requested_quantity or 0
+                    price = ex.executed_price or ex.theoretical_price or 0
+                    metadata = ex.trade_metadata or {}
+                    level = metadata.get("level", len(entries) + 1)
+                    if not isinstance(level, int):
+                        level = len(entries) + 1
+
+                    total_qty += qty
+                    total_cost += price * qty
+                    max_level = max(max_level, level)
+
+                    entries.append({
+                        "level": level,
+                        "price": price,
+                        "quantity": qty,
+                        "time": ex.signal_timestamp.isoformat() if ex.signal_timestamp else ""
+                    })
+
+                if total_qty > 0:
+                    self.current_level = max_level
+                    self.total_quantity = int(total_qty)
+                    self.average_price = total_cost / total_qty
+                    self.entries = entries
+                    self.reference_price = entries[0]["price"]
+                    self.peak_price = max(e["price"] for e in entries)
+                    self.cycle_start_time = open_buys[0].signal_timestamp
+
+                    self.context.log(
+                        f"[{self._log_prefix}] Position RESTORED from DB: "
+                        f"L{self.current_level}, {self.total_quantity} qty, "
+                        f"Avg: {self.average_price:,.0f}, "
+                        f"Cycles: paper={paper_cycles} real={real_cycles}"
+                    )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"Position reconstruction failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     def _initialize_trigger(self):
         """Override in subclasses to initialize trigger-specific state."""
