@@ -1084,8 +1084,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     </div>
                 <div className="px-4 py-4">
 
-                    {/* Section 1: Dashboard Stats (Status | PnL | Balance | Target) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                    {/* Section 1: Dashboard Stats */}
+                    {(() => {
+                        const targetCap = parseFloat(inputCapital) || 0;
+                        const sessions = liveData?._parallel_sessions || (liveData ? [liveData] : []);
+                        const usedCapital = sessions.reduce((sum, s) => {
+                            const st = s?.strategy_state || {};
+                            return sum + ((st.total_quantity || 0) * (st.average_price || 0));
+                        }, 0);
+                        const availableCapital = targetCap - usedCapital;
+                        return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
                         {/* Status */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
                             <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Session Status</span>
@@ -1112,19 +1121,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             )}
                         </div>
 
-                        {/* Account Balance (Total Available Cash) */}
+                        {/* Target Capital (Total) */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Total Account Cash</span>
-                            <div className="text-xl font-mono text-blue-400 tracking-tight">
-                                {availableBalance !== null ? `${availableBalance.toLocaleString()} KRW` : 'Fetching...'}
-                            </div>
-                        </div>
-
-                        {/* Target Capital (Allocated for this bot) */}
-                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Target Capital</span>
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Total Capital</span>
                             <div className="text-xl font-mono text-purple-400 tracking-tight">
-                                {inputCapital ? `${(parseFloat(inputCapital)).toLocaleString()} KRW` : '0 KRW'}
+                                {targetCap > 0 ? `${targetCap.toLocaleString()}` : '0'}
                             </div>
                             {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (() => {
                                 const activeWeights = Object.entries(rankWeights).filter(([idx]) => configList[idx]?.is_active);
@@ -1138,7 +1139,35 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 );
                             })()}
                         </div>
+
+                        {/* Used Capital */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Used</span>
+                            <div className="text-xl font-mono text-orange-400 tracking-tight">
+                                {usedCapital > 0 ? `${Math.round(usedCapital).toLocaleString()}` : '0'}
+                            </div>
+                            {targetCap > 0 && usedCapital > 0 && (
+                                <div className="text-[10px] text-gray-500 mt-1">
+                                    {((usedCapital / targetCap) * 100).toFixed(1)}%
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Available Capital */}
+                        <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Available</span>
+                            <div className={`text-xl font-mono tracking-tight ${availableCapital >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                                {Math.round(availableCapital).toLocaleString()}
+                            </div>
+                            {targetCap > 0 && (
+                                <div className="text-[10px] text-gray-500 mt-1">
+                                    {((availableCapital / targetCap) * 100).toFixed(1)}%
+                                </div>
+                            )}
+                        </div>
                     </div>
+                        );
+                    })()}
 
 
                     {/* Section 2: Configuration & Controls */}
