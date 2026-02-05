@@ -368,7 +368,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             def safe_int(v):
                 if not v:
                     return 0
-                return int(str(v).strip().replace("+", "").replace("-", ""))
+                s = str(v).strip().replace("+", "").replace("-", "")
+                if not s.isdigit():
+                    return 0
+                return int(s)
 
             def safe_float(v):
                 if not v:
@@ -381,7 +384,7 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                 "symbol": safe_str(vals.get("9001")),
                 "name": safe_str(vals.get("302")),
                 "order_status": safe_str(vals.get("913")),  # 접수, 체결, 확인 등
-                "side": "SELL" if safe_str(vals.get("901")) == "1" else "BUY",
+                "side": "SELL" if safe_str(vals.get("901")) in ("1", "매도") else "BUY",
                 "order_qty": safe_int(vals.get("905")),
                 "order_price": safe_float(vals.get("909")),
                 "filled_qty": safe_int(vals.get("908")),
@@ -432,7 +435,10 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             def safe_int(v):
                 if not v:
                     return 0
-                return int(str(v).strip().replace("+", "").replace("-", ""))
+                s = str(v).strip().replace("+", "").replace("-", "")
+                if not s.isdigit():
+                    return 0
+                return int(s)
 
             def safe_float(v):
                 if not v:
