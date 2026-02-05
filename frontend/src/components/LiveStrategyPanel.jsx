@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -22,6 +22,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
     const [isRealModeModalOpen, setIsRealModeModalOpen] = useState(false);
     const [isLiquidateModalOpen, setIsLiquidateModalOpen] = useState(false);
+    const [isPositionWarningOpen, setIsPositionWarningOpen] = useState(false);
+    const [positionWarningMessage, setPositionWarningMessage] = useState('');
 
     // Parallel mode: track multiple sessions {rankIndex: sessionId}
     const [parallelSessions, setParallelSessions] = useState({});
@@ -621,8 +623,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setStatus('STARTING');
 
             // First, stop all existing sessions for this account to prevent duplicates
+            // force=true: bypass position check (START flow needs to clean up old sessions)
             try {
-                const stopResult = await stopAllLiveBots();
+                const stopResult = await stopAllLiveBots({ force: true });
                 if (stopResult.stopped_count > 0) {
                     addLog("System", `Stopped ${stopResult.stopped_count} existing session(s) before starting new ones`);
                 }
@@ -726,22 +729,39 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
-    const handleEmergencyLiquidation = async () => {
+    const handleForceClosePosition = async () => {
         try {
             if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
                 for (const sid of Object.values(parallelSessions)) {
                     await liquidateLiveBot(sid);
                 }
-                addLog("Emergency", `KILL SWITCH: Liquidating all ${Object.keys(parallelSessions).length} parallel sessions.`);
+                addLog("System", `Force-closed positions across ${Object.keys(parallelSessions).length} sessions.`);
             } else if (sessionId) {
                 await liquidateLiveBot(sessionId);
-                addLog("Emergency", "KILL SWITCH: Liquidating all holdings and pausing orders.");
+                addLog("System", "Force-closed all positions (market sell).");
             }
-            setLiveData(prev => ({ ...prev, orders_enabled: false }));
-            alert("Emergency Liquidation Initiated. Orders have been paused.");
         } catch (err) {
             setError(err.message);
-            addLog("Error", `Liquidation failed: ${err.message}`);
+            addLog("Error", `Force close failed: ${err.message}`);
+        }
+    };
+
+    const handleToggleOrders = async () => {
+        const currentEnabled = liveData?.orders_enabled !== false;
+        const newEnabled = !currentEnabled;
+        try {
+            if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
+                for (const sid of Object.values(parallelSessions)) {
+                    await toggleLiveOrders(sid, newEnabled);
+                }
+            } else if (sessionId) {
+                await toggleLiveOrders(sessionId, newEnabled);
+            }
+            setLiveData(prev => ({ ...prev, orders_enabled: newEnabled }));
+            addLog("System", `Orders ${newEnabled ? 'resumed' : 'paused'}.`);
+        } catch (err) {
+            setError(err.message);
+            addLog("Error", `Toggle orders failed: ${err.message}`);
         }
     };
 
@@ -1035,6 +1055,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 isDanger={true}
             />
 
+            {/* Position Warning Modal */}
+            <ConfirmModal
+                isOpen={isPositionWarningOpen}
+                onClose={() => setIsPositionWarningOpen(false)}
+                onConfirm={() => setIsPositionWarningOpen(false)}
+                title="세션 종료 불가"
+                message={positionWarningMessage}
+                confirmText="확인"
+                cancelText={null}
+            />
+
             {/* Real Mode Switch Modal */}
             <ConfirmModal
                 isOpen={isRealModeModalOpen}
@@ -1049,19 +1080,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 isDanger={true}
             />
 
-            {/* Emergency Liquidation Modal */}
+            {/* Force Close Position Modal */}
             <ConfirmModal
                 isOpen={isLiquidateModalOpen}
                 onClose={() => setIsLiquidateModalOpen(false)}
                 onConfirm={() => {
                     setIsLiquidateModalOpen(false);
-                    handleEmergencyLiquidation();
+                    handleForceClosePosition();
                 }}
-                title="Emergency Liquidation"
+                title="Force Close Position"
                 message={executionMode === 'parallel'
-                    ? `This will immediately liquidate ALL holdings across ${Object.keys(parallelSessions).length} sessions and pause all orders. This action cannot be undone.`
-                    : "This will immediately liquidate ALL holdings and pause all orders. This action cannot be undone."}
-                confirmText="LIQUIDATE NOW"
+                    ? `This will immediately market-sell ALL holdings across ${Object.keys(parallelSessions).length} sessions. Orders will continue running. This action cannot be undone.`
+                    : "This will immediately market-sell all holdings in the current session. Orders will continue running. This action cannot be undone."}
+                confirmText="Force Close"
                 isDanger={true}
             />
 
@@ -1264,7 +1295,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         </button>
 
                                         <button
-                                            onClick={() => setIsStopModalOpen(true)}
+                                            onClick={async () => {
+                                                try {
+                                                    const posCheck = await checkLivePosition();
+                                                    if (posCheck.has_position) {
+                                                        setPositionWarningMessage(`현재 세션 포지션을 보유 중이기 때문에 종료할 수 없습니다.\n(${posCheck.detail})`);
+                                                        setIsPositionWarningOpen(true);
+                                                    } else {
+                                                        setIsStopModalOpen(true);
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Position check failed:', err);
+                                                    setIsStopModalOpen(true);
+                                                }
+                                            }}
                                             className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
                                         >
                                             <Square size={14} />
@@ -1351,15 +1395,31 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             </div>
                         )}
 
-                        {/* Emergency Exit - Independent row for visibility */}
+                        {/* Force Close & Pause Orders - Independent row */}
                         {status === 'RUNNING' && (
-                            <button
-                                className="w-full mt-4 h-12 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-2"
-                                onClick={() => setIsLiquidateModalOpen(true)}
-                            >
-                                <AlertTriangle size={14} />
-                                EMERGENCY LIQUIDATION & KILL SWITCH
-                            </button>
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                <button
+                                    className={`h-12 flex items-center justify-center gap-2 text-xs font-bold tracking-wide rounded-lg border transition-all ${
+                                        liveData?.orders_enabled === false
+                                            ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-300 hover:bg-yellow-800/60'
+                                            : 'bg-gray-700/40 border-gray-500/50 text-gray-300 hover:bg-gray-600/60'
+                                    }`}
+                                    onClick={handleToggleOrders}
+                                >
+                                    {liveData?.orders_enabled === false ? (
+                                        <><Play size={14} /> RESUME ORDERS</>
+                                    ) : (
+                                        <><Pause size={14} /> PAUSE ORDERS</>
+                                    )}
+                                </button>
+                                <button
+                                    className="h-12 flex items-center justify-center gap-2 bg-red-900/40 hover:bg-red-600 text-red-100 border border-red-500/50 rounded-lg text-xs font-bold tracking-wide transition-all"
+                                    onClick={() => setIsLiquidateModalOpen(true)}
+                                >
+                                    <AlertTriangle size={14} />
+                                    FORCE CLOSE
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

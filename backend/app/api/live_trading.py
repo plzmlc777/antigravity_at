@@ -15,24 +15,34 @@ class LiveBotStartRequest(BaseModel):
     initial_capital: float = 10000000
     is_paper: bool = True
 
+class StopAllRequest(BaseModel):
+    force: bool = False
+
 @router.post("/stop-all")
 async def stop_all_live_bots(
+    req: StopAllRequest = StopAllRequest(),
     ctx: UserAccountContext = Depends(get_user_context)
 ):
     """
     Stop all RUNNING sessions for the current account.
-    Call this before starting multiple new sessions to prevent duplicates.
+    force=True: bypass position check (used by START flow to clean up old sessions)
+    force=False: block if any session holds a position (used by STOP button)
     """
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account selected")
 
     try:
-        stopped_count = await live_manager.stop_all_sessions_for_account(ctx.account_id)
+        stopped_count = await live_manager.stop_all_sessions_for_account(ctx.account_id, force=req.force)
         return {
             "status": "success",
             "stopped_count": stopped_count,
             "message": f"Stopped {stopped_count} session(s)"
         }
+    except ValueError as e:
+        err_msg = str(e)
+        if err_msg.startswith("POSITION_HELD|"):
+            raise HTTPException(status_code=409, detail=err_msg)
+        raise HTTPException(status_code=400, detail=err_msg)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -70,6 +80,39 @@ async def verify_session_ownership(session_id: str, account_id: int, db: Session
         raise HTTPException(status_code=403, detail="Session does not belong to your account")
     return True
 
+@router.get("/check-position")
+async def check_session_positions(
+    ctx: UserAccountContext = Depends(get_user_context)
+):
+    """
+    Check if any running session for this account has an open position.
+    Used by frontend to decide whether to show stop confirmation or position warning.
+    """
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account selected")
+
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        running_sessions = db.query(LiveBotSession).filter(
+            LiveBotSession.account_id == ctx.account_id,
+            LiveBotSession.status == SessionStatus.RUNNING
+        ).all()
+
+        for sess in running_sessions:
+            pos = live_manager._check_session_position(sess.id)
+            if pos:
+                return {
+                    "has_position": True,
+                    "symbol": pos["symbol"],
+                    "detail": f"{pos['symbol']} L{pos['level']} {pos['total_quantity']:.0f}주"
+                }
+
+        return {"has_position": False}
+    finally:
+        db.close()
+
 @router.post("/stop/{session_id}")
 async def stop_live_bot(
     session_id: str,
@@ -82,6 +125,11 @@ async def stop_live_bot(
     try:
         await live_manager.stop_session(session_id)
         return {"status": "success", "message": f"Session {session_id} Stopped"}
+    except ValueError as e:
+        err_msg = str(e)
+        if err_msg.startswith("POSITION_HELD|"):
+            raise HTTPException(status_code=409, detail=err_msg)
+        raise HTTPException(status_code=400, detail=err_msg)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

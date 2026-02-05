@@ -458,13 +458,40 @@ class LiveManager:
         finally:
             if db: db.close()
 
-    async def stop_session(self, session_id: str):
+    def _check_session_position(self, session_id: str) -> dict:
+        """Check if a running session has an open position. Returns position info or None."""
+        engine = self.engines.get(session_id)
+        if not engine or not engine.strategy_instance:
+            return None
+        try:
+            state = engine.strategy_instance.get_state()
+            total_qty = state.get("total_quantity", 0)
+            if total_qty > 0:
+                return {
+                    "symbol": state.get("symbol", engine.symbol),
+                    "level": state.get("current_level", 0),
+                    "total_quantity": total_qty,
+                    "average_price": state.get("average_price", 0),
+                }
+        except Exception as e:
+            logger.warning(f"Failed to check position for {session_id}: {e}")
+        return None
+
+    async def stop_session(self, session_id: str, force: bool = False):
+        # Block stop when holding position (unless force from START flow)
+        if not force:
+            pos = self._check_session_position(session_id)
+            if pos:
+                raise ValueError(
+                    f"POSITION_HELD|{pos['symbol']} L{pos['level']} {pos['total_quantity']:.0f}주"
+                )
+
         if session_id in self.engines:
             logger.info(f"Stopping Live Session {session_id}...")
             engine = self.engines[session_id]
             engine.stop()
             del self.engines[session_id]
-            
+
         # Update DB
         db = SessionLocal()
         try:
@@ -517,22 +544,12 @@ class LiveManager:
 
     async def liquidate_session(self, session_id: str):
         """
-        Emergency Liquidation: Market Sell and Pause Trading.
+        Force Close Position: Market sell all holdings.
+        Does NOT disable orders - use toggle_orders() separately for that.
         """
-        # 1. Trigger Engine Liquidation
         if session_id in self.engines:
             await self.engines[session_id].liquidate_all()
-            
-        # 2. Persist orders_enabled = False in DB
-        db = SessionLocal()
-        try:
-            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
-            if sess:
-                sess.orders_enabled = False
-                db.commit()
-                logger.info(f"Session {session_id}: Force-Disabled Orders in DB after liquidation.")
-        finally:
-            db.close()
+            logger.info(f"Session {session_id}: Force-closed all positions.")
 
     async def get_status(self, session_id: str = None, account_id: int = None) -> List[Dict]:
         """
@@ -689,11 +706,13 @@ class LiveManager:
             except Exception as e:
                 logger.error(f"Failed to stop session {session_id}: {e}")
 
-    async def stop_all_sessions_for_account(self, account_id: int) -> int:
+    async def stop_all_sessions_for_account(self, account_id: int, force: bool = False) -> int:
         """
         Stop all RUNNING sessions for a specific account.
         Returns the number of sessions stopped.
         Used before starting new sessions to prevent duplicates.
+        force=True: bypass position check (used by START flow to clean up old sessions)
+        force=False: respect position check (used by STOP button)
         """
         db = SessionLocal()
         stopped_count = 0
@@ -706,9 +725,12 @@ class LiveManager:
 
             for sess in running_sessions:
                 try:
-                    await self.stop_session(sess.id)
+                    await self.stop_session(sess.id, force=force)
                     stopped_count += 1
                     logger.info(f"Stopped existing session {sess.id} (symbol: {sess.symbol}) for account {account_id}")
+                except ValueError:
+                    # Re-raise position check errors (only when force=False)
+                    raise
                 except Exception as e:
                     logger.error(f"Failed to stop session {sess.id}: {e}")
                     # Mark as ERROR in DB if stop failed

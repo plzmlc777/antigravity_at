@@ -411,28 +411,35 @@ class LiveTradingEngine:
 
     async def liquidate_all(self):
         """
-        Emergency Kill Switch: Market Sell everything and disable orders.
+        Force Close Position: Market sell all holdings.
+        Paper mode: uses strategy internal state (total_quantity).
+        Real mode: syncs with exchange API for actual holdings.
         """
-        logger.warning(f"EMERGENCY: Liquidating all holdings for session {self.session_id}")
-        
-        # 1. Sync latest holdings
-        await self.context.async_sync_balance()
-        
-        # 2. Find quantity
-        qty = self.context.holdings.get(self.symbol, 0)
-        
-        if qty > 0:
-            logger.info(f"EMERGENCY: Selling {qty} shares of {self.symbol} at Market Price")
-            # 3. Market Sell
-            self.context.sell(self.symbol, qty, price=0)
-            
-            # 4. Immediate execution (dont wait for candle close)
-            await self.context.process_queue()
+        logger.warning(f"FORCE CLOSE: Liquidating all holdings for session {self.session_id}")
+
+        if self.is_paper:
+            # Paper mode: use strategy's internal position tracking
+            if self.strategy_instance and hasattr(self.strategy_instance, 'total_quantity'):
+                qty = self.strategy_instance.total_quantity
+                if qty > 0:
+                    price = self.context.get_current_price(self.symbol)
+                    logger.info(f"FORCE CLOSE (PAPER): Selling {qty} shares of {self.symbol} @ {price:,.0f}")
+                    self.strategy_instance._liquidate(price)
+                    await self.context.process_queue()
+                else:
+                    logger.info(f"FORCE CLOSE (PAPER): No position in strategy state for {self.symbol}.")
+            else:
+                logger.info(f"FORCE CLOSE (PAPER): No strategy instance or position tracking.")
         else:
-            logger.info(f"EMERGENCY: No holdings found for {self.symbol}. Only disabling orders.")
-            
-        # 5. Disable further orders
-        self.toggle_orders(False)
+            # Real mode: sync with exchange and sell actual holdings
+            await self.context.async_sync_balance()
+            qty = self.context.holdings.get(self.symbol, 0)
+            if qty > 0:
+                logger.info(f"FORCE CLOSE (REAL): Selling {qty} shares of {self.symbol} at Market Price")
+                self.context.sell(self.symbol, qty, price=0)
+                await self.context.process_queue()
+            else:
+                logger.info(f"FORCE CLOSE (REAL): No holdings found for {self.symbol}.")
 
     def stop(self):
         self.is_running = False
