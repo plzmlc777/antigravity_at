@@ -316,7 +316,7 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
                     )}
                     {avgPrice > 0 && (
                         <span className={`text-xs font-mono ${dim}`}>
-                            Avg: {avgPrice.toLocaleString()}
+                            Avg: {Math.round(avgPrice).toLocaleString()}
                         </span>
                     )}
                 </div>
