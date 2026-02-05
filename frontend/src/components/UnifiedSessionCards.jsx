@@ -245,6 +245,10 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
     const dipProgress = Math.min(100, (dipPct / targetDipPct) * 100);
     const profitPct = (state.profit_percent || 0) * 100;
     const isTrailing = state.trailing_active || false;
+    const targetProfit = state.target_profit || 0;
+    const targetProfitPct = targetProfit * 100;
+    const trailingProgress = targetProfitPct > 0 ? Math.min(100, Math.max(0, (profitPct / targetProfitPct) * 100)) : 0;
+    const trailingPrice = avgPrice > 0 && targetProfit > 0 ? Math.round(avgPrice * (1 + targetProfit)) : 0;
     const isHodl = state.is_hodl || false;
 
     // RSI specific
@@ -355,31 +359,63 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
                 </div>
             )}
 
-            {/* Row 2b: Dip Progress + Trigger */}
+            {/* Row 2b: Trailing Start (RSI) or Dip Progress (Dip) */}
             <div className={`flex items-center gap-4 py-2 border-b ${dimBorder}`}>
-                <div className="flex-1">
-                    <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
-                        <span>{isRSI ? 'Price Change' : 'Dip Progress'}</span>
-                        <span>{dipPct.toFixed(1)}% / {targetDipPct.toFixed(1)}%</span>
-                    </div>
-                    <div className={`w-full rounded-full h-1.5 ${dimmed ? 'bg-gray-900' : 'bg-gray-800'}`}>
-                        <div
-                            className={`h-1.5 rounded-full transition-all duration-500 ${
-                                dipProgress >= 100
-                                    ? (dimmed ? 'bg-indigo-800' : 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.4)]')
-                                    : (dimmed ? 'bg-indigo-800' : 'bg-indigo-500')
-                            }`}
-                            style={{ width: `${dipProgress}%` }}
-                        />
-                    </div>
-                </div>
-                {triggerPrice > 0 && (
-                    <div className={`text-xs font-mono text-right ${dim}`}>
-                        <div>Trigger: {triggerPrice.toLocaleString()}</div>
-                        <div className={!dimmed && Math.abs(price - triggerPrice) < price * 0.003 ? 'text-yellow-400' : ''}>
-                            {price >= triggerPrice ? '-' : '+'}{Math.abs(price - triggerPrice).toLocaleString()}
+                {isRSI ? (
+                    <>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                                <span>Trailing Start</span>
+                                <span>{profitPct.toFixed(2)}% / {targetProfitPct.toFixed(1)}%</span>
+                            </div>
+                            {(() => {
+                                const filled = Math.max(1, Math.round((isTrailing ? 100 : Math.max(trailingProgress, 2)) / 100 * 30));
+                                const empty = Math.max(0, 30 - filled);
+                                const barColor = isTrailing ? '#22c55e' : trailingProgress >= 100 ? '#eab308' : '#6366f1';
+                                return (
+                                    <p style={{ margin: '4px 0 0 0', fontSize: '10px', lineHeight: '12px', fontFamily: 'monospace', letterSpacing: '-1px', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                        <span style={{ color: barColor }}>{'█'.repeat(filled)}</span>
+                                        <span style={{ color: '#4b5563' }}>{'░'.repeat(empty)}</span>
+                                    </p>
+                                );
+                            })()}
                         </div>
-                    </div>
+                        {trailingPrice > 0 && (
+                            <div className={`text-xs font-mono text-right ${dim}`}>
+                                <div>Trail: {trailingPrice.toLocaleString()}</div>
+                                <div className={!dimmed && price >= trailingPrice ? 'text-green-400' : ''}>
+                                    {price >= trailingPrice ? '+' : ''}{(price - trailingPrice).toLocaleString()}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                                <span>Dip Progress</span>
+                                <span>{dipPct.toFixed(1)}% / {targetDipPct.toFixed(1)}%</span>
+                            </div>
+                            <div className={`w-full rounded-full h-1.5 ${dimmed ? 'bg-gray-900' : 'bg-gray-800'}`}>
+                                <div
+                                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                                        dipProgress >= 100
+                                            ? (dimmed ? 'bg-indigo-800' : 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.4)]')
+                                            : (dimmed ? 'bg-indigo-800' : 'bg-indigo-500')
+                                    }`}
+                                    style={{ width: `${dipProgress}%` }}
+                                />
+                            </div>
+                        </div>
+                        {triggerPrice > 0 && (
+                            <div className={`text-xs font-mono text-right ${dim}`}>
+                                <div>Trigger: {triggerPrice.toLocaleString()}</div>
+                                <div className={!dimmed && Math.abs(price - triggerPrice) < price * 0.003 ? 'text-yellow-400' : ''}>
+                                    {price >= triggerPrice ? '-' : '+'}{Math.abs(price - triggerPrice).toLocaleString()}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
