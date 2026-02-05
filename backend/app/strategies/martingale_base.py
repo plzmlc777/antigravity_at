@@ -314,22 +314,26 @@ class MartingaleBase(BaseStrategy):
 
             # 3e. Check Additional Entry (L2+)
             if self.current_level < self.max_levels and not self.trailing_active:
-                # Require lower price: skip trigger check entirely so trigger is not consumed
-                if self.require_lower_price and self.entries:
-                    last_entry_price = self.entries[-1]["price"]
-                    if current_price >= last_entry_price:
-                        return
+                # Block further entries after all-in was deployed at the final affordable level
+                if self.last_level_allin and self.cycle_max_level and self.current_level >= self.cycle_max_level:
+                    pass  # All-in already deployed, no more entries
+                else:
+                    # Require lower price: skip trigger check entirely so trigger is not consumed
+                    if self.require_lower_price and self.entries:
+                        last_entry_price = self.entries[-1]["price"]
+                        if current_price >= last_entry_price:
+                            return
 
-                if self._check_additional_trigger(data):
-                    next_level = self.current_level + 1
-                    qty = self._calculate_quantity(next_level, current_price)
-                    if qty > 0:
-                        result = self.context.buy(symbol, qty, metadata={"level": next_level})
-                        if result.get("status") != "failed":
-                            self._add_position(current_price, qty, next_level)
-                            self.context.log(f"[{self._log_prefix}] L{next_level} Entry @ {current_price:,.0f}. Avg: {self.average_price:,.0f}")
-                        else:
-                            self.context.log(f"[{self._log_prefix}] L{next_level} Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
+                    if self._check_additional_trigger(data):
+                        next_level = self.current_level + 1
+                        qty = self._calculate_quantity(next_level, current_price)
+                        if qty > 0:
+                            result = self.context.buy(symbol, qty, metadata={"level": next_level})
+                            if result.get("status") != "failed":
+                                self._add_position(current_price, qty, next_level)
+                                self.context.log(f"[{self._log_prefix}] L{next_level} Entry @ {current_price:,.0f}. Avg: {self.average_price:,.0f}")
+                            else:
+                                self.context.log(f"[{self._log_prefix}] L{next_level} Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
         # 4. Initial Entry (Level 1)
         elif self.current_level == 0:
