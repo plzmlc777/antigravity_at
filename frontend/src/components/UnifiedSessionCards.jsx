@@ -220,7 +220,7 @@ const UnifiedSessionCards = ({
 
                             {!hasData && !hasAccumulatedData && (
                                 <div className="px-4 py-3 text-sm text-gray-600 font-mono">
-                                    {isExclusive ? 'Inactive rank' : 'No trade history'}
+                                    {isRunning ? 'Monitoring' : (isExclusive ? 'Inactive rank' : 'No trade history')}
                                 </div>
                             )}
                         </div>

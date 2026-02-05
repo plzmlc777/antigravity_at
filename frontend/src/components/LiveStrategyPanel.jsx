@@ -536,8 +536,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         try {
             const sessions = await getLiveStatus();
 
-            if (executionMode === 'parallel') {
-                // Parallel: detect sessions for all active ranks
+            if (executionMode === 'parallel' || Object.keys(parallelSessions).length > 1) {
+                // Multi-session: detect sessions for all active ranks (parallel & exclusive)
                 const activeSessions = {};
                 let anyRunning = false;
                 configList.forEach((cfg, idx) => {
@@ -692,20 +692,44 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     setError("No sessions started");
                 }
             } else {
-                // Exclusive: single session
-                const payload = {
-                    symbol: strategyConfig.symbol,
-                    strategy_name: strategyName || "time_momentum",
-                    strategy_config: strategyConfig,
-                    initial_capital: parseFloat(inputCapital) || 0
-                };
+                // Exclusive: start ALL active ranks competing for one lock
+                const activeConfigs = configList.filter(c => c.is_active);
+                if (activeConfigs.length === 0) {
+                    setError("No active ranks to start");
+                    setStatus('ERROR');
+                    return;
+                }
+                const totalCapital = parseFloat(inputCapital) || 0;
 
-                const res = await startLiveBot(payload);
-                setSessionId(res.session_id);
-                setStatus('RUNNING');
-                startPolling();
+                const newSessions = {};
+                for (let i = 0; i < configList.length; i++) {
+                    const cfg = configList[i];
+                    if (!cfg.is_active) continue;
 
-                addLog("System", `Session Started: ${res.session_id}`);
+                    const payload = {
+                        symbol: cfg.symbol,
+                        strategy_name: strategyName || "time_momentum",
+                        strategy_config: { ...cfg, execution_mode: 'exclusive' },
+                        initial_capital: totalCapital  // Full capital (only one trades at a time)
+                    };
+                    try {
+                        const res = await startLiveBot(payload);
+                        newSessions[i] = res.session_id;
+                        addLog("System", `Rank ${i + 1} Started: ${res.session_id} (${cfg.symbol}, Exclusive)`);
+                    } catch (rankErr) {
+                        addLog("Error", `Rank ${i + 1} Failed: ${rankErr.response?.data?.detail || rankErr.message}`);
+                    }
+                }
+                setParallelSessions(newSessions);
+                if (Object.keys(newSessions).length > 0) {
+                    setSessionId(Object.values(newSessions)[0]);
+                    setStatus('RUNNING');
+                    startPolling();
+                    addLog("System", `Exclusive Mode: ${Object.keys(newSessions).length} ranks competing`);
+                } else {
+                    setStatus('ERROR');
+                    setError("No sessions started");
+                }
             }
 
         } catch (err) {

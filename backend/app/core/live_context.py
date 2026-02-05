@@ -1,5 +1,5 @@
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 import logging
 import re
@@ -35,6 +35,9 @@ class LiveContext:
 
         # Strategy Config Snapshot (for parameter versioning)
         self._config_snapshot = None  # Set by engine before strategy execution
+
+        # Exclusive mode gate: returns True if this session can buy, False if locked by another
+        self._exclusive_gate: Optional[Callable[[], bool]] = None
         
         # Initial Balance Sync
         self._sync_balance()
@@ -212,6 +215,10 @@ class LiveContext:
         return self._holdings
 
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        # Exclusive mode: check if another session holds the trading lock
+        if self._exclusive_gate and not self._exclusive_gate():
+            self.log(f"BUY BLOCKED: Exclusive lock held by another session")
+            return {"status": "failed", "reason": "exclusive_locked"}
         return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata)
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:

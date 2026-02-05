@@ -46,7 +46,8 @@ class BacktestContext(IContext):
 
         self.initial_capital = initial_capital  # Store for Fixed betting mode reset
         self.cash = initial_capital
-        self._holdings = {} # {symbol: quantity}
+        self._holdings = {} # {symbol: quantity} — shared system view (for single-rank / legacy)
+        self._rank_holdings = {}  # {rank: {symbol: qty}} — per-rank isolation for exclusive mode
         self.trades = []
         self.logs = []
         self.equity_curve = []
@@ -54,6 +55,11 @@ class BacktestContext(IContext):
         self.current_rank = 0 # Track which rank is currently executing
         self.optimize_mode = False # Performance flag
         self.realized_pnl = 0  # Track realized P&L for Fixed mode
+
+        # Exclusive mode: only one rank can hold a position at a time
+        self._exclusive_lock_holder = None  # rank number that holds the lock (None = free)
+        self._use_rank_isolation = False  # Set to True for exclusive mode multi-rank
+        self._exclusive_buy_blocked = 0  # Debug counter for blocked buys
         
         # Optimize: Pre-index feeds for O(1) price lookup
         self.price_map = {}
@@ -62,6 +68,8 @@ class BacktestContext(IContext):
 
     @property
     def holdings(self) -> Dict[str, int]:
+        if self._use_rank_isolation:
+            return self._rank_holdings.get(self.current_rank, {})
         return self._holdings
 
     @property
@@ -122,17 +130,23 @@ class BacktestContext(IContext):
             return self.last_known_prices.get(symbol, 0)
 
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        # LEAGUE RULE: Single Position Enforcement
-        # If we are holding ANY symbol that is NOT this one, reject.
-        if len(self._holdings) > 0 and symbol not in self._holdings:
-            self.log(f"BUY REJECTED: System holds {list(self._holdings.keys())}, cannot buy {symbol}.")
+        # EXCLUSIVE LOCK: Only one rank can trade at a time (per-rank isolation mode)
+        if self._use_rank_isolation:
+            if self._exclusive_lock_holder is not None and self._exclusive_lock_holder != self.current_rank:
+                self._exclusive_buy_blocked += 1
+                return {"status": "failed", "reason": "exclusive_locked"}
+
+        # LEAGUE RULE: Single Position Enforcement (per-rank or shared)
+        my_holdings = self.holdings  # Uses per-rank if isolation enabled
+        if len(my_holdings) > 0 and symbol not in my_holdings:
+            self.log(f"BUY REJECTED: System holds {list(my_holdings.keys())}, cannot buy {symbol}.")
             return {"status": "failed", "reason": "System Occupied"}
 
         exec_price = price if price > 0 else self.get_current_price(symbol)
         if exec_price <= 0:
              self.log(f"BUY FAILED: Invalid Price for {symbol}")
              return {"status": "failed", "reason": "Invalid Price"}
-             
+
         # [REFACTOR] Use Order Class Logic
         try:
             order = StockOrder(
@@ -142,7 +156,7 @@ class BacktestContext(IContext):
                 price=exec_price if price > 0 else None,
                 order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
             )
-            
+
             order.validate()
 
             cost = exec_price * quantity
@@ -153,14 +167,20 @@ class BacktestContext(IContext):
                 return {"status": "failed", "reason": "Insufficient Capital"}
 
             self.cash -= cost
-            self._holdings[symbol] = self._holdings.get(symbol, 0) + quantity
-            
+
+            # Update holdings (per-rank if isolation enabled, shared otherwise)
+            if self._use_rank_isolation:
+                rank_h = self._rank_holdings.setdefault(self.current_rank, {})
+                rank_h[symbol] = rank_h.get(symbol, 0) + quantity
+            else:
+                self._holdings[symbol] = self._holdings.get(symbol, 0) + quantity
+
             order.add_fill(
                 fill_price=exec_price,
                 fill_qty=quantity,
                 fill_id=f"SIM_BUY_{len(self.trades)+1}"
             )
-            
+
             trade = {
                 "type": "buy",
                 "symbol": symbol,
@@ -172,41 +192,60 @@ class BacktestContext(IContext):
                 "metadata": metadata or {}
             }
             self.trades.append(trade)
+
+            # Acquire exclusive lock on first buy
+            if self._use_rank_isolation and self._exclusive_lock_holder is None:
+                self._exclusive_lock_holder = self.current_rank
+
             self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
             return trade
-            
+
         except Exception as e:
             self.log(f"BUY ERROR: {e}")
             return {"status": "failed", "reason": str(e)}
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        current_qty = self._holdings.get(symbol, 0)
+        # Check holdings (per-rank if isolation enabled)
+        if self._use_rank_isolation:
+            rank_h = self._rank_holdings.get(self.current_rank, {})
+            current_qty = rank_h.get(symbol, 0)
+        else:
+            current_qty = self._holdings.get(symbol, 0)
+
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
-            
+
             try:
                 order = StockOrder(
-                    symbol=symbol, 
-                    side=OrderSide.SELL, 
+                    symbol=symbol,
+                    side=OrderSide.SELL,
                     quantity=quantity,
                     price=exec_price if price > 0 else None,
                     order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
                 )
-                
+
                 order.validate()
-                
+
                 revenue = exec_price * quantity
                 self.cash += revenue
-                self._holdings[symbol] -= quantity
-                if self._holdings[symbol] <= 0:
-                    del self._holdings[symbol]
-                
+
+                # Update holdings (per-rank if isolation enabled)
+                if self._use_rank_isolation:
+                    rank_h = self._rank_holdings.get(self.current_rank, {})
+                    rank_h[symbol] = rank_h.get(symbol, 0) - quantity
+                    if rank_h[symbol] <= 0:
+                        del rank_h[symbol]
+                else:
+                    self._holdings[symbol] -= quantity
+                    if self._holdings[symbol] <= 0:
+                        del self._holdings[symbol]
+
                 order.add_fill(
                     fill_price=exec_price,
                     fill_qty=quantity,
                     fill_id=f"SIM_SELL_{len(self.trades)+1}"
                 )
-                
+
                 trade = {
                     "type": "sell",
                     "symbol": symbol,
@@ -218,9 +257,19 @@ class BacktestContext(IContext):
                     "metadata": metadata or {}
                 }
                 self.trades.append(trade)
+
+                # Release exclusive lock when this rank has no more holdings
+                if self._use_rank_isolation:
+                    rank_h = self._rank_holdings.get(self.current_rank, {})
+                    if not rank_h:
+                        self._exclusive_lock_holder = None
+                else:
+                    if len(self._holdings) == 0:
+                        self._exclusive_lock_holder = None
+
                 self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
                 return trade
-                
+
             except Exception as e:
                 self.log(f"SELL ERROR: {e}")
                 return {"status": "failed", "reason": str(e)}
@@ -248,8 +297,15 @@ class BacktestContext(IContext):
     def update_equity(self):
         # Include realized_pnl for Fixed betting mode (accumulated P&L from completed cycles)
         equity = self.cash + self.realized_pnl
-        for symbol, qty in self._holdings.items():
-            equity += qty * self.get_current_price(symbol)
+
+        if self._use_rank_isolation:
+            # Sum ALL ranks' holdings for total system equity
+            for rank_h in self._rank_holdings.values():
+                for symbol, qty in rank_h.items():
+                    equity += qty * self.get_current_price(symbol)
+        else:
+            for symbol, qty in self._holdings.items():
+                equity += qty * self.get_current_price(symbol)
 
         self.equity_curve.append(make_equity_point(
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
@@ -455,7 +511,10 @@ class WaterfallBacktestEngine:
         # 2. Setup Shared Context
         context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=primary_symbol)
         context.optimize_mode = optimize_mode
-        
+        # Enable per-rank holdings isolation for multi-rank exclusive mode
+        if len(strategies_config) > 1:
+            context._use_rank_isolation = True
+
         # 3. Initialize Strategies (League Participants)
         participants = []
         for rank_idx, cfg_raw in enumerate(strategies_config):
@@ -473,9 +532,15 @@ class WaterfallBacktestEngine:
                 "symbol": p_config.get("symbol", global_symbol)
             })
             
-        print(f"DEBUG: League Initialized with {len(participants)} strategies.")
-            
-        print(f"DEBUG: League Initialized with {len(participants)} strategies.")
+        print(f"DEBUG: League Initialized with {len(participants)} strategies. rank_isolation={context._use_rank_isolation}")
+        # Print each rank's key parameters for debugging
+        for p in participants:
+            strat = p['strategy']
+            cfg = getattr(strat, 'config', {})
+            key_params = {k: cfg.get(k) for k in ['dip_percent', 'level_gap_percent', 'trigger_level', 'trigger_direction',
+                          'reset_level', 'reset_direction', 'rsi_period', 'max_levels', 'base_quantity',
+                          'trailing_start_percent', 'trailing_stop_percent', 'max_loss_percent'] if cfg.get(k) is not None}
+            print(f"  Rank {p['rank']}: {p['symbol']} params={key_params}")
             
         # 4. League Loop (Time + Rank Priority)
         # [FIX] Fast Loop for Single-Strategy (ALWAYS use this path for 1 participant)
@@ -577,6 +642,24 @@ class WaterfallBacktestEngine:
                     print(f"DEBUG: Force Closing Rank {r}: {qty} {sym} @ {last_price}")
                     context.sell(sym, qty, price=last_price)
                     
+        # === DEBUG: Per-Rank Trade Summary ===
+        rank_buys = {}
+        rank_sells = {}
+        for t in context.trades:
+            r = t.get('strategy_rank', 0)
+            if t['type'] == 'buy':
+                rank_buys[r] = rank_buys.get(r, 0) + 1
+            elif t['type'] == 'sell':
+                rank_sells[r] = rank_sells.get(r, 0) + 1
+        print(f"=== EXCLUSIVE DEBUG SUMMARY ===")
+        print(f"  Total trades: {len(context.trades)}, rank_isolation={context._use_rank_isolation}")
+        print(f"  Cash={context.cash:,.0f}, realized_pnl={context.realized_pnl:,.0f}")
+        for r in sorted(set(list(rank_buys.keys()) + list(rank_sells.keys()))):
+            print(f"  Rank {r}: {rank_buys.get(r, 0)} buys, {rank_sells.get(r, 0)} sells")
+        if hasattr(context, '_exclusive_buy_blocked'):
+            print(f"  Exclusive lock blocks: {context._exclusive_buy_blocked}")
+        print(f"===============================")
+
         t_exec = time.time()
         print(f"[{'LITE' if optimize_mode else 'FULL'}] Execution: {t_exec - t_data:.4f}s")
 

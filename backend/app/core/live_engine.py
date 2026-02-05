@@ -48,6 +48,10 @@ class LiveTradingEngine:
         self.last_price = 0
         self.last_accum_volume = -1
 
+        # Exclusive mode
+        self._is_exclusive = False
+        self._account_id = None
+
     def add_tick_listener(self, listener: Callable[[Dict], None]):
         self.tick_listeners.append(listener)
 
@@ -74,7 +78,12 @@ class LiveTradingEngine:
             self.orders_enabled = session.orders_enabled
             self.is_paper = getattr(session, 'is_paper', True)
             initial_cap = session.initial_capital
-            
+            self._account_id = session.account_id
+
+            # Detect exclusive mode from strategy config
+            config = session.strategy_config or {}
+            self._is_exclusive = config.get("execution_mode") == "exclusive"
+
             # 1. Strategy Resolution
             strategy_name = session.strategy_name
             self.strategy_name = strategy_name
@@ -85,7 +94,14 @@ class LiveTradingEngine:
 
             # 2. Context
             self.context = LiveContext(self.session_id, self.adapter, initial_capital=initial_cap, is_paper=self.is_paper)
-            
+
+            # Wire exclusive mode gate (blocks buy if another session holds the lock)
+            if self._is_exclusive:
+                from .live_manager import live_manager
+                acct_id = self._account_id
+                sid = self.session_id
+                self.context._exclusive_gate = lambda: live_manager.try_acquire_exclusive_lock(acct_id, sid)
+
             # 3. Strategy Instance
             self.strategy_instance = StrategyClass(self.context, self.strategy_config)
             self.strategy_instance.initialize()
@@ -335,7 +351,17 @@ class LiveTradingEngine:
                     await self.context.process_queue()
                 else:
                     logger.debug(f"Session {self.session_id}: Orders disabled, skipping order processing")
-                
+
+                # 5.1 Exclusive mode: release lock when cycle completes (position → 0)
+                if self._is_exclusive and self.strategy_instance:
+                    try:
+                        state = self.strategy_instance.get_state()
+                        if state.get("total_quantity", 0) == 0:
+                            from .live_manager import live_manager
+                            live_manager.release_exclusive_lock(self._account_id, self.session_id)
+                    except Exception:
+                        pass
+
             except Exception as e:
                 logger.error(f"Strategy Execution Error: {e}")
                 import traceback

@@ -34,6 +34,10 @@ class LiveManager:
         # Track pending orders: order_no -> {session_id, db_execution_id, ...}
         self.pending_orders: Dict[str, Dict[str, Any]] = {}
 
+        # Exclusive mode: per-account lock for multi-rank competition
+        self._exclusive_groups: Dict[int, set] = {}          # account_id -> {session_ids}
+        self._exclusive_lock: Dict[int, Optional[str]] = {}  # account_id -> locked_session_id
+
         # Always use KiwoomRealAdapter (paper/real trading controlled by session's is_paper flag)
         # Initially created without credentials; will be reinitialized in initialize() with DB account
         self.adapter = KiwoomRealAdapter()
@@ -386,6 +390,19 @@ class LiveManager:
             # NOTE: Auto-Start logic removed in v0.9.7.3 due to duplicate key errors
             # and conflicts with existing RUNNING sessions. Users must manually start strategies.
 
+            # 8. Reconstruct exclusive groups from restored sessions
+            for sess in sessions_by_account[primary_account_id]:
+                if sess.id not in restored_ids:
+                    continue
+                cfg = sess.strategy_config or {}
+                if cfg.get("execution_mode") == "exclusive":
+                    self.register_exclusive_session(sess.account_id, sess.id)
+                    # If session has open position, it holds the exclusive lock
+                    pos = self._check_session_position(sess.id)
+                    if pos:
+                        self._exclusive_lock[sess.account_id] = sess.id
+                        logger.info(f"Exclusive lock restored to session {sess.id} (has position: {pos['symbol']} L{pos['level']})")
+
         finally:
             db.close()
 
@@ -440,11 +457,16 @@ class LiveManager:
             
             self.engines[session_id] = engine
             asyncio.create_task(engine.run_loop())
-            
+
+            # Register in exclusive group if applicable
+            execution_mode = strat_config.get("execution_mode")
+            if execution_mode == "exclusive":
+                self.register_exclusive_session(account_id, session_id)
+
             # Start Real-time Data Stream for this symbol
             if hasattr(self.adapter, "start_realtime"):
                 asyncio.create_task(self.adapter.start_realtime([symbol]))
-            
+
             logger.info(f"Started Live Session {session_id}")
             return session_id
             
@@ -477,6 +499,49 @@ class LiveManager:
             logger.warning(f"Failed to check position for {session_id}: {e}")
         return None
 
+    # ── Exclusive Mode Lock Management ──
+
+    def register_exclusive_session(self, account_id: int, session_id: str):
+        """Register a session as part of an exclusive competition group."""
+        if account_id not in self._exclusive_groups:
+            self._exclusive_groups[account_id] = set()
+            self._exclusive_lock[account_id] = None
+        self._exclusive_groups[account_id].add(session_id)
+        logger.info(f"Exclusive group [{account_id}]: registered {session_id} "
+                    f"(total: {len(self._exclusive_groups[account_id])})")
+
+    def unregister_exclusive_session(self, account_id: int, session_id: str):
+        """Remove a session from its exclusive group and release lock if held."""
+        if account_id in self._exclusive_groups:
+            self._exclusive_groups[account_id].discard(session_id)
+            if self._exclusive_lock.get(account_id) == session_id:
+                self._exclusive_lock[account_id] = None
+                logger.info(f"Exclusive lock released (session removed): {session_id}")
+            if not self._exclusive_groups[account_id]:
+                del self._exclusive_groups[account_id]
+                self._exclusive_lock.pop(account_id, None)
+
+    def try_acquire_exclusive_lock(self, account_id: int, session_id: str) -> bool:
+        """Try to acquire the exclusive trading lock. Returns True if acquired or already held."""
+        if account_id not in self._exclusive_lock:
+            return True  # Not in an exclusive group
+        current = self._exclusive_lock[account_id]
+        if current is None:
+            self._exclusive_lock[account_id] = session_id
+            logger.info(f"Exclusive lock ACQUIRED by session {session_id}")
+            return True
+        return current == session_id  # Same session can buy again (L2+ entries)
+
+    def release_exclusive_lock(self, account_id: int, session_id: str):
+        """Release the exclusive lock if held by this session (cycle completed)."""
+        if account_id in self._exclusive_lock and self._exclusive_lock[account_id] == session_id:
+            self._exclusive_lock[account_id] = None
+            logger.info(f"Exclusive lock RELEASED by session {session_id} (cycle completed)")
+
+    def get_exclusive_holder(self, account_id: int) -> Optional[str]:
+        """Get the session_id that currently holds the exclusive lock, or None."""
+        return self._exclusive_lock.get(account_id)
+
     async def stop_session(self, session_id: str, force: bool = False):
         # Block stop when holding position (unless force from START flow)
         if not force:
@@ -492,7 +557,7 @@ class LiveManager:
             engine.stop()
             del self.engines[session_id]
 
-        # Update DB
+        # Update DB & unregister from exclusive group
         db = SessionLocal()
         try:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
@@ -501,6 +566,10 @@ class LiveManager:
                 sess.is_active = False # Deactivate so it's not restored
                 sess.stopped_at = datetime.now()
                 db.commit()
+                # Unregister from exclusive group
+                cfg = sess.strategy_config or {}
+                if cfg.get("execution_mode") == "exclusive":
+                    self.unregister_exclusive_session(sess.account_id, session_id)
         finally:
             db.close()
 
