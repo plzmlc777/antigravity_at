@@ -234,6 +234,10 @@ class MartingaleBase(BaseStrategy):
         """Check if L2+ additional entry condition is met. Return True to buy."""
         pass
 
+    def preload_history(self, candles: list):
+        """Preload indicator state from historical candles. Override in subclass."""
+        pass
+
     def _on_candle(self, data: Dict[str, Any]):
         """Called on every candle before any logic. Override for indicator updates (e.g., RSI)."""
         pass

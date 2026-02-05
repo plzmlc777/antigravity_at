@@ -54,6 +54,19 @@ class RsiMartingaleStrategy(MartingaleBase):
         self._current_rsi = -1.0
         self._trigger_armed = True  # Start armed (ready to fire)
 
+    def preload_history(self, candles: list):
+        """Preload close prices from historical candles for immediate RSI calculation."""
+        needed = self.rsi_period + 2  # +2 to compute both prev and current RSI
+        recent = candles[-needed:] if len(candles) >= needed else candles
+        for candle in recent:
+            close = candle.get('close', 0)
+            if close > 0:
+                self._prev_rsi = self._current_rsi
+                self._close_history.append(close)
+                self._current_rsi = self._calculate_rsi()
+        if self._current_rsi >= 0:
+            self.context.log(f"[{self._log_prefix}] RSI preloaded from history: {self._current_rsi:.2f} ({len(self._close_history)} candles)")
+
     def _calculate_rsi(self) -> float:
         """Calculate RSI from close price history. Returns -1 if not enough data."""
         if len(self._close_history) < self.rsi_period + 1:

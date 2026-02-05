@@ -145,7 +145,17 @@ class LiveTradingEngine:
             
             if not self.history_candles:
                  logger.error("Failed to load history after 3 attempts.")
-                 
+
+            # 5.1 Preload strategy indicators from historical data
+            # This allows RSI (and other indicators) to be available immediately
+            # after PM2 restart, instead of waiting for rsi_period+1 candles.
+            if self.history_candles and hasattr(self.strategy_instance, 'preload_history'):
+                try:
+                    self.strategy_instance.preload_history(self.history_candles)
+                    logger.info(f"Strategy indicators preloaded from {len(self.history_candles)} historical candles.")
+                except Exception as e:
+                    logger.warning(f"Strategy history preload failed: {e}")
+
             logger.info(f"Live Engine Initialized for {self.symbol}")
             
         finally:
