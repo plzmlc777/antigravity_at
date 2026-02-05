@@ -2,6 +2,7 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import logging
+import re
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveTradeExecution, ExecutionStatus, ErrorType
@@ -409,6 +410,27 @@ class LiveContext:
                     except OrderExecutionError as e:
                         res = {"status": "failed", "message": e.message}
 
+                    # Retry with reduced qty if margin insufficient
+                    if res and res.get("status") == "failed":
+                        error_msg = res.get("message", "")
+                        match = re.search(r'(\d+)주 매수가능', error_msg)
+                        if match and p.signal_type == "BUY":
+                            available_qty = int(match.group(1))
+                            if 0 < available_qty < p.requested_quantity:
+                                self.log(f"RETRY: Reducing qty {p.requested_quantity} → {available_qty} (margin limit)")
+                                p.requested_quantity = available_qty
+                                try:
+                                    res = await service.execute_order(
+                                        symbol=p.symbol,
+                                        side=p.signal_type.lower(),
+                                        quantity=available_qty,
+                                        price=0,
+                                        is_paper=self.is_paper,
+                                        theoretical_price=p.theoretical_price
+                                    )
+                                except OrderExecutionError as e2:
+                                    res = {"status": "failed", "message": e2.message}
+
                     if res and res.get("status") == "success":
                         # 1. Update DB Record
                         p.status = ExecutionStatus.FILLED
@@ -453,7 +475,7 @@ class LiveContext:
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
 
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
-                        
+
                     elif res:
                         p.status = ExecutionStatus.FAILED
                         p.error_reason = res.get("message", "Unknown Error")
