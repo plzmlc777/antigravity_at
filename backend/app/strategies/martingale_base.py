@@ -62,6 +62,10 @@ class MartingaleBase(BaseStrategy):
          "default": "off", "options": ["off", "on"],
          "description": "Use all remaining capital on final level (off=standard martingale qty)",
          "show_in_table": False},
+        {"name": "require_lower_price", "type": "select", "label": "Require Lower Price",
+         "default": "off", "options": ["off", "on"],
+         "description": "L2+ entry only when current price < last entry price (off=buy at any price)",
+         "show_in_table": True},
     ]
 
     # Subclasses must set PARAMETER_SCHEMA with their own trigger fields + COMMON_PARAMETER_FIELDS
@@ -92,6 +96,10 @@ class MartingaleBase(BaseStrategy):
         # Last level all-in mode (True = use remaining capital, False = standard qty)
         allin_val = self.config.get("last_level_allin", "off")
         self.last_level_allin = allin_val == "on" or allin_val is True
+
+        # Require lower price: L2+ entry only when price < last entry price
+        rlp_val = self.config.get("require_lower_price", "off")
+        self.require_lower_price = rlp_val == "on" or rlp_val is True
 
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
@@ -306,6 +314,12 @@ class MartingaleBase(BaseStrategy):
 
             # 3e. Check Additional Entry (L2+)
             if self.current_level < self.max_levels and not self.trailing_active:
+                # Require lower price: skip trigger check entirely so trigger is not consumed
+                if self.require_lower_price and self.entries:
+                    last_entry_price = self.entries[-1]["price"]
+                    if current_price >= last_entry_price:
+                        return
+
                 if self._check_additional_trigger(data):
                     next_level = self.current_level + 1
                     qty = self._calculate_quantity(next_level, current_price)
@@ -449,6 +463,7 @@ class MartingaleBase(BaseStrategy):
             "profit_percent": profit_percent,
             "target_profit": self.trailing_start_percent / 100.0,
             "entries": self.entries,
+            "require_lower_price": self.require_lower_price,
             "paper_cycle_id": self.paper_cycle_id,
             "real_cycle_id": self.real_cycle_id,
             "cycle_id": self.paper_cycle_id if getattr(self.context, 'is_paper', True) else self.real_cycle_id,
