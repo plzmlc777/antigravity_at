@@ -289,21 +289,30 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
                         <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
                             L{currentLevel}/{maxLevels}
                         </span>
-                        <div className="flex gap-1">
-                            {Array.from({ length: maxLevels }, (_, i) => (
-                                <div
-                                    key={i}
-                                    className={`h-2 w-2 rounded-full transition-all ${
-                                        i < currentLevel
-                                            ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.4)]')
-                                            : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
-                                    }`}
-                                />
-                            ))}
-                        </div>
+                        {maxLevels <= 10 && (
+                            <div className="flex gap-1">
+                                {Array.from({ length: maxLevels }, (_, i) => (
+                                    <div
+                                        key={i}
+                                        className={`h-2 w-2 rounded-full transition-all ${
+                                            i < currentLevel
+                                                ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.4)]')
+                                                : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                     {totalQty > 0 && (
-                        <span className={`text-xs font-mono ${dim}`}>{totalQty} qty</span>
+                        <span className={`text-xs font-mono ${dim}`}>
+                            {totalQty} qty
+                            {state.entries && state.entries.length > 0 && (
+                                <span className="text-gray-600 ml-0.5">
+                                    ({state.entries.map(e => e.quantity).join(', ')})
+                                </span>
+                            )}
+                        </span>
                     )}
                     {avgPrice > 0 && (
                         <span className={`text-xs font-mono ${dim}`}>
