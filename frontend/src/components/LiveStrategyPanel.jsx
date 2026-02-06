@@ -1638,7 +1638,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 });
                             });
 
-                            if (stats.paper.cycles === 0 && stats.real.cycles === 0) return null;
+                            const hasNoData = stats.paper.cycles === 0 && stats.real.cycles === 0;
 
                             const formatPnl = (v) => {
                                 if (v == null) return '-';
@@ -1701,10 +1701,16 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         <span className="text-sm font-bold text-gray-200">All Sessions Summary</span>
                                         <span className="text-xs text-gray-500">(Historical)</span>
                                     </div>
-                                    <div className="space-y-2">
-                                        {renderModeStats('paper', stats.paper, 'bg-amber-500/20 text-amber-400', 'bg-amber-500/5 border border-amber-500/10')}
-                                        {renderModeStats('real', stats.real, 'bg-red-500/20 text-red-400', 'bg-red-500/5 border border-red-500/10')}
-                                    </div>
+                                    {hasNoData ? (
+                                        <div className="text-center py-4 text-gray-500 text-sm">
+                                            No trading history yet
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {renderModeStats('paper', stats.paper, 'bg-amber-500/20 text-amber-400', 'bg-amber-500/5 border border-amber-500/10')}
+                                            {renderModeStats('real', stats.real, 'bg-red-500/20 text-red-400', 'bg-red-500/5 border border-red-500/10')}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })()}
