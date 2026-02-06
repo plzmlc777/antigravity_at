@@ -11,7 +11,8 @@ const VisualBacktestChart = ({
     customControls, // Custom UI Elements (Rank Selector, etc.)
     selectedInterval = '1m', // New Prop: 1m, 3m, 5m, 15m, 30m, 60m, 1d
     onIntervalChange, // New Prop: Handler
-    debugInfo // New Prop: Debug Info Object for Inspect
+    debugInfo, // New Prop: Debug Info Object for Inspect
+    priceLines = [] // New Prop: Array of {price, color, title, lineWidth, lineStyle}
 }) => {
     const chartContainerRef = useRef();
     const overlayCanvasRef = useRef(); // Canvas for 1px Lines
@@ -19,6 +20,7 @@ const VisualBacktestChart = ({
     const seriesInstance = useRef(null);
     const markersPluginRef = useRef(null);
     const tradeSeriesRef = useRef(null);
+    const priceLinesRef = useRef([]); // Track created price lines
 
     // UI State
     const [isReady, setIsReady] = useState(false);
@@ -477,6 +479,37 @@ const VisualBacktestChart = ({
         const index = Math.min(targetCount, total);
         updateChartState(index);
     }, [sliderValue, isReady, zoomLevel]);
+
+    // Price Lines Effect (for avg price, trailing start, etc.)
+    useEffect(() => {
+        if (!seriesInstance.current) return;
+
+        // Remove old price lines
+        priceLinesRef.current.forEach(pl => {
+            try {
+                seriesInstance.current.removePriceLine(pl);
+            } catch (e) { }
+        });
+        priceLinesRef.current = [];
+
+        // Create new price lines
+        priceLines.forEach(({ price, color, title, lineWidth = 1, lineStyle = 2 }) => {
+            if (!price || price <= 0) return;
+            try {
+                const pl = seriesInstance.current.createPriceLine({
+                    price: price,
+                    color: color || '#ffffff',
+                    lineWidth: lineWidth,
+                    lineStyle: lineStyle, // 0=solid, 1=dotted, 2=dashed
+                    axisLabelVisible: true,
+                    title: title || '',
+                });
+                priceLinesRef.current.push(pl);
+            } catch (e) {
+                console.warn('Failed to create price line:', e);
+            }
+        });
+    }, [priceLines, isReady]);
 
     const [showDebugModal, setShowDebugModal] = useState(false);
     const [debugContent, setDebugContent] = useState("");
