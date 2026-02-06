@@ -1,4 +1,4 @@
-from ..core.http_client import HttpClientManager
+from ..core.http_client import HttpClientManager, get_rate_limiter
 import httpx
 import logging
 import asyncio
@@ -13,6 +13,13 @@ from ..models.live_trading import ErrorType
 from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
+
+
+async def _rate_limited_post(url: str, **kwargs) -> httpx.Response:
+    """Rate-limited POST request to prevent Kiwoom API throttling."""
+    await get_rate_limiter().acquire()
+    client = HttpClientManager.get_instance().get_client()
+    return await client.post(url, **kwargs)
 
 class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     """
@@ -192,18 +199,17 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         payload = {
             "stk_cd": symbol
         }
-        
-        client = HttpClientManager.get_instance().get_client()
+
         try:
-            response = await client.post(url, headers=headers, json=payload)
+            response = await _rate_limited_post(url, headers=headers, json=payload)
             response.raise_for_status()
-            
+
             data = response.json()
-            
+
             # 'cur_prc' maps to Current Price
             price_str = data.get("cur_prc", "0").replace("+", "").replace("-", "")
             volume_str = data.get("trde_qty", "0") # Accumulated Volume
-            
+
             return {
                 "symbol": symbol,
                 "price": float(price_str),
@@ -243,8 +249,6 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             if not v: return 0
             return int(str(v).replace("+", "").replace("-", ""))
 
-        client = HttpClientManager.get_instance().get_client()
-
         # Use different TR ID based on server type
         is_mock_server = "mockapi" in self.base_url.lower()
 
@@ -257,7 +261,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     "dmst_stex_tp": "KRX"  # 한국거래소
                 }
 
-                response = await client.post(url, headers=headers, json=payload)
+                response = await _rate_limited_post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
 
@@ -286,7 +290,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     "qry_dt": today_str
                 }
 
-                response = await client.post(url, headers=headers, json=payload)
+                response = await _rate_limited_post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
 
@@ -367,10 +371,9 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             "trde_tp": trade_type,
             "cond_uv": ""
         }
-        
-        client = HttpClientManager.get_instance().get_client()
+
         try:
-            response = await client.post(url, headers=headers, json=payload)
+            response = await _rate_limited_post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
             
@@ -410,18 +413,17 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         headers = self._get_auth_headers(tr_id="ka10075")
         
         payload = {
-            "all_stk_tp": "0", 
+            "all_stk_tp": "0",
             "trde_tp": "0",
-            "stk_cd": "", 
-            "stex_tp": "0" 
+            "stk_cd": "",
+            "stex_tp": "0"
         }
-        
-        client = HttpClientManager.get_instance().get_client()
+
         try:
-            response = await client.post(url, headers=headers, json=payload)
+            response = await _rate_limited_post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            
+
             orders_data = data.get("oso", [])
             
             outstanding_orders = []
@@ -473,10 +475,9 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             "stk_cd": symbol,
             "cncl_qty": str(quantity) # '0' for all
         }
-        
-        client = HttpClientManager.get_instance().get_client()
+
         try:
-            response = await client.post(url, headers=headers, json=payload)
+            response = await _rate_limited_post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
             
@@ -525,46 +526,45 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, headers=headers, json=payload, timeout=10.0)
-                
-                if response.status_code != 200:
-                    logger.error(f"Error fetching candles: Server error '{response.status_code} {response.reason_phrase}' for url '{url}'")
-                    return []
-                
-                data = response.json()
-                if data.get("return_code") != 0:
-                    logger.error(f"API Error get_minute_candles: {data.get('return_msg')}")
-                    return []
-                
-                output = data.get("stk_min_pole_chart_qry", [])
-                candles = []
-                
-                for item in output:
-                    # Parse fields (prices might be negative string)
-                    # cntr_tm: 20250917132000
-                    try:
-                        ts = item.get("cntr_tm")
-                        c = abs(int(item.get("cur_prc", 0)))
-                        o = abs(int(item.get("open_pric", 0)))
-                        h = abs(int(item.get("high_pric", 0)))
-                        l = abs(int(item.get("low_pric", 0)))
-                        v = int(item.get("trde_qty", 0))
-                        
-                        candles.append({
-                            "timestamp": ts,
-                            "open": o,
-                            "high": h,
-                            "low": l,
-                            "close": c,
-                            "volume": v
-                        })
-                    except ValueError:
-                        continue
+            response = await _rate_limited_post(url, headers=headers, json=payload, timeout=10.0)
 
-                # Sort by time ascending
-                candles.sort(key=lambda x: x['timestamp'])
-                return candles
+            if response.status_code != 200:
+                logger.error(f"Error fetching candles: Server error '{response.status_code} {response.reason_phrase}' for url '{url}'")
+                return []
+
+            data = response.json()
+            if data.get("return_code") != 0:
+                logger.error(f"API Error get_minute_candles: {data.get('return_msg')}")
+                return []
+
+            output = data.get("stk_min_pole_chart_qry", [])
+            candles = []
+
+            for item in output:
+                # Parse fields (prices might be negative string)
+                # cntr_tm: 20250917132000
+                try:
+                    ts = item.get("cntr_tm")
+                    c = abs(int(item.get("cur_prc", 0)))
+                    o = abs(int(item.get("open_pric", 0)))
+                    h = abs(int(item.get("high_pric", 0)))
+                    l = abs(int(item.get("low_pric", 0)))
+                    v = int(item.get("trde_qty", 0))
+
+                    candles.append({
+                        "timestamp": ts,
+                        "open": o,
+                        "high": h,
+                        "low": l,
+                        "close": c,
+                        "volume": v
+                    })
+                except ValueError:
+                    continue
+
+            # Sort by time ascending
+            candles.sort(key=lambda x: x['timestamp'])
+            return candles
 
         except Exception as e:
             logger.error(f"Exception in get_minute_candles: {e}")
@@ -595,50 +595,48 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         }
 
         try:
-            from httpx import AsyncClient
-            async with AsyncClient() as client:
-                response = await client.post(url, headers=headers, json=payload, timeout=10.0)
-                
-                if response.status_code != 200:
-                    logger.error(f"Error fetching daily candles: {response.status_code}")
-                    return []
-                
-                data = response.json()
-                if data.get("return_code") != 0:
-                    return []
-                
-                output = data.get("stk_day_pole_chart_qry", []) 
-                
-                candles = []
-                for item in output:
-                    try:
-                        ts = item.get("stk_dt") # YYYYMMDD
-                        
-                        c = abs(int(item.get("cur_prc", 0)))
-                        o = abs(int(item.get("open_pric", 0)))
-                        h = abs(int(item.get("high_pric", 0)))
-                        l = abs(int(item.get("low_pric", 0)))
-                        v = int(item.get("trde_qty", 0))
-                        
-                        # Convert YYYYMMDD to ISO date string (YYYY-MM-DD) for consistency
-                        if ts and len(ts) == 8:
-                            ts_iso = f"{ts[:4]}-{ts[4:6]}-{ts[6:]}"
-                        else:
-                            ts_iso = ts
+            response = await _rate_limited_post(url, headers=headers, json=payload, timeout=10.0)
 
-                        candles.append({
-                            "timestamp": ts_iso,
-                            "open": o,
-                            "high": h,
-                            "low": l,
-                            "close": c,
-                            "volume": v
-                        })
-                    except ValueError:
-                        continue
+            if response.status_code != 200:
+                logger.error(f"Error fetching daily candles: {response.status_code}")
+                return []
 
-                candles.sort(key=lambda x: x['timestamp'])
-                return candles
+            data = response.json()
+            if data.get("return_code") != 0:
+                return []
+
+            output = data.get("stk_day_pole_chart_qry", [])
+
+            candles = []
+            for item in output:
+                try:
+                    ts = item.get("stk_dt") # YYYYMMDD
+
+                    c = abs(int(item.get("cur_prc", 0)))
+                    o = abs(int(item.get("open_pric", 0)))
+                    h = abs(int(item.get("high_pric", 0)))
+                    l = abs(int(item.get("low_pric", 0)))
+                    v = int(item.get("trde_qty", 0))
+
+                    # Convert YYYYMMDD to ISO date string (YYYY-MM-DD) for consistency
+                    if ts and len(ts) == 8:
+                        ts_iso = f"{ts[:4]}-{ts[4:6]}-{ts[6:]}"
+                    else:
+                        ts_iso = ts
+
+                    candles.append({
+                        "timestamp": ts_iso,
+                        "open": o,
+                        "high": h,
+                        "low": l,
+                        "close": c,
+                        "volume": v
+                    })
+                except ValueError:
+                    continue
+
+            candles.sort(key=lambda x: x['timestamp'])
+            return candles
 
         except Exception as e:
             logger.error(f"Exception in get_daily_candles: {e}")

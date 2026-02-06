@@ -468,7 +468,7 @@ const VisualBacktestChart = ({
         return () => clearInterval(interval);
     }, [isPlaying, speed]);
 
-    // Slider Effect
+    // Slider Effect (also triggers on zoomLevel change)
     useEffect(() => {
         if (!isReady || allDataRef.current.length === 0) return;
         const total = allDataRef.current.length;
