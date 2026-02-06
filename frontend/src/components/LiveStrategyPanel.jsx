@@ -813,11 +813,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const handleForceClosePosition = async () => {
         try {
-            if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
-                for (const sid of Object.values(parallelSessions)) {
+            // Force close ALL tracked sessions (both exclusive and parallel modes)
+            const sessionIds = Object.values(parallelSessions);
+            if (sessionIds.length > 0) {
+                for (const sid of sessionIds) {
                     await liquidateLiveBot(sid);
                 }
-                addLog("System", `Force-closed positions across ${Object.keys(parallelSessions).length} sessions.`);
+                addLog("System", `Force-closed positions across ${sessionIds.length} session(s).`);
             } else if (sessionId) {
                 await liquidateLiveBot(sessionId);
                 addLog("System", "Force-closed all positions (market sell).");
@@ -1159,13 +1161,22 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                     {/* Section 1: Dashboard Stats */}
                     {(() => {
-                        const targetCap = parseFloat(inputCapital) || 0;
-                        const sessions = liveData?._parallel_sessions || (liveData ? [liveData] : []);
-                        const usedCapital = sessions.reduce((sum, s) => {
+                        // Capital = Trading Capital input (same for exclusive/parallel)
+                        const totalCapital = parseFloat(inputCapital) || 0;
+
+                        // Only include sessions tracked in parallelSessions (currently active)
+                        const activeSessionIds = new Set(Object.values(parallelSessions));
+                        const allSessions = liveData?._parallel_sessions || (liveData ? [liveData] : []);
+                        const runningSessions = allSessions.filter(s =>
+                            s?.is_running && activeSessionIds.has(s?.session_id)
+                        );
+                        const usedCapital = runningSessions.reduce((sum, s) => {
                             const st = s?.strategy_state || {};
                             return sum + ((st.total_quantity || 0) * (st.average_price || 0));
                         }, 0);
-                        const availableCapital = targetCap - usedCapital;
+                        const availableCapital = totalCapital - usedCapital;
+                        const totalPnl = runningSessions.reduce((sum, s) => sum + (s?.pnl || 0), 0);
+                        const isPaper = runningSessions.some(s => s?.is_paper);
                         return (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
                         {/* Status */}
@@ -1179,14 +1190,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         {/* PnL */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
                             <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">
-                                Unrealized PnL{liveData?.is_paper ? ' (Paper)' : ''}
+                                Unrealized PnL{isPaper ? ' (Paper)' : ''}
                             </span>
-                            {liveData ? (
-                                liveData.is_paper ? (
+                            {runningSessions.length > 0 ? (
+                                isPaper ? (
                                     <span className="text-gray-600 text-sm">Paper Mode</span>
                                 ) : (
-                                    <div className={`text-2xl font-mono tracking-tight ${liveData.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {liveData.pnl > 0 ? '+' : ''}{liveData.pnl?.toLocaleString()}
+                                    <div className={`text-2xl font-mono tracking-tight ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {totalPnl > 0 ? '+' : ''}{totalPnl?.toLocaleString()}
                                     </div>
                                 )
                             ) : (
@@ -1194,34 +1205,28 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             )}
                         </div>
 
-                        {/* Target Capital (Total) */}
+                        {/* Total Capital */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Total Capital</span>
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Capital</span>
                             <div className="text-xl font-mono text-purple-400 tracking-tight">
-                                {targetCap > 0 ? `${targetCap.toLocaleString()}` : '0'}
+                                {totalCapital > 0 ? `${totalCapital.toLocaleString()}` : '0'}
                             </div>
-                            {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (() => {
-                                const activeWeights = Object.entries(rankWeights).filter(([idx]) => configList[idx]?.is_active);
-                                const isEqual = activeWeights.length > 0 && activeWeights.every(([, w]) => w === activeWeights[0][1]);
-                                return (
-                                    <div className="text-[10px] text-gray-500 mt-1">
-                                        {isEqual
-                                            ? `÷ ${activeWeights.length} ranks (Equal)`
-                                            : `Custom: ${activeWeights.length} ranks`}
-                                    </div>
-                                );
-                            })()}
                         </div>
 
                         {/* Used Capital */}
                         <div className="bg-black/20 border border-white/5 rounded-lg p-4 flex flex-col justify-center items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1">Used</span>
+                            <span className="text-gray-400 text-xs font-bold tracking-wider uppercase mb-1"
+                                title={runningSessions.map(s => {
+                                    const st = s?.strategy_state || {};
+                                    return `${s?.symbol}: ${st.total_quantity || 0}주`;
+                                }).join('\n')}
+                            >Used</span>
                             <div className="text-xl font-mono text-orange-400 tracking-tight">
                                 {usedCapital > 0 ? `${Math.round(usedCapital).toLocaleString()}` : '0'}
                             </div>
-                            {targetCap > 0 && usedCapital > 0 && (
+                            {totalCapital > 0 && usedCapital > 0 && (
                                 <div className="text-[10px] text-gray-500 mt-1">
-                                    {((usedCapital / targetCap) * 100).toFixed(1)}%
+                                    {((usedCapital / totalCapital) * 100).toFixed(1)}%
                                 </div>
                             )}
                         </div>
@@ -1232,9 +1237,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             <div className={`text-xl font-mono tracking-tight ${availableCapital >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                                 {Math.round(availableCapital).toLocaleString()}
                             </div>
-                            {targetCap > 0 && (
+                            {totalCapital > 0 && (
                                 <div className="text-[10px] text-gray-500 mt-1">
-                                    {((availableCapital / targetCap) * 100).toFixed(1)}%
+                                    {((availableCapital / totalCapital) * 100).toFixed(1)}%
                                 </div>
                             )}
                         </div>
@@ -1613,7 +1618,98 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             {/* 4. TRANSACTION HISTORY SECTION (2-Step Architecture) */}
             <div className="lg:col-span-3 mt-4">
                 {!showHistoryView ? (
-                    <div className="flex justify-center">
+                    <div className="space-y-4">
+                        {/* All Sessions Summary Panel - Separated by Paper/Real */}
+                        {(() => {
+                            // Aggregate stats separately for Paper and Real
+                            const stats = { paper: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null },
+                                           real: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null } };
+
+                            Object.values(accumulatedStats).forEach(symbolStats => {
+                                ['paper', 'real'].forEach(mode => {
+                                    const s = symbolStats?.[mode];
+                                    if (!s || !s.cycles) return;
+                                    const st = stats[mode];
+                                    st.cycles += s.cycles || 0;
+                                    st.pnl += s.realized_pnl || 0;
+                                    st.wins += Math.round((s.win_rate || 0) * s.cycles / 100);
+                                    if (s.max_pnl != null) st.maxPnl = st.maxPnl == null ? s.max_pnl : Math.max(st.maxPnl, s.max_pnl);
+                                    if (s.min_pnl != null) st.minPnl = st.minPnl == null ? s.min_pnl : Math.min(st.minPnl, s.min_pnl);
+                                });
+                            });
+
+                            if (stats.paper.cycles === 0 && stats.real.cycles === 0) return null;
+
+                            const formatPnl = (v) => {
+                                if (v == null) return '-';
+                                const abs = Math.abs(v);
+                                const str = abs >= 1000000 ? `${(abs / 1000000).toFixed(1)}M`
+                                    : abs >= 1000 ? `${Math.round(abs / 1000)}K`
+                                    : Math.round(abs).toLocaleString();
+                                return (v >= 0 ? '+' : '-') + str;
+                            };
+
+                            const renderModeStats = (mode, st, colorClass, bgClass) => {
+                                if (st.cycles === 0) return null;
+                                const winRate = st.cycles > 0 ? (st.wins / st.cycles) * 100 : 0;
+                                const avgPnl = st.cycles > 0 ? st.pnl / st.cycles : 0;
+                                return (
+                                    <div className={`${bgClass} rounded-lg p-3`}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${colorClass}`}>
+                                                {mode === 'paper' ? 'PAPER' : 'REAL'}
+                                            </span>
+                                            <span className="text-xs text-gray-500">{st.cycles} cycles</span>
+                                        </div>
+                                        <div className="grid grid-cols-4 gap-2 text-center">
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Win Rate</div>
+                                                <div className={`text-sm font-mono font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {winRate.toFixed(1)}%
+                                                </div>
+                                                <div className="text-[9px] text-gray-600">{st.wins}W/{st.cycles - st.wins}L</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Total PnL</div>
+                                                <div className={`text-sm font-mono font-bold ${st.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {formatPnl(st.pnl)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Avg/Cycle</div>
+                                                <div className={`text-sm font-mono ${avgPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {formatPnl(avgPnl)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Max/Min</div>
+                                                <div className="text-[11px] font-mono">
+                                                    <span className="text-green-400">{formatPnl(st.maxPnl)}</span>
+                                                    <span className="text-gray-600">/</span>
+                                                    <span className="text-red-400">{formatPnl(st.minPnl)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <div className="bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-500/20 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <History size={16} className="text-indigo-400" />
+                                        <span className="text-sm font-bold text-gray-200">All Sessions Summary</span>
+                                        <span className="text-xs text-gray-500">(Historical)</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {renderModeStats('paper', stats.paper, 'bg-amber-500/20 text-amber-400', 'bg-amber-500/5 border border-amber-500/10')}
+                                        {renderModeStats('real', stats.real, 'bg-red-500/20 text-red-400', 'bg-red-500/5 border border-red-500/10')}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
+                        {/* Load Transaction History Button */}
                         <button
                             className="w-full py-4 border-2 border-dashed border-gray-700 hover:border-blue-500/50 hover:bg-blue-500/5 rounded-xl text-gray-400 hover:text-blue-400 font-bold transition-all flex flex-col items-center gap-2"
                             onClick={() => {

@@ -36,20 +36,20 @@ const UnifiedSessionCards = ({
 
     const isExclusive = executionMode === 'exclusive';
 
-    // Calculate total stats across all ranks
+    // Calculate total stats across all running sessions (current session data only)
     const totalStats = (() => {
         let totalCycles = 0;
         let totalPnl = 0;
         let totalWins = 0;
         let allCyclePnls = [];
 
-        ranks.forEach(({ cfg }) => {
-            const symbolStats = accumulatedStats[cfg.symbol];
-            if (!symbolStats) return;
+        ranks.forEach(({ session }) => {
+            const sessionStats = session?.trade_stats;
+            if (!sessionStats) return;
 
-            // Combine paper + real stats
+            // Combine paper + real stats from current session
             ['paper', 'real'].forEach(mode => {
-                const s = symbolStats[mode];
+                const s = sessionStats[mode];
                 if (!s || !s.cycles) return;
                 totalCycles += s.cycles;
                 totalPnl += s.realized_pnl || 0;
@@ -128,11 +128,10 @@ const UnifiedSessionCards = ({
                     const price = session?.current_price || 0;
                     const pnl = session?.pnl || 0;
                     const isPaper = session?.is_paper ?? true;
-                    // Always use accumulated stats from API (filtered by strategy_name)
-                    // This includes ALL historical cycles across all sessions with the same strategy
-                    const symbolAccStats = accumulatedStats[cfg.symbol] || {};
-                    const accHasTrades = (symbolAccStats.paper?.trades > 0) || (symbolAccStats.real?.trades > 0);
-                    const tradeStats = symbolAccStats;
+                    // Use current session's trade_stats (not accumulated historical data)
+                    const sessionStats = session?.trade_stats || {};
+                    const accHasTrades = (sessionStats.paper?.trades > 0) || (sessionStats.real?.trades > 0);
+                    const tradeStats = sessionStats;
                     const hasAccumulatedData = accHasTrades;
 
                     // Use strategyState for selected rank (more up-to-date from WebSocket)
