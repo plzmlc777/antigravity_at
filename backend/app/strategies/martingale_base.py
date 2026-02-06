@@ -120,6 +120,10 @@ class MartingaleBase(BaseStrategy):
         self.paper_cycle_id = 0
         self.real_cycle_id = 0
 
+        # Pending order guard: prevents duplicate orders while async callback is pending
+        self._pending_entry = False
+        self._pending_exit = False
+
         # Hook for subclass-specific initialization
         self._initialize_trigger()
 
@@ -325,27 +329,51 @@ class MartingaleBase(BaseStrategy):
                             return
 
                     if self._check_additional_trigger(data):
+                        # Guard: skip if already waiting for pending order
+                        if self._pending_entry:
+                            return
+
                         next_level = self.current_level + 1
                         qty = self._calculate_quantity(next_level, current_price)
                         if qty > 0:
-                            result = self.context.buy(symbol, qty, metadata={"level": next_level})
-                            if result.get("status") != "failed":
-                                self._add_position(current_price, qty, next_level)
-                                self.context.log(f"[{self._log_prefix}] L{next_level} Entry @ {current_price:,.0f}. Avg: {self.average_price:,.0f}")
-                            else:
+                            self._pending_entry = True  # Lock until callback
+
+                            # Callback invoked after order is FILLED or FAILED (async-safe)
+                            def on_filled_callback(order_id, filled_qty, filled_price, metadata, _level=next_level):
+                                self._pending_entry = False  # Unlock
+                                if filled_qty > 0:  # Success
+                                    self._add_position(filled_price, filled_qty, _level)
+                                    self.context.log(f"[{self._log_prefix}] L{_level} Entry FILLED @ {filled_price:,.0f}. Avg: {self.average_price:,.0f}")
+                                # else: async failure, already logged by context
+
+                            result = self.context.buy(symbol, qty, metadata={"level": next_level}, on_filled=on_filled_callback)
+                            if result.get("status") == "failed":
+                                self._pending_entry = False  # Unlock on immediate failure
                                 self.context.log(f"[{self._log_prefix}] L{next_level} Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
         # 4. Initial Entry (Level 1)
         elif self.current_level == 0:
+            # Guard: skip if already waiting for pending order
+            if self._pending_entry:
+                return
+
             if self._check_entry_trigger(data):
                 qty = self._calculate_quantity(1, current_price)
-                result = self.context.buy(symbol, qty, metadata={"level": 1})
-                if result.get("status") != "failed":
-                    self._add_position(current_price, qty, 1)
-                    self.peak_price = current_price
-                    self.cycle_start_time = self.context.get_time()
-                    self.context.log(f"[{self._log_prefix}] L1 Initial Entry @ {current_price:,.0f}")
-                else:
+                self._pending_entry = True  # Lock until callback
+
+                # Callback invoked after order is FILLED or FAILED (async-safe)
+                def on_l1_filled(order_id, filled_qty, filled_price, metadata):
+                    self._pending_entry = False  # Unlock
+                    if filled_qty > 0:  # Success
+                        self._add_position(filled_price, filled_qty, 1)
+                        self.peak_price = filled_price
+                        self.cycle_start_time = self.context.get_time()
+                        self.context.log(f"[{self._log_prefix}] L1 Initial Entry FILLED @ {filled_price:,.0f}")
+                    # else: async failure, already logged by context
+
+                result = self.context.buy(symbol, qty, metadata={"level": 1}, on_filled=on_l1_filled)
+                if result.get("status") == "failed":
+                    self._pending_entry = False  # Unlock on immediate failure
                     self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
     @property
@@ -361,6 +389,10 @@ class MartingaleBase(BaseStrategy):
         self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
 
     def _liquidate(self, price: float):
+        # Guard: skip if already waiting for pending exit order
+        if self._pending_exit:
+            return
+
         is_paper = getattr(self.context, 'is_paper', True)
         if is_paper:
             self.paper_cycle_id += 1
@@ -368,22 +400,34 @@ class MartingaleBase(BaseStrategy):
         else:
             self.real_cycle_id += 1
             cycle_id = self.real_cycle_id
-        self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper})
 
-        if self.betting_strategy == "fixed":
-            self.context.reset_cycle_capital()
+        self._pending_exit = True  # Lock until callback
 
-        self.current_level = 0
-        self.total_quantity = 0
-        self.average_price = 0
-        self.peak_price = 0
-        self.trailing_active = False
-        self.is_hodl = False
-        self.reference_price = None
-        self.entries = []
-        self.cycle_max_level = None
-        self.cycle_reference_price = None
-        self.cycle_start_time = None
+        # Callback invoked after sell is FILLED or FAILED (async-safe)
+        def on_sell_filled(order_id, filled_qty, filled_price, metadata):
+            self._pending_exit = False  # Unlock
+            if filled_qty > 0:  # Success
+                if self.betting_strategy == "fixed":
+                    self.context.reset_cycle_capital()
+
+                self.current_level = 0
+                self.total_quantity = 0
+                self.average_price = 0
+                self.peak_price = 0
+                self.trailing_active = False
+                self.is_hodl = False
+                self.reference_price = None
+                self.entries = []
+                self.cycle_max_level = None
+                self.cycle_reference_price = None
+                self.cycle_start_time = None
+                self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
+            # else: async failure, already logged by context
+
+        result = self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper}, on_filled=on_sell_filled)
+        if result.get("status") == "failed":
+            self._pending_exit = False  # Unlock on immediate failure
+            self.context.log(f"[{self._log_prefix}] SELL FAILED: {result.get('reason', 'Unknown')}")
 
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)
@@ -471,6 +515,9 @@ class MartingaleBase(BaseStrategy):
             "paper_cycle_id": self.paper_cycle_id,
             "real_cycle_id": self.real_cycle_id,
             "cycle_id": self.paper_cycle_id if getattr(self.context, 'is_paper', True) else self.real_cycle_id,
+            # Pending order status (for UI indicator)
+            "pending_entry": getattr(self, '_pending_entry', False),
+            "pending_exit": getattr(self, '_pending_exit', False),
         }
 
     @property

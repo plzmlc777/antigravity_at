@@ -256,6 +256,10 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
     const triggerLevel = state.trigger_level || 30;
     const triggerArmed = state.trigger_armed || false;
 
+    // Pending order status
+    const pendingEntry = state.pending_entry || false;
+    const pendingExit = state.pending_exit || false;
+
     // Trigger price
     const triggerPrice = refPrice > 0 ? Math.round(refPrice * (1 - targetDip)) : 0;
 
@@ -293,6 +297,12 @@ const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats =
                         <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
                             L{currentLevel}/{maxLevels}
                         </span>
+                        {/* Pending order indicator */}
+                        {(pendingEntry || pendingExit) && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
+                                {pendingEntry ? 'BUY...' : 'SELL...'}
+                            </span>
+                        )}
                         {maxLevels <= 10 && (
                             <div className="flex gap-1">
                                 {Array.from({ length: maxLevels }, (_, i) => (
@@ -536,6 +546,10 @@ const TimeMomentumCard = ({ state, config, dimmed = false, tradeStats = {} }) =>
     const hasBought = state.has_bought || false;
     const checkedToday = state.checked_today || false;
 
+    // Pending order status
+    const pendingEntry = state.pending_entry || false;
+    const pendingExit = state.pending_exit || false;
+
     const dim = dimmed ? 'text-gray-700' : 'text-gray-500';
     const dimBorder = dimmed ? 'border-white/[0.02]' : 'border-white/[0.05]';
 
@@ -588,6 +602,12 @@ const TimeMomentumCard = ({ state, config, dimmed = false, tradeStats = {} }) =>
                         {direction === 'rise' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                         {direction === 'rise' ? 'Rise' : 'Fall'}
                     </div>
+                    {/* Pending order indicator */}
+                    {(pendingEntry || pendingExit) && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
+                            {pendingEntry ? 'BUY...' : 'SELL...'}
+                        </span>
+                    )}
                     <span className={`text-xs font-mono ${dimmed ? 'text-gray-700' : 'text-green-400'}`}>
                         Target: {targetPercent}%
                     </span>

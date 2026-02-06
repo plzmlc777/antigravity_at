@@ -110,6 +110,10 @@ class TimeMomentumStrategy(BaseStrategy):
         self.current_trading_date = None # Fix: Track Date for Reset
         self.cycle_id = 0 # Cycle tracking (unified with DipMartingale)
 
+        # Pending order guard: prevents duplicate orders while async callback is pending
+        self._pending_entry = False
+        self._pending_exit = False
+
         # Verify Code Loading
         self.context.log(f"DEBUG: TimeMomentumStrategy Loaded (Strict Daily Limit Active) - {datetime.now()}")
 
@@ -220,17 +224,27 @@ class TimeMomentumStrategy(BaseStrategy):
 
 
                 if quantity > 0:
-                    result = self.context.buy(symbol, quantity, metadata={"level": 1})
-                    # Only update position state if buy succeeded
-                    if result.get("status") != "failed":
-                        self.has_bought = True
-                        self.entry_price = current_price # Fix: Record Actual Entry Price
-                        self.peak_price = current_price
-                        self.trailing_active = False # Fix: Reset trailing state on new trade
-                        self.last_trade_date = current_time.date() # Mark as traded today
-                        target_display = -self.target_percent if self.direction == "fall" else self.target_percent
-                        self.context.log(f"Entry Triggered ({self.direction} | {betting_mode})! Change: {change*100:.2f}% vs Target {target_display*100:.2f}% | Qty: {quantity}")
-                    else:
+                    # Guard: skip if already waiting for pending order
+                    if self._pending_entry:
+                        return
+
+                    self._pending_entry = True  # Lock until callback
+
+                    # Callback invoked after order is FILLED or FAILED (async-safe)
+                    def on_buy_filled(order_id, filled_qty, filled_price, metadata, _current_time=current_time):
+                        self._pending_entry = False  # Unlock
+                        if filled_qty > 0:  # Success
+                            self.has_bought = True
+                            self.entry_price = filled_price  # Use actual fill price
+                            self.peak_price = filled_price
+                            self.trailing_active = False  # Reset trailing state on new trade
+                            self.last_trade_date = _current_time.date()  # Mark as traded today
+                            self.context.log(f"Entry FILLED ({self.direction} | {betting_mode})! @ {filled_price:,.0f} | Qty: {filled_qty}")
+                        # else: async failure, already logged by context
+
+                    result = self.context.buy(symbol, quantity, metadata={"level": 1}, on_filled=on_buy_filled)
+                    if result.get("status") == "failed":
+                        self._pending_entry = False  # Unlock on immediate failure
                         self.context.log(f"Entry REJECTED: {result.get('reason', 'Unknown')}. Qty: {quantity}, Price: {current_price}")
                 elif should_buy:
                      # Only log if we WANTED to buy but couldn't (e.g. cash, or calculation error)
@@ -259,13 +273,24 @@ class TimeMomentumStrategy(BaseStrategy):
             current_return = (current_price - entry_price) / entry_price
             
             if current_return <= self.safety_stop_percent:
+                 if self._pending_exit:
+                     return
                  qty = self.context.holdings.get(symbol, 0)
                  if qty > 0:
                      self.cycle_id += 1
-                     self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
-                     self.has_bought = False
-                     self.trailing_active = False # Fix: Reset state
-                     self.context.log(f"Safety Stop Hit! Sold {qty}")
+                     _cycle_id = self.cycle_id
+                     self._pending_exit = True
+
+                     def on_safety_stop_filled(order_id, filled_qty, filled_price, metadata):
+                         self._pending_exit = False
+                         if filled_qty > 0:
+                             self.has_bought = False
+                             self.trailing_active = False
+                             self.context.log(f"Safety Stop FILLED! Sold {filled_qty} @ {filled_price:,.0f}")
+
+                     result = self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": _cycle_id}, on_filled=on_safety_stop_filled)
+                     if result.get("status") == "failed":
+                         self._pending_exit = False
                  return
 
             # Trailing Stop Logic
@@ -277,23 +302,45 @@ class TimeMomentumStrategy(BaseStrategy):
             if self.trailing_active:
                 drop_from_peak = (self.peak_price - current_price) / self.peak_price
                 if drop_from_peak >= self.trailing_stop_drop:
+                    if self._pending_exit:
+                        return
                     qty = self.context.holdings.get(symbol, 0)
                     if qty > 0:
                         self.cycle_id += 1
-                        self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
-                        self.has_bought = False
-                        self.trailing_active = False # Fix: Reset state
-                        self.context.log(f"Trailing Stop Hit! Sold {qty}")
+                        _cycle_id = self.cycle_id
+                        self._pending_exit = True
+
+                        def on_trailing_stop_filled(order_id, filled_qty, filled_price, metadata):
+                            self._pending_exit = False
+                            if filled_qty > 0:
+                                self.has_bought = False
+                                self.trailing_active = False
+                                self.context.log(f"Trailing Stop FILLED! Sold {filled_qty} @ {filled_price:,.0f}")
+
+                        result = self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": _cycle_id}, on_filled=on_trailing_stop_filled)
+                        if result.get("status") == "failed":
+                            self._pending_exit = False
                     return
 
             if current_time.time() >= self.stop_time:
+                 if self._pending_exit:
+                     return
                  qty = self.context.holdings.get(symbol, 0)
                  if qty > 0:
                      self.cycle_id += 1
-                     self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": self.cycle_id})
-                     self.has_bought = False
-                     self.trailing_active = False # Fix: Reset state
-                     self.context.log(f"Time Stop (End of Day). Sold {qty}")
+                     _cycle_id = self.cycle_id
+                     self._pending_exit = True
+
+                     def on_time_stop_filled(order_id, filled_qty, filled_price, metadata):
+                         self._pending_exit = False
+                         if filled_qty > 0:
+                             self.has_bought = False
+                             self.trailing_active = False
+                             self.context.log(f"Time Stop FILLED! Sold {filled_qty} @ {filled_price:,.0f}")
+
+                     result = self.context.sell(symbol, qty, metadata={"level": "CLOSE", "cycle_id": _cycle_id}, on_filled=on_time_stop_filled)
+                     if result.get("status") == "failed":
+                         self._pending_exit = False
 
         # DEBUG: Check for skipped days at market close
         # Adjust check time to be slightly before actual end of data logic if needed, 
@@ -338,6 +385,9 @@ class TimeMomentumStrategy(BaseStrategy):
             "checked_today": self.checked_today,
             "start_time": self.start_time_str,
             "delay_minutes": self.delay_minutes,
-            "safety_stop_percent": self.safety_stop_percent
+            "safety_stop_percent": self.safety_stop_percent,
+            # Pending order status (for UI indicator)
+            "pending_entry": getattr(self, '_pending_entry', False),
+            "pending_exit": getattr(self, '_pending_exit', False),
         }
 

@@ -11,6 +11,9 @@ class OptimizationRequest(BaseModel):
     # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {} # Default/Fixed values
+    # Server-side auto-save: tab UUID for persisting results to DB on completion
+    save_to_tab_id: Optional[str] = None
+    save_account_id: Optional[int] = None
 
 class OptimizationResultItem(BaseModel):
     rank: int

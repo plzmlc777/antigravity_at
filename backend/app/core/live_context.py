@@ -38,7 +38,11 @@ class LiveContext:
 
         # Exclusive mode gate: returns True if this session can buy, False if locked by another
         self._exclusive_gate: Optional[Callable[[], bool]] = None
-        
+
+        # Order fill callbacks: {order_id: callback_fn}
+        # Callback is invoked after order is FILLED with (order_id, filled_qty, filled_price, metadata)
+        self._order_callbacks: Dict[str, Callable] = {}
+
         # Initial Balance Sync
         self._sync_balance()
 
@@ -214,29 +218,30 @@ class LiveContext:
     def holdings(self) -> Dict[str, int]:
         return self._holdings
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         # Exclusive mode: check if another session holds the trading lock
         if self._exclusive_gate and not self._exclusive_gate():
             self.log(f"BUY BLOCKED: Exclusive lock held by another session")
             return {"status": "failed", "reason": "exclusive_locked"}
-        return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata)
+        return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata, on_filled)
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        return self._execute_order(symbol, OrderSide.SELL, quantity, price, metadata)
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+        return self._execute_order(symbol, OrderSide.SELL, quantity, price, metadata, on_filled)
 
-    def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         """
         Core Execution Pipeline:
         1. Validate (StockOrder)
         2. DB Record (PENDING)
         3. Send to Adapter
         4. DB Update (SUBMITTED/FAILED)
+        5. Invoke on_filled callback after FILLED (in process_queue)
         """
         db: Session = SessionLocal()
         try:
             current_price = self.get_current_price(symbol)
             exec_price = price if price > 0 else current_price
-            
+
             # 1. Create & Validate Order Object
             order = StockOrder(
                 symbol=symbol,
@@ -246,7 +251,7 @@ class LiveContext:
                 order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
             )
             order.validate()
-            
+
             # 2. Pre-Execution DB Record
             db_exec = LiveTradeExecution(
                 session_id=self.session_id,
@@ -263,13 +268,15 @@ class LiveContext:
             db.add(db_exec)
             db.commit() # Save ID
             db.refresh(db_exec)
-            
+
             self.log(f"SIGNAL: {side.value} {quantity} {symbol} @ {exec_price}")
-            
-            # ... (Async bridge logic placeholder) ...
-            
+
+            # 3. Store callback for invocation after fill (in process_queue)
+            if on_filled:
+                self._order_callbacks[db_exec.id] = on_filled
+
             self.log(f"Queued Order: {side.value} {symbol}")
-            
+
             # Return a "Receipt" (Trade Dict) immediately
             trade_receipt = {
                 "type": side.value.lower(),
@@ -483,6 +490,19 @@ class LiveContext:
 
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
 
+                        # 4. Invoke on_filled callback (for strategy position update)
+                        if p.id in self._order_callbacks:
+                            try:
+                                callback = self._order_callbacks.pop(p.id)
+                                callback(
+                                    order_id=p.id,
+                                    filled_qty=p.filled_quantity,
+                                    filled_price=p.executed_price,
+                                    metadata=p.trade_metadata or {}
+                                )
+                            except Exception as cb_err:
+                                logger.error(f"Order callback error: {cb_err}")
+
                     elif res:
                         p.status = ExecutionStatus.FAILED
                         p.error_reason = res.get("message", "Unknown Error")
@@ -493,7 +513,19 @@ class LiveContext:
                             symbol=p.symbol,
                             context={"signal_type": p.signal_type, "quantity": p.requested_quantity}
                         )
-                        
+                        # Invoke callback with filled_qty=0 to signal failure (allows strategy to clear pending flags)
+                        if p.id in self._order_callbacks:
+                            try:
+                                callback = self._order_callbacks.pop(p.id)
+                                callback(
+                                    order_id=p.id,
+                                    filled_qty=0,  # Signal failure
+                                    filled_price=0,
+                                    metadata=p.trade_metadata or {}
+                                )
+                            except Exception as cb_err:
+                                logger.error(f"Order failure callback error: {cb_err}")
+
                     db.commit()
                 except Exception as e:
                     logger.error(f"Queue Process Error: {e}")

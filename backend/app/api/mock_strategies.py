@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..models.strategy_info import StrategyInfo
+from ..core.user_context import UserAccountContext, get_user_context
 import random
 import time
 import itertools
@@ -249,7 +250,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
 
     return config, result
 
-def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
+def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None):
     """
     Background wrapper that runs the sync process pool and updates Global Status.
     """
@@ -438,7 +439,37 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         
         OPTIMIZATION_TASKS[task_id]["status"] = final_status
         OPTIMIZATION_TASKS[task_id]["result"] = response
-        
+
+        # Server-side auto-save to DB (independent of frontend polling)
+        if save_to_tab_id and final_status == "completed":
+            try:
+                from ..db.session import SessionLocal
+                from ..models.strategy_result import StrategyAnalysisResult
+                db = SessionLocal()
+                try:
+                    result_data = response.model_dump() if hasattr(response, 'model_dump') else response.dict()
+                    db_obj = db.query(StrategyAnalysisResult).filter(
+                        StrategyAnalysisResult.tab_id == save_to_tab_id,
+                        StrategyAnalysisResult.result_type == "optimization",
+                        StrategyAnalysisResult.account_id == save_account_id
+                    ).first()
+                    if db_obj:
+                        db_obj.data = result_data
+                    else:
+                        db_obj = StrategyAnalysisResult(
+                            tab_id=save_to_tab_id,
+                            result_type="optimization",
+                            account_id=save_account_id,
+                            data=result_data
+                        )
+                        db.add(db_obj)
+                    db.commit()
+                    logger.info(f"[Optimization] Auto-saved results to DB (tab_id={save_to_tab_id})")
+                finally:
+                    db.close()
+            except Exception as save_err:
+                logger.error(f"[Optimization] Failed to auto-save to DB: {save_err}")
+
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
@@ -653,7 +684,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     }
 
 @router.post("/{strategy_id}/optimize", response_model=OptimizationResponse)
-async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
+async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx: UserAccountContext = Depends(get_user_context)):
     start_time = time.time()
     
     # 1. Select Strategy Class from Registry
@@ -717,6 +748,8 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
     # Run in Thread (to allow Thread to manage ProcessPool and updates)
     import asyncio
     loop = asyncio.get_running_loop()
+    save_tab_id = request.save_to_tab_id
+    save_acct_id = ctx.account_id if ctx.has_active_account else None
     loop.run_in_executor(
         None,
         _optimize_background_task,
@@ -724,7 +757,9 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest):
         run_args,
         strategy_id,
         start_time,
-        total_combinations
+        total_combinations,
+        save_tab_id,
+        save_acct_id
     )
 
     # Return Immediate Response

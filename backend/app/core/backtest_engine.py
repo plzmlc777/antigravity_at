@@ -1,5 +1,5 @@
 import random
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from .data_schemas import make_equity_point, EQUITY_VALUE_KEY
@@ -33,44 +33,62 @@ class BacktestContext(IContext):
             return self.current_candle['close']
         return 0
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         exec_price = price if price > 0 else self.get_current_price(symbol)
         cost = exec_price * quantity
-        
+
         # Simulation Mode: Allow negative cash to support "Fixed Betting" regardless of drawdown
-        # if self.cash >= cost: 
+        # if self.cash >= cost:
         self.cash -= cost
         self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
-        
+
         trade = {
             "type": "buy",
             "symbol": symbol,
             "price": exec_price,
             "quantity": quantity,
-            "time": self.get_time().isoformat()
+            "time": self.get_time().isoformat(),
+            "metadata": metadata or {}
         }
         self.trades.append(trade)
         self.log(f"BUY EXECUTED: {quantity} @ {exec_price}")
+
+        # Backtest executes synchronously, so invoke callback immediately if provided
+        if on_filled:
+            try:
+                on_filled(order_id=None, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
+            except Exception:
+                pass  # Ignore callback errors in backtest
+
         return trade
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market") -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         current_qty = self.holdings.get(symbol, 0)
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
             revenue = exec_price * quantity
-            
+
             self.cash += revenue
             self.holdings[symbol] -= quantity
-            
+
             trade = {
                 "type": "sell",
                 "symbol": symbol,
                 "price": exec_price,
                 "quantity": quantity,
-                "time": self.get_time().isoformat()
+                "time": self.get_time().isoformat(),
+                "metadata": metadata or {}
             }
             self.trades.append(trade)
             self.log(f"SELL EXECUTED: {quantity} @ {exec_price}")
+
+            # Backtest executes synchronously, so invoke callback immediately if provided
+            if on_filled:
+                try:
+                    on_filled(order_id=None, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
+                except Exception:
+                    pass
+
             return trade
         else:
             self.log("SELL FAILED: Insufficient Holdings")

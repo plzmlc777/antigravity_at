@@ -1,5 +1,5 @@
 import random
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
@@ -129,7 +129,7 @@ class BacktestContext(IContext):
             # Return last known price if available
             return self.last_known_prices.get(symbol, 0)
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         # EXCLUSIVE LOCK: Only one rank can trade at a time (per-rank isolation mode)
         if self._use_rank_isolation:
             if self._exclusive_lock_holder is not None and self._exclusive_lock_holder != self.current_rank:
@@ -198,13 +198,21 @@ class BacktestContext(IContext):
                 self._exclusive_lock_holder = self.current_rank
 
             self.log(f"BUY EXECUTED: {quantity} {symbol} @ {exec_price}")
+
+            # Backtest executes synchronously, so invoke callback immediately if provided
+            if on_filled:
+                try:
+                    on_filled(order_id=order.id, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
+                except Exception:
+                    pass
+
             return trade
 
         except Exception as e:
             self.log(f"BUY ERROR: {e}")
             return {"status": "failed", "reason": str(e)}
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         # Check holdings (per-rank if isolation enabled)
         if self._use_rank_isolation:
             rank_h = self._rank_holdings.get(self.current_rank, {})
@@ -268,6 +276,14 @@ class BacktestContext(IContext):
                         self._exclusive_lock_holder = None
 
                 self.log(f"SELL EXECUTED: {quantity} {symbol} @ {exec_price}")
+
+                # Backtest executes synchronously, so invoke callback immediately if provided
+                if on_filled:
+                    try:
+                        on_filled(order_id=order.id, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
+                    except Exception:
+                        pass
+
                 return trade
 
             except Exception as e:

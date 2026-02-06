@@ -1993,6 +1993,11 @@ const StrategyView = () => {
                 }
             });
 
+            // Determine tab UUID for server-side auto-save
+            const saveTabId = isCrossOpt
+                ? getCrossOptUUID(selectedStrategy?.id)
+                : currentConfig?.uuid || null;
+
             const payload = {
                 symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
                 symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
@@ -2001,7 +2006,8 @@ const StrategyView = () => {
                 from_date: currentConfig?.from_date || "",
                 initial_capital: currentConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
-                base_config: base_config
+                base_config: base_config,
+                save_to_tab_id: saveTabId  // Server-side auto-save on completion
             };
 
             const url = `/api/v1/strategies/${selectedStrategy.id}/optimize`;
@@ -2088,12 +2094,14 @@ const StrategyView = () => {
                                             addLog('Failed to save cross-optimization results', 'error');
                                         }
                                     } else if (currentConfig.uuid) {
-                                        // Rank tab: Pending Save - save to DB only on Apply/Tab switch confirmation
-                                        setPendingOptResult({
-                                            tabUuid: currentConfig.uuid,
-                                            data: resultData
-                                        });
-                                        addLog('Optimization complete. Click "Save Results" or apply a config to save to DB.', 'info');
+                                        // Rank tab: auto-save to DB immediately
+                                        try {
+                                            await saveStrategyResult(currentConfig.uuid, 'optimization', resultData);
+                                            addLog('Optimization results saved to DB.', 'info');
+                                        } catch (err) {
+                                            console.error("Failed to save opt result", err);
+                                            addLog('Failed to save optimization results', 'error');
+                                        }
                                     }
                                 }
 
