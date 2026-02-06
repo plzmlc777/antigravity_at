@@ -32,7 +32,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [rankWeights, setRankWeights] = useState({});
 
     // Real-Time Candles State
-    const [realTimeCandles, setRealTimeCandles] = useState([]);
+    const [rawCandles, setRawCandles] = useState([]); // Always 1m candles (source of truth)
+    const [realTimeCandles, setRealTimeCandles] = useState([]); // Aggregated to selectedInterval
     const [selectedInterval, setSelectedInterval] = useState('1m');
 
     // WebSocket Connection State
@@ -219,10 +220,64 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // New: Strategy Internal State
     const [strategyState, setStrategyState] = useState(null);
 
+    // Helper: Aggregate 1m candles to target interval
+    const aggregateCandles = (candles1m, interval) => {
+        if (!candles1m || candles1m.length === 0) return [];
+        if (interval === '1m') return candles1m;
+
+        const ms = 1000;
+        const min = 60 * ms;
+        const hour = 60 * min;
+        const day = 24 * hour;
+
+        const unit = interval.slice(-1);
+        const value = parseInt(interval.slice(0, -1));
+
+        let intervalMs = min;
+        if (unit === 'm') intervalMs = value * min;
+        else if (unit === 'h') intervalMs = value * hour;
+        else if (unit === 'd') intervalMs = value * day;
+
+        const aggregated = [];
+        let currentCandle = null;
+
+        candles1m.forEach(c => {
+            const candleTime = c.time * 1000; // Convert to ms
+            const bucketTime = Math.floor(candleTime / intervalMs) * intervalMs / 1000; // Back to seconds
+
+            if (!currentCandle || currentCandle.time !== bucketTime) {
+                if (currentCandle) aggregated.push(currentCandle);
+                currentCandle = {
+                    time: bucketTime,
+                    open: c.open,
+                    high: c.high,
+                    low: c.low,
+                    close: c.close,
+                    volume: c.volume || 0
+                };
+            } else {
+                currentCandle.high = Math.max(currentCandle.high, c.high);
+                currentCandle.low = Math.min(currentCandle.low, c.low);
+                currentCandle.close = c.close;
+                currentCandle.volume = (currentCandle.volume || 0) + (c.volume || 0);
+            }
+        });
+
+        if (currentCandle) aggregated.push(currentCandle);
+        return aggregated;
+    };
+
+    // Effect: Re-aggregate when interval changes
+    useEffect(() => {
+        if (rawCandles.length > 0) {
+            const aggregated = aggregateCandles(rawCandles, selectedInterval);
+            setRealTimeCandles(aggregated);
+        }
+    }, [selectedInterval, rawCandles]);
 
     // Polling Ref
     const pollInterval = useRef(null);
-    const lastFetchRef = useRef({ symbol: null, interval: null, status: null });
+    const lastFetchRef = useRef({ symbol: null, status: null });  // Always fetch 1m, no interval tracking
 
     // Handler: Cycle Click → Fetch 1m OHLCV and show chart
     const handleCycleClick = async (cycle) => {
@@ -474,15 +529,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             return;
         }
 
-        // Deduplication Check: Skip if this specific combination was already fetched
-        if (lastFetchRef.current.symbol === strategyConfig.symbol &&
-            lastFetchRef.current.interval === selectedInterval) {
-            console.log(`[DEBUG] Skipping redundant history fetch for ${strategyConfig.symbol} (${selectedInterval})`);
+        // Deduplication Check: Skip if this symbol was already fetched (always fetch 1m)
+        if (lastFetchRef.current.symbol === strategyConfig.symbol) {
+            console.log(`[DEBUG] Skipping redundant history fetch for ${strategyConfig.symbol}`);
             return;
         }
 
-        console.log(`[DEBUG] History Fetch Effect Triggered. Status: ${status}, Symbol: ${strategyConfig.symbol}, Interval: ${selectedInterval}`);
-        lastFetchRef.current = { symbol: strategyConfig.symbol, interval: selectedInterval, status: status };
+        console.log(`[DEBUG] History Fetch Effect Triggered. Status: ${status}, Symbol: ${strategyConfig.symbol}`);
+        lastFetchRef.current = { symbol: strategyConfig.symbol, status: status };
+        setRawCandles([]);
         setRealTimeCandles([]);
 
         (async () => {
@@ -493,17 +548,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 const kstDate = new Date(utc + (kstOffset * 60000));
                 const dateStr = kstDate.toISOString().split('T')[0].replace(/-/g, '');
 
-                addLog("System", `Fetching ${selectedInterval} candles...`);
+                addLog("System", `Fetching 1m candles...`);
 
+                // Always fetch 1m data - client-side aggregation handles interval
                 const candles = await getOHLCV(strategyConfig.symbol, {
                     date: dateStr,
-                    interval: selectedInterval
+                    interval: '1m'
                 });
 
                 // Only set if WS history hasn't arrived yet
                 if (!wsHistoryReceived.current) {
                     if (candles && candles.length > 0) {
-                        setRealTimeCandles(candles);
+                        setRawCandles(candles);
+                        // realTimeCandles will be set by the aggregation useEffect
                         addLog("System", `Loaded ${candles.length} candles (HTTP). Last: ${candles[candles.length - 1].time}`);
                     } else {
                         addLog("System", "No history data. Waiting for stream...");
@@ -514,10 +571,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             } catch (e) {
                 console.error("Init Error", e);
                 addLog("Error", "Failed to fetch history");
+                setRawCandles([]);
                 setRealTimeCandles([]);
             }
         })();
-    }, [status, strategyConfig.symbol, selectedInterval, mode, sessionId]);
+    }, [status, strategyConfig.symbol, mode, sessionId]);
 
 
     const startPolling = () => {
@@ -830,8 +888,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         return [...prev, { time: timeStr, price: data.price }].slice(-50);
                     });
 
-                    // 2. Aggregate to Candle
-                    setRealTimeCandles(prevCandles => {
+                    // 2. Aggregate to 1m candle (rawCandles) - aggregation useEffect handles interval
+                    setRawCandles(prevCandles => {
                         const newPrice = data.price;
                         let tickTime = new Date();
                         if (data.time) {
@@ -839,54 +897,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             if (!isNaN(t.getTime())) tickTime = t;
                         }
 
-                        // Normalize to Selected Interval
-                        const ms = 1000;
-                        const min = 60 * ms;
-                        const hour = 60 * min;
-                        const day = 24 * hour;
-
-                        let intervalMs = min; // Default 1m
-
-                        const unit = selectedInterval.slice(-1);
-                        const value = parseInt(selectedInterval.slice(0, -1));
-
-                        if (unit === 'm') intervalMs = value * min;
-                        else if (unit === 'h') intervalMs = value * hour;
-                        else if (unit === 'd') intervalMs = value * day;
-
-                        // Calculate Candle Start Time
-                        // Note: Simple math floor works for consistent intervals from Unix Epic,
-                        // but for daily/4h aligned to market/local time, Date manipulation is safer.
-                        // However, for simplicity and typical crypto/global usage, timestamp math is often used.
-                        // Let's use simple timestamp flooring for < 1d, and Date for >= 1d if needed.
-                        // Actually, to align with Chart, we should use similar logic.
-
-                        // Using Date math for better alignment with local hours
-                        const year = tickTime.getFullYear();
-                        const month = tickTime.getMonth();
-                        const date = tickTime.getDate();
-                        const hours = tickTime.getHours();
-                        const minutes = tickTime.getMinutes();
-
-                        // Reset base
+                        // Always aggregate to 1m candles
                         tickTime.setSeconds(0, 0);
-
-                        if (selectedInterval === '1d') {
-                            tickTime.setHours(0, 0, 0, 0);
-                        } else if (unit === 'h') {
-                            const h = Math.floor(hours / value) * value;
-                            tickTime.setHours(h, 0, 0, 0);
-                        } else if (unit === 'm') {
-                            const m = Math.floor(minutes / value) * value;
-                            tickTime.setMinutes(m, 0, 0);
-                        }
-
                         const candleTime = tickTime.getTime() / 1000;
 
                         const lastCandle = prevCandles[prevCandles.length - 1];
 
                         if (lastCandle && lastCandle.time === candleTime) {
-                            // Update existing candle
+                            // Update existing 1m candle
                             return [...prevCandles.slice(0, -1), {
                                 ...lastCandle,
                                 high: Math.max(lastCandle.high, newPrice),
@@ -895,10 +913,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 volume: (lastCandle.volume || 0) + (data.volume || 1)
                             }];
                         } else if (lastCandle && lastCandle.time > candleTime) {
-                            // Received old tick? Ignore or re-sort? Mostly ignore for simple live view.
+                            // Received old tick? Ignore
                             return prevCandles;
                         } else {
-                            // New Candle
+                            // New 1m candle
                             return [...prevCandles, {
                                 time: candleTime,
                                 open: newPrice,
@@ -938,7 +956,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                     if (historyCandles.length > 0) {
                         wsHistoryReceived.current = true;
-                        setRealTimeCandles(historyCandles);
+                        setRawCandles(historyCandles);  // Always store as 1m, aggregation handles interval
                         addLog("System", `WS History: ${historyCandles.length} candles (last: ${new Date(historyCandles[historyCandles.length - 1].time * 1000).toLocaleTimeString()})`);
                     }
                 } else if (data.type === 'candle') {
@@ -958,8 +976,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         volume: Number(c.volume || 0)
                     };
                     if (!isNaN(newCandle.time)) {
-                        setRealTimeCandles(prev => {
-                            // Replace if same time, append if new
+                        setRawCandles(prev => {
+                            // Replace if same time, append if new (1m candles)
                             const existing = prev.findIndex(x => x.time === newCandle.time);
                             if (existing >= 0) {
                                 const updated = [...prev];
