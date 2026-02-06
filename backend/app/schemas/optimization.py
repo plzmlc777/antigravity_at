@@ -62,3 +62,32 @@ class OptimizationStatus(BaseModel):
     result: Optional[OptimizationResponse] = None
     csv_file: Optional[str] = None  # CSV filename for full results download
     partial_results: Optional[List[OptimizationResultItem]] = None  # Top N results so far (during running)
+
+
+# Heavy Optimization (Large-scale, CSV streaming)
+class HeavyOptimizationRequest(BaseModel):
+    """Request for large-scale optimization (10K-100K+ combinations)"""
+    symbols: List[str]  # Multiple symbols required
+    interval: str = "1m"
+    days: int = 365
+    from_date: Optional[str] = None
+    initial_capital: float = 10000000
+    parameter_ranges: Dict[str, List[Union[str, int, float]]]
+    base_config: Dict[str, Any] = {}
+    strategy_id: str = "DipMartingaleStrategy"
+
+
+class HeavyOptimizationStatus(BaseModel):
+    """Status for heavy optimization task"""
+    task_id: str
+    status: str  # pending, running, completed, failed, cancelled
+    progress_current: int
+    progress_total: int
+    progress_percent: float
+    message: str
+    started_at: Optional[str] = None
+    elapsed_seconds: Optional[float] = None
+    estimated_remaining_seconds: Optional[float] = None
+    csv_file: Optional[str] = None  # Available when completed
+    file_size_bytes: Optional[int] = None
+    top_results: Optional[List[Dict[str, Any]]] = None  # Top 10 results so far
