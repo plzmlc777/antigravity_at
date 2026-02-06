@@ -1761,6 +1761,11 @@ const StrategyView = () => {
     const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
     const [completedOptTaskId, setCompletedOptTaskId] = useState(null); // For CSV download
 
+    // Heavy Optimization State (Large-scale, 10K-100K+ combinations)
+    const [heavyOptTaskId, setHeavyOptTaskId] = useState(() => localStorage.getItem('heavyOptTaskId'));
+    const [heavyOptStatus, setHeavyOptStatus] = useState(null);
+    const [isHeavyOptRunning, setIsHeavyOptRunning] = useState(false);
+
     // Sorting State
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
@@ -1898,6 +1903,213 @@ const StrategyView = () => {
             setIsCancelling(false);
         }
     };
+
+    // ========================================
+    // Heavy Optimization Functions
+    // ========================================
+    const startHeavyOptimization = async () => {
+        // Clear previous errors
+        setOptError(null);
+
+        if (!selectedStrategy) {
+            setOptError("Please select a strategy first.");
+            return;
+        }
+        if (activeTab !== -3) {
+            setOptError("Heavy optimization is only available in Symbol Compare tab.");
+            return;
+        }
+        if (selectedCompareSymbols.length === 0) {
+            setOptError("Please select symbols for optimization.");
+            return;
+        }
+
+        // Get parameter ranges from symbolCompareConfig
+        const currentOptEnabled = symbolCompareConfig?.optEnabled || {};
+        const currentOptValues = symbolCompareConfig?.optValues || getDynamicOptValues();
+        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k]);
+
+        const parameter_ranges = {};
+        for (const key of varyingKeys) {
+            const values = parseValues(currentOptValues[key]);
+            if (values.length === 0) {
+                setOptError(`Parameter '${key}' is enabled but has no values.`);
+                return;
+            }
+            parameter_ranges[key] = values;
+        }
+
+        // Calculate total combinations
+        const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
+        const totalCombos = selectedCompareSymbols.length * totalParams;
+
+        if (totalCombos < 100) {
+            setOptError(`Heavy optimization is for large-scale runs (100+ combinations). Use regular Cross-Optimize instead.`);
+            return;
+        }
+
+        setIsHeavyOptRunning(true);
+        setHeavyOptStatus({ status: 'initializing', message: 'Starting heavy optimization...' });
+
+        try {
+            // Build base config
+            const base_config = {};
+            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
+            paramDefs.forEach(param => {
+                if (param.defaultValue !== undefined) {
+                    base_config[param.key] = param.defaultValue;
+                }
+            });
+            Object.keys(symbolCompareConfig || {}).forEach(key => {
+                if (symbolCompareConfig[key] !== undefined && symbolCompareConfig[key] !== '') {
+                    base_config[key] = symbolCompareConfig[key];
+                }
+            });
+
+            const payload = {
+                symbols: selectedCompareSymbols,
+                interval: symbolCompareConfig?.interval || "1m",
+                days: symbolCompareConfig?.days || 365,
+                from_date: symbolCompareConfig?.from_date || null,
+                initial_capital: symbolCompareConfig?.initial_capital || 10000000,
+                parameter_ranges: parameter_ranges,
+                base_config: base_config,
+                strategy_id: selectedStrategy.id
+            };
+
+            const response = await axios.post(`/api/v1/strategies/heavy-optimize/${selectedStrategy.id}`, payload);
+
+            if (response.data.task_id) {
+                const taskId = response.data.task_id;
+                setHeavyOptTaskId(taskId);
+                localStorage.setItem('heavyOptTaskId', taskId);
+                addLog(`Heavy optimization started: ${response.data.total_combinations} combinations`, 'info');
+
+                // Start polling
+                pollHeavyOptStatus(taskId);
+            }
+        } catch (error) {
+            const msg = error.response?.data?.detail || error.message || "Unknown Error";
+            setOptError(`Heavy optimization failed: ${msg}`);
+            setIsHeavyOptRunning(false);
+            setHeavyOptStatus(null);
+        }
+    };
+
+    const pollHeavyOptStatus = async (taskId) => {
+        let isComplete = false;
+
+        while (!isComplete) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
+
+            try {
+                const res = await axios.get(`/api/v1/strategies/heavy-optimize/status/${taskId}`);
+                const data = res.data;
+
+                setHeavyOptStatus(data);
+
+                if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed' || data.status === 'not_found') {
+                    isComplete = true;
+                    setIsHeavyOptRunning(false);
+
+                    if (data.status === 'completed') {
+                        addLog(`Heavy optimization completed! ${data.progress_current} results saved to CSV.`, 'info');
+
+                        // Format top_results to match regular optimization format and set optResults
+                        if (data.top_results && data.top_results.length > 0) {
+                            const formattedResults = data.top_results.map((item, index) => ({
+                                // Spread config first (so it can be overridden)
+                                ...item.config,
+                                // Core fields
+                                symbol: item.symbol || '',
+                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
+                                return: item.total_return,
+                                win_rate: item.win_rate,
+                                trades: item.total_trades,
+                                score: item.score,
+                                full_config: item.config,
+                                rank: index + 1,
+                                // All metrics (same as regular optimization)
+                                max_drawdown: item.max_drawdown,
+                                profit_factor: item.profit_factor,
+                                sharpe_ratio: item.sharpe_ratio,
+                                avg_pnl: item.avg_pnl,
+                                stability_score: item.stability_score,
+                                acceleration_score: item.acceleration_score,
+                                activity_rate: item.activity_rate,
+                                avg_holding_time: item.avg_holding_time,
+                                max_profit: item.max_profit,
+                                max_loss: item.max_loss,
+                                total_days: item.total_days,
+                                cycle_count: item.cycle_count,
+                                cycle_avg_pnl: item.cycle_avg_pnl,
+                                cycle_avg_hold: item.cycle_avg_hold
+                            }));
+                            setOptResults(formattedResults);
+                        }
+                    } else if (data.status === 'cancelled') {
+                        addLog('Heavy optimization cancelled.', 'warning');
+                    } else if (data.status === 'failed') {
+                        setOptError(`Heavy optimization failed: ${data.message}`);
+                    } else if (data.status === 'not_found') {
+                        setOptError('Heavy optimization task not found (server restarted?)');
+                        localStorage.removeItem('heavyOptTaskId');
+                        setHeavyOptTaskId(null);
+                    }
+                }
+            } catch (err) {
+                console.warn("Heavy opt polling error", err);
+                // Continue polling on network error
+            }
+        }
+    };
+
+    const cancelHeavyOptimization = async () => {
+        if (!heavyOptTaskId) return;
+
+        try {
+            await axios.post(`/api/v1/strategies/heavy-optimize/cancel/${heavyOptTaskId}`);
+            addLog('Heavy optimization cancellation requested.', 'info');
+        } catch (e) {
+            console.error("Heavy opt cancellation failed", e);
+            setOptError("Failed to cancel heavy optimization");
+        }
+    };
+
+    const downloadHeavyOptCSV = () => {
+        if (!heavyOptStatus?.csv_file) return;
+        window.open(`/api/v1/strategies/heavy-optimize/download/${heavyOptTaskId}`, '_blank');
+    };
+
+    const clearHeavyOptTask = () => {
+        localStorage.removeItem('heavyOptTaskId');
+        setHeavyOptTaskId(null);
+        setHeavyOptStatus(null);
+        setIsHeavyOptRunning(false);
+    };
+
+    // Restore heavy opt polling on page load
+    useEffect(() => {
+        const savedTaskId = localStorage.getItem('heavyOptTaskId');
+        if (savedTaskId) {
+            // Check if task is still running
+            axios.get(`/api/v1/strategies/heavy-optimize/status/${savedTaskId}`)
+                .then(res => {
+                    const data = res.data;
+                    setHeavyOptStatus(data);
+
+                    if (data.status === 'running' || data.status === 'initializing') {
+                        setIsHeavyOptRunning(true);
+                        pollHeavyOptStatus(savedTaskId);
+                    }
+                })
+                .catch(() => {
+                    // Task not found, clear it
+                    localStorage.removeItem('heavyOptTaskId');
+                    setHeavyOptTaskId(null);
+                });
+        }
+    }, []);
 
     const runOptimization = async () => {
         if (!selectedStrategy) {
@@ -4208,7 +4420,107 @@ const StrategyView = () => {
                                                             {isCancelling ? 'Stopping...' : 'Stop'}
                                                         </button>
                                                     )}
+
+                                                    {/* Heavy Optimize Button (Symbol Compare Tab Only) */}
+                                                    {activeTab === -3 && !isOptimizing && (
+                                                        <button
+                                                            onClick={startHeavyOptimization}
+                                                            disabled={isHeavyOptRunning || selectedCompareSymbols.length === 0}
+                                                            className="px-4 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="For large-scale optimization (100+ combinations). Results saved to CSV file."
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                                            </svg>
+                                                            Heavy Opt
+                                                        </button>
+                                                    )}
                                                 </div>
+
+                                                {/* Heavy Optimization Status Panel */}
+                                                {activeTab === -3 && heavyOptStatus && (
+                                                    <div className="mt-4 p-4 bg-gradient-to-br from-purple-900/20 to-pink-900/20 rounded-xl border border-purple-500/30">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-lg">🚀</span>
+                                                                <span className="font-bold text-purple-300">Heavy Optimization</span>
+                                                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                                    heavyOptStatus.status === 'running' ? 'bg-green-500/20 text-green-400 animate-pulse' :
+                                                                    heavyOptStatus.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
+                                                                    heavyOptStatus.status === 'cancelled' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    heavyOptStatus.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                                                                    'bg-gray-500/20 text-gray-400'
+                                                                }`}>
+                                                                    {heavyOptStatus.status?.toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                            {heavyOptStatus.status === 'running' && (
+                                                                <button
+                                                                    onClick={cancelHeavyOptimization}
+                                                                    className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded font-bold"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            )}
+                                                            {(heavyOptStatus.status === 'completed' || heavyOptStatus.status === 'cancelled' || heavyOptStatus.status === 'failed') && (
+                                                                <button
+                                                                    onClick={clearHeavyOptTask}
+                                                                    className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded font-bold"
+                                                                >
+                                                                    Clear
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Progress Bar */}
+                                                        {(heavyOptStatus.status === 'running' || heavyOptStatus.status === 'initializing') && (
+                                                            <div className="mb-3">
+                                                                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                                                                    <span>{heavyOptStatus.progress_current?.toLocaleString()} / {heavyOptStatus.progress_total?.toLocaleString()}</span>
+                                                                    <span>{heavyOptStatus.progress_percent?.toFixed(1)}%</span>
+                                                                </div>
+                                                                <div className="h-2 bg-black/40 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500"
+                                                                        style={{ width: `${heavyOptStatus.progress_percent || 0}%` }}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                                                    <span>Elapsed: {heavyOptStatus.elapsed_seconds ? `${Math.floor(heavyOptStatus.elapsed_seconds / 60)}m ${Math.floor(heavyOptStatus.elapsed_seconds % 60)}s` : '-'}</span>
+                                                                    <span>Remaining: {heavyOptStatus.estimated_remaining_seconds ? `~${Math.floor(heavyOptStatus.estimated_remaining_seconds / 60)}m` : '-'}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Completed: Download & Top Results */}
+                                                        {heavyOptStatus.status === 'completed' && (
+                                                            <div className="space-y-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <button
+                                                                        onClick={downloadHeavyOptCSV}
+                                                                        className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-bold flex items-center gap-2"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                        </svg>
+                                                                        Download CSV
+                                                                    </button>
+                                                                    <span className="text-xs text-gray-400">
+                                                                        {heavyOptStatus.file_size_bytes ? `${(heavyOptStatus.file_size_bytes / 1024 / 1024).toFixed(2)} MB` : ''}
+                                                                    </span>
+                                                                </div>
+
+                                                            </div>
+                                                        )}
+
+                                                        {/* Message */}
+                                                        {heavyOptStatus.message && (
+                                                            <div className="text-xs text-gray-400 font-mono mt-2">
+                                                                {heavyOptStatus.message}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 {/* Status Message Display */}
                                                 {isOptimizing && optStatusMessage && (

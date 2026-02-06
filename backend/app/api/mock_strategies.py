@@ -13,7 +13,11 @@ import functools
 import csv
 import os
 from concurrent.futures import ProcessPoolExecutor
-from ..schemas.optimization import OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus
+from ..schemas.optimization import (
+    OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus,
+    HeavyOptimizationRequest, HeavyOptimizationStatus
+)
+from datetime import datetime
 
 # CSV output directory
 CSV_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "optimization_results")
@@ -157,6 +161,7 @@ async def _run_unified_backtest(
 
 # Global Task Registry
 OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
+HEAVY_OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}  # For large-scale optimizations
 
 import uuid
 
@@ -826,6 +831,371 @@ async def download_optimization_csv(task_id: str):
         filename=csv_filename,
         media_type="text/csv"
     )
+
+
+# ============================================================================
+# HEAVY OPTIMIZATION (Large-scale, 10K-100K+ combinations)
+# ============================================================================
+
+def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
+    """
+    Background task for heavy optimization.
+    Streams results directly to CSV to avoid memory issues.
+    """
+    import heapq
+
+    csv_filename = f"heavy_opt_{task_id}.csv"
+    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+
+    try:
+        # Update status
+        HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "running"
+        HEAVY_OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
+
+        # Top 10 results (min-heap by score, keep top 10)
+        top_results = []
+        processed = 0
+        failures = 0
+
+        # CSV columns
+        csv_columns = [
+            'rank', 'symbol', 'score', 'total_return', 'win_rate', 'total_trades',
+            'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
+            'stability_score', 'acceleration_score', 'activity_rate',
+            'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
+            'cycle_count', 'cycle_avg_pnl', 'cycle_avg_hold'
+        ]
+        config_keys = None
+
+        # Open CSV file for streaming write
+        with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = None
+
+            for i, args in enumerate(run_args):
+                # Check for cancellation
+                if HEAVY_OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                    logger.info(f"Heavy optimization {task_id} cancellation requested at {i}/{total_combos}")
+                    HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                    HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {i}/{total_combos}"
+                    break
+
+                try:
+                    config, res = _run_sync_in_process(*args)
+
+                    if "error" in res:
+                        failures += 1
+                        continue
+
+                    # Extract metrics - SAME as regular optimization (directly from res)
+                    symbol = config.get('symbol', '')
+
+                    # Parse total_return and win_rate (same as regular optimization)
+                    total_return = float(str(res.get('total_return', '0')).replace('%', '').replace(',', ''))
+                    win_rate = float(str(res.get('win_rate', '0')).replace('%', ''))
+                    total_trades = int(res.get('total_trades', 0))
+
+                    # Calculate score (same formula as regular optimization)
+                    score = total_return * (win_rate / 100.0)
+
+                    # Build row data (same fields as regular optimization CSV)
+                    row = {
+                        'rank': 0,  # Will be updated later
+                        'symbol': symbol,
+                        'score': round(score, 2),
+                        'total_return': total_return,
+                        'win_rate': win_rate,
+                        'total_trades': total_trades,
+                        'max_drawdown': str(res.get('max_drawdown', '-')),
+                        'profit_factor': str(res.get('profit_factor', '-')),
+                        'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
+                        'avg_pnl': str(res.get('avg_pnl', '-')),
+                        'stability_score': str(res.get('stability_score', '-')),
+                        'acceleration_score': str(res.get('acceleration_score', '-')),
+                        'activity_rate': str(res.get('activity_rate', '-')),
+                        'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                        'max_profit': str(res.get('max_profit', '-')),
+                        'max_loss': str(res.get('max_loss', '-')),
+                        'total_days': int(res.get('total_days', 0)),
+                        'cycle_count': res.get('cycle_count'),
+                        'cycle_avg_pnl': res.get('cycle_avg_pnl'),
+                        'cycle_avg_hold': res.get('cycle_avg_hold'),
+                    }
+
+                    # Initialize CSV writer with config keys from first result
+                    if writer is None:
+                        config_keys = [k for k in config.keys() if k not in ['symbol', 'strategy_id']]
+                        all_columns = csv_columns + [f"config_{k}" for k in config_keys]
+                        writer = csv.DictWriter(csvfile, fieldnames=all_columns)
+                        writer.writeheader()
+
+                    # Add config values to row
+                    for k in config_keys:
+                        row[f"config_{k}"] = config.get(k, "")
+
+                    # Write row to CSV
+                    writer.writerow(row)
+                    csvfile.flush()  # Ensure data is written
+
+                    # Update top 10 (min-heap)
+                    # Include all metrics (same as regular optimization for consistency)
+                    result_entry = {
+                        'score': score,
+                        'symbol': symbol,
+                        'total_return': total_return,
+                        'win_rate': win_rate,
+                        'total_trades': total_trades,
+                        'max_drawdown': str(res.get('max_drawdown', '-')),
+                        'profit_factor': str(res.get('profit_factor', '-')),
+                        'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
+                        'avg_pnl': str(res.get('avg_pnl', '-')),
+                        'stability_score': str(res.get('stability_score', '-')),
+                        'acceleration_score': str(res.get('acceleration_score', '-')),
+                        'activity_rate': str(res.get('activity_rate', '-')),
+                        'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                        'max_profit': str(res.get('max_profit', '-')),
+                        'max_loss': str(res.get('max_loss', '-')),
+                        'total_days': int(res.get('total_days', 0)),
+                        'cycle_count': res.get('cycle_count'),
+                        'cycle_avg_pnl': res.get('cycle_avg_pnl'),
+                        'cycle_avg_hold': res.get('cycle_avg_hold'),
+                        'config': {k: config.get(k) for k in config_keys} if config_keys else {}
+                    }
+
+                    if len(top_results) < 50:
+                        heapq.heappush(top_results, (score, i, result_entry))
+                    elif score > top_results[0][0]:
+                        heapq.heapreplace(top_results, (score, i, result_entry))
+
+                    processed += 1
+
+                except Exception as e:
+                    failures += 1
+                    logger.warning(f"Heavy opt iteration {i} failed: {e}")
+
+                # Update progress
+                elapsed = time.time() - start_time
+                avg_time_per_combo = elapsed / (i + 1)
+                remaining = avg_time_per_combo * (total_combos - i - 1)
+
+                HEAVY_OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+                HEAVY_OPTIMIZATION_TASKS[task_id]["elapsed_seconds"] = elapsed
+                HEAVY_OPTIMIZATION_TASKS[task_id]["estimated_remaining_seconds"] = remaining
+                HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})..."
+
+                # Update top results every 100 iterations
+                if (i + 1) % 100 == 0:
+                    sorted_top = sorted([t[2] for t in top_results], key=lambda x: x['score'], reverse=True)
+                    HEAVY_OPTIMIZATION_TASKS[task_id]["top_results"] = sorted_top
+
+        # Finalize
+        elapsed = time.time() - start_time
+        file_size = os.path.getsize(csv_filepath) if os.path.exists(csv_filepath) else 0
+
+        sorted_top = sorted([t[2] for t in top_results], key=lambda x: x['score'], reverse=True)
+
+        if HEAVY_OPTIMIZATION_TASKS[task_id]["status"] != "cancelled":
+            HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "completed"
+            HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {processed} results, {failures} failures"
+
+        HEAVY_OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
+        HEAVY_OPTIMIZATION_TASKS[task_id]["file_size_bytes"] = file_size
+        HEAVY_OPTIMIZATION_TASKS[task_id]["top_results"] = sorted_top
+        HEAVY_OPTIMIZATION_TASKS[task_id]["progress_current"] = total_combos
+        HEAVY_OPTIMIZATION_TASKS[task_id]["elapsed_seconds"] = elapsed
+
+        logger.info(f"Heavy optimization {task_id} completed: {processed} results in {elapsed:.1f}s")
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"Heavy optimization {task_id} failed: {e}\n{tb}")
+        HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "failed"
+        HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = str(e)
+
+
+@router.post("/heavy-optimize/{strategy_id}")
+async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationRequest):
+    """
+    Start a large-scale optimization (10K-100K+ combinations).
+    Results are streamed directly to CSV file.
+    """
+    start_time = time.time()
+
+    # Get strategy class
+    from ..core.strategy_registry import StrategyRegistry
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+
+    if not strategy_class:
+        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found")
+
+    # Generate combinations
+    symbols = request.symbols
+    if not symbols:
+        raise HTTPException(status_code=400, detail="At least one symbol is required")
+
+    keys = list(request.parameter_ranges.keys())
+    values = list(request.parameter_ranges.values())
+    param_combinations = list(itertools.product(*values))
+
+    total_combinations = len(symbols) * len(param_combinations)
+
+    if total_combinations < 1:
+        raise HTTPException(status_code=400, detail="No combinations to run")
+
+    logger.info(f"[Heavy Optimize] Starting {total_combinations} combinations ({len(symbols)} symbols x {len(param_combinations)} params)")
+
+    # Prepare run args
+    base_config = request.base_config.copy()
+    run_args = []
+
+    for symbol in symbols:
+        for combo in param_combinations:
+            current_config = base_config.copy()
+            current_config['strategy_id'] = strategy_id
+            current_config['symbol'] = symbol
+            for i, key in enumerate(keys):
+                current_config[key] = combo[i]
+
+            run_args.append((
+                strategy_class,
+                current_config,
+                symbol,
+                request.interval,
+                request.days,
+                request.from_date,
+                request.initial_capital
+            ))
+
+    # Create task
+    task_id = str(uuid.uuid4())
+    started_at = datetime.now().isoformat()
+
+    HEAVY_OPTIMIZATION_TASKS[task_id] = {
+        "task_id": task_id,
+        "status": "initializing",
+        "progress_current": 0,
+        "progress_total": total_combinations,
+        "message": "Initializing...",
+        "started_at": started_at,
+        "elapsed_seconds": 0,
+        "estimated_remaining_seconds": None,
+        "csv_file": None,
+        "file_size_bytes": None,
+        "top_results": [],
+        "strategy_id": strategy_id,
+        "symbols": symbols
+    }
+
+    # Start background task
+    import asyncio
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(
+        None,
+        _heavy_optimize_background_task,
+        task_id,
+        run_args,
+        strategy_id,
+        start_time,
+        total_combinations
+    )
+
+    return {
+        "task_id": task_id,
+        "status": "running",
+        "total_combinations": total_combinations,
+        "message": f"Started heavy optimization with {total_combinations} combinations"
+    }
+
+
+@router.get("/heavy-optimize/status/{task_id}", response_model=HeavyOptimizationStatus)
+async def get_heavy_optimization_status(task_id: str):
+    """Get status of a heavy optimization task."""
+    task = HEAVY_OPTIMIZATION_TASKS.get(task_id)
+
+    if not task:
+        return HeavyOptimizationStatus(
+            task_id=task_id,
+            status="not_found",
+            progress_current=0,
+            progress_total=0,
+            progress_percent=0,
+            message="Task not found"
+        )
+
+    progress_total = task.get("progress_total", 1)
+    progress_current = task.get("progress_current", 0)
+    progress_percent = (progress_current / progress_total * 100) if progress_total > 0 else 0
+
+    return HeavyOptimizationStatus(
+        task_id=task_id,
+        status=task["status"],
+        progress_current=progress_current,
+        progress_total=progress_total,
+        progress_percent=round(progress_percent, 2),
+        message=task.get("message", ""),
+        started_at=task.get("started_at"),
+        elapsed_seconds=task.get("elapsed_seconds"),
+        estimated_remaining_seconds=task.get("estimated_remaining_seconds"),
+        csv_file=task.get("csv_file"),
+        file_size_bytes=task.get("file_size_bytes"),
+        top_results=task.get("top_results")
+    )
+
+
+@router.post("/heavy-optimize/cancel/{task_id}")
+async def cancel_heavy_optimization(task_id: str):
+    """Cancel a running heavy optimization task."""
+    task = HEAVY_OPTIMIZATION_TASKS.get(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task["status"] not in ("initializing", "running"):
+        raise HTTPException(status_code=400, detail=f"Cannot cancel task with status: {task['status']}")
+
+    HEAVY_OPTIMIZATION_TASKS[task_id]["cancel_requested"] = True
+    return {"message": "Cancellation requested", "task_id": task_id}
+
+
+@router.get("/heavy-optimize/download/{task_id}")
+async def download_heavy_optimization_csv(task_id: str):
+    """Download the heavy optimization results CSV file."""
+    task = HEAVY_OPTIMIZATION_TASKS.get(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    csv_filename = task.get("csv_file")
+    if not csv_filename:
+        raise HTTPException(status_code=404, detail="CSV file not available yet")
+
+    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+
+    if not os.path.exists(csv_filepath):
+        raise HTTPException(status_code=404, detail="CSV file not found on disk")
+
+    return FileResponse(
+        path=csv_filepath,
+        filename=csv_filename,
+        media_type="text/csv"
+    )
+
+
+@router.get("/heavy-optimize/list")
+async def list_heavy_optimization_tasks():
+    """List all heavy optimization tasks (for recovery after refresh)."""
+    tasks = []
+    for task_id, task in HEAVY_OPTIMIZATION_TASKS.items():
+        tasks.append({
+            "task_id": task_id,
+            "status": task.get("status"),
+            "progress_percent": round(task.get("progress_current", 0) / max(task.get("progress_total", 1), 1) * 100, 2),
+            "strategy_id": task.get("strategy_id"),
+            "symbols": task.get("symbols", []),
+            "started_at": task.get("started_at"),
+            "csv_file": task.get("csv_file")
+        })
+    return {"tasks": tasks}
 
 
 # --- Integrated Backtest Logic ---
