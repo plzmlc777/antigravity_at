@@ -146,12 +146,16 @@ const UnifiedSessionCards = ({
                             className={`
                                 relative rounded-xl cursor-pointer transition-all duration-200 overflow-hidden
                                 ${isSelected
-                                    ? 'bg-[#1a1a2e] border border-indigo-500/50 shadow-lg shadow-indigo-500/10'
+                                    ? 'bg-[#1a1a2e]'
                                     : isRunning
                                         ? 'bg-[#1e1e24] border border-white/5 hover:border-white/20'
                                         : 'bg-[#1a1a1f] border border-white/[0.03] hover:border-white/10 opacity-60'
                                 }
                             `}
+                            style={isSelected ? {
+                                border: '2px solid #6366f1',
+                                boxShadow: '0 0 12px rgba(99, 102, 241, 0.4)'
+                            } : {}}
                         >
                             {/* Header Row */}
                             <div className={`flex items-center justify-between px-4 py-3 ${isSelected ? 'bg-indigo-500/5' : 'bg-black/20'}`}>
