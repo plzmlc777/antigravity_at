@@ -339,6 +339,10 @@ const StrategyView = () => {
     const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
     const [applyFeedback, setApplyFeedback] = useState(null); // 'saved' | null
 
+    // Optimization Settings Copy/Paste State (separate from params)
+    const [copiedOptSettings, setCopiedOptSettings] = useState(null);
+    const [optCopyPasteFeedback, setOptCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
+
     // Import/Export Feedback State
     const [assetImportExportFeedback, setAssetImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
     const [assetImportError, setAssetImportError] = useState('');
@@ -816,6 +820,88 @@ const StrategyView = () => {
         setTimeout(() => setCopyPasteFeedback(null), 2000);
 
         addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
+    };
+
+    // Optimization Settings Copy/Paste Handlers (separate from strategy params)
+    const handleCopyOptSettings = () => {
+        // Determine source config based on active tab
+        let currentCfg;
+        let sourceLabel;
+
+        if (activeTab === -3) {
+            currentCfg = symbolCompareConfig || configList[0] || {};
+            sourceLabel = 'Symbol Compare';
+        } else if (activeTab >= 0 && configList[activeTab]) {
+            currentCfg = configList[activeTab];
+            sourceLabel = currentCfg.tabName || `Rank ${activeTab + 1}`;
+        } else {
+            return;
+        }
+
+        if (!currentCfg) return;
+
+        const optEnabled = currentCfg.optEnabled || {};
+        const optValues = currentCfg.optValues || {};
+        const optCount = Object.values(optEnabled).filter(Boolean).length;
+
+        setCopiedOptSettings({
+            optEnabled: optEnabled,
+            optValues: optValues,
+            sourceTab: sourceLabel,
+            timestamp: Date.now()
+        });
+
+        // Show visual feedback
+        setOptCopyPasteFeedback('copied');
+        setTimeout(() => setOptCopyPasteFeedback(null), 2000);
+
+        addLog(`📋 Opt settings copied from ${sourceLabel} (${optCount} params)`, 'info');
+    };
+
+    const handlePasteOptSettings = () => {
+        if (!copiedOptSettings) return;
+
+        // Handle Symbol Compare tab (activeTab === -3)
+        if (activeTab === -3) {
+            const baseConfig = symbolCompareConfig || configList[0] || {};
+            const newConfig = {
+                ...baseConfig,
+                optEnabled: { ...copiedOptSettings.optEnabled },
+                optValues: { ...copiedOptSettings.optValues }
+            };
+
+            setSymbolCompareConfig(newConfig);
+            setIsSymbolCompareDirty(true);
+
+            // Show visual feedback
+            setOptCopyPasteFeedback('pasted');
+            setTimeout(() => setOptCopyPasteFeedback(null), 2000);
+
+            const optCount = Object.values(copiedOptSettings.optEnabled).filter(Boolean).length;
+            addLog(`📥 Opt settings pasted from ${copiedOptSettings.sourceTab} (${optCount} params)`, 'info');
+            return;
+        }
+
+        // Handle Rank tabs (activeTab >= 0)
+        if (activeTab < 0 || !configList[activeTab]) return;
+
+        const newList = [...configList];
+        const currentItem = {
+            ...newList[activeTab],
+            optEnabled: { ...copiedOptSettings.optEnabled },
+            optValues: { ...copiedOptSettings.optValues }
+        };
+
+        newList[activeTab] = currentItem;
+        setConfigList(newList);
+        setIsDirty(true);
+
+        // Show visual feedback
+        setOptCopyPasteFeedback('pasted');
+        setTimeout(() => setOptCopyPasteFeedback(null), 2000);
+
+        const optCount = Object.values(copiedOptSettings.optEnabled).filter(Boolean).length;
+        addLog(`📥 Opt settings pasted from ${copiedOptSettings.sourceTab} (${optCount} params)`, 'info');
     };
 
     // Target Asset Import/Export Handlers
@@ -4385,10 +4471,17 @@ const StrategyView = () => {
                         {
                             (activeTab >= 0 || activeTab === -3) && (
                                 <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10">
+                                    <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                                         <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                                             <Sparkles size={14} className="text-gray-400" /> Parameter Optimization
                                         </h3>
+                                        <CopyPasteButtons
+                                            onCopy={handleCopyOptSettings}
+                                            onPaste={handlePasteOptSettings}
+                                            feedback={optCopyPasteFeedback}
+                                            hasCopied={!!copiedOptSettings}
+                                            sourceLabel={copiedOptSettings?.sourceTab}
+                                        />
                                     </div>
                                     <div className="px-4 py-4">
                                         <div className="space-y-6">
