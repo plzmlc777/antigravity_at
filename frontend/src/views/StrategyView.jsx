@@ -1916,7 +1916,7 @@ const StrategyView = () => {
             return;
         }
         if (activeTab !== -3) {
-            setOptError("Heavy optimization is only available in Symbol Compare tab.");
+            setOptError("This optimization is only available in Symbol Compare tab.");
             return;
         }
         if (selectedCompareSymbols.length === 0) {
@@ -1943,18 +1943,13 @@ const StrategyView = () => {
         const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
         const totalCombos = selectedCompareSymbols.length * totalParams;
 
-        if (totalCombos < 100) {
-            setOptError(`Heavy optimization is for large-scale runs (100+ combinations). Use regular Cross-Optimize instead.`);
-            return;
-        }
-
         setIsHeavyOptRunning(true);
         setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
 
         try {
             // Pre-fetch data for all selected symbols (same as Cross-Optimize)
             const DATA_FETCH_DELAY_MS = 500;
-            addLog(`Updating data for ${selectedCompareSymbols.length} symbols before heavy optimization...`, 'info');
+            addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
             for (let i = 0; i < selectedCompareSymbols.length; i++) {
                 const sym = selectedCompareSymbols[i];
                 setHeavyOptStatus({
@@ -1974,7 +1969,7 @@ const StrategyView = () => {
                     await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
                 }
             }
-            addLog('Data update completed. Starting heavy optimization...', 'info');
+            addLog('Data update completed. Starting optimization...', 'info');
             setHeavyOptStatus({ status: 'initializing', message: 'Starting optimization...' });
 
             // Build base config
@@ -2009,14 +2004,14 @@ const StrategyView = () => {
                 const taskId = response.data.task_id;
                 setHeavyOptTaskId(taskId);
                 localStorage.setItem('heavyOptTaskId', taskId);
-                addLog(`Heavy optimization started: ${response.data.total_combinations} combinations`, 'info');
+                addLog(`Optimization started: ${response.data.total_combinations} combinations`, 'info');
 
                 // Start polling
                 pollHeavyOptStatus(taskId);
             }
         } catch (error) {
             const msg = error.response?.data?.detail || error.message || "Unknown Error";
-            setOptError(`Heavy optimization failed: ${msg}`);
+            setOptError(`Optimization failed: ${msg}`);
             setIsHeavyOptRunning(false);
             setHeavyOptStatus(null);
         }
@@ -2070,7 +2065,7 @@ const StrategyView = () => {
                     setIsHeavyOptRunning(false);
 
                     if (data.status === 'completed') {
-                        addLog(`Heavy optimization completed! ${data.progress_current} results saved to CSV.`, 'info');
+                        addLog(`Optimization completed! ${data.progress_current} results processed.`, 'info');
 
                         // Format top_results to match regular optimization format and set optResults
                         if (data.top_results && data.top_results.length > 0) {
@@ -2105,11 +2100,11 @@ const StrategyView = () => {
                             setOptResults(formattedResults);
                         }
                     } else if (data.status === 'cancelled') {
-                        addLog('Heavy optimization cancelled.', 'warning');
+                        addLog('Optimization cancelled.', 'warning');
                     } else if (data.status === 'failed') {
                         setOptError(`Heavy optimization failed: ${data.message}`);
                     } else if (data.status === 'not_found') {
-                        setOptError('Heavy optimization task not found (server restarted?)');
+                        setOptError('Optimization task not found (server restarted?)');
                         localStorage.removeItem('heavyOptTaskId');
                         setHeavyOptTaskId(null);
                     }
@@ -2126,10 +2121,10 @@ const StrategyView = () => {
 
         try {
             await axios.post(`/api/v1/strategies/heavy-optimize/cancel/${heavyOptTaskId}`);
-            addLog('Heavy optimization cancellation requested.', 'info');
+            addLog('Optimization cancellation requested.', 'info');
         } catch (e) {
             console.error("Heavy opt cancellation failed", e);
-            setOptError("Failed to cancel heavy optimization");
+            setOptError("Failed to cancel optimization");
         }
     };
 
@@ -4477,61 +4472,73 @@ const StrategyView = () => {
 
                                                 {/* Action */}
                                                 <div className="flex gap-2">
-                                                    <button
-                                                        onClick={runOptimization}
-                                                        disabled={isOptimizing || activeTab === -1 || (activeTab === -3 && selectedCompareSymbols.length === 0)}
-                                                        className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${(isOptimizing || activeTab === -1) ? 'cursor-not-allowed opacity-80' : ''}`}
-                                                    >
-                                                        {isOptimizing ? (
-                                                            <>
-                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                                {optProgress.total > 0
-                                                                    ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                                    : (optStatusMessage || "Initializing...")}
-                                                            </>
-                                                        ) : (
-                                                            <>{activeTab === -1
-                                                                ? 'Optimization Unavailable (Integrated)'
-                                                                : activeTab === -3
-                                                                    ? `Cross-Optimize (${selectedCompareSymbols.length} Symbols × ${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
-                                                                    : `Start Optimization Analysis (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
-                                                            }</>
-                                                        )}
-                                                    </button>
-
-                                                    {isOptimizing && (
-                                                        <button
-                                                            onClick={() => cancelOptimization(currentOptTaskId)}
-                                                            disabled={isCancelling}
-                                                            className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            {isCancelling ? 'Stopping...' : 'Stop'}
-                                                        </button>
+                                                    {/* Rank Tabs: Use runOptimization */}
+                                                    {activeTab >= 0 && (
+                                                        <>
+                                                            <button
+                                                                onClick={runOptimization}
+                                                                disabled={isOptimizing}
+                                                                className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isOptimizing ? 'cursor-not-allowed opacity-80' : ''}`}
+                                                            >
+                                                                {isOptimizing ? (
+                                                                    <>
+                                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                        {optProgress.total > 0
+                                                                            ? `Processing (${optProgress.current}/${optProgress.total})...`
+                                                                            : (optStatusMessage || "Initializing...")}
+                                                                    </>
+                                                                ) : (
+                                                                    `Run Optimization (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
+                                                                )}
+                                                            </button>
+                                                            {isOptimizing && (
+                                                                <button
+                                                                    onClick={() => cancelOptimization(currentOptTaskId)}
+                                                                    disabled={isCancelling}
+                                                                    className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                >
+                                                                    {isCancelling ? 'Stopping...' : 'Stop'}
+                                                                </button>
+                                                            )}
+                                                        </>
                                                     )}
 
-                                                    {/* Heavy Optimize Button (Symbol Compare Tab Only) */}
-                                                    {activeTab === -3 && !isOptimizing && (
+                                                    {/* Symbol Compare Tab: Use startHeavyOptimization (renamed to Optimize) */}
+                                                    {activeTab === -3 && (
                                                         <button
                                                             onClick={startHeavyOptimization}
                                                             disabled={isHeavyOptRunning || selectedCompareSymbols.length === 0}
-                                                            className="px-4 py-2 rounded-lg font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-lg shadow-purple-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            title="For large-scale optimization (100+ combinations). Results saved to CSV file."
+                                                            className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isHeavyOptRunning ? 'cursor-not-allowed opacity-80' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                                            </svg>
-                                                            Heavy Opt
+                                                            {isHeavyOptRunning ? (
+                                                                <>
+                                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                    {heavyOptStatus?.message || "Initializing..."}
+                                                                </>
+                                                            ) : (
+                                                                `Run Optimization (${selectedCompareSymbols.length} Symbols × ${Object.values((symbolCompareConfig?.optEnabled || {})).filter(Boolean).length} Params)`
+                                                            )}
+                                                        </button>
+                                                    )}
+
+                                                    {/* Integrated Tab: Disabled */}
+                                                    {activeTab === -1 && (
+                                                        <button
+                                                            disabled
+                                                            className="flex-1 bg-gray-700 py-3 rounded-lg font-bold text-gray-400 cursor-not-allowed opacity-60"
+                                                        >
+                                                            Optimization Unavailable (Integrated)
                                                         </button>
                                                     )}
                                                 </div>
 
-                                                {/* Heavy Optimization Status Panel */}
+                                                {/* Optimization Status Panel (Symbol Compare Tab) */}
                                                 {activeTab === -3 && heavyOptStatus && (
-                                                    <div className="mt-4 p-4 bg-gradient-to-br from-purple-900/20 to-pink-900/20 rounded-xl border border-purple-500/30">
+                                                    <div className="mt-4 p-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-xl border border-purple-500/30">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-lg">🚀</span>
-                                                                <span className="font-bold text-purple-300">Heavy Optimization</span>
+                                                                <span className="text-lg">⚡</span>
+                                                                <span className="font-bold text-purple-300">Optimization Progress</span>
                                                                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                                                                     heavyOptStatus.status === 'running' ? 'bg-green-500/20 text-green-400 animate-pulse' :
                                                                     heavyOptStatus.status === 'completed' ? 'bg-blue-500/20 text-blue-400' :
