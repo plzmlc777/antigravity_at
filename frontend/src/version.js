@@ -14,7 +14,7 @@ const MOUNTAINS = [
     "Dobongsan (740m)",     // v0.7
     "Bukhansan (836m)",     // v0.8 (Current)
     "Unaksan (935m)",       // v0.9
-    "Chiaksan (1,288m)",    // v1.0
+    "Naejangsan (1,032m)",  // v1.0
     "Odaesan (1,563m)",     // v1.1
     "Deogyusan (1,614m)",   // v1.2
     "Seoraksan (1,708m)",   // v1.3
