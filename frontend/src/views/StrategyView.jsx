@@ -2097,10 +2097,41 @@ const StrategyView = () => {
                 .then(res => {
                     const data = res.data;
                     setHeavyOptStatus(data);
+                    setHeavyOptTaskId(savedTaskId);
 
                     if (data.status === 'running' || data.status === 'initializing') {
                         setIsHeavyOptRunning(true);
                         pollHeavyOptStatus(savedTaskId);
+                    } else if (data.status === 'completed') {
+                        // Task already completed - process top_results into optResults
+                        if (data.top_results && data.top_results.length > 0) {
+                            const formattedResults = data.top_results.map((item, index) => ({
+                                ...item.config,
+                                symbol: item.symbol || '',
+                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
+                                return: item.total_return,
+                                win_rate: item.win_rate,
+                                trades: item.total_trades,
+                                score: item.score,
+                                full_config: item.config,
+                                rank: index + 1,
+                                max_drawdown: item.max_drawdown,
+                                profit_factor: item.profit_factor,
+                                sharpe_ratio: item.sharpe_ratio,
+                                avg_pnl: item.avg_pnl,
+                                stability_score: item.stability_score,
+                                acceleration_score: item.acceleration_score,
+                                activity_rate: item.activity_rate,
+                                avg_holding_time: item.avg_holding_time,
+                                max_profit: item.max_profit,
+                                max_loss: item.max_loss,
+                                total_days: item.total_days,
+                                cycle_count: item.cycle_count,
+                                cycle_avg_pnl: item.cycle_avg_pnl,
+                                cycle_avg_hold: item.cycle_avg_hold
+                            }));
+                            setOptResults(formattedResults);
+                        }
                     }
                 })
                 .catch(() => {
@@ -2109,7 +2140,7 @@ const StrategyView = () => {
                     setHeavyOptTaskId(null);
                 });
         }
-    }, []);
+    }, [savedSymbols]);
 
     const runOptimization = async () => {
         if (!selectedStrategy) {
