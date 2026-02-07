@@ -2008,6 +2008,37 @@ const StrategyView = () => {
 
                 setHeavyOptStatus(data);
 
+                // Show partial results during running (like regular Cross-Optimize)
+                if (data.status === 'running' && data.top_results && data.top_results.length > 0) {
+                    const formattedPartial = data.top_results.map((item, index) => ({
+                        ...item.config,
+                        symbol: item.symbol || '',
+                        symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
+                        return: item.total_return,
+                        win_rate: item.win_rate,
+                        trades: item.total_trades,
+                        score: item.score,
+                        full_config: item.config,
+                        rank: index + 1,
+                        max_drawdown: item.max_drawdown,
+                        profit_factor: item.profit_factor,
+                        sharpe_ratio: item.sharpe_ratio,
+                        avg_pnl: item.avg_pnl,
+                        stability_score: item.stability_score,
+                        acceleration_score: item.acceleration_score,
+                        activity_rate: item.activity_rate,
+                        avg_holding_time: item.avg_holding_time,
+                        max_profit: item.max_profit,
+                        max_loss: item.max_loss,
+                        total_days: item.total_days,
+                        cycle_count: item.cycle_count,
+                        cycle_avg_pnl: item.cycle_avg_pnl,
+                        cycle_avg_hold: item.cycle_avg_hold,
+                        _isPartial: true  // Mark as partial result
+                    }));
+                    setOptResults(formattedPartial);
+                }
+
                 if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed' || data.status === 'not_found') {
                     isComplete = true;
                     setIsHeavyOptRunning(false);

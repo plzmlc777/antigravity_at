@@ -982,8 +982,8 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                 HEAVY_OPTIMIZATION_TASKS[task_id]["estimated_remaining_seconds"] = remaining
                 HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})..."
 
-                # Update top results every 100 iterations
-                if (i + 1) % 100 == 0:
+                # Update top results every 10 iterations (for real-time partial display)
+                if (i + 1) % 10 == 0:
                     sorted_top = sorted([t[2] for t in top_results], key=lambda x: x['score'], reverse=True)
                     HEAVY_OPTIMIZATION_TASKS[task_id]["top_results"] = sorted_top
 
