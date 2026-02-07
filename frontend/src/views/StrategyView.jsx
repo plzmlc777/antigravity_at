@@ -1915,23 +1915,41 @@ const StrategyView = () => {
             setOptError("Please select a strategy first.");
             return;
         }
-        if (activeTab !== -3) {
-            setOptError("This optimization is only available in Symbol Compare tab.");
-            return;
-        }
-        if (selectedCompareSymbols.length === 0) {
-            setOptError("Please select symbols for optimization.");
+        if (activeTab === -1) {
+            setOptError("Optimization not available for Integrated Portfolio.");
             return;
         }
 
-        // Get parameter ranges from symbolCompareConfig
-        const currentOptEnabled = symbolCompareConfig?.optEnabled || {};
-        const currentOptValues = symbolCompareConfig?.optValues || getDynamicOptValues();
-        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k]);
+        // Determine which tab type and get appropriate config/symbols
+        const isSymbolCompareTab = activeTab === -3;
+        const isRankTab = activeTab >= 0;
+
+        // Get symbols based on tab type
+        let symbols = [];
+        if (isSymbolCompareTab) {
+            if (selectedCompareSymbols.length === 0) {
+                setOptError("Please select symbols for optimization.");
+                return;
+            }
+            symbols = selectedCompareSymbols;
+        } else if (isRankTab) {
+            const symbol = currentConfig.symbol || currentSymbol;
+            if (!symbol) {
+                setOptError("No symbol selected.");
+                return;
+            }
+            symbols = [symbol];
+        }
+
+        // Get config based on tab type
+        const activeConfig = isSymbolCompareTab ? symbolCompareConfig : currentConfig;
+        const activeOptEnabled = activeConfig?.optEnabled || {};
+        const activeOptValues = activeConfig?.optValues || getDynamicOptValues();
+        const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k]);
 
         const parameter_ranges = {};
         for (const key of varyingKeys) {
-            const values = parseValues(currentOptValues[key]);
+            const values = parseValues(activeOptValues[key]);
             if (values.length === 0) {
                 setOptError(`Parameter '${key}' is enabled but has no values.`);
                 return;
@@ -1941,31 +1959,31 @@ const StrategyView = () => {
 
         // Calculate total combinations
         const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
-        const totalCombos = selectedCompareSymbols.length * totalParams;
+        const totalCombos = symbols.length * totalParams;
 
         setIsHeavyOptRunning(true);
         setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
 
         try {
-            // Pre-fetch data for all selected symbols (same as Cross-Optimize)
+            // Pre-fetch data for all symbols
             const DATA_FETCH_DELAY_MS = 500;
-            addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
-            for (let i = 0; i < selectedCompareSymbols.length; i++) {
-                const sym = selectedCompareSymbols[i];
+            addLog(`Updating data for ${symbols.length} symbol(s) before optimization...`, 'info');
+            for (let i = 0; i < symbols.length; i++) {
+                const sym = symbols[i];
                 setHeavyOptStatus({
                     status: 'initializing',
-                    message: `Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`
+                    message: `Updating data (${i + 1}/${symbols.length}): ${sym}...`
                 });
                 try {
                     await axios.post(`/api/v1/market-data/fetch/${sym}`, {
-                        interval: symbolCompareConfig?.interval || "1m",
-                        days: symbolCompareConfig?.days || 365
+                        interval: activeConfig?.interval || "1m",
+                        days: activeConfig?.days || 365
                     });
                 } catch (err) {
                     console.warn(`Failed to update data for ${sym}`, err);
                     addLog(`${sym}: data update failed`, 'warning');
                 }
-                if (i < selectedCompareSymbols.length - 1) {
+                if (i < symbols.length - 1) {
                     await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
                 }
             }
@@ -1980,22 +1998,27 @@ const StrategyView = () => {
                     base_config[param.key] = param.defaultValue;
                 }
             });
-            Object.keys(symbolCompareConfig || {}).forEach(key => {
-                if (symbolCompareConfig[key] !== undefined && symbolCompareConfig[key] !== '') {
-                    base_config[key] = symbolCompareConfig[key];
+            Object.keys(activeConfig || {}).forEach(key => {
+                if (activeConfig[key] !== undefined && activeConfig[key] !== '') {
+                    base_config[key] = activeConfig[key];
                 }
             });
 
+            // Determine save target
+            const saveTabId = isSymbolCompareTab
+                ? getCrossOptUUID(selectedStrategy?.id)
+                : (activeConfig?.uuid || null);
+
             const payload = {
-                symbols: selectedCompareSymbols,
-                interval: symbolCompareConfig?.interval || "1m",
-                days: symbolCompareConfig?.days || 365,
-                from_date: symbolCompareConfig?.from_date || null,
-                initial_capital: symbolCompareConfig?.initial_capital || 10000000,
+                symbols: symbols,
+                interval: activeConfig?.interval || "1m",
+                days: activeConfig?.days || 365,
+                from_date: activeConfig?.from_date || null,
+                initial_capital: activeConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
                 strategy_id: selectedStrategy.id,
-                save_to_tab_id: getCrossOptUUID(selectedStrategy?.id)  // Auto-save to DB on completion
+                save_to_tab_id: saveTabId  // Auto-save to DB on completion
             };
 
             const response = await axios.post(`/api/v1/strategies/heavy-optimize/${selectedStrategy.id}`, payload);
@@ -4472,42 +4495,11 @@ const StrategyView = () => {
 
                                                 {/* Action */}
                                                 <div className="flex gap-2">
-                                                    {/* Rank Tabs: Use runOptimization */}
-                                                    {activeTab >= 0 && (
-                                                        <>
-                                                            <button
-                                                                onClick={runOptimization}
-                                                                disabled={isOptimizing}
-                                                                className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isOptimizing ? 'cursor-not-allowed opacity-80' : ''}`}
-                                                            >
-                                                                {isOptimizing ? (
-                                                                    <>
-                                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                                        {optProgress.total > 0
-                                                                            ? `Processing (${optProgress.current}/${optProgress.total})...`
-                                                                            : (optStatusMessage || "Initializing...")}
-                                                                    </>
-                                                                ) : (
-                                                                    `Run Optimization (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
-                                                                )}
-                                                            </button>
-                                                            {isOptimizing && (
-                                                                <button
-                                                                    onClick={() => cancelOptimization(currentOptTaskId)}
-                                                                    disabled={isCancelling}
-                                                                    className="px-6 rounded-lg font-bold text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                >
-                                                                    {isCancelling ? 'Stopping...' : 'Stop'}
-                                                                </button>
-                                                            )}
-                                                        </>
-                                                    )}
-
-                                                    {/* Symbol Compare Tab: Use startHeavyOptimization (renamed to Optimize) */}
-                                                    {activeTab === -3 && (
+                                                    {/* Rank Tabs and Symbol Compare Tab: Use unified startHeavyOptimization */}
+                                                    {(activeTab >= 0 || activeTab === -3) && (
                                                         <button
                                                             onClick={startHeavyOptimization}
-                                                            disabled={isHeavyOptRunning || selectedCompareSymbols.length === 0}
+                                                            disabled={isHeavyOptRunning || (activeTab === -3 && selectedCompareSymbols.length === 0)}
                                                             className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isHeavyOptRunning ? 'cursor-not-allowed opacity-80' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
                                                         >
                                                             {isHeavyOptRunning ? (
@@ -4515,8 +4507,10 @@ const StrategyView = () => {
                                                                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                                     {heavyOptStatus?.message || "Initializing..."}
                                                                 </>
-                                                            ) : (
+                                                            ) : activeTab === -3 ? (
                                                                 `Run Optimization (${selectedCompareSymbols.length} Symbols × ${Object.values((symbolCompareConfig?.optEnabled || {})).filter(Boolean).length} Params)`
+                                                            ) : (
+                                                                `Run Optimization (${Object.values((currentConfig.optEnabled || {})).filter(Boolean).length} Params)`
                                                             )}
                                                         </button>
                                                     )}
@@ -4533,7 +4527,7 @@ const StrategyView = () => {
                                                 </div>
 
                                                 {/* Optimization Status Panel (Symbol Compare Tab) */}
-                                                {activeTab === -3 && heavyOptStatus && (
+                                                {(activeTab >= 0 || activeTab === -3) && heavyOptStatus && (
                                                     <div className="mt-4 p-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-xl border border-purple-500/30">
                                                         <div className="flex items-center justify-between mb-3">
                                                             <div className="flex items-center gap-2">
