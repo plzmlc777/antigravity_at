@@ -1949,9 +1949,34 @@ const StrategyView = () => {
         }
 
         setIsHeavyOptRunning(true);
-        setHeavyOptStatus({ status: 'initializing', message: 'Starting heavy optimization...' });
+        setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
 
         try {
+            // Pre-fetch data for all selected symbols (same as Cross-Optimize)
+            const DATA_FETCH_DELAY_MS = 500;
+            addLog(`Updating data for ${selectedCompareSymbols.length} symbols before heavy optimization...`, 'info');
+            for (let i = 0; i < selectedCompareSymbols.length; i++) {
+                const sym = selectedCompareSymbols[i];
+                setHeavyOptStatus({
+                    status: 'initializing',
+                    message: `Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`
+                });
+                try {
+                    await axios.post(`/api/v1/market-data/fetch/${sym}`, {
+                        interval: symbolCompareConfig?.interval || "1m",
+                        days: symbolCompareConfig?.days || 365
+                    });
+                } catch (err) {
+                    console.warn(`Failed to update data for ${sym}`, err);
+                    addLog(`${sym}: data update failed`, 'warning');
+                }
+                if (i < selectedCompareSymbols.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
+                }
+            }
+            addLog('Data update completed. Starting heavy optimization...', 'info');
+            setHeavyOptStatus({ status: 'initializing', message: 'Starting optimization...' });
+
             // Build base config
             const base_config = {};
             const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
@@ -1974,7 +1999,8 @@ const StrategyView = () => {
                 initial_capital: symbolCompareConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
-                strategy_id: selectedStrategy.id
+                strategy_id: selectedStrategy.id,
+                save_to_tab_id: getCrossOptUUID(selectedStrategy?.id)  // Auto-save to DB on completion
             };
 
             const response = await axios.post(`/api/v1/strategies/heavy-optimize/${selectedStrategy.id}`, payload);

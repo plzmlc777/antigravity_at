@@ -75,6 +75,9 @@ class HeavyOptimizationRequest(BaseModel):
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {}
     strategy_id: str = "DipMartingaleStrategy"
+    # Server-side auto-save: tab UUID for persisting results to DB on completion
+    save_to_tab_id: Optional[str] = None
+    save_account_id: Optional[int] = None
 
 
 class HeavyOptimizationStatus(BaseModel):

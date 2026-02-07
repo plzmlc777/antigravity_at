@@ -837,7 +837,7 @@ async def download_optimization_csv(task_id: str):
 # HEAVY OPTIMIZATION (Large-scale, 10K-100K+ combinations)
 # ============================================================================
 
-def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int):
+def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None):
     """
     Background task for heavy optimization.
     Streams results directly to CSV to avoid memory issues.
@@ -1005,6 +1005,72 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
 
         logger.info(f"Heavy optimization {task_id} completed: {processed} results in {elapsed:.1f}s")
 
+        # Server-side auto-save to DB (same as regular optimization)
+        if save_to_tab_id and HEAVY_OPTIMIZATION_TASKS[task_id]["status"] == "completed":
+            try:
+                from ..db.session import SessionLocal
+                from ..models.strategy_result import StrategyAnalysisResult
+                db = SessionLocal()
+                try:
+                    # Format top 50 results for DB storage (same format as regular optimization)
+                    result_data = {
+                        "strategy_id": strategy_id,
+                        "best_config": sorted_top[0]["config"] if sorted_top else {},
+                        "results": [
+                            {
+                                "rank": idx + 1,
+                                "symbol": r.get("symbol", ""),
+                                "config": r.get("config", {}),
+                                "total_return": r.get("total_return", 0),
+                                "win_rate": r.get("win_rate", 0),
+                                "total_trades": r.get("total_trades", 0),
+                                "score": r.get("score", 0),
+                                "metrics": {
+                                    "max_drawdown": r.get("max_drawdown"),
+                                    "profit_factor": r.get("profit_factor"),
+                                    "sharpe_ratio": r.get("sharpe_ratio"),
+                                    "avg_pnl": r.get("avg_pnl"),
+                                    "stability_score": r.get("stability_score"),
+                                    "acceleration_score": r.get("acceleration_score"),
+                                    "activity_rate": r.get("activity_rate"),
+                                    "avg_holding_time": r.get("avg_holding_time"),
+                                    "max_profit": r.get("max_profit"),
+                                    "max_loss": r.get("max_loss"),
+                                    "total_days": r.get("total_days"),
+                                    "cycle_count": r.get("cycle_count"),
+                                    "cycle_avg_pnl": r.get("cycle_avg_pnl"),
+                                    "cycle_avg_hold": r.get("cycle_avg_hold"),
+                                }
+                            }
+                            for idx, r in enumerate(sorted_top)
+                        ],
+                        "total_combinations": total_combos,
+                        "elapsed_time": elapsed,
+                        "status": "completed"
+                    }
+
+                    db_obj = db.query(StrategyAnalysisResult).filter(
+                        StrategyAnalysisResult.tab_id == save_to_tab_id,
+                        StrategyAnalysisResult.result_type == "optimization",
+                        StrategyAnalysisResult.account_id == save_account_id
+                    ).first()
+                    if db_obj:
+                        db_obj.data = result_data
+                    else:
+                        db_obj = StrategyAnalysisResult(
+                            tab_id=save_to_tab_id,
+                            result_type="optimization",
+                            account_id=save_account_id,
+                            data=result_data
+                        )
+                        db.add(db_obj)
+                    db.commit()
+                    logger.info(f"[Heavy Optimization] Auto-saved {len(sorted_top)} results to DB (tab_id={save_to_tab_id})")
+                finally:
+                    db.close()
+            except Exception as save_err:
+                logger.error(f"[Heavy Optimization] Failed to auto-save to DB: {save_err}")
+
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
@@ -1014,7 +1080,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
 
 
 @router.post("/heavy-optimize/{strategy_id}")
-async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationRequest):
+async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationRequest, ctx: UserAccountContext = Depends(get_user_context)):
     """
     Start a large-scale optimization (10K-100K+ combinations).
     Results are streamed directly to CSV file.
@@ -1089,6 +1155,8 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
     # Start background task
     import asyncio
     loop = asyncio.get_running_loop()
+    save_tab_id = request.save_to_tab_id
+    save_acct_id = request.save_account_id or (ctx.account_id if ctx.has_active_account else None)
     loop.run_in_executor(
         None,
         _heavy_optimize_background_task,
@@ -1096,7 +1164,9 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
         run_args,
         strategy_id,
         start_time,
-        total_combinations
+        total_combinations,
+        save_tab_id,
+        save_acct_id
     )
 
     return {
