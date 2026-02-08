@@ -357,3 +357,13 @@ export const updateExecutionMode = async (mode) => {
     const { data } = await api.put('/accounts/preferences/execution-mode', { execution_mode: mode });
     return data;
 };
+
+// Score Recalculation (reads full CSV, can take time)
+export const recalculateOptimizationScores = async (taskId, weights, topN = 50) => {
+    const { data } = await api.post('/strategies/recalculate-scores', {
+        task_id: taskId,
+        weights: weights,
+        top_n: topN
+    }, { timeout: 180000 }); // 3 minute timeout for large CSV files
+    return data;
+};

@@ -109,3 +109,5 @@ from .api import live_trading
 app.include_router(live_trading.router, prefix="/api/v1/live", tags=["live-trading"])
 from .api import history
 app.include_router(history.router, prefix="/api/v1/live/history", tags=["live-history"])
+from .api import ai_analysis
+app.include_router(ai_analysis.router, prefix="/api/v1/ai", tags=["ai-analysis"])

@@ -236,7 +236,7 @@ async def get_accumulated_stats(
 
         executions = query.order_by(LiveTradeExecution.signal_timestamp).all()
 
-        # Group by symbol and mode, track per-cycle PnLs
+        # Group by symbol and mode, track per-cycle PnLs and durations
         stats_by_symbol = {}
         for ex in executions:
             sym = ex.symbol
@@ -246,11 +246,15 @@ async def get_accumulated_stats(
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],  # Track buys for FIFO matching
                         "cycle_pnls": [],  # Per-cycle PnL list
+                        "cycle_durations": [],  # Per-cycle duration in minutes
+                        "first_buy_time": None,  # First BUY timestamp in current cycle
                     },
                     "real": {
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],
                         "cycle_pnls": [],
+                        "cycle_durations": [],
+                        "first_buy_time": None,
                     },
                 }
 
@@ -263,7 +267,10 @@ async def get_accumulated_stats(
 
             if ex.signal_type == "BUY":
                 s["buys"] += 1
-                s["buy_queue"].append({"qty": qty, "price": price})
+                # Track first BUY time for cycle duration
+                if s["first_buy_time"] is None:
+                    s["first_buy_time"] = ex.signal_timestamp
+                s["buy_queue"].append({"qty": qty, "price": price, "timestamp": ex.signal_timestamp})
             elif ex.signal_type == "SELL":
                 s["sells"] += 1
                 # Match with buys (FIFO) to calculate cycle PnL
@@ -286,6 +293,15 @@ async def get_accumulated_stats(
                     cycle_pnl = (price * matched_qty) - buy_cost
                     s["cycle_pnls"].append(cycle_pnl)
 
+                    # Calculate cycle duration (first BUY to SELL)
+                    if s["first_buy_time"] and ex.signal_timestamp:
+                        duration_mins = (ex.signal_timestamp - s["first_buy_time"]).total_seconds() / 60
+                        s["cycle_durations"].append(duration_mins)
+
+                # Reset first_buy_time if no more buys in queue (cycle complete)
+                if not s["buy_queue"]:
+                    s["first_buy_time"] = None
+
         # Calculate final stats
         result = {}
         for sym, modes in stats_by_symbol.items():
@@ -294,6 +310,8 @@ async def get_accumulated_stats(
                 s = modes[key]
                 cycle_pnls = s["cycle_pnls"]
                 cycles = len(cycle_pnls)
+
+                cycle_durations = s["cycle_durations"]
 
                 if cycles > 0:
                     total_pnl = sum(cycle_pnls)
@@ -309,6 +327,16 @@ async def get_accumulated_stats(
                     max_pnl = max(cycle_pnls)
                     min_pnl = min(cycle_pnls)
                     avg_pnl = total_pnl / cycles
+
+                    # Holding time stats (in minutes)
+                    if cycle_durations:
+                        avg_holding_time = sum(cycle_durations) / len(cycle_durations)
+                        max_holding_time = max(cycle_durations)
+                        min_holding_time = min(cycle_durations)
+                    else:
+                        avg_holding_time = None
+                        max_holding_time = None
+                        min_holding_time = None
 
                     # Calculate percentage (based on average buy cost)
                     total_buy_cost = sum(p["price"] * p["qty"] for p in s.get("buy_queue", [])) if s.get("buy_queue") else 0
@@ -327,6 +355,9 @@ async def get_accumulated_stats(
                     min_pnl = 0
                     avg_pnl = 0
                     pnl_pct = 0
+                    avg_holding_time = None
+                    max_holding_time = None
+                    min_holding_time = None
 
                 result[sym][key] = {
                     "trades": s["trades"],
@@ -340,6 +371,10 @@ async def get_accumulated_stats(
                     "max_pnl": round(max_pnl, 0),
                     "min_pnl": round(min_pnl, 0),
                     "avg_pnl": round(avg_pnl, 0),
+                    # Holding time stats (in minutes, null if no data)
+                    "avg_holding_time": round(avg_holding_time) if avg_holding_time is not None else None,
+                    "max_holding_time": round(max_holding_time) if max_holding_time is not None else None,
+                    "min_holding_time": round(min_holding_time) if min_holding_time is not None else None,
                 }
 
         return result

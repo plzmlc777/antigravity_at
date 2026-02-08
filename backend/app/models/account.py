@@ -22,6 +22,9 @@ class ExchangeAccount(Base):
     # Encrypted fields
     encrypted_access_key = Column(String)
     encrypted_secret_key = Column(String)
+    encrypted_ai_api_key = Column(String, nullable=True)  # Claude/Anthropic API key
+    encrypted_google_api_key = Column(String, nullable=True)  # Google/Gemini API key
+    ai_model = Column(String, nullable=True, default="claude-sonnet-4-20250514")  # Default AI model
 
     # Status
     is_active = Column(Boolean, default=False)

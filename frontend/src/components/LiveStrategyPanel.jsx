@@ -1622,8 +1622,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         {/* All Sessions Summary Panel - Separated by Paper/Real */}
                         {(() => {
                             // Aggregate stats separately for Paper and Real
-                            const stats = { paper: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null },
-                                           real: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null } };
+                            const stats = {
+                                paper: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null, totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null },
+                                real: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null, totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null }
+                            };
 
                             Object.values(accumulatedStats).forEach(symbolStats => {
                                 ['paper', 'real'].forEach(mode => {
@@ -1635,6 +1637,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     st.wins += Math.round((s.win_rate || 0) * s.cycles / 100);
                                     if (s.max_pnl != null) st.maxPnl = st.maxPnl == null ? s.max_pnl : Math.max(st.maxPnl, s.max_pnl);
                                     if (s.min_pnl != null) st.minPnl = st.minPnl == null ? s.min_pnl : Math.min(st.minPnl, s.min_pnl);
+                                    // Holding time aggregation (weighted average)
+                                    if (s.avg_holding_time != null) {
+                                        st.totalHoldTime += s.avg_holding_time * s.cycles;
+                                        st.holdCount += s.cycles;
+                                    }
+                                    if (s.max_holding_time != null) st.maxHold = st.maxHold == null ? s.max_holding_time : Math.max(st.maxHold, s.max_holding_time);
+                                    if (s.min_holding_time != null) st.minHold = st.minHold == null ? s.min_holding_time : Math.min(st.minHold, s.min_holding_time);
                                 });
                             });
 
@@ -1649,10 +1658,28 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 return (v >= 0 ? '+' : '-') + str;
                             };
 
+                            // Format minutes to human-readable time (e.g., "2d 5h", "3h 30m", "45m")
+                            const formatTime = (mins) => {
+                                if (mins == null) return '-';
+                                const m = Math.round(mins);
+                                if (m >= 1440) { // >= 1 day
+                                    const days = Math.floor(m / 1440);
+                                    const hours = Math.floor((m % 1440) / 60);
+                                    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+                                }
+                                if (m >= 60) { // >= 1 hour
+                                    const hours = Math.floor(m / 60);
+                                    const remMins = m % 60;
+                                    return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+                                }
+                                return `${m}m`;
+                            };
+
                             const renderModeStats = (mode, st, colorClass, bgClass) => {
                                 if (st.cycles === 0) return null;
                                 const winRate = st.cycles > 0 ? (st.wins / st.cycles) * 100 : 0;
                                 const avgPnl = st.cycles > 0 ? st.pnl / st.cycles : 0;
+                                const avgHold = st.holdCount > 0 ? st.totalHoldTime / st.holdCount : null;
                                 return (
                                     <div className={`${bgClass} rounded-lg p-3`}>
                                         <div className="flex items-center gap-2 mb-2">
@@ -1661,7 +1688,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                             </span>
                                             <span className="text-xs text-gray-500">{st.cycles} cycles</span>
                                         </div>
-                                        <div className="grid grid-cols-4 gap-2 text-center">
+                                        <div className="grid grid-cols-5 gap-2 text-center">
                                             <div>
                                                 <div className="text-[10px] text-gray-500 uppercase">Win Rate</div>
                                                 <div className={`text-sm font-mono font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
@@ -1687,6 +1714,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                     <span className="text-green-400">{formatPnl(st.maxPnl)}</span>
                                                     <span className="text-gray-600">/</span>
                                                     <span className="text-red-400">{formatPnl(st.minPnl)}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Holding</div>
+                                                <div className="text-sm font-mono text-gray-300">
+                                                    {formatTime(avgHold)}
+                                                </div>
+                                                <div className="text-[9px] font-mono">
+                                                    <span className="text-red-400">{formatTime(st.maxHold)}</span>
+                                                    <span className="text-gray-600">/</span>
+                                                    <span className="text-green-400">{formatTime(st.minHold)}</span>
                                                 </div>
                                             </div>
                                         </div>

@@ -15,7 +15,8 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from ..schemas.optimization import (
     OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus,
-    HeavyOptimizationRequest, HeavyOptimizationStatus
+    HeavyOptimizationRequest, HeavyOptimizationStatus,
+    ScoreWeights, RecalculateScoreRequest, RecalculateScoreResponse
 )
 from datetime import datetime
 
@@ -304,18 +305,15 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                         profit_factor=str(res.get("profit_factor", "-")),
                         avg_pnl=str(res.get("avg_pnl", "-")),
                         sharpe_ratio=str(res.get("sharpe_ratio", "-")),
-                        avg_holding_time=str(res.get("avg_holding_time", "-")),
                         stability_score=str(res.get("stability_score", "-")),
                         acceleration_score=str(res.get("acceleration_score", "-")),
                         activity_rate=str(res.get("activity_rate", "-")),
                         total_days=int(res.get("total_days", 0)),
+                        avg_holding_time=str(res.get("avg_holding_time", "-")),
+                        max_holding_time=str(res.get("max_holding_time", "-")),
+                        min_holding_time=str(res.get("min_holding_time", "-")),
                         max_profit=str(res.get("max_profit", "-")),
                         max_loss=str(res.get("max_loss", "-")),
-                        cycle_count=res.get("cycle_count"),
-                        cycle_avg_pnl=res.get("cycle_avg_pnl"),
-                        cycle_avg_hold=res.get("cycle_avg_hold"),
-                        cycle_max_hold=res.get("cycle_max_hold"),
-                        cycle_min_hold=res.get("cycle_min_hold"),
                         metrics={
                             # Frontend relies on 'metrics' spread, so we must populate these!
                             "max_drawdown": res.get("max_drawdown", "-"),
@@ -323,17 +321,14 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             "avg_pnl": res.get("avg_pnl", "-"),
                             "sharpe_ratio": res.get("sharpe_ratio", "-"),
                             "avg_holding_time": res.get("avg_holding_time", "-"),
+                            "max_holding_time": res.get("max_holding_time", "-"),
+                            "min_holding_time": res.get("min_holding_time", "-"),
                             "stability_score": res.get("stability_score", "-"),
                             "acceleration_score": res.get("acceleration_score", "-"),
                             "activity_rate": res.get("activity_rate", "-"),
                             "total_days": res.get("total_days", 0),
                             "max_profit": res.get("max_profit", "-"),
-                            "max_loss": res.get("max_loss", "-"),
-                            "cycle_count": res.get("cycle_count"),
-                            "cycle_avg_pnl": res.get("cycle_avg_pnl"),
-                            "cycle_avg_hold": res.get("cycle_avg_hold"),
-                            "cycle_max_hold": res.get("cycle_max_hold"),
-                            "cycle_min_hold": res.get("cycle_min_hold")
+                            "max_loss": res.get("max_loss", "-")
                         }
                     ))
             except Exception as e:
@@ -381,8 +376,8 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                         'rank', 'symbol', 'score', 'total_return', 'win_rate', 'total_trades',
                         'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
                         'stability_score', 'acceleration_score', 'activity_rate',
-                        'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
-                        'cycle_count', 'cycle_avg_pnl', 'cycle_avg_hold'
+                        'avg_holding_time', 'max_holding_time', 'min_holding_time',
+                        'max_profit', 'max_loss', 'total_days'
                     ]
                     # Add config keys from first result
                     config_keys = list(results[0].config.keys())
@@ -407,12 +402,11 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                             'acceleration_score': item.acceleration_score,
                             'activity_rate': item.activity_rate,
                             'avg_holding_time': item.avg_holding_time,
+                            'max_holding_time': item.max_holding_time,
+                            'min_holding_time': item.min_holding_time,
                             'max_profit': item.max_profit,
                             'max_loss': item.max_loss,
                             'total_days': item.total_days,
-                            'cycle_count': item.cycle_count,
-                            'cycle_avg_pnl': item.cycle_avg_pnl,
-                            'cycle_avg_hold': item.cycle_avg_hold,
                         }
                         # Add config values
                         for k in config_keys:
@@ -548,15 +542,12 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "activity_rate": result.get('activity_rate', "0%"),
             "total_days": result.get('total_days', 0),
             "avg_holding_time": result.get('avg_holding_time', "0m"),
+            "max_holding_time": result.get('max_holding_time', "0m"),
+            "min_holding_time": result.get('min_holding_time', "0m"),
             "decile_stats": result.get('decile_stats', []),
             "bucket_stats": result.get('bucket_stats', []),
             "stability_score": result.get('stability_score', "0.00"),
             "acceleration_score": result.get('acceleration_score', "0.00"),
-            "cycle_count": result.get('cycle_count'),
-            "cycle_avg_pnl": result.get('cycle_avg_pnl'),
-            "cycle_avg_hold": result.get('cycle_avg_hold'),
-            "cycle_max_hold": result.get('cycle_max_hold'),
-            "cycle_min_hold": result.get('cycle_min_hold'),
             "chart_data": result['chart_data'],
             "ohlcv_data": result.get('ohlcv_data', []),
             "trades": result.get('trades', []),
@@ -672,15 +663,12 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "activity_rate": result.get('activity_rate', "0%"),
         "total_days": result.get('total_days', 0),
         "avg_holding_time": result.get('avg_holding_time', "0m"),
+        "max_holding_time": result.get('max_holding_time', "0m"),
+        "min_holding_time": result.get('min_holding_time', "0m"),
         "decile_stats": result.get('decile_stats', []),
         "bucket_stats": result.get('bucket_stats', []),
         "stability_score": result.get('stability_score', "0.00"),
         "acceleration_score": result.get('acceleration_score', "0.00"),
-        "cycle_count": result.get('cycle_count'),
-        "cycle_avg_pnl": result.get('cycle_avg_pnl'),
-        "cycle_avg_hold": result.get('cycle_avg_hold'),
-        "cycle_max_hold": result.get('cycle_max_hold'),
-        "cycle_min_hold": result.get('cycle_min_hold'),
         "chart_data": result.get('chart_data', []),
         "ohlcv_data": result.get('ohlcv_data', []),
         "trades": result.get('trades', []),
@@ -862,8 +850,8 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
             'rank', 'symbol', 'score', 'total_return', 'win_rate', 'total_trades',
             'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
             'stability_score', 'acceleration_score', 'activity_rate',
-            'avg_holding_time', 'max_profit', 'max_loss', 'total_days',
-            'cycle_count', 'cycle_avg_pnl', 'cycle_avg_hold'
+            'avg_holding_time', 'max_holding_time', 'min_holding_time',
+            'max_profit', 'max_loss', 'total_days'
         ]
         config_keys = None
 
@@ -913,12 +901,11 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                         'acceleration_score': str(res.get('acceleration_score', '-')),
                         'activity_rate': str(res.get('activity_rate', '-')),
                         'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                        'max_holding_time': str(res.get('max_holding_time', '-')),
+                        'min_holding_time': str(res.get('min_holding_time', '-')),
                         'max_profit': str(res.get('max_profit', '-')),
                         'max_loss': str(res.get('max_loss', '-')),
                         'total_days': int(res.get('total_days', 0)),
-                        'cycle_count': res.get('cycle_count'),
-                        'cycle_avg_pnl': res.get('cycle_avg_pnl'),
-                        'cycle_avg_hold': res.get('cycle_avg_hold'),
                     }
 
                     # Initialize CSV writer with config keys from first result
@@ -952,12 +939,11 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                         'acceleration_score': str(res.get('acceleration_score', '-')),
                         'activity_rate': str(res.get('activity_rate', '-')),
                         'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                        'max_holding_time': str(res.get('max_holding_time', '-')),
+                        'min_holding_time': str(res.get('min_holding_time', '-')),
                         'max_profit': str(res.get('max_profit', '-')),
                         'max_loss': str(res.get('max_loss', '-')),
                         'total_days': int(res.get('total_days', 0)),
-                        'cycle_count': res.get('cycle_count'),
-                        'cycle_avg_pnl': res.get('cycle_avg_pnl'),
-                        'cycle_avg_hold': res.get('cycle_avg_hold'),
                         'config': {k: config.get(k) for k in config_keys} if config_keys else {}
                     }
 
@@ -1034,12 +1020,11 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                                     "acceleration_score": r.get("acceleration_score"),
                                     "activity_rate": r.get("activity_rate"),
                                     "avg_holding_time": r.get("avg_holding_time"),
+                                    "max_holding_time": r.get("max_holding_time"),
+                                    "min_holding_time": r.get("min_holding_time"),
                                     "max_profit": r.get("max_profit"),
                                     "max_loss": r.get("max_loss"),
                                     "total_days": r.get("total_days"),
-                                    "cycle_count": r.get("cycle_count"),
-                                    "cycle_avg_pnl": r.get("cycle_avg_pnl"),
-                                    "cycle_avg_hold": r.get("cycle_avg_hold"),
                                 }
                             }
                             for idx, r in enumerate(sorted_top)
@@ -1266,6 +1251,227 @@ async def list_heavy_optimization_tasks():
             "csv_file": task.get("csv_file")
         })
     return {"tasks": tasks}
+
+
+# ============================================================================
+# WEIGHTED SCORE RECALCULATION - Apply custom weights to full CSV results
+# ============================================================================
+
+def _parse_numeric(value, default=0.0):
+    """Safely parse a numeric value from string/number."""
+    if value is None or value == '-' or value == '':
+        return default
+    try:
+        return float(str(value).replace('%', '').replace(',', ''))
+    except (ValueError, TypeError):
+        return default
+
+
+def _calculate_weighted_score(row: dict, weights: ScoreWeights) -> float:
+    """
+    Calculate weighted score using the formula:
+    Base: (Return × Sharpe × Stability × CycleAvgPnL × ...) / MDD
+    With weights applied as power exponents
+
+    If weight is 0, that factor is excluded (treated as 1.0)
+    """
+    # Parse all metrics (all stats are now cycle-based for martingale strategies)
+    ret = _parse_numeric(row.get('total_return', 0))
+    sharpe = _parse_numeric(row.get('sharpe_ratio', 0))
+    stability = _parse_numeric(row.get('stability_score', 0))
+    mdd = abs(_parse_numeric(row.get('max_drawdown', 0)))
+    wr = _parse_numeric(row.get('win_rate', 0))  # Cycle win rate
+    pf = _parse_numeric(row.get('profit_factor', 0))
+    accel = _parse_numeric(row.get('acceleration_score', 0))
+    trades = _parse_numeric(row.get('total_trades', 0))  # = Cycle count
+    activity = _parse_numeric(row.get('activity_rate', 0))
+    avg_pnl = _parse_numeric(row.get('avg_pnl', 0))  # Cycle avg PnL (in %)
+
+    # Skip invalid data (negative return or zero MDD/Sharpe)
+    if ret <= 0:
+        return 0.0
+    if mdd == 0:
+        mdd = 0.01  # Prevent division by zero
+    if sharpe <= 0:
+        sharpe = 0.01  # Prevent negative sharpe issues
+    if stability <= 0:
+        stability = 0.01  # Prevent zero stability
+
+    # Calculate numerator components (higher is better)
+    numerator = 1.0
+
+    # Primary weights
+    if weights.return_weight > 0:
+        ret_normalized = min(ret / 100.0, 10.0)  # Cap at 1000%
+        numerator *= pow(max(ret_normalized, 0.01), weights.return_weight)
+
+    if weights.sharpe_weight > 0:
+        sharpe_normalized = min(sharpe, 5.0)  # Cap at 5
+        numerator *= pow(max(sharpe_normalized, 0.01), weights.sharpe_weight)
+
+    if weights.stability_weight > 0:
+        numerator *= pow(max(stability, 0.01), weights.stability_weight)
+
+    if weights.avg_pnl_weight > 0:
+        # AvgPnL: per-cycle avg profit percentage (cycle-based)
+        # Normalize: 1% avg pnl = 1.0
+        avg_pnl_normalized = 1.0 + avg_pnl
+        numerator *= pow(max(avg_pnl_normalized, 0.01), weights.avg_pnl_weight)
+
+    # Secondary weights
+    if weights.win_rate_weight > 0:
+        wr_normalized = wr / 100.0  # Convert to 0-1
+        numerator *= pow(max(wr_normalized, 0.01), weights.win_rate_weight)
+
+    if weights.profit_factor_weight > 0:
+        pf_normalized = min(pf, 10.0)  # Cap at 10
+        numerator *= pow(max(pf_normalized, 0.01), weights.profit_factor_weight)
+
+    if weights.accel_weight > 0:
+        # Accel: positive is good, negative is bad
+        accel_factor = 1.0 + (accel / 100.0)  # Range: 0-2
+        numerator *= pow(max(accel_factor, 0.01), weights.accel_weight)
+
+    if weights.trades_weight > 0:
+        # Trades = Cycle count for martingale strategies
+        trades_normalized = min(trades / 50.0, 5.0)  # Normalize: 50 cycles = 1.0
+        numerator *= pow(max(trades_normalized, 0.01), weights.trades_weight)
+
+    if weights.activity_weight > 0:
+        activity_normalized = activity / 100.0  # Convert to 0-1
+        numerator *= pow(max(activity_normalized, 0.01), weights.activity_weight)
+
+    # Calculate denominator (penalty - higher is worse)
+    denominator = 1.0
+
+    if weights.mdd_weight > 0:
+        mdd_normalized = mdd / 100.0  # Convert to 0-1 scale
+        denominator *= pow(max(mdd_normalized, 0.01), weights.mdd_weight)
+
+    return numerator / denominator if denominator > 0 else 0.0
+
+
+@router.post("/recalculate-scores", response_model=RecalculateScoreResponse)
+async def recalculate_scores(request: RecalculateScoreRequest):
+    """
+    Recalculate optimization scores with custom weights from the full CSV file.
+
+    This reads the entire CSV (all combinations), applies new weighted scoring formula,
+    and returns the new top N results sorted by the new score.
+
+    Weights:
+    - return_weight: Power exponent for return (default: 1.0)
+    - sharpe_weight: Power exponent for Sharpe ratio (default: 1.2)
+    - stability_weight: Power exponent for stability score (default: 1.0)
+    - mdd_weight: Power exponent for MDD penalty (default: 1.5)
+    - win_rate_weight: Power exponent for win rate (default: 0.0 = excluded)
+    - accel_weight: Power exponent for acceleration (default: 0.0 = excluded)
+
+    Set weight to 0 to exclude that metric from the calculation.
+    """
+    task_id = request.task_id
+
+    # Try to find CSV file from both regular and heavy optimization tasks
+    csv_filename = None
+
+    # Check regular optimization tasks first
+    if task_id in OPTIMIZATION_TASKS:
+        csv_filename = OPTIMIZATION_TASKS[task_id].get("csv_file")
+
+    # Check heavy optimization tasks
+    if not csv_filename and task_id in HEAVY_OPTIMIZATION_TASKS:
+        csv_filename = HEAVY_OPTIMIZATION_TASKS[task_id].get("csv_file")
+
+    # Try standard naming convention as fallback
+    if not csv_filename:
+        # Try both naming patterns
+        for pattern in [f"optimization_{task_id}.csv", f"heavy_opt_{task_id}.csv"]:
+            potential_path = os.path.join(CSV_OUTPUT_DIR, pattern)
+            if os.path.exists(potential_path):
+                csv_filename = pattern
+                break
+
+    if not csv_filename:
+        raise HTTPException(status_code=404, detail=f"CSV file not found for task_id: {task_id}")
+
+    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+
+    if not os.path.exists(csv_filepath):
+        raise HTTPException(status_code=404, detail=f"CSV file not found on disk: {csv_filename}")
+
+    logger.info(f"[Recalculate] Reading CSV: {csv_filepath}")
+
+    # Read all rows from CSV
+    try:
+        with open(csv_filepath, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read CSV: {str(e)}")
+
+    total_rows = len(rows)
+    logger.info(f"[Recalculate] Loaded {total_rows} rows, applying weights: {request.weights}")
+
+    # Calculate new scores for all rows
+    scored_rows = []
+    for row in rows:
+        new_score = _calculate_weighted_score(row, request.weights)
+        if new_score > 0:  # Skip invalid entries
+            scored_rows.append((new_score, row))
+
+    # Sort by new score (descending) and take top N
+    scored_rows.sort(key=lambda x: x[0], reverse=True)
+    top_rows = scored_rows[:request.top_n]
+
+    # Convert to OptimizationResultItem format
+    results = []
+    for rank, (new_score, row) in enumerate(top_rows, 1):
+        # Extract config columns (prefixed with 'config_')
+        config = {}
+        for key, value in row.items():
+            if key.startswith('config_'):
+                config_key = key[7:]  # Remove 'config_' prefix
+                config[config_key] = value
+
+        results.append(OptimizationResultItem(
+            rank=rank,
+            symbol=row.get('symbol', ''),
+            config=config,
+            total_return=_parse_numeric(row.get('total_return', 0)),
+            win_rate=_parse_numeric(row.get('win_rate', 0)),
+            total_trades=int(_parse_numeric(row.get('total_trades', 0))),
+            score=round(new_score, 4),
+            max_drawdown=str(row.get('max_drawdown', '-')),
+            profit_factor=str(row.get('profit_factor', '-')),
+            sharpe_ratio=str(row.get('sharpe_ratio', '-')),
+            avg_pnl=str(row.get('avg_pnl', '-')),
+            stability_score=str(row.get('stability_score', '-')),
+            acceleration_score=str(row.get('acceleration_score', '-')),
+            activity_rate=str(row.get('activity_rate', '-')),
+            total_days=int(_parse_numeric(row.get('total_days', 0))),
+            avg_holding_time=str(row.get('avg_holding_time', '-')),
+            max_holding_time=str(row.get('max_holding_time', '-')),
+            min_holding_time=str(row.get('min_holding_time', '-')),
+            max_profit=str(row.get('max_profit', '-')),
+            max_loss=str(row.get('max_loss', '-')),
+            metrics={
+                'max_drawdown': row.get('max_drawdown', '-'),
+                'profit_factor': row.get('profit_factor', '-'),
+                'sharpe_ratio': row.get('sharpe_ratio', '-'),
+                'avg_pnl': row.get('avg_pnl', '-'),
+                'stability_score': row.get('stability_score', '-'),
+                'acceleration_score': row.get('acceleration_score', '-'),
+            }
+        ))
+
+    logger.info(f"[Recalculate] Returning top {len(results)} results (from {len(scored_rows)} valid entries)")
+
+    return RecalculateScoreResponse(
+        task_id=task_id,
+        total_rows=total_rows,
+        weights_applied=request.weights,
+        results=results
+    )
 
 
 # --- Integrated Backtest Logic ---

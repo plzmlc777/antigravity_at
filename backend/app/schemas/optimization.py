@@ -32,14 +32,11 @@ class OptimizationResultItem(BaseModel):
     acceleration_score: Optional[str] = None
     activity_rate: Optional[str] = None
     total_days: Optional[int] = 0
-    avg_holding_time: Optional[str] = None
+    avg_holding_time: Optional[str] = None  # Cycle-based: avg cycle duration (minutes)
+    max_holding_time: Optional[str] = None  # Cycle-based: max cycle duration (minutes)
+    min_holding_time: Optional[str] = None  # Cycle-based: min cycle duration (minutes)
     max_profit: Optional[str] = None
     max_loss: Optional[str] = None
-    cycle_count: Optional[int] = None  # Martingale cycle count
-    cycle_avg_pnl: Optional[float] = None  # Avg PnL per cycle
-    cycle_avg_hold: Optional[float] = None  # Avg holding time per cycle (minutes)
-    cycle_max_hold: Optional[float] = None  # Max holding time per cycle (minutes)
-    cycle_min_hold: Optional[float] = None  # Min holding time per cycle (minutes)
     metrics: Dict[str, Any] = {} # For any extra fields
 
 class OptimizationResponse(BaseModel):
@@ -94,3 +91,56 @@ class HeavyOptimizationStatus(BaseModel):
     csv_file: Optional[str] = None  # Available when completed
     file_size_bytes: Optional[int] = None
     top_results: Optional[List[Dict[str, Any]]] = None  # Top 10 results so far
+
+
+class ScoreWeights(BaseModel):
+    """Weights for score calculation formula: (Return^w × Sharpe^w × Stability^w × AvgPnL^w) / MDD^w
+
+    Note: All metrics are now cycle-based for martingale strategies.
+    - total_trades = number of completed cycles
+    - win_rate = profitable cycles / total cycles
+    - avg_pnl = average PnL per cycle
+    """
+    # Primary weights (important)
+    return_weight: float = 1.0     # Return weight (0 = exclude)
+    sharpe_weight: float = 1.2     # Sharpe ratio weight (0 = exclude)
+    stability_weight: float = 1.0  # Stability score weight (0 = exclude)
+    mdd_weight: float = 1.5        # Max drawdown penalty weight (0 = no penalty)
+    avg_pnl_weight: float = 1.0    # Avg PnL per cycle weight (0 = exclude)
+    # Secondary weights (optional, default 0)
+    win_rate_weight: float = 0.0   # Win rate weight (cycle-based)
+    profit_factor_weight: float = 0.0  # Profit factor weight
+    accel_weight: float = 0.0      # Acceleration weight
+    trades_weight: float = 0.0     # Total trades weight (= cycle count for martingale)
+    activity_weight: float = 0.0   # Activity rate weight
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "return_weight": 1.0,
+                "sharpe_weight": 1.2,
+                "stability_weight": 1.0,
+                "mdd_weight": 1.5,
+                "avg_pnl_weight": 1.0,
+                "win_rate_weight": 0.0,
+                "profit_factor_weight": 0.0,
+                "accel_weight": 0.0,
+                "trades_weight": 0.0,
+                "activity_weight": 0.0
+            }
+        }
+
+
+class RecalculateScoreRequest(BaseModel):
+    """Request to recalculate scores with custom weights from full CSV"""
+    task_id: str  # Original optimization task_id to find CSV file
+    weights: ScoreWeights
+    top_n: int = 50  # Number of top results to return
+
+
+class RecalculateScoreResponse(BaseModel):
+    """Response with recalculated top N results"""
+    task_id: str
+    total_rows: int
+    weights_applied: ScoreWeights
+    results: List[OptimizationResultItem]

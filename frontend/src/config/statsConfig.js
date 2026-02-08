@@ -97,6 +97,18 @@ export const STAT_COLUMNS = [
         agg: 'weighted_round',
     },
     {
+        key: 'max_holding_time', label: 'Max Hold',
+        format: 'suffix', suffix: 'm', decimals: 0, color: COLOR.red,
+        gridLabel: 'Max Holding',
+        agg: 'max_nullable',
+    },
+    {
+        key: 'min_holding_time', label: 'Min Hold',
+        format: 'suffix', suffix: 'm', decimals: 0, color: COLOR.green,
+        gridLabel: 'Min Holding',
+        agg: 'min_nullable',
+    },
+    {
         key: 'max_profit',    label: 'Max Profit',
         format: 'pct', decimals: 2, color: COLOR.green,
         agg: 'max',
@@ -107,40 +119,7 @@ export const STAT_COLUMNS = [
         agg: 'min',
     },
 
-    // Row 4: Cycle Metrics (conditional - only shown when cycles exist)
-    // All cycle-related keys use "cycle_" prefix
-    {
-        key: 'cycle_count',   label: 'Cycle Count',
-        format: 'int', color: COLOR.white,
-        conditional: 'cycles',
-        agg: 'sum_nullable',
-    },
-    {
-        key: 'cycle_avg_pnl', label: 'Cycle Avg PnL',
-        format: 'pct', decimals: 2, color: COLOR.signed,
-        conditional: 'cycles',
-        agg: 'cycle_weighted',
-    },
-    {
-        key: 'cycle_avg_hold', label: 'Cycle Avg Hold',
-        format: 'suffix', suffix: 'm', decimals: 0, color: COLOR.gray,
-        conditional: 'cycles',
-        agg: 'cycle_weighted_round',
-    },
-    {
-        key: 'cycle_max_hold', label: 'Cycle Max Hold',
-        format: 'suffix', suffix: 'm', decimals: 0, color: COLOR.red,
-        conditional: 'cycles',
-        agg: 'max_nullable',
-    },
-    {
-        key: 'cycle_min_hold', label: 'Cycle Min Hold',
-        format: 'suffix', suffix: 'm', decimals: 0, color: COLOR.green,
-        conditional: 'cycles',
-        agg: 'min_nullable',
-    },
-
-    // Row 5: Max Drawdown (full-width in grid view)
+    // Row 4: Max Drawdown (full-width in grid view)
     {
         key: 'max_drawdown',  label: 'Max DD',
         format: 'pct', decimals: 2, color: COLOR.red,
@@ -204,11 +183,9 @@ export const getStatColor = (value, col) => {
 
 /**
  * Check if conditional stats should be visible.
+ * (All stats are now unconditional - cycle metrics removed)
  */
 export const shouldShowConditional = (stats, condition) => {
-    if (condition === 'cycles') {
-        return stats?.cycle_count != null && stats.cycle_count > 0;
-    }
     return true;
 };
 
@@ -222,7 +199,6 @@ export const computeTotalStats = (statsList) => {
     if (!statsList || statsList.length === 0) return {};
 
     const totalTrades = statsList.reduce((acc, s) => acc + (s.total_trades || 0), 0);
-    const totalCycles = statsList.reduce((acc, s) => acc + (s.cycle_count || 0), 0);
     const result = {};
 
     for (const col of STAT_COLUMNS) {
@@ -259,14 +235,6 @@ export const computeTotalStats = (statsList) => {
                     : 0;
                 break;
 
-            case 'sum_nullable': {
-                const vals = statsList.filter(s => s[key] != null);
-                result[key] = vals.length > 0
-                    ? vals.reduce((acc, s) => acc + (s[key] || 0), 0)
-                    : null;
-                break;
-            }
-
             case 'max_nullable': {
                 const vals = statsList.filter(s => s[key] != null).map(s => s[key]);
                 result[key] = vals.length > 0 ? Math.max(...vals) : null;
@@ -276,18 +244,6 @@ export const computeTotalStats = (statsList) => {
             case 'min_nullable': {
                 const vals = statsList.filter(s => s[key] != null).map(s => s[key]);
                 result[key] = vals.length > 0 ? Math.min(...vals) : null;
-                break;
-            }
-
-            case 'cycle_weighted': {
-                const totalPnl = statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.cycle_count || 0)), 0);
-                result[key] = totalCycles > 0 ? totalPnl / totalCycles : null;
-                break;
-            }
-
-            case 'cycle_weighted_round': {
-                const totalHold = statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.cycle_count || 0)), 0);
-                result[key] = totalCycles > 0 ? Math.round(totalHold / totalCycles) : null;
                 break;
             }
 
@@ -341,17 +297,8 @@ export const getOptValue = (data, col) => {
 
 /**
  * Get visible columns for optimization table.
- * Checks cycle visibility using first result row as reference.
+ * (All columns are now unconditional - cycle metrics removed)
  */
 export const getOptVisibleColumns = (results) => {
-    if (!results || results.length === 0) return STAT_COLUMNS;
-    // Check if ANY result has cycle data
-    const hasCycles = results.some(r => {
-        const count = r.cycle_count;
-        return count != null && count > 0;
-    });
-    return STAT_COLUMNS.filter(col => {
-        if (col.conditional === 'cycles') return hasCycles;
-        return true;
-    });
+    return STAT_COLUMNS;
 };

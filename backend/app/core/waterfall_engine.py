@@ -8,25 +8,25 @@ from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
 # --- SINGLE SOURCE OF TRUTH: Performance Stat Keys ---
 # All stat keys that should appear in rank_stats_list and aggregated results.
 # Adding a key here auto-includes it in rank_stats_list extraction.
+#
+# NOTE: All metrics are now CYCLE-based (not individual trade-based).
+# A "cycle" = entry → exit (for martingale: multiple entries → single exit)
+# When max_levels=1, cycle == individual trade (backwards compatible)
 PERFORMANCE_STAT_KEYS = [
     "total_return",
     "profit_factor",
-    "win_rate",
+    "win_rate",           # Cycle win rate (profitable cycles / total cycles)
     "sharpe_ratio",
-    "total_trades",
+    "total_trades",       # = Number of completed cycles
     "stability_score",
     "acceleration_score",
     "activity_rate",
-    "avg_pnl",
-    "avg_holding_time",
+    "avg_pnl",            # = Average PnL per cycle
+    "avg_holding_time",   # = Average cycle duration
+    "max_holding_time",   # = Maximum cycle duration
+    "min_holding_time",   # = Minimum cycle duration
     "max_profit",
     "max_loss",
-    # Cycle metrics (None when no cycles)
-    "cycle_count",
-    "cycle_avg_pnl",
-    "cycle_avg_hold",
-    "cycle_max_hold",
-    "cycle_min_hold",
     # Always last
     "max_drawdown",
 ]
@@ -1238,133 +1238,143 @@ class WaterfallBacktestEngine:
             monthly_stats = []
             bucket_stats = []
 
+        # NOTE: All metrics are now cycle-based (from _compute_stats_from_completed)
         return {
-            "total_trades": len(completed_trades),
-            "win_rate": win_rate,
-            "avg_pnl": avg_pnl_percent,
-            "max_profit": max_profit,
-            "max_loss": max_loss,
-            "profit_factor": profit_factor,
-            "sharpe_ratio": sharpe,
-            # "activity_rate": activity_rate, # Removed to prevent overwrite
-            "avg_holding_time": avg_holding_min, # minutes
+            "total_trades": base_stats.get('total_trades', len(completed_trades)),  # = cycle count
+            "win_rate": base_stats.get('win_rate', 0),          # = cycle win rate
+            "avg_pnl": base_stats.get('avg_pnl', 0),            # = avg PnL per cycle
+            "max_profit": base_stats.get('max_profit', 0),
+            "max_loss": base_stats.get('max_loss', 0),
+            "profit_factor": base_stats.get('profit_factor', 0),
+            "sharpe_ratio": base_stats.get('sharpe_ratio', 0),
+            "avg_holding_time": base_stats.get('avg_holding_time', 0),  # = avg cycle duration
+            "max_holding_time": base_stats.get('max_holding_time', 0),  # = max cycle duration
+            "min_holding_time": base_stats.get('min_holding_time', 0),  # = min cycle duration
             "decile_stats": monthly_stats,
             "bucket_stats": bucket_stats,  # N-bucket stats for UI
             "stability_score": stability_score,
             "acceleration_score": acceleration_score,
-            "cycle_count": base_stats.get('cycle_count'),
-            "cycle_avg_pnl": base_stats.get('cycle_avg_pnl'),
-            "cycle_avg_hold": base_stats.get('cycle_avg_hold'),
-            "cycle_max_hold": base_stats.get('cycle_max_hold'),
-            "cycle_min_hold": base_stats.get('cycle_min_hold'),
             "rank_stats_list": self._calc_rank_stats(completed_trades, total_days, start_ts, end_ts, initial_capital, equity_curve=equity_curve, raw_trades=trades) if calc_ranks else []
         }
 
     def _compute_stats_from_completed(self, completed_trades: List[Dict]) -> Dict[str, Any]:
         """
         Helper: Calculates WinRate, Sharpe, ProfitFactor, etc. from ALREADY MATCHED trades.
+
+        NOTE: All metrics are now CYCLE-based.
+        - A "cycle" = entry → exit (for martingale: multiple entries → single exit)
+        - When trades have cycle_id metadata, we use cycle-based stats
+        - When no cycle_id (simple strategies), each trade IS a cycle
         """
+        import statistics
+
         if not completed_trades:
-             return {
+            return {
                 "win_rate": 0.0,
                 "avg_pnl": 0.0,
                 "max_profit": 0.0,
                 "max_loss": 0.0,
                 "profit_factor": 0.0,
                 "sharpe_ratio": 0.0,
-                "avg_holding_time": 0
+                "avg_holding_time": 0,
+                "max_holding_time": 0,
+                "min_holding_time": 0,
             }
 
-        total_count = len(completed_trades)
-        wins = [t for t in completed_trades if t['pnl'] > 0]
-        loss = [t for t in completed_trades if t['pnl'] <= 0]
-        
-        win_rate = len(wins) / total_count * 100
-        avg_pnl_percent = sum(t['pnl_percent'] for t in completed_trades) / total_count * 100
-        
-        # Max Profit / Loss (in %)
-        max_profit = max([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
-        max_loss = min([t['pnl_percent'] for t in completed_trades]) * 100 if completed_trades else 0
+        # --- Build cycle data ---
+        # Group trades by cycle_id if available, otherwise treat each trade as a cycle
+        cycle_data = {}  # {cycle_id: {"pnl": float, "pnl_abs": float, "hold_sec": float}}
 
-        # Debug log for optimization
-        if completed_trades:
-            print(f"[DEBUG] Max Profit: {max_profit:.2f}%, Max Loss: {max_loss:.2f}% (from {len(completed_trades)} trades)")
-        
-        # Profit Factor
-        gross_profit = sum(t['pnl'] for t in wins)
-        gross_loss = abs(sum(t['pnl'] for t in loss))
-        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 99.99 
-        
-        # Avg Holding Time
-        total_holding_sec = sum(t.get('holding_seconds', 0) for t in completed_trades)
-        avg_holding_sec = total_holding_sec / total_count if total_count > 0 else 0
-        avg_holding_min = int(avg_holding_sec / 60)
-        
-        # Sharpe Ratio
-        import statistics
-        returns = [t['pnl_percent'] for t in completed_trades]
-        if len(returns) > 1:
-            stdev = statistics.stdev(returns)
-            sharpe = (statistics.mean(returns) / stdev * (len(returns)**0.5)) if stdev > 0 else 0
-        else:
-            sharpe = 0
-
-        # Martingale Cycle Statistics (for strategies using multi-level entries)
-        # A cycle is identified by unique cycle_id in metadata
-        # Group ALL trades by cycle_id (not just CLOSE) to compute hold times
-        cycle_data = {}  # {cycle_id: {"pnl": float, "max_hold_sec": float}}
         for t in completed_trades:
             meta = t.get('metadata', {})
             cycle_id = meta.get('cycle_id')
+
             if cycle_id is None:
-                continue
-            if cycle_id not in cycle_data:
-                cycle_data[cycle_id] = {"pnl": 0.0, "max_hold_sec": 0.0}
-            # Only sum PnL from CLOSE-level trades (sell trades)
-            if meta.get('level') == 'CLOSE':
-                cycle_data[cycle_id]["pnl"] += t.get('pnl_percent', 0) * 100
-            # Max holding_seconds in cycle = time from first buy to sell (cycle duration)
-            hold_sec = t.get('holding_seconds', 0)
-            if hold_sec > cycle_data[cycle_id]["max_hold_sec"]:
-                cycle_data[cycle_id]["max_hold_sec"] = hold_sec
+                # No cycle_id: treat each trade as its own cycle
+                # Use trade index as pseudo cycle_id
+                pseudo_id = f"trade_{id(t)}"
+                cycle_data[pseudo_id] = {
+                    "pnl_pct": t.get('pnl_percent', 0) * 100,
+                    "pnl_abs": t.get('pnl', 0),
+                    "hold_sec": t.get('holding_seconds', 0),
+                }
+            else:
+                # Has cycle_id: aggregate by cycle
+                if cycle_id not in cycle_data:
+                    cycle_data[cycle_id] = {"pnl_pct": 0.0, "pnl_abs": 0.0, "hold_sec": 0.0}
 
-        total_cycles = len(cycle_data) if cycle_data else 0
-        cycle_stats = {
-            "cycle_count": None,
-            "cycle_avg_pnl": None,
-            "cycle_avg_hold": None,
-            "cycle_max_hold": None,
-            "cycle_min_hold": None,
-        }
+                # Only sum PnL from CLOSE-level trades (sell trades complete the cycle)
+                if meta.get('level') == 'CLOSE':
+                    cycle_data[cycle_id]["pnl_pct"] += t.get('pnl_percent', 0) * 100
+                    cycle_data[cycle_id]["pnl_abs"] += t.get('pnl', 0)
 
-        if total_cycles > 0:
-            total_cycle_pnl = sum(c["pnl"] for c in cycle_data.values())
-            cycle_hold_times = [c["max_hold_sec"] for c in cycle_data.values()]
-            avg_cycle_hold_min = int((sum(cycle_hold_times) / total_cycles) / 60)
-            max_cycle_hold_min = int(max(cycle_hold_times) / 60)
-            min_cycle_hold_min = int(min(cycle_hold_times) / 60)
-            avg_pnl_per_cycle = total_cycle_pnl / total_cycles
+                # Cycle duration = max holding_seconds among trades in cycle
+                hold_sec = t.get('holding_seconds', 0)
+                if hold_sec > cycle_data[cycle_id]["hold_sec"]:
+                    cycle_data[cycle_id]["hold_sec"] = hold_sec
 
-            cycle_stats = {
-                "cycle_count": total_cycles,
-                "cycle_avg_pnl": round(avg_pnl_per_cycle, 2),
-                "cycle_avg_hold": avg_cycle_hold_min,
-                "cycle_max_hold": max_cycle_hold_min,
-                "cycle_min_hold": min_cycle_hold_min,
+        total_cycles = len(cycle_data)
+        if total_cycles == 0:
+            return {
+                "win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "sharpe_ratio": 0.0,
+                "avg_holding_time": 0,
+                "max_holding_time": 0,
+                "min_holding_time": 0,
             }
-            print(f"[DEBUG] Martingale Cycles: {total_cycles} cycles, "
-                  f"Avg PnL: {avg_pnl_per_cycle:.2f}%, "
-                  f"Hold(avg/max/min): {avg_cycle_hold_min}/{max_cycle_hold_min}/{min_cycle_hold_min}m")
+
+        # --- Calculate cycle-based statistics ---
+        cycle_pnls_pct = [c["pnl_pct"] for c in cycle_data.values()]
+        cycle_pnls_abs = [c["pnl_abs"] for c in cycle_data.values()]
+        cycle_hold_secs = [c["hold_sec"] for c in cycle_data.values()]
+
+        # Win rate: profitable cycles / total cycles
+        winning_cycles = sum(1 for pnl in cycle_pnls_abs if pnl > 0)
+        win_rate = (winning_cycles / total_cycles) * 100
+
+        # Avg PnL per cycle
+        avg_pnl = sum(cycle_pnls_pct) / total_cycles
+
+        # Max profit / loss per cycle
+        max_profit = max(cycle_pnls_pct) if cycle_pnls_pct else 0
+        max_loss = min(cycle_pnls_pct) if cycle_pnls_pct else 0
+
+        # Profit factor: gross profit / gross loss (cycle-based)
+        gross_profit = sum(pnl for pnl in cycle_pnls_abs if pnl > 0)
+        gross_loss = abs(sum(pnl for pnl in cycle_pnls_abs if pnl <= 0))
+        profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 99.99
+
+        # Holding times (in minutes)
+        avg_holding_min = int((sum(cycle_hold_secs) / total_cycles) / 60) if total_cycles > 0 else 0
+        max_holding_min = int(max(cycle_hold_secs) / 60) if cycle_hold_secs else 0
+        min_holding_min = int(min(cycle_hold_secs) / 60) if cycle_hold_secs else 0
+
+        # Sharpe ratio (cycle-based)
+        if len(cycle_pnls_pct) > 1:
+            stdev = statistics.stdev(cycle_pnls_pct)
+            sharpe = (statistics.mean(cycle_pnls_pct) / stdev * (len(cycle_pnls_pct)**0.5)) if stdev > 0 else 0
+        else:
+            sharpe = 0
+
+        print(f"[DEBUG] Cycle Stats: {total_cycles} cycles, "
+              f"WinRate: {win_rate:.1f}%, AvgPnL: {avg_pnl:.2f}%, "
+              f"Hold(avg/max/min): {avg_holding_min}/{max_holding_min}/{min_holding_min}m")
 
         return {
+            "total_trades": total_cycles,  # = number of completed cycles
             "win_rate": win_rate,
-            "avg_pnl": avg_pnl_percent,
-            "max_profit": max_profit,
-            "max_loss": max_loss,
-            "profit_factor": profit_factor,
-            "sharpe_ratio": sharpe,
+            "avg_pnl": round(avg_pnl, 2),
+            "max_profit": round(max_profit, 2),
+            "max_loss": round(max_loss, 2),
+            "profit_factor": round(profit_factor, 2),
+            "sharpe_ratio": round(sharpe, 4),
             "avg_holding_time": avg_holding_min,
-            **cycle_stats,
+            "max_holding_time": max_holding_min,
+            "min_holding_time": min_holding_min,
         }
 
     def _aggregate_rank_stats(self, rank_results: List[Dict], total_days: int, initial_capital: float) -> Dict[str, Any]:
@@ -1391,17 +1401,11 @@ class WaterfallBacktestEngine:
         all_trade_counts = []
         all_stability_scores = []
         all_acceleration_scores = []
+        all_max_holding_times = []
+        all_min_holding_times = []
 
         total_gross_profit = 0
         total_gross_loss = 0
-
-        # Cycle stats aggregation
-        total_cycles_sum = 0
-        total_cycle_pnl_sum = 0.0
-        total_cycle_hold_sum = 0.0  # sum of (avg_hold * count) for weighted avg
-        all_cycle_max_holds = []
-        all_cycle_min_holds = []
-        has_any_cycles = False
 
         for r in rank_results:
             fs = r.get('full_stats', {})
@@ -1451,19 +1455,13 @@ class WaterfallBacktestEngine:
             all_stability_scores.append((stability_score, trade_count))
             all_acceleration_scores.append((acceleration_score, trade_count))
 
-            # Cycle stats from each rank
-            rank_cycles = fs.get('cycle_count')
-            if rank_cycles is not None and rank_cycles > 0:
-                has_any_cycles = True
-                total_cycles_sum += rank_cycles
-                rank_avg_pnl = fs.get('cycle_avg_pnl', 0) or 0
-                total_cycle_pnl_sum += rank_avg_pnl * rank_cycles
-                rank_avg_hold = fs.get('cycle_avg_hold', 0) or 0
-                total_cycle_hold_sum += rank_avg_hold * rank_cycles
-                if fs.get('cycle_max_hold') is not None:
-                    all_cycle_max_holds.append(fs['cycle_max_hold'])
-                if fs.get('cycle_min_hold') is not None:
-                    all_cycle_min_holds.append(fs['cycle_min_hold'])
+            # Max/Min holding times (cycle-based)
+            max_hold = fs.get('max_holding_time')
+            if max_hold is not None:
+                all_max_holding_times.append(float(max_hold))
+            min_hold = fs.get('min_holding_time')
+            if min_hold is not None:
+                all_min_holding_times.append(float(min_hold))
 
             # Estimate gross profit/loss from rank PnL and win rate
             rank_pnl = r.get('pnl', 0)
@@ -1496,6 +1494,8 @@ class WaterfallBacktestEngine:
         # Max/Min across all ranks
         combined_max_profit = max(all_max_profits) if all_max_profits else 0.0
         combined_max_loss = min(all_max_losses) if all_max_losses else 0.0
+        combined_max_holding_time = int(max(all_max_holding_times)) if all_max_holding_times else None
+        combined_min_holding_time = int(min(all_min_holding_times)) if all_min_holding_times else None
 
         # Profit factor from aggregated gross profit/loss
         combined_profit_factor = (total_gross_profit / total_gross_loss) if total_gross_loss > 0 else 99.99
@@ -1508,19 +1508,13 @@ class WaterfallBacktestEngine:
             "profit_factor": round(combined_profit_factor, 2),
             "sharpe_ratio": round(combined_sharpe, 2),
             "avg_holding_time": combined_holding_time,
+            "max_holding_time": combined_max_holding_time,
+            "min_holding_time": combined_min_holding_time,
             "total_trades": total_trades,
             "stability_score": round(combined_stability, 2),
             "acceleration_score": round(combined_acceleration, 2),
             "rank_stats_list": []  # Will be overridden by explicit rank_stats_list
         }
-
-        # Add cycle stats if any rank had cycles
-        if has_any_cycles and total_cycles_sum > 0:
-            result["cycle_count"] = total_cycles_sum
-            result["cycle_avg_pnl"] = round(total_cycle_pnl_sum / total_cycles_sum, 2)
-            result["cycle_avg_hold"] = int(total_cycle_hold_sum / total_cycles_sum)
-            result["cycle_max_hold"] = max(all_cycle_max_holds) if all_cycle_max_holds else None
-            result["cycle_min_hold"] = min(all_cycle_min_holds) if all_cycle_min_holds else None
 
         return result
 

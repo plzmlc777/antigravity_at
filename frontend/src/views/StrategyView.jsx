@@ -6,7 +6,7 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode, recalculateOptimizationScores } from '../api/client';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategyConfig } from '../hooks/useStrategyConfig';
 import { isValidScope } from '../types/ConfigScope';
@@ -1852,6 +1852,13 @@ const StrategyView = () => {
     const [heavyOptStatus, setHeavyOptStatus] = useState(null);
     const [isHeavyOptRunning, setIsHeavyOptRunning] = useState(false);
 
+    // AI Analysis State
+    const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
+    const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
+    const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
+    const [aiModels, setAiModels] = useState([]);
+    const [selectedAiModel, setSelectedAiModel] = useState('');
+
     // Sorting State
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
@@ -1860,6 +1867,112 @@ const StrategyView = () => {
             key,
             direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
         }));
+    };
+
+    // Score Weight State for Recalculation
+    // Note: All metrics are now cycle-based (total_trades = cycles, avg_pnl = cycle avg pnl)
+    const SCORE_WEIGHT_PRESETS = {
+        balanced: { // 균형 (DEFAULT)
+            return_weight: 1.0,
+            sharpe_weight: 1.2,
+            stability_weight: 1.0,
+            mdd_weight: 1.5,
+            avg_pnl_weight: 1.0,  // 사이클당 평균 손익 (마틴게일 핵심 지표)
+            win_rate_weight: 0.0,
+            profit_factor_weight: 0.0,
+            accel_weight: 0.0,
+            trades_weight: 0.0,  // = Cycle count
+            activity_weight: 0.0
+        },
+        return_focused: { // 수익 중심
+            return_weight: 2.0,
+            sharpe_weight: 0.5,
+            stability_weight: 0.0,
+            mdd_weight: 0.5,
+            avg_pnl_weight: 1.5,  // 사이클당 수익 강조
+            win_rate_weight: 0.5,
+            profit_factor_weight: 0.5,
+            accel_weight: 0.0,
+            trades_weight: 0.0,
+            activity_weight: 0.0
+        },
+        stability_focused: { // 안정 중심
+            return_weight: 0.5,
+            sharpe_weight: 1.5,
+            stability_weight: 2.0,
+            mdd_weight: 2.0,
+            avg_pnl_weight: 0.5,  // 일관된 사이클 손익
+            win_rate_weight: 0.5,
+            profit_factor_weight: 0.0,
+            accel_weight: 0.0,
+            trades_weight: 0.5,  // 많은 사이클 = 검증된 전략
+            activity_weight: 0.0
+        }
+    };
+
+    const [scoreWeights, setScoreWeights] = useState(SCORE_WEIGHT_PRESETS.balanced);
+    const [isRecalculating, setIsRecalculating] = useState(false);
+    const [showWeightPanel, setShowWeightPanel] = useState(false);
+
+    const handleWeightChange = (key, value) => {
+        setScoreWeights(prev => ({
+            ...prev,
+            [key]: parseFloat(value) || 0
+        }));
+    };
+
+    const applyWeightPreset = (presetName) => {
+        setScoreWeights(SCORE_WEIGHT_PRESETS[presetName]);
+    };
+
+    const recalculateScores = async () => {
+        const taskId = completedOptTaskId || heavyOptTaskId;
+        if (!taskId) {
+            addLog('No optimization task to recalculate', 'error');
+            return;
+        }
+
+        setIsRecalculating(true);
+        try {
+            addLog(`Recalculating scores with weights: Return=${scoreWeights.return_weight}, Sharpe=${scoreWeights.sharpe_weight}, Stability=${scoreWeights.stability_weight}, MDD=${scoreWeights.mdd_weight}`, 'info');
+
+            const response = await recalculateOptimizationScores(taskId, scoreWeights, 50);
+
+            if (response && response.results) {
+                // Format results to match optResults format
+                const formatted = response.results.map(item => ({
+                    ...item.config,
+                    ...item.metrics,
+                    symbol: item.symbol || '',
+                    return: item.total_return,
+                    win_rate: item.win_rate,
+                    total_trades: item.total_trades,
+                    score: item.score,
+                    rank: item.rank,
+                    max_drawdown: item.max_drawdown,
+                    profit_factor: item.profit_factor,
+                    sharpe_ratio: item.sharpe_ratio,
+                    stability_score: item.stability_score,
+                    acceleration_score: item.acceleration_score,
+                    activity_rate: item.activity_rate,
+                    avg_holding_time: item.avg_holding_time,
+                    max_holding_time: item.max_holding_time,
+                    min_holding_time: item.min_holding_time,
+                    max_profit: item.max_profit,
+                    max_loss: item.max_loss,
+                    avg_pnl: item.avg_pnl,
+                    total_days: item.total_days
+                }));
+
+                setOptResults(formatted);
+                addLog(`Recalculated! Top 50 from ${response.total_rows} total results`, 'success');
+            }
+        } catch (err) {
+            console.error('Recalculate error:', err);
+            addLog(`Recalculation failed: ${err.response?.data?.detail || err.message}`, 'error');
+        } finally {
+            setIsRecalculating(false);
+        }
     };
 
     // Save Pending Optimization Results to DB
@@ -2158,12 +2271,11 @@ const StrategyView = () => {
                         acceleration_score: item.acceleration_score,
                         activity_rate: item.activity_rate,
                         avg_holding_time: item.avg_holding_time,
+                        max_holding_time: item.max_holding_time,
+                        min_holding_time: item.min_holding_time,
                         max_profit: item.max_profit,
                         max_loss: item.max_loss,
                         total_days: item.total_days,
-                        cycle_count: item.cycle_count,
-                        cycle_avg_pnl: item.cycle_avg_pnl,
-                        cycle_avg_hold: item.cycle_avg_hold,
                         _isPartial: true  // Mark as partial result
                     }));
                     setOptResults(formattedPartial);
@@ -2199,12 +2311,11 @@ const StrategyView = () => {
                                 acceleration_score: item.acceleration_score,
                                 activity_rate: item.activity_rate,
                                 avg_holding_time: item.avg_holding_time,
+                                max_holding_time: item.max_holding_time,
+                                min_holding_time: item.min_holding_time,
                                 max_profit: item.max_profit,
                                 max_loss: item.max_loss,
-                                total_days: item.total_days,
-                                cycle_count: item.cycle_count,
-                                cycle_avg_pnl: item.cycle_avg_pnl,
-                                cycle_avg_hold: item.cycle_avg_hold
+                                total_days: item.total_days
                             }));
                             setOptResults(formattedResults);
                         }
@@ -2249,6 +2360,58 @@ const StrategyView = () => {
         setIsHeavyOptRunning(false);
     };
 
+    // Fetch AI models for model selection
+    const fetchAiModels = async () => {
+        try {
+            const response = await axios.get('/api/v1/accounts/ai-models');
+            setAiModels(response.data.models || []);
+            // Also fetch user's default model
+            const statusRes = await axios.get('/api/v1/accounts/ai-key/status');
+            setSelectedAiModel(statusRes.data.ai_model || response.data.default || '');
+        } catch (err) {
+            console.error('Failed to fetch AI models:', err);
+        }
+    };
+
+    // Fetch AI models on mount
+    useEffect(() => {
+        fetchAiModels();
+    }, []);
+
+    // AI Analysis of optimization results
+    const runAiAnalysis = async (modelOverride = null) => {
+        if (!heavyOptStatus?.csv_file) {
+            addLog('No CSV file available for AI analysis', 'error');
+            return;
+        }
+
+        setAiAnalysisLoading(true);
+        setAiAnalysisResult(null);
+        const modelToUse = modelOverride || selectedAiModel;
+        const modelName = aiModels.find(m => m.id === modelToUse)?.name || modelToUse;
+        addLog(`Starting AI analysis with ${modelName}...`, 'info');
+
+        try {
+            const response = await axios.post('/api/v1/ai/analyze', {
+                csv_filename: heavyOptStatus.csv_file,
+                strategy_id: 'DipMartingaleStrategy',
+                user_question: null,
+                model: modelToUse || undefined
+            });
+
+            setAiAnalysisResult(response.data);
+            setShowAiAnalysisModal(true);
+            addLog(`AI analysis completed: ${response.data.total_rows?.toLocaleString()} rows analyzed`, 'success');
+        } catch (err) {
+            console.error('AI analysis error:', err);
+            const msg = err.response?.data?.detail || err.message;
+            addLog(`AI analysis failed: ${msg}`, 'error');
+            setAiAnalysisResult({ error: msg });
+        } finally {
+            setAiAnalysisLoading(false);
+        }
+    };
+
     // Restore heavy opt polling on page load
     useEffect(() => {
         const savedTaskId = localStorage.getItem('heavyOptTaskId');
@@ -2284,12 +2447,11 @@ const StrategyView = () => {
                                 acceleration_score: item.acceleration_score,
                                 activity_rate: item.activity_rate,
                                 avg_holding_time: item.avg_holding_time,
+                                max_holding_time: item.max_holding_time,
+                                min_holding_time: item.min_holding_time,
                                 max_profit: item.max_profit,
                                 max_loss: item.max_loss,
-                                total_days: item.total_days,
-                                cycle_count: item.cycle_count,
-                                cycle_avg_pnl: item.cycle_avg_pnl,
-                                cycle_avg_hold: item.cycle_avg_hold
+                                total_days: item.total_days
                             }));
                             setOptResults(formattedResults);
                         }
@@ -2802,14 +2964,10 @@ const StrategyView = () => {
                         // PnL details
                         avg_pnl: data.avg_pnl,
                         avg_holding_time: data.avg_holding_time,
+                        max_holding_time: data.max_holding_time,
+                        min_holding_time: data.min_holding_time,
                         max_profit: data.max_profit,
                         max_loss: data.max_loss,
-                        // Cycle metrics (may be null)
-                        cycle_count: data.cycle_count,
-                        cycle_avg_pnl: data.cycle_avg_pnl,
-                        cycle_avg_hold: data.cycle_avg_hold,
-                        cycle_max_hold: data.cycle_max_hold,
-                        cycle_min_hold: data.cycle_min_hold,
                         // Max drawdown & score
                         max_drawdown: data.max_drawdown,
                         score: score
@@ -2833,13 +2991,10 @@ const StrategyView = () => {
                         activity_rate: null,
                         avg_pnl: null,
                         avg_holding_time: null,
+                        max_holding_time: null,
+                        min_holding_time: null,
                         max_profit: null,
                         max_loss: null,
-                        cycle_count: null,
-                        cycle_avg_pnl: null,
-                        cycle_avg_hold: null,
-                        cycle_max_hold: null,
-                        cycle_min_hold: null,
                         max_drawdown: null,
                         score: -999
                     });
@@ -4674,7 +4829,7 @@ const StrategyView = () => {
                                                             </div>
                                                         )}
 
-                                                        {/* Completed: Download & Top Results */}
+                                                        {/* Completed: Download & AI Analyze */}
                                                         {heavyOptStatus.status === 'completed' && (
                                                             <div className="space-y-3">
                                                                 <div className="flex items-center gap-3">
@@ -4687,6 +4842,43 @@ const StrategyView = () => {
                                                                         </svg>
                                                                         Download CSV
                                                                     </button>
+                                                                    <div className="flex items-center">
+                                                                        <button
+                                                                            onClick={() => runAiAnalysis()}
+                                                                            disabled={aiAnalysisLoading}
+                                                                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-l-lg font-bold flex items-center gap-2"
+                                                                        >
+                                                                            {aiAnalysisLoading ? (
+                                                                                <>
+                                                                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                                                    </svg>
+                                                                                    Analyzing...
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                                                    </svg>
+                                                                                    AI Analyze
+                                                                                </>
+                                                                            )}
+                                                                        </button>
+                                                                        <select
+                                                                            value={selectedAiModel}
+                                                                            onChange={(e) => setSelectedAiModel(e.target.value)}
+                                                                            disabled={aiAnalysisLoading}
+                                                                            className="h-full px-2 py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded-r-lg border-l border-purple-400/30 cursor-pointer focus:outline-none"
+                                                                            title="Select AI Model"
+                                                                        >
+                                                                            {aiModels.map(model => (
+                                                                                <option key={model.id} value={model.id}>
+                                                                                    {model.name}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
                                                                     <span className="text-xs text-gray-400">
                                                                         {heavyOptStatus.file_size_bytes ? `${(heavyOptStatus.file_size_bytes / 1024 / 1024).toFixed(2)} MB` : ''}
                                                                     </span>
@@ -4775,8 +4967,133 @@ const StrategyView = () => {
                                                                         Download Full CSV
                                                                     </button>
                                                                 )}
+                                                                {/* Score Weight Recalculation Toggle */}
+                                                                {(completedOptTaskId || heavyOptTaskId) && !isOptimizing && (
+                                                                    <button
+                                                                        onClick={() => setShowWeightPanel(!showWeightPanel)}
+                                                                        className={`px-4 py-2 ${showWeightPanel ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'} text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2`}
+                                                                        title="Adjust score weights and recalculate top 50 from full results"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                                        </svg>
+                                                                        {showWeightPanel ? 'Hide Weights' : 'Score Weights'}
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
+
+                                                        {/* Score Weight Adjustment Panel */}
+                                                        {showWeightPanel && (completedOptTaskId || heavyOptTaskId) && !isOptimizing && (
+                                                            <div className="p-4 border-b border-white/10 bg-gradient-to-r from-orange-900/20 to-yellow-900/20">
+                                                                <div className="flex items-center justify-between mb-3">
+                                                                    <span className="text-sm font-medium text-white">Score Weight Settings</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs text-gray-400">Presets:</span>
+                                                                        <button
+                                                                            onClick={() => applyWeightPreset('balanced')}
+                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.balanced) ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                        >
+                                                                            균형
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => applyWeightPreset('return_focused')}
+                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.return_focused) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                        >
+                                                                            수익 중심
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => applyWeightPreset('stability_focused')}
+                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.stability_focused) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                        >
+                                                                            안정 중심
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Primary Weights (Important) */}
+                                                                <div className="mb-2">
+                                                                    <span className="text-xs text-gray-500 mb-1 block">주요 지표</span>
+                                                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                                                                        {[
+                                                                            { key: 'return_weight', label: 'Return', color: 'green' },
+                                                                            { key: 'sharpe_weight', label: 'Sharpe', color: 'blue' },
+                                                                            { key: 'stability_weight', label: 'Stability', color: 'purple' },
+                                                                            { key: 'mdd_weight', label: 'MDD (패널티)', color: 'red' },
+                                                                            { key: 'avg_pnl_weight', label: 'AvgPnL', color: 'indigo' }
+                                                                        ].map(({ key, label, color }) => (
+                                                                            <div key={key} className="flex flex-col items-center bg-black/20 rounded p-2">
+                                                                                <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
+                                                                                <input
+                                                                                    type="range"
+                                                                                    min="0"
+                                                                                    max="3"
+                                                                                    step="0.1"
+                                                                                    value={scoreWeights[key]}
+                                                                                    onChange={(e) => handleWeightChange(key, e.target.value)}
+                                                                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                                                                />
+                                                                                <span className="text-xs text-gray-300 mt-1">{scoreWeights[key].toFixed(1)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                {/* Secondary Weights (Optional - All Result Metrics) */}
+                                                                <div className="mb-3">
+                                                                    <span className="text-xs text-gray-500 mb-1 block">선택 지표 (기본값 0 = 미적용)</span>
+                                                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                                                                        {[
+                                                                            { key: 'win_rate_weight', label: 'WinRate', color: 'cyan' },
+                                                                            { key: 'profit_factor_weight', label: 'ProfitFactor', color: 'emerald' },
+                                                                            { key: 'accel_weight', label: 'Accel', color: 'yellow' },
+                                                                            { key: 'trades_weight', label: 'Cycles', color: 'orange' },
+                                                                            { key: 'activity_weight', label: 'Activity', color: 'pink' }
+                                                                        ].map(({ key, label, color }) => (
+                                                                            <div key={key} className="flex flex-col items-center opacity-80 bg-black/10 rounded p-1">
+                                                                                <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
+                                                                                <input
+                                                                                    type="range"
+                                                                                    min="0"
+                                                                                    max="3"
+                                                                                    step="0.1"
+                                                                                    value={scoreWeights[key]}
+                                                                                    onChange={(e) => handleWeightChange(key, e.target.value)}
+                                                                                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                                                                />
+                                                                                <span className="text-xs text-gray-400 mt-0.5">{scoreWeights[key].toFixed(1)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <p className="text-xs text-gray-400">
+                                                                        Formula: (Return<sup>w</sup> × Sharpe<sup>w</sup> × Stability<sup>w</sup>) / MDD<sup>w</sup> | Weight 0 = Exclude
+                                                                    </p>
+                                                                    <button
+                                                                        onClick={recalculateScores}
+                                                                        disabled={isRecalculating}
+                                                                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        {isRecalculating ? (
+                                                                            <>
+                                                                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                                                                </svg>
+                                                                                Recalculating...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                                </svg>
+                                                                                Recalculate Top 50
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <DualScrollContainer>
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
                                                                 <thead>
@@ -5015,6 +5332,110 @@ const StrategyView = () => {
                 onClose={() => setIsDetailModalOpen(false)}
                 strategy={selectedStrategy}
             />
+
+            {/* AI Analysis Result Modal */}
+            {showAiAnalysisModal && aiAnalysisResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-[90vw] max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
+                        {/* Modal Header */}
+                        <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-500/20 rounded-lg">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-white">AI Optimization Analysis</h2>
+                                    <p className="text-sm text-gray-400">
+                                        {aiAnalysisResult.total_rows?.toLocaleString()} combinations analyzed
+                                        {aiAnalysisResult.symbols_count && ` across ${aiAnalysisResult.symbols_count} symbols`}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowAiAnalysisModal(false)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(85vh-100px)]">
+                            {aiAnalysisResult.error ? (
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                                    <p className="text-red-400 font-bold mb-2">Analysis Failed</p>
+                                    <p className="text-red-300 text-sm">{aiAnalysisResult.error}</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Statistics Summary */}
+                                    {aiAnalysisResult.statistics?.overall && (
+                                        <div className="bg-white/5 rounded-lg p-4">
+                                            <h3 className="text-lg font-bold text-white mb-3">Statistics Summary</h3>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                                <div>
+                                                    <span className="text-gray-400">Return Range</span>
+                                                    <p className="text-white font-mono">
+                                                        {aiAnalysisResult.statistics.overall.return?.min}% ~ {aiAnalysisResult.statistics.overall.return?.max}%
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-400">Avg Return</span>
+                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.return?.avg}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-400">Avg Win Rate</span>
+                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.win_rate?.avg}%</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-gray-400">Avg Stability</span>
+                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.stability_avg}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* AI Response */}
+                                    {aiAnalysisResult.ai_response?.content && (
+                                        <div className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border border-purple-500/20 rounded-lg p-4">
+                                            <h3 className="text-lg font-bold text-purple-300 mb-3 flex items-center gap-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                                </svg>
+                                                AI Analysis
+                                            </h3>
+                                            <div className="prose prose-invert prose-sm max-w-none">
+                                                <pre className="whitespace-pre-wrap text-gray-300 font-sans text-sm leading-relaxed bg-black/30 rounded-lg p-4 overflow-x-auto">
+                                                    {aiAnalysisResult.ai_response.content}
+                                                </pre>
+                                            </div>
+                                            {aiAnalysisResult.ai_response.usage && (
+                                                <p className="text-xs text-gray-500 mt-3">
+                                                    Tokens used: {aiAnalysisResult.ai_response.usage.input_tokens?.toLocaleString()} input, {aiAnalysisResult.ai_response.usage.output_tokens?.toLocaleString()} output
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="border-t border-white/10 px-6 py-4 flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowAiAnalysisModal(false)}
+                                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
