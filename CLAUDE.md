@@ -295,6 +295,28 @@ When adding new strategies:
 
 ## Remote Server Deployment
 
+> ⚠️ **CRITICAL: 배포 전 반드시 라이브 세션 확인!**
+
+### 1. 라이브 세션 확인 (필수)
+
+**모든 배포 전에 반드시 실행:**
+```bash
+ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
+```
+
+| 상황 | 조치 |
+|------|------|
+| `is_paper = f` (실거래) 존재 | **배포 금지!** 사용자에게 "라이브 실거래 세션이 실행 중입니다. 정말 배포를 진행하시겠습니까?" 확인 필수 |
+| `is_paper = t` (모의거래)만 존재 | 주의하여 진행. 모의 세션 중단 안내 |
+| RUNNING 세션 없음 | 안전하게 배포 가능 |
+
+### 2. DB 백업 (필수)
+
+**배포 전 반드시 백업:**
+```bash
+ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password pg_dump -U antigravity_user -h localhost antigravity_db > ~/db_backup_$(date +%Y%m%d_%H%M%S).dump'
+```
+
 ### Server Info
 
 | 항목 | 값 |
@@ -316,6 +338,31 @@ ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && cd back
 ### Verify Deployment
 ```bash
 ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
+```
+
+### Post-Deployment: 라이브 세션 복원 확인
+
+**PM2 재시작 후 세션 복원 확인:**
+```bash
+# 세션 복원 로그 확인
+ssh mint@121.183.229.140 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
+
+# DB에서 RUNNING 세션 확인
+ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
+```
+
+### Emergency: 세션 복원 실패 시
+
+```bash
+# 1. 백엔드 재시작 (세션 자동 복원 트리거)
+ssh mint@121.183.229.140 'pm2 restart at-backend && sleep 5 && pm2 logs at-backend --lines 50 --nostream'
+
+# 2. 복원 확인
+ssh mint@121.183.229.140 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore"'
+
+# 3. 실패 시 백업에서 복구
+ssh mint@121.183.229.140 'ls -la ~/db_backup*.dump'
+ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db < ~/db_backup_<timestamp>.dump'
 ```
 
 ---
@@ -353,6 +400,7 @@ ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
 - ❌ `frontend/package.json` 수동 수정
 - ❌ 스크립트 없이 git tag 생성
 - ❌ **사용자 요청 없이 리모트 배포 금지**
+- ❌ **실거래 라이브 세션 확인 없이 리모트 배포 금지** (반드시 라이브 세션 체크 먼저!)
 
 ---
 

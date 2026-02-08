@@ -48,6 +48,12 @@ export const STAT_COLUMNS = [
         agg: 'weighted',
     },
     {
+        key: 'recent_10_win_rate', label: 'Recent 10',
+        format: 'pct', decimals: 1, color: COLOR.yellow,
+        gridLabel: 'Recent 10 WR',
+        agg: 'weighted',
+    },
+    {
         key: 'sharpe_ratio',  label: 'Sharpe',
         format: 'num', decimals: 2, color: COLOR.yellow,
         gridLabel: 'Sharpe Ratio',

@@ -1621,29 +1621,90 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     <div className="space-y-4">
                         {/* All Sessions Summary Panel - Separated by Paper/Real */}
                         {(() => {
-                            // Aggregate stats separately for Paper and Real
+                            // Aggregate stats separately for Paper and Real (backtest-compatible format)
                             const stats = {
-                                paper: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null, totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null },
-                                real: { cycles: 0, pnl: 0, wins: 0, maxPnl: null, minPnl: null, totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null }
+                                paper: {
+                                    cycles: 0, pnl: 0, wins: 0,
+                                    // Backtest-compatible (% based)
+                                    totalReturn: 0, totalEntryCost: 0,
+                                    grossProfit: 0, grossLoss: 0,
+                                    pnlPcts: [],  // For sharpe calculation
+                                    maxDrawdown: 0,
+                                    recent10Wins: 0, recent10Total: 0,
+                                    // KRW based
+                                    maxPnl: null, minPnl: null,
+                                    // Holding time
+                                    totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null,
+                                    // Activity
+                                    activityRates: [], activityWeights: [],
+                                },
+                                real: {
+                                    cycles: 0, pnl: 0, wins: 0,
+                                    totalReturn: 0, totalEntryCost: 0,
+                                    grossProfit: 0, grossLoss: 0,
+                                    pnlPcts: [],
+                                    maxDrawdown: 0,
+                                    recent10Wins: 0, recent10Total: 0,
+                                    maxPnl: null, minPnl: null,
+                                    totalHoldTime: 0, holdCount: 0, maxHold: null, minHold: null,
+                                    activityRates: [], activityWeights: [],
+                                }
                             };
 
                             Object.values(accumulatedStats).forEach(symbolStats => {
                                 ['paper', 'real'].forEach(mode => {
                                     const s = symbolStats?.[mode];
-                                    if (!s || !s.cycles) return;
+                                    if (!s || !s.cycles && !s.total_trades) return;
                                     const st = stats[mode];
-                                    st.cycles += s.cycles || 0;
+                                    const cycleCount = s.total_trades || s.cycles || 0;
+                                    st.cycles += cycleCount;
                                     st.pnl += s.realized_pnl || 0;
-                                    st.wins += Math.round((s.win_rate || 0) * s.cycles / 100);
-                                    if (s.max_pnl != null) st.maxPnl = st.maxPnl == null ? s.max_pnl : Math.max(st.maxPnl, s.max_pnl);
-                                    if (s.min_pnl != null) st.minPnl = st.minPnl == null ? s.min_pnl : Math.min(st.minPnl, s.min_pnl);
+                                    st.wins += Math.round((s.win_rate || 0) * cycleCount / 100);
+
+                                    // Backtest-compatible aggregation
+                                    if (s.total_return != null) {
+                                        // Weight by cycle count for averaging
+                                        st.totalReturn += (s.total_return || 0) * cycleCount;
+                                    }
+                                    // Gross profit/loss (approximate from avg_pnl * cycles)
+                                    const avgPnlKrw = s.avg_pnl_krw || s.avg_pnl || 0;
+                                    if (avgPnlKrw > 0) st.grossProfit += avgPnlKrw * cycleCount;
+                                    else st.grossLoss += Math.abs(avgPnlKrw) * cycleCount;
+
+                                    // Sharpe requires per-cycle PnL% which we don't have aggregated
+                                    // Use weighted average of sharpe ratios
+                                    if (s.sharpe_ratio != null) st.pnlPcts.push({ val: s.sharpe_ratio, weight: cycleCount });
+
+                                    // Max drawdown (take worst)
+                                    if (s.max_drawdown != null && s.max_drawdown > st.maxDrawdown) {
+                                        st.maxDrawdown = s.max_drawdown;
+                                    }
+
+                                    // Recent 10 win rate
+                                    if (s.recent_10_win_rate != null) {
+                                        const r10count = Math.min(cycleCount, 10);
+                                        st.recent10Wins += Math.round((s.recent_10_win_rate || 0) * r10count / 100);
+                                        st.recent10Total += r10count;
+                                    }
+
+                                    // KRW based max/min
+                                    const maxPnlVal = s.max_pnl_krw ?? s.max_pnl;
+                                    const minPnlVal = s.min_pnl_krw ?? s.min_pnl;
+                                    if (maxPnlVal != null) st.maxPnl = st.maxPnl == null ? maxPnlVal : Math.max(st.maxPnl, maxPnlVal);
+                                    if (minPnlVal != null) st.minPnl = st.minPnl == null ? minPnlVal : Math.min(st.minPnl, minPnlVal);
+
                                     // Holding time aggregation (weighted average)
                                     if (s.avg_holding_time != null) {
-                                        st.totalHoldTime += s.avg_holding_time * s.cycles;
-                                        st.holdCount += s.cycles;
+                                        st.totalHoldTime += s.avg_holding_time * cycleCount;
+                                        st.holdCount += cycleCount;
                                     }
                                     if (s.max_holding_time != null) st.maxHold = st.maxHold == null ? s.max_holding_time : Math.max(st.maxHold, s.max_holding_time);
                                     if (s.min_holding_time != null) st.minHold = st.minHold == null ? s.min_holding_time : Math.min(st.minHold, s.min_holding_time);
+
+                                    // Activity rate (weighted average)
+                                    if (s.activity_rate != null) {
+                                        st.activityRates.push({ val: s.activity_rate, weight: cycleCount });
+                                    }
                                 });
                             });
 
@@ -1680,6 +1741,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 const winRate = st.cycles > 0 ? (st.wins / st.cycles) * 100 : 0;
                                 const avgPnl = st.cycles > 0 ? st.pnl / st.cycles : 0;
                                 const avgHold = st.holdCount > 0 ? st.totalHoldTime / st.holdCount : null;
+
+                                // Backtest-compatible metrics
+                                const totalReturnPct = st.cycles > 0 ? st.totalReturn / st.cycles : 0;
+                                const profitFactor = st.grossLoss > 0 ? st.grossProfit / st.grossLoss : (st.grossProfit > 0 ? 99.99 : 0);
+                                const sharpeRatio = st.pnlPcts.length > 0
+                                    ? st.pnlPcts.reduce((acc, p) => acc + p.val * p.weight, 0) / st.pnlPcts.reduce((acc, p) => acc + p.weight, 0)
+                                    : 0;
+                                const recent10WinRate = st.recent10Total > 0 ? (st.recent10Wins / st.recent10Total) * 100 : winRate;
+                                const activityRate = st.activityRates.length > 0
+                                    ? st.activityRates.reduce((acc, a) => acc + a.val * a.weight, 0) / st.activityRates.reduce((acc, a) => acc + a.weight, 0)
+                                    : 0;
+
                                 return (
                                     <div className={`${bgClass} rounded-lg p-3`}>
                                         <div className="flex items-center gap-2 mb-2">
@@ -1688,14 +1761,48 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                             </span>
                                             <span className="text-xs text-gray-500">{st.cycles} cycles</span>
                                         </div>
-                                        <div className="grid grid-cols-5 gap-2 text-center">
+                                        {/* Row 1: Core Stats (backtest-compatible) */}
+                                        <div className="grid grid-cols-6 gap-2 text-center mb-2">
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Return</div>
+                                                <div className={`text-sm font-mono font-bold ${totalReturnPct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(2)}%
+                                                </div>
+                                            </div>
                                             <div>
                                                 <div className="text-[10px] text-gray-500 uppercase">Win Rate</div>
-                                                <div className={`text-sm font-mono font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                                                <div className={`text-sm font-mono font-bold ${winRate >= 50 ? 'text-yellow-400' : 'text-yellow-600'}`}>
                                                     {winRate.toFixed(1)}%
                                                 </div>
                                                 <div className="text-[9px] text-gray-600">{st.wins}W/{st.cycles - st.wins}L</div>
                                             </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Recent 10</div>
+                                                <div className={`text-sm font-mono ${recent10WinRate >= 50 ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                                                    {recent10WinRate.toFixed(1)}%
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">PF</div>
+                                                <div className="text-sm font-mono text-white">
+                                                    {profitFactor.toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Sharpe</div>
+                                                <div className="text-sm font-mono text-yellow-400">
+                                                    {sharpeRatio.toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] text-gray-500 uppercase">Max DD</div>
+                                                <div className="text-sm font-mono text-red-400">
+                                                    {st.maxDrawdown > 0 ? `-${st.maxDrawdown.toFixed(1)}%` : '-'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Row 2: PnL & Holding (live-specific KRW values) */}
+                                        <div className="grid grid-cols-4 gap-2 text-center pt-2 border-t border-white/5">
                                             <div>
                                                 <div className="text-[10px] text-gray-500 uppercase">Total PnL</div>
                                                 <div className={`text-sm font-mono font-bold ${st.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>

@@ -16,6 +16,7 @@ PERFORMANCE_STAT_KEYS = [
     "total_return",
     "profit_factor",
     "win_rate",           # Cycle win rate (profitable cycles / total cycles)
+    "recent_10_win_rate", # Win rate of last 10 cycles (trend indicator)
     "sharpe_ratio",
     "total_trades",       # = Number of completed cycles
     "stability_score",
@@ -969,6 +970,7 @@ class WaterfallBacktestEngine:
         if not trades:
             return {
                 "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
                 "max_profit": 0.0,
                 "max_loss": 0.0,
@@ -1027,6 +1029,7 @@ class WaterfallBacktestEngine:
         if not pnls:
             return {
                 "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
                 "max_profit": 0.0,
                 "max_loss": 0.0,
@@ -1044,6 +1047,10 @@ class WaterfallBacktestEngine:
         total_loss = abs(sum(losses))
 
         win_rate = (len(wins) / len(pnls) * 100) if pnls else 0
+        # Recent 10 win rate
+        recent_10 = pnls[-10:] if len(pnls) > 0 else []
+        recent_10_wins = len([p for p in recent_10 if p > 0])
+        recent_10_win_rate = (recent_10_wins / len(recent_10) * 100) if recent_10 else 0
         avg_pnl_raw = sum(pnls) / len(pnls) if pnls else 0
         max_profit_raw = max(pnls) if pnls else 0
         max_loss_raw = min(pnls) if pnls else 0
@@ -1061,6 +1068,7 @@ class WaterfallBacktestEngine:
 
         return {
             "win_rate": win_rate,
+            "recent_10_win_rate": round(recent_10_win_rate, 1),
             "avg_pnl": avg_pnl,
             "max_profit": max_profit,
             "max_loss": max_loss,
@@ -1112,6 +1120,7 @@ class WaterfallBacktestEngine:
             "logs": logs or ["No data collected"],
             "total_return": 0.0,
             "win_rate": 0.0,
+            "recent_10_win_rate": 0.0,
             "max_drawdown": 0.0,
             "activity_rate": 0.0,
             "total_trades": 0,
@@ -1134,12 +1143,13 @@ class WaterfallBacktestEngine:
         if not trades:
             return {
                 "total_trades": 0,
-                "win_rate": "0%",
-                "avg_pnl": "0%",
-                "max_profit": "0%",
-                "max_loss": "0%",
-                "profit_factor": "0.00",
-                "sharpe_ratio": "0.00",
+                "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "sharpe_ratio": 0.0,
                 "avg_holding_time": 0,
                 "stability_score": 0.0,
                 "acceleration_score": 0.0,
@@ -1200,12 +1210,13 @@ class WaterfallBacktestEngine:
         if not completed_trades:
             return {
                 "total_trades": 0,
-                "win_rate": "0%",
-                "avg_pnl": "0%",
-                "max_profit": "0%",
-                "max_loss": "0%",
-                "profit_factor": "0.0",
-                "sharpe_ratio": "0.0",
+                "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
+                "avg_pnl": 0.0,
+                "max_profit": 0.0,
+                "max_loss": 0.0,
+                "profit_factor": 0.0,
+                "sharpe_ratio": 0.0,
                 "avg_holding_time": 0,
                 "decile_stats": [],
                 "rank_stats_list": []
@@ -1242,6 +1253,7 @@ class WaterfallBacktestEngine:
         return {
             "total_trades": base_stats.get('total_trades', len(completed_trades)),  # = cycle count
             "win_rate": base_stats.get('win_rate', 0),          # = cycle win rate
+            "recent_10_win_rate": base_stats.get('recent_10_win_rate', 0),  # = recent 10 cycles win rate
             "avg_pnl": base_stats.get('avg_pnl', 0),            # = avg PnL per cycle
             "max_profit": base_stats.get('max_profit', 0),
             "max_loss": base_stats.get('max_loss', 0),
@@ -1271,6 +1283,7 @@ class WaterfallBacktestEngine:
         if not completed_trades:
             return {
                 "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
                 "max_profit": 0.0,
                 "max_loss": 0.0,
@@ -1317,6 +1330,7 @@ class WaterfallBacktestEngine:
         if total_cycles == 0:
             return {
                 "win_rate": 0.0,
+                "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
                 "max_profit": 0.0,
                 "max_loss": 0.0,
@@ -1335,6 +1349,11 @@ class WaterfallBacktestEngine:
         # Win rate: profitable cycles / total cycles
         winning_cycles = sum(1 for pnl in cycle_pnls_abs if pnl > 0)
         win_rate = (winning_cycles / total_cycles) * 100
+
+        # Recent 10 win rate: last 10 cycles (by order in cycle_data, which is insertion order)
+        recent_10_pnls = list(cycle_data.values())[-10:] if total_cycles > 0 else []
+        recent_10_wins = sum(1 for c in recent_10_pnls if c["pnl_abs"] > 0)
+        recent_10_win_rate = (recent_10_wins / len(recent_10_pnls) * 100) if recent_10_pnls else 0
 
         # Avg PnL per cycle
         avg_pnl = sum(cycle_pnls_pct) / total_cycles
@@ -1367,6 +1386,7 @@ class WaterfallBacktestEngine:
         return {
             "total_trades": total_cycles,  # = number of completed cycles
             "win_rate": win_rate,
+            "recent_10_win_rate": round(recent_10_win_rate, 1),
             "avg_pnl": round(avg_pnl, 2),
             "max_profit": round(max_profit, 2),
             "max_loss": round(max_loss, 2),
@@ -1392,6 +1412,7 @@ class WaterfallBacktestEngine:
 
         # Collect stats from each rank's full_stats
         all_win_rates = []
+        all_recent_10_win_rates = []
         all_avg_pnls = []
         all_max_profits = []
         all_max_losses = []
@@ -1426,6 +1447,7 @@ class WaterfallBacktestEngine:
                 return float(v) if v else 0.0
 
             win_rate = parse_pct(fs.get('win_rate', 0))
+            recent_10_win_rate = parse_pct(fs.get('recent_10_win_rate', 0))
             avg_pnl = parse_pct(fs.get('avg_pnl', 0))
             max_profit = parse_pct(fs.get('max_profit', 0))
             max_loss = parse_pct(fs.get('max_loss', 0))
@@ -1446,6 +1468,7 @@ class WaterfallBacktestEngine:
             acceleration_score = float(accel) if accel else 1.0
 
             all_win_rates.append((win_rate, trade_count))
+            all_recent_10_win_rates.append((recent_10_win_rate, trade_count))
             all_avg_pnls.append((avg_pnl, trade_count))
             all_max_profits.append(max_profit)
             all_max_losses.append(max_loss)
@@ -1485,6 +1508,7 @@ class WaterfallBacktestEngine:
             return sum(v * w for v, w in values_with_weights) / total_weight
 
         combined_win_rate = weighted_avg(all_win_rates)
+        combined_recent_10_win_rate = weighted_avg(all_recent_10_win_rates)
         combined_avg_pnl = weighted_avg(all_avg_pnls)
         combined_sharpe = weighted_avg(all_sharpe_ratios)
         combined_holding_time = int(weighted_avg(all_holding_times))
@@ -1502,6 +1526,7 @@ class WaterfallBacktestEngine:
 
         result = {
             "win_rate": round(combined_win_rate, 1),
+            "recent_10_win_rate": round(combined_recent_10_win_rate, 1),
             "avg_pnl": round(combined_avg_pnl, 2),
             "max_profit": round(combined_max_profit, 2),
             "max_loss": round(combined_max_loss, 2),

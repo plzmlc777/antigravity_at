@@ -245,16 +245,24 @@ async def get_accumulated_stats(
                     "paper": {
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],  # Track buys for FIFO matching
-                        "cycle_pnls": [],  # Per-cycle PnL list
+                        "cycle_pnls": [],  # Per-cycle PnL list (absolute, KRW)
+                        "cycle_pnl_pcts": [],  # Per-cycle PnL % (for backtest compat)
+                        "cycle_entry_costs": [],  # Entry cost per cycle (for % calc)
                         "cycle_durations": [],  # Per-cycle duration in minutes
                         "first_buy_time": None,  # First BUY timestamp in current cycle
+                        "trade_dates": set(),  # Unique trade dates (for activity rate)
+                        "cumulative_pnls": [],  # Cumulative PnL after each cycle (for MDD)
                     },
                     "real": {
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],
                         "cycle_pnls": [],
+                        "cycle_pnl_pcts": [],
+                        "cycle_entry_costs": [],
                         "cycle_durations": [],
                         "first_buy_time": None,
+                        "trade_dates": set(),
+                        "cumulative_pnls": [],
                     },
                 }
 
@@ -264,6 +272,10 @@ async def get_accumulated_stats(
             s["trades"] += 1
             qty = ex.filled_quantity or 0.0
             price = ex.executed_price or 0.0
+
+            # Track trade date for activity rate
+            if ex.signal_timestamp:
+                s["trade_dates"].add(ex.signal_timestamp.date())
 
             if ex.signal_type == "BUY":
                 s["buys"] += 1
@@ -292,6 +304,15 @@ async def get_accumulated_stats(
                 if matched_qty > 0:
                     cycle_pnl = (price * matched_qty) - buy_cost
                     s["cycle_pnls"].append(cycle_pnl)
+                    s["cycle_entry_costs"].append(buy_cost)
+
+                    # Calculate cycle PnL percentage
+                    cycle_pnl_pct = (cycle_pnl / buy_cost * 100) if buy_cost > 0 else 0
+                    s["cycle_pnl_pcts"].append(cycle_pnl_pct)
+
+                    # Track cumulative PnL for max drawdown calculation
+                    prev_cum = s["cumulative_pnls"][-1] if s["cumulative_pnls"] else 0
+                    s["cumulative_pnls"].append(prev_cum + cycle_pnl)
 
                     # Calculate cycle duration (first BUY to SELL)
                     if s["first_buy_time"] and ex.signal_timestamp:
@@ -303,27 +324,77 @@ async def get_accumulated_stats(
                     s["first_buy_time"] = None
 
         # Calculate final stats
+        import statistics as stat_module
         result = {}
         for sym, modes in stats_by_symbol.items():
             result[sym] = {"paper": {}, "real": {}}
             for key in ["paper", "real"]:
                 s = modes[key]
-                cycle_pnls = s["cycle_pnls"]
+                cycle_pnls = s["cycle_pnls"]  # Absolute (KRW)
+                cycle_pnl_pcts = s["cycle_pnl_pcts"]  # Percentage
+                cumulative_pnls = s["cumulative_pnls"]
                 cycles = len(cycle_pnls)
-
                 cycle_durations = s["cycle_durations"]
+                trade_dates = s["trade_dates"]
 
                 if cycles > 0:
                     total_pnl = sum(cycle_pnls)
+                    total_entry_cost = sum(s["cycle_entry_costs"]) if s["cycle_entry_costs"] else 0
                     wins = sum(1 for p in cycle_pnls if p > 0)
                     win_rate = (wins / cycles) * 100
 
-                    # Recent 10 cycles
+                    # Recent 10 cycles (for trend indicator)
                     recent_10 = cycle_pnls[-10:] if cycles >= 10 else cycle_pnls
                     recent_wins = sum(1 for p in recent_10 if p > 0)
                     recent_win_rate = (recent_wins / len(recent_10)) * 100 if recent_10 else 0
 
-                    # Max, Min, Avg PnL
+                    # === Backtest-compatible metrics (% based) ===
+                    # Total return (% of total entry cost)
+                    total_return = (total_pnl / total_entry_cost * 100) if total_entry_cost > 0 else 0
+
+                    # Profit Factor: gross_profit / gross_loss
+                    gross_profit = sum(p for p in cycle_pnls if p > 0)
+                    gross_loss = abs(sum(p for p in cycle_pnls if p < 0))
+                    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 99.99
+
+                    # Sharpe Ratio (cycle-based)
+                    if len(cycle_pnl_pcts) > 1:
+                        pct_stdev = stat_module.stdev(cycle_pnl_pcts)
+                        sharpe_ratio = (stat_module.mean(cycle_pnl_pcts) / pct_stdev * (len(cycle_pnl_pcts) ** 0.5)) if pct_stdev > 0 else 0
+                    else:
+                        sharpe_ratio = 0
+
+                    # Max Drawdown (from cumulative PnL, as % of peak)
+                    max_drawdown = 0
+                    if cumulative_pnls:
+                        peak = cumulative_pnls[0]
+                        for cum in cumulative_pnls:
+                            if cum > peak:
+                                peak = cum
+                            drawdown = peak - cum
+                            # Convert to % of peak (or entry cost if peak is 0)
+                            dd_pct = (drawdown / peak * 100) if peak > 0 else (drawdown / total_entry_cost * 100 if total_entry_cost > 0 else 0)
+                            if dd_pct > max_drawdown:
+                                max_drawdown = dd_pct
+
+                    # Avg PnL % per cycle
+                    avg_pnl_pct = sum(cycle_pnl_pcts) / cycles if cycles > 0 else 0
+
+                    # Max Profit / Max Loss (% based)
+                    max_profit_pct = max(cycle_pnl_pcts) if cycle_pnl_pcts else 0
+                    max_loss_pct = min(cycle_pnl_pcts) if cycle_pnl_pcts else 0
+
+                    # Activity Rate (% of days with trades)
+                    if trade_dates:
+                        min_date = min(trade_dates)
+                        max_date = max(trade_dates)
+                        total_days = (max_date - min_date).days + 1
+                        activity_rate = (len(trade_dates) / total_days * 100) if total_days > 0 else 0
+                    else:
+                        activity_rate = 0
+                        total_days = 0
+
+                    # === Live-only metrics (absolute KRW) ===
                     max_pnl = max(cycle_pnls)
                     min_pnl = min(cycle_pnls)
                     avg_pnl = total_pnl / cycles
@@ -337,44 +408,55 @@ async def get_accumulated_stats(
                         avg_holding_time = None
                         max_holding_time = None
                         min_holding_time = None
-
-                    # Calculate percentage (based on average buy cost)
-                    total_buy_cost = sum(p["price"] * p["qty"] for p in s.get("buy_queue", [])) if s.get("buy_queue") else 0
-                    # Use total sold value for percentage calculation
-                    if cycles > 0 and total_pnl != 0:
-                        # Approximate: use average cycle cost
-                        avg_cycle_cost = abs(total_pnl / cycles) * 10  # rough estimate
-                        pnl_pct = (total_pnl / (total_pnl + avg_cycle_cost)) * 100 if avg_cycle_cost else 0
-                    else:
-                        pnl_pct = 0
                 else:
+                    # Zero trades case
                     total_pnl = 0
+                    total_return = 0
                     win_rate = 0
                     recent_win_rate = 0
+                    profit_factor = 0
+                    sharpe_ratio = 0
+                    max_drawdown = 0
+                    avg_pnl_pct = 0
+                    max_profit_pct = 0
+                    max_loss_pct = 0
+                    activity_rate = 0
+                    total_days = 0
                     max_pnl = 0
                     min_pnl = 0
                     avg_pnl = 0
-                    pnl_pct = 0
                     avg_holding_time = None
                     max_holding_time = None
                     min_holding_time = None
 
                 result[sym][key] = {
-                    "trades": s["trades"],
-                    "buys": s["buys"],
-                    "sells": s["sells"],
-                    "cycles": cycles,
-                    "realized_pnl": round(total_pnl, 0),
-                    "realized_pnl_pct": round(pnl_pct, 2),
-                    "win_rate": round(win_rate, 1),
-                    "recent_10_win_rate": round(recent_win_rate, 1),
-                    "max_pnl": round(max_pnl, 0),
-                    "min_pnl": round(min_pnl, 0),
-                    "avg_pnl": round(avg_pnl, 0),
-                    # Holding time stats (in minutes, null if no data)
+                    # === Backtest-compatible stats (same keys as STAT_COLUMNS) ===
+                    "total_return": round(total_return, 2),  # %
+                    "profit_factor": round(profit_factor, 2),
+                    "win_rate": round(win_rate, 1),  # %
+                    "recent_10_win_rate": round(recent_win_rate, 1),  # %
+                    "sharpe_ratio": round(sharpe_ratio, 2),
+                    "total_trades": cycles,  # = cycle count
+                    "stability_score": None,  # N/A for live (needs equity curve)
+                    "acceleration_score": None,  # N/A for live
+                    "activity_rate": round(activity_rate, 1),  # %
+                    "avg_pnl": round(avg_pnl_pct, 2),  # % per cycle
                     "avg_holding_time": round(avg_holding_time) if avg_holding_time is not None else None,
                     "max_holding_time": round(max_holding_time) if max_holding_time is not None else None,
                     "min_holding_time": round(min_holding_time) if min_holding_time is not None else None,
+                    "max_profit": round(max_profit_pct, 2),  # %
+                    "max_loss": round(max_loss_pct, 2),  # %
+                    "max_drawdown": round(max_drawdown, 2),  # %
+                    "total_days": total_days,
+                    # === Live-only alpha stats (absolute KRW) ===
+                    "trades": s["trades"],  # raw order count
+                    "buys": s["buys"],
+                    "sells": s["sells"],
+                    "cycles": cycles,
+                    "realized_pnl": round(total_pnl, 0),  # KRW
+                    "avg_pnl_krw": round(avg_pnl, 0),  # KRW per cycle
+                    "max_pnl_krw": round(max_pnl, 0),  # KRW
+                    "min_pnl_krw": round(min_pnl, 0),  # KRW
                 }
 
         return result

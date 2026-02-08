@@ -1332,9 +1332,24 @@ const StrategyView = () => {
                         symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                         return: item.total_return,
                         win_rate: item.win_rate,
+                        recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
                         trades: item.total_trades,
                         score: item.score,
                         full_config: item.config || {},
+                        // Extended metrics (explicit for consistency)
+                        max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
+                        profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
+                        sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
+                        avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
+                        stability_score: item.stability_score ?? item.metrics?.stability_score,
+                        acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
+                        activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
+                        avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
+                        max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
+                        min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
+                        max_profit: item.max_profit ?? item.metrics?.max_profit,
+                        max_loss: item.max_loss ?? item.metrics?.max_loss,
+                        total_days: item.total_days ?? item.metrics?.total_days,
                         rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
                     }));
                     setOptResults(formattedResults);
@@ -1496,6 +1511,7 @@ const StrategyView = () => {
         setBacktestStatus({ status: 'running', message: 'Initializing Strategy...' });
         setBacktestResult(null); // Clear previous results
         setShowChart(false);
+        setIsDirty(true); // Mark as dirty when running backtest
 
         try {
             // Determine Configuration to use (Override or Current State)
@@ -1575,9 +1591,6 @@ const StrategyView = () => {
                 setPendingOptResult(null);
             }
 
-            // Clear dirty flag after successful save
-            setIsDirty(false);
-
             // Visual feedback (Saved!)
             setApplyFeedback('saved');
             setTimeout(() => setApplyFeedback(null), 2000);
@@ -1586,6 +1599,9 @@ const StrategyView = () => {
             if (activeTab !== -1 && selectedStrategy?.id) {
                 await runBacktest(selectedStrategy.id);
             }
+
+            // Clear dirty flag after successful save AND backtest
+            setIsDirty(false);
         } catch (e) {
             console.error("Failed to save configuration:", e);
             openConfirm("❌ Save Failed", `설정 저장에 실패했습니다.\n\n${e.message || "다시 시도해주세요."}`, () => {}, true);
@@ -1670,8 +1686,11 @@ const StrategyView = () => {
             return;
         }
 
+        // Determine if current tab has unsaved changes
+        const hasUnsavedChanges = activeTab === -3 ? isSymbolCompareDirty : isDirty;
+
         // If no unsaved changes, switch immediately
-        if (!isDirty) {
+        if (!hasUnsavedChanges) {
             setActiveTab(newTabIndex);
             localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
             return;
@@ -1679,46 +1698,74 @@ const StrategyView = () => {
 
         // If there are unsaved changes, show confirmation
         setPendingTabSwitch(newTabIndex);
-        openConfirm(
-            "⚠️ Unsaved Changes",
-            "You have unsaved configuration changes.\n\nWhat would you like to do?",
-            async () => {
-                // Save & Switch (ConfigScope 사용)
-                try {
-                    const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
-                    // Debug: Log what we're saving
-                    console.log("[TabSwitch Save] Saving configs:", configsToSave.map(c => ({
-                        tab_name: c.tab_name,
-                        is_active: c.is_active,
-                        account_id: c.account_id
-                    })));
+        // Different save/discard logic based on current tab type
+        if (activeTab === -3) {
+            // Symbol Compare tab - use handleApplySymbolCompare / handleDiscardSymbolCompare
+            openConfirm(
+                "⚠️ Unsaved Changes",
+                "You have unsaved Symbol Compare changes.\n\nWhat would you like to do?",
+                async () => {
+                    // Save & Switch
+                    await handleApplySymbolCompare();
+                    setActiveTab(newTabIndex);
+                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    setPendingTabSwitch(null);
+                },
+                false, // not danger
+                "Save & Switch",
+                "Discard & Switch",
+                async () => {
+                    // Discard & Switch
+                    await handleDiscardSymbolCompare();
+                    setActiveTab(newTabIndex);
+                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    setPendingTabSwitch(null);
+                }
+            );
+        } else {
+            // Rank/Draft tabs - use existing config save logic
+            openConfirm(
+                "⚠️ Unsaved Changes",
+                "You have unsaved configuration changes.\n\nWhat would you like to do?",
+                async () => {
+                    // Save & Switch (ConfigScope 사용)
+                    try {
+                        const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
 
-                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                    console.log("Configuration saved before tab switch");
+                        // Debug: Log what we're saving
+                        console.log("[TabSwitch Save] Saving configs:", configsToSave.map(c => ({
+                            tab_name: c.tab_name,
+                            is_active: c.is_active,
+                            account_id: c.account_id
+                        })));
+
+                        await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
+                        console.log("Configuration saved before tab switch");
+                        setIsDirty(false);
+                        setActiveTab(newTabIndex);
+                        localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                        setPendingTabSwitch(null);
+                    } catch (e) {
+                        console.error("Failed to save configuration:", e);
+                        openConfirm("❌ Save Failed", `설정 저장에 실패했습니다. 탭 전환이 취소되었습니다.\n\n${e.message || ""}`, () => {}, true);
+                        setPendingTabSwitch(null);
+                    }
+                },
+                false, // not danger
+                "Save & Switch",
+                "Discard & Switch",
+                () => {
+                    // Discard & Switch
                     setIsDirty(false);
                     setActiveTab(newTabIndex);
                     localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
                     setPendingTabSwitch(null);
-                } catch (e) {
-                    console.error("Failed to save configuration:", e);
-                    openConfirm("❌ Save Failed", `설정 저장에 실패했습니다. 탭 전환이 취소되었습니다.\n\n${e.message || ""}`, () => {}, true);
-                    setPendingTabSwitch(null);
+                    // Reload config from configList to discard changes
+                    // (changes are already in configList, so no action needed)
                 }
-            },
-            false, // not danger
-            "Save & Switch",
-            "Discard & Switch",
-            () => {
-                // Discard & Switch
-                setIsDirty(false);
-                setActiveTab(newTabIndex);
-                localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
-                setPendingTabSwitch(null);
-                // Reload config from configList to discard changes
-                // (changes are already in configList, so no action needed)
-            }
-        );
+            );
+        }
     };
 
     // Strategy Change with Unsaved Changes Confirmation
@@ -1946,22 +1993,23 @@ const StrategyView = () => {
                     symbol: item.symbol || '',
                     return: item.total_return,
                     win_rate: item.win_rate,
+                    recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
                     total_trades: item.total_trades,
                     score: item.score,
                     rank: item.rank,
-                    max_drawdown: item.max_drawdown,
-                    profit_factor: item.profit_factor,
-                    sharpe_ratio: item.sharpe_ratio,
-                    stability_score: item.stability_score,
-                    acceleration_score: item.acceleration_score,
-                    activity_rate: item.activity_rate,
-                    avg_holding_time: item.avg_holding_time,
-                    max_holding_time: item.max_holding_time,
-                    min_holding_time: item.min_holding_time,
-                    max_profit: item.max_profit,
-                    max_loss: item.max_loss,
-                    avg_pnl: item.avg_pnl,
-                    total_days: item.total_days
+                    max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
+                    profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
+                    sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
+                    stability_score: item.stability_score ?? item.metrics?.stability_score,
+                    acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
+                    activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
+                    avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
+                    max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
+                    min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
+                    max_profit: item.max_profit ?? item.metrics?.max_profit,
+                    max_loss: item.max_loss ?? item.metrics?.max_loss,
+                    avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
+                    total_days: item.total_days ?? item.metrics?.total_days
                 }));
 
                 setOptResults(formatted);
@@ -2162,6 +2210,12 @@ const StrategyView = () => {
 
         setIsHeavyOptRunning(true);
         setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
+        // Set appropriate dirty flag based on tab
+        if (activeTab === -3) {
+            setIsSymbolCompareDirty(true);
+        } else {
+            setIsDirty(true);
+        }
 
         try {
             // Pre-fetch data for all symbols
@@ -2259,6 +2313,7 @@ const StrategyView = () => {
                         symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
                         return: item.total_return,
                         win_rate: item.win_rate,
+                        recent_10_win_rate: item.recent_10_win_rate,
                         trades: item.total_trades,
                         score: item.score,
                         full_config: item.config,
@@ -2298,6 +2353,7 @@ const StrategyView = () => {
                                 symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
                                 return: item.total_return,
                                 win_rate: item.win_rate,
+                                recent_10_win_rate: item.recent_10_win_rate,
                                 trades: item.total_trades,
                                 score: item.score,
                                 full_config: item.config,
@@ -2435,6 +2491,7 @@ const StrategyView = () => {
                                 symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
                                 return: item.total_return,
                                 win_rate: item.win_rate,
+                                recent_10_win_rate: item.recent_10_win_rate,
                                 trades: item.total_trades,
                                 score: item.score,
                                 full_config: item.config,
@@ -2510,6 +2567,7 @@ const StrategyView = () => {
         setOptError(null);
         setOptStatusMessage("");
         setOptProgress({ current: 0, total: 0 }); // Reset
+        setIsDirty(true); // Mark as dirty when running optimization
 
         try {
             // Cross-optimization: pre-fetch data for all selected symbols
@@ -2619,10 +2677,24 @@ const StrategyView = () => {
                                 symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                                 return: item.total_return,
                                 win_rate: item.win_rate,
+                                recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
                                 trades: item.total_trades,
                                 score: item.score,
                                 full_config: item.config,
                                 rank: item.rank > 0 ? item.rank : (index + 1),
+                                max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
+                                profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
+                                sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
+                                avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
+                                stability_score: item.stability_score ?? item.metrics?.stability_score,
+                                acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
+                                activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
+                                avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
+                                max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
+                                min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
+                                max_profit: item.max_profit ?? item.metrics?.max_profit,
+                                max_loss: item.max_loss ?? item.metrics?.max_loss,
+                                total_days: item.total_days ?? item.metrics?.total_days,
                                 _isPartial: true  // Mark as partial result
                             }));
                             setOptResults(formattedPartial);
@@ -2636,12 +2708,26 @@ const StrategyView = () => {
                                     ...item.config,
                                     ...item.metrics, // Flatten metrics
                                     symbol: item.symbol || item.config?.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
+                                    symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                                     return: item.total_return,
                                     win_rate: item.win_rate,
+                                    recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
                                     trades: item.total_trades,
                                     score: item.score,
                                     full_config: item.config,
+                                    max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
+                                    profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
+                                    sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
+                                    avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
+                                    stability_score: item.stability_score ?? item.metrics?.stability_score,
+                                    acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
+                                    activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
+                                    avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
+                                    max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
+                                    min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
+                                    max_profit: item.max_profit ?? item.metrics?.max_profit,
+                                    max_loss: item.max_loss ?? item.metrics?.max_loss,
+                                    total_days: item.total_days ?? item.metrics?.total_days,
                                     rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
                                 }));
                                 setOptResults(formattedResults);
@@ -2955,6 +3041,7 @@ const StrategyView = () => {
                         total_return: data.total_return,
                         profit_factor: data.profit_factor,
                         win_rate: data.win_rate,
+                        recent_10_win_rate: data.recent_10_win_rate,
                         sharpe_ratio: data.sharpe_ratio,
                         // Trading activity
                         total_trades: data.total_trades,
@@ -2984,6 +3071,7 @@ const StrategyView = () => {
                         total_return: 'Error',
                         profit_factor: null,
                         win_rate: null,
+                        recent_10_win_rate: null,
                         sharpe_ratio: null,
                         total_trades: 0,
                         stability_score: null,
@@ -3585,6 +3673,7 @@ const StrategyView = () => {
                                                             setBacktestStatus({ status: 'running', message: 'Initializing Integrated Simulation...' });
                                                             setBacktestResult(null); // Clear previous
                                                             setIntegratedResults(null);
+                                                            setIsDirty(true); // Mark as dirty when running integrated backtest
 
                                                             try {
                                                                 // Collect configurations from active configList

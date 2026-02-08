@@ -21,6 +21,7 @@ class OptimizationResultItem(BaseModel):
     config: Dict[str, Any]
     total_return: float
     win_rate: float
+    recent_10_win_rate: Optional[float] = None  # Recent 10 cycles win rate
     total_trades: int
     score: float
     # Detailed Metrics (Explicitly added to avoid stripping)
