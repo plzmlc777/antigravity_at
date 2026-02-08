@@ -25,7 +25,7 @@ import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
-import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns } from '../config/statsConfig';
+import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
@@ -1325,33 +1325,20 @@ const StrategyView = () => {
                 // Restore Optimization
                 if (data.optimization && data.optimization.results) {
                     console.log('[Persistence] Restoring Optimization Data');
-                    const formattedResults = data.optimization.results.map((item, index) => ({
-                        ...(item.config || {}),
-                        ...(item.metrics || {}), // Flatten metrics
-                        symbol: item.symbol || item.config?.symbol || '',
-                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                        return: item.total_return,
-                        win_rate: item.win_rate,
-                        recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
-                        trades: item.total_trades,
-                        score: item.score,
-                        full_config: item.config || {},
-                        // Extended metrics (explicit for consistency)
-                        max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
-                        profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
-                        sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
-                        avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
-                        stability_score: item.stability_score ?? item.metrics?.stability_score,
-                        acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
-                        activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
-                        avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
-                        max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
-                        min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
-                        max_profit: item.max_profit ?? item.metrics?.max_profit,
-                        max_loss: item.max_loss ?? item.metrics?.max_loss,
-                        total_days: item.total_days ?? item.metrics?.total_days,
-                        rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
-                    }));
+                    const formattedResults = data.optimization.results.map((item, index) => {
+                        const stats = normalizeStats(item);
+                        return {
+                            ...(item.config || {}),
+                            ...stats, // Normalized stats with consistent types
+                            symbol: item.symbol || item.config?.symbol || '',
+                            symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
+                            return: stats.total_return,
+                            trades: stats.total_trades,
+                            score: item.score,
+                            full_config: item.config || {},
+                            rank: item.rank > 0 ? item.rank : (index + 1)
+                        };
+                    });
                     setOptResults(formattedResults);
                 } else if (data.optimization) {
                     // Fallback if data structure is unexpected
@@ -1987,30 +1974,18 @@ const StrategyView = () => {
 
             if (response && response.results) {
                 // Format results to match optResults format
-                const formatted = response.results.map(item => ({
-                    ...item.config,
-                    ...item.metrics,
-                    symbol: item.symbol || '',
-                    return: item.total_return,
-                    win_rate: item.win_rate,
-                    recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
-                    total_trades: item.total_trades,
-                    score: item.score,
-                    rank: item.rank,
-                    max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
-                    profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
-                    sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
-                    stability_score: item.stability_score ?? item.metrics?.stability_score,
-                    acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
-                    activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
-                    avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
-                    max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
-                    min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
-                    max_profit: item.max_profit ?? item.metrics?.max_profit,
-                    max_loss: item.max_loss ?? item.metrics?.max_loss,
-                    avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
-                    total_days: item.total_days ?? item.metrics?.total_days
-                }));
+                const formatted = response.results.map(item => {
+                    const stats = normalizeStats(item);
+                    return {
+                        ...item.config,
+                        ...stats, // Normalized stats with consistent types
+                        symbol: item.symbol || '',
+                        return: stats.total_return,
+                        trades: stats.total_trades,
+                        score: item.score,
+                        rank: item.rank
+                    };
+                });
 
                 setOptResults(formatted);
                 addLog(`Recalculated! Top 50 from ${response.total_rows} total results`, 'success');
@@ -2670,33 +2645,21 @@ const StrategyView = () => {
 
                         // Show partial results during optimization (live preview)
                         if (statusData.status === 'running' && statusData.partial_results && statusData.partial_results.length > 0) {
-                            const formattedPartial = statusData.partial_results.map((item, index) => ({
-                                ...item.config,
-                                ...item.metrics,
-                                symbol: item.symbol || item.config?.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                return: item.total_return,
-                                win_rate: item.win_rate,
-                                recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
-                                trades: item.total_trades,
-                                score: item.score,
-                                full_config: item.config,
-                                rank: item.rank > 0 ? item.rank : (index + 1),
-                                max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
-                                profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
-                                sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
-                                avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
-                                stability_score: item.stability_score ?? item.metrics?.stability_score,
-                                acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
-                                activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
-                                avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
-                                max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
-                                min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
-                                max_profit: item.max_profit ?? item.metrics?.max_profit,
-                                max_loss: item.max_loss ?? item.metrics?.max_loss,
-                                total_days: item.total_days ?? item.metrics?.total_days,
-                                _isPartial: true  // Mark as partial result
-                            }));
+                            const formattedPartial = statusData.partial_results.map((item, index) => {
+                                const stats = normalizeStats(item);
+                                return {
+                                    ...item.config,
+                                    ...stats, // Normalized stats with consistent types
+                                    symbol: item.symbol || item.config?.symbol || '',
+                                    symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
+                                    return: stats.total_return,
+                                    trades: stats.total_trades,
+                                    score: item.score,
+                                    full_config: item.config,
+                                    rank: item.rank > 0 ? item.rank : (index + 1),
+                                    _isPartial: true
+                                };
+                            });
                             setOptResults(formattedPartial);
                         }
 
@@ -2704,32 +2667,20 @@ const StrategyView = () => {
                             // Finished (or Cancelled)
                             const resultData = statusData.result;
                             if (resultData && resultData.results && resultData.results.length > 0) {
-                                const formattedResults = resultData.results.map((item, index) => ({
-                                    ...item.config,
-                                    ...item.metrics, // Flatten metrics
-                                    symbol: item.symbol || item.config?.symbol || '',
-                                    symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                    return: item.total_return,
-                                    win_rate: item.win_rate,
-                                    recent_10_win_rate: item.recent_10_win_rate ?? item.metrics?.recent_10_win_rate,
-                                    trades: item.total_trades,
-                                    score: item.score,
-                                    full_config: item.config,
-                                    max_drawdown: item.max_drawdown ?? item.metrics?.max_drawdown,
-                                    profit_factor: item.profit_factor ?? item.metrics?.profit_factor,
-                                    sharpe_ratio: item.sharpe_ratio ?? item.metrics?.sharpe_ratio,
-                                    avg_pnl: item.avg_pnl ?? item.metrics?.avg_pnl,
-                                    stability_score: item.stability_score ?? item.metrics?.stability_score,
-                                    acceleration_score: item.acceleration_score ?? item.metrics?.acceleration_score,
-                                    activity_rate: item.activity_rate ?? item.metrics?.activity_rate,
-                                    avg_holding_time: item.avg_holding_time ?? item.metrics?.avg_holding_time,
-                                    max_holding_time: item.max_holding_time ?? item.metrics?.max_holding_time,
-                                    min_holding_time: item.min_holding_time ?? item.metrics?.min_holding_time,
-                                    max_profit: item.max_profit ?? item.metrics?.max_profit,
-                                    max_loss: item.max_loss ?? item.metrics?.max_loss,
-                                    total_days: item.total_days ?? item.metrics?.total_days,
-                                    rank: item.rank > 0 ? item.rank : (index + 1) // Rank LAST to prevent override, with fallback
-                                }));
+                                const formattedResults = resultData.results.map((item, index) => {
+                                    const stats = normalizeStats(item);
+                                    return {
+                                        ...item.config,
+                                        ...stats, // Normalized stats with consistent types
+                                        symbol: item.symbol || item.config?.symbol || '',
+                                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
+                                        return: stats.total_return,
+                                        trades: stats.total_trades,
+                                        score: item.score,
+                                        full_config: item.config,
+                                        rank: item.rank > 0 ? item.rank : (index + 1)
+                                    };
+                                });
                                 setOptResults(formattedResults);
                                 setCompletedOptTaskId(taskId); // For full CSV download
 
