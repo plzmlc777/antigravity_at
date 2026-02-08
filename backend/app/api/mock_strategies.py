@@ -297,6 +297,11 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                     if isinstance(recent_10_wr, str):
                         recent_10_wr = float(recent_10_wr.replace('%', '')) if recent_10_wr != '-' else 0.0
 
+                    # Use centralized serializer for consistent stats
+                    from ..core.stats_serializer import serialize_backtest_stats
+                    stats_obj = serialize_backtest_stats(res)
+                    stats_dict = stats_obj.model_dump()
+
                     results.append(OptimizationResultItem(
                         rank=0,
                         symbol=config.get('symbol', ''),
@@ -306,37 +311,23 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
                         recent_10_win_rate=recent_10_wr,
                         total_trades=trades,
                         score=round(score, 2),
-                        # Explicit Top-Level Promoted Fields
-                        max_drawdown=str(res.get("max_drawdown", "-")),
-                        profit_factor=str(res.get("profit_factor", "-")),
-                        avg_pnl=str(res.get("avg_pnl", "-")),
-                        sharpe_ratio=str(res.get("sharpe_ratio", "-")),
-                        stability_score=str(res.get("stability_score", "-")),
-                        acceleration_score=str(res.get("acceleration_score", "-")),
-                        activity_rate=str(res.get("activity_rate", "-")),
-                        total_days=int(res.get("total_days", 0)),
-                        avg_holding_time=str(res.get("avg_holding_time", "-")),
-                        max_holding_time=str(res.get("max_holding_time", "-")),
-                        min_holding_time=str(res.get("min_holding_time", "-")),
-                        max_profit=str(res.get("max_profit", "-")),
-                        max_loss=str(res.get("max_loss", "-")),
-                        metrics={
-                            # Frontend relies on 'metrics' spread, so we must populate these!
-                            "recent_10_win_rate": recent_10_wr,
-                            "max_drawdown": res.get("max_drawdown", "-"),
-                            "profit_factor": res.get("profit_factor", "-"),
-                            "avg_pnl": res.get("avg_pnl", "-"),
-                            "sharpe_ratio": res.get("sharpe_ratio", "-"),
-                            "avg_holding_time": res.get("avg_holding_time", "-"),
-                            "max_holding_time": res.get("max_holding_time", "-"),
-                            "min_holding_time": res.get("min_holding_time", "-"),
-                            "stability_score": res.get("stability_score", "-"),
-                            "acceleration_score": res.get("acceleration_score", "-"),
-                            "activity_rate": res.get("activity_rate", "-"),
-                            "total_days": res.get("total_days", 0),
-                            "max_profit": res.get("max_profit", "-"),
-                            "max_loss": res.get("max_loss", "-")
-                        }
+                        # Top-level fields for backward compatibility (string format)
+                        max_drawdown=str(stats_obj.max_drawdown) if stats_obj.max_drawdown else "-",
+                        profit_factor=str(stats_obj.profit_factor) if stats_obj.profit_factor else "-",
+                        avg_pnl=str(stats_obj.avg_pnl) if stats_obj.avg_pnl else "-",
+                        sharpe_ratio=str(stats_obj.sharpe_ratio) if stats_obj.sharpe_ratio else "-",
+                        stability_score=str(stats_obj.stability_score) if stats_obj.stability_score else "-",
+                        acceleration_score=str(stats_obj.acceleration_score) if stats_obj.acceleration_score else "-",
+                        activity_rate=str(stats_obj.activity_rate) if stats_obj.activity_rate else "-",
+                        total_days=stats_obj.total_days,
+                        avg_holding_time=str(stats_obj.avg_holding_time) if stats_obj.avg_holding_time else "-",
+                        max_holding_time=str(stats_obj.max_holding_time) if stats_obj.max_holding_time else "-",
+                        min_holding_time=str(stats_obj.min_holding_time) if stats_obj.min_holding_time else "-",
+                        max_profit=str(stats_obj.max_profit) if stats_obj.max_profit else "-",
+                        max_loss=str(stats_obj.max_loss) if stats_obj.max_loss else "-",
+                        # Single source of truth (frontend normalizeStats checks stats first)
+                        stats=stats_dict,
+                        metrics={}  # Empty - deprecated
                     ))
             except Exception as e:
                 logger.error(f"Result Error: {e}")
@@ -1027,15 +1018,12 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                             "symbol": r.get("symbol", ""),
                             "config": r.get("config", {}),
                             "score": r.get("score", 0),
-                            # Standardized stats object
+                            # Single source of truth for all stats
                             "stats": stats_dict,
-                            # Top-level fields for backward compatibility
+                            # Essential top-level fields for quick access
                             "total_return": stats.total_return,
                             "win_rate": stats.win_rate,
-                            "recent_10_win_rate": stats.recent_10_win_rate,
                             "total_trades": stats.total_trades,
-                            # Legacy metrics object (deprecated, for backward compat)
-                            "metrics": stats_dict,
                         }
 
                     result_data = {

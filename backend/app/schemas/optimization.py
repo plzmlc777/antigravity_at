@@ -38,7 +38,10 @@ class OptimizationResultItem(BaseModel):
     min_holding_time: Optional[str] = None  # Cycle-based: min cycle duration (minutes)
     max_profit: Optional[str] = None
     max_loss: Optional[str] = None
-    metrics: Dict[str, Any] = {} # For any extra fields
+    # Single source of truth for all stats (used by frontend normalizeStats)
+    stats: Dict[str, Any] = {}
+    # Legacy field - kept empty for backward compatibility
+    metrics: Dict[str, Any] = {}
 
 class OptimizationResponse(BaseModel):
     strategy_id: str
