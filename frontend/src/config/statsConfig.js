@@ -308,3 +308,98 @@ export const getOptValue = (data, col) => {
 export const getOptVisibleColumns = (results) => {
     return STAT_COLUMNS;
 };
+
+// --- Normalization Helper ---
+
+/**
+ * Normalize stats from any backend format to consistent numeric types.
+ * Handles multiple data locations: top-level fields, metrics dict, stats dict.
+ *
+ * @param {Object} raw - Raw result from backend (backtest or optimization)
+ * @returns {Object} - Normalized stats with consistent numeric types
+ *
+ * Usage:
+ *   const normalized = normalizeStats(rawResult);
+ *   // Now normalized.total_return is always a number
+ *   // normalized.recent_10_win_rate is number or null
+ */
+export const normalizeStats = (raw) => {
+    if (!raw) return {};
+
+    // Helper: extract value from multiple possible locations
+    const getValue = (key) => {
+        // Priority: top-level > stats > metrics
+        if (raw[key] !== undefined) return raw[key];
+        if (raw.stats?.[key] !== undefined) return raw.stats[key];
+        if (raw.metrics?.[key] !== undefined) return raw.metrics[key];
+        return undefined;
+    };
+
+    // Helper: convert to float with fallback
+    const toFloat = (value, defaultVal = 0) => {
+        if (value == null || value === '-' || value === '') return defaultVal;
+        if (typeof value === 'number') return value;
+        if (typeof value === 'string') {
+            const cleaned = value.replace('%', '').replace(',', '').trim();
+            if (cleaned === '-' || cleaned === '') return defaultVal;
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? defaultVal : num;
+        }
+        return defaultVal;
+    };
+
+    // Helper: convert to int with nullable support
+    const toInt = (value, nullable = false) => {
+        if (value == null || value === '-' || value === '') return nullable ? null : 0;
+        if (typeof value === 'number') return Math.round(value);
+        if (typeof value === 'string') {
+            const cleaned = value.replace(',', '').replace('m', '').trim();
+            if (cleaned === '-' || cleaned === '') return nullable ? null : 0;
+            const num = parseInt(cleaned, 10);
+            return isNaN(num) ? (nullable ? null : 0) : num;
+        }
+        return nullable ? null : 0;
+    };
+
+    // Helper: convert to nullable float
+    const toFloatNullable = (value) => {
+        if (value == null || value === '-' || value === '') return null;
+        return toFloat(value, null);
+    };
+
+    return {
+        // Core Performance
+        total_return: toFloat(getValue('total_return')),
+        win_rate: toFloat(getValue('win_rate')),
+        recent_10_win_rate: toFloatNullable(getValue('recent_10_win_rate')),
+        total_trades: toInt(getValue('total_trades')),
+        total_days: toInt(getValue('total_days')),
+
+        // Risk Metrics
+        max_drawdown: toFloat(getValue('max_drawdown')),
+        sharpe_ratio: toFloat(getValue('sharpe_ratio')),
+        profit_factor: toFloat(getValue('profit_factor')),
+
+        // PnL Details
+        avg_pnl: toFloat(getValue('avg_pnl')),
+        max_profit: toFloat(getValue('max_profit')),
+        max_loss: toFloat(getValue('max_loss')),
+
+        // Time Metrics (nullable ints)
+        avg_holding_time: toInt(getValue('avg_holding_time'), true),
+        max_holding_time: toInt(getValue('max_holding_time'), true),
+        min_holding_time: toInt(getValue('min_holding_time'), true),
+
+        // Quality Scores
+        stability_score: toFloat(getValue('stability_score')),
+        acceleration_score: toFloat(getValue('acceleration_score')),
+        activity_rate: toFloat(getValue('activity_rate')),
+
+        // Cycle Metrics (nullable)
+        cycle_count: toInt(getValue('cycle_count'), true),
+        cycle_avg_pnl: toFloatNullable(getValue('cycle_avg_pnl')),
+        cycle_avg_hold: toInt(getValue('cycle_avg_hold'), true),
+        cycle_max_hold: toInt(getValue('cycle_max_hold'), true),
+        cycle_min_hold: toInt(getValue('cycle_min_hold'), true),
+    };
+};

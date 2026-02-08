@@ -1015,39 +1015,33 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                 from ..models.strategy_result import StrategyAnalysisResult
                 db = SessionLocal()
                 try:
-                    # Format top 50 results for DB storage (same format as regular optimization)
+                    # Format top 50 results for DB storage using centralized serializer
+                    from ..core.stats_serializer import serialize_backtest_stats
+
+                    def format_result_item(idx: int, r: dict) -> dict:
+                        """Format single optimization result with standardized stats."""
+                        stats = serialize_backtest_stats(r)
+                        stats_dict = stats.model_dump()
+                        return {
+                            "rank": idx + 1,
+                            "symbol": r.get("symbol", ""),
+                            "config": r.get("config", {}),
+                            "score": r.get("score", 0),
+                            # Standardized stats object
+                            "stats": stats_dict,
+                            # Top-level fields for backward compatibility
+                            "total_return": stats.total_return,
+                            "win_rate": stats.win_rate,
+                            "recent_10_win_rate": stats.recent_10_win_rate,
+                            "total_trades": stats.total_trades,
+                            # Legacy metrics object (deprecated, for backward compat)
+                            "metrics": stats_dict,
+                        }
+
                     result_data = {
                         "strategy_id": strategy_id,
                         "best_config": sorted_top[0]["config"] if sorted_top else {},
-                        "results": [
-                            {
-                                "rank": idx + 1,
-                                "symbol": r.get("symbol", ""),
-                                "config": r.get("config", {}),
-                                "total_return": r.get("total_return", 0),
-                                "win_rate": r.get("win_rate", 0),
-                                "recent_10_win_rate": r.get("recent_10_win_rate", 0),
-                                "total_trades": r.get("total_trades", 0),
-                                "score": r.get("score", 0),
-                                "metrics": {
-                                    "recent_10_win_rate": r.get("recent_10_win_rate"),
-                                    "max_drawdown": r.get("max_drawdown"),
-                                    "profit_factor": r.get("profit_factor"),
-                                    "sharpe_ratio": r.get("sharpe_ratio"),
-                                    "avg_pnl": r.get("avg_pnl"),
-                                    "stability_score": r.get("stability_score"),
-                                    "acceleration_score": r.get("acceleration_score"),
-                                    "activity_rate": r.get("activity_rate"),
-                                    "avg_holding_time": r.get("avg_holding_time"),
-                                    "max_holding_time": r.get("max_holding_time"),
-                                    "min_holding_time": r.get("min_holding_time"),
-                                    "max_profit": r.get("max_profit"),
-                                    "max_loss": r.get("max_loss"),
-                                    "total_days": r.get("total_days"),
-                                }
-                            }
-                            for idx, r in enumerate(sorted_top)
-                        ],
+                        "results": [format_result_item(idx, r) for idx, r in enumerate(sorted_top)],
                         "total_combinations": total_combos,
                         "elapsed_time": elapsed,
                         "status": "completed"
