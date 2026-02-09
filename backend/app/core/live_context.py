@@ -17,12 +17,14 @@ class LiveContext:
     Context for Live Trading Strategies.
     Mimics BacktestContext interface but executes against Real Adapter & DB.
     """
-    def __init__(self, session_id: str, adapter: KiwoomRealAdapter, initial_capital: float = 0.0, is_paper: bool = True):
+    def __init__(self, session_id: str, adapter: KiwoomRealAdapter, initial_capital: float = 0.0, is_paper: bool = True, user_id: int = None, strategy_name: str = None):
         self.session_id = session_id
         self.adapter = adapter
         self.initial_capital = initial_capital
         self._is_paper = is_paper
-        
+        self._user_id = user_id  # For telegram notifications
+        self._strategy_name = strategy_name  # For telegram notifications
+
         # State
         self.cash = initial_capital
         self._holdings = {} # {symbol: quantity} (Synced with Adapter)
@@ -502,6 +504,34 @@ class LiveContext:
                                 )
                             except Exception as cb_err:
                                 logger.error(f"Order callback error: {cb_err}")
+
+                        # 5. Send Telegram notification (fire and forget)
+                        if self._user_id:
+                            try:
+                                import asyncio
+                                from .telegram_service import send_telegram_notification
+                                # Calculate return percentage for SELL orders
+                                return_pct = None
+                                if p.signal_type == "SELL" and p.realized_pnl and p.executed_price and p.filled_quantity:
+                                    cost = (p.executed_price * p.filled_quantity) - p.realized_pnl
+                                    if cost > 0:
+                                        return_pct = (p.realized_pnl / cost) * 100
+
+                                asyncio.create_task(send_telegram_notification(
+                                    db=db,
+                                    user_id=self._user_id,
+                                    notification_type="trade",
+                                    symbol=p.symbol,
+                                    side=p.signal_type,
+                                    quantity=p.filled_quantity,
+                                    price=p.executed_price,
+                                    strategy_name=self._strategy_name or "Unknown",
+                                    is_paper=self._is_paper,
+                                    pnl=p.realized_pnl if p.signal_type == "SELL" else None,
+                                    return_pct=return_pct
+                                ))
+                            except Exception as tg_err:
+                                logger.debug(f"Telegram notification skipped: {tg_err}")
 
                     elif res:
                         p.status = ExecutionStatus.FAILED

@@ -92,8 +92,22 @@ class LiveTradingEngine:
             if not StrategyClass:
                 raise ValueError(f"Strategy '{strategy_name}' not found in registry")
 
+            # 1.1 Get user_id from account for telegram notifications
+            user_id = None
+            if session.account_id:
+                from ..models.account import ExchangeAccount
+                account = db.query(ExchangeAccount).filter_by(id=session.account_id).first()
+                if account:
+                    user_id = account.user_id
+
             # 2. Context
-            self.context = LiveContext(self.session_id, self.adapter, initial_capital=initial_cap, is_paper=self.is_paper)
+            self.context = LiveContext(
+                self.session_id, self.adapter,
+                initial_capital=initial_cap,
+                is_paper=self.is_paper,
+                user_id=user_id,
+                strategy_name=strategy_name
+            )
 
             # Wire exclusive mode gate (blocks buy if another session holds the lock)
             if self._is_exclusive:

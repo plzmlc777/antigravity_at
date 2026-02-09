@@ -59,6 +59,10 @@ const Settings = () => {
     const [defaultAiModel, setDefaultAiModel] = useState('');
     const [selectedProvider, setSelectedProvider] = useState('anthropic'); // 'anthropic' or 'google'
 
+    // Telegram Notification State (Per Account)
+    const [expandedAccountId, setExpandedAccountId] = useState(null);  // Track which account's telegram section is expanded
+    const [accountTelegramState, setAccountTelegramState] = useState({});  // { [accountId]: { settings, loading, showInput, input } }
+
     const showToast = (message, type = 'info') => {
         setToast({ message, type });
     };
@@ -210,6 +214,128 @@ const Settings = () => {
             showToast(error.response?.data?.detail || 'AI API 키 삭제 실패', 'error');
         } finally {
             setAiKeyLoading(false);
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Telegram Notification Functions (Per Account)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const getAccountTelegram = (accountId) => {
+        return accountTelegramState[accountId] || {
+            settings: { enabled: false, has_bot_token: false, token_preview: null, chat_id: '', notify_trades: true, notify_ai_eval: true, notify_errors: true },
+            loading: false,
+            showInput: false,
+            input: { bot_token: '', chat_id: '' }
+        };
+    };
+
+    const setAccountTelegramField = (accountId, field, value) => {
+        setAccountTelegramState(prev => ({
+            ...prev,
+            [accountId]: { ...getAccountTelegram(accountId), ...prev[accountId], [field]: value }
+        }));
+    };
+
+    const fetchTelegramSettings = async (accountId) => {
+        try {
+            const response = await axios.get(`/api/v1/accounts/${accountId}/telegram`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAccountTelegramState(prev => ({
+                ...prev,
+                [accountId]: { ...getAccountTelegram(accountId), ...prev[accountId], settings: response.data }
+            }));
+        } catch (error) {
+            console.error('Failed to fetch Telegram settings:', error);
+        }
+    };
+
+    const handleSaveTelegram = async (accountId) => {
+        const state = getAccountTelegram(accountId);
+        if (!state.input.bot_token && !state.settings.has_bot_token) {
+            showToast('Bot Token을 입력해주세요', 'warning');
+            return;
+        }
+        if (!state.input.chat_id && !state.settings.chat_id) {
+            showToast('Chat ID를 입력해주세요', 'warning');
+            return;
+        }
+
+        setAccountTelegramField(accountId, 'loading', true);
+        try {
+            await axios.put(`/api/v1/accounts/${accountId}/telegram`,
+                {
+                    bot_token: state.input.bot_token || undefined,
+                    chat_id: state.input.chat_id || state.settings.chat_id,
+                    enabled: state.settings.enabled,
+                    notify_trades: state.settings.notify_trades,
+                    notify_ai_eval: state.settings.notify_ai_eval,
+                    notify_errors: state.settings.notify_errors
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            showToast('텔레그램 설정이 저장되었습니다', 'success');
+            setAccountTelegramState(prev => ({
+                ...prev,
+                [accountId]: { ...prev[accountId], showInput: false, input: { bot_token: '', chat_id: '' } }
+            }));
+            fetchTelegramSettings(accountId);
+        } catch (error) {
+            showToast(error.response?.data?.detail || '텔레그램 설정 저장 실패', 'error');
+        } finally {
+            setAccountTelegramField(accountId, 'loading', false);
+        }
+    };
+
+    const handleToggleTelegramSetting = async (accountId, key, value) => {
+        const state = getAccountTelegram(accountId);
+        setAccountTelegramField(accountId, 'loading', true);
+        try {
+            const newSettings = { ...state.settings, [key]: value };
+            await axios.put(`/api/v1/accounts/${accountId}/telegram`,
+                newSettings,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setAccountTelegramState(prev => ({
+                ...prev,
+                [accountId]: { ...prev[accountId], settings: newSettings }
+            }));
+            showToast('설정이 업데이트되었습니다', 'success');
+        } catch (error) {
+            showToast(error.response?.data?.detail || '설정 업데이트 실패', 'error');
+        } finally {
+            setAccountTelegramField(accountId, 'loading', false);
+        }
+    };
+
+    const handleTestTelegram = async (accountId) => {
+        setAccountTelegramField(accountId, 'loading', true);
+        try {
+            const response = await axios.post(`/api/v1/accounts/${accountId}/telegram/test`, {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (response.data.success) {
+                showToast('테스트 메시지가 전송되었습니다', 'success');
+            } else {
+                showToast(response.data.message || '테스트 실패', 'error');
+            }
+        } catch (error) {
+            showToast(error.response?.data?.detail || '테스트 실패', 'error');
+        } finally {
+            setAccountTelegramField(accountId, 'loading', false);
+        }
+    };
+
+    const toggleAccountExpand = (accountId) => {
+        if (expandedAccountId === accountId) {
+            setExpandedAccountId(null);
+        } else {
+            setExpandedAccountId(accountId);
+            // Fetch telegram settings when expanding
+            if (!accountTelegramState[accountId]?.settings?.has_bot_token !== undefined) {
+                fetchTelegramSettings(accountId);
+            }
         }
     };
 
@@ -564,10 +690,14 @@ const Settings = () => {
                     </div>
                 )}
 
-                {accounts.map(acc => (
+                {accounts.map(acc => {
+                    const telegramState = getAccountTelegram(acc.id);
+                    const isExpanded = expandedAccountId === acc.id;
+
+                    return (
                     <div
                         key={acc.id}
-                        className={`flex items-center justify-between p-4 border rounded-xl transition-all ${
+                        className={`border rounded-xl transition-all ${
                             acc.is_disabled
                                 ? 'bg-gray-800/30 border-gray-700/50 opacity-60'
                                 : acc.is_active
@@ -575,68 +705,241 @@ const Settings = () => {
                                     : 'bg-white/5 border-white/10 hover:border-white/20'
                         }`}
                     >
-                        <div className="flex items-center gap-4">
-                            <div className={`h-10 w-10 flex items-center justify-center rounded-lg ${
-                                acc.is_disabled
-                                    ? 'bg-gray-700/50 text-gray-500'
-                                    : acc.is_active
-                                        ? 'bg-blue-500 text-white'
-                                        : 'bg-blue-500/20 text-blue-400'
-                            }`}>
-                                {acc.exchange_name[0]}
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <span className={`font-medium ${acc.is_disabled ? 'text-gray-500' : 'text-white'}`}>
-                                        {acc.account_name}
-                                    </span>
-                                    {acc.is_disabled && (
-                                        <span className="px-2 py-0.5 rounded-full bg-gray-600/30 text-gray-500 text-[10px] font-bold tracking-wider uppercase border border-gray-600/30">
-                                            사용 안함
-                                        </span>
-                                    )}
-                                    {renderEnvBadge(acc)}
-                                    {acc.is_active && (
-                                        <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-500/20">
-                                            Active
-                                        </span>
-                                    )}
+                        {/* Account Header */}
+                        <div className="flex items-center justify-between p-4">
+                            <div className="flex items-center gap-4">
+                                <div className={`h-10 w-10 flex items-center justify-center rounded-lg ${
+                                    acc.is_disabled
+                                        ? 'bg-gray-700/50 text-gray-500'
+                                        : acc.is_active
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-blue-500/20 text-blue-400'
+                                }`}>
+                                    {acc.exchange_name[0]}
                                 </div>
-                                <div className="text-xs text-gray-400">
-                                    {acc.exchange_name} {acc.account_number && `• ${acc.account_number}`}
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`font-medium ${acc.is_disabled ? 'text-gray-500' : 'text-white'}`}>
+                                            {acc.account_name}
+                                        </span>
+                                        {acc.is_disabled && (
+                                            <span className="px-2 py-0.5 rounded-full bg-gray-600/30 text-gray-500 text-[10px] font-bold tracking-wider uppercase border border-gray-600/30">
+                                                사용 안함
+                                            </span>
+                                        )}
+                                        {renderEnvBadge(acc)}
+                                        {acc.is_active && (
+                                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-500/20">
+                                                Active
+                                            </span>
+                                        )}
+                                        {/* Telegram indicator */}
+                                        {telegramState.settings.has_bot_token && telegramState.settings.enabled && (
+                                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold tracking-wider uppercase border border-cyan-500/20">
+                                                📱 Telegram
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                        {acc.exchange_name} {acc.account_number && `• ${acc.account_number}`}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {!acc.is_active && !acc.is_disabled && (
+                            <div className="flex items-center gap-2">
+                                {!acc.is_active && !acc.is_disabled && (
+                                    <button
+                                        onClick={() => handleActivate(acc.id)}
+                                        className="px-3 py-1.5 rounded text-xs font-medium bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
+                                    >
+                                        Activate
+                                    </button>
+                                )}
+                                {/* Telegram Settings Toggle */}
+                                {!acc.is_disabled && (
+                                    <button
+                                        onClick={() => toggleAccountExpand(acc.id)}
+                                        className={`p-2 rounded transition-colors ${isExpanded ? 'bg-cyan-500/20 text-cyan-400' : 'text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10'}`}
+                                        title="텔레그램 설정"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M11.944 0A12 12 0 1 0 24 12.056A12.014 12.014 0 0 0 11.944 0Zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472c-.18 1.898-.962 6.502-1.36 8.627c-.168.9-.499 1.201-.82 1.23c-.696.065-1.225-.46-1.9-.902c-1.056-.693-1.653-1.124-2.678-1.8c-1.185-.78-.417-1.21.258-1.91c.177-.184 3.247-2.977 3.307-3.23c.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345c-.48.33-.913.49-1.302.48c-.428-.008-1.252-.241-1.865-.44c-.752-.245-1.349-.374-1.297-.789c.027-.216.325-.437.893-.663c3.498-1.524 5.83-2.529 6.998-3.014c3.332-1.386 4.025-1.627 4.476-1.635Z"/>
+                                        </svg>
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => handleActivate(acc.id)}
-                                    className="px-3 py-1.5 rounded text-xs font-medium bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
+                                    onClick={() => openEditModal(acc)}
+                                    className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded transition-colors"
+                                    title="편집"
                                 >
-                                    Activate
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
                                 </button>
-                            )}
-                            <button
-                                onClick={() => openEditModal(acc)}
-                                className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded transition-colors"
-                                title="편집"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                            </button>
-                            <button
-                                onClick={() => handleDelete(acc.id)}
-                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded transition-colors"
-                                title="삭제"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                                <button
+                                    onClick={() => handleDelete(acc.id)}
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded transition-colors"
+                                    title="삭제"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+
+                        {/* Telegram Settings Section (Expandable) */}
+                        {isExpanded && !acc.is_disabled && (
+                            <div className="px-4 pb-4 pt-2 border-t border-white/10">
+                                <div className="bg-gradient-to-br from-cyan-500/5 to-blue-500/5 rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-cyan-400" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M11.944 0A12 12 0 1 0 24 12.056A12.014 12.014 0 0 0 11.944 0Zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472c-.18 1.898-.962 6.502-1.36 8.627c-.168.9-.499 1.201-.82 1.23c-.696.065-1.225-.46-1.9-.902c-1.056-.693-1.653-1.124-2.678-1.8c-1.185-.78-.417-1.21.258-1.91c.177-.184 3.247-2.977 3.307-3.23c.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345c-.48.33-.913.49-1.302.48c-.428-.008-1.252-.241-1.865-.44c-.752-.245-1.349-.374-1.297-.789c.027-.216.325-.437.893-.663c3.498-1.524 5.83-2.529 6.998-3.014c3.332-1.386 4.025-1.627 4.476-1.635Z"/>
+                                            </svg>
+                                            <span className="text-sm font-semibold text-cyan-400">Telegram 알림</span>
+                                        </div>
+                                        {/* Enable Toggle */}
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                                                telegramState.settings.enabled
+                                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                                    : 'bg-red-500/20 text-red-400 border border-red-500/50'
+                                            }`}>
+                                                {telegramState.settings.enabled ? 'ON' : 'OFF'}
+                                            </span>
+                                            <button
+                                                onClick={() => handleToggleTelegramSetting(acc.id, 'enabled', !telegramState.settings.enabled)}
+                                                disabled={telegramState.loading || !telegramState.settings.has_bot_token}
+                                                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors border-2 ${
+                                                    telegramState.settings.enabled
+                                                        ? 'bg-cyan-500 border-cyan-400'
+                                                        : 'bg-gray-700 border-gray-500'
+                                                } ${(!telegramState.settings.has_bot_token || telegramState.loading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                            >
+                                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                                                    telegramState.settings.enabled ? 'translate-x-7' : 'translate-x-1'
+                                                }`} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Connection Status */}
+                                    {telegramState.settings.has_bot_token && telegramState.settings.chat_id ? (
+                                        <div className="flex items-center justify-between p-2 rounded bg-black/20 mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`inline-block w-2 h-2 rounded-full ${telegramState.settings.enabled ? 'bg-cyan-400 animate-pulse' : 'bg-gray-500'}`}></span>
+                                                <span className="text-xs text-cyan-400">연결됨</span>
+                                                <span className="text-xs text-gray-500">Chat: {telegramState.settings.chat_id}</span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleTestTelegram(acc.id)}
+                                                    disabled={telegramState.loading}
+                                                    className="px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-xs rounded transition-colors"
+                                                >
+                                                    테스트
+                                                </button>
+                                                <button
+                                                    onClick={() => setAccountTelegramState(prev => ({
+                                                        ...prev,
+                                                        [acc.id]: { ...prev[acc.id], showInput: true }
+                                                    }))}
+                                                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-gray-300 text-xs rounded transition-colors"
+                                                >
+                                                    변경
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center p-3 rounded bg-black/20 mb-3">
+                                            <p className="text-xs text-gray-400 mb-2">텔레그램 봇이 연결되지 않았습니다.</p>
+                                            <button
+                                                onClick={() => setAccountTelegramState(prev => ({
+                                                    ...prev,
+                                                    [acc.id]: { ...prev[acc.id], showInput: true }
+                                                }))}
+                                                className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-medium rounded transition-colors"
+                                            >
+                                                봇 연결
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Input Form */}
+                                    {telegramState.showInput && (
+                                        <div className="p-3 rounded bg-black/30 border border-cyan-500/20 mb-3 space-y-2">
+                                            <p className="text-xs text-gray-500">@BotFather에서 봇 생성 → Token 복사 / @userinfobot으로 Chat ID 확인</p>
+                                            <input
+                                                type="password"
+                                                value={telegramState.input.bot_token}
+                                                onChange={(e) => setAccountTelegramState(prev => ({
+                                                    ...prev,
+                                                    [acc.id]: { ...prev[acc.id], input: { ...prev[acc.id]?.input, bot_token: e.target.value } }
+                                                }))}
+                                                placeholder={telegramState.settings.has_bot_token ? '(기존 토큰 유지)' : 'Bot Token'}
+                                                className="w-full bg-black/50 border border-white/20 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={telegramState.input.chat_id}
+                                                onChange={(e) => setAccountTelegramState(prev => ({
+                                                    ...prev,
+                                                    [acc.id]: { ...prev[acc.id], input: { ...prev[acc.id]?.input, chat_id: e.target.value } }
+                                                }))}
+                                                placeholder={telegramState.settings.chat_id || 'Chat ID'}
+                                                className="w-full bg-black/50 border border-white/20 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                                            />
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleSaveTelegram(acc.id)}
+                                                    disabled={telegramState.loading}
+                                                    className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-medium rounded transition-colors disabled:opacity-50"
+                                                >
+                                                    {telegramState.loading ? '저장 중...' : '저장'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setAccountTelegramState(prev => ({
+                                                        ...prev,
+                                                        [acc.id]: { ...prev[acc.id], showInput: false, input: { bot_token: '', chat_id: '' } }
+                                                    }))}
+                                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-gray-300 text-xs rounded transition-colors"
+                                                >
+                                                    취소
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Notification Options */}
+                                    {telegramState.settings.has_bot_token && (
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                { key: 'notify_trades', label: '거래 체결' },
+                                                { key: 'notify_ai_eval', label: 'AI 평가' },
+                                                { key: 'notify_errors', label: '오류 알림' }
+                                            ].map(opt => (
+                                                <div key={opt.key} className="flex items-center justify-between p-2 rounded bg-black/20">
+                                                    <span className="text-xs text-gray-300">{opt.label}</span>
+                                                    <button
+                                                        onClick={() => handleToggleTelegramSetting(acc.id, opt.key, !telegramState.settings[opt.key])}
+                                                        disabled={telegramState.loading}
+                                                        className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                                                            telegramState.settings[opt.key] ? 'bg-cyan-500' : 'bg-gray-600'
+                                                        }`}
+                                                    >
+                                                        <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white transition-transform ${
+                                                            telegramState.settings[opt.key] ? 'translate-x-3.5' : 'translate-x-0.5'
+                                                        }`} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ))}
+                )})}
             </div>
 
             {/* Password Change Section */}
@@ -959,6 +1262,7 @@ const Settings = () => {
                     </div>
                 )}
             </div>
+
         </div>
     );
 };

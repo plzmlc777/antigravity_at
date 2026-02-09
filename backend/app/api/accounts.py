@@ -485,10 +485,11 @@ ANTHROPIC_MODELS = [
     {"id": "claude-opus-4-5-20251101", "name": "Claude Opus 4.5", "description": "Most capable", "provider": "anthropic"},
 ]
 
-# Fallback Google models (used when API key not available) - only latest version
+# Fallback Google models (used when API key not available) - latest + previous version
 GOOGLE_MODELS_FALLBACK = [
     {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "description": "Best for complex tasks", "provider": "google"},
     {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "description": "Fast & versatile", "provider": "google"},
+    {"id": "gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "description": "Fast & versatile (Previous)", "provider": "google"},
 ]
 
 # Combined list for validation (will be updated dynamically)
@@ -766,11 +767,12 @@ async def fetch_google_models(api_key: str) -> List[dict]:
                     return 10
                 return 0
 
-            # Find the highest version among all models
+            # Find the top 2 versions among all models (latest + previous)
             if models:
-                max_version = max(get_version(m["id"]) for m in models)
-                # Filter to only include models with the highest version
-                models = [m for m in models if get_version(m["id"]) == max_version]
+                all_versions = sorted(set(get_version(m["id"]) for m in models), reverse=True)
+                # Keep top 2 versions (e.g., gemini-3 and gemini-2.5)
+                top_versions = set(all_versions[:2])
+                models = [m for m in models if get_version(m["id"]) in top_versions]
 
             # Sort: pro before flash, stable before preview
             def sort_key(m):
@@ -865,3 +867,149 @@ def set_ai_model(
         "message": f"AI model set to {request.ai_model}",
         "ai_model": request.ai_model
     }
+
+
+# ========================================
+# Telegram Notification Settings
+# ========================================
+
+class TelegramSettingsRequest(BaseModel):
+    """텔레그램 설정"""
+    bot_token: Optional[str] = None
+    chat_id: Optional[str] = None
+    enabled: bool = False
+    notify_trades: bool = True
+    notify_ai_eval: bool = True
+    notify_errors: bool = True
+
+
+class TelegramSettingsResponse(BaseModel):
+    """텔레그램 설정 상태"""
+    enabled: bool = False
+    has_bot_token: bool = False
+    token_preview: Optional[str] = None
+    chat_id: Optional[str] = None
+    notify_trades: bool = True
+    notify_ai_eval: bool = True
+    notify_errors: bool = True
+
+
+@router.get("/{account_id}/telegram", response_model=TelegramSettingsResponse)
+def get_telegram_settings(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get Telegram notification settings for a specific account.
+    """
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.id == account_id,
+        ExchangeAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    has_token = bool(account.encrypted_telegram_bot_token)
+    token_preview = None
+
+    if has_token:
+        try:
+            decrypted = security.decrypt_key(account.encrypted_telegram_bot_token)
+            if len(decrypted) > 15:
+                token_preview = f"{decrypted[:10]}...{decrypted[-4:]}"
+            else:
+                token_preview = f"{decrypted[:5]}..."
+        except Exception:
+            pass
+
+    return TelegramSettingsResponse(
+        enabled=account.telegram_enabled or False,
+        has_bot_token=has_token,
+        token_preview=token_preview,
+        chat_id=account.telegram_chat_id,
+        notify_trades=account.telegram_notify_trades if account.telegram_notify_trades is not None else True,
+        notify_ai_eval=account.telegram_notify_ai_eval if account.telegram_notify_ai_eval is not None else True,
+        notify_errors=account.telegram_notify_errors if account.telegram_notify_errors is not None else True
+    )
+
+
+@router.put("/{account_id}/telegram")
+def update_telegram_settings(
+    account_id: int,
+    request: TelegramSettingsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update Telegram notification settings for a specific account.
+    """
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.id == account_id,
+        ExchangeAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Update bot token if provided
+    if request.bot_token:
+        account.encrypted_telegram_bot_token = security.encrypt_key(request.bot_token)
+
+    # Update other settings
+    if request.chat_id is not None:
+        account.telegram_chat_id = request.chat_id
+
+    account.telegram_enabled = request.enabled
+    account.telegram_notify_trades = request.notify_trades
+    account.telegram_notify_ai_eval = request.notify_ai_eval
+    account.telegram_notify_errors = request.notify_errors
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Telegram settings updated",
+        "settings": {
+            "enabled": account.telegram_enabled,
+            "has_bot_token": bool(account.encrypted_telegram_bot_token),
+            "chat_id": account.telegram_chat_id,
+            "notify_trades": account.telegram_notify_trades,
+            "notify_ai_eval": account.telegram_notify_ai_eval,
+            "notify_errors": account.telegram_notify_errors
+        }
+    }
+
+
+@router.post("/{account_id}/telegram/test")
+async def test_telegram_connection(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Test Telegram bot connection for a specific account.
+    """
+    from ..core.telegram_service import test_telegram_connection as test_connection
+
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.id == account_id,
+        ExchangeAccount.user_id == current_user.id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if not account.encrypted_telegram_bot_token:
+        raise HTTPException(status_code=400, detail="Bot token not configured")
+
+    if not account.telegram_chat_id:
+        raise HTTPException(status_code=400, detail="Chat ID not configured")
+
+    try:
+        bot_token = security.decrypt_key(account.encrypted_telegram_bot_token)
+        result = await test_connection(bot_token, account.telegram_chat_id)
+        return result
+    except Exception as e:
+        return {"success": False, "message": f"Test failed: {str(e)}"}

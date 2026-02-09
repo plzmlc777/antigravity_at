@@ -26,6 +26,14 @@ class ExchangeAccount(Base):
     encrypted_google_api_key = Column(String, nullable=True)  # Google/Gemini API key
     ai_model = Column(String, nullable=True, default="claude-sonnet-4-20250514")  # Default AI model
 
+    # Telegram Notifications
+    encrypted_telegram_bot_token = Column(String, nullable=True)  # Telegram Bot Token
+    telegram_chat_id = Column(String, nullable=True)  # Telegram Chat ID
+    telegram_enabled = Column(Boolean, default=False)  # 텔레그램 알림 활성화
+    telegram_notify_trades = Column(Boolean, default=True)  # 매수/매도 체결 알림
+    telegram_notify_ai_eval = Column(Boolean, default=True)  # AI 평가 결과 알림
+    telegram_notify_errors = Column(Boolean, default=True)  # 오류 알림
+
     # Status
     is_active = Column(Boolean, default=False)
     is_disabled = Column(Boolean, default=False)  # 사용 안함 상태

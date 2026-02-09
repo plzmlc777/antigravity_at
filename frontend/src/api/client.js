@@ -398,3 +398,23 @@ export const recalculateOptimizationScores = async (taskId, weights, topN = 50) 
     }, { timeout: 180000 }); // 3 minute timeout for large CSV files
     return data;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Telegram Notification Settings (Per Account)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const getTelegramSettings = async (accountId) => {
+    const { data } = await api.get(`/accounts/${accountId}/telegram`);
+    return data;
+};
+
+export const updateTelegramSettings = async (accountId, settings) => {
+    // settings: { bot_token, chat_id, enabled, notify_trades, notify_ai_eval, notify_errors }
+    const { data } = await api.put(`/accounts/${accountId}/telegram`, settings);
+    return data;
+};
+
+export const testTelegramConnection = async (accountId) => {
+    const { data } = await api.post(`/accounts/${accountId}/telegram/test`);
+    return data;
+};

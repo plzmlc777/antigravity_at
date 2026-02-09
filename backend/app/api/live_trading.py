@@ -1286,6 +1286,36 @@ async def run_ai_evaluation(
 
         db.commit()
 
+        # Send Telegram notification with full details
+        try:
+            from ..core.telegram_service import send_telegram_notification
+            comparison = result.get("comparison_data", {})
+            live_stats = result.get("live_stats", {})
+            backtest_stats = result.get("backtest_stats", {})
+            key_findings = result.get("key_findings", {})
+
+            await send_telegram_notification(
+                db=db,
+                user_id=ctx.user.id,
+                notification_type="ai_eval",
+                symbol=session.symbol,
+                strategy_name=session.strategy_name,
+                grade=comparison.get("overall_grade", "N/A"),
+                cycles_analyzed=result.get("cycles_analyzed", 0),
+                is_paper=is_paper,
+                live_return=live_stats.get("total_return", 0),
+                backtest_return=backtest_stats.get("total_return", 0),
+                return_diff=comparison.get("return_diff", 0),
+                action=key_findings.get("action"),
+                key_reason=key_findings.get("main_issue"),
+                ai_response=result.get("ai_response"),
+                live_stats=live_stats,          # 라이브 통계 전체
+                backtest_stats=backtest_stats,  # 백테스트 통계 전체
+                comparison=comparison           # 비교 데이터 전체
+            )
+        except Exception as tg_err:
+            logger.warning(f"Telegram notification failed: {tg_err}")
+
         return {
             "status": "success",
             "evaluation_id": evaluation.id,
