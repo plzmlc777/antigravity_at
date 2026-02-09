@@ -113,6 +113,7 @@ class ScoreWeights(BaseModel):
     avg_pnl_weight: float = 1.0    # Avg PnL per cycle weight (0 = exclude)
     # Secondary weights (optional, default 0)
     win_rate_weight: float = 0.0   # Win rate weight (cycle-based)
+    recent_10_weight: float = 0.0  # Recent 10 cycles win rate weight (momentum indicator)
     profit_factor_weight: float = 0.0  # Profit factor weight
     accel_weight: float = 0.0      # Acceleration weight
     trades_weight: float = 0.0     # Total trades weight (= cycle count for martingale)
@@ -127,6 +128,7 @@ class ScoreWeights(BaseModel):
                 "mdd_weight": 1.5,
                 "avg_pnl_weight": 1.0,
                 "win_rate_weight": 0.0,
+                "recent_10_weight": 0.0,
                 "profit_factor_weight": 0.0,
                 "accel_weight": 0.0,
                 "trades_weight": 0.0,

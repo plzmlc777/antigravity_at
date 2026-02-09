@@ -1913,6 +1913,7 @@ const StrategyView = () => {
             mdd_weight: 1.5,
             avg_pnl_weight: 1.0,  // 사이클당 평균 손익 (마틴게일 핵심 지표)
             win_rate_weight: 0.0,
+            recent_10_weight: 0.0,  // 최근 10 사이클 승률 (모멘텀)
             profit_factor_weight: 0.0,
             accel_weight: 0.0,
             trades_weight: 0.0,  // = Cycle count
@@ -1925,6 +1926,7 @@ const StrategyView = () => {
             mdd_weight: 0.5,
             avg_pnl_weight: 1.5,  // 사이클당 수익 강조
             win_rate_weight: 0.5,
+            recent_10_weight: 0.0,
             profit_factor_weight: 0.5,
             accel_weight: 0.0,
             trades_weight: 0.0,
@@ -1937,6 +1939,7 @@ const StrategyView = () => {
             mdd_weight: 2.0,
             avg_pnl_weight: 0.5,  // 일관된 사이클 손익
             win_rate_weight: 0.5,
+            recent_10_weight: 0.0,
             profit_factor_weight: 0.0,
             accel_weight: 0.0,
             trades_weight: 0.5,  // 많은 사이클 = 검증된 전략
@@ -5083,6 +5086,7 @@ const StrategyView = () => {
                                                                     <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                                                                         {[
                                                                             { key: 'win_rate_weight', label: 'WinRate', color: 'cyan' },
+                                                                            { key: 'recent_10_weight', label: 'Recent10', color: 'lime' },
                                                                             { key: 'profit_factor_weight', label: 'ProfitFactor', color: 'emerald' },
                                                                             { key: 'accel_weight', label: 'Accel', color: 'yellow' },
                                                                             { key: 'trades_weight', label: 'Cycles', color: 'orange' },

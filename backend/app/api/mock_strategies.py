@@ -1282,6 +1282,7 @@ def _calculate_weighted_score(row: dict, weights: ScoreWeights) -> float:
     stability = _parse_numeric(row.get('stability_score', 0))
     mdd = abs(_parse_numeric(row.get('max_drawdown', 0)))
     wr = _parse_numeric(row.get('win_rate', 0))  # Cycle win rate
+    recent_10 = _parse_numeric(row.get('recent_10_win_rate', 0))  # Recent 10 cycles win rate
     pf = _parse_numeric(row.get('profit_factor', 0))
     accel = _parse_numeric(row.get('acceleration_score', 0))
     trades = _parse_numeric(row.get('total_trades', 0))  # = Cycle count
@@ -1323,6 +1324,12 @@ def _calculate_weighted_score(row: dict, weights: ScoreWeights) -> float:
     if weights.win_rate_weight > 0:
         wr_normalized = wr / 100.0  # Convert to 0-1
         numerator *= pow(max(wr_normalized, 0.01), weights.win_rate_weight)
+
+    if weights.recent_10_weight > 0:
+        # Recent 10 win rate: momentum indicator (fallback to overall win rate if null)
+        recent_10_val = recent_10 if recent_10 > 0 else wr
+        recent_10_normalized = recent_10_val / 100.0  # Convert to 0-1
+        numerator *= pow(max(recent_10_normalized, 0.01), weights.recent_10_weight)
 
     if weights.profit_factor_weight > 0:
         pf_normalized = min(pf, 10.0)  # Cap at 10
