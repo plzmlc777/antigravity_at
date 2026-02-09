@@ -35,21 +35,29 @@ class LiveAIEvaluationService:
         self,
         session_id: str,
         symbol: str,
-        n_cycles: int = 10
+        n_cycles: int = 10,
+        is_paper: bool = False
     ) -> Dict[str, Any]:
         """
         Collect stats from recent N cycles of live trading.
+
+        Args:
+            session_id: Live session ID
+            symbol: Trading symbol
+            n_cycles: Number of recent cycles to analyze
+            is_paper: True for paper trades, False for real trades
 
         Returns:
             Dict with live trading statistics matching BacktestStats format
         """
         from ..models.live_trading import LiveTradeExecution, ExecutionStatus
 
-        # Get filled executions for this session, ordered by time
+        # Get filled executions for this session, filtered by mode
         executions = self.db.query(LiveTradeExecution).filter(
             LiveTradeExecution.session_id == session_id,
             LiveTradeExecution.symbol == symbol,
-            LiveTradeExecution.status == ExecutionStatus.FILLED
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+            LiveTradeExecution.is_paper == is_paper
         ).order_by(LiveTradeExecution.signal_timestamp.asc()).all()
 
         if not executions:
@@ -335,17 +343,20 @@ class LiveAIEvaluationService:
         strategy_config: Dict[str, Any],
         live_stats: Dict[str, Any],
         backtest_stats: Dict[str, Any],
-        comparison: Dict[str, Any]
+        comparison: Dict[str, Any],
+        is_paper: bool = False
     ) -> str:
         """Build prompt for AI evaluation."""
 
         params = strategy_config.get("params", {})
+        mode_label = "Paper (모의)" if is_paper else "Real (실거래)"
 
         prompt = f"""# 라이브 트레이딩 성과 평가 요청
 
 ## 1. 세션 정보
 - 종목: {symbol}
 - 전략: {strategy_name}
+- 거래 모드: **{mode_label}**
 - 분석 사이클 수: {live_stats.get('cycles_analyzed', 0)}개
 
 ## 2. 전략 파라미터
@@ -497,18 +508,22 @@ class LiveAIEvaluationService:
         strategy_config: Dict[str, Any],
         n_cycles: int = 10,
         backtest_days: int = 30,
-        evaluation_type: str = "MANUAL"
+        evaluation_type: str = "MANUAL",
+        is_paper: bool = False
     ) -> Dict[str, Any]:
         """
         Run complete AI evaluation workflow.
+
+        Args:
+            is_paper: True to analyze paper trades, False for real trades
 
         Returns:
             Dict with evaluation results for storage
         """
         from datetime import datetime
 
-        # Step 1: Collect live stats
-        live_stats = self.collect_live_stats(session_id, symbol, n_cycles)
+        # Step 1: Collect live stats (filtered by mode)
+        live_stats = self.collect_live_stats(session_id, symbol, n_cycles, is_paper=is_paper)
         if "error" in live_stats:
             return {"status": "failed", "error": live_stats["error"]}
 
@@ -523,7 +538,8 @@ class LiveAIEvaluationService:
         # Step 4: Build AI prompt
         prompt = self.build_evaluation_prompt(
             symbol, strategy_name, strategy_config,
-            live_stats, backtest_stats, comparison
+            live_stats, backtest_stats, comparison,
+            is_paper=is_paper
         )
 
         # Step 5: Call AI API
@@ -540,6 +556,7 @@ class LiveAIEvaluationService:
             "session_id": session_id,
             "symbol": symbol,
             "evaluation_type": evaluation_type,
+            "is_paper": is_paper,
             "trigger_cycle_count": n_cycles,
             "cycles_analyzed": live_stats.get("cycles_analyzed", 0),
             "analysis_start_time": live_stats.get("analysis_start_time"),

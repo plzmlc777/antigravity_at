@@ -24,6 +24,7 @@ def main():
 
                 -- Trigger Info
                 evaluation_type VARCHAR DEFAULT 'MANUAL',
+                is_paper BOOLEAN DEFAULT FALSE,
                 trigger_cycle_count INTEGER DEFAULT 0,
 
                 -- Analysis Window

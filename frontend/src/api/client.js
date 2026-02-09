@@ -237,10 +237,11 @@ export const getAccumulatedStats = async (symbols = [], strategyName = '') => {
 
 // AI Evaluation API
 export const runAIEvaluation = async (sessionId, options = {}) => {
-    const { n_cycles = 10, backtest_days = 30 } = options;
+    const { n_cycles = 10, backtest_days = 30, mode = 'real' } = options;
     const { data } = await api.post(`/live/${sessionId}/ai-evaluate`, {
         n_cycles,
-        backtest_days
+        backtest_days,
+        mode
     }, { timeout: 120000 });  // 2min timeout for AI API call
     return data;
 };

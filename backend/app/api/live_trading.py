@@ -1199,6 +1199,7 @@ async def update_version_performance_stats(version_id: str):
 class AIEvaluationRequest(PydanticBaseModel):
     n_cycles: int = 10  # Number of recent cycles to analyze
     backtest_days: int = 30  # Days for comparison backtest
+    mode: str = "real"  # 'paper' | 'real' - which trades to analyze
 
 
 @router.post("/{session_id}/ai-evaluate")
@@ -1236,6 +1237,7 @@ async def run_ai_evaluation(
         service = LiveAIEvaluationService(db)
 
         # Run full evaluation
+        is_paper = req.mode.lower() == "paper"
         result = await service.run_full_evaluation(
             session_id=session_id,
             symbol=session.symbol,
@@ -1243,7 +1245,8 @@ async def run_ai_evaluation(
             strategy_config=session.strategy_config,
             n_cycles=req.n_cycles,
             backtest_days=req.backtest_days,
-            evaluation_type="MANUAL"
+            evaluation_type="MANUAL",
+            is_paper=is_paper
         )
 
         if result.get("status") == "failed":
@@ -1255,6 +1258,7 @@ async def run_ai_evaluation(
             session_id=session_id,
             symbol=session.symbol,
             evaluation_type="MANUAL",
+            is_paper=is_paper,
             trigger_cycle_count=req.n_cycles,
             analysis_start_time=datetime.fromisoformat(result["analysis_start_time"]) if result.get("analysis_start_time") else None,
             analysis_end_time=datetime.fromisoformat(result["analysis_end_time"]) if result.get("analysis_end_time") else None,
@@ -1279,6 +1283,7 @@ async def run_ai_evaluation(
         return {
             "status": "success",
             "evaluation_id": evaluation.id,
+            "mode": "paper" if is_paper else "real",
             "grade": result.get("comparison_data", {}).get("overall_grade", "N/A"),
             "cycles_analyzed": result.get("cycles_analyzed", 0),
             "ai_response": result.get("ai_response"),
@@ -1329,6 +1334,7 @@ async def list_ai_evaluations(
             {
                 "id": e.id,
                 "evaluation_type": e.evaluation_type,
+                "mode": "paper" if e.is_paper else "real",
                 "cycles_analyzed": e.cycles_analyzed,
                 "grade": e.comparison_data.get("overall_grade") if e.comparison_data else None,
                 "evaluation_score": e.evaluation_score,
@@ -1372,6 +1378,7 @@ async def get_ai_evaluation(
         "session_id": evaluation.session_id,
         "symbol": evaluation.symbol,
         "evaluation_type": evaluation.evaluation_type,
+        "mode": "paper" if evaluation.is_paper else "real",
         "trigger_cycle_count": evaluation.trigger_cycle_count,
         "cycles_analyzed": evaluation.cycles_analyzed,
         "analysis_start_time": evaluation.analysis_start_time.isoformat() if evaluation.analysis_start_time else None,

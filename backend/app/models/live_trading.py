@@ -204,6 +204,7 @@ class LiveAIEvaluation(Base):
 
     # Trigger Info
     evaluation_type = Column(String, default=EvaluationType.MANUAL)  # MANUAL or AUTO
+    is_paper = Column(Boolean, default=False)  # Paper mode or Real mode
     trigger_cycle_count = Column(Integer, default=0)  # N cycles that triggered this evaluation
 
     # Analysis Window

@@ -58,6 +58,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [aiEvalHistory, setAiEvalHistory] = useState([]); // Past evaluations
     const [showAiEvalPanel, setShowAiEvalPanel] = useState(false);
     const [aiEvalCycles, setAiEvalCycles] = useState(10); // Number of cycles to analyze
+    const [aiEvalMode, setAiEvalMode] = useState('real'); // 'paper' | 'real'
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -1952,7 +1953,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                                         <div className="p-4 space-y-4">
                                             {/* Evaluation Controls */}
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-4 flex-wrap">
+                                                {/* Mode Selector */}
+                                                <div className="flex items-center gap-1">
+                                                    {['real', 'paper'].map(m => (
+                                                        <button
+                                                            key={m}
+                                                            onClick={() => setAiEvalMode(m)}
+                                                            className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider border transition-all ${
+                                                                aiEvalMode === m
+                                                                    ? m === 'real' ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                                                                    : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
+                                                                    : 'bg-white/5 text-gray-500 border-white/10 hover:bg-white/10'
+                                                            }`}
+                                                        >
+                                                            {m === 'real' ? 'Real' : 'Paper'}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-gray-400 text-sm">Cycles:</span>
                                                     <select
@@ -1970,7 +1988,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         setIsAiEvaluating(true);
                                                         setAiEvaluation(null);
                                                         try {
-                                                            const result = await runAIEvaluation(sessionId, { n_cycles: aiEvalCycles });
+                                                            const result = await runAIEvaluation(sessionId, {
+                                                                n_cycles: aiEvalCycles,
+                                                                mode: aiEvalMode
+                                                            });
                                                             setAiEvaluation(result);
                                                             // Refresh history
                                                             const history = await listAIEvaluations(sessionId);
@@ -2031,7 +2052,16 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                     {aiEvaluation.grade || 'N/A'}
                                                                 </div>
                                                                 <div className="text-sm text-gray-400">
-                                                                    <div>{aiEvaluation.cycles_analyzed} cycles analyzed</div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span>{aiEvaluation.cycles_analyzed} cycles analyzed</span>
+                                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                                            aiEvaluation.mode === 'real'
+                                                                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                                                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                                                        }`}>
+                                                                            {aiEvaluation.mode === 'real' ? 'Real' : 'Paper'}
+                                                                        </span>
+                                                                    </div>
                                                                     <div className="text-xs text-gray-500">
                                                                         {aiEvaluation.key_findings?.action && (
                                                                             <span className={`font-bold ${
@@ -2100,6 +2130,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                     const full = await getAIEvaluationDetail(eval_.id);
                                                                     setAiEvaluation({
                                                                         grade: full.comparison_data?.overall_grade,
+                                                                        mode: full.mode,
                                                                         cycles_analyzed: full.cycles_analyzed,
                                                                         key_findings: full.key_findings,
                                                                         comparison: full.comparison_data,
@@ -2120,6 +2151,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                     eval_.grade === 'D' ? 'text-orange-400' :
                                                                     'text-red-400'
                                                                 }`}>{eval_.grade || '-'}</span>
+                                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                                    eval_.mode === 'real'
+                                                                        ? 'bg-red-500/20 text-red-400'
+                                                                        : 'bg-amber-500/20 text-amber-400'
+                                                                }`}>
+                                                                    {eval_.mode === 'real' ? 'R' : 'P'}
+                                                                </span>
                                                                 <div className="text-sm text-gray-400">
                                                                     {eval_.cycles_analyzed} cycles
                                                                 </div>
