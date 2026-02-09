@@ -70,6 +70,12 @@ class LiveBotSession(Base):
     # Error Tracking
     error_log = Column(String, nullable=True)
 
+    # AI Evaluation Settings (for auto-evaluation)
+    ai_eval_enabled = Column(Boolean, default=False)  # 자동 평가 활성화 여부
+    ai_eval_cycles = Column(Integer, default=10)      # N 사이클마다 자동 평가
+    ai_eval_backtest_days = Column(Integer, default=30)  # 비교 백테스트 기간
+    ai_eval_mode = Column(String, default="paper")    # 분석 대상 모드 (paper/real)
+
     # Relations
     executions = relationship("LiveTradeExecution", back_populates="session", cascade="all, delete-orphan")
 

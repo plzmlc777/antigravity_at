@@ -24,12 +24,43 @@ DEFAULT_MODEL = "gemini-2.0-flash-001"
 class LiveAIEvaluationService:
     """Service for AI-powered live trading evaluation."""
 
-    def __init__(self, db: Session, api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, db: Session, user_id: Optional[int] = None, api_key: Optional[str] = None, model: Optional[str] = None):
         self.db = db
-        self.api_key = api_key or os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY")
+        self.user_id = user_id
+
+        # Try to get API key from: 1) explicit param, 2) database, 3) env vars
+        self.api_key = api_key
         self.model = model or DEFAULT_MODEL
+
+        if not self.api_key and user_id:
+            # Get from database
+            self._load_api_key_from_db(user_id)
+
+        if not self.api_key:
+            # Fallback to env vars
+            self.api_key = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY")
+
         if not self.api_key:
             logger.warning("Google AI API key not set. AI evaluation will be disabled.")
+
+    def _load_api_key_from_db(self, user_id: int):
+        """Load Google API key from user's active account."""
+        from ..models.account import ExchangeAccount
+        from ..core import security
+
+        try:
+            account = self.db.query(ExchangeAccount).filter(
+                ExchangeAccount.user_id == user_id,
+                ExchangeAccount.is_active == True
+            ).first()
+
+            if account and account.encrypted_google_api_key:
+                self.api_key = security.decrypt_key(account.encrypted_google_api_key)
+                if account.ai_model:
+                    self.model = account.ai_model
+                logger.info(f"Loaded Google API key from database for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to load API key from database: {e}")
 
     def collect_live_stats(
         self,
@@ -51,6 +82,7 @@ class LiveAIEvaluationService:
             Dict with live trading statistics matching BacktestStats format
         """
         from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+        from sqlalchemy import func
 
         # Get filled executions for this session, filtered by mode
         executions = self.db.query(LiveTradeExecution).filter(
@@ -61,7 +93,32 @@ class LiveAIEvaluationService:
         ).order_by(LiveTradeExecution.signal_timestamp.asc()).all()
 
         if not executions:
-            return {"error": "No filled executions found", "cycles_analyzed": 0}
+            # Check what executions exist for better error message
+            mode_counts = self.db.query(
+                LiveTradeExecution.is_paper,
+                func.count(LiveTradeExecution.id)
+            ).filter(
+                LiveTradeExecution.session_id == session_id,
+                LiveTradeExecution.symbol == symbol,
+                LiveTradeExecution.status == ExecutionStatus.FILLED
+            ).group_by(LiveTradeExecution.is_paper).all()
+
+            mode_info = {row[0]: row[1] for row in mode_counts}
+            paper_count = mode_info.get(True, 0)
+            real_count = mode_info.get(False, 0)
+
+            requested_mode = "Paper" if is_paper else "Real"
+            if paper_count == 0 and real_count == 0:
+                error_msg = "체결된 거래가 없습니다. 거래 실행 후 다시 시도해주세요."
+            else:
+                available = []
+                if paper_count > 0:
+                    available.append(f"Paper: {paper_count}건")
+                if real_count > 0:
+                    available.append(f"Real: {real_count}건")
+                error_msg = f"{requested_mode} 모드에 체결된 거래가 없습니다. 사용 가능: {', '.join(available)}"
+
+            return {"error": error_msg, "cycles_analyzed": 0}
 
         # FIFO matching to identify cycles
         buy_queue = []
@@ -209,54 +266,93 @@ class LiveAIEvaluationService:
         Returns:
             Dict with backtest statistics matching BacktestStats format
         """
-        from ..core.waterfall_engine import WaterfallEngine
+        from ..core.waterfall_engine import WaterfallBacktestEngine
         from ..core.strategy_registry import StrategyRegistry
-        from ..schemas.backtest import BacktestRequest
+        from ..services.market_data import MarketDataService
 
         try:
-            # Build backtest request
-            request = BacktestRequest(
-                symbol=symbol,
-                strategy_id=strategy_name,
-                interval="1m",
-                days=days,
-                initial_capital=strategy_config.get("initial_capital", 10000000),
-                params=strategy_config.get("params", {})
-            )
+            logger.info(f"Running backtest comparison: {symbol}, {strategy_name}, {days} days")
 
             # Get strategy class
-            strategy_class = StrategyRegistry.get(strategy_name)
+            strategy_class = StrategyRegistry.get_strategy_class(strategy_name)
             if not strategy_class:
+                logger.error(f"Strategy not found: {strategy_name}")
                 return {"error": f"Strategy not found: {strategy_name}"}
 
+            logger.info(f"Strategy class found: {strategy_class.__name__}")
+
+            # Get market data
+            data_service = MarketDataService()
+            raw_feed = await data_service.get_candles(symbol, interval="1m", days=days)
+
+            if not raw_feed:
+                logger.error(f"No market data available for {symbol}")
+                return {"error": f"No market data available for {symbol}"}
+
+            raw_feed.sort(key=lambda x: x['timestamp'])
+            logger.info(f"Loaded {len(raw_feed)} candles for backtest")
+
+            # Build config for backtest
+            initial_capital = strategy_config.get("initial_capital", 10000000)
+
+            # Handle both formats: {params: {...}} or direct params at top level
+            params = strategy_config.get("params", {})
+            if not params:
+                # If no "params" key, use strategy_config directly (excluding known non-param keys)
+                # Exclude UI/meta fields that are not actual strategy parameters
+                exclude_keys = {
+                    "initial_capital", "symbol", "params",
+                    # UI/Meta fields
+                    "from_date", "interval", "uuid", "tabName", "is_active",
+                    "optEnabled", "optValues", "rank",
+                    "selected_version_id", "selected_version_name", "execution_mode"
+                }
+                params = {k: v for k, v in strategy_config.items() if k not in exclude_keys}
+
+            logger.info(f"Strategy params for backtest: {params}")
+
+            config = {
+                "symbol": symbol,
+                "initial_capital": initial_capital,
+                **params
+            }
+
             # Run backtest
-            engine = WaterfallEngine()
-            result = await engine.run_backtest_async(request, strategy_class)
+            engine = WaterfallBacktestEngine(strategy_class, {})
+            result = await engine.run_single_backtest(
+                config=config,
+                feed=raw_feed,
+                initial_capital=initial_capital,
+                symbol=symbol,
+                optimize_mode=True,  # Skip chart data for speed
+                rank=1
+            )
 
             if not result:
+                logger.error("Backtest returned no result")
                 return {"error": "Backtest returned no result"}
 
-            # Extract stats from result
-            stats = result.get("stats", {})
+            # Stats are at top level of result, not under 'stats' key
+            logger.info(f"Backtest completed. total_trades={result.get('total_trades')}, total_return={result.get('total_return')}")
 
             return {
-                "total_return": stats.get("total_return", 0),
-                "win_rate": stats.get("win_rate", 0),
-                "recent_10_win_rate": stats.get("recent_10_win_rate"),
-                "total_trades": stats.get("total_trades", 0),
-                "profit_factor": stats.get("profit_factor", 0),
-                "sharpe_ratio": stats.get("sharpe_ratio", 0),
-                "max_drawdown": stats.get("max_drawdown", 0),
-                "avg_pnl": stats.get("avg_pnl", 0),
-                "max_profit": stats.get("max_profit", 0),
-                "max_loss": stats.get("max_loss", 0),
-                "avg_holding_time": stats.get("avg_holding_time"),
-                "max_holding_time": stats.get("max_holding_time"),
-                "min_holding_time": stats.get("min_holding_time"),
-                "stability_score": stats.get("stability_score", 0),
-                "acceleration_score": stats.get("acceleration_score", 0),
-                "activity_rate": stats.get("activity_rate", 0),
-                "total_days": stats.get("total_days", 0),
+                "total_return": result.get("total_return", 0),
+                "win_rate": result.get("win_rate", 0),
+                "recent_10_win_rate": result.get("recent_10_win_rate"),
+                "total_trades": result.get("total_trades", 0),
+                "profit_factor": result.get("profit_factor", 0),
+                "sharpe_ratio": result.get("sharpe_ratio", 0),
+                "max_drawdown": result.get("max_drawdown", 0),
+                "avg_pnl": result.get("avg_pnl", 0),
+                "max_profit": result.get("max_profit", 0),
+                "max_loss": result.get("max_loss", 0),
+                "avg_holding_time": result.get("avg_holding_time"),
+                "max_holding_time": result.get("max_holding_time"),
+                "min_holding_time": result.get("min_holding_time"),
+                "stability_score": result.get("stability_score", 0),
+                "acceleration_score": result.get("acceleration_score", 0),
+                "activity_rate": result.get("activity_rate", 0),
+                "total_days": result.get("total_days", 0),
             }
 
         except Exception as e:
@@ -348,7 +444,18 @@ class LiveAIEvaluationService:
     ) -> str:
         """Build prompt for AI evaluation."""
 
+        # Handle both formats: {params: {...}} or direct params at top level
         params = strategy_config.get("params", {})
+        if not params:
+            # Exclude UI/meta fields that are not actual strategy parameters
+            exclude_keys = {
+                "initial_capital", "symbol", "params",
+                "from_date", "interval", "uuid", "tabName", "is_active",
+                "optEnabled", "optValues", "rank",
+                "selected_version_id", "selected_version_name", "execution_mode"
+            }
+            params = {k: v for k, v in strategy_config.items() if k not in exclude_keys}
+
         mode_label = "Paper (모의)" if is_paper else "Real (실거래)"
 
         prompt = f"""# 라이브 트레이딩 성과 평가 요청
@@ -418,7 +525,7 @@ class LiveAIEvaluationService:
                     json={
                         "contents": [{"parts": [{"text": prompt}]}],
                         "generationConfig": {
-                            "maxOutputTokens": 2048,
+                            "maxOutputTokens": 8192,
                             "temperature": 0.5
                         }
                     }

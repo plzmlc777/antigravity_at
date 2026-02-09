@@ -256,6 +256,16 @@ export const getAIEvaluationDetail = async (evaluationId) => {
     return data;
 };
 
+export const getAIEvalSettings = async (sessionId) => {
+    const { data } = await api.get(`/live/${sessionId}/ai-eval-settings`);
+    return data;
+};
+
+export const updateAIEvalSettings = async (sessionId, settings) => {
+    const { data } = await api.put(`/live/${sessionId}/ai-eval-settings`, settings);
+    return data;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;

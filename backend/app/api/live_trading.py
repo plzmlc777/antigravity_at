@@ -1233,8 +1233,8 @@ async def run_ai_evaluation(
         raise HTTPException(status_code=403, detail="Session does not belong to your account")
 
     try:
-        # Initialize service
-        service = LiveAIEvaluationService(db)
+        # Initialize service with user_id to load API key from database
+        service = LiveAIEvaluationService(db, user_id=ctx.user.id)
 
         # Run full evaluation
         is_paper = req.mode.lower() == "paper"
@@ -1278,6 +1278,12 @@ async def run_ai_evaluation(
             completed_at=datetime.utcnow()
         )
         db.add(evaluation)
+
+        # Save last used settings to session for auto-evaluation
+        session.ai_eval_cycles = req.n_cycles
+        session.ai_eval_backtest_days = req.backtest_days
+        session.ai_eval_mode = req.mode
+
         db.commit()
 
         return {
@@ -1396,4 +1402,82 @@ async def get_ai_evaluation(
         "error_message": evaluation.error_message,
         "created_at": evaluation.created_at.isoformat() if evaluation.created_at else None,
         "completed_at": evaluation.completed_at.isoformat() if evaluation.completed_at else None,
+    }
+
+
+class AIEvalSettingsRequest(PydanticBaseModel):
+    enabled: bool = False
+    cycles: int = 10  # Evaluate every N cycles
+    backtest_days: int = 30
+    mode: str = "paper"  # 'paper' | 'real'
+
+
+@router.get("/{session_id}/ai-eval-settings")
+async def get_ai_eval_settings(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Get AI evaluation settings for a session.
+    """
+    from ..models.live_trading import LiveBotSession
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.account_id != ctx.account_id:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    return {
+        "session_id": session_id,
+        "enabled": session.ai_eval_enabled or False,
+        "cycles": session.ai_eval_cycles or 10,
+        "backtest_days": session.ai_eval_backtest_days or 30,
+        "mode": session.ai_eval_mode or "paper",
+    }
+
+
+@router.put("/{session_id}/ai-eval-settings")
+async def update_ai_eval_settings(
+    session_id: str,
+    req: AIEvalSettingsRequest,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Update AI evaluation settings for a session.
+    These settings are used for automatic evaluation triggers.
+    """
+    from ..models.live_trading import LiveBotSession
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.account_id != ctx.account_id:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    # Update settings
+    session.ai_eval_enabled = req.enabled
+    session.ai_eval_cycles = req.cycles
+    session.ai_eval_backtest_days = req.backtest_days
+    session.ai_eval_mode = req.mode
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "AI evaluation settings updated",
+        "settings": {
+            "enabled": session.ai_eval_enabled,
+            "cycles": session.ai_eval_cycles,
+            "backtest_days": session.ai_eval_backtest_days,
+            "mode": session.ai_eval_mode,
+        }
     }

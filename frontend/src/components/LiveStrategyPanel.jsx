@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -59,6 +59,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [showAiEvalPanel, setShowAiEvalPanel] = useState(false);
     const [aiEvalCycles, setAiEvalCycles] = useState(10); // Number of cycles to analyze
     const [aiEvalMode, setAiEvalMode] = useState('real'); // 'paper' | 'real'
+    const [aiBacktestDays, setAiBacktestDays] = useState(30); // Backtest period in days
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -1919,12 +1920,21 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         className="w-full py-4 border-2 border-dashed border-purple-700/50 hover:border-purple-500/70 hover:bg-purple-500/5 rounded-xl text-gray-400 hover:text-purple-400 font-bold transition-all flex flex-col items-center gap-2"
                                         onClick={async () => {
                                             setShowAiEvalPanel(true);
-                                            // Load evaluation history
+                                            // Load evaluation history and saved settings
                                             try {
-                                                const history = await listAIEvaluations(sessionId);
+                                                const [history, settings] = await Promise.all([
+                                                    listAIEvaluations(sessionId),
+                                                    getAIEvalSettings(sessionId)
+                                                ]);
                                                 setAiEvalHistory(history.data || []);
+                                                // Apply saved settings
+                                                if (settings) {
+                                                    if (settings.mode) setAiEvalMode(settings.mode);
+                                                    if (settings.cycles) setAiEvalCycles(settings.cycles);
+                                                    if (settings.backtest_days) setAiBacktestDays(settings.backtest_days);
+                                                }
                                             } catch (err) {
-                                                console.error('Failed to load AI evaluation history:', err);
+                                                console.error('Failed to load AI evaluation data:', err);
                                             }
                                         }}
                                         disabled={isAiEvaluating}
@@ -1960,13 +1970,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         <button
                                                             key={m}
                                                             onClick={() => setAiEvalMode(m)}
-                                                            className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider border transition-all ${
+                                                            className={`px-3 py-1 rounded text-xs font-bold uppercase tracking-wider border-2 transition-all flex items-center gap-1.5 ${
                                                                 aiEvalMode === m
-                                                                    ? m === 'real' ? 'bg-red-500/20 text-red-400 border-red-500/40'
-                                                                    : 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                                                                    : 'bg-white/5 text-gray-500 border-white/10 hover:bg-white/10'
+                                                                    ? m === 'real'
+                                                                        ? 'bg-red-500/30 text-red-300 border-red-500 ring-2 ring-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
+                                                                        : 'bg-amber-500/30 text-amber-300 border-amber-500 ring-2 ring-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                                                                    : 'bg-white/5 text-gray-500 border-white/10 hover:bg-white/10 hover:text-gray-400'
                                                             }`}
                                                         >
+                                                            {aiEvalMode === m && <Check size={12} strokeWidth={3} />}
                                                             {m === 'real' ? 'Real' : 'Paper'}
                                                         </button>
                                                     ))}
@@ -1983,6 +1995,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         ))}
                                                     </select>
                                                 </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-400 text-sm">Backtest:</span>
+                                                    <select
+                                                        value={aiBacktestDays}
+                                                        onChange={(e) => setAiBacktestDays(Number(e.target.value))}
+                                                        className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white"
+                                                    >
+                                                        {[7, 14, 30, 60, 90].map(n => (
+                                                            <option key={n} value={n}>{n}d</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 <button
                                                     onClick={async () => {
                                                         setIsAiEvaluating(true);
@@ -1990,6 +2014,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         try {
                                                             const result = await runAIEvaluation(sessionId, {
                                                                 n_cycles: aiEvalCycles,
+                                                                backtest_days: aiBacktestDays,
                                                                 mode: aiEvalMode
                                                             });
                                                             setAiEvaluation(result);
@@ -2163,7 +2188,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                 </div>
                                                             </div>
                                                             <div className="text-xs text-gray-500">
-                                                                {new Date(eval_.created_at).toLocaleString('ko-KR')}
+                                                                {new Date(eval_.created_at + 'Z').toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -2294,7 +2319,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 )}
                                                 <span className="text-gray-400">
                                                     <Clock size={12} className="inline mr-1" />
-                                                    {new Date(selectedCycle.entry_time).toLocaleDateString('ko-KR')} — {selectedCycle.exit_time ? new Date(selectedCycle.exit_time).toLocaleDateString('ko-KR') : 'Open'}
+                                                    {new Date(selectedCycle.entry_time + 'Z').toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })} — {selectedCycle.exit_time ? new Date(selectedCycle.exit_time + 'Z').toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }) : 'Open'}
                                                 </span>
                                                 <span className="text-gray-400">Entries: <span className="text-white font-bold">{selectedCycle.num_entries}</span></span>
                                                 <span className="text-gray-400">Avg Entry: <span className="text-white font-bold">{selectedCycle.avg_entry_price?.toLocaleString()}</span></span>
