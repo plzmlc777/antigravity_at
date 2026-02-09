@@ -1190,3 +1190,203 @@ async def update_version_performance_stats(version_id: str):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI Evaluation API - Live Trading Performance Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AIEvaluationRequest(PydanticBaseModel):
+    n_cycles: int = 10  # Number of recent cycles to analyze
+    backtest_days: int = 30  # Days for comparison backtest
+
+
+@router.post("/{session_id}/ai-evaluate")
+async def run_ai_evaluation(
+    session_id: str,
+    req: AIEvaluationRequest = AIEvaluationRequest(),
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Run AI evaluation on a live trading session.
+
+    Compares recent N cycles of live trading with backtest results
+    using the current strategy configuration.
+
+    Returns AI-generated analysis and recommendations.
+    """
+    from ..models.live_trading import LiveBotSession, LiveAIEvaluation
+    from ..core.live_ai_evaluation import LiveAIEvaluationService
+    from datetime import datetime
+    import uuid
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    # Verify session ownership
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.account_id != ctx.account_id:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    try:
+        # Initialize service
+        service = LiveAIEvaluationService(db)
+
+        # Run full evaluation
+        result = await service.run_full_evaluation(
+            session_id=session_id,
+            symbol=session.symbol,
+            strategy_name=session.strategy_name,
+            strategy_config=session.strategy_config,
+            n_cycles=req.n_cycles,
+            backtest_days=req.backtest_days,
+            evaluation_type="MANUAL"
+        )
+
+        if result.get("status") == "failed":
+            raise HTTPException(status_code=400, detail=result.get("error", "Evaluation failed"))
+
+        # Save to database
+        evaluation = LiveAIEvaluation(
+            id=str(uuid.uuid4()),
+            session_id=session_id,
+            symbol=session.symbol,
+            evaluation_type="MANUAL",
+            trigger_cycle_count=req.n_cycles,
+            analysis_start_time=datetime.fromisoformat(result["analysis_start_time"]) if result.get("analysis_start_time") else None,
+            analysis_end_time=datetime.fromisoformat(result["analysis_end_time"]) if result.get("analysis_end_time") else None,
+            cycles_analyzed=result.get("cycles_analyzed", 0),
+            live_stats=result.get("live_stats"),
+            backtest_stats=result.get("backtest_stats"),
+            strategy_config=result.get("strategy_config"),
+            comparison_data=result.get("comparison_data"),
+            ai_model=result.get("ai_model"),
+            ai_prompt=result.get("ai_prompt"),
+            ai_response=result.get("ai_response"),
+            evaluation_score=result.get("evaluation_score"),
+            key_findings=result.get("key_findings"),
+            recommendations=result.get("recommendations"),
+            status="completed" if result.get("ai_response") else "failed",
+            error_message=result.get("error_message"),
+            completed_at=datetime.utcnow()
+        )
+        db.add(evaluation)
+        db.commit()
+
+        return {
+            "status": "success",
+            "evaluation_id": evaluation.id,
+            "grade": result.get("comparison_data", {}).get("overall_grade", "N/A"),
+            "cycles_analyzed": result.get("cycles_analyzed", 0),
+            "ai_response": result.get("ai_response"),
+            "key_findings": result.get("key_findings"),
+            "comparison": result.get("comparison_data"),
+            "live_stats": result.get("live_stats"),
+            "backtest_stats": result.get("backtest_stats"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{session_id}/ai-evaluations")
+async def list_ai_evaluations(
+    session_id: str,
+    limit: int = 10,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    List AI evaluations for a session.
+    """
+    from ..models.live_trading import LiveBotSession, LiveAIEvaluation
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    # Verify session ownership
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.account_id != ctx.account_id:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    evaluations = db.query(LiveAIEvaluation).filter(
+        LiveAIEvaluation.session_id == session_id
+    ).order_by(LiveAIEvaluation.created_at.desc()).limit(limit).all()
+
+    return {
+        "session_id": session_id,
+        "total": len(evaluations),
+        "data": [
+            {
+                "id": e.id,
+                "evaluation_type": e.evaluation_type,
+                "cycles_analyzed": e.cycles_analyzed,
+                "grade": e.comparison_data.get("overall_grade") if e.comparison_data else None,
+                "evaluation_score": e.evaluation_score,
+                "key_findings": e.key_findings,
+                "status": e.status,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in evaluations
+        ]
+    }
+
+
+@router.get("/ai-evaluations/{evaluation_id}")
+async def get_ai_evaluation(
+    evaluation_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed AI evaluation by ID.
+    """
+    from ..models.live_trading import LiveBotSession, LiveAIEvaluation
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    evaluation = db.query(LiveAIEvaluation).filter(
+        LiveAIEvaluation.id == evaluation_id
+    ).first()
+
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation not found")
+
+    # Verify session ownership
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == evaluation.session_id).first()
+    if session and session.account_id != ctx.account_id:
+        raise HTTPException(status_code=403, detail="Evaluation does not belong to your account")
+
+    return {
+        "id": evaluation.id,
+        "session_id": evaluation.session_id,
+        "symbol": evaluation.symbol,
+        "evaluation_type": evaluation.evaluation_type,
+        "trigger_cycle_count": evaluation.trigger_cycle_count,
+        "cycles_analyzed": evaluation.cycles_analyzed,
+        "analysis_start_time": evaluation.analysis_start_time.isoformat() if evaluation.analysis_start_time else None,
+        "analysis_end_time": evaluation.analysis_end_time.isoformat() if evaluation.analysis_end_time else None,
+        "live_stats": evaluation.live_stats,
+        "backtest_stats": evaluation.backtest_stats,
+        "comparison_data": evaluation.comparison_data,
+        "strategy_config": evaluation.strategy_config,
+        "ai_model": evaluation.ai_model,
+        "ai_response": evaluation.ai_response,
+        "evaluation_score": evaluation.evaluation_score,
+        "key_findings": evaluation.key_findings,
+        "recommendations": evaluation.recommendations,
+        "status": evaluation.status,
+        "error_message": evaluation.error_message,
+        "created_at": evaluation.created_at.isoformat() if evaluation.created_at else None,
+        "completed_at": evaluation.completed_at.isoformat() if evaluation.completed_at else None,
+    }

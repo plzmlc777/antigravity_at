@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
@@ -51,6 +51,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     // Accumulated stats for symbols (fetched from DB, persists even when session stops)
     const [accumulatedStats, setAccumulatedStats] = useState({}); // { symbol: { paper: {...}, real: {...} } }
+
+    // AI Evaluation State
+    const [aiEvaluation, setAiEvaluation] = useState(null); // Current evaluation result
+    const [isAiEvaluating, setIsAiEvaluating] = useState(false);
+    const [aiEvalHistory, setAiEvalHistory] = useState([]); // Past evaluations
+    const [showAiEvalPanel, setShowAiEvalPanel] = useState(false);
+    const [aiEvalCycles, setAiEvalCycles] = useState(10); // Number of cycles to analyze
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -1902,6 +1909,233 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 ))}
                             </div>
                         </button>
+
+                        {/* AI Evaluation Section */}
+                        {sessionId && (
+                            <div className="mt-4">
+                                {!showAiEvalPanel ? (
+                                    <button
+                                        className="w-full py-4 border-2 border-dashed border-purple-700/50 hover:border-purple-500/70 hover:bg-purple-500/5 rounded-xl text-gray-400 hover:text-purple-400 font-bold transition-all flex flex-col items-center gap-2"
+                                        onClick={async () => {
+                                            setShowAiEvalPanel(true);
+                                            // Load evaluation history
+                                            try {
+                                                const history = await listAIEvaluations(sessionId);
+                                                setAiEvalHistory(history.data || []);
+                                            } catch (err) {
+                                                console.error('Failed to load AI evaluation history:', err);
+                                            }
+                                        }}
+                                        disabled={isAiEvaluating}
+                                    >
+                                        <BarChart3 size={24} />
+                                        <span>AI Performance Evaluation</span>
+                                        <span className="text-xs font-normal opacity-70">Analyze live vs backtest performance with AI</span>
+                                    </button>
+                                ) : (
+                                    <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl overflow-hidden">
+                                        <div className="bg-purple-500/10 px-4 py-3 border-b border-purple-500/20 flex items-center justify-between">
+                                            <h3 className="font-bold text-purple-300 text-sm flex items-center gap-2">
+                                                <BarChart3 size={14} />
+                                                AI Performance Evaluation
+                                            </h3>
+                                            <button
+                                                onClick={() => {
+                                                    setShowAiEvalPanel(false);
+                                                    setAiEvaluation(null);
+                                                }}
+                                                className="text-gray-400 hover:text-red-400 text-xs font-bold flex items-center gap-1"
+                                            >
+                                                <X size={14} /> Close
+                                            </button>
+                                        </div>
+
+                                        <div className="p-4 space-y-4">
+                                            {/* Evaluation Controls */}
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-400 text-sm">Cycles:</span>
+                                                    <select
+                                                        value={aiEvalCycles}
+                                                        onChange={(e) => setAiEvalCycles(Number(e.target.value))}
+                                                        className="bg-white/5 border border-white/10 rounded px-2 py-1 text-sm text-white"
+                                                    >
+                                                        {[5, 10, 20, 50].map(n => (
+                                                            <option key={n} value={n}>{n}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        setIsAiEvaluating(true);
+                                                        setAiEvaluation(null);
+                                                        try {
+                                                            const result = await runAIEvaluation(sessionId, { n_cycles: aiEvalCycles });
+                                                            setAiEvaluation(result);
+                                                            // Refresh history
+                                                            const history = await listAIEvaluations(sessionId);
+                                                            setAiEvalHistory(history.data || []);
+                                                        } catch (err) {
+                                                            console.error('AI evaluation failed:', err);
+                                                            setAiEvaluation({ error: err?.response?.data?.detail || err.message });
+                                                        } finally {
+                                                            setIsAiEvaluating(false);
+                                                        }
+                                                    }}
+                                                    disabled={isAiEvaluating}
+                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-wait text-white text-sm font-bold rounded-lg flex items-center gap-2 transition-all"
+                                                >
+                                                    {isAiEvaluating ? (
+                                                        <>
+                                                            <Activity size={14} className="animate-spin" />
+                                                            Analyzing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Play size={14} />
+                                                            Run Evaluation
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {/* Loading State */}
+                                            {isAiEvaluating && (
+                                                <div className="flex items-center justify-center py-8">
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <Activity className="w-8 h-8 text-purple-500 animate-pulse" />
+                                                        <span className="text-gray-400 text-sm">Running AI evaluation...</span>
+                                                        <span className="text-gray-500 text-xs">This may take up to 30 seconds</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Evaluation Result */}
+                                            {aiEvaluation && !isAiEvaluating && (
+                                                <div className="space-y-4">
+                                                    {aiEvaluation.error ? (
+                                                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                                                            Error: {aiEvaluation.error}
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {/* Grade & Summary */}
+                                                            <div className="flex items-center gap-4">
+                                                                <div className={`text-4xl font-black ${
+                                                                    aiEvaluation.grade === 'A' ? 'text-emerald-400' :
+                                                                    aiEvaluation.grade === 'B' ? 'text-blue-400' :
+                                                                    aiEvaluation.grade === 'C' ? 'text-yellow-400' :
+                                                                    aiEvaluation.grade === 'D' ? 'text-orange-400' :
+                                                                    'text-red-400'
+                                                                }`}>
+                                                                    {aiEvaluation.grade || 'N/A'}
+                                                                </div>
+                                                                <div className="text-sm text-gray-400">
+                                                                    <div>{aiEvaluation.cycles_analyzed} cycles analyzed</div>
+                                                                    <div className="text-xs text-gray-500">
+                                                                        {aiEvaluation.key_findings?.action && (
+                                                                            <span className={`font-bold ${
+                                                                                aiEvaluation.key_findings.action === '유지' ? 'text-emerald-400' :
+                                                                                aiEvaluation.key_findings.action === '조정' ? 'text-yellow-400' :
+                                                                                'text-red-400'
+                                                                            }`}>
+                                                                                Recommendation: {aiEvaluation.key_findings.action}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Comparison Table */}
+                                                            {aiEvaluation.comparison && (
+                                                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                                                    <div className="text-gray-500 font-semibold">Metric</div>
+                                                                    <div className="text-gray-500 font-semibold text-right">Live</div>
+                                                                    <div className="text-gray-500 font-semibold text-right">Diff</div>
+
+                                                                    <div className="text-gray-400">Return</div>
+                                                                    <div className="text-right text-white">{aiEvaluation.live_stats?.total_return?.toFixed(2)}%</div>
+                                                                    <div className={`text-right ${(aiEvaluation.comparison.return_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                        {aiEvaluation.comparison.return_diff >= 0 ? '+' : ''}{aiEvaluation.comparison.return_diff?.toFixed(2) || 'N/A'}
+                                                                    </div>
+
+                                                                    <div className="text-gray-400">Win Rate</div>
+                                                                    <div className="text-right text-white">{aiEvaluation.live_stats?.win_rate?.toFixed(1)}%</div>
+                                                                    <div className={`text-right ${(aiEvaluation.comparison.win_rate_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                        {aiEvaluation.comparison.win_rate_diff >= 0 ? '+' : ''}{aiEvaluation.comparison.win_rate_diff?.toFixed(1) || 'N/A'}
+                                                                    </div>
+
+                                                                    <div className="text-gray-400">Sharpe</div>
+                                                                    <div className="text-right text-white">{aiEvaluation.live_stats?.sharpe_ratio?.toFixed(2)}</div>
+                                                                    <div className={`text-right ${(aiEvaluation.comparison.sharpe_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                        {aiEvaluation.comparison.sharpe_diff >= 0 ? '+' : ''}{aiEvaluation.comparison.sharpe_diff?.toFixed(2) || 'N/A'}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {/* AI Response */}
+                                                            {aiEvaluation.ai_response && (
+                                                                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                                                                    <div className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+                                                                        {aiEvaluation.ai_response}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Evaluation History */}
+                                            {aiEvalHistory.length > 0 && !aiEvaluation && !isAiEvaluating && (
+                                                <div className="space-y-2">
+                                                    <div className="text-gray-500 text-xs font-semibold uppercase tracking-wider">Recent Evaluations</div>
+                                                    {aiEvalHistory.slice(0, 5).map((eval_) => (
+                                                        <div
+                                                            key={eval_.id}
+                                                            className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg hover:bg-white/10 cursor-pointer"
+                                                            onClick={async () => {
+                                                                // Load full evaluation
+                                                                try {
+                                                                    const full = await getAIEvaluationDetail(eval_.id);
+                                                                    setAiEvaluation({
+                                                                        grade: full.comparison_data?.overall_grade,
+                                                                        cycles_analyzed: full.cycles_analyzed,
+                                                                        key_findings: full.key_findings,
+                                                                        comparison: full.comparison_data,
+                                                                        live_stats: full.live_stats,
+                                                                        backtest_stats: full.backtest_stats,
+                                                                        ai_response: full.ai_response,
+                                                                    });
+                                                                } catch (err) {
+                                                                    console.error('Failed to load evaluation:', err);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <span className={`text-lg font-bold ${
+                                                                    eval_.grade === 'A' ? 'text-emerald-400' :
+                                                                    eval_.grade === 'B' ? 'text-blue-400' :
+                                                                    eval_.grade === 'C' ? 'text-yellow-400' :
+                                                                    eval_.grade === 'D' ? 'text-orange-400' :
+                                                                    'text-red-400'
+                                                                }`}>{eval_.grade || '-'}</span>
+                                                                <div className="text-sm text-gray-400">
+                                                                    {eval_.cycles_analyzed} cycles
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-xs text-gray-500">
+                                                                {new Date(eval_.created_at).toLocaleString('ko-KR')}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col">

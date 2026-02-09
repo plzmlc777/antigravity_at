@@ -182,3 +182,61 @@ class TradingErrorLog(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     resolved_at = Column(DateTime, nullable=True)
+
+
+class EvaluationType(str, enum.Enum):
+    MANUAL = "MANUAL"       # 사용자가 수동으로 요청
+    AUTO = "AUTO"           # 이벤트 기반 자동 평가 (N 사이클 완료 시)
+
+
+class LiveAIEvaluation(Base):
+    """
+    AI evaluation of live trading performance.
+    Compares live trading results with backtest results using current strategy config.
+    """
+    __tablename__ = "live_ai_evaluations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+
+    # Context
+    session_id = Column(String, ForeignKey("live_bot_sessions.id"), index=True, nullable=False)
+    symbol = Column(String, index=True, nullable=False)
+
+    # Trigger Info
+    evaluation_type = Column(String, default=EvaluationType.MANUAL)  # MANUAL or AUTO
+    trigger_cycle_count = Column(Integer, default=0)  # N cycles that triggered this evaluation
+
+    # Analysis Window
+    analysis_start_time = Column(DateTime, nullable=True)  # Start of analysis period
+    analysis_end_time = Column(DateTime, nullable=True)    # End of analysis period
+    cycles_analyzed = Column(Integer, default=0)           # Number of cycles actually analyzed
+
+    # Live Trading Stats (collected from live_trade_executions)
+    live_stats = Column(JSON, nullable=True)  # {total_return, win_rate, avg_pnl, max_drawdown, ...}
+
+    # Backtest Stats (run with current config for same period)
+    backtest_stats = Column(JSON, nullable=True)  # Same format as live_stats
+
+    # Strategy Config Snapshot
+    strategy_config = Column(JSON, nullable=True)  # Full strategy parameters at evaluation time
+
+    # Comparison Data (pre-computed differences)
+    comparison_data = Column(JSON, nullable=True)  # {return_diff, win_rate_diff, slippage_impact, ...}
+
+    # AI Response
+    ai_model = Column(String, nullable=True)  # e.g., "gemini-2.0-flash-001"
+    ai_prompt = Column(Text, nullable=True)   # The prompt sent to AI
+    ai_response = Column(Text, nullable=True) # The AI's evaluation text
+
+    # Quality Metrics
+    evaluation_score = Column(Float, nullable=True)  # Overall score (0-100) if extractable from AI
+    key_findings = Column(JSON, nullable=True)       # Extracted key points from AI response
+    recommendations = Column(JSON, nullable=True)    # Extracted recommendations from AI
+
+    # Status
+    status = Column(String, default="pending")  # pending, completed, failed
+    error_message = Column(String, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    completed_at = Column(DateTime, nullable=True)

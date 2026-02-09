@@ -235,6 +235,26 @@ export const getAccumulatedStats = async (symbols = [], strategyName = '') => {
     return data;
 };
 
+// AI Evaluation API
+export const runAIEvaluation = async (sessionId, options = {}) => {
+    const { n_cycles = 10, backtest_days = 30 } = options;
+    const { data } = await api.post(`/live/${sessionId}/ai-evaluate`, {
+        n_cycles,
+        backtest_days
+    }, { timeout: 120000 });  // 2min timeout for AI API call
+    return data;
+};
+
+export const listAIEvaluations = async (sessionId, limit = 10) => {
+    const { data } = await api.get(`/live/${sessionId}/ai-evaluations?limit=${limit}`);
+    return data;
+};
+
+export const getAIEvaluationDetail = async (evaluationId) => {
+    const { data } = await api.get(`/live/ai-evaluations/${evaluationId}`);
+    return data;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;
