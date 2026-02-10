@@ -418,3 +418,12 @@ export const testTelegramConnection = async (accountId) => {
     const { data } = await api.post(`/accounts/${accountId}/telegram/test`);
     return data;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Account Management API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const getAccounts = async () => {
+    const { data } = await api.get('/accounts/');
+    return data;
+};

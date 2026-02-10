@@ -14,6 +14,7 @@ class LiveBotStartRequest(BaseModel):
     strategy_config: Dict[str, Any] = {}
     initial_capital: float = 10000000
     is_paper: bool = True
+    account_id: Optional[int] = None  # Phase 5: Explicit account selection
 
 class StopAllRequest(BaseModel):
     force: bool = False
@@ -51,18 +52,37 @@ async def stop_all_live_bots(
 @router.post("/start")
 async def start_live_bot(
     req: LiveBotStartRequest,
-    ctx: UserAccountContext = Depends(get_user_context)
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
 ):
     """
     Start a new Live Trading Session.
+    Phase 5: Supports explicit account_id selection.
     Note: Call /live/stop-all first if starting multiple sessions to prevent duplicates.
     """
-    if not ctx.has_active_account:
-        raise HTTPException(status_code=400, detail="No active account selected")
+    from ..models.account import ExchangeAccount
+
+    # Determine which account to use
+    if req.account_id is not None:
+        # Phase 5: Explicit account selection - verify ownership
+        account = db.query(ExchangeAccount).filter(
+            ExchangeAccount.id == req.account_id,
+            ExchangeAccount.user_id == ctx.user_id
+        ).first()
+        if not account:
+            raise HTTPException(status_code=403, detail="Account not found or access denied")
+        if account.is_disabled:
+            raise HTTPException(status_code=400, detail="Account is disabled")
+        target_account_id = req.account_id
+    else:
+        # Fallback to active account (legacy behavior)
+        if not ctx.has_active_account:
+            raise HTTPException(status_code=400, detail="No active account selected")
+        target_account_id = ctx.account_id
 
     try:
         config = req.dict()
-        config["account_id"] = ctx.account_id  # 계좌 ID 추가
+        config["account_id"] = target_account_id  # 선택된 계좌 ID
         session_id = await live_manager.start_session(config)
         return {"status": "success", "session_id": session_id, "message": "Live Session Started"}
     except Exception as e:
