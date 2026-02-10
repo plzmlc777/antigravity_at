@@ -294,7 +294,10 @@ const StrategyView = () => {
     const [integratedResults, setIntegratedResults] = useState(null);
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
-    const [liveRankIndex, setLiveRankIndex] = useState(0); // Selected Rank Index for Live Tab
+    const [liveRankIndex, setLiveRankIndex] = useState(() => {
+        const saved = localStorage.getItem('live_currentRankIndex');
+        return saved ? parseInt(saved, 10) : 0;
+    }); // Selected Rank Index for Live Tab (persisted)
     const [isLiveRunning, setIsLiveRunning] = useState(false); // Live session running status (locks strategy change)
     const [executionMode, setExecutionMode] = useState(() => {
         const saved = localStorage.getItem('integratedExecutionMode');
@@ -449,6 +452,18 @@ const StrategyView = () => {
             console.warn('Failed to save execution mode to DB:', e);
         });
     }, [executionMode]);
+
+    // Save liveRankIndex to localStorage for persistence across refresh
+    useEffect(() => {
+        localStorage.setItem('live_currentRankIndex', liveRankIndex.toString());
+    }, [liveRankIndex]);
+
+    // Validate liveRankIndex when configList changes (prevent out-of-bounds)
+    useEffect(() => {
+        if (configList.length > 0 && liveRankIndex >= configList.length) {
+            setLiveRankIndex(0);
+        }
+    }, [configList.length, liveRankIndex]);
 
     // Persistence logic removed for initialCapital
 
