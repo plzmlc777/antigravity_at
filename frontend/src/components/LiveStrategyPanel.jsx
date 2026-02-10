@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2 } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts, resumeSession, deleteSession } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import UnifiedSessionCards from './UnifiedSessionCards';
+import { STATUS_CONFIG, DeleteConfirmModal } from './SessionSwitcher';
 
-const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange, onCapitalChange }) => {
+const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange, onCapitalChange, activeSessionGroup, onSessionAction }) => {
     // State
     const [status, setStatus] = useState('IDLE'); // IDLE, RUNNING, STOPPED, ERROR
     const [sessionId, setSessionId] = useState(null);
@@ -24,6 +25,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [isLiquidateModalOpen, setIsLiquidateModalOpen] = useState(false);
     const [isPositionWarningOpen, setIsPositionWarningOpen] = useState(false);
     const [positionWarningMessage, setPositionWarningMessage] = useState('');
+
+    // Session Actions State (Option B: actions in panel, not on cards)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isResuming, setIsResuming] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Parallel mode: track multiple sessions {rankIndex: sessionId}
     const [parallelSessions, setParallelSessions] = useState({});
@@ -707,6 +713,51 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
+    // Session Actions: Resume (Option B - actions in panel)
+    const handleResumeSession = async () => {
+        const session = activeSessionGroup?.sessions?.[0];
+        if (!session) return;
+
+        setIsResuming(true);
+        try {
+            await resumeSession(session.session_id);
+            addLog("System", `Session resumed: ${session.symbol} (${session.strategy_name})`);
+            // Notify parent to refresh session list
+            if (onSessionAction) onSessionAction('resume', session);
+        } catch (err) {
+            console.error('Failed to resume session:', err);
+            alert(`재시작 실패: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setIsResuming(false);
+        }
+    };
+
+    // Session Actions: Delete (Option B - actions in panel)
+    const handleDeleteSession = async () => {
+        const session = activeSessionGroup?.sessions?.[0];
+        if (!session) return;
+
+        setIsDeleting(true);
+        try {
+            await deleteSession(session.session_id);
+            addLog("System", `Session deleted: ${session.symbol} (${session.strategy_name})`);
+            setIsDeleteModalOpen(false);
+            // Notify parent to refresh session list and clear selection
+            if (onSessionAction) onSessionAction('delete', session);
+        } catch (err) {
+            console.error('Failed to delete session:', err);
+            alert(`삭제 실패: ${err.response?.data?.detail || err.message}`);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    // Get symbol name helper for delete modal
+    const getSymbolName = (code) => {
+        const match = savedSymbols.find(s => s.code === code);
+        return match?.name || code;
+    };
+
     const handleStart = async () => {
         if (!strategyConfig.symbol) {
             alert("Symbol not selected");
@@ -1185,6 +1236,16 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 isDanger={true}
             />
 
+            {/* Delete Session Modal (Option B: actions in panel) */}
+            <DeleteConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteSession}
+                session={activeSessionGroup?.sessions?.[0]}
+                getSymbolName={getSymbolName}
+                isDeleting={isDeleting}
+            />
+
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
             <div className={`lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
                     <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
@@ -1375,14 +1436,43 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             {/* Main Action Buttons */}
                             <div className="flex-[0.5] w-full flex flex-col gap-2">
                                 {status !== 'RUNNING' ? (
-                                    <button
-                                        onClick={handleStart}
-                                        disabled={status === 'STARTING'}
-                                        className="w-full h-14 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white text-base font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-green-900/20"
-                                    >
-                                        <Play size={20} />
-                                        START LIVE BOT
-                                    </button>
+                                    <>
+                                        {/* Option B: Session action buttons for selected STOPPED/ERROR session */}
+                                        {activeSessionGroup?.sessions?.[0] &&
+                                         STATUS_CONFIG[activeSessionGroup.sessions[0].status]?.canResume ? (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    onClick={handleResumeSession}
+                                                    disabled={isResuming}
+                                                    className="h-14 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-blue-900/20"
+                                                >
+                                                    {isResuming ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            재시작 중...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <RotateCcw size={16} />
+                                                            RESUME
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsDeleteModalOpen(true)}
+                                                    disabled={isDeleting}
+                                                    className="h-14 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-bold tracking-wide rounded-lg transition-all border border-red-500/50 disabled:opacity-50"
+                                                >
+                                                    <Trash2 size={16} />
+                                                    DELETE
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="h-14 flex items-center justify-center text-gray-500 text-sm border border-dashed border-gray-700 rounded-lg">
+                                                세션을 선택하거나 새 세션을 만드세요
+                                            </div>
+                                        )}
+                                    </>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                         <button

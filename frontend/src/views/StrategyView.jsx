@@ -13,6 +13,8 @@ import { isValidScope } from '../types/ConfigScope';
 import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
+import SessionSwitcher from '../components/SessionSwitcher'; // Phase 5: Multi-Account Session Switcher
+import NewSessionModal from '../components/NewSessionModal'; // Phase 5: New Session Modal
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
@@ -299,6 +301,9 @@ const StrategyView = () => {
         return saved ? parseInt(saved, 10) : 0;
     }); // Selected Rank Index for Live Tab (persisted)
     const [isLiveRunning, setIsLiveRunning] = useState(false); // Live session running status (locks strategy change)
+    // Phase 5: Multi-Account Session Management
+    const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
+    const [activeSessionGroup, setActiveSessionGroup] = useState(null); // { accountId, strategyName, sessions }
     const [executionMode, setExecutionMode] = useState(() => {
         const saved = localStorage.getItem('integratedExecutionMode');
         return saved || 'exclusive';
@@ -428,6 +433,7 @@ const StrategyView = () => {
     // isConfigLoaded는 useStrategyConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
     const capitalSaveTimeoutRef = useRef(null); // Debounce timeout for auto-saving capital changes in Live tab
+    const sessionSwitcherRef = useRef(null); // Ref for SessionSwitcher to call refresh after actions
 
 
 
@@ -4151,6 +4157,24 @@ const StrategyView = () => {
 
                             {activeTab === -2 && (
                                 <div className="animate-fade-in-up">
+                                    {/* Phase 5: Session Switcher for Multi-Account Support */}
+                                    <SessionSwitcher
+                                        ref={sessionSwitcherRef}
+                                        onSelectSessionGroup={(group) => {
+                                            setActiveSessionGroup(group);
+                                            // If switching to a different strategy, update selection
+                                            if (group?.strategyName && group.strategyName !== selectedStrategy?.id) {
+                                                const matchingStrategy = strategies.find(s => s.id === group.strategyName);
+                                                if (matchingStrategy) {
+                                                    handleStrategyChange(matchingStrategy);
+                                                }
+                                            }
+                                        }}
+                                        onNewSession={() => setIsNewSessionModalOpen(true)}
+                                        activeSessionGroup={activeSessionGroup}
+                                        savedSymbols={savedSymbols}
+                                    />
+
                                     <LiveStrategyPanel
                                         strategyConfig={configList[liveRankIndex] || configList[0]}
                                         strategyName={selectedStrategy?.id}
@@ -4167,6 +4191,15 @@ const StrategyView = () => {
                                         }}
                                         parameterSchema={selectedStrategy?.parameter_schema}
                                         onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
+                                        activeSessionGroup={activeSessionGroup}
+                                        onSessionAction={(action, session) => {
+                                            // Refresh session list after resume/delete
+                                            sessionSwitcherRef.current?.refresh?.();
+                                            // Clear selection if deleted
+                                            if (action === 'delete') {
+                                                setActiveSessionGroup(null);
+                                            }
+                                        }}
                                         onCapitalChange={(newCapital) => {
                                             // Update initial_capital in configList for the current liveRankIndex
                                             const targetIndex = liveRankIndex >= 0 && liveRankIndex < configList.length ? liveRankIndex : 0;
@@ -4193,6 +4226,27 @@ const StrategyView = () => {
                                                 }
                                             }, 1000); // 1 second debounce
                                         }}
+                                    />
+
+                                    {/* Phase 5: New Session Modal */}
+                                    <NewSessionModal
+                                        isOpen={isNewSessionModalOpen}
+                                        onClose={() => setIsNewSessionModalOpen(false)}
+                                        onSessionStarted={(result) => {
+                                            setActiveSessionGroup({
+                                                accountId: result.accountId,
+                                                strategyName: result.strategyName,
+                                                sessions: result.sessions
+                                            });
+                                            // Switch to the new strategy if different
+                                            if (result.strategyName !== selectedStrategy?.id) {
+                                                const matchingStrategy = strategies.find(s => s.id === result.strategyName);
+                                                if (matchingStrategy) {
+                                                    handleStrategyChange(matchingStrategy);
+                                                }
+                                            }
+                                        }}
+                                        strategies={strategies}
                                     />
                                 </div>
                             )}

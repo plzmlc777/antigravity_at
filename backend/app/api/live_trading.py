@@ -153,6 +153,150 @@ async def stop_live_bot(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/resume/{session_id}")
+async def resume_session(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Resume a STOPPED session instead of creating a new one.
+    Reuses the existing session ID and restores all state.
+    """
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..models.account import ExchangeAccount
+    from datetime import datetime
+
+    # Find the session
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership (session must belong to one of user's accounts)
+    user_accounts = db.query(ExchangeAccount.id).filter(
+        ExchangeAccount.user_id == ctx.user_id
+    ).all()
+    user_account_ids = [a.id for a in user_accounts]
+
+    if session.account_id not in user_account_ids:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    # Check if session is already running
+    if session.status == SessionStatus.RUNNING:
+        raise HTTPException(
+            status_code=400,
+            detail="Session is already running"
+        )
+
+    # Check if session is already in memory
+    if session_id in live_manager.engines:
+        raise HTTPException(
+            status_code=400,
+            detail="Session is already active in memory"
+        )
+
+    # Only allow resuming STOPPED or ERROR sessions
+    if session.status not in [SessionStatus.STOPPED, SessionStatus.ERROR]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot resume session with status: {session.status}"
+        )
+
+    try:
+        # Update session status in DB first
+        session.status = SessionStatus.RUNNING
+        session.is_active = True
+        session.error_log = None  # Clear any previous error
+        session.stopped_at = None  # Clear stopped timestamp
+        # Don't update started_at - keep the original start time
+        db.commit()
+
+        # Restore the engine using existing method
+        await live_manager._restore_engine(session)
+
+        # Re-register in exclusive group if applicable
+        cfg = session.strategy_config or {}
+        if cfg.get("execution_mode") == "exclusive":
+            live_manager.register_exclusive_session(session.account_id, session_id)
+
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "message": f"Session resumed: {session.symbol} ({session.strategy_name})"
+        }
+
+    except Exception as e:
+        # Revert DB status on failure
+        session.status = SessionStatus.ERROR
+        session.error_log = f"Resume failed: {str(e)}"
+        db.commit()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to resume session: {str(e)}")
+
+
+@router.delete("/session/{session_id}")
+async def delete_session(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Permanently delete a session and all its trade executions.
+    Only allowed for STOPPED or ERROR sessions (not RUNNING).
+    """
+    from ..models.live_trading import LiveBotSession, LiveTradeExecution, SessionStatus
+
+    # Find the session
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership (session must belong to one of user's accounts)
+    from ..models.account import ExchangeAccount
+    user_accounts = db.query(ExchangeAccount.id).filter(
+        ExchangeAccount.user_id == ctx.user_id
+    ).all()
+    user_account_ids = [a.id for a in user_accounts]
+
+    if session.account_id not in user_account_ids:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    # Check if session is running
+    if session.status == SessionStatus.RUNNING:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a running session. Stop it first."
+        )
+
+    # Check if session is in memory (shouldn't happen if status is not RUNNING, but double-check)
+    if session_id in live_manager.engines:
+        raise HTTPException(
+            status_code=400,
+            detail="Session is still active in memory. Stop it first."
+        )
+
+    try:
+        # Delete related trade executions first
+        deleted_trades = db.query(LiveTradeExecution).filter(
+            LiveTradeExecution.session_id == session_id
+        ).delete()
+
+        # Delete the session
+        db.delete(session)
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Session deleted successfully",
+            "deleted_trades": deleted_trades
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
+
 class ToggleOrdersRequest(BaseModel):
     enabled: bool
 
@@ -212,11 +356,129 @@ async def liquidate_session(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
-async def get_live_status(ctx: UserAccountContext = Depends(get_user_context)):
+async def get_live_status(
+    all_accounts: bool = False,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
     """
-    Get status of active Live Sessions for current user's account.
+    Get status of active Live Sessions.
+
+    Args:
+        all_accounts: If True, returns sessions across all user's accounts (for Session Switcher).
+                     If False, returns only current active account's sessions.
     """
-    return await live_manager.get_status(account_id=ctx.account_id)
+    if all_accounts:
+        # Phase 5: Get all account IDs for this user
+        from ..models.account import ExchangeAccount
+        user_accounts = db.query(ExchangeAccount.id).filter(
+            ExchangeAccount.user_id == ctx.user_id,
+            ExchangeAccount.is_disabled == False
+        ).all()
+        account_ids = [a.id for a in user_accounts]
+        return await live_manager.get_status(account_ids=account_ids)
+    else:
+        return await live_manager.get_status(account_id=ctx.account_id)
+
+
+@router.get("/sessions")
+async def get_all_sessions(
+    all_accounts: bool = False,
+    include_stopped: bool = True,
+    limit: int = 50,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Phase 5: Get ALL sessions from DB (including STOPPED, PAUSED, ERROR).
+
+    Unlike /status which only returns in-memory running sessions,
+    this endpoint queries the database for session records.
+
+    Args:
+        all_accounts: If True, returns sessions across all user's accounts
+        include_stopped: If True, includes STOPPED sessions (default True)
+        limit: Maximum number of sessions to return (default 50)
+
+    Returns:
+        List of sessions with status, grouped by (account_id, strategy_name)
+    """
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..models.account import ExchangeAccount
+    from datetime import datetime
+
+    # Determine which accounts to query
+    if all_accounts:
+        user_accounts = db.query(ExchangeAccount.id).filter(
+            ExchangeAccount.user_id == ctx.user_id,
+            ExchangeAccount.is_disabled == False
+        ).all()
+        account_ids = [a.id for a in user_accounts]
+    else:
+        account_ids = [ctx.account_id] if ctx.has_active_account else []
+
+    if not account_ids:
+        return []
+
+    # Build query
+    query = db.query(LiveBotSession).filter(
+        LiveBotSession.account_id.in_(account_ids)
+    )
+
+    if not include_stopped:
+        query = query.filter(LiveBotSession.status != SessionStatus.STOPPED)
+
+    # Order by status priority (RUNNING first), then by started_at desc
+    sessions = query.order_by(
+        LiveBotSession.status,  # RUNNING < PAUSED < STOPPED < ERROR (alphabetically)
+        LiveBotSession.started_at.desc()
+    ).limit(limit).all()
+
+    # Check which sessions are actually running in memory
+    running_ids = set(live_manager.engines.keys())
+
+    results = []
+    for sess in sessions:
+        # Determine effective status (memory vs DB can differ)
+        is_in_memory = sess.id in running_ids
+        # Handle both Enum and string status (DB might return string)
+        status_str = sess.status.value if hasattr(sess.status, 'value') else str(sess.status)
+        effective_status = status_str
+
+        # If DB says RUNNING but not in memory, it's effectively STOPPED (crashed?)
+        is_running_in_db = status_str == 'RUNNING'
+        if is_running_in_db and not is_in_memory:
+            effective_status = "STOPPED"
+
+        # Get additional info from running engine if available
+        engine_info = {}
+        if is_in_memory:
+            eng = live_manager.engines.get(sess.id)
+            if eng:
+                engine_info = {
+                    "orders_enabled": eng.orders_enabled,
+                    "current_price": eng.context.get_current_price(sess.symbol),
+                    "pnl": eng.context.calculate_pnl(),
+                }
+
+        results.append({
+            "session_id": sess.id,
+            "account_id": sess.account_id,
+            "symbol": sess.symbol,
+            "strategy_name": sess.strategy_name,
+            "status": effective_status,
+            "is_running": is_in_memory,
+            "is_paper": sess.is_paper,
+            "is_active": sess.is_active,
+            "initial_capital": float(sess.initial_capital) if sess.initial_capital else 0,
+            "started_at": sess.started_at.isoformat() if sess.started_at else None,
+            "stopped_at": sess.stopped_at.isoformat() if sess.stopped_at else None,
+            "error_log": sess.error_log,
+            **engine_info
+        })
+
+    return results
+
 
 @router.get("/accumulated-stats")
 async def get_accumulated_stats(

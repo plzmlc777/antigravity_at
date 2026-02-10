@@ -721,16 +721,31 @@ class LiveManager:
             await self.engines[session_id].liquidate_all()
             logger.info(f"Session {session_id}: Force-closed all positions.")
 
-    async def get_status(self, session_id: str = None, account_id: int = None) -> List[Dict]:
+    async def get_status(self, session_id: str = None, account_id: int = None, account_ids: List[int] = None) -> List[Dict]:
         """
         Return status of specific session or all managed sessions.
-        If account_id is provided, filter sessions by that account.
+
+        Args:
+            session_id: Return only this specific session
+            account_id: Filter sessions by single account
+            account_ids: Phase 5 - Filter sessions by multiple accounts (for Session Switcher)
         """
         results = []
 
-        # Determine targets based on session_id or filter by account_id
+        # Determine targets based on session_id or filter by account_id(s)
         if session_id:
             targets = [session_id]
+        elif account_ids is not None:
+            # Phase 5: Filter by multiple account IDs (Session Switcher)
+            db = SessionLocal()
+            try:
+                sessions = db.query(LiveBotSession).filter(
+                    LiveBotSession.account_id.in_(account_ids),
+                    LiveBotSession.is_active == True
+                ).all()
+                targets = [s.id for s in sessions if s.id in self.engines]
+            finally:
+                db.close()
         elif account_id is not None:
             # Filter sessions by account_id from DB
             db = SessionLocal()
@@ -790,7 +805,10 @@ class LiveManager:
                 "trades_count": len(eng.context.trades),
                 "last_update": datetime.now().isoformat(),
                 "strategy_state": strategy_state,
-                "trade_stats": trade_stats
+                "trade_stats": trade_stats,
+                # Phase 5: Multi-account fields for Session Switcher
+                "account_id": getattr(eng, '_account_id', None),
+                "initial_capital": getattr(eng.context, 'initial_capital', 0)
             })
         return results
 

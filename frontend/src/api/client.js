@@ -208,8 +208,31 @@ export const checkLivePosition = async () => {
     return data;
 };
 
-export const getLiveStatus = async () => {
-    const { data } = await api.get('/live/status');
+export const getLiveStatus = async (options = {}) => {
+    const { allAccounts = false } = options;
+    const params = allAccounts ? { all_accounts: true } : {};
+    const { data } = await api.get('/live/status', { params });
+    return data;
+};
+
+export const getAllSessions = async (options = {}) => {
+    const { allAccounts = false, includeStopped = true, limit = 50 } = options;
+    const params = {
+        all_accounts: allAccounts,
+        include_stopped: includeStopped,
+        limit
+    };
+    const { data } = await api.get('/live/sessions', { params });
+    return data;
+};
+
+export const deleteSession = async (sessionId) => {
+    const { data } = await api.delete(`/live/session/${sessionId}`);
+    return data;
+};
+
+export const resumeSession = async (sessionId) => {
+    const { data } = await api.post(`/live/resume/${sessionId}`);
     return data;
 };
 
