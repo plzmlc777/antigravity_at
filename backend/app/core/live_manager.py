@@ -211,9 +211,10 @@ class LiveManager:
             except Exception as e:
                 logger.error(f"LiveManager: Token acquisition failed for account {account_id}: {e}")
 
-        # Update WebSocket URI and credentials for the primary adapter
-        if hasattr(adapter, 'ws_client'):
-            ws = adapter.ws_client
+        # Update WebSocket URI and credentials for the primary adapter (only if WS exists)
+        # Use _ws_client to avoid lazy creation - WS will be created when start_realtime is called
+        if adapter._ws_client:
+            ws = adapter._ws_client
 
             # Update URI
             if hasattr(ws, 'update_uri'):
@@ -922,7 +923,6 @@ class LiveManager:
         """
         from ..core.account_cache import AccountCache
         from ..core.token_manager import KiwoomTokenManager
-        from ..adapters.kiwoom_websocket import KiwoomWebSocket
 
         # 1. Clear account cache
         cache = AccountCache.get_instance()
@@ -934,16 +934,37 @@ class LiveManager:
         token_manager.clear_all()
         logger.info("Kiwoom tokens cleared")
 
-        # 3. Clear WebSocket monitored symbols and stop
-        ws = KiwoomWebSocket.get_instance()
-        ws.clear_symbols()
-        logger.info("WebSocket symbols cleared")
+        # 3. Clear WebSocket monitored symbols for all adapters (Phase 4)
+        # Use _ws_client to avoid lazy creation of new WebSocket instances
+        for account_id, adapter in self._adapters.items():
+            if adapter._ws_client:
+                adapter._ws_client.clear_symbols()
+        logger.info(f"WebSocket symbols cleared for {len(self._adapters)} adapters")
 
         # 4. Clear MarketDataRouter
         market_data_router.clear_all()
         logger.info("MarketDataRouter cleared")
 
         return {"status": "success", "message": "Logout cleanup completed"}
+
+    async def stop_all_websockets(self):
+        """
+        Stop all WebSocket connections for all adapters.
+        Called on application shutdown (Phase 4).
+        Use _ws_client to avoid lazy creation of new WebSocket instances.
+        """
+        stopped_count = 0
+        for account_id, adapter in self._adapters.items():
+            if adapter._ws_client:
+                ws = adapter._ws_client
+                ws.is_running = False
+                if ws.websocket and not ws.websocket.closed:
+                    try:
+                        await ws.websocket.close()
+                        stopped_count += 1
+                    except Exception as e:
+                        logger.error(f"Error closing WS for account {account_id}: {e}")
+        logger.info(f"WS: Closed {stopped_count} connections on shutdown")
 
 
 # Global Access

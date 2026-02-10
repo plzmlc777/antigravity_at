@@ -18,21 +18,30 @@ TICK_HEALTH_CHECK_INTERVAL = 60  # seconds - check for tick health every 60s
 TICK_STALE_THRESHOLD = 90  # seconds - if no tick for 90s during market hours, reconnect
 
 class KiwoomWebSocket(KiwoomBaseAdapter):
-    _instance = None
-    _monitor_task = None
-    
-    def __init__(self):
-        # Initialize Base Class
-        KiwoomBaseAdapter.__init__(self)
+    """
+    WebSocket client for Kiwoom real-time data.
 
-        # Default URI from settings, can be updated via update_uri()
-        self._api_url = settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+    Phase 4 Change: Removed singleton pattern.
+    Each KiwoomRealAdapter now owns its own WebSocket instance,
+    enabling true multi-account support with independent connections.
+    """
+
+    def __init__(self, app_key: str = None, secret_key: str = None, api_url: str = None):
+        # Initialize Base Class with credentials
+        KiwoomBaseAdapter.__init__(self, app_key, secret_key)
+
+        # URI from parameter or settings
+        self._api_url = api_url or settings.HCP_KIWOOM_API_URL or "https://api.kiwoom.com"
+        self.base_url = self._api_url  # Sync for token management
         self.uri = self._build_ws_uri(self._api_url)
         self.websocket = None
         self.is_running = False
         self.monitored_symbols: List[str] = []
 
-        # Callbacks
+        # Per-instance monitor task (no longer class-level)
+        self._monitor_task: Optional[asyncio.Task] = None
+
+        # Callbacks (now per-instance, not shared)
         self.on_tick_callback: Optional[Callable[[Dict], None]] = None
         self.on_order_callback: Optional[Callable[[Dict], None]] = None
         self.on_balance_callback: Optional[Callable[[Dict], None]] = None
@@ -40,6 +49,8 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         # Health Check State
         self.last_tick_time: Optional[datetime] = None
         self._health_check_task: Optional[asyncio.Task] = None
+
+        logger.info(f"WS: Created instance for {self._api_url} (app_key={app_key[:8] if app_key else 'None'}...)")
 
     def _build_ws_uri(self, api_url: str) -> str:
         """Build WebSocket URI from HTTP API URL"""
@@ -100,9 +111,13 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         
     @staticmethod
     def get_instance():
-        if KiwoomWebSocket._instance is None:
-            KiwoomWebSocket._instance = KiwoomWebSocket()
-        return KiwoomWebSocket._instance
+        """
+        DEPRECATED: Singleton pattern removed in Phase 4.
+        This method exists for backward compatibility only.
+        New code should instantiate KiwoomWebSocket directly.
+        """
+        logger.warning("WS: get_instance() is DEPRECATED. Create instance directly with credentials.")
+        return KiwoomWebSocket()
 
     def set_callbacks(self, 
                       on_tick: Callable[[Dict], None] = None,
@@ -116,10 +131,13 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         """
         Connect to WebSocket with provided token and credentials.
 
+        Phase 4: Credentials are now passed in __init__, so app_key/secret_key params
+        are optional overrides (for backward compatibility).
+
         Args:
             token: Access token for authentication
-            app_key: Optional app_key for token refresh (if not provided, won't refresh)
-            secret_key: Optional secret_key for token refresh
+            app_key: Optional app_key override (uses __init__ value if not provided)
+            secret_key: Optional secret_key override (uses __init__ value if not provided)
         """
         if self.is_running and self.websocket and self.websocket.open:
             logger.info("WS: Already connected and running.")
@@ -131,18 +149,18 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
 
         self.access_token = token
 
-        # Store credentials for token refresh
+        # Override credentials if provided (backward compatibility)
         if app_key and secret_key:
             self.app_key = app_key
             self.secret_key = secret_key
             self.base_url = self._api_url  # Sync base_url for _ensure_token()
-            logger.info(f"WS: Credentials stored for token refresh (base_url={self.base_url})")
+            logger.info(f"WS: Credentials updated for token refresh (base_url={self.base_url})")
 
         if not self.is_running:
             self.is_running = True
-            if KiwoomWebSocket._monitor_task is None or KiwoomWebSocket._monitor_task.done():
+            if self._monitor_task is None or self._monitor_task.done():
                 logger.info(f"WS: Starting connection loop to {self.uri}")
-                KiwoomWebSocket._monitor_task = asyncio.create_task(self._monitor_connection())
+                self._monitor_task = asyncio.create_task(self._monitor_connection())
             # Start health check task
             if self._health_check_task is None or self._health_check_task.done():
                 self._health_check_task = asyncio.create_task(self._tick_health_check())

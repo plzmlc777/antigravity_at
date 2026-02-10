@@ -40,17 +40,26 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         self.account_no = account_no or settings.HCP_KIWOOM_ACCOUNT_NO
         self.account_name = account_name or "Unknown"
         self.is_virtual = is_virtual  # 가상 계좌 (모의투자) 여부
-        
-        # WebSocket Integration (shared singleton)
-        # NOTE: Do NOT set callbacks here — multiple KiwoomRealAdapter instances
-        # are created for REST API calls, and each would overwrite the singleton's
-        # tick callback, breaking LiveManager's real-time tick routing.
-        # Callbacks are set explicitly via setup_realtime_callbacks().
-        self.ws_client = KiwoomWebSocket.get_instance()
+
+        # WebSocket Integration (Phase 4: per-adapter instance, lazy creation)
+        # WebSocket is only created when start_realtime() is called.
+        # This prevents creating WebSocket for REST-only adapters (balance, price queries).
+        self._ws_client: Optional[KiwoomWebSocket] = None
         self.tick_listeners: List[Callable[[Dict], None]] = []
         self.order_listeners: List[Callable[[Dict], None]] = []
         self.balance_listeners: List[Callable[[Dict], None]] = []
         self._ws_task = None
+
+    @property
+    def ws_client(self) -> KiwoomWebSocket:
+        """Lazy WebSocket creation - only creates when first accessed."""
+        if self._ws_client is None:
+            self._ws_client = KiwoomWebSocket(
+                app_key=self.app_key,
+                secret_key=self.secret_key,
+                api_url=self.base_url
+            )
+        return self._ws_client
 
     def setup_realtime_callbacks(self):
         """
@@ -126,6 +135,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     async def start_realtime(self, symbols: List[str] = None):
         """
         Start WebSocket connection and subscribe to symbols.
+        Phase 4: WebSocket already has credentials from __init__, just pass token.
         """
         await self._ensure_token()
         if not self.access_token:
@@ -133,9 +143,9 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             return
 
         if not self.ws_client.is_running:
-            # Pass credentials for token refresh capability
-            await self.ws_client.connect(self.access_token, self.app_key, self.secret_key)
-            
+            # WebSocket already has credentials (Phase 4), just pass token
+            await self.ws_client.connect(self.access_token)
+
         if symbols:
             await self.ws_client.subscribe_symbols(symbols)
 
