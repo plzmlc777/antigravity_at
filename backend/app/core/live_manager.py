@@ -20,9 +20,10 @@ logger = logging.getLogger("LiveManager")
 class LiveManager:
     """
     Singleton Manager for LiveTradingEngines.
+    Supports multiple accounts with separate adapters (Phase 1-2 Multi-Account).
     """
     _instance = None
-    
+
     @classmethod
     def get_instance(cls):
         if not cls._instance:
@@ -38,71 +39,141 @@ class LiveManager:
         self._exclusive_groups: Dict[int, set] = {}          # account_id -> {session_ids}
         self._exclusive_lock: Dict[int, Optional[str]] = {}  # account_id -> locked_session_id
 
-        # Always use KiwoomRealAdapter (paper/real trading controlled by session's is_paper flag)
-        # Initially created without credentials; will be reinitialized in initialize() with DB account
-        self.adapter = KiwoomRealAdapter()
-        self._setup_adapter_listeners()
+        # ── Phase 1: Multi-Account Adapter Pool ──
+        # Each account has its own adapter with separate credentials and token
+        self._adapters: Dict[int, KiwoomRealAdapter] = {}  # account_id -> adapter
+        self._primary_account_id: Optional[int] = None  # For backward compatibility
 
-    def _setup_adapter_listeners(self):
-        """Setup listeners on the current adapter instance."""
+        # Create a default adapter for initialization (will be replaced when account is selected)
+        self._default_adapter = KiwoomRealAdapter()
+        self._setup_adapter_listeners(self._default_adapter)
+
+    @property
+    def adapter(self) -> KiwoomRealAdapter:
+        """Backward compatibility: returns the primary account's adapter or default."""
+        if self._primary_account_id and self._primary_account_id in self._adapters:
+            return self._adapters[self._primary_account_id]
+        return self._default_adapter
+
+    @adapter.setter
+    def adapter(self, value: KiwoomRealAdapter):
+        """Backward compatibility: sets the default adapter."""
+        self._default_adapter = value
+
+    def _setup_adapter_listeners(self, adapter: KiwoomRealAdapter = None):
+        """Setup listeners on the specified adapter instance."""
+        target = adapter or self.adapter
         # Register Global Tick Listener
-        if hasattr(self.adapter, "add_tick_listener"):
-            self.adapter.add_tick_listener(self._on_tick)
+        if hasattr(target, "add_tick_listener"):
+            target.add_tick_listener(self._on_tick)
         # Register Order Fill Listener (체결 확인)
-        if hasattr(self.adapter, "add_order_listener"):
-            self.adapter.add_order_listener(self._on_order_fill)
+        if hasattr(target, "add_order_listener"):
+            target.add_order_listener(self._on_order_fill)
         # Bind this adapter's callback to the singleton WebSocket
         # Must be called AFTER adding listeners so they are registered
-        if hasattr(self.adapter, "setup_realtime_callbacks"):
-            self.adapter.setup_realtime_callbacks()
+        if hasattr(target, "setup_realtime_callbacks"):
+            target.setup_realtime_callbacks()
 
-    async def _reinitialize_adapter(self, account_id: int = None):
-        """
-        Reinitialize adapter with account credentials from DB.
+    # ── Phase 1: Multi-Account Adapter Management ──
 
-        Args:
-            account_id: Specific account ID to use. If None, uses the first active account
-                       (but this can cause issues with multiple users - prefer passing account_id).
+    async def get_or_create_adapter(self, account_id: int) -> KiwoomRealAdapter:
         """
+        Get existing adapter for account or create a new one.
+        Each account has its own adapter with separate credentials and token.
+        """
+        if account_id in self._adapters:
+            return self._adapters[account_id]
+
+        # Create new adapter for this account
+        adapter = await self._create_adapter_for_account(account_id)
+        if adapter:
+            self._adapters[account_id] = adapter
+            self._setup_adapter_listeners(adapter)
+            logger.info(f"Created new adapter for account_id={account_id}")
+            return adapter
+        else:
+            logger.error(f"Failed to create adapter for account_id={account_id}")
+            raise ValueError(f"Cannot create adapter for account {account_id}")
+
+    async def _create_adapter_for_account(self, account_id: int) -> Optional[KiwoomRealAdapter]:
+        """Create a new KiwoomRealAdapter with credentials from DB."""
         from ..models.account import ExchangeAccount
         from ..core import security
 
         db = SessionLocal()
         try:
+            account = db.query(ExchangeAccount).filter(
+                ExchangeAccount.id == account_id
+            ).first()
+
+            if not account:
+                logger.error(f"Account {account_id} not found in DB")
+                return None
+
+            try:
+                decrypted_app = security.decrypt_key(account.encrypted_access_key)
+                decrypted_secret = security.decrypt_key(account.encrypted_secret_key)
+
+                adapter = KiwoomRealAdapter(
+                    app_key=decrypted_app,
+                    secret_key=decrypted_secret,
+                    account_no=account.account_number,
+                    account_name=account.account_name,
+                    api_url=account.api_url,
+                    is_virtual=account.is_virtual
+                )
+                logger.info(f"Adapter created for account '{account.account_name}' "
+                           f"(virtual={account.is_virtual})")
+                return adapter
+            except Exception as e:
+                logger.error(f"Failed to decrypt account keys for {account_id}: {e}")
+                return None
+        finally:
+            db.close()
+
+    def get_adapter_for_account(self, account_id: int) -> Optional[KiwoomRealAdapter]:
+        """Get existing adapter for account (sync version, returns None if not exists)."""
+        return self._adapters.get(account_id)
+
+    def remove_adapter(self, account_id: int):
+        """Remove adapter from pool (e.g., when account is deleted or all sessions stopped)."""
+        if account_id in self._adapters:
+            del self._adapters[account_id]
+            logger.info(f"Removed adapter for account_id={account_id}")
+
+    async def _reinitialize_adapter(self, account_id: int = None):
+        """
+        Reinitialize adapter with account credentials from DB.
+        Now uses the adapter pool instead of replacing the single adapter.
+
+        Args:
+            account_id: Specific account ID to use. If None, uses the first active account.
+        """
+        from ..models.account import ExchangeAccount
+
+        db = SessionLocal()
+        try:
             if account_id:
-                # Use specific account by ID
-                active_account = db.query(ExchangeAccount).filter(
-                    ExchangeAccount.id == account_id
-                ).first()
+                target_account_id = account_id
             else:
-                # Fallback: first active account (legacy behavior, may pick wrong account)
+                # Fallback: first active account (legacy behavior)
                 active_account = db.query(ExchangeAccount).filter(
                     ExchangeAccount.is_active == True
                 ).first()
+                target_account_id = active_account.id if active_account else None
 
-            if active_account:
-                try:
-                    decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
-                    decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
-
-                    # Create new adapter with DB credentials
-                    self.adapter = KiwoomRealAdapter(
-                        app_key=decrypted_app,
-                        secret_key=decrypted_secret,
-                        account_no=active_account.account_number,
-                        account_name=active_account.account_name,
-                        api_url=active_account.api_url,
-                        is_virtual=active_account.is_virtual
-                    )
-                    self._setup_adapter_listeners()
-                    logger.info(f"LiveManager: Adapter reinitialized with account '{active_account.account_name}' "
-                               f"(virtual={active_account.is_virtual}, url={active_account.api_url or 'default'})")
-                    return True
-                except Exception as e:
-                    logger.error(f"Failed to decrypt account keys: {e}")
-                    return False
-            else:
+            if not target_account_id:
                 logger.warning("LiveManager: No active account found in DB. Using default adapter.")
+                return False
+
+            # Use the new adapter pool mechanism
+            try:
+                adapter = await self.get_or_create_adapter(target_account_id)
+                self._primary_account_id = target_account_id
+                logger.info(f"LiveManager: Primary adapter set to account_id={target_account_id}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to create adapter for account {target_account_id}: {e}")
                 return False
         finally:
             db.close()
@@ -110,62 +181,81 @@ class LiveManager:
     async def on_account_changed(self, account_id: int = None):
         """
         Called when the active account is changed in Settings.
-        Reinitializes the adapter, WebSocket, and acquires a new token.
+        With multi-account support, this sets the PRIMARY account for new sessions.
+        Existing sessions keep their original adapters (no longer switched).
 
         Args:
             account_id: The ID of the newly activated account.
         """
-        logger.info(f"LiveManager: Account change detected (account_id={account_id}). Reinitializing adapter...")
+        logger.info(f"LiveManager: Account change detected (account_id={account_id}). Setting as primary...")
 
-        # Reinitialize adapter with new account
-        success = await self._reinitialize_adapter(account_id=account_id)
-        if not success:
-            logger.error("LiveManager: Failed to reinitialize adapter on account change.")
-            return {"status": "error", "message": "Failed to reinitialize adapter"}
+        if not account_id:
+            return {"status": "error", "message": "account_id is required"}
 
-        # Acquire token for new adapter FIRST (before updating WebSocket)
-        if hasattr(self.adapter, '_ensure_token'):
+        # Get or create adapter for this account
+        try:
+            adapter = await self.get_or_create_adapter(account_id)
+            self._primary_account_id = account_id
+        except Exception as e:
+            logger.error(f"LiveManager: Failed to get adapter for account {account_id}: {e}")
+            return {"status": "error", "message": f"Failed to initialize adapter: {e}"}
+
+        # Acquire token for new adapter
+        if hasattr(adapter, '_ensure_token'):
             try:
-                await self.adapter._ensure_token()
-                if self.adapter.access_token:
-                    logger.info("LiveManager: Token acquired for new account.")
+                await adapter._ensure_token()
+                if adapter.access_token:
+                    logger.info(f"LiveManager: Token acquired for account {account_id}.")
                 else:
-                    logger.warning("LiveManager: Failed to acquire token for new account.")
+                    logger.warning(f"LiveManager: Failed to acquire token for account {account_id}.")
             except Exception as e:
-                logger.error(f"LiveManager: Token acquisition failed: {e}")
+                logger.error(f"LiveManager: Token acquisition failed for account {account_id}: {e}")
 
-        # Update WebSocket URI and credentials to match new account
-        if hasattr(self.adapter, 'ws_client'):
-            ws = self.adapter.ws_client
+        # Update WebSocket URI and credentials for the primary adapter
+        if hasattr(adapter, 'ws_client'):
+            ws = adapter.ws_client
 
             # Update URI
             if hasattr(ws, 'update_uri'):
-                uri_changed = ws.update_uri(self.adapter.base_url)
+                uri_changed = ws.update_uri(adapter.base_url)
                 if uri_changed:
                     logger.info("LiveManager: WebSocket URI updated for account change")
 
             # Update credentials for token refresh (with new token)
             if hasattr(ws, 'update_credentials'):
                 ws.update_credentials(
-                    self.adapter.app_key,
-                    self.adapter.secret_key,
-                    self.adapter.access_token
+                    adapter.app_key,
+                    adapter.secret_key,
+                    adapter.access_token
                 )
 
             # Force reconnect if WebSocket is running
             if ws.is_running:
                 await ws._force_reconnect()
 
-        # Update all running engines with new adapter reference
+        # NOTE: With multi-account support, we NO LONGER update existing engines' adapters.
+        # Each session keeps its original adapter. Only log how many sessions exist for each account.
+        sessions_by_account: Dict[int, int] = {}
         for session_id, engine in self.engines.items():
-            engine.adapter = self.adapter
-            logger.info(f"LiveManager: Updated adapter for session {session_id}")
+            # Determine account_id from DB
+            db = SessionLocal()
+            try:
+                sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+                if sess:
+                    acc_id = sess.account_id
+                    sessions_by_account[acc_id] = sessions_by_account.get(acc_id, 0) + 1
+            finally:
+                db.close()
+
+        if sessions_by_account:
+            logger.info(f"LiveManager: Active sessions by account: {sessions_by_account}")
 
         return {
             "status": "success",
-            "message": f"Adapter switched to {self.adapter.get_name()}",
-            "account_name": self.adapter.get_account_name(),
-            "is_virtual": self.adapter.is_virtual
+            "message": f"Primary account set to {adapter.get_name()}",
+            "account_name": adapter.get_account_name(),
+            "is_virtual": adapter.is_virtual,
+            "active_sessions_by_account": sessions_by_account
         }
 
     def _on_tick(self, tick_data: Dict):
@@ -299,7 +389,7 @@ class LiveManager:
     async def initialize(self):
         """
         Load active sessions from DB on server startup.
-        Only restores sessions for ONE account to prevent token/credential conflicts.
+        Phase 2: Now restores sessions from ALL accounts with separate adapters.
         """
         # Connect to MarketRouter
         market_data_router.set_live_manager(self)
@@ -325,83 +415,86 @@ class LiveManager:
                     sessions_by_account[acc_id] = []
                 sessions_by_account[acc_id].append(sess)
 
-            # 3. Select primary account (the one with most sessions, or first if tie)
+            logger.info(f"LiveManager: Found {len(active_sessions)} RUNNING sessions across "
+                       f"{len(sessions_by_account)} accounts")
+
+            # 3. Set primary account (the one with most sessions, for backward compat)
             primary_account_id = max(sessions_by_account.keys(),
                                      key=lambda k: len(sessions_by_account[k]))
+            self._primary_account_id = primary_account_id
 
-            # 4. Mark sessions from OTHER accounts as ERROR (cannot run with different credentials)
-            for acc_id, sessions in sessions_by_account.items():
-                if acc_id != primary_account_id:
-                    for sess in sessions:
-                        logger.warning(f"Stopping session {sess.id} - belongs to different account {acc_id} "
-                                      f"(primary is {primary_account_id})")
-                        sess.status = SessionStatus.ERROR
-                        sess.error_log = f"Server restart: Session belongs to account {acc_id}, but account {primary_account_id} is primary."
-                    db.commit()
-
-            logger.info(f"LiveManager: Will restore {len(sessions_by_account[primary_account_id])} sessions "
-                       f"for account_id={primary_account_id}")
-
-            # 5. Reinitialize adapter with the PRIMARY account's credentials
-            await self._reinitialize_adapter(account_id=primary_account_id)
-
-            # Update WebSocket URI to match active account's api_url
-            if hasattr(self.adapter, 'ws_client') and hasattr(self.adapter.ws_client, 'update_uri'):
-                self.adapter.ws_client.update_uri(self.adapter.base_url)
-                logger.info(f"LiveManager: WebSocket URI set to match account api_url: {self.adapter.base_url}")
-
-            # 6. Ensure token is ready BEFORE restoring sessions
-            if hasattr(self.adapter, '_ensure_token'):
-                logger.info("LiveManager: Acquiring Kiwoom token before session restore...")
-                for attempt in range(3):
-                    try:
-                        await self.adapter._ensure_token()
-                        if self.adapter.access_token:
-                            logger.info("LiveManager: Token acquired successfully.")
-                            break
-                    except Exception as e:
-                        logger.warning(f"Token acquisition attempt {attempt + 1} failed: {e}")
-                    await asyncio.sleep(2)
-                else:
-                    logger.error("LiveManager: Failed to acquire token after 3 attempts. Sessions may not have real-time data.")
-
-            # 7. Restore sessions for the primary account only
+            # 4. Phase 2: Restore sessions from ALL accounts (no longer ERROR for other accounts)
             restored_ids = set()
-            for sess in sessions_by_account[primary_account_id]:
+            for acc_id, sessions in sessions_by_account.items():
+                logger.info(f"LiveManager: Restoring {len(sessions)} sessions for account_id={acc_id}")
+
+                # Create adapter for this account and acquire token
                 try:
-                    logger.info(f"Restoring Live Session: {sess.id} ({sess.symbol})")
-                    await self._restore_engine(sess)
-                    restored_ids.add(sess.id)
+                    adapter = await self.get_or_create_adapter(acc_id)
+
+                    # Ensure token is ready for this account
+                    if hasattr(adapter, '_ensure_token'):
+                        logger.info(f"LiveManager: Acquiring token for account {acc_id}...")
+                        for attempt in range(3):
+                            try:
+                                await adapter._ensure_token()
+                                if adapter.access_token:
+                                    logger.info(f"LiveManager: Token acquired for account {acc_id}.")
+                                    break
+                            except Exception as e:
+                                logger.warning(f"Token attempt {attempt + 1} for account {acc_id} failed: {e}")
+                            await asyncio.sleep(2)
+                        else:
+                            logger.error(f"LiveManager: Failed to acquire token for account {acc_id} after 3 attempts.")
                 except Exception as e:
-                    logger.error(f"Failed to restore session {sess.id}: {e}")
-                    traceback.print_exc()
-                    error_logger.log_critical(
-                        error_type=ErrorType.SYSTEM_ERROR,
-                        message=f"Failed to restore session: {e}",
-                        session_id=sess.id,
-                        symbol=sess.symbol,
-                        exception=e,
-                        context={"strategy_name": sess.strategy_name}
-                    )
-                    sess.status = SessionStatus.ERROR
-                    sess.error_log = str(e)
+                    logger.error(f"Failed to create adapter for account {acc_id}: {e}")
+                    # Mark all sessions for this account as ERROR
+                    for sess in sessions:
+                        sess.status = SessionStatus.ERROR
+                        sess.error_log = f"Failed to create adapter: {e}"
                     db.commit()
+                    continue
+
+                # Restore each session for this account
+                for sess in sessions:
+                    try:
+                        logger.info(f"Restoring Live Session: {sess.id} ({sess.symbol}) [account={acc_id}]")
+                        await self._restore_engine(sess)
+                        restored_ids.add(sess.id)
+                    except Exception as e:
+                        logger.error(f"Failed to restore session {sess.id}: {e}")
+                        traceback.print_exc()
+                        error_logger.log_critical(
+                            error_type=ErrorType.SYSTEM_ERROR,
+                            message=f"Failed to restore session: {e}",
+                            session_id=sess.id,
+                            symbol=sess.symbol,
+                            exception=e,
+                            context={"strategy_name": sess.strategy_name, "account_id": acc_id}
+                        )
+                        sess.status = SessionStatus.ERROR
+                        sess.error_log = str(e)
+                        db.commit()
 
             # NOTE: Auto-Start logic removed in v0.9.7.3 due to duplicate key errors
             # and conflicts with existing RUNNING sessions. Users must manually start strategies.
 
-            # 8. Reconstruct exclusive groups from restored sessions
-            for sess in sessions_by_account[primary_account_id]:
-                if sess.id not in restored_ids:
-                    continue
-                cfg = sess.strategy_config or {}
-                if cfg.get("execution_mode") == "exclusive":
-                    self.register_exclusive_session(sess.account_id, sess.id)
-                    # If session has open position, it holds the exclusive lock
-                    pos = self._check_session_position(sess.id)
-                    if pos:
-                        self._exclusive_lock[sess.account_id] = sess.id
-                        logger.info(f"Exclusive lock restored to session {sess.id} (has position: {pos['symbol']} L{pos['level']})")
+            # 5. Reconstruct exclusive groups from ALL restored sessions
+            for acc_id, sessions in sessions_by_account.items():
+                for sess in sessions:
+                    if sess.id not in restored_ids:
+                        continue
+                    cfg = sess.strategy_config or {}
+                    if cfg.get("execution_mode") == "exclusive":
+                        self.register_exclusive_session(sess.account_id, sess.id)
+                        # If session has open position, it holds the exclusive lock
+                        pos = self._check_session_position(sess.id)
+                        if pos:
+                            self._exclusive_lock[sess.account_id] = sess.id
+                            logger.info(f"Exclusive lock restored to session {sess.id} (has position: {pos['symbol']} L{pos['level']})")
+
+            logger.info(f"LiveManager: Initialization complete. Restored {len(restored_ids)} sessions, "
+                       f"{len(self._adapters)} adapters active.")
 
         finally:
             db.close()
@@ -451,10 +544,17 @@ class LiveManager:
         
         # 2. Engine Create & Start
         try:
+            # Phase 2: Use account-specific adapter
+            adapter = await self.get_or_create_adapter(account_id)
+
+            # Ensure token is ready for this account
+            if hasattr(adapter, '_ensure_token'):
+                await adapter._ensure_token()
+
             # Note: Strategy class resolution moved inside LiveTradingEngine.initialize()
-            engine = LiveTradingEngine(session_id, self.adapter)
+            engine = LiveTradingEngine(session_id, adapter)
             await engine.initialize()
-            
+
             self.engines[session_id] = engine
             asyncio.create_task(engine.run_loop())
 
@@ -463,9 +563,9 @@ class LiveManager:
             if execution_mode == "exclusive":
                 self.register_exclusive_session(account_id, session_id)
 
-            # Start Real-time Data Stream for this symbol
-            if hasattr(self.adapter, "start_realtime"):
-                asyncio.create_task(self.adapter.start_realtime([symbol]))
+            # Start Real-time Data Stream for this symbol (using this account's adapter)
+            if hasattr(adapter, "start_realtime"):
+                asyncio.create_task(adapter.start_realtime([symbol]))
 
             logger.info(f"Started Live Session {session_id}")
             return session_id
@@ -652,7 +752,8 @@ class LiveManager:
             current_price = eng.context.get_current_price(eng.symbol)
             if current_price == 0:
                 try:
-                    price_data = await self.adapter.get_current_price(eng.symbol)
+                    # Use the engine's adapter (account-specific)
+                    price_data = await eng.adapter.get_current_price(eng.symbol)
                     current_price = price_data.get('price', 0)
                     # Update price_map for future calls
                     if current_price > 0:
@@ -693,15 +794,18 @@ class LiveManager:
         return results
 
     async def _restore_engine(self, sess: LiveBotSession):
-        # engine = LiveTradingEngine(sess.id, StrategyClass, sess.strategy_config, self.adapter) # Old
-        engine = LiveTradingEngine(sess.id, self.adapter)
+        """Restore a single session with its account-specific adapter."""
+        # Phase 2: Use account-specific adapter
+        adapter = await self.get_or_create_adapter(sess.account_id)
+
+        engine = LiveTradingEngine(sess.id, adapter)
         await engine.initialize()
         self.engines[sess.id] = engine
         asyncio.create_task(engine.run_loop())
-        
-        # Restore Real-time
-        if hasattr(self.adapter, "start_realtime"):
-             asyncio.create_task(self.adapter.start_realtime([sess.symbol]))
+
+        # Restore Real-time using this session's adapter
+        if hasattr(adapter, "start_realtime"):
+            asyncio.create_task(adapter.start_realtime([sess.symbol]))
 
     async def subscribe_to_session(self, session_id: str, queue: asyncio.Queue):
         """
