@@ -50,6 +50,7 @@ class ExchangeAccount(Base):
 
     # User Preferences (계좌별 환경설정)
     last_selected_strategy_id = Column(String, nullable=True)  # 마지막 선택 전략
+    last_selected_profile_id = Column(String, nullable=True)  # 마지막 선택 프로필
 
     # Watchlist (종목 관리)
     last_symbol = Column(String, nullable=True, default='005930')  # 마지막 선택 종목

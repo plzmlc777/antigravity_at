@@ -400,6 +400,11 @@ export const updateLastSelectedStrategy = async (strategyId) => {
     return data;
 };
 
+export const updateLastSelectedProfile = async (profileId) => {
+    const { data } = await api.put('/accounts/preferences/profile', { profile_id: profileId });
+    return data;
+};
+
 export const updateWatchlist = async (lastSymbol, savedSymbols) => {
     const payload = {};
     if (lastSymbol !== undefined) payload.last_symbol = lastSymbol;
@@ -454,5 +459,58 @@ export const testTelegramConnection = async (accountId) => {
 
 export const getAccounts = async () => {
     const { data } = await api.get('/accounts/');
+    return data;
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Strategy Profile API (Profile-Centric Architecture)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get all profiles for current user
+ * @param {string} strategyName - Optional filter by strategy
+ */
+export const getProfiles = async (strategyName = '') => {
+    const params = strategyName ? { strategy_name: strategyName } : {};
+    const { data } = await api.get('/live/profiles', { params });
+    return data;
+};
+
+/**
+ * Get a single profile by ID with full configuration
+ */
+export const getProfile = async (profileId) => {
+    const { data } = await api.get(`/live/profiles/${profileId}`);
+    return data;
+};
+
+/**
+ * Create a new profile
+ * @param {Object} profile - { name, description, strategy_name, rank_configs, execution_mode, rank_weights, initial_capital, is_paper }
+ */
+export const createProfile = async (profile) => {
+    const { data } = await api.post('/live/profiles', profile);
+    return data;
+};
+
+/**
+ * Update an existing profile
+ * @param {string} profileId
+ * @param {Object} updates - Partial profile object
+ */
+export const updateProfile = async (profileId, updates) => {
+    const { data } = await api.put(`/live/profiles/${profileId}`, updates);
+    return data;
+};
+
+/**
+ * Delete a profile (soft delete by default)
+ * @param {string} profileId
+ * @param {boolean} hardDelete - If true, permanently deletes
+ */
+export const deleteProfile = async (profileId, hardDelete = false) => {
+    const { data } = await api.delete(`/live/profiles/${profileId}`, {
+        params: { hard_delete: hardDelete }
+    });
     return data;
 };

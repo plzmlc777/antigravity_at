@@ -275,6 +275,7 @@ def update_account(
 class AccountPreferencesOut(BaseModel):
     """계좌별 환경설정"""
     last_selected_strategy_id: Optional[str] = None
+    last_selected_profile_id: Optional[str] = None
     last_symbol: Optional[str] = None
     saved_symbols: Optional[List] = None
     symbol_compare_settings: Optional[dict] = None
@@ -283,6 +284,10 @@ class AccountPreferencesOut(BaseModel):
 
 class UpdateLastStrategyRequest(BaseModel):
     strategy_id: Optional[str] = None
+
+
+class UpdateLastProfileRequest(BaseModel):
+    profile_id: Optional[str] = None
 
 
 class UpdateWatchlistRequest(BaseModel):
@@ -321,6 +326,7 @@ def get_account_preferences(
 
     return AccountPreferencesOut(
         last_selected_strategy_id=account.last_selected_strategy_id,
+        last_selected_profile_id=account.last_selected_profile_id,
         last_symbol=account.last_symbol,
         saved_symbols=account.saved_symbols,
         symbol_compare_settings=account.symbol_compare_settings,
@@ -352,6 +358,32 @@ def update_last_selected_strategy(
     db.commit()
 
     return {"status": "success", "last_selected_strategy_id": request.strategy_id}
+
+
+@router.put("/preferences/profile")
+def update_last_selected_profile(
+    request: UpdateLastProfileRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update last selected profile for current active account
+    계좌별로 마지막 선택 프로필 저장
+    """
+    # Get active account
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.user_id == current_user.id,
+        ExchangeAccount.is_active == True
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="No active account found")
+
+    # Update last selected profile
+    account.last_selected_profile_id = request.profile_id
+    db.commit()
+
+    return {"status": "success", "last_selected_profile_id": request.profile_id}
 
 
 @router.put("/preferences/watchlist")

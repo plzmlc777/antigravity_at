@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
@@ -6,10 +6,11 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode, recalculateOptimizationScores } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode, recalculateOptimizationScores, getAccounts } from '../api/client';
 import { useWatchlist } from '../context/WatchlistContext';
-import { useStrategyConfig } from '../hooks/useStrategyConfig';
+import { useProfileConfig } from '../hooks/useProfileConfig';
 import { isValidScope } from '../types/ConfigScope';
+import NewProfileModal from '../components/NewProfileModal';
 import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 // Live components moved to LiveTradingView.jsx
@@ -27,7 +28,7 @@ import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
+import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -277,6 +278,53 @@ const StrategyView = () => {
     const { systemStatus } = useMarketData();
     const activeAccountId = systemStatus?.account_id || null;
 
+    // 계좌 자동 선택: 실계좌 우선, 없으면 모의계좌
+    const [accounts, setAccounts] = useState([]);
+    const [effectiveAccountId, setEffectiveAccountId] = useState(null);
+
+    useEffect(() => {
+        const loadAccounts = async () => {
+            try {
+                const accountList = await getAccounts();
+                setAccounts(accountList || []);
+
+                // 이미 활성 계좌가 있으면 사용
+                if (activeAccountId) {
+                    setEffectiveAccountId(activeAccountId);
+                    return;
+                }
+
+                // 실계좌 우선 선택 (environment === 'real')
+                const realAccount = accountList?.find(a => a.environment === 'real' && !a.is_disabled);
+                if (realAccount) {
+                    setEffectiveAccountId(realAccount.id);
+                    console.log('[StrategyView] Auto-selected real account:', realAccount.account_name);
+                    return;
+                }
+
+                // 실계좌가 없으면 모의계좌 선택 (virtual 또는 paper)
+                const virtualAccount = accountList?.find(a =>
+                    (a.environment === 'virtual' || a.environment === 'paper') && !a.is_disabled
+                );
+                if (virtualAccount) {
+                    setEffectiveAccountId(virtualAccount.id);
+                    console.log('[StrategyView] Auto-selected virtual account:', virtualAccount.account_name);
+                    return;
+                }
+
+                // 마지막 fallback: 비활성화되지 않은 첫 번째 계좌
+                const anyAccount = accountList?.find(a => !a.is_disabled);
+                if (anyAccount) {
+                    setEffectiveAccountId(anyAccount.id);
+                    console.log('[StrategyView] Auto-selected first available account:', anyAccount.account_name);
+                }
+            } catch (e) {
+                console.error('[StrategyView] Failed to load accounts:', e);
+            }
+        };
+        loadAccounts();
+    }, [activeAccountId]);
+
     // Symbol State - Use shared watchlist context (synced with DB)
     const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
 
@@ -300,9 +348,7 @@ const StrategyView = () => {
         return saved || 'exclusive';
     }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-    const [isProfileSaveModalOpen, setIsProfileSaveModalOpen] = useState(false);
-    const [profileSaveData, setProfileSaveData] = useState({ name: '', description: '' });
-    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    // Old Profile Save Modal state removed - now using Profile Selector's Save As modal
 
     // Symbol Comparison State (with localStorage persistence)
     const [selectedCompareSymbols, setSelectedCompareSymbols] = useState(() => {
@@ -351,27 +397,64 @@ const StrategyView = () => {
     const [paramImportExportFeedback, setParamImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
     const [paramImportError, setParamImportError] = useState('');
 
-    // Dynamic Config State (Refactored for Multi-Symbol Tabs)
-    // 커스텀 훅을 사용한 중앙 집중화된 설정 관리
-    // ConfigScope(accountId + strategyId)를 함께 관리
+    // Execution Log Helper (moved up for useProfileConfig)
+    const addLog = useCallback((message, level = 'info') => {
+        const timestamp = new Date().toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            fractionalSecondDigits: 3
+        });
+        const newLog = { timestamp, message, level };
+        setExecutionLogs(prev => [...prev.slice(-99), newLog]); // Keep last 100 logs
+        console.log(`[${timestamp}] ${message}`); // Still log to console
+    }, []);
+
+    // Profile-based Config State (Profile-Centric Architecture)
+    // Profiles are the single source of truth for strategy configurations
     const {
+        // Profile Management
+        profiles,
+        selectedProfileId,
+        selectedProfile,
+        isProfilesLoading,
+        loadProfiles,
+        selectProfile,
+        initNewProfile,
+        saveProfile,
+        saveProfileAs,
+        deleteCurrentProfile,
+        discardChanges,
+        profileMeta,
+        setProfileMeta,
+        isDirty: isProfileDirty,
+        // Config List (from profile's rank_configs)
         configList,
         setConfigList,
         isLoaded: isConfigLoaded,
-        needsInit,       // 초기화 필요 플래그
-        setNeedsInit,    // 플래그 리셋용
+        needsInit,
+        setNeedsInit,
+        error: profileError,
+        saveStatus,
         saveConfigs,
-        reloadConfigs,
-        scope,           // ConfigScope: { accountId, strategyId }
-        transformUiToDbConfig,  // UI → DB 변환 함수
+        scope, // Backward compatible scope object
+        transformUiToDbConfig, // Legacy API compatibility
+        // reloadConfigs already aliased to loadProfiles above
+        initDefaultList: hookInitDefaultList,
         getDynamicDefaultConfig: getHookDefaultConfig
-        // initDefaultList는 기존 함수 사용 (getDynamicOptValues 의존성)
-    } = useStrategyConfig({
+    } = useProfileConfig({
         selectedStrategy,
-        accountId: activeAccountId,  // 계좌 중심: 활성 계좌 ID 전달
         defaultConfig: DEFAULT_CONFIG,
-        generateUUID
+        generateUUID,
+        onLog: addLog,
+        accountId: effectiveAccountId // 실계좌 우선 자동 선택된 계좌 ID
     });
+
+    // New Profile Modal State
+    const [isNewProfileModalOpen, setIsNewProfileModalOpen] = useState(false);
+    const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
+    const [saveAsName, setSaveAsName] = useState('');
+    const [saveAsDescription, setSaveAsDescription] = useState('');
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: '',
@@ -398,19 +481,6 @@ const StrategyView = () => {
 
     const closeConfirm = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
-    };
-
-    // Execution Log Helper
-    const addLog = (message, level = 'info') => {
-        const timestamp = new Date().toLocaleTimeString('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            fractionalSecondDigits: 3
-        });
-        const newLog = { timestamp, message, level };
-        setExecutionLogs(prev => [...prev.slice(-99), newLog]); // Keep last 100 logs
-        console.log(`[${timestamp}] ${message}`); // Still log to console
     };
 
     const [activeTab, setActiveTab] = useState(() => {
@@ -475,10 +545,11 @@ const StrategyView = () => {
         }]);
     };
 
-    // needsInit 플래그 처리 - 훅에서 DB가 비어있을 때 호출
+    // needsInit 플래그 처리 - 프로필이 선택되었고 DB가 비어있을 때 호출
+    // 프로필 중심 아키텍처: 프로필 없이는 configList 초기화 안 함
     useEffect(() => {
-        if (needsInit && selectedStrategy) {
-            console.log("[StrategyView] needsInit detected, configList.length:", configList.length);
+        if (needsInit && selectedProfileId && selectedStrategy) {
+            console.log("[StrategyView] needsInit detected with profile, configList.length:", configList.length);
             // 훅에서 이미 기본 설정을 생성했으면 initDefaultList 호출 생략
             if (configList.length === 0) {
                 console.log("[StrategyView] configList empty, calling initDefaultList");
@@ -487,7 +558,18 @@ const StrategyView = () => {
             setNeedsInit(false);
             setIsDirty(false);  // 초기화는 "변경"이 아니므로 dirty 리셋
         }
-    }, [needsInit, selectedStrategy, configList.length]);
+    }, [needsInit, selectedProfileId, selectedStrategy, configList.length]);
+
+    // Sync selectedStrategy when profile is auto-selected (on mount)
+    useEffect(() => {
+        if (profileMeta.strategy_name && !selectedStrategy && strategies.length > 0) {
+            const matchingStrategy = strategies.find(s => s.id === profileMeta.strategy_name);
+            if (matchingStrategy) {
+                console.log('[StrategyView] Auto-syncing strategy from profile:', matchingStrategy.name);
+                setSelectedStrategy(matchingStrategy);
+            }
+        }
+    }, [profileMeta.strategy_name, selectedStrategy, strategies]);
 
     // Save Strategy Config List on Change (Debounced DB Sync) - DISABLED (Manual Save with Apply button)
     // useEffect(() => {
@@ -1558,24 +1640,30 @@ const StrategyView = () => {
         if (!selectedStrategy || !isConfigLoaded || configList.length === 0) return;
 
         try {
-            // 1. Save configuration to DB
-            if (!isValidScope(scope)) {
-                openConfirm("⚠️ No Active Account", "활성화된 계좌가 없습니다. Settings에서 계좌를 활성화해주세요.", () => {}, true);
-                return;
+            // 프로필 중심 아키텍처: 프로필이 선택되었으면 프로필에 저장
+            if (selectedProfileId) {
+                console.log("[Apply] Saving to profile:", selectedProfileId);
+                await saveProfile();
+                console.log("[Apply] Profile saved successfully");
+            } else {
+                // 프로필이 없으면 레거시 방식 (계좌 필요)
+                if (!isValidScope(scope)) {
+                    openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
+                    return;
+                }
+
+                // ConfigScope를 사용하여 configsToSave 생성
+                const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
+
+                console.log("[Apply] Saving configs (legacy):", configsToSave.map(c => ({
+                    tab_name: c.tab_name,
+                    is_active: c.is_active,
+                    account_id: c.account_id
+                })));
+
+                await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
+                console.log("Configuration saved to DB (legacy)");
             }
-
-            // ConfigScope를 사용하여 configsToSave 생성
-            const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
-
-            // Debug: Log what we're saving
-            console.log("[Apply] Saving configs:", configsToSave.map(c => ({
-                tab_name: c.tab_name,
-                is_active: c.is_active,
-                account_id: c.account_id
-            })));
-
-            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-            console.log("Configuration saved to DB");
 
             // 2. Save pending optimization results if exists
             if (pendingOptResult) {
@@ -3193,36 +3281,116 @@ const StrategyView = () => {
 
     return (
         <div className="flex flex-col gap-6 pb-10">
-            {/* Top Bar: Strategy Selector */}
+            {/* Top Bar: Profile Selector (Profile-Centric Architecture) */}
             <div className="shrink-0 z-20 bg-white/5 border border-white/10 rounded-xl px-4 pt-4 pb-5 overflow-hidden">
                 <div className="flex flex-col gap-3">
-                    <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
-                        <HelpCircle size={14} className="text-gray-400" /> Strategy
-                    </h3>
-                    <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+                    {/* Row 1: Profile Header */}
+                    <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                            <FolderOpen size={14} className="text-emerald-400" /> Strategy Profile
+                        </h3>
+                        {/* Profile Actions */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsNewProfileModalOpen(true)}
+                                className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            >
+                                <Plus size={14} />
+                                New Profile
+                            </button>
+                            {selectedProfileId && (
+                                <button
+                                    onClick={() => {
+                                        openConfirm(
+                                            'Delete Profile',
+                                            `정말 "${profileMeta.name}" 프로필을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+                                            async () => {
+                                                try {
+                                                    await deleteCurrentProfile();
+                                                    setSelectedStrategy(null);
+                                                } catch (e) {
+                                                    console.error('Failed to delete profile:', e);
+                                                }
+                                            },
+                                            true,
+                                            'Delete',
+                                            'Cancel'
+                                        );
+                                    }}
+                                    className="px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Row 2: Profile Dropdown & Info */}
+                    <div className="flex flex-col md:flex-row items-stretch gap-4 w-full">
+                        {/* Profile Dropdown */}
                         <div className="relative w-full md:max-w-md">
                             <select
-                                value={selectedStrategy?.id || ''}
+                                value={selectedProfileId || ''}
                                 onChange={(e) => {
-                                    if (!e.target.value) {
-                                        // 플레이스홀더 선택 시 전략 선택 해제
+                                    const newProfileId = e.target.value;
+                                    if (!newProfileId) {
+                                        // Clear selection
+                                        selectProfile(null);
                                         setSelectedStrategy(null);
                                         setBacktestResult(null);
                                         setIsDirty(false);
-                                        localStorage.removeItem('lastStrategyId');
                                         return;
                                     }
-                                    const strat = strategies.find(s => s.id === e.target.value);
-                                    handleStrategyChange(strat);
+
+                                    // Check for unsaved changes
+                                    if (isProfileDirty || isDirty) {
+                                        openConfirm(
+                                            '저장하지 않은 변경사항',
+                                            '현재 프로필에 저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?',
+                                            async () => {
+                                                // Save then switch
+                                                await saveProfile();
+                                                await selectProfile(newProfileId);
+                                                // Find and set the strategy
+                                                const profile = profiles.find(p => p.id === newProfileId);
+                                                if (profile) {
+                                                    const strat = strategies.find(s => s.id === profile.strategy_name);
+                                                    setSelectedStrategy(strat);
+                                                }
+                                                setIsDirty(false);
+                                            },
+                                            false,
+                                            'Save',
+                                            'Discard',
+                                            async () => {
+                                                // Discard and switch
+                                                await selectProfile(newProfileId);
+                                                const profile = profiles.find(p => p.id === newProfileId);
+                                                if (profile) {
+                                                    const strat = strategies.find(s => s.id === profile.strategy_name);
+                                                    setSelectedStrategy(strat);
+                                                }
+                                                setIsDirty(false);
+                                            }
+                                        );
+                                    } else {
+                                        // No unsaved changes, switch directly
+                                        selectProfile(newProfileId);
+                                        const profile = profiles.find(p => p.id === newProfileId);
+                                        if (profile) {
+                                            const strat = strategies.find(s => s.id === profile.strategy_name);
+                                            setSelectedStrategy(strat);
+                                        }
+                                    }
                                 }}
-                                className="w-full bg-black/40 border border-white/20 text-white cursor-pointer focus:border-blue-500 rounded-lg px-4 py-3 appearance-none outline-none text-sm font-medium"
+                                className="w-full bg-black/40 border border-white/20 text-white cursor-pointer focus:border-emerald-500 rounded-lg px-4 py-3 appearance-none outline-none text-sm font-medium"
                             >
                                 <option value="" className="bg-slate-900 text-gray-400">
-                                    전략을 선택하세요
+                                    프로필을 선택하세요
                                 </option>
-                                {strategies.map(strat => (
-                                    <option key={strat.id} value={strat.id} className="bg-slate-900 text-white">
-                                        {strat.name}
+                                {profiles.map(profile => (
+                                    <option key={profile.id} value={profile.id} className="bg-slate-900 text-white">
+                                        {profile.name} ({profile.strategy_name})
                                     </option>
                                 ))}
                             </select>
@@ -3230,32 +3398,172 @@ const StrategyView = () => {
                                 ▼
                             </div>
                         </div>
-                        {selectedStrategy && (
-                            <div className="hidden md:flex items-center gap-2 text-sm text-gray-400 border-l border-white/10 pl-4 h-10 flex-1">
-                                <span className="flex-1 truncate">{selectedStrategy.description}</span>
+
+                        {/* Profile Info & Strategy */}
+                        {selectedProfile && selectedStrategy && (
+                            <div className="hidden md:flex items-center gap-3 text-sm text-gray-400 border-l border-white/10 pl-4 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <Rocket size={14} className="text-blue-400" />
+                                    <span className="text-white font-medium">{selectedStrategy.name}</span>
+                                </div>
+                                <span className="text-gray-600">|</span>
+                                <span className="flex-1 truncate text-gray-500">{profileMeta.description || '설명 없음'}</span>
                                 <button
                                     onClick={() => setIsDetailModalOpen(true)}
                                     className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-all group relative"
                                     title="View Detailed Strategy Specification"
                                 >
                                     <HelpCircle size={16} />
-                                    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none border border-white/10 shadow-xl">
-                                        Detail Specs
-                                    </span>
                                 </button>
                             </div>
                         )}
                     </div>
+
+                    {/* Row 3: Save/Discard Buttons (when dirty) */}
+                    {(isProfileDirty || isDirty) && selectedProfileId && (
+                        <div className="flex items-center gap-3 pt-2 border-t border-yellow-500/30 mt-1">
+                            <div className="flex-1 text-yellow-400 text-xs flex items-center gap-2">
+                                <span className="animate-pulse">●</span>
+                                변경사항이 있습니다
+                            </div>
+                            <button
+                                onClick={() => {
+                                    discardChanges();
+                                    setIsDirty(false);
+                                }}
+                                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            >
+                                <X size={14} />
+                                Discard
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await saveProfile();
+                                        setIsDirty(false);
+                                    } catch (e) {
+                                        console.error('Failed to save profile:', e);
+                                    }
+                                }}
+                                disabled={saveStatus === 'saving'}
+                                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                                {saveStatus === 'saving' ? (
+                                    <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
+                                ) : saveStatus === 'saved' ? (
+                                    <><Check size={14} /> Saved!</>
+                                ) : (
+                                    <><Save size={14} /> Save</>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSaveAsName(profileMeta.name + ' (Copy)');
+                                    setSaveAsDescription(profileMeta.description || '');
+                                    setIsSaveAsModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            >
+                                <Copy size={14} />
+                                Save As...
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* New Profile Modal */}
+            <NewProfileModal
+                isOpen={isNewProfileModalOpen}
+                onClose={() => setIsNewProfileModalOpen(false)}
+                onProfileCreated={async (data) => {
+                    // Initialize new profile with default config
+                    const strat = strategies.find(s => s.id === data.strategyId);
+                    setSelectedStrategy(strat);
+                    initNewProfile(data.strategyId);
+                    setProfileMeta(prev => ({
+                        ...prev,
+                        name: data.name,
+                        description: data.description,
+                        strategy_name: data.strategyId
+                    }));
+                    setIsDirty(true); // Mark as dirty since it's unsaved
+                }}
+                strategies={strategies}
+            />
+
+            {/* Save As Modal */}
+            {isSaveAsModalOpen && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-gradient-to-b from-gray-900 to-gray-950 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <Copy size={20} className="text-blue-400" />
+                            Save Profile As
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">New Profile Name</label>
+                                <input
+                                    type="text"
+                                    value={saveAsName}
+                                    onChange={(e) => setSaveAsName(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white outline-none focus:border-blue-500/50"
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                                <textarea
+                                    value={saveAsDescription}
+                                    onChange={(e) => setSaveAsDescription(e.target.value)}
+                                    rows={2}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white outline-none focus:border-blue-500/50 resize-none"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setIsSaveAsModalOpen(false)}
+                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!saveAsName.trim()) return;
+                                    try {
+                                        await saveProfileAs(saveAsName.trim(), saveAsDescription.trim());
+                                        setIsSaveAsModalOpen(false);
+                                        setIsDirty(false);
+                                    } catch (e) {
+                                        console.error('Failed to save as:', e);
+                                    }
+                                }}
+                                disabled={!saveAsName.trim()}
+                                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold rounded-lg transition-all disabled:opacity-50"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Main Content Area (No Scroll Container) */}
             <div className="space-y-6 pb-20">
-                {!selectedStrategy ? (
+                {/* 프로필 중심 아키텍처: 프로필 선택이 필수 */}
+                {!selectedProfileId ? (
                     <div className="flex flex-col items-center justify-center p-20 text-gray-400 bg-white/5 border border-white/10 rounded-xl">
-                        <Crosshair size={48} className="mb-4 text-blue-500/50" />
-                        <p className="text-lg font-medium">전략을 선택해주세요</p>
-                        <p className="text-sm text-gray-500 mt-2">위의 드롭다운에서 백테스트할 전략을 선택하세요</p>
+                        <FolderOpen size={48} className="mb-4 text-emerald-500/50" />
+                        <p className="text-lg font-medium">프로필을 선택하거나 새로 만드세요</p>
+                        <p className="text-sm text-gray-500 mt-2">위에서 기존 프로필을 선택하거나 "New Profile" 버튼을 클릭하세요</p>
+                        <button
+                            onClick={() => setIsNewProfileModalOpen(true)}
+                            className="mt-6 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl transition-all flex items-center gap-2"
+                        >
+                            <Plus size={20} />
+                            New Profile
+                        </button>
                     </div>
                 ) : !isConfigLoaded ? (
                     <div className="flex flex-col items-center justify-center p-20 text-gray-500">
@@ -3681,20 +3989,37 @@ const StrategyView = () => {
                                                         )}
                                                     </button>
                                                     <button
-                                                        onClick={() => {
+                                                        onClick={async () => {
                                                             const activeConfigs = configList.filter(c => c.is_active);
                                                             if (activeConfigs.length === 0) {
-                                                                openConfirm('No Active Ranks', 'Please activate at least one rank before saving a profile.', () => {}, false, 'OK');
+                                                                openConfirm('No Active Ranks', 'Please activate at least one rank before saving.', () => {}, false, 'OK');
                                                                 return;
                                                             }
-                                                            setProfileSaveData({ name: '', description: '' });
-                                                            setIsProfileSaveModalOpen(true);
+
+                                                            // If profile already has a name, save directly
+                                                            if (selectedProfileId && profileMeta.name) {
+                                                                try {
+                                                                    await saveProfile();
+                                                                    setIsDirty(false);
+                                                                    openConfirm('Saved', `Profile "${profileMeta.name}" has been saved.`, () => {}, false, 'OK');
+                                                                } catch (e) {
+                                                                    console.error('Failed to save profile:', e);
+                                                                }
+                                                            } else {
+                                                                // New profile - prompt for name
+                                                                setSaveAsName(profileMeta.name || '');
+                                                                setSaveAsDescription(profileMeta.description || '');
+                                                                setIsSaveAsModalOpen(true);
+                                                            }
                                                         }}
-                                                        disabled={isLoading}
+                                                        disabled={isLoading || saveStatus === 'saving'}
                                                         className="px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
                                                     >
-                                                        <Save size={20} />
-                                                        Save Profile
+                                                        {saveStatus === 'saving' ? (
+                                                            <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
+                                                        ) : (
+                                                            <><Save size={20} /> {selectedProfileId ? 'Save Profile' : 'Save As New Profile'}</>
+                                                        )}
                                                     </button>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-3">
@@ -5299,107 +5624,6 @@ const StrategyView = () => {
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
             />
-
-            {/* Phase 5: Profile Save Modal */}
-            {isProfileSaveModalOpen && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            <Save size={20} className="text-emerald-400" />
-                            Save Strategy Profile
-                        </h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">Profile Name *</label>
-                                <input
-                                    type="text"
-                                    value={profileSaveData.name}
-                                    onChange={(e) => setProfileSaveData(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder="e.g., Conservative DIP Strategy v2"
-                                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm text-gray-400 mb-1">Description (optional)</label>
-                                <textarea
-                                    value={profileSaveData.description}
-                                    onChange={(e) => setProfileSaveData(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Notes about this profile configuration..."
-                                    rows={3}
-                                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none resize-none"
-                                />
-                            </div>
-                            <div className="bg-white/5 rounded-lg p-3 text-sm">
-                                <p className="text-gray-400 mb-2">This profile will save:</p>
-                                <ul className="text-gray-500 space-y-1 text-xs">
-                                    <li>• Strategy: <span className="text-emerald-400">{selectedStrategy?.name || selectedStrategy?.id}</span></li>
-                                    <li>• Active Ranks: <span className="text-emerald-400">{configList.filter(c => c.is_active).length}</span></li>
-                                    <li>• Execution Mode: <span className="text-emerald-400">{executionMode}</span></li>
-                                    <li>• All rank parameters and symbols</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                onClick={() => setIsProfileSaveModalOpen(false)}
-                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    if (!profileSaveData.name.trim()) {
-                                        openConfirm('Name Required', 'Please enter a profile name.', () => {}, false, 'OK');
-                                        return;
-                                    }
-                                    setIsSavingProfile(true);
-                                    try {
-                                        const activeConfigs = configList.filter(c => c.is_active);
-                                        const leaderConfig = activeConfigs[0];
-
-                                        // Build rank_configs array - always use idx+1 for rank ordering
-                                        const rankConfigs = activeConfigs.map((cfg, idx) => ({
-                                            rank: idx + 1,  // R1, R2, R3, ...
-                                            symbol: cfg.symbol || currentSymbol,
-                                            params: { ...cfg },
-                                            weight: 1.0,
-                                            enabled: true
-                                        }));
-
-                                        const payload = {
-                                            name: profileSaveData.name.trim(),
-                                            description: profileSaveData.description.trim() || null,
-                                            strategy_name: selectedStrategy?.id || 'time_momentum',
-                                            rank_configs: rankConfigs,
-                                            execution_mode: executionMode,
-                                            rank_weights: null,
-                                            initial_capital: leaderConfig?.initial_capital || 10000000,
-                                            is_paper: true
-                                        };
-
-                                        await axios.post('/api/v1/live/profiles', payload);
-                                        setIsProfileSaveModalOpen(false);
-                                        openConfirm('Profile Saved', `Profile "${profileSaveData.name}" has been saved successfully. You can load it when creating new sessions.`, () => {}, false, 'OK');
-                                    } catch (err) {
-                                        console.error('Failed to save profile:', err);
-                                        openConfirm('Save Failed', err.response?.data?.detail || err.message || 'Failed to save profile', () => {}, true, 'OK');
-                                    } finally {
-                                        setIsSavingProfile(false);
-                                    }
-                                }}
-                                disabled={isSavingProfile || !profileSaveData.name.trim()}
-                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                            >
-                                {isSavingProfile ? (
-                                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
-                                ) : (
-                                    <><Save size={16} /> Save Profile</>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Strategy Detail Modal */}
             <StrategyDetailModal
