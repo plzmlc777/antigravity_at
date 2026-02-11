@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { MarketDataProvider } from './context/MarketDataContext';
 import { WatchlistProvider } from './context/WatchlistContext';
+import { LiveTradingProvider } from './context/LiveTradingContext';
 import { APP_VERSION, COMMIT_HASH, CODE_NAME } from './version';
 
 const NavLink = ({ to, children }) => {
@@ -136,7 +137,9 @@ function App() {
                     <Route path="/*" element={
                         <MarketDataProvider>
                             <WatchlistProvider>
-                                <AppContent />
+                                <LiveTradingProvider>
+                                    <AppContent />
+                                </LiveTradingProvider>
                             </WatchlistProvider>
                         </MarketDataProvider>
                     } />

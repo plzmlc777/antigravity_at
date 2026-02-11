@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { useMarketData } from '../context/MarketDataContext';
+import React, { useState, useRef } from 'react';
 import { useWatchlist } from '../context/WatchlistContext';
+import { useLiveTrading } from '../context/LiveTradingContext';
 import LiveStrategyPanel from '../components/LiveStrategyPanel';
 import SessionSwitcher from '../components/SessionSwitcher';
 import NewSessionModal from '../components/NewSessionModal';
@@ -9,25 +8,24 @@ import ConfirmModal from '../components/ConfirmModal';
 import { Radio } from 'lucide-react';
 
 const LiveTradingView = () => {
-    // 계좌 중심: 활성 계좌 ID 가져오기
-    const { systemStatus } = useMarketData();
-    const activeAccountId = systemStatus?.account_id || null;
-
     // Symbol State - Use shared watchlist context (synced with DB)
-    const { currentSymbol, setCurrentSymbol, savedSymbols } = useWatchlist();
+    const { savedSymbols } = useWatchlist();
 
-    // Strategy State (for NewSessionModal)
-    const [strategies, setStrategies] = useState([]);
-    const [selectedStrategy, setSelectedStrategy] = useState(null);
+    // Use centralized LiveTradingContext for state management
+    const {
+        activeSessionGroup,
+        setActiveSessionGroup,
+        executionMode,
+        setExecutionMode,
+        setIsLiveRunning,
+        strategies,
+        selectedStrategy,
+        setSelectedStrategy,
+        getStrategyById,
+    } = useLiveTrading();
 
-    // Live-specific State
-    const [isLiveRunning, setIsLiveRunning] = useState(false);
+    // Local state for modal
     const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
-    const [activeSessionGroup, setActiveSessionGroup] = useState(null);
-    const [executionMode, setExecutionMode] = useState(() => {
-        const saved = localStorage.getItem('integratedExecutionMode');
-        return saved || 'exclusive';
-    });
 
     // Refs
     const sessionSwitcherRef = useRef(null);
@@ -44,52 +42,56 @@ const LiveTradingView = () => {
         cancelText: 'Cancel'
     });
 
-    const openConfirm = (title, message, onConfirm, isDanger = false, confirmText = 'Confirm', cancelText = 'Cancel', onCancel = null) => {
-        setConfirmModal({
-            isOpen: true,
-            title,
-            message,
-            onConfirm,
-            onCancel,
-            isDanger,
-            confirmText,
-            cancelText
-        });
-    };
-
     const closeConfirm = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
 
-    // Save execution mode to localStorage (profile-level setting is in NewSessionModal)
-    useEffect(() => {
-        localStorage.setItem('integratedExecutionMode', executionMode);
-    }, [executionMode]);
-
-    // Fetch strategies on mount (for NewSessionModal)
-    useEffect(() => {
-        fetchStrategies();
-    }, []);
-
-    const fetchStrategies = async () => {
-        try {
-            const res = await axios.get('/api/v1/strategies/list');
-            setStrategies(res.data);
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    // Update selectedStrategy when strategies load or activeSessionGroup changes
-    // This ensures parameterSchema is available even after auto-selection
-    useEffect(() => {
-        if (activeSessionGroup?.strategyName && strategies.length > 0) {
-            const matchingStrategy = strategies.find(s => s.id === activeSessionGroup.strategyName);
-            if (matchingStrategy && matchingStrategy.id !== selectedStrategy?.id) {
+    // Handle session group selection
+    const handleSelectSessionGroup = (group) => {
+        setActiveSessionGroup(group);
+        // Update selectedStrategy from session group
+        if (group?.strategyName) {
+            const matchingStrategy = getStrategyById(group.strategyName);
+            if (matchingStrategy) {
                 setSelectedStrategy(matchingStrategy);
             }
         }
-    }, [strategies, activeSessionGroup?.strategyName]);
+    };
+
+    // Handle new session created
+    const handleSessionStarted = (result) => {
+        // Refresh SessionSwitcher first to get new session data
+        sessionSwitcherRef.current?.refresh?.();
+
+        // Set the new session group as active
+        setActiveSessionGroup({
+            accountId: result.accountId,
+            strategyName: result.strategyName,
+            groupId: result.groupId,
+            sessionId: result.sessions?.[0]?.sessionId,
+            sessions: result.sessions
+        });
+
+        // Update selectedStrategy from result
+        if (result.strategyName !== selectedStrategy?.id) {
+            const matchingStrategy = getStrategyById(result.strategyName);
+            if (matchingStrategy) {
+                setSelectedStrategy(matchingStrategy);
+            }
+        }
+    };
+
+    // Handle session action (resume/delete)
+    const handleSessionAction = (action, session) => {
+        // Refresh session list after resume/delete
+        sessionSwitcherRef.current?.refresh?.();
+        // Clear selection if deleted - delay to allow refresh to complete
+        if (action === 'delete') {
+            setTimeout(() => {
+                setActiveSessionGroup(null);
+            }, 300);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-6 pb-10">
@@ -99,16 +101,7 @@ const LiveTradingView = () => {
                     {/* Session Switcher for Multi-Account Support */}
                     <SessionSwitcher
                         ref={sessionSwitcherRef}
-                        onSelectSessionGroup={(group) => {
-                            setActiveSessionGroup(group);
-                            // Update selectedStrategy from session group
-                            if (group?.strategyName) {
-                                const matchingStrategy = strategies.find(s => s.id === group.strategyName);
-                                if (matchingStrategy) {
-                                    setSelectedStrategy(matchingStrategy);
-                                }
-                            }
-                        }}
+                        onSelectSessionGroup={handleSelectSessionGroup}
                         onNewSession={() => setIsNewSessionModalOpen(true)}
                         activeSessionGroup={activeSessionGroup}
                         savedSymbols={savedSymbols}
@@ -124,21 +117,12 @@ const LiveTradingView = () => {
                             currentRankIndex={0}
                             onRankChange={() => {}}
                             executionMode={executionMode}
-                            onExecutionModeChange={(mode) => setExecutionMode(mode)}
+                            onExecutionModeChange={setExecutionMode}
                             parameterSchema={selectedStrategy?.parameter_schema}
                             onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
                             onCapitalChange={() => {}}
                             activeSessionGroup={activeSessionGroup}
-                            onSessionAction={(action, session) => {
-                                // Refresh session list after resume/delete
-                                sessionSwitcherRef.current?.refresh?.();
-                                // Clear selection if deleted - delay to allow refresh to complete
-                                if (action === 'delete') {
-                                    setTimeout(() => {
-                                        setActiveSessionGroup(null);
-                                    }, 300);
-                                }
-                            }}
+                            onSessionAction={handleSessionAction}
                         />
                     ) : (
                         <div className="flex flex-col items-center justify-center p-20 text-gray-400 bg-white/5 border border-white/10 rounded-xl mt-4">
@@ -154,27 +138,7 @@ const LiveTradingView = () => {
                     <NewSessionModal
                         isOpen={isNewSessionModalOpen}
                         onClose={() => setIsNewSessionModalOpen(false)}
-                        onSessionStarted={(result) => {
-                            // Refresh SessionSwitcher first to get new session data
-                            sessionSwitcherRef.current?.refresh?.();
-
-                            // Set the new session group as active
-                            setActiveSessionGroup({
-                                accountId: result.accountId,
-                                strategyName: result.strategyName,
-                                groupId: result.groupId,
-                                sessionId: result.sessions?.[0]?.sessionId,
-                                sessions: result.sessions
-                            });
-
-                            // Update selectedStrategy from result (for display purposes)
-                            if (result.strategyName !== selectedStrategy?.id) {
-                                const matchingStrategy = strategies.find(s => s.id === result.strategyName);
-                                if (matchingStrategy) {
-                                    setSelectedStrategy(matchingStrategy);
-                                }
-                            }
-                        }}
+                        onSessionStarted={handleSessionStarted}
                         strategies={strategies}
                     />
                 </div>

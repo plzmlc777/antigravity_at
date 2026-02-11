@@ -1,61 +1,18 @@
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Plus, Activity, Building2, RefreshCw, AlertCircle, StopCircle, PauseCircle, PlayCircle, Clock, FileText, Zap, Check, Trash2, AlertTriangle, X } from 'lucide-react';
-import { getAllSessions, getAccounts } from '../api/client';
+import { getAllSessions } from '../api/client';
+import { useLiveTrading } from '../context/LiveTradingContext';
+import { STATUS_CONFIG, DEFAULTS } from '../constants/live';
 
 /**
  * SessionSwitcher - Phase 5: Multi-Account Session Navigation
  *
  * Shows individual sessions sorted by recent activity with status indicators.
- * Option B: Cards are for selection/display only. Actions (Resume/Delete) are in Live Operation Panel.
- * - RUNNING: Active session (green)
- * - PAUSED: Temporarily paused (yellow)
- * - STOPPED: Standby/Ready to restart (gray/blue)
- * - ERROR: Has errors (red)
+ * Uses LiveTradingContext for centralized accounts data.
  */
 
-// Status configuration - exported for use in LiveStrategyPanel
-export const STATUS_CONFIG = {
-    RUNNING: {
-        color: 'text-green-400',
-        bgColor: 'bg-green-500/20',
-        borderColor: 'border-green-500/50',
-        icon: PlayCircle,
-        label: '실행 중',
-        priority: 1,
-        canDelete: false,
-        canResume: false
-    },
-    PAUSED: {
-        color: 'text-yellow-400',
-        bgColor: 'bg-yellow-500/20',
-        borderColor: 'border-yellow-500/50',
-        icon: PauseCircle,
-        label: '일시정지',
-        priority: 2,
-        canDelete: false,
-        canResume: false
-    },
-    STOPPED: {
-        color: 'text-blue-400',
-        bgColor: 'bg-blue-500/10',
-        borderColor: 'border-blue-500/30',
-        icon: StopCircle,
-        label: '대기 중',
-        priority: 3,
-        canDelete: true,
-        canResume: true
-    },
-    ERROR: {
-        color: 'text-red-400',
-        bgColor: 'bg-red-500/20',
-        borderColor: 'border-red-500/50',
-        icon: AlertCircle,
-        label: '오류',
-        priority: 4,
-        canDelete: true,
-        canResume: true
-    }
-};
+// Re-export for backward compatibility
+export { STATUS_CONFIG } from '../constants/live';
 
 // Delete Confirmation Modal - exported for use in LiveStrategyPanel
 // Delete Confirmation Modal - supports both single session and session groups
@@ -192,19 +149,21 @@ const SessionSwitcher = forwardRef(({
     savedSymbols = []
 }, ref) => {
     const [sessions, setSessions] = useState([]);
-    const [accounts, setAccounts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showAll, setShowAll] = useState(true);
 
-    // Fetch all sessions across all accounts
+    // Use centralized accounts from LiveTradingContext
+    const { accounts } = useLiveTrading();
+
+    // Fetch sessions only (accounts come from context)
     const fetchSessions = useCallback(async () => {
         try {
-            const [sessionsData, accountsData] = await Promise.all([
-                getAllSessions({ allAccounts: true, includeStopped: showAll, limit: 100 }),
-                getAccounts()
-            ]);
+            const sessionsData = await getAllSessions({
+                allAccounts: true,
+                includeStopped: showAll,
+                limit: DEFAULTS.SESSION_LIMIT
+            });
             setSessions(Array.isArray(sessionsData) ? sessionsData : []);
-            setAccounts(accountsData || []);
         } catch (err) {
             console.error('SessionSwitcher: Failed to fetch sessions:', err);
         } finally {
@@ -217,9 +176,9 @@ const SessionSwitcher = forwardRef(({
         fetchSessions();
     }, [fetchSessions]);
 
-    // Auto-refresh every 5 seconds
+    // Auto-refresh at defined interval
     useEffect(() => {
-        const interval = setInterval(fetchSessions, 5000);
+        const interval = setInterval(fetchSessions, DEFAULTS.POLL_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchSessions]);
 

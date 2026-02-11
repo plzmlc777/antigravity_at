@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import UnifiedSessionCards from './UnifiedSessionCards';
 import { STATUS_CONFIG, DeleteConfirmModal } from './SessionSwitcher';
+import { useLiveTrading } from '../context/LiveTradingContext';
+import { DEFAULTS } from '../constants/live';
 
 const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', configList = [], savedSymbols = [], currentRankIndex, onRankChange, executionMode = 'exclusive', onExecutionModeChange, parameterSchema, onStatusChange, onCapitalChange, activeSessionGroup, onSessionAction }) => {
     // State
@@ -73,10 +75,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [aiEvalMode, setAiEvalMode] = useState('real'); // 'paper' | 'real'
     const [aiBacktestDays, setAiBacktestDays] = useState(30); // Backtest period in days
 
-    // Multi-Account State (Phase 5)
-    const [accounts, setAccounts] = useState([]); // List of all accounts
+    // Multi-Account State (Phase 5) - Use centralized accounts from context
+    const { accounts, getActiveAccount } = useLiveTrading();
     const [selectedAccountId, setSelectedAccountId] = useState(null); // Selected account for session
-    const [isPaperMode, setIsPaperMode] = useState(true); // Paper mode by default for safety
+    const [isPaperMode, setIsPaperMode] = useState(DEFAULTS.IS_PAPER_MODE); // Paper mode by default for safety
     const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
 
     // Apply Changes State (track original session values for dirty detection)
@@ -118,29 +120,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         fetchAccumulatedStats();
     }, [configList, strategyName]);
 
-    // Fetch accounts list on mount and set default selection
+    // Set default account selection when accounts are loaded from context
     useEffect(() => {
-        const fetchAccountsList = async () => {
-            try {
-                const accountsList = await getAccounts();
-                // Sort: active first, then enabled, then by id
-                const sorted = [...accountsList].sort((a, b) => {
-                    if (a.is_active !== b.is_active) return b.is_active ? 1 : -1;
-                    if (a.is_disabled !== b.is_disabled) return a.is_disabled ? 1 : -1;
-                    return a.id - b.id;
-                });
-                setAccounts(sorted);
-                // Default to active account
-                const activeAccount = sorted.find(acc => acc.is_active && !acc.is_disabled);
-                if (activeAccount && !selectedAccountId) {
-                    setSelectedAccountId(activeAccount.id);
-                }
-            } catch (err) {
-                console.error('Failed to fetch accounts:', err);
+        if (accounts.length > 0 && !selectedAccountId) {
+            const activeAccount = getActiveAccount();
+            if (activeAccount) {
+                setSelectedAccountId(activeAccount.id);
             }
-        };
-        fetchAccountsList();
-    }, []);
+        }
+    }, [accounts, selectedAccountId, getActiveAccount]);
 
     // Sync panel state when activeSessionGroup changes (Phase 5: Session Selection)
     // Note: Only depends on activeSessionGroup, not strategyConfig - user's capital edits should persist
