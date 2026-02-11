@@ -3,9 +3,10 @@ from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
 import logging
 import re
+import traceback
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
-from ..models.live_trading import LiveTradeExecution, ExecutionStatus, ErrorType
+from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 from ..services.error_logger import error_logger
@@ -503,7 +504,35 @@ class LiveContext:
                                     metadata=p.trade_metadata or {}
                                 )
                             except Exception as cb_err:
-                                logger.error(f"Order callback error: {cb_err}")
+                                # CRITICAL: Callback failure means strategy position tracking is inconsistent
+                                logger.error(f"CRITICAL: Order callback error - position state may be inconsistent: {cb_err}")
+                                logger.error(traceback.format_exc())
+
+                                # Log critical error for visibility
+                                error_logger.log_critical(
+                                    error_type=ErrorType.STRATEGY_ERROR,
+                                    message=f"Order callback failed - position state may be inconsistent",
+                                    session_id=self.session_id,
+                                    symbol=p.symbol,
+                                    exception=cb_err,
+                                    context={
+                                        "order_id": p.id,
+                                        "signal_type": p.signal_type,
+                                        "filled_qty": p.filled_quantity,
+                                        "filled_price": p.executed_price
+                                    }
+                                )
+
+                                # Update session to ERROR state so user is aware
+                                try:
+                                    sess = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+                                    if sess:
+                                        sess.status = SessionStatus.ERROR
+                                        sess.error_log = f"Callback error: {cb_err} - Position state may be inconsistent. Manual verification required."
+                                        db.commit()
+                                        logger.warning(f"Session {self.session_id} marked as ERROR due to callback failure")
+                                except Exception as db_err:
+                                    logger.error(f"Failed to update session status: {db_err}")
 
                         # 5. Send Telegram notification (fire and forget)
                         if self._user_id:
