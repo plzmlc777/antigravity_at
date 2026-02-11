@@ -859,6 +859,98 @@ class LiveManager:
         if hasattr(adapter, "start_realtime"):
             asyncio.create_task(adapter.start_realtime([sess.symbol]))
 
+    async def validate_before_resume(self, session: LiveBotSession, db: Session) -> Dict[str, Any]:
+        """
+        Validate session state before resuming.
+        Returns validation result with warnings/errors.
+
+        Checks:
+        1. Account balance availability
+        2. Holdings synchronization (DB vs Exchange)
+        3. Strategy configuration validity
+        """
+        from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+
+        warnings = []
+        errors = []
+
+        try:
+            # 1. Get adapter for this account
+            adapter = await self.get_or_create_adapter(session.account_id)
+
+            # 2. Fetch actual balance from exchange
+            if not session.is_paper:
+                try:
+                    balance_data = await adapter.get_balance()
+                    actual_cash = balance_data.get("cash", {}).get("KRW", 0)
+                    actual_holdings = balance_data.get("holdings", {})
+
+                    # 3. Check if session has unfilled BUY orders (potential position)
+                    filled_buys = db.query(LiveTradeExecution).filter(
+                        LiveTradeExecution.session_id == session.id,
+                        LiveTradeExecution.signal_type == "BUY",
+                        LiveTradeExecution.status == ExecutionStatus.FILLED
+                    ).all()
+
+                    filled_sells = db.query(LiveTradeExecution).filter(
+                        LiveTradeExecution.session_id == session.id,
+                        LiveTradeExecution.signal_type == "SELL",
+                        LiveTradeExecution.status == ExecutionStatus.FILLED
+                    ).all()
+
+                    # Calculate expected position from DB
+                    db_buy_qty = sum(b.filled_quantity or 0 for b in filled_buys)
+                    db_sell_qty = sum(s.filled_quantity or 0 for s in filled_sells)
+                    db_expected_position = db_buy_qty - db_sell_qty
+
+                    # Get actual position from exchange
+                    actual_position = 0
+                    if session.symbol in actual_holdings:
+                        actual_position = actual_holdings[session.symbol].get("quantity", 0)
+
+                    # 4. Compare positions
+                    if db_expected_position != actual_position:
+                        warnings.append(
+                            f"Position mismatch for {session.symbol}: "
+                            f"DB expects {db_expected_position} shares, "
+                            f"exchange shows {actual_position} shares. "
+                            f"Holdings may have changed outside this session."
+                        )
+                        logger.warning(f"[Resume Validation] {warnings[-1]}")
+
+                    # 5. Check if capital is available (only if no position)
+                    if db_expected_position == 0 and actual_position == 0:
+                        initial_capital = session.strategy_config.get("initial_capital", 0)
+                        if initial_capital > 0 and actual_cash < initial_capital:
+                            warnings.append(
+                                f"Insufficient balance: Session configured with "
+                                f"{initial_capital:,.0f} KRW but only {actual_cash:,.0f} KRW available."
+                            )
+
+                except Exception as balance_err:
+                    warnings.append(f"Could not verify balance: {balance_err}")
+                    logger.warning(f"[Resume Validation] Balance check failed: {balance_err}")
+
+            # 6. Validate strategy config
+            cfg = session.strategy_config or {}
+            if not cfg:
+                warnings.append("Session has no strategy configuration. Using defaults.")
+
+            # 7. Check if symbol is valid (basic check)
+            if not session.symbol or len(session.symbol) != 6:
+                errors.append(f"Invalid symbol: {session.symbol}")
+
+        except Exception as e:
+            logger.error(f"[Resume Validation] Error during validation: {e}")
+            warnings.append(f"Validation incomplete: {e}")
+
+        return {
+            "valid": len(errors) == 0,
+            "warnings": warnings,
+            "errors": errors,
+            "can_resume": len(errors) == 0  # Can resume if no hard errors
+        }
+
     async def subscribe_to_session(self, session_id: str, queue: asyncio.Queue):
         """
         Subscribe a WebSocket Queue to a Session's Real-time Events.

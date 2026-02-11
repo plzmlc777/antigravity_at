@@ -207,6 +207,15 @@ async def resume_session(
         )
 
     try:
+        # Pre-resume validation: Check balance, holdings, strategy config
+        validation = await live_manager.validate_before_resume(session, db)
+
+        if not validation["can_resume"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot resume session: {'; '.join(validation['errors'])}"
+            )
+
         # Update session status in DB first
         session.status = SessionStatus.RUNNING
         session.is_active = True
@@ -226,7 +235,8 @@ async def resume_session(
         return {
             "status": "success",
             "session_id": session_id,
-            "message": f"Session resumed: {session.symbol} ({session.strategy_name})"
+            "message": f"Session resumed: {session.symbol} ({session.strategy_name})",
+            "warnings": validation["warnings"] if validation["warnings"] else None
         }
 
     except Exception as e:
