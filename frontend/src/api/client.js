@@ -91,6 +91,11 @@ export const getBalance = async () => {
     return data;
 };
 
+export const getBalanceForAccount = async (accountId) => {
+    const { data } = await api.get(`/balance/account/${accountId}`);
+    return data;
+};
+
 export const placeBuyOrder = async (order) => {
     const { data } = await api.post('/order/buy', order);
     return data;

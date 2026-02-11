@@ -182,6 +182,54 @@ async def get_balance(ctx: UserAccountContext = Depends(get_user_context)):
 
     return data
 
+
+# Cache for account-specific balance (keyed by account_id)
+ACCOUNT_BALANCE_CACHE: Dict[int, Dict] = {}
+
+
+@router.get("/balance/account/{account_id}")
+async def get_balance_for_account(
+    account_id: int,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Get balance for a specific account (for Live Trading session view).
+    Validates that the account belongs to the current user.
+    """
+    from ..models.account import ExchangeAccount
+    from ..core.live_manager import live_manager
+
+    current_time = time.time()
+
+    # 1. Validate account ownership
+    account = db.query(ExchangeAccount).filter(
+        ExchangeAccount.id == account_id,
+        ExchangeAccount.user_id == ctx.user_id
+    ).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found or access denied")
+
+    # 2. Check Cache (TTL 2.0s)
+    cache_key = account_id
+    if cache_key in ACCOUNT_BALANCE_CACHE:
+        cache_entry = ACCOUNT_BALANCE_CACHE[cache_key]
+        if cache_entry['data'] and (current_time - cache_entry['ts'] < 2.0):
+            return cache_entry['data']
+
+    # 3. Get adapter for specific account and fetch balance
+    try:
+        adapter = await live_manager.get_or_create_adapter(account_id)
+        data = await adapter.get_balance()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch balance: {str(e)}")
+
+    # 4. Update Cache
+    ACCOUNT_BALANCE_CACHE[cache_key] = {'data': data, 'ts': current_time}
+
+    return data
+
 @router.post("/order/buy")
 async def buy_order(order: OrderRequest, adapter: ExchangeInterface = Depends(get_exchange_adapter)):
     result = await adapter.place_buy_order(order.symbol, order.price, order.quantity)

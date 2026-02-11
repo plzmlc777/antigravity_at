@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
+import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -85,6 +86,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [originalSessionSettings, setOriginalSessionSettings] = useState(null); // { capital, isPaper, accountId }
     const [isApplying, setIsApplying] = useState(false);
     const [applyStatus, setApplyStatus] = useState(null); // 'success' | 'error' | null
+
+    // Session Account Balance State (for displaying connected account's balance)
+    const [sessionBalance, setSessionBalance] = useState(null); // { cash, holdings, totalAssets, totalInvested }
+    const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -206,6 +211,85 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
         console.log('[LiveStrategyPanel] Session selected:', selectedSession.session_id, selectedSession.status);
     }, [activeSessionGroup]);
+
+    // Fetch balance for the selected session's account
+    useEffect(() => {
+        const fetchSessionBalance = async () => {
+            const accountId = activeSessionGroup?.sessions?.[0]?.account_id;
+            if (!accountId) {
+                setSessionBalance(null);
+                return;
+            }
+
+            setIsBalanceLoading(true);
+            try {
+                const balanceData = await getBalanceForAccount(accountId);
+
+                // Calculate totals
+                const cash = balanceData?.cash?.KRW || 0;
+                const holdings = balanceData?.holdings || {};
+
+                let totalInvested = 0;
+                Object.values(holdings).forEach(h => {
+                    totalInvested += (h.quantity || 0) * (h.currentPrice || h.avgPrice || 0);
+                });
+
+                const totalAssets = cash + totalInvested;
+
+                setSessionBalance({
+                    cash,
+                    holdings,
+                    totalAssets,
+                    totalInvested,
+                    raw: balanceData
+                });
+            } catch (err) {
+                console.error('Failed to fetch session balance:', err);
+                setSessionBalance(null);
+            } finally {
+                setIsBalanceLoading(false);
+            }
+        };
+
+        fetchSessionBalance();
+
+        // Refresh balance periodically (every 10 seconds when session is active)
+        const accountId = activeSessionGroup?.sessions?.[0]?.account_id;
+        if (accountId && status === 'RUNNING') {
+            const interval = setInterval(fetchSessionBalance, 10000);
+            return () => clearInterval(interval);
+        }
+    }, [activeSessionGroup?.sessions?.[0]?.account_id, status]);
+
+    // Manual refresh balance
+    const refreshSessionBalance = async () => {
+        const accountId = activeSessionGroup?.sessions?.[0]?.account_id;
+        if (!accountId) return;
+
+        setIsBalanceLoading(true);
+        try {
+            const balanceData = await getBalanceForAccount(accountId);
+            const cash = balanceData?.cash?.KRW || 0;
+            const holdings = balanceData?.holdings || {};
+
+            let totalInvested = 0;
+            Object.values(holdings).forEach(h => {
+                totalInvested += (h.quantity || 0) * (h.currentPrice || h.avgPrice || 0);
+            });
+
+            setSessionBalance({
+                cash,
+                holdings,
+                totalAssets: cash + totalInvested,
+                totalInvested,
+                raw: balanceData
+            });
+        } catch (err) {
+            console.error('Failed to refresh balance:', err);
+        } finally {
+            setIsBalanceLoading(false);
+        }
+    };
 
     // Derive selected session info for display (Phase 5)
     const selectedSessionInfo = useMemo(() => {
@@ -1533,6 +1617,75 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         strategyId={strategyName}
                         disabled={true}
                     />
+                </div>
+            )}
+
+            {/* Account Balance Panel */}
+            {activeSessionGroup && (
+                <div className="lg:col-span-3 bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                            <Wallet size={14} className="text-blue-400" />
+                            세션 계좌 잔고
+                            <span className="text-xs text-gray-500 font-normal ml-2">
+                                {selectedSessionInfo?.accountName}
+                            </span>
+                        </h3>
+                        <button
+                            onClick={refreshSessionBalance}
+                            disabled={isBalanceLoading}
+                            className={`p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all ${isBalanceLoading ? 'animate-spin' : ''}`}
+                            title="새로고침"
+                        >
+                            <RefreshCw size={14} />
+                        </button>
+                    </div>
+
+                    {isBalanceLoading && !sessionBalance ? (
+                        <div className="flex items-center justify-center py-4">
+                            <div className="animate-pulse text-gray-500 text-sm">잔고 로딩중...</div>
+                        </div>
+                    ) : sessionBalance ? (
+                        <div className="flex flex-wrap items-center gap-6 md:gap-12">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+                                    <Wallet size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Assets</div>
+                                    <div className="text-lg font-bold text-white">
+                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.totalAssets)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
+                                    <TrendingUp size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Invested</div>
+                                    <div className="text-lg font-bold text-white">
+                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.totalInvested)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                                    <DollarSign size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Cash (KRW)</div>
+                                    <div className="text-lg font-bold text-white">
+                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.cash)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-gray-500 text-sm py-2">잔고 정보를 불러올 수 없습니다.</div>
+                    )}
                 </div>
             )}
 
