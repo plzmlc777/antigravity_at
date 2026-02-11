@@ -11,7 +11,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-PM2="$ROOT_DIR/tools/node/bin/pm2"
+# Find PM2: prefer local tools, fallback to system
+if [ -x "$ROOT_DIR/tools/node/bin/pm2" ]; then
+    PM2="$ROOT_DIR/tools/node/bin/pm2"
+elif command -v pm2 &> /dev/null; then
+    PM2="pm2"
+else
+    echo "Error: PM2 not found"
+    exit 1
+fi
 
 # --restart flag: just restart PM2 services, no version change
 if [ "$1" = "--restart" ]; then
