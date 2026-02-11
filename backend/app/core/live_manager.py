@@ -3,6 +3,7 @@ import asyncio
 import logging
 import uuid
 import traceback
+import threading
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -38,6 +39,7 @@ class LiveManager:
         # Exclusive mode: per-account lock for multi-rank competition
         self._exclusive_groups: Dict[int, set] = {}          # account_id -> {session_ids}
         self._exclusive_lock: Dict[int, Optional[str]] = {}  # account_id -> locked_session_id
+        self._exclusive_lock_mutex = threading.Lock()        # Thread-safe lock acquisition
 
         # ── Phase 1: Multi-Account Adapter Pool ──
         # Each account has its own adapter with separate credentials and token
@@ -491,7 +493,8 @@ class LiveManager:
                         # If session has open position, it holds the exclusive lock
                         pos = self._check_session_position(sess.id)
                         if pos:
-                            self._exclusive_lock[sess.account_id] = sess.id
+                            with self._exclusive_lock_mutex:
+                                self._exclusive_lock[sess.account_id] = sess.id
                             logger.info(f"Exclusive lock restored to session {sess.id} (has position: {pos['symbol']} L{pos['level']})")
 
             logger.info(f"LiveManager: Initialization complete. Restored {len(restored_ids)} sessions, "
@@ -616,41 +619,58 @@ class LiveManager:
     # ── Exclusive Mode Lock Management ──
 
     def register_exclusive_session(self, account_id: int, session_id: str):
-        """Register a session as part of an exclusive competition group."""
-        if account_id not in self._exclusive_groups:
-            self._exclusive_groups[account_id] = set()
-            self._exclusive_lock[account_id] = None
-        self._exclusive_groups[account_id].add(session_id)
-        logger.info(f"Exclusive group [{account_id}]: registered {session_id} "
-                    f"(total: {len(self._exclusive_groups[account_id])})")
+        """Register a session as part of an exclusive competition group.
+
+        Thread-safe: Uses mutex to ensure atomic group and lock initialization.
+        """
+        with self._exclusive_lock_mutex:
+            if account_id not in self._exclusive_groups:
+                self._exclusive_groups[account_id] = set()
+                self._exclusive_lock[account_id] = None
+            self._exclusive_groups[account_id].add(session_id)
+            logger.info(f"Exclusive group [{account_id}]: registered {session_id} "
+                        f"(total: {len(self._exclusive_groups[account_id])})")
 
     def unregister_exclusive_session(self, account_id: int, session_id: str):
-        """Remove a session from its exclusive group and release lock if held."""
-        if account_id in self._exclusive_groups:
-            self._exclusive_groups[account_id].discard(session_id)
-            if self._exclusive_lock.get(account_id) == session_id:
-                self._exclusive_lock[account_id] = None
-                logger.info(f"Exclusive lock released (session removed): {session_id}")
-            if not self._exclusive_groups[account_id]:
-                del self._exclusive_groups[account_id]
-                self._exclusive_lock.pop(account_id, None)
+        """Remove a session from its exclusive group and release lock if held.
+
+        Thread-safe: Uses mutex to ensure atomic check-and-remove.
+        """
+        with self._exclusive_lock_mutex:
+            if account_id in self._exclusive_groups:
+                self._exclusive_groups[account_id].discard(session_id)
+                if self._exclusive_lock.get(account_id) == session_id:
+                    self._exclusive_lock[account_id] = None
+                    logger.info(f"Exclusive lock released (session removed): {session_id}")
+                if not self._exclusive_groups[account_id]:
+                    del self._exclusive_groups[account_id]
+                    self._exclusive_lock.pop(account_id, None)
 
     def try_acquire_exclusive_lock(self, account_id: int, session_id: str) -> bool:
-        """Try to acquire the exclusive trading lock. Returns True if acquired or already held."""
-        if account_id not in self._exclusive_lock:
-            return True  # Not in an exclusive group
-        current = self._exclusive_lock[account_id]
-        if current is None:
-            self._exclusive_lock[account_id] = session_id
-            logger.info(f"Exclusive lock ACQUIRED by session {session_id}")
-            return True
-        return current == session_id  # Same session can buy again (L2+ entries)
+        """Try to acquire the exclusive trading lock. Returns True if acquired or already held.
+
+        Thread-safe: Uses mutex to prevent race condition where multiple sessions
+        could simultaneously check 'current is None' and both acquire the lock.
+        """
+        with self._exclusive_lock_mutex:
+            if account_id not in self._exclusive_lock:
+                return True  # Not in an exclusive group
+            current = self._exclusive_lock[account_id]
+            if current is None:
+                self._exclusive_lock[account_id] = session_id
+                logger.info(f"Exclusive lock ACQUIRED by session {session_id}")
+                return True
+            return current == session_id  # Same session can buy again (L2+ entries)
 
     def release_exclusive_lock(self, account_id: int, session_id: str):
-        """Release the exclusive lock if held by this session (cycle completed)."""
-        if account_id in self._exclusive_lock and self._exclusive_lock[account_id] == session_id:
-            self._exclusive_lock[account_id] = None
-            logger.info(f"Exclusive lock RELEASED by session {session_id} (cycle completed)")
+        """Release the exclusive lock if held by this session (cycle completed).
+
+        Thread-safe: Uses mutex to ensure atomic check-and-release.
+        """
+        with self._exclusive_lock_mutex:
+            if account_id in self._exclusive_lock and self._exclusive_lock[account_id] == session_id:
+                self._exclusive_lock[account_id] = None
+                logger.info(f"Exclusive lock RELEASED by session {session_id} (cycle completed)")
 
     def get_exclusive_holder(self, account_id: int) -> Optional[str]:
         """Get the session_id that currently holds the exclusive lock, or None."""
