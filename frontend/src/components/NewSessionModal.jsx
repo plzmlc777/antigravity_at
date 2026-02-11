@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Plus, Building2, FolderOpen, Info, Target, Layers, Shield, ShieldOff } from 'lucide-react';
+import { X, Plus, Building2, FolderOpen, Info, Target, Layers } from 'lucide-react';
 import { getAccounts, startLiveBot } from '../api/client';
 
 /**
@@ -103,10 +103,12 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
         try {
             // Generate group_id for multi-rank sessions
             const groupId = `grp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            const rankConfigs = selectedProfile.rank_configs || [];
+            // Only include active ranks (filter out draft tabs)
+            const allRankConfigs = selectedProfile.rank_configs || [];
+            const rankConfigs = allRankConfigs.filter(cfg => cfg.is_active !== false);
             const isMultiRank = rankConfigs.length > 1;
 
-            // Create sessions for all ranks in the profile (in STOPPED state)
+            // Create sessions for all active ranks in the profile (in STOPPED state)
             const startedSessions = [];
             const totalCapital = selectedProfile.initial_capital || 10000000;
             const executionMode = selectedProfile.execution_mode || 'parallel';
@@ -116,21 +118,18 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
 
             for (let idx = 0; idx < rankConfigs.length; idx++) {
                 const cfg = rankConfigs[idx];
+                // 프로필 데이터를 그대로 사용 (Strategies 탭에서 설정한 값 그대로)
+                // Live에서는 계좌, 자본금, Paper/Real 모드만 설정
                 const payload = {
                     symbol: cfg.symbol,
                     strategy_name: selectedProfile.strategy_name,
-                    strategy_config: {
-                        ...cfg.params,
-                        symbol: cfg.symbol,
-                        rank: cfg.rank || (idx + 1),
-                        execution_mode: executionMode
-                    },
+                    strategy_config: { ...cfg, execution_mode: executionMode },
                     initial_capital: capitalPerRank,
-                    is_paper: selectedProfile.is_paper !== false,  // Default to paper
+                    is_paper: true,  // 기본값 Paper (LiveStrategyPanel에서 변경 가능)
                     account_id: selectedAccountId,
                     group_id: isMultiRank ? groupId : null,
                     profile_name: selectedProfile.name,
-                    auto_start: false  // Create in STOPPED state
+                    auto_start: false
                 };
 
                 try {
@@ -301,18 +300,9 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                     {/* Profile Information (Read-only) */}
                     {selectedProfile && (
                         <div className="bg-black/30 border border-white/10 rounded-xl p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-bold text-white">{selectedProfile.name}</h3>
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                    selectedProfile.is_paper !== false
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'bg-red-500/20 text-red-400'
-                                }`}>
-                                    {selectedProfile.is_paper !== false ? 'Paper' : 'Real'}
-                                </span>
-                            </div>
+                            <h3 className="text-sm font-bold text-white">{selectedProfile.name}</h3>
 
-                            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-white/5">
+                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
                                 <div className="flex items-center gap-2">
                                     <Target size={12} className="text-gray-500" />
                                     <span className="text-xs text-gray-400">전략:</span>
@@ -320,38 +310,30 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Layers size={12} className="text-gray-500" />
-                                    <span className="text-xs text-gray-400">모드:</span>
+                                    <span className="text-xs text-gray-400">실행모드:</span>
                                     <span className="text-xs text-white">{selectedProfile.execution_mode || 'parallel'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {selectedProfile.is_paper !== false ? (
-                                        <Shield size={12} className="text-green-400" />
-                                    ) : (
-                                        <ShieldOff size={12} className="text-red-400" />
-                                    )}
-                                    <span className="text-xs text-gray-400">거래:</span>
-                                    <span className={`text-xs ${selectedProfile.is_paper !== false ? 'text-green-400' : 'text-red-400'}`}>
-                                        {selectedProfile.is_paper !== false ? '시뮬레이션' : '실거래'}
-                                    </span>
                                 </div>
                             </div>
 
-                            {/* Rank List */}
-                            {selectedProfile.rank_configs && selectedProfile.rank_configs.length > 0 && (
-                                <div className="pt-2 border-t border-white/5">
-                                    <p className="text-xs text-gray-500 mb-2">포함된 종목 ({selectedProfile.rank_configs.length}개):</p>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {selectedProfile.rank_configs.map((cfg, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="text-xs px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded"
-                                            >
-                                                R{cfg.rank || (idx + 1)}: {cfg.symbol}
-                                            </span>
-                                        ))}
+                            {/* Rank List - Only show active ranks */}
+                            {selectedProfile.rank_configs && selectedProfile.rank_configs.length > 0 && (() => {
+                                const activeRanks = selectedProfile.rank_configs.filter(cfg => cfg.is_active !== false);
+                                return activeRanks.length > 0 && (
+                                    <div className="pt-2 border-t border-white/5">
+                                        <p className="text-xs text-gray-500 mb-2">포함된 종목 ({activeRanks.length}개):</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {activeRanks.map((cfg, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="text-xs px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded"
+                                                >
+                                                    {cfg.tabName?.replace('Rank ', 'R') || `R${cfg.rank ?? (idx + 1)}`}: {cfg.symbol}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <div className="pt-2 border-t border-white/5">
                                 <p className="text-xs text-gray-500 flex items-center gap-1">

@@ -279,7 +279,19 @@ const SessionSwitcher = forwardRef(({
                     is_paper: session.is_paper,
                     started_at: session.started_at,
                     stopped_at: session.stopped_at,
+                    // Collect all configs for the group
+                    configList: [],
                 });
+            }
+            // Add strategy_config to configList (for LiveStrategyPanel)
+            if (session.strategy_config) {
+                groups.get(groupKey).configList.push({
+                    ...session.strategy_config,
+                    symbol: session.symbol,  // Ensure symbol is included
+                    session_id: session.session_id  // Track which session this config belongs to
+                });
+            } else {
+                console.warn('[SessionSwitcher] Session missing strategy_config:', session.session_id, session.symbol);
             }
 
             groups.get(groupKey).sessions.push(session);
@@ -289,6 +301,9 @@ const SessionSwitcher = forwardRef(({
         const processedGroups = [];
         for (const [, group] of groups) {
             const sessionList = group.sessions;
+
+            // Sort configList by rank to ensure consistent display order
+            group.configList.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
 
             // Aggregate status: RUNNING if any running, else PAUSED if any paused, etc.
             const hasRunning = sessionList.some(s => s.status === 'RUNNING');
@@ -339,7 +354,8 @@ const SessionSwitcher = forwardRef(({
                 strategyName: firstGroup.strategy_name,
                 groupId: firstGroup.groupId,
                 sessionId: firstGroup.sessions[0]?.session_id,
-                sessions: firstGroup.sessions
+                sessions: firstGroup.sessions,
+                configList: firstGroup.configList || []  // For ActiveStrategiesPanel
             });
         }
     }, [sessionGroups, activeSessionGroup, onSelectSessionGroup]);
@@ -366,7 +382,8 @@ const SessionSwitcher = forwardRef(({
                     strategyName: selectedGroup.strategy_name,
                     groupId: selectedGroup.groupId,
                     sessionId: selectedGroup.sessions[0]?.session_id,
-                    sessions: selectedGroup.sessions
+                    sessions: selectedGroup.sessions,
+                    configList: selectedGroup.configList || []  // For ActiveStrategiesPanel
                 });
             }
         }
@@ -464,13 +481,17 @@ const SessionSwitcher = forwardRef(({
                                             ? 'bg-indigo-600/40 border-2 border-indigo-400 shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-400/50'
                                             : `${statusConfig.bgColor} border ${statusConfig.borderColor} hover:border-white/40`}
                                     `}
-                                    onClick={() => onSelectSessionGroup({
-                                        accountId: group.account_id,
-                                        strategyName: group.strategy_name,
-                                        groupId: group.groupId,
-                                        sessionId: group.sessions[0]?.session_id,
-                                        sessions: group.sessions
-                                    })}
+                                    onClick={() => {
+                                        console.log('[SessionSwitcher] Selected group configList:', group.configList);
+                                        onSelectSessionGroup({
+                                            accountId: group.account_id,
+                                            strategyName: group.strategy_name,
+                                            groupId: group.groupId,
+                                            sessionId: group.sessions[0]?.session_id,
+                                            sessions: group.sessions,
+                                            configList: group.configList || []  // For ActiveStrategiesPanel
+                                        });
+                                    }}
                                 >
                                     {/* Selection Indicator */}
                                     {isSelected && (

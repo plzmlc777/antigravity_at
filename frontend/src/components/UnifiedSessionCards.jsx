@@ -163,7 +163,7 @@ const UnifiedSessionCards = ({
                                         text-xs font-bold px-2 py-0.5 rounded
                                         ${isSelected ? 'bg-indigo-500/30 text-indigo-300' : 'bg-gray-700/50 text-gray-400'}
                                     `}>
-                                        R{idx + 1}
+                                        {cfg.tabName?.replace('Rank ', 'R') || `R${cfg.rank ?? (idx + 1)}`}
                                     </span>
                                     <span className={`text-sm font-semibold ${isRunning ? 'text-white' : 'text-gray-500'}`}>
                                         {symbolName}

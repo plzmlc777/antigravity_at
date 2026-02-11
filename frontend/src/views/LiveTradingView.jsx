@@ -106,9 +106,9 @@ const LiveTradingView = () => {
                     {/* Live Strategy Panel - only show when session is selected */}
                     {activeSessionGroup ? (
                         <LiveStrategyPanel
-                            strategyConfig={{}}
+                            strategyConfig={activeSessionGroup.configList?.[0] || {}}
                             strategyName={activeSessionGroup.strategyName}
-                            configList={[]}
+                            configList={activeSessionGroup.configList || []}
                             savedSymbols={savedSymbols}
                             currentRankIndex={0}
                             onRankChange={() => {}}

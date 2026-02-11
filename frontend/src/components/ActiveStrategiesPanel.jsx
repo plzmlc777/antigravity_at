@@ -249,7 +249,7 @@ const ActiveStrategiesPanel = ({
                                     <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
                                         <td className="px-4 py-3">
                                             <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">
-                                                {cfg.tabName || `Rank ${idx + 1}`}
+                                                {cfg.tabName || `Rank ${cfg.rank ?? (idx + 1)}`}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 font-medium text-white">

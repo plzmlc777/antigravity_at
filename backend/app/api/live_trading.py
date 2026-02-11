@@ -582,6 +582,7 @@ async def get_all_sessions(
             "started_at": sess.started_at.isoformat() if sess.started_at else None,
             "stopped_at": sess.stopped_at.isoformat() if sess.stopped_at else None,
             "error_log": sess.error_log,
+            "strategy_config": sess.strategy_config,  # Full config for UI display
             **engine_info
         })
 
