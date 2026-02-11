@@ -6,17 +6,14 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, updateSymbolCompareSettings, updateExecutionMode, recalculateOptimizationScores, getAccounts } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, recalculateOptimizationScores, getAccounts } from '../api/client';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
 import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
-// Live components moved to LiveTradingView.jsx
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
-import LiveHistoryList from '../components/LiveHistoryList';
-import LiveReplayView from '../components/LiveReplayView';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import ParameterVersionManager from '../components/ParameterVersionManager';
@@ -343,42 +340,16 @@ const StrategyView = () => {
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
     // Live state variables moved to LiveTradingView.jsx
-    const [executionMode, setExecutionMode] = useState(() => {
-        const saved = localStorage.getItem('integratedExecutionMode');
-        return saved || 'exclusive';
-    }); // 'exclusive' | 'parallel' for Integrated backtest
+    // executionMode is now from profileMeta.execution_mode (profile-level)
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     // Old Profile Save Modal state removed - now using Profile Selector's Save As modal
 
-    // Symbol Comparison State (with localStorage persistence)
-    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_selectedSymbols');
-            return saved ? JSON.parse(saved) : [];
-        } catch { return []; }
-    });
-    const [stockCompareResults, setStockCompareResults] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_results');
-            if (!saved) return [];
-            const parsed = JSON.parse(saved);
-            // Validate data has required fields (v2 format with all stats)
-            if (parsed.length > 0 && parsed[0].stability_score === undefined) {
-                console.log('[Compare] Clearing old format data from localStorage');
-                localStorage.removeItem('symbolCompare_results');
-                return [];
-            }
-            return parsed;
-        } catch { return []; }
-    });
+    // Symbol Comparison State (프로필에서 로드됨)
+    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
+    const [stockCompareResults, setStockCompareResults] = useState([]);
     const [isStockComparing, setIsStockComparing] = useState(false); // Running status
     const [stockCompareProgress, setStockCompareProgress] = useState({ current: 0, total: 0, phase: 'data' });
-    const [symbolCompareConfig, setSymbolCompareConfig] = useState(() => {
-        try {
-            const saved = localStorage.getItem('symbolCompare_config');
-            return saved ? JSON.parse(saved) : null;
-        } catch { return null; }
-    });
+    // symbolCompareConfig is now from useProfileConfig (profile-level storage)
     const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false); // Track unsaved changes
     const [compareSortConfig, setCompareSortConfig] = useState({ key: 'score', direction: 'desc' }); // Sort config for comparison results
 
@@ -428,6 +399,9 @@ const StrategyView = () => {
         discardChanges,
         profileMeta,
         setProfileMeta,
+        // Symbol Compare Settings (from profile - 프로필별 저장)
+        symbolCompareSettings: symbolCompareConfig,
+        setSymbolCompareSettings: setSymbolCompareConfig,
         isDirty: isProfileDirty,
         // Config List (from profile's rank_configs)
         configList,
@@ -497,7 +471,7 @@ const StrategyView = () => {
     useEffect(() => {
         localStorage.setItem('strategyViewActiveTab', activeTab);
     }, [activeTab]);
-    // isConfigLoaded는 useStrategyConfig 훅에서 제공됨
+    // isConfigLoaded는 useProfileConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
     // Live refs moved to LiveTradingView.jsx
 
@@ -516,23 +490,15 @@ const StrategyView = () => {
 
     // Note: currentSymbol and savedSymbols are now managed by WatchlistContext (synced with DB)
 
-    // Save execution mode to DB (with localStorage fallback)
-    useEffect(() => {
-        localStorage.setItem('integratedExecutionMode', executionMode);
-        // Sync to DB (debounced in API client)
-        updateExecutionMode(executionMode).catch(e => {
-            console.warn('Failed to save execution mode to DB:', e);
-        });
-    }, [executionMode]);
+    // executionMode is now stored in profile (profileMeta.execution_mode)
+    // No need for separate localStorage/DB sync
 
     // liveRankIndex effects moved to LiveTradingView.jsx
 
     // Persistence logic removed for initialCapital
 
-    // [REFACTORED] 설정 로드 로직이 useStrategyConfig 훅으로 이동됨
-    // 핵심 변경: 의존성 배열에 accountId 포함 → 계좌 전환 시에도 설정 자동 로드
-    // 기존 코드: }, [selectedStrategy]);
-    // 새 코드 (훅 내부): }, [selectedStrategy, accountId]);
+    // [REFACTORED] 설정 로드 로직이 useProfileConfig 훅으로 이동됨
+    // Profile-Centric Architecture: 프로필이 설정의 단일 진실 소스
 
     const initDefaultList = () => {
         console.log("[initDefaultList] Creating default Rank 1 tab (is_active: true)");
@@ -572,9 +538,10 @@ const StrategyView = () => {
             setShowIntegratedAnalysis(false);
 
             // Reset Symbol Compare tab state
+            // symbolCompareConfig is now profile-level, will be loaded via useEffect
+            // Clear local state - will be repopulated from new profile's symbolCompareConfig
             setSelectedCompareSymbols([]);
             setStockCompareResults([]);
-            setSymbolCompareConfig(null);  // Reset to use Rank 1 defaults
             setIsSymbolCompareDirty(false);
 
             // Reset backtest result
@@ -596,6 +563,24 @@ const StrategyView = () => {
         }
         prevProfileIdRef.current = selectedProfileId;
     }, [selectedProfileId]);
+
+    // Sync Symbol Compare state from profile's symbolCompareConfig
+    useEffect(() => {
+        if (symbolCompareConfig) {
+            // Load selectedSymbols from profile
+            if (symbolCompareConfig.selectedSymbols) {
+                setSelectedCompareSymbols(symbolCompareConfig.selectedSymbols);
+            }
+            // Load results from profile
+            if (symbolCompareConfig.results) {
+                setStockCompareResults(symbolCompareConfig.results);
+            }
+            console.log('[StrategyView] Symbol Compare loaded from profile:', {
+                symbols: symbolCompareConfig.selectedSymbols?.length || 0,
+                results: symbolCompareConfig.results?.length || 0
+            });
+        }
+    }, [symbolCompareConfig]);
 
     // Sync selectedStrategy when profile is auto-selected (on mount)
     useEffect(() => {
@@ -1521,18 +1506,8 @@ const StrategyView = () => {
                         }
                     }
 
-                    // Load execution mode from DB (with localStorage fallback)
-                    if (preferences?.execution_mode) {
-                        setExecutionMode(preferences.execution_mode);
-                    }
-
-                    // Load symbol compare settings from DB (with localStorage migration)
-                    if (preferences?.symbol_compare_settings) {
-                        const settings = preferences.symbol_compare_settings;
-                        if (settings.selectedSymbols) setSelectedCompareSymbols(settings.selectedSymbols);
-                        if (settings.results) setStockCompareResults(settings.results);
-                        if (settings.config) setSymbolCompareConfig(settings.config);
-                    }
+                    // execution_mode and symbol_compare_settings are now loaded from profile
+                    // (via useProfileConfig hook)
                 } catch (e) {
                     console.warn('Failed to load account preferences:', e);
                     // Fallback to localStorage
@@ -2301,6 +2276,10 @@ const StrategyView = () => {
         const activeOptValues = activeConfig?.optValues || getDynamicOptValues();
         const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k]);
 
+        // Debug logging
+        addLog(`🔍 OptEnabled keys: ${JSON.stringify(activeOptEnabled)}`, 'info');
+        addLog(`🔍 Enabled params: [${varyingKeys.join(', ')}]`, 'info');
+
         const parameter_ranges = {};
         for (const key of varyingKeys) {
             const values = parseValues(activeOptValues[key]);
@@ -2380,6 +2359,16 @@ const StrategyView = () => {
                 strategy_id: selectedStrategy.id,
                 save_to_tab_id: saveTabId  // Auto-save to DB on completion
             };
+
+            // Log optimization request details
+            addLog(`📊 Optimization Request:`, 'info');
+            addLog(`  - Symbols: ${symbols.length}개`, 'info');
+            addLog(`  - Parameter Ranges:`, 'info');
+            Object.entries(parameter_ranges).forEach(([key, values]) => {
+                addLog(`    • ${key}: [${values.join(', ')}] (${values.length}개)`, 'info');
+            });
+            const paramCombos = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
+            addLog(`  - Total: ${symbols.length} × ${paramCombos} = ${symbols.length * paramCombos} combinations`, 'info');
 
             const response = await axios.post(`/api/v1/strategies/heavy-optimize/${selectedStrategy.id}`, payload);
 
@@ -3258,24 +3247,22 @@ const StrategyView = () => {
         addLog(`Exported ${sortedResults.length} results to CSV`, 'success');
     };
 
-    // Apply Symbol Compare settings (save to DB with localStorage cache)
+    // Apply Symbol Compare settings (save to profile)
     const handleApplySymbolCompare = async () => {
         try {
-            const settings = {
+            // Update Symbol Compare settings in profile state
+            // symbolCompareConfig은 이제 useProfileConfig에서 관리됨 (프로필별 저장)
+            const updatedSettings = {
                 selectedSymbols: selectedCompareSymbols,
                 results: stockCompareResults,
-                config: symbolCompareConfig
+                config: symbolCompareConfig,
+                optEnabled: symbolCompareConfig?.optEnabled || {},
+                optValues: symbolCompareConfig?.optValues || {}
             };
+            setSymbolCompareConfig(updatedSettings);
 
-            // Save to localStorage (cache)
-            localStorage.setItem('symbolCompare_selectedSymbols', JSON.stringify(selectedCompareSymbols));
-            localStorage.setItem('symbolCompare_results', JSON.stringify(stockCompareResults));
-            if (symbolCompareConfig) {
-                localStorage.setItem('symbolCompare_config', JSON.stringify(symbolCompareConfig));
-            }
-
-            // Save to DB
-            await updateSymbolCompareSettings(settings);
+            // Save profile to persist Symbol Compare settings
+            await saveProfile();
 
             setIsSymbolCompareDirty(false);
 
@@ -3283,46 +3270,31 @@ const StrategyView = () => {
             setApplyFeedback('saved');
             setTimeout(() => setApplyFeedback(null), 2000);
 
-            addLog('Symbol Compare settings saved to DB', 'success');
+            addLog('Symbol Compare settings saved to profile', 'success');
         } catch (e) {
             console.error('Failed to save Symbol Compare settings:', e);
-            addLog('Failed to save settings (saved to cache only)', 'error');
+            addLog('Failed to save Symbol Compare settings', 'error');
         }
     };
 
-    // Discard Symbol Compare changes (reload from DB/localStorage)
+    // Discard Symbol Compare changes (reload from profile)
     const handleDiscardSymbolCompare = async () => {
         try {
-            // Try to reload from DB first
-            const preferences = await getAccountPreferences();
-            if (preferences?.symbol_compare_settings) {
-                const settings = preferences.symbol_compare_settings;
-                setSelectedCompareSymbols(settings.selectedSymbols || []);
-                setStockCompareResults(settings.results || []);
-                setSymbolCompareConfig(settings.config || null);
+            // Reload profile to get original Symbol Compare settings
+            if (selectedProfileId) {
+                await selectProfile(selectedProfileId);
+                addLog('Symbol Compare settings restored from profile', 'info');
             } else {
-                // Fallback to localStorage
-                const savedSymbols = localStorage.getItem('symbolCompare_selectedSymbols');
-                const savedResults = localStorage.getItem('symbolCompare_results');
-                const savedConfig = localStorage.getItem('symbolCompare_config');
-
-                setSelectedCompareSymbols(savedSymbols ? JSON.parse(savedSymbols) : []);
-                setStockCompareResults(savedResults ? JSON.parse(savedResults) : []);
-                setSymbolCompareConfig(savedConfig ? JSON.parse(savedConfig) : null);
+                // No profile selected, just clear
+                setSelectedCompareSymbols([]);
+                setStockCompareResults([]);
+                setSymbolCompareConfig(null);
+                addLog('Symbol Compare settings cleared (no profile)', 'info');
             }
             setIsSymbolCompareDirty(false);
-            addLog('Symbol Compare settings restored', 'info');
         } catch (e) {
             console.error('Failed to restore Symbol Compare settings:', e);
-            // Fallback to localStorage on error
-            const savedSymbols = localStorage.getItem('symbolCompare_selectedSymbols');
-            const savedResults = localStorage.getItem('symbolCompare_results');
-            const savedConfig = localStorage.getItem('symbolCompare_config');
-
-            setSelectedCompareSymbols(savedSymbols ? JSON.parse(savedSymbols) : []);
-            setStockCompareResults(savedResults ? JSON.parse(savedResults) : []);
-            setSymbolCompareConfig(savedConfig ? JSON.parse(savedConfig) : null);
-            setIsSymbolCompareDirty(false);
+            addLog('Failed to restore Symbol Compare settings', 'error');
         }
     };
 
@@ -3839,7 +3811,7 @@ const StrategyView = () => {
                                                     // Calculate display capital for parallel mode
                                                     const activeConfigCount = configList.filter(c => c.is_active).length;
                                                     const rank1Capital = displayConfig?.initial_capital || 10000000;
-                                                    const displayCapital = (isIntegrated && executionMode === 'parallel')
+                                                    const displayCapital = (isIntegrated && profileMeta.execution_mode === 'parallel')
                                                         ? rank1Capital * activeConfigCount
                                                         : rank1Capital;
 
@@ -3847,7 +3819,7 @@ const StrategyView = () => {
                                                         <div className="flex flex-wrap gap-6">
                                                             <div className="text-left">
                                                                 <label className="text-xs text-gray-400 mb-1 block">
-                                                                    {isIntegrated && executionMode === 'parallel'
+                                                                    {isIntegrated && profileMeta.execution_mode === 'parallel'
                                                                         ? <>Total Capital <span className="text-purple-400">({rank1Capital.toLocaleString()} × {activeConfigCount} Ranks)</span></>
                                                                         : <>Initial Capital {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}</>
                                                                     }
@@ -3893,15 +3865,15 @@ const StrategyView = () => {
                                                                         Execution Mode
                                                                     </label>
                                                                     <select
-                                                                        value={executionMode}
-                                                                        onChange={(e) => setExecutionMode(e.target.value)}
+                                                                        value={profileMeta.execution_mode}
+                                                                        onChange={(e) => setProfileMeta(prev => ({ ...prev, execution_mode: e.target.value }))}
                                                                         className="bg-black/40 border border-white/20 rounded px-3 py-2 text-white w-44 text-center appearance-none cursor-pointer focus:border-blue-500"
                                                                     >
                                                                         <option value="exclusive">Exclusive (Waterfall)</option>
                                                                         <option value="parallel">Parallel (Equal Split)</option>
                                                                     </select>
                                                                     <p className="text-[10px] text-gray-500 mt-1">
-                                                                        {executionMode === 'exclusive'
+                                                                        {profileMeta.execution_mode === 'exclusive'
                                                                             ? 'Ranks evaluated sequentially, first signal wins'
                                                                             : 'All Ranks run simultaneously (each gets Rank1 capital)'}
                                                                     </p>
@@ -3998,7 +3970,7 @@ const StrategyView = () => {
 
                                                                 // Calculate total capital based on execution mode
                                                                 const rank1Capital = leaderConfig?.initial_capital || 10000000;
-                                                                const totalCapital = executionMode === 'parallel'
+                                                                const totalCapital = profileMeta.execution_mode === 'parallel'
                                                                     ? rank1Capital * activeConfigs.length  // Parallel: Rank1 capital × number of active ranks
                                                                     : rank1Capital;                         // Exclusive: Just Rank1 capital
 
@@ -4009,7 +3981,7 @@ const StrategyView = () => {
                                                                     days: diffDays > 0 ? diffDays : 365,
                                                                     from_date: leaderConfig?.from_date || "",
                                                                     initial_capital: totalCapital,
-                                                                    execution_mode: executionMode // 'exclusive' or 'parallel'
+                                                                    execution_mode: profileMeta.execution_mode // 'exclusive' or 'parallel'
                                                                 });
 
                                                                 // Update Result State and Store for Visualization
@@ -4075,7 +4047,7 @@ const StrategyView = () => {
                                                     </button>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-3">
-                                                    {executionMode === 'exclusive'
+                                                    {profileMeta.execution_mode === 'exclusive'
                                                         ? '* Simulates the Waterfall execution logic (Rank 1 → Rank 2 priority) on historical data.'
                                                         : '* Simulates Parallel execution: Each Rank gets Rank 1 capital (Total = Rank1 × Active Ranks).'}
                                                 </p>

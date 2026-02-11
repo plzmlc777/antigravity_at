@@ -1916,6 +1916,7 @@ class StrategyProfileCreate(PydanticBaseModel):
     rank_weights: Optional[Dict[str, float]] = None
     initial_capital: float = 10000000
     is_paper: bool = True
+    symbol_compare_settings: Optional[Dict[str, Any]] = None  # Symbol Compare 설정
 
 
 class StrategyProfileUpdate(PydanticBaseModel):
@@ -1926,6 +1927,7 @@ class StrategyProfileUpdate(PydanticBaseModel):
     rank_weights: Optional[Dict[str, float]] = None
     initial_capital: Optional[float] = None
     is_paper: Optional[bool] = None
+    symbol_compare_settings: Optional[Dict[str, Any]] = None  # Symbol Compare 설정
 
 
 @router.get("/profiles")
@@ -1999,6 +2001,7 @@ async def create_strategy_profile(
         rank_weights=req.rank_weights,
         initial_capital=req.initial_capital,
         is_paper=req.is_paper,
+        symbol_compare_settings=req.symbol_compare_settings,
     )
     db.add(new_profile)
     db.commit()
@@ -2046,6 +2049,7 @@ async def get_strategy_profile(
         "rank_weights": profile.rank_weights,
         "initial_capital": profile.initial_capital,
         "is_paper": profile.is_paper,
+        "symbol_compare_settings": profile.symbol_compare_settings,
         "created_at": profile.created_at.isoformat() if profile.created_at else None,
         "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
     }
@@ -2088,6 +2092,8 @@ async def update_strategy_profile(
         profile.initial_capital = req.initial_capital
     if req.is_paper is not None:
         profile.is_paper = req.is_paper
+    if req.symbol_compare_settings is not None:
+        profile.symbol_compare_settings = req.symbol_compare_settings
 
     db.commit()
     db.refresh(profile)

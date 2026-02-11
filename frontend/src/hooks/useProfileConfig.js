@@ -39,6 +39,10 @@ export const useProfileConfig = ({
     const [configList, setConfigList] = useState([]);
     const [originalConfigList, setOriginalConfigList] = useState([]); // For dirty checking
 
+    // Symbol Compare Settings (from profile)
+    const [symbolCompareSettings, setSymbolCompareSettings] = useState(null);
+    const [originalSymbolCompareSettings, setOriginalSymbolCompareSettings] = useState(null);
+
     // UI State
     const [isLoaded, setIsLoaded] = useState(false);
     const [isProfilesLoading, setIsProfilesLoading] = useState(true);
@@ -175,8 +179,11 @@ export const useProfileConfig = ({
             ? JSON.stringify(profileMeta) !== JSON.stringify(originalProfileMeta)
             : false;
 
-        return configChanged || metaChanged;
-    }, [configList, originalConfigList, profileMeta, originalProfileMeta]);
+        // Compare Symbol Compare settings
+        const symbolCompareChanged = JSON.stringify(symbolCompareSettings) !== JSON.stringify(originalSymbolCompareSettings);
+
+        return configChanged || metaChanged || symbolCompareChanged;
+    }, [configList, originalConfigList, profileMeta, originalProfileMeta, symbolCompareSettings, originalSymbolCompareSettings]);
 
     /**
      * Load all profiles and optionally find last used profile ID
@@ -251,6 +258,8 @@ export const useProfileConfig = ({
             setSelectedProfile(null);
             setConfigList([]);
             setOriginalConfigList([]);
+            setSymbolCompareSettings(null);
+            setOriginalSymbolCompareSettings(null);
             setProfileMeta({
                 name: '',
                 description: '',
@@ -297,7 +306,12 @@ export const useProfileConfig = ({
             setProfileMeta(meta);
             setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
 
-            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks');
+            // Set Symbol Compare settings
+            const compareSettings = profile.symbol_compare_settings || null;
+            setSymbolCompareSettings(compareSettings);
+            setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
+
+            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbolCompare:', !!compareSettings);
         } catch (e) {
             console.error('[useProfileConfig] Failed to load profile:', e);
             setError(e);
@@ -318,6 +332,10 @@ export const useProfileConfig = ({
         const defaultRank = createDefaultRankConfig(0);
         setConfigList([defaultRank]);
         setOriginalConfigList([]);
+
+        // Clear Symbol Compare settings for new profile
+        setSymbolCompareSettings(null);
+        setOriginalSymbolCompareSettings(null);
 
         setProfileMeta({
             name: '',
@@ -416,7 +434,8 @@ export const useProfileConfig = ({
                 execution_mode: profileMeta.execution_mode,
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
-                is_paper: profileMeta.is_paper
+                is_paper: profileMeta.is_paper,
+                symbol_compare_settings: symbolCompareSettings
             };
 
             let result;
@@ -441,6 +460,7 @@ export const useProfileConfig = ({
             // Update original state (no longer dirty)
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
             setOriginalProfileMeta(JSON.parse(JSON.stringify(profileMeta)));
+            setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
 
             setSaveStatus('saved');
 
@@ -458,7 +478,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [selectedProfileId, profileMeta, configList, transformConfigListToRankConfigs, loadProfiles]);
+    }, [selectedProfileId, profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles]);
 
     /**
      * Save as new profile (always creates new)
@@ -475,7 +495,8 @@ export const useProfileConfig = ({
                 execution_mode: profileMeta.execution_mode,
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
-                is_paper: profileMeta.is_paper
+                is_paper: profileMeta.is_paper,
+                symbol_compare_settings: symbolCompareSettings
             };
 
             const result = await createProfile(profileData);
@@ -490,6 +511,7 @@ export const useProfileConfig = ({
             // Update original state
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
             setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName })));
+            setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
 
             setSaveStatus('saved');
             await loadProfiles();
@@ -505,7 +527,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [profileMeta, configList, transformConfigListToRankConfigs, loadProfiles]);
+    }, [profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles]);
 
     /**
      * Delete current profile
@@ -545,8 +567,10 @@ export const useProfileConfig = ({
         if (originalProfileMeta) {
             setProfileMeta(JSON.parse(JSON.stringify(originalProfileMeta)));
         }
+        // Restore Symbol Compare settings
+        setSymbolCompareSettings(originalSymbolCompareSettings ? JSON.parse(JSON.stringify(originalSymbolCompareSettings)) : null);
         console.log('[useProfileConfig] Changes discarded');
-    }, [originalConfigList, originalProfileMeta]);
+    }, [originalConfigList, originalProfileMeta, originalSymbolCompareSettings]);
 
     /**
      * Initialize on mount - load profiles and auto-select last used
@@ -582,6 +606,9 @@ export const useProfileConfig = ({
                         rank_weights: profile.rank_weights || null
                     };
 
+                    // Set Symbol Compare settings
+                    const compareSettings = profile.symbol_compare_settings || null;
+
                     // Set all state together
                     setSelectedProfileId(result.autoSelectedId);
                     setSelectedProfile(profile);
@@ -589,9 +616,11 @@ export const useProfileConfig = ({
                     setOriginalConfigList(JSON.parse(JSON.stringify(configs)));
                     setProfileMeta(meta);
                     setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
+                    setSymbolCompareSettings(compareSettings);
+                    setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
                     setIsLoaded(true);
 
-                    log(`Auto-loaded: ${profile.name}, selectedProfileId=${result.autoSelectedId}`, 'success');
+                    log(`Auto-loaded: ${profile.name}, selectedProfileId=${result.autoSelectedId}, symbolCompare=${!!compareSettings}`, 'success');
                 } catch (e) {
                     log(`Failed to auto-load profile: ${e.message}`, 'error');
                     setIsLoaded(true);
@@ -653,6 +682,10 @@ export const useProfileConfig = ({
         // Profile Metadata
         profileMeta,
         setProfileMeta,
+
+        // Symbol Compare Settings (프로필별 저장)
+        symbolCompareSettings,
+        setSymbolCompareSettings,
 
         // Dirty State
         isDirty,

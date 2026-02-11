@@ -229,6 +229,10 @@ class StrategyProfile(Base):
     initial_capital = Column(Float, default=10000000)
     is_paper = Column(Boolean, default=True)
 
+    # Symbol Compare Settings (종목 비교 설정 - 프로필별 저장)
+    # {selectedSymbols: [...], config: {optEnabled, optValues}, results: [...]}
+    symbol_compare_settings = Column(JSON, nullable=True)
+
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
