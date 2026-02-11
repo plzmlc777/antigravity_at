@@ -502,22 +502,6 @@ const SessionSwitcher = forwardRef(({
                                         <span className="truncate">{account?.account_name || 'Unknown'}</span>
                                     </div>
 
-                                    {/* Session Count + Paper/Real Badge */}
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        {group.sessionCount > 1 && (
-                                            <span className="text-[8px] px-1.5 py-0.5 rounded font-medium bg-indigo-500/30 text-indigo-300">
-                                                {group.sessionCount}개 종목
-                                            </span>
-                                        )}
-                                        <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${
-                                            group.is_paper
-                                                ? 'bg-yellow-500/20 text-yellow-400'
-                                                : 'bg-red-500/20 text-red-400'
-                                        }`}>
-                                            {group.is_paper ? 'Paper' : 'Real'}
-                                        </span>
-                                    </div>
-
                                     {/* Time + Status/PnL */}
                                     <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/5">
                                         <div className="flex items-center gap-1 text-[9px] text-gray-500">

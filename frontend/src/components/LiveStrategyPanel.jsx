@@ -22,7 +22,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);
-    const [isRealModeModalOpen, setIsRealModeModalOpen] = useState(false);
     const [isLiquidateModalOpen, setIsLiquidateModalOpen] = useState(false);
     const [isPositionWarningOpen, setIsPositionWarningOpen] = useState(false);
     const [positionWarningMessage, setPositionWarningMessage] = useState('');
@@ -78,6 +77,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [accounts, setAccounts] = useState([]); // List of all accounts
     const [selectedAccountId, setSelectedAccountId] = useState(null); // Selected account for session
     const [isPaperMode, setIsPaperMode] = useState(true); // Paper mode by default for safety
+    const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -138,7 +138,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // Sync panel state when activeSessionGroup changes (Phase 5: Session Selection)
     useEffect(() => {
         const selectedSession = activeSessionGroup?.sessions?.[0];
-        if (!selectedSession) return;
+
+        // Reset to default values when no session is selected
+        if (!selectedSession) {
+            setSessionId(null);
+            setInputCapital(strategyConfig?.initial_capital || 10000000);
+            setStatus('IDLE');
+            setError(null);
+            setLiveData(null);
+            setLogs([]);
+            // Keep account selection to the active account (don't reset selectedAccountId)
+            // isPaperMode keeps its current state for new session creation
+            console.log('[LiveStrategyPanel] No session selected - reset to defaults');
+            return;
+        }
 
         // Update session ID
         setSessionId(selectedSession.session_id);
@@ -152,6 +165,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         if (selectedSession.account_id) {
             setSelectedAccountId(selectedSession.account_id);
         }
+
+        // Update paper mode from session
+        setIsPaperMode(selectedSession.is_paper !== false);
 
         // Update status based on session status
         if (selectedSession.status === 'RUNNING') {
@@ -171,7 +187,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
 
         console.log('[LiveStrategyPanel] Session selected:', selectedSession.session_id, selectedSession.status);
-    }, [activeSessionGroup]);
+    }, [activeSessionGroup, strategyConfig?.initial_capital]);
 
     // Derive selected session info for display (Phase 5)
     const selectedSessionInfo = useMemo(() => {
@@ -1274,6 +1290,23 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         );
     }
 
+    // Show empty state when no session is selected
+    if (!activeSessionGroup) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                    <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Radio size={36} className="text-gray-600" />
+                    </div>
+                    <h3 className="text-gray-400 font-bold text-lg mb-2">세션이 선택되지 않았습니다</h3>
+                    <p className="text-gray-600 text-sm">
+                        왼쪽 패널에서 세션 그룹을 선택하거나 새 세션을 추가하세요
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-full pb-10">
             {/* Shared Strategy Config Panel */}
@@ -1325,18 +1358,26 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 cancelText={null}
             />
 
-            {/* Real Mode Switch Modal */}
+            {/* Trading Mode Switch Confirmation Modal */}
             <ConfirmModal
-                isOpen={isRealModeModalOpen}
-                onClose={() => setIsRealModeModalOpen(false)}
+                isOpen={modeSwitchConfirm.isOpen}
+                onClose={() => setModeSwitchConfirm({ isOpen: false, toReal: false, isRunningSession: false })}
                 onConfirm={() => {
-                    setIsRealModeModalOpen(false);
-                    handleToggleMode();
+                    if (modeSwitchConfirm.isRunningSession) {
+                        // Running session - call API to toggle mode
+                        handleToggleMode();
+                    } else {
+                        // Pre-session - toggle local state
+                        setIsPaperMode(!modeSwitchConfirm.toReal);
+                    }
+                    setModeSwitchConfirm({ isOpen: false, toReal: false, isRunningSession: false });
                 }}
-                title="Switch to REAL MODE?"
-                message="This will send actual orders to the exchange. Real money will be used for trading. Make sure you understand the risks before proceeding."
-                confirmText="Enable REAL MODE"
-                isDanger={true}
+                title={modeSwitchConfirm.toReal ? "⚠️ 리얼 모드로 전환" : "📝 페이퍼 모드로 전환"}
+                message={modeSwitchConfirm.toReal
+                    ? `실제 주문이 체결됩니다!\n\n• 실제 자금으로 거래가 실행됩니다\n• 모든 매수/매도 주문이 실제로 전송됩니다\n• 손실이 발생할 수 있습니다\n\n설정 자본: ${Number(inputCapital).toLocaleString()}원\n계좌 잔고: ${availableBalance !== null ? Number(availableBalance).toLocaleString() + '원' : '확인 중...'}\n\n정말 리얼 모드로 전환하시겠습니까?`
+                    : `시뮬레이션 모드로 전환합니다.\n\n• 실제 주문이 전송되지 않습니다\n• 가상의 거래 시뮬레이션만 수행됩니다\n• 실제 손익이 발생하지 않습니다\n\n페이퍼 모드로 전환하시겠습니까?`}
+                confirmText={modeSwitchConfirm.toReal ? "리얼 모드 활성화" : "페이퍼 모드 전환"}
+                isDanger={modeSwitchConfirm.toReal}
             />
 
             {/* Force Close Position Modal */}
@@ -1588,7 +1629,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     onClick={() => {
                                         if (status !== 'RUNNING' && status !== 'STARTING') {
                                             if (isPaperMode) {
-                                                // Switching to Real - check balance
+                                                // Switching to Real - check balance first
                                                 if (availableBalance !== null && inputCapital > availableBalance) {
                                                     showAlert(
                                                         `실제 계좌 잔고가 부족합니다.\n\n설정 금액: ${Number(inputCapital).toLocaleString()}원\n계좌 잔고: ${Number(availableBalance).toLocaleString()}원\n\n리얼 모드로 전환하려면 설정 금액을 줄이거나 계좌에 입금해주세요.`,
@@ -1597,8 +1638,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                     );
                                                     return;
                                                 }
+                                                // Show confirmation for Paper → Real
+                                                setModeSwitchConfirm({ isOpen: true, toReal: true, isRunningSession: false });
+                                            } else {
+                                                // Show confirmation for Real → Paper
+                                                setModeSwitchConfirm({ isOpen: true, toReal: false, isRunningSession: false });
                                             }
-                                            setIsPaperMode(!isPaperMode);
                                         }
                                     }}
                                     disabled={status === 'RUNNING' || status === 'STARTING'}
@@ -1673,10 +1718,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                     );
                                                     return;
                                                 }
-                                                setIsRealModeModalOpen(true);
-                                                return;
+                                                // Show confirmation for Paper → Real (running session)
+                                                setModeSwitchConfirm({ isOpen: true, toReal: true, isRunningSession: true });
+                                            } else {
+                                                // Show confirmation for Real → Paper (running session)
+                                                setModeSwitchConfirm({ isOpen: true, toReal: false, isRunningSession: true });
                                             }
-                                            handleToggleMode();
                                         }}
                                         className={`h-14 flex items-center justify-center gap-3 text-base font-bold tracking-wide rounded-xl border-2 transition-all ${liveData?.is_paper === false
                                             ? 'bg-red-900/40 border-red-500 text-red-400 hover:bg-red-900/60'
@@ -1832,7 +1879,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 )}
             </div>
 
-            {/* Unified Session Cards (Row 2) - Full Width - Always show for accumulated stats */}
+            {/* Unified Session Cards (Row 2) - Full Width */}
             {configList?.length > 0 && (
                 <div className="lg:col-span-3">
                     <UnifiedSessionCards

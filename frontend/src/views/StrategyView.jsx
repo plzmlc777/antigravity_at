@@ -4214,9 +4214,12 @@ const StrategyView = () => {
                                         onSessionAction={(action, session) => {
                                             // Refresh session list after resume/delete
                                             sessionSwitcherRef.current?.refresh?.();
-                                            // Clear selection if deleted
+                                            // Clear selection if deleted - delay to allow refresh to complete
+                                            // SessionSwitcher's auto-select effect will pick the first remaining group
                                             if (action === 'delete') {
-                                                setActiveSessionGroup(null);
+                                                setTimeout(() => {
+                                                    setActiveSessionGroup(null);
+                                                }, 300);
                                             }
                                         }}
                                         onCapitalChange={(newCapital) => {
@@ -4252,11 +4255,18 @@ const StrategyView = () => {
                                         isOpen={isNewSessionModalOpen}
                                         onClose={() => setIsNewSessionModalOpen(false)}
                                         onSessionStarted={(result) => {
+                                            // Refresh SessionSwitcher first to get new session data
+                                            sessionSwitcherRef.current?.refresh?.();
+
+                                            // Set the new session group as active
                                             setActiveSessionGroup({
                                                 accountId: result.accountId,
                                                 strategyName: result.strategyName,
+                                                groupId: result.groupId,
+                                                sessionId: result.sessions?.[0]?.sessionId,
                                                 sessions: result.sessions
                                             });
+
                                             // Switch to the new strategy if different
                                             if (result.strategyName !== selectedStrategy?.id) {
                                                 const matchingStrategy = strategies.find(s => s.id === result.strategyName);

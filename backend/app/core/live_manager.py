@@ -539,7 +539,7 @@ class LiveManager:
                 is_paper=is_paper,
                 is_active=True,
                 status=initial_status,
-                started_at=datetime.now() if auto_start else None,
+                started_at=datetime.now(),  # Always set creation time for display
                 interval="1m", # Default to 1m for now
                 group_id=group_id,  # 세션 그룹 ID
                 profile_name=profile_name  # 프로필 이름
