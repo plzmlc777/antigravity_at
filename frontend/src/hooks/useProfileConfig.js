@@ -307,8 +307,19 @@ export const useProfileConfig = ({
             setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
 
             // Set Symbol Compare settings
-            const compareSettings = profile.symbol_compare_settings || null;
-            setSymbolCompareSettings(compareSettings);
+            // If null, initialize from Rank 0 for independent Symbol Compare tab settings
+            let compareSettings = profile.symbol_compare_settings;
+            if (!compareSettings && configs.length > 0) {
+                const rank0 = configs[0];
+                compareSettings = {
+                    ...rank0,
+                    optEnabled: rank0.optEnabled || {},
+                    optValues: rank0.optValues || {},
+                    tabName: 'Symbol Compare'
+                };
+                console.log('[useProfileConfig] Initialized symbolCompareSettings from Rank 0');
+            }
+            setSymbolCompareSettings(compareSettings || null);
             setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
 
             console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbolCompare:', !!compareSettings);
@@ -426,6 +437,21 @@ export const useProfileConfig = ({
         setSaveStatus('saving');
 
         try {
+            // Ensure symbolCompareSettings is initialized from Rank 0 if null
+            let effectiveSymbolCompareSettings = symbolCompareSettings;
+            if (!effectiveSymbolCompareSettings && configList.length > 0) {
+                const rank0 = configList[0];
+                effectiveSymbolCompareSettings = {
+                    ...rank0,
+                    optEnabled: rank0.optEnabled || {},
+                    optValues: rank0.optValues || {},
+                    tabName: 'Symbol Compare'
+                };
+                console.log('[useProfileConfig] Initialized symbolCompareSettings from Rank 0 before save');
+                // Update state so UI reflects this
+                setSymbolCompareSettings(effectiveSymbolCompareSettings);
+            }
+
             const profileData = {
                 name: name || profileMeta.name,
                 description: profileMeta.description,
@@ -435,7 +461,7 @@ export const useProfileConfig = ({
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
                 is_paper: profileMeta.is_paper,
-                symbol_compare_settings: symbolCompareSettings
+                symbol_compare_settings: effectiveSymbolCompareSettings
             };
 
             let result;
@@ -457,6 +483,11 @@ export const useProfileConfig = ({
                 if (result.data?.id) {
                     setSelectedProfileId(result.data.id);
                     setSelectedProfile({ ...profileData, id: result.data.id });
+
+                    // Force new reference for symbolCompareSettings to trigger React re-render
+                    if (symbolCompareSettings) {
+                        setSymbolCompareSettings(JSON.parse(JSON.stringify(symbolCompareSettings)));
+                    }
                 }
             }
 
@@ -490,6 +521,19 @@ export const useProfileConfig = ({
         setSaveStatus('saving');
 
         try {
+            // Ensure symbolCompareSettings is initialized from Rank 0 if null
+            let effectiveSymbolCompareSettings = symbolCompareSettings;
+            if (!effectiveSymbolCompareSettings && configList.length > 0) {
+                const rank0 = configList[0];
+                effectiveSymbolCompareSettings = {
+                    ...rank0,
+                    optEnabled: rank0.optEnabled || {},
+                    optValues: rank0.optValues || {},
+                    tabName: 'Symbol Compare'
+                };
+                console.log('[useProfileConfig] Initialized symbolCompareSettings from Rank 0 before Save As');
+            }
+
             const profileData = {
                 name: newName,
                 description: newDescription || profileMeta.description,
@@ -499,7 +543,7 @@ export const useProfileConfig = ({
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
                 is_paper: profileMeta.is_paper,
-                symbol_compare_settings: symbolCompareSettings
+                symbol_compare_settings: effectiveSymbolCompareSettings
             };
 
             const result = await createProfile(profileData);
@@ -517,12 +561,16 @@ export const useProfileConfig = ({
                 };
                 setSelectedProfile(newProfile);
                 setProfileMeta(prev => ({ ...prev, name: newName, description: newDescription }));
+
+                // Update symbolCompareSettings with new reference to trigger React re-render
+                // Use effectiveSymbolCompareSettings which may have been initialized from Rank 0
+                setSymbolCompareSettings(JSON.parse(JSON.stringify(effectiveSymbolCompareSettings)));
             }
 
             // Update original state
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
             setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName, description: newDescription })));
-            setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
+            setOriginalSymbolCompareSettings(effectiveSymbolCompareSettings ? JSON.parse(JSON.stringify(effectiveSymbolCompareSettings)) : null);
 
             setSaveStatus('saved');
             await loadProfiles();
@@ -618,7 +666,18 @@ export const useProfileConfig = ({
                     };
 
                     // Set Symbol Compare settings
-                    const compareSettings = profile.symbol_compare_settings || null;
+                    // If null, initialize from Rank 0 for independent Symbol Compare tab settings
+                    let compareSettings = profile.symbol_compare_settings;
+                    if (!compareSettings && configs.length > 0) {
+                        const rank0 = configs[0];
+                        compareSettings = {
+                            ...rank0,
+                            optEnabled: rank0.optEnabled || {},
+                            optValues: rank0.optValues || {},
+                            tabName: 'Symbol Compare'
+                        };
+                        log('Initialized symbolCompareSettings from Rank 0');
+                    }
 
                     // Set all state together
                     setSelectedProfileId(result.autoSelectedId);
@@ -627,7 +686,7 @@ export const useProfileConfig = ({
                     setOriginalConfigList(JSON.parse(JSON.stringify(configs)));
                     setProfileMeta(meta);
                     setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
-                    setSymbolCompareSettings(compareSettings);
+                    setSymbolCompareSettings(compareSettings || null);
                     setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
                     setIsLoaded(true);
 

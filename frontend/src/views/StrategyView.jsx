@@ -5406,23 +5406,20 @@ const StrategyView = () => {
                                                                                                             }));
                                                                                                             addLog(`Applied config from ${res.symbol || 'optimization'} #${res.rank}`, 'success');
                                                                                                         } else {
-                                                                                                            // Rank tab: apply to configList[activeTab]
-                                                                                                            let updatedConfigList;
+                                                                                                            // Rank tab: simple approach - same as clicking backtest button after applying params
+                                                                                                            // 1. Merge current config with optimization params
+                                                                                                            const merged = { ...currentConfig, ...configToApply };
+
+                                                                                                            // 2. Update state
                                                                                                             setConfigList(prev => {
                                                                                                                 const next = [...prev];
-                                                                                                                next[activeTab] = {
-                                                                                                                    ...next[activeTab],
-                                                                                                                    ...configToApply
-                                                                                                                };
-                                                                                                                updatedConfigList = next;
+                                                                                                                next[activeTab] = merged;
                                                                                                                 return next;
                                                                                                             });
-
-                                                                                                            // Mark profile as dirty - actual save happens via profile save
                                                                                                             setIsDirty(true);
 
-                                                                                                            // Trigger Real Backtest
-                                                                                                            runBacktest(selectedStrategy.id, configToApply);
+                                                                                                            // 3. Run backtest with merged config (same as manual backtest)
+                                                                                                            runBacktest(selectedStrategy.id, merged);
                                                                                                         }
                                                                                                     }
                                                                                                 );
