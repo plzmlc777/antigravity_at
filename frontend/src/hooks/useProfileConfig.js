@@ -443,6 +443,8 @@ export const useProfileConfig = ({
                 // Update existing
                 result = await updateProfile(selectedProfileId, profileData);
                 console.log('[useProfileConfig] Profile updated:', result);
+                // Update selectedProfile with latest data
+                setSelectedProfile(prev => prev ? { ...prev, ...profileData } : null);
             } else {
                 // Create new
                 if (!profileData.name) {
@@ -451,9 +453,10 @@ export const useProfileConfig = ({
                 result = await createProfile(profileData);
                 console.log('[useProfileConfig] Profile created:', result);
 
-                // Update selected profile ID
+                // Update selected profile ID and object
                 if (result.data?.id) {
                     setSelectedProfileId(result.data.id);
+                    setSelectedProfile({ ...profileData, id: result.data.id });
                 }
             }
 
@@ -505,12 +508,20 @@ export const useProfileConfig = ({
             // Switch to new profile
             if (result.data?.id) {
                 setSelectedProfileId(result.data.id);
+                // Update selectedProfile with the new profile data
+                const newProfile = {
+                    ...profileData,
+                    id: result.data.id,
+                    name: newName,
+                    description: newDescription || profileMeta.description
+                };
+                setSelectedProfile(newProfile);
                 setProfileMeta(prev => ({ ...prev, name: newName, description: newDescription }));
             }
 
             // Update original state
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
-            setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName })));
+            setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName, description: newDescription })));
             setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
 
             setSaveStatus('saved');
