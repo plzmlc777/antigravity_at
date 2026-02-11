@@ -398,16 +398,35 @@ class LiveContext:
         """
         Called by Engine to process PENDING orders in DB/Queue.
         This is where 'Async Adapter' is actually called.
+
+        CRITICAL: Each order is processed in its own isolated DB transaction.
+        This prevents one order's failure from affecting others.
         """
-        db: Session = SessionLocal()
+        # First, get list of pending execution IDs (lightweight query)
+        db_query: Session = SessionLocal()
         try:
-            # Find PENDING executions for this session
-            pendings = db.query(LiveTradeExecution).filter(
-                LiveTradeExecution.session_id == self.session_id,
-                LiveTradeExecution.status == ExecutionStatus.PENDING
-            ).all()
-            
-            for p in pendings:
+            pending_ids = [
+                p.id for p in db_query.query(LiveTradeExecution.id).filter(
+                    LiveTradeExecution.session_id == self.session_id,
+                    LiveTradeExecution.status == ExecutionStatus.PENDING
+                ).all()
+            ]
+        finally:
+            db_query.close()
+
+        # Process each order in its own isolated transaction
+        for execution_id in pending_ids:
+            db: Session = SessionLocal()
+            try:
+                # Re-fetch the execution in this session's transaction
+                p = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.id == execution_id,
+                    LiveTradeExecution.status == ExecutionStatus.PENDING  # Double-check still pending
+                ).first()
+
+                if not p:
+                    # Already processed by another thread/process or status changed
+                    continue
                 # Execute using OrderExecutionService
                 try:
                     from ..services.order_execution_service import OrderExecutionService, OrderExecutionError
@@ -587,23 +606,26 @@ class LiveContext:
 
                     db.commit()
                 except Exception as e:
-                    logger.error(f"Queue Process Error: {e}")
+                    logger.error(f"Queue Process Error for execution {execution_id}: {e}")
                     error_logger.log_order_error(
                         message=f"Queue Process Error: {e}",
                         session_id=self.session_id,
                         symbol=p.symbol if p else None,
                         exception=e,
-                        context={"execution_id": p.id if p else None}
+                        context={"execution_id": execution_id}
                     )
                     db.rollback()
-        except Exception as e:
-            logger.error(f"Queue DB Error: {e}")
-            error_logger.log_error(
-                error_type=ErrorType.DB_ERROR,
-                message=f"Queue DB Error: {e}",
-                session_id=self.session_id,
-                exception=e,
-                source_function="process_queue"
-            )
-        finally:
-            db.close()
+            except Exception as e:
+                # DB-level error for this specific order
+                logger.error(f"Queue DB Error for execution {execution_id}: {e}")
+                error_logger.log_error(
+                    error_type=ErrorType.DB_ERROR,
+                    message=f"Queue DB Error: {e}",
+                    session_id=self.session_id,
+                    exception=e,
+                    source_function="process_queue",
+                    context={"execution_id": execution_id}
+                )
+            finally:
+                # CRITICAL: Each order gets its own session, must close it
+                db.close()
