@@ -6,6 +6,7 @@ import traceback
 import threading
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 from ..core.live_engine import LiveTradingEngine
 from ..adapters.kiwoom_real import KiwoomRealAdapter
