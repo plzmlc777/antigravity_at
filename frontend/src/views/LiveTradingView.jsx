@@ -80,6 +80,17 @@ const LiveTradingView = () => {
         }
     };
 
+    // Update selectedStrategy when strategies load or activeSessionGroup changes
+    // This ensures parameterSchema is available even after auto-selection
+    useEffect(() => {
+        if (activeSessionGroup?.strategyName && strategies.length > 0) {
+            const matchingStrategy = strategies.find(s => s.id === activeSessionGroup.strategyName);
+            if (matchingStrategy && matchingStrategy.id !== selectedStrategy?.id) {
+                setSelectedStrategy(matchingStrategy);
+            }
+        }
+    }, [strategies, activeSessionGroup?.strategyName]);
+
     return (
         <div className="flex flex-col gap-6 pb-10">
             {/* Main Content Area */}
