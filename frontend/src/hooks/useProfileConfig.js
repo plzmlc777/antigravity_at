@@ -103,7 +103,8 @@ export const useProfileConfig = ({
             tabName: `Rank ${rank + 1}`,
             uuid: generateUUID(),
             optEnabled: {},
-            optValues: {}
+            optValues: {},
+            selected_version_id: null // Explicitly reset version to Custom
         };
     }, [getDynamicDefaultConfig, generateUUID]);
 
@@ -332,6 +333,73 @@ export const useProfileConfig = ({
 
         console.log('[useProfileConfig] New profile initialized for strategy:', strategyId);
     }, [createDefaultRankConfig]);
+
+    /**
+     * Create and save a new profile with default config (atomic operation)
+     * Unlike initNewProfile + saveProfileAs, this avoids React async state issues
+     */
+    const createNewProfile = useCallback(async (name, description, strategyId) => {
+        setSaveStatus('saving');
+
+        try {
+            // Create default rank config directly (not from state)
+            const defaultRank = createDefaultRankConfig(0);
+
+            const profileData = {
+                name,
+                description: description || '',
+                strategy_name: strategyId,
+                rank_configs: [defaultRank],
+                execution_mode: 'parallel',
+                rank_weights: null,
+                initial_capital: 10000000,
+                is_paper: true
+            };
+
+            const result = await createProfile(profileData);
+            console.log('[useProfileConfig] New profile created:', name, result);
+
+            // Update local state
+            if (result.data?.id) {
+                setSelectedProfileId(result.data.id);
+                setSelectedProfile(result.data);
+                setConfigList([defaultRank]);
+                setOriginalConfigList(JSON.parse(JSON.stringify([defaultRank])));
+                setProfileMeta({
+                    name,
+                    description: description || '',
+                    strategy_name: strategyId,
+                    execution_mode: 'parallel',
+                    initial_capital: 10000000,
+                    is_paper: true,
+                    rank_weights: null
+                });
+                setOriginalProfileMeta({
+                    name,
+                    description: description || '',
+                    strategy_name: strategyId,
+                    execution_mode: 'parallel',
+                    initial_capital: 10000000,
+                    is_paper: true,
+                    rank_weights: null
+                });
+            }
+
+            setSaveStatus('saved');
+            await loadProfiles();
+
+            setTimeout(() => {
+                if (isMountedRef.current) setSaveStatus('idle');
+            }, 2000);
+
+            return result;
+        } catch (e) {
+            console.error('[useProfileConfig] Failed to create new profile:', e);
+            setSaveStatus('error');
+            setError(e);
+            throw e;
+        }
+    }, [createDefaultRankConfig, loadProfiles]);
 
     /**
      * Save current profile (update existing or create new)
@@ -576,6 +644,7 @@ export const useProfileConfig = ({
         loadProfiles,
         selectProfile,
         initNewProfile,
+        createNewProfile, // Atomic create + save (avoids async state issues)
         saveProfile,
         saveProfileAs,
         deleteCurrentProfile,

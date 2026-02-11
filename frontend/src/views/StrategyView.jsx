@@ -267,11 +267,11 @@ const ImportExportButtons = ({ onExport, onImport, feedback, disabled = false, e
 };
 const DEFAULT_OPT_VALUES = generateDefaultOptValues();
 
-// Generate UUID for Integrated View Persistence (strategy-specific)
-const getIntegratedUUID = (strategyId) => `integrated-${strategyId || 'unknown'}`;
+// Generate UUID for Integrated View Persistence (profile-specific)
+const getIntegratedUUID = (profileId) => `integrated-${profileId || 'unknown'}`;
 
-// Generate UUID for Cross-Optimization Persistence (strategy-specific)
-const getCrossOptUUID = (strategyId) => `cross-opt-${strategyId || 'unknown'}`;
+// Generate UUID for Cross-Optimization Persistence (profile-specific)
+const getCrossOptUUID = (profileId) => `cross-opt-${profileId || 'unknown'}`;
 
 const StrategyView = () => {
     // 계좌 중심: 활성 계좌 ID 가져오기
@@ -421,6 +421,7 @@ const StrategyView = () => {
         loadProfiles,
         selectProfile,
         initNewProfile,
+        createNewProfile,
         saveProfile,
         saveProfileAs,
         deleteCurrentProfile,
@@ -559,6 +560,42 @@ const StrategyView = () => {
             setIsDirty(false);  // 초기화는 "변경"이 아니므로 dirty 리셋
         }
     }, [needsInit, selectedProfileId, selectedStrategy, configList.length]);
+
+    // Reset related state when profile changes (Symbol Compare, Integrated, Backtest results)
+    const prevProfileIdRef = useRef(selectedProfileId);
+    useEffect(() => {
+        if (prevProfileIdRef.current !== selectedProfileId && selectedProfileId !== null) {
+            console.log('[StrategyView] Profile changed, resetting tab states');
+
+            // Reset Integrated tab state
+            setIntegratedResults(null);
+            setShowIntegratedAnalysis(false);
+
+            // Reset Symbol Compare tab state
+            setSelectedCompareSymbols([]);
+            setStockCompareResults([]);
+            setSymbolCompareConfig(null);  // Reset to use Rank 1 defaults
+            setIsSymbolCompareDirty(false);
+
+            // Reset backtest result
+            setBacktestResult(null);
+
+            // Reset optimization results and progress
+            setOptResults(null);
+            setPendingOptResult(null);
+            setIsOptimizing(false);
+            setOptProgress({ current: 0, total: 0 });
+            setOptStatusMessage("");
+            setCompletedOptTaskId(null);
+            setHeavyOptTaskId(null);
+            setHeavyOptStatus(null);
+            localStorage.removeItem('heavyOptTaskId');
+
+            // Reset active tab to Rank 0
+            setActiveTab(0);
+        }
+        prevProfileIdRef.current = selectedProfileId;
+    }, [selectedProfileId]);
 
     // Sync selectedStrategy when profile is auto-selected (on mount)
     useEffect(() => {
@@ -1350,8 +1387,6 @@ const StrategyView = () => {
         setIsOptimizing(false);
         setIsCancelling(false);
 
-
-
         // Restore Results on Tab Change
 
         // If not loaded yet, wait
@@ -1363,11 +1398,11 @@ const StrategyView = () => {
         let targetUUID = null;
 
         if (activeTab === -1) {
-            targetUUID = getIntegratedUUID(selectedStrategy?.id);
-            console.log('[Persistence] Integrated tab - UUID:', targetUUID, 'strategyId:', selectedStrategy?.id);
+            targetUUID = getIntegratedUUID(selectedProfileId);
+            console.log('[Persistence] Integrated tab - UUID:', targetUUID, 'profileId:', selectedProfileId);
         } else if (activeTab === -3) {
-            targetUUID = getCrossOptUUID(selectedStrategy?.id);
-            console.log('[Persistence] Cross-opt tab - UUID:', targetUUID, 'strategyId:', selectedStrategy?.id);
+            targetUUID = getCrossOptUUID(selectedProfileId);
+            console.log('[Persistence] Cross-opt tab - UUID:', targetUUID, 'profileId:', selectedProfileId);
         } else {
             targetUUID = configList[activeTab]?.uuid;
             console.log('[Persistence] Rank tab', activeTab, '- UUID:', targetUUID);
@@ -1448,7 +1483,7 @@ const StrategyView = () => {
         };
 
         restoreResults();
-    }, [activeTab, isConfigLoaded, selectedStrategy?.id]); // Re-run on tab change or strategy change
+    }, [activeTab, isConfigLoaded, selectedProfileId]); // Re-run on tab change or profile change
 
     // 4. Persistence & Initialization
     useEffect(() => {
@@ -2331,7 +2366,7 @@ const StrategyView = () => {
 
             // Determine save target
             const saveTabId = isSymbolCompareTab
-                ? getCrossOptUUID(selectedStrategy?.id)
+                ? getCrossOptUUID(selectedProfileId)
                 : (activeConfig?.uuid || null);
 
             const payload = {
@@ -2540,13 +2575,25 @@ const StrategyView = () => {
         }
     };
 
-    // Restore heavy opt polling on page load
+    // Restore heavy opt polling on page load (only on mount)
+    const hasRestoredOptRef = useRef(false);
     useEffect(() => {
+        // Only run once on mount, not on savedSymbols changes
+        if (hasRestoredOptRef.current) return;
+        hasRestoredOptRef.current = true;
+
         const savedTaskId = localStorage.getItem('heavyOptTaskId');
         if (savedTaskId) {
             // Check if task is still running
             axios.get(`/api/v1/strategies/heavy-optimize/status/${savedTaskId}`)
                 .then(res => {
+                    // Verify localStorage still has this task (not cleared by profile change)
+                    const currentTaskId = localStorage.getItem('heavyOptTaskId');
+                    if (currentTaskId !== savedTaskId) {
+                        console.log('[StrategyView] Task ID changed during fetch, ignoring result');
+                        return;
+                    }
+
                     const data = res.data;
                     setHeavyOptStatus(data);
                     setHeavyOptTaskId(savedTaskId);
@@ -2592,7 +2639,7 @@ const StrategyView = () => {
                     setHeavyOptTaskId(null);
                 });
         }
-    }, [savedSymbols]);
+    }, []);
 
     const runOptimization = async () => {
         if (!selectedStrategy) {
@@ -2691,7 +2738,7 @@ const StrategyView = () => {
 
             // Determine tab UUID for server-side auto-save
             const saveTabId = isCrossOpt
-                ? getCrossOptUUID(selectedStrategy?.id)
+                ? getCrossOptUUID(selectedProfileId)
                 : currentConfig?.uuid || null;
 
             const payload = {
@@ -2785,7 +2832,7 @@ const StrategyView = () => {
                                 if (statusData.status === 'completed') {
                                     if (isCrossOpt) {
                                         // Cross-optimization: auto-save to DB immediately (no Apply button flow)
-                                        const crossOptUuid = getCrossOptUUID(selectedStrategy?.id);
+                                        const crossOptUuid = getCrossOptUUID(selectedProfileId);
                                         try {
                                             await saveStrategyResult(crossOptUuid, 'optimization', resultData);
                                             addLog('Cross-optimization results saved to DB.', 'info');
@@ -3477,17 +3524,22 @@ const StrategyView = () => {
                 isOpen={isNewProfileModalOpen}
                 onClose={() => setIsNewProfileModalOpen(false)}
                 onProfileCreated={async (data) => {
-                    // Initialize new profile with default config
-                    const strat = strategies.find(s => s.id === data.strategyId);
-                    setSelectedStrategy(strat);
-                    initNewProfile(data.strategyId);
-                    setProfileMeta(prev => ({
-                        ...prev,
-                        name: data.name,
-                        description: data.description,
-                        strategy_name: data.strategyId
-                    }));
-                    setIsDirty(true); // Mark as dirty since it's unsaved
+                    try {
+                        // 1. Set strategy first
+                        const strat = strategies.find(s => s.id === data.strategyId);
+                        setSelectedStrategy(strat);
+
+                        // 2. Create new profile with default config (atomic operation)
+                        // This avoids React async state issues by not relying on setState
+                        const result = await createNewProfile(data.name, data.description, data.strategyId);
+                        console.log('[NewProfile] Created:', result);
+
+                        addLog(`✅ 프로필 생성됨: ${data.name}`, 'success');
+                    } catch (e) {
+                        console.error('[NewProfile] Failed to create:', e);
+                        addLog(`❌ 프로필 생성 실패: ${e.message}`, 'error');
+                        openConfirm("❌ Profile Creation Failed", e.message || "프로필 생성에 실패했습니다.", () => {}, true);
+                    }
                 }}
                 strategies={strategies}
             />
@@ -3965,9 +4017,9 @@ const StrategyView = () => {
                                                                 setIntegratedResults(result.data); // Store full result for visualization
                                                                 setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
 
-                                                                // Save Result for Persistence (strategy-specific UUID)
-                                                                const integratedUUID = getIntegratedUUID(selectedStrategy?.id);
-                                                                console.log('[Integrated] Saving result with UUID:', integratedUUID);
+                                                                // Save Result for Persistence (profile-specific UUID)
+                                                                const integratedUUID = getIntegratedUUID(selectedProfileId);
+                                                                console.log('[Integrated] Saving result with UUID:', integratedUUID, 'profileId:', selectedProfileId);
                                                                 saveStrategyResult(integratedUUID, 'backtest', result.data)
                                                                     .then(() => console.log('[Integrated] Result saved successfully'))
                                                                     .catch(err => console.error("Failed to save Integrated Result", err));
