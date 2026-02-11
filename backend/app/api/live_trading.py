@@ -15,6 +15,9 @@ class LiveBotStartRequest(BaseModel):
     initial_capital: float = 10000000
     is_paper: bool = True
     account_id: Optional[int] = None  # Phase 5: Explicit account selection
+    group_id: Optional[str] = None    # Phase 5: Session grouping for multi-rank parallel/exclusive
+    profile_name: Optional[str] = None  # Profile name for display
+    auto_start: bool = False  # Phase 5: If False, create session in STOPPED state without starting engine
 
 class StopAllRequest(BaseModel):
     force: bool = False
@@ -243,10 +246,10 @@ async def delete_session(
     db: Session = Depends(get_db)
 ):
     """
-    Permanently delete a session and all its trade executions.
+    Permanently delete a session and all its related data (trade executions, AI evaluations).
     Only allowed for STOPPED or ERROR sessions (not RUNNING).
     """
-    from ..models.live_trading import LiveBotSession, LiveTradeExecution, SessionStatus
+    from ..models.live_trading import LiveBotSession, LiveTradeExecution, LiveAIEvaluation, SessionStatus
 
     # Find the session
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
@@ -278,7 +281,12 @@ async def delete_session(
         )
 
     try:
-        # Delete related trade executions first
+        # Delete related AI evaluations first
+        deleted_evals = db.query(LiveAIEvaluation).filter(
+            LiveAIEvaluation.session_id == session_id
+        ).delete()
+
+        # Delete related trade executions
         deleted_trades = db.query(LiveTradeExecution).filter(
             LiveTradeExecution.session_id == session_id
         ).delete()
@@ -290,7 +298,8 @@ async def delete_session(
         return {
             "status": "success",
             "message": f"Session deleted successfully",
-            "deleted_trades": deleted_trades
+            "deleted_trades": deleted_trades,
+            "deleted_ai_evaluations": deleted_evals
         }
     except Exception as e:
         db.rollback()
@@ -464,6 +473,8 @@ async def get_all_sessions(
         results.append({
             "session_id": sess.id,
             "account_id": sess.account_id,
+            "group_id": sess.group_id,  # Session group ID for multi-rank parallel/exclusive
+            "profile_name": sess.profile_name,  # Profile name for display
             "symbol": sess.symbol,
             "strategy_name": sess.strategy_name,
             "status": effective_status,
@@ -1793,3 +1804,235 @@ async def update_ai_eval_settings(
             "mode": session.ai_eval_mode,
         }
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 5: Strategy Profile API - Multi-Rank Session Templates
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class StrategyProfileCreate(PydanticBaseModel):
+    name: str
+    description: Optional[str] = None
+    strategy_name: str
+    rank_configs: List[Dict[str, Any]]  # Array of rank configurations
+    execution_mode: str = "parallel"
+    rank_weights: Optional[Dict[str, float]] = None
+    initial_capital: float = 10000000
+    is_paper: bool = True
+
+
+class StrategyProfileUpdate(PydanticBaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    rank_configs: Optional[List[Dict[str, Any]]] = None
+    execution_mode: Optional[str] = None
+    rank_weights: Optional[Dict[str, float]] = None
+    initial_capital: Optional[float] = None
+    is_paper: Optional[bool] = None
+
+
+@router.get("/profiles")
+async def list_strategy_profiles(
+    strategy_name: str = "",
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    List all saved strategy profiles for the current user.
+
+    Query params:
+    - strategy_name: filter by strategy (optional)
+    """
+    from ..models.live_trading import StrategyProfile
+
+    query = db.query(StrategyProfile).filter(
+        StrategyProfile.user_id == ctx.user_id,
+        StrategyProfile.is_active == True
+    )
+
+    if strategy_name:
+        query = query.filter(StrategyProfile.strategy_name == strategy_name)
+
+    profiles = query.order_by(StrategyProfile.updated_at.desc()).all()
+
+    return {
+        "total": len(profiles),
+        "data": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "strategy_name": p.strategy_name,
+                "rank_count": len(p.rank_configs) if p.rank_configs else 0,
+                "execution_mode": p.execution_mode,
+                "initial_capital": p.initial_capital,
+                "is_paper": p.is_paper,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+            }
+            for p in profiles
+        ]
+    }
+
+
+@router.post("/profiles")
+async def create_strategy_profile(
+    req: StrategyProfileCreate,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Save current integrated tab configuration as a reusable profile.
+    """
+    from ..models.live_trading import StrategyProfile
+    import uuid
+
+    # Validate rank_configs
+    if not req.rank_configs or len(req.rank_configs) == 0:
+        raise HTTPException(status_code=400, detail="At least one rank configuration is required")
+
+    new_profile = StrategyProfile(
+        id=str(uuid.uuid4()),
+        user_id=ctx.user_id,
+        name=req.name,
+        description=req.description,
+        strategy_name=req.strategy_name,
+        rank_configs=req.rank_configs,
+        execution_mode=req.execution_mode,
+        rank_weights=req.rank_weights,
+        initial_capital=req.initial_capital,
+        is_paper=req.is_paper,
+    )
+    db.add(new_profile)
+    db.commit()
+    db.refresh(new_profile)
+
+    return {
+        "status": "success",
+        "message": f"Profile '{req.name}' saved",
+        "data": {
+            "id": new_profile.id,
+            "name": new_profile.name,
+            "rank_count": len(req.rank_configs),
+            "created_at": new_profile.created_at.isoformat() if new_profile.created_at else None,
+        }
+    }
+
+
+@router.get("/profiles/{profile_id}")
+async def get_strategy_profile(
+    profile_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Get a specific strategy profile with full configuration.
+    """
+    from ..models.live_trading import StrategyProfile
+
+    profile = db.query(StrategyProfile).filter(
+        StrategyProfile.id == profile_id,
+        StrategyProfile.user_id == ctx.user_id,
+        StrategyProfile.is_active == True
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    return {
+        "id": profile.id,
+        "name": profile.name,
+        "description": profile.description,
+        "strategy_name": profile.strategy_name,
+        "rank_configs": profile.rank_configs,
+        "execution_mode": profile.execution_mode,
+        "rank_weights": profile.rank_weights,
+        "initial_capital": profile.initial_capital,
+        "is_paper": profile.is_paper,
+        "created_at": profile.created_at.isoformat() if profile.created_at else None,
+        "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+    }
+
+
+@router.put("/profiles/{profile_id}")
+async def update_strategy_profile(
+    profile_id: str,
+    req: StrategyProfileUpdate,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Update an existing strategy profile.
+    """
+    from ..models.live_trading import StrategyProfile
+
+    profile = db.query(StrategyProfile).filter(
+        StrategyProfile.id == profile_id,
+        StrategyProfile.user_id == ctx.user_id,
+        StrategyProfile.is_active == True
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if req.name is not None:
+        profile.name = req.name
+    if req.description is not None:
+        profile.description = req.description
+    if req.rank_configs is not None:
+        if len(req.rank_configs) == 0:
+            raise HTTPException(status_code=400, detail="At least one rank configuration is required")
+        profile.rank_configs = req.rank_configs
+    if req.execution_mode is not None:
+        profile.execution_mode = req.execution_mode
+    if req.rank_weights is not None:
+        profile.rank_weights = req.rank_weights
+    if req.initial_capital is not None:
+        profile.initial_capital = req.initial_capital
+    if req.is_paper is not None:
+        profile.is_paper = req.is_paper
+
+    db.commit()
+    db.refresh(profile)
+
+    return {
+        "status": "success",
+        "message": f"Profile '{profile.name}' updated",
+        "data": {
+            "id": profile.id,
+            "name": profile.name,
+            "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+        }
+    }
+
+
+@router.delete("/profiles/{profile_id}")
+async def delete_strategy_profile(
+    profile_id: str,
+    hard_delete: bool = False,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a strategy profile (soft delete by default).
+    """
+    from ..models.live_trading import StrategyProfile
+
+    profile = db.query(StrategyProfile).filter(
+        StrategyProfile.id == profile_id,
+        StrategyProfile.user_id == ctx.user_id
+    ).first()
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    if hard_delete:
+        db.delete(profile)
+        message = f"Profile '{profile.name}' permanently deleted"
+    else:
+        profile.is_active = False
+        message = f"Profile '{profile.name}' archived"
+
+    db.commit()
+
+    return {"status": "success", "message": message}

@@ -309,6 +309,9 @@ const StrategyView = () => {
         return saved || 'exclusive';
     }); // 'exclusive' | 'parallel' for Integrated backtest
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isProfileSaveModalOpen, setIsProfileSaveModalOpen] = useState(false);
+    const [profileSaveData, setProfileSaveData] = useState({ name: '', description: '' });
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // Symbol Comparison State (with localStorage persistence)
     const [selectedCompareSymbols, setSelectedCompareSymbols] = useState(() => {
@@ -3739,6 +3742,22 @@ const StrategyView = () => {
                                                             <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
                                                         )}
                                                     </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const activeConfigs = configList.filter(c => c.is_active);
+                                                            if (activeConfigs.length === 0) {
+                                                                openConfirm('No Active Ranks', 'Please activate at least one rank before saving a profile.', () => {}, false, 'OK');
+                                                                return;
+                                                            }
+                                                            setProfileSaveData({ name: '', description: '' });
+                                                            setIsProfileSaveModalOpen(true);
+                                                        }}
+                                                        disabled={isLoading}
+                                                        className="px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
+                                                    >
+                                                        <Save size={20} />
+                                                        Save Profile
+                                                    </button>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-3">
                                                     {executionMode === 'exclusive'
@@ -4248,6 +4267,7 @@ const StrategyView = () => {
                                         }}
                                         strategies={strategies}
                                     />
+
                                 </div>
                             )}
 
@@ -5438,6 +5458,107 @@ const StrategyView = () => {
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
             />
+
+            {/* Phase 5: Profile Save Modal */}
+            {isProfileSaveModalOpen && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Save size={20} className="text-emerald-400" />
+                            Save Strategy Profile
+                        </h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Profile Name *</label>
+                                <input
+                                    type="text"
+                                    value={profileSaveData.name}
+                                    onChange={(e) => setProfileSaveData(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="e.g., Conservative DIP Strategy v2"
+                                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Description (optional)</label>
+                                <textarea
+                                    value={profileSaveData.description}
+                                    onChange={(e) => setProfileSaveData(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Notes about this profile configuration..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none resize-none"
+                                />
+                            </div>
+                            <div className="bg-white/5 rounded-lg p-3 text-sm">
+                                <p className="text-gray-400 mb-2">This profile will save:</p>
+                                <ul className="text-gray-500 space-y-1 text-xs">
+                                    <li>• Strategy: <span className="text-emerald-400">{selectedStrategy?.name || selectedStrategy?.id}</span></li>
+                                    <li>• Active Ranks: <span className="text-emerald-400">{configList.filter(c => c.is_active).length}</span></li>
+                                    <li>• Execution Mode: <span className="text-emerald-400">{executionMode}</span></li>
+                                    <li>• All rank parameters and symbols</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setIsProfileSaveModalOpen(false)}
+                                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!profileSaveData.name.trim()) {
+                                        openConfirm('Name Required', 'Please enter a profile name.', () => {}, false, 'OK');
+                                        return;
+                                    }
+                                    setIsSavingProfile(true);
+                                    try {
+                                        const activeConfigs = configList.filter(c => c.is_active);
+                                        const leaderConfig = activeConfigs[0];
+
+                                        // Build rank_configs array - always use idx+1 for rank ordering
+                                        const rankConfigs = activeConfigs.map((cfg, idx) => ({
+                                            rank: idx + 1,  // R1, R2, R3, ...
+                                            symbol: cfg.symbol || currentSymbol,
+                                            params: { ...cfg },
+                                            weight: 1.0,
+                                            enabled: true
+                                        }));
+
+                                        const payload = {
+                                            name: profileSaveData.name.trim(),
+                                            description: profileSaveData.description.trim() || null,
+                                            strategy_name: selectedStrategy?.id || 'time_momentum',
+                                            rank_configs: rankConfigs,
+                                            execution_mode: executionMode,
+                                            rank_weights: null,
+                                            initial_capital: leaderConfig?.initial_capital || 10000000,
+                                            is_paper: true
+                                        };
+
+                                        await axios.post('/api/v1/live/profiles', payload);
+                                        setIsProfileSaveModalOpen(false);
+                                        openConfirm('Profile Saved', `Profile "${profileSaveData.name}" has been saved successfully. You can load it when creating new sessions.`, () => {}, false, 'OK');
+                                    } catch (err) {
+                                        console.error('Failed to save profile:', err);
+                                        openConfirm('Save Failed', err.response?.data?.detail || err.message || 'Failed to save profile', () => {}, true, 'OK');
+                                    } finally {
+                                        setIsSavingProfile(false);
+                                    }
+                                }}
+                                disabled={isSavingProfile || !profileSaveData.name.trim()}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isSavingProfile ? (
+                                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
+                                ) : (
+                                    <><Save size={16} /> Save Profile</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Strategy Detail Modal */}
             <StrategyDetailModal

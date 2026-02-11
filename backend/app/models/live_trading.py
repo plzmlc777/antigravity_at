@@ -62,7 +62,11 @@ class LiveBotSession(Base):
     is_active = Column(Boolean, default=True) # To restore on server restart
     started_at = Column(DateTime, default=datetime.utcnow)
     stopped_at = Column(DateTime, nullable=True)
-    
+
+    # Session Grouping (for parallel/exclusive multi-rank sessions)
+    group_id = Column(String, index=True, nullable=True)  # UUID shared by sessions started together
+    profile_name = Column(String, nullable=True)  # Profile name for display (from strategy_profiles)
+
     # Performance (Cached for ease of access)
     initial_capital = Column(Float, default=0.0)
     current_capital = Column(Float, default=0.0)
@@ -193,6 +197,42 @@ class TradingErrorLog(Base):
 class EvaluationType(str, enum.Enum):
     MANUAL = "MANUAL"       # 사용자가 수동으로 요청
     AUTO = "AUTO"           # 이벤트 기반 자동 평가 (N 사이클 완료 시)
+
+
+class StrategyProfile(Base):
+    """
+    Complete strategy configuration profile for multi-rank sessions.
+    Stores all rank configurations, weights, and execution settings as a reusable template.
+    User workflow: 전략 선택 → 랭크탭 최적화 → 종목탭 테스트 → 통합탭 통합 → 프로필 저장 → 라이브 세션
+    """
+    __tablename__ = "strategy_profiles"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(Integer, nullable=False, index=True)  # Owner of this profile
+
+    # Profile Identification
+    name = Column(String, nullable=False)           # Display name (e.g., "보수적 매수전략 v2")
+    description = Column(String, nullable=True)     # Optional description
+
+    # Strategy Configuration
+    strategy_name = Column(String, nullable=False)  # e.g., "dip_martingale"
+
+    # Rank Configurations (JSON array of rank configs)
+    # Each rank: {rank: "A", symbol: "005930", params: {...}, weight: 1.0, enabled: true}
+    rank_configs = Column(JSON, nullable=False)     # Complete per-rank configuration
+
+    # Execution Settings
+    execution_mode = Column(String, default="parallel")  # "parallel" | "exclusive"
+    rank_weights = Column(JSON, nullable=True)           # Optional: {"A": 1.0, "B": 0.8, ...}
+
+    # Investment Settings
+    initial_capital = Column(Float, default=10000000)
+    is_paper = Column(Boolean, default=True)
+
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)  # Soft delete
 
 
 class LiveAIEvaluation(Base):

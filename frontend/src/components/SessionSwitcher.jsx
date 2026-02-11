@@ -58,7 +58,8 @@ export const STATUS_CONFIG = {
 };
 
 // Delete Confirmation Modal - exported for use in LiveStrategyPanel
-export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSymbolName, isDeleting }) => {
+// Delete Confirmation Modal - supports both single session and session groups
+export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, sessions, getSymbolName, isDeleting }) => {
     const [confirmText, setConfirmText] = useState('');
 
     // Reset confirmText when modal opens
@@ -66,10 +67,22 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSym
         if (isOpen) setConfirmText('');
     }, [isOpen]);
 
-    if (!isOpen || !session) return null;
+    // Support both single session (legacy) and sessions array (group)
+    const sessionList = sessions || (session ? [session] : []);
+    if (!isOpen || sessionList.length === 0) return null;
+
+    const firstSession = sessionList[0];
+    const sessionCount = sessionList.length;
+    const isGroup = sessionCount > 1;
 
     const canConfirm = confirmText === '삭제';
-    const symbolName = getSymbolName ? getSymbolName(session.symbol) : session.symbol;
+    const symbolName = getSymbolName ? getSymbolName(firstSession.symbol) : firstSession.symbol;
+
+    // Get unique symbols for group display
+    const uniqueSymbols = [...new Set(sessionList.map(s => s.symbol))];
+    const symbolsDisplay = uniqueSymbols.length === 1
+        ? `${symbolName} (${firstSession.symbol})`
+        : `${uniqueSymbols.length}개 종목`;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -78,7 +91,9 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSym
                 {/* Header */}
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-red-500/30 bg-red-500/10">
                     <AlertTriangle size={24} className="text-red-500" />
-                    <h2 className="text-lg font-bold text-red-400">세션 삭제 경고</h2>
+                    <h2 className="text-lg font-bold text-red-400">
+                        {isGroup ? '세션 그룹 삭제 경고' : '세션 삭제 경고'}
+                    </h2>
                     <button onClick={onClose} className="ml-auto p-1 hover:bg-white/10 rounded">
                         <X size={18} className="text-gray-400" />
                     </button>
@@ -91,6 +106,7 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSym
                             이 작업은 되돌릴 수 없습니다!
                         </p>
                         <ul className="text-red-200/80 text-xs space-y-1 list-disc list-inside">
+                            {isGroup && <li className="font-semibold">{sessionCount}개의 세션이 모두 삭제됩니다</li>}
                             <li>세션 기록이 영구적으로 삭제됩니다</li>
                             <li>관련된 모든 거래 내역이 삭제됩니다</li>
                             <li>통계 데이터가 손실됩니다</li>
@@ -99,16 +115,22 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSym
 
                     <div className="bg-black/30 rounded-xl p-4 space-y-2">
                         <div className="text-sm text-gray-300">
-                            <span className="text-gray-500">전략:</span> {session.strategy_name}
+                            <span className="text-gray-500">전략:</span> {firstSession.strategy_name}
+                        </div>
+                        {isGroup && (
+                            <div className="text-sm text-gray-300">
+                                <span className="text-gray-500">세션 수:</span>{' '}
+                                <span className="text-red-400 font-medium">{sessionCount}개</span>
+                            </div>
+                        )}
+                        <div className="text-sm text-gray-300">
+                            <span className="text-gray-500">종목:</span> {symbolsDisplay}
                         </div>
                         <div className="text-sm text-gray-300">
-                            <span className="text-gray-500">종목:</span> {symbolName} ({session.symbol})
+                            <span className="text-gray-500">시작일:</span> {firstSession.started_at ? new Date(firstSession.started_at).toLocaleDateString('ko-KR') : '-'}
                         </div>
                         <div className="text-sm text-gray-300">
-                            <span className="text-gray-500">시작일:</span> {session.started_at ? new Date(session.started_at).toLocaleDateString('ko-KR') : '-'}
-                        </div>
-                        <div className="text-sm text-gray-300">
-                            <span className="text-gray-500">상태:</span> <span className={STATUS_CONFIG[session.status]?.color}>{STATUS_CONFIG[session.status]?.label}</span>
+                            <span className="text-gray-500">상태:</span> <span className={STATUS_CONFIG[firstSession.status]?.color}>{STATUS_CONFIG[firstSession.status]?.label}</span>
                         </div>
                     </div>
 
@@ -153,7 +175,7 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, getSym
                         ) : (
                             <>
                                 <Trash2 size={16} />
-                                영구 삭제
+                                {isGroup ? `${sessionCount}개 영구 삭제` : '영구 삭제'}
                             </>
                         )}
                     </button>
@@ -201,31 +223,7 @@ const SessionSwitcher = forwardRef(({
         return () => clearInterval(interval);
     }, [fetchSessions]);
 
-    // Auto-select first session if none selected
-    useEffect(() => {
-        if (!activeSessionGroup && sessions.length > 0 && onSelectSessionGroup) {
-            // Sort by activity and select the first
-            const sorted = [...sessions].sort((a, b) => {
-                // RUNNING first
-                if (a.status === 'RUNNING' && b.status !== 'RUNNING') return -1;
-                if (b.status === 'RUNNING' && a.status !== 'RUNNING') return 1;
-                // Then by time
-                const aTime = new Date(a.stopped_at || a.started_at || 0).getTime();
-                const bTime = new Date(b.stopped_at || b.started_at || 0).getTime();
-                return bTime - aTime;
-            });
-
-            if (sorted.length > 0) {
-                const first = sorted[0];
-                onSelectSessionGroup({
-                    accountId: first.account_id,
-                    strategyName: first.strategy_name,
-                    sessionId: first.session_id,
-                    sessions: [first]
-                });
-            }
-        }
-    }, [sessions, activeSessionGroup, onSelectSessionGroup]);
+    // Auto-select first group if none selected (moved after sessionGroups is computed)
 
     // Expose refresh method via ref for parent to call after actions
     useImperativeHandle(ref, () => ({
@@ -261,23 +259,125 @@ const SessionSwitcher = forwardRef(({
         return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
     };
 
-    // Sort sessions
-    const sortedSessions = React.useMemo(() => {
-        return [...sessions].sort((a, b) => {
-            // RUNNING first
+    // Group sessions by group_id (or treat as individual if no group_id)
+    const sessionGroups = React.useMemo(() => {
+        const groups = new Map();
+
+        for (const session of sessions) {
+            // Use group_id if available, otherwise use session_id as unique key
+            const groupKey = session.group_id || `solo_${session.session_id}`;
+
+            if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                    groupId: session.group_id,
+                    groupKey,
+                    sessions: [],
+                    // Representative info (from first session)
+                    profile_name: session.profile_name,  // 프로필 이름 (타이틀용)
+                    strategy_name: session.strategy_name,
+                    account_id: session.account_id,
+                    is_paper: session.is_paper,
+                    started_at: session.started_at,
+                    stopped_at: session.stopped_at,
+                });
+            }
+
+            groups.get(groupKey).sessions.push(session);
+        }
+
+        // Process each group: compute aggregate status and info
+        const processedGroups = [];
+        for (const [, group] of groups) {
+            const sessionList = group.sessions;
+
+            // Aggregate status: RUNNING if any running, else PAUSED if any paused, etc.
+            const hasRunning = sessionList.some(s => s.status === 'RUNNING');
+            const hasPaused = sessionList.some(s => s.status === 'PAUSED');
+            const hasError = sessionList.some(s => s.status === 'ERROR');
+
+            let groupStatus = 'STOPPED';
+            if (hasRunning) groupStatus = 'RUNNING';
+            else if (hasPaused) groupStatus = 'PAUSED';
+            else if (hasError) groupStatus = 'ERROR';
+
+            // Aggregate PnL
+            const totalPnl = sessionList.reduce((sum, s) => sum + (s.pnl || 0), 0);
+
+            // Get unique symbols
+            const symbols = [...new Set(sessionList.map(s => s.symbol))];
+
+            // Latest activity
+            const latestActivity = sessionList.reduce((latest, s) => {
+                const t = new Date(s.stopped_at || s.started_at || 0).getTime();
+                return t > latest ? t : latest;
+            }, 0);
+
+            processedGroups.push({
+                ...group,
+                status: groupStatus,
+                pnl: totalPnl,
+                symbols,
+                sessionCount: sessionList.length,
+                latestActivity: new Date(latestActivity),
+            });
+        }
+
+        // Sort: RUNNING first, then by latest activity
+        return processedGroups.sort((a, b) => {
             if (a.status === 'RUNNING' && b.status !== 'RUNNING') return -1;
             if (b.status === 'RUNNING' && a.status !== 'RUNNING') return 1;
-            // Then by last activity
-            const aTime = new Date(a.stopped_at || a.started_at || 0).getTime();
-            const bTime = new Date(b.stopped_at || b.started_at || 0).getTime();
-            return bTime - aTime;
+            return b.latestActivity - a.latestActivity;
         });
     }, [sessions]);
 
-    // Check if a session is selected
-    const isSessionSelected = (session) => {
+    // Auto-select first group if none selected
+    useEffect(() => {
+        if (!activeSessionGroup && sessionGroups.length > 0 && onSelectSessionGroup) {
+            const firstGroup = sessionGroups[0];
+            onSelectSessionGroup({
+                accountId: firstGroup.account_id,
+                strategyName: firstGroup.strategy_name,
+                groupId: firstGroup.groupId,
+                sessionId: firstGroup.sessions[0]?.session_id,
+                sessions: firstGroup.sessions
+            });
+        }
+    }, [sessionGroups, activeSessionGroup, onSelectSessionGroup]);
+
+    // Update parent with fresh session data when selected session's data changes
+    useEffect(() => {
+        if (!activeSessionGroup || !onSelectSessionGroup || sessionGroups.length === 0) return;
+
+        // Find the currently selected group in the refreshed data
+        const selectedGroup = sessionGroups.find(g => {
+            if (activeSessionGroup.groupId && g.groupId === activeSessionGroup.groupId) return true;
+            return g.sessions[0]?.session_id === activeSessionGroup.sessionId;
+        });
+
+        if (selectedGroup) {
+            // Check if sessions data has changed (e.g., status changed)
+            const currentSessionIds = activeSessionGroup.sessions?.map(s => s.session_id).sort().join(',');
+            const newSessionIds = selectedGroup.sessions?.map(s => s.session_id).sort().join(',');
+            const statusChanged = activeSessionGroup.sessions?.[0]?.status !== selectedGroup.sessions?.[0]?.status;
+
+            if (currentSessionIds !== newSessionIds || statusChanged) {
+                onSelectSessionGroup({
+                    accountId: selectedGroup.account_id,
+                    strategyName: selectedGroup.strategy_name,
+                    groupId: selectedGroup.groupId,
+                    sessionId: selectedGroup.sessions[0]?.session_id,
+                    sessions: selectedGroup.sessions
+                });
+            }
+        }
+    }, [sessionGroups]);
+
+    // Check if a group is selected
+    const isGroupSelected = (group) => {
         if (!activeSessionGroup) return false;
-        return activeSessionGroup.sessionId === session.session_id;
+        // Match by groupId or first session's ID
+        if (group.groupId && activeSessionGroup.groupId === group.groupId) return true;
+        return activeSessionGroup.sessionId === group.sessions[0]?.session_id;
     };
 
     // Format PnL
@@ -301,10 +401,19 @@ const SessionSwitcher = forwardRef(({
         );
     }
 
-    // Filter sessions
-    const visibleSessions = showAll
-        ? sortedSessions
-        : sortedSessions.filter(s => s.status === 'RUNNING' || s.status === 'PAUSED');
+    // Filter groups - always include the currently selected group
+    const visibleGroups = showAll
+        ? sessionGroups
+        : sessionGroups.filter(g => {
+            // Always show RUNNING or PAUSED
+            if (g.status === 'RUNNING' || g.status === 'PAUSED') return true;
+            // Always show the currently selected group (even if STOPPED/ERROR)
+            if (activeSessionGroup) {
+                if (g.groupId && g.groupId === activeSessionGroup.groupId) return true;
+                if (g.sessions[0]?.session_id === activeSessionGroup.sessionId) return true;
+            }
+            return false;
+        });
 
     return (
         <>
@@ -313,7 +422,7 @@ const SessionSwitcher = forwardRef(({
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2 text-sm text-gray-400">
                         <Activity size={14} />
-                        <span>세션 ({visibleSessions.length})</span>
+                        <span>세션 그룹 ({visibleGroups.length})</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -336,20 +445,18 @@ const SessionSwitcher = forwardRef(({
                     </div>
                 </div>
 
-                {/* Session Cards */}
+                {/* Session Group Cards */}
                 <div className="flex items-stretch gap-2 px-1 overflow-x-auto pb-1">
-                    {visibleSessions.length > 0 ? (
-                        visibleSessions.map((session) => {
-                            const account = getAccountInfo(session.account_id);
-                            const isSelected = isSessionSelected(session);
-                            const statusConfig = STATUS_CONFIG[session.status] || STATUS_CONFIG.STOPPED;
+                    {visibleGroups.length > 0 ? (
+                        visibleGroups.map((group) => {
+                            const account = getAccountInfo(group.account_id);
+                            const isSelected = isGroupSelected(group);
+                            const statusConfig = STATUS_CONFIG[group.status] || STATUS_CONFIG.STOPPED;
                             const StatusIcon = statusConfig.icon;
-                            const symbolName = getSymbolName(session.symbol);
-                            const lastActivity = session.stopped_at || session.started_at;
 
                             return (
                                 <div
-                                    key={session.session_id}
+                                    key={group.groupKey}
                                     className={`
                                         relative flex-shrink-0 flex flex-col gap-1 p-3 rounded-xl min-w-[150px] max-w-[180px]
                                         transition-all duration-200 text-left cursor-pointer
@@ -358,10 +465,11 @@ const SessionSwitcher = forwardRef(({
                                             : `${statusConfig.bgColor} border ${statusConfig.borderColor} hover:border-white/40`}
                                     `}
                                     onClick={() => onSelectSessionGroup({
-                                        accountId: session.account_id,
-                                        strategyName: session.strategy_name,
-                                        sessionId: session.session_id,
-                                        sessions: [session]
+                                        accountId: group.account_id,
+                                        strategyName: group.strategy_name,
+                                        groupId: group.groupId,
+                                        sessionId: group.sessions[0]?.session_id,
+                                        sessions: group.sessions
                                     })}
                                 >
                                     {/* Selection Indicator */}
@@ -371,28 +479,21 @@ const SessionSwitcher = forwardRef(({
                                         </div>
                                     )}
 
-                                    {/* Strategy Name (Title) */}
+                                    {/* Profile Name (Title) - Full display */}
                                     <div className="flex items-center gap-1.5 pr-5">
                                         <StatusIcon
                                             size={12}
-                                            className={`flex-shrink-0 ${statusConfig.color} ${session.status === 'RUNNING' ? 'animate-pulse' : ''}`}
+                                            className={`flex-shrink-0 ${statusConfig.color} ${group.status === 'RUNNING' ? 'animate-pulse' : ''}`}
                                         />
-                                        <span className="text-sm font-semibold text-white truncate">
-                                            {session.strategy_name}
-                                        </span>
-                                        <span className={`flex-shrink-0 text-[8px] px-1 py-0.5 rounded font-medium ${
-                                            session.is_paper
-                                                ? 'bg-yellow-500/20 text-yellow-400'
-                                                : 'bg-red-500/20 text-red-400'
-                                        }`}>
-                                            {session.is_paper ? 'P' : 'R'}
+                                        <span className="text-sm font-semibold text-white">
+                                            {group.profile_name || group.strategy_name}
                                         </span>
                                     </div>
 
-                                    {/* Symbol Name */}
+                                    {/* Strategy Name */}
                                     <div className="flex items-center gap-1 text-[10px] text-gray-300">
-                                        <Zap size={9} className="text-yellow-500/70" />
-                                        <span className="truncate">{symbolName}</span>
+                                        <Zap size={9} className="text-indigo-400/70" />
+                                        <span className="truncate">{group.strategy_name}</span>
                                     </div>
 
                                     {/* Account */}
@@ -401,15 +502,31 @@ const SessionSwitcher = forwardRef(({
                                         <span className="truncate">{account?.account_name || 'Unknown'}</span>
                                     </div>
 
-                                    {/* Time + Status */}
+                                    {/* Session Count + Paper/Real Badge */}
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        {group.sessionCount > 1 && (
+                                            <span className="text-[8px] px-1.5 py-0.5 rounded font-medium bg-indigo-500/30 text-indigo-300">
+                                                {group.sessionCount}개 종목
+                                            </span>
+                                        )}
+                                        <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${
+                                            group.is_paper
+                                                ? 'bg-yellow-500/20 text-yellow-400'
+                                                : 'bg-red-500/20 text-red-400'
+                                        }`}>
+                                            {group.is_paper ? 'Paper' : 'Real'}
+                                        </span>
+                                    </div>
+
+                                    {/* Time + Status/PnL */}
                                     <div className="flex items-center justify-between mt-1 pt-1 border-t border-white/5">
                                         <div className="flex items-center gap-1 text-[9px] text-gray-500">
                                             <Clock size={8} />
-                                            <span>{formatRelativeTime(lastActivity)}</span>
+                                            <span>{formatRelativeTime(group.latestActivity)}</span>
                                         </div>
                                         <span className={`text-[9px] font-medium ${statusConfig.color}`}>
-                                            {session.status === 'RUNNING' && session.pnl !== undefined
-                                                ? formatPnl(session.pnl)
+                                            {group.status === 'RUNNING' && group.pnl !== undefined
+                                                ? formatPnl(group.pnl)
                                                 : statusConfig.label}
                                         </span>
                                     </div>

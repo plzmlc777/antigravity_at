@@ -1,50 +1,71 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, Building2, Briefcase, Target, DollarSign, AlertTriangle, Layers } from 'lucide-react';
-import { getAccounts, startLiveBot, stopAllLiveBots, getStrategyConfigs } from '../api/client';
+import axios from 'axios';
+import { X, Plus, Building2, FolderOpen, Info, Target, Layers, Shield, ShieldOff } from 'lucide-react';
+import { getAccounts, startLiveBot } from '../api/client';
 
 /**
- * NewSessionModal - Phase 5: Start New Live Session
+ * NewSessionModal - Phase 5: Add New Live Session from Profile (Simplified)
  *
- * Modal for starting a new live trading session with:
+ * Modal for adding a new live trading session:
+ * - Profile selection only
+ * - Profile information display (read-only)
  * - Account selection
- * - Strategy selection
- * - Rank (symbol) selection from strategy configs
- * - Capital allocation
- * - Execution mode (Exclusive/Parallel)
+ *
+ * Other settings (capital, execution mode, paper/real) are configured in Live Operation panel after session creation.
  */
-const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] }) => {
+const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
     // State
     const [accounts, setAccounts] = useState([]);
     const [selectedAccountId, setSelectedAccountId] = useState(null);
-    const [selectedStrategyId, setSelectedStrategyId] = useState('');
-    const [strategyConfigs, setStrategyConfigs] = useState([]);
-    const [selectedRanks, setSelectedRanks] = useState([]); // Array of indices
-    const [capital, setCapital] = useState(10000000);
-    const [executionMode, setExecutionMode] = useState('exclusive');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Fetch accounts on mount
+    // Profile state
+    const [profiles, setProfiles] = useState([]);
+    const [selectedProfileId, setSelectedProfileId] = useState('');
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [isLoadingProfiles, setIsLoadingProfiles] = useState(true);
+
+    // Fetch accounts and profiles on mount
     useEffect(() => {
         if (isOpen) {
             fetchAccounts();
+            fetchProfiles();
             // Reset state
-            setSelectedStrategyId('');
-            setStrategyConfigs([]);
-            setSelectedRanks([]);
+            setSelectedProfileId('');
+            setSelectedProfile(null);
             setError(null);
         }
     }, [isOpen]);
 
-    // Fetch strategy configs when strategy changes
-    useEffect(() => {
-        if (selectedStrategyId) {
-            fetchStrategyConfigs(selectedStrategyId);
-        } else {
-            setStrategyConfigs([]);
-            setSelectedRanks([]);
+    const fetchProfiles = async () => {
+        setIsLoadingProfiles(true);
+        try {
+            const response = await axios.get('/api/v1/live/profiles');
+            setProfiles(response.data.data || []);
+        } catch (err) {
+            console.error('Failed to fetch profiles:', err);
+            setProfiles([]);
+        } finally {
+            setIsLoadingProfiles(false);
         }
-    }, [selectedStrategyId]);
+    };
+
+    const loadProfile = async (profileId) => {
+        if (!profileId) {
+            setSelectedProfileId('');
+            setSelectedProfile(null);
+            return;
+        }
+        try {
+            const response = await axios.get(`/api/v1/live/profiles/${profileId}`);
+            setSelectedProfileId(profileId);
+            setSelectedProfile(response.data);
+        } catch (err) {
+            console.error('Failed to load profile:', err);
+            setError('프로필을 불러올 수 없습니다.');
+        }
+    };
 
     const fetchAccounts = async () => {
         try {
@@ -66,45 +87,13 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
         }
     };
 
-    const fetchStrategyConfigs = async (strategyId) => {
-        try {
-            const configs = await getStrategyConfigs(strategyId);
-            const activeConfigs = configs.filter(c => c.is_active);
-            setStrategyConfigs(activeConfigs);
-            // Default: select all active ranks
-            setSelectedRanks(activeConfigs.map((_, idx) => idx));
-        } catch (err) {
-            console.error('Failed to fetch strategy configs:', err);
-            setStrategyConfigs([]);
-            setSelectedRanks([]);
-        }
-    };
-
-    const toggleRankSelection = (idx) => {
-        setSelectedRanks(prev => {
-            if (prev.includes(idx)) {
-                return prev.filter(i => i !== idx);
-            } else {
-                return [...prev, idx].sort((a, b) => a - b);
-            }
-        });
-    };
-
-    const selectAllRanks = () => {
-        setSelectedRanks(strategyConfigs.map((_, idx) => idx));
-    };
-
-    const handleStart = async () => {
+    const handleAddSession = async () => {
         if (!selectedAccountId) {
             setError('계좌를 선택해주세요');
             return;
         }
-        if (!selectedStrategyId) {
-            setError('전략을 선택해주세요');
-            return;
-        }
-        if (selectedRanks.length === 0) {
-            setError('최소 하나의 Rank를 선택해주세요');
+        if (!selectedProfile) {
+            setError('프로필을 선택해주세요');
             return;
         }
 
@@ -112,31 +101,36 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
         setError(null);
 
         try {
-            // First stop any existing sessions for this account
-            try {
-                await stopAllLiveBots({ force: true });
-            } catch (e) {
-                // Ignore - might not have any sessions
-            }
+            // Generate group_id for multi-rank sessions
+            const groupId = `grp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const rankConfigs = selectedProfile.rank_configs || [];
+            const isMultiRank = rankConfigs.length > 1;
 
-            // Start sessions for each selected rank
+            // Create sessions for all ranks in the profile (in STOPPED state)
             const startedSessions = [];
-            const totalCapital = parseFloat(capital) || 10000000;
+            const totalCapital = selectedProfile.initial_capital || 10000000;
+            const executionMode = selectedProfile.execution_mode || 'parallel';
             const capitalPerRank = executionMode === 'parallel'
-                ? Math.floor(totalCapital / selectedRanks.length)
+                ? Math.floor(totalCapital / rankConfigs.length)
                 : totalCapital;
 
-            for (const idx of selectedRanks) {
-                const cfg = strategyConfigs[idx];
+            for (let idx = 0; idx < rankConfigs.length; idx++) {
+                const cfg = rankConfigs[idx];
                 const payload = {
                     symbol: cfg.symbol,
-                    strategy_name: selectedStrategyId,
+                    strategy_name: selectedProfile.strategy_name,
                     strategy_config: {
-                        ...cfg,
+                        ...cfg.params,
+                        symbol: cfg.symbol,
+                        rank: cfg.rank || (idx + 1),
                         execution_mode: executionMode
                     },
                     initial_capital: capitalPerRank,
-                    account_id: selectedAccountId
+                    is_paper: selectedProfile.is_paper !== false,  // Default to paper
+                    account_id: selectedAccountId,
+                    group_id: isMultiRank ? groupId : null,
+                    profile_name: selectedProfile.name,
+                    auto_start: false  // Create in STOPPED state
                 };
 
                 try {
@@ -147,7 +141,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
                         rankIndex: idx
                     });
                 } catch (err) {
-                    console.error(`Failed to start session for ${cfg.symbol}:`, err);
+                    console.error(`Failed to create session for ${cfg.symbol}:`, err);
                 }
             }
 
@@ -155,17 +149,19 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
                 if (onSessionStarted) {
                     onSessionStarted({
                         accountId: selectedAccountId,
-                        strategyName: selectedStrategyId,
+                        strategyName: selectedProfile.strategy_name,
                         sessions: startedSessions,
-                        executionMode
+                        executionMode,
+                        groupId: isMultiRank ? groupId : null,
+                        profileName: selectedProfile.name
                     });
                 }
                 onClose();
             } else {
-                setError('세션을 시작할 수 없습니다');
+                setError('세션을 생성할 수 없습니다');
             }
         } catch (err) {
-            setError(err.response?.data?.detail || err.message || '세션 시작 실패');
+            setError(err.response?.data?.detail || err.message || '세션 생성 실패');
         } finally {
             setIsLoading(false);
         }
@@ -175,26 +171,74 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
 
     if (!isOpen) return null;
 
+    // No profiles available - show guidance
+    if (!isLoadingProfiles && profiles.length === 0) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+                <div className="relative bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                            <FolderOpen size={20} className="text-yellow-400" />
+                            프로필 필요
+                        </h2>
+                        <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                            <X size={20} className="text-gray-400" />
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-start gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                            <Info size={20} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-yellow-200">
+                                <p className="font-medium mb-2">저장된 프로필이 없습니다</p>
+                                <p className="text-yellow-200/70 text-xs leading-relaxed">
+                                    라이브 세션을 시작하려면 먼저 전략 프로필을 저장해야 합니다.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-black/30 rounded-xl p-4 space-y-3">
+                            <p className="text-sm text-gray-300 font-medium">프로필 저장 방법:</p>
+                            <ol className="text-xs text-gray-400 space-y-2 list-decimal list-inside">
+                                <li>전략 페이지에서 전략 선택</li>
+                                <li>랭크탭에서 종목별 파라미터 최적화</li>
+                                <li>통합탭에서 전체 설정 확인</li>
+                                <li><span className="text-emerald-400 font-medium">Save Profile</span> 버튼 클릭</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-end px-6 py-4 border-t border-white/10">
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
+                        >
+                            확인
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 sticky top-0 bg-[#1a1a2e]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Play size={20} className="text-green-400" />
-                        새 라이브 세션
+                        <Plus size={20} className="text-emerald-400" />
+                        새 세션 생성
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    >
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
                         <X size={20} className="text-gray-400" />
                     </button>
                 </div>
@@ -210,7 +254,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
                         <select
                             value={selectedAccountId || ''}
                             onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer"
                         >
                             <option value="">계좌를 선택하세요</option>
                             {accounts.map(acc => (
@@ -227,156 +271,108 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
                         )}
                     </div>
 
-                    {/* Strategy Selection */}
+                    {/* Profile Selection */}
                     <div>
                         <label className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            <Briefcase size={14} />
-                            전략
+                            <FolderOpen size={14} />
+                            전략 프로필
                         </label>
-                        <select
-                            value={selectedStrategyId}
-                            onChange={(e) => setSelectedStrategyId(e.target.value)}
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
-                        >
-                            <option value="">전략을 선택하세요</option>
-                            {strategies.map(s => (
-                                <option key={s.id} value={s.id}>
-                                    {s.name || s.id}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Rank Selection (only if strategy selected) */}
-                    {strategyConfigs.length > 0 && (
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider">
-                                    <Target size={14} />
-                                    종목 (Rank)
-                                </label>
-                                <button
-                                    onClick={selectAllRanks}
-                                    className="text-xs text-indigo-400 hover:text-indigo-300"
-                                >
-                                    전체 선택
-                                </button>
+                        {isLoadingProfiles ? (
+                            <div className="flex items-center gap-2 px-4 py-3 bg-black/40 border border-white/10 rounded-xl">
+                                <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                                <span className="text-gray-400 text-sm">프로필 로딩 중...</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                {strategyConfigs.map((cfg, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => toggleRankSelection(idx)}
-                                        className={`
-                                            flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all
-                                            ${selectedRanks.includes(idx)
-                                                ? 'bg-indigo-600/30 border-2 border-indigo-500 text-white'
-                                                : 'bg-black/30 border border-white/10 text-gray-400 hover:border-white/30'}
-                                        `}
-                                    >
-                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center
-                                            ${selectedRanks.includes(idx) ? 'border-indigo-500 bg-indigo-500' : 'border-gray-500'}`}>
-                                            {selectedRanks.includes(idx) && (
-                                                <span className="text-white text-xs">✓</span>
-                                            )}
-                                        </div>
-                                        <span className="text-sm">
-                                            R{idx + 1}: {cfg.symbol}
-                                        </span>
-                                    </button>
+                        ) : (
+                            <select
+                                value={selectedProfileId}
+                                onChange={(e) => loadProfile(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer"
+                            >
+                                <option value="">프로필을 선택하세요</option>
+                                {profiles.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.name} ({p.strategy_name}, {p.rank_count}개 종목)
+                                    </option>
                                 ))}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">
-                                {selectedRanks.length}개 선택됨
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Execution Mode */}
-                    <div>
-                        <label className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            <Layers size={14} />
-                            실행 모드
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button
-                                onClick={() => setExecutionMode('exclusive')}
-                                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                    executionMode === 'exclusive'
-                                        ? 'bg-indigo-600/30 border-2 border-indigo-500 text-white'
-                                        : 'bg-black/30 border border-white/10 text-gray-400 hover:border-white/30'
-                                }`}
-                            >
-                                Exclusive
-                                <p className="text-[10px] opacity-70 mt-1">한 번에 하나만 매매</p>
-                            </button>
-                            <button
-                                onClick={() => setExecutionMode('parallel')}
-                                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                                    executionMode === 'parallel'
-                                        ? 'bg-indigo-600/30 border-2 border-indigo-500 text-white'
-                                        : 'bg-black/30 border border-white/10 text-gray-400 hover:border-white/30'
-                                }`}
-                            >
-                                Parallel
-                                <p className="text-[10px] opacity-70 mt-1">동시에 여러 종목 매매</p>
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Capital */}
-                    <div>
-                        <label className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">
-                            <DollarSign size={14} />
-                            투자 자본 (KRW)
-                        </label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                value={capital}
-                                onChange={(e) => setCapital(parseFloat(e.target.value) || 0)}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-mono text-lg outline-none focus:border-indigo-500/50 transition-all"
-                                placeholder="10000000"
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
-                                KRW
-                            </span>
-                        </div>
-                        {executionMode === 'parallel' && selectedRanks.length > 1 && (
-                            <p className="text-xs text-gray-500 mt-1.5">
-                                Rank당 약 {Math.floor(capital / selectedRanks.length).toLocaleString()} KRW 배분
-                            </p>
+                            </select>
                         )}
                     </div>
+
+                    {/* Profile Information (Read-only) */}
+                    {selectedProfile && (
+                        <div className="bg-black/30 border border-white/10 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-white">{selectedProfile.name}</h3>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                    selectedProfile.is_paper !== false
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                    {selectedProfile.is_paper !== false ? 'Paper' : 'Real'}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-white/5">
+                                <div className="flex items-center gap-2">
+                                    <Target size={12} className="text-gray-500" />
+                                    <span className="text-xs text-gray-400">전략:</span>
+                                    <span className="text-xs text-white">{selectedProfile.strategy_name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Layers size={12} className="text-gray-500" />
+                                    <span className="text-xs text-gray-400">모드:</span>
+                                    <span className="text-xs text-white">{selectedProfile.execution_mode || 'parallel'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {selectedProfile.is_paper !== false ? (
+                                        <Shield size={12} className="text-green-400" />
+                                    ) : (
+                                        <ShieldOff size={12} className="text-red-400" />
+                                    )}
+                                    <span className="text-xs text-gray-400">거래:</span>
+                                    <span className={`text-xs ${selectedProfile.is_paper !== false ? 'text-green-400' : 'text-red-400'}`}>
+                                        {selectedProfile.is_paper !== false ? '시뮬레이션' : '실거래'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Rank List */}
+                            {selectedProfile.rank_configs && selectedProfile.rank_configs.length > 0 && (
+                                <div className="pt-2 border-t border-white/5">
+                                    <p className="text-xs text-gray-500 mb-2">포함된 종목 ({selectedProfile.rank_configs.length}개):</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {selectedProfile.rank_configs.map((cfg, idx) => (
+                                            <span
+                                                key={idx}
+                                                className="text-xs px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded"
+                                            >
+                                                R{cfg.rank || (idx + 1)}: {cfg.symbol}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2 border-t border-white/5">
+                                <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <Info size={10} />
+                                    세션 생성 후 Live Operation에서 설정을 수정할 수 있습니다
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Error Message */}
                     {error && (
                         <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                            <AlertTriangle size={16} />
+                            <Info size={16} />
                             {error}
-                        </div>
-                    )}
-
-                    {/* Summary */}
-                    {selectedAccount && selectedStrategyId && selectedRanks.length > 0 && (
-                        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
-                            <p className="text-sm text-indigo-300 font-medium mb-2">세션 요약</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-                                <div>계좌: <span className="text-white">{selectedAccount.account_name}</span></div>
-                                <div>환경: <span className={selectedAccount.environment === 'real' ? 'text-red-400' : 'text-yellow-400'}>
-                                    {selectedAccount.environment === 'real' ? '실거래' : '모의/페이퍼'}
-                                </span></div>
-                                <div>전략: <span className="text-white">{selectedStrategyId}</span></div>
-                                <div>종목: <span className="text-white">{selectedRanks.length}개</span></div>
-                                <div>모드: <span className="text-white">{executionMode}</span></div>
-                                <div>자본: <span className="text-white">{capital.toLocaleString()}</span></div>
-                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 sticky bottom-0 bg-[#1a1a2e]">
+                <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10">
                     <button
                         onClick={onClose}
                         className="px-5 py-2.5 text-gray-400 hover:text-white transition-colors"
@@ -384,19 +380,19 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted, strategies = [] })
                         취소
                     </button>
                     <button
-                        onClick={handleStart}
-                        disabled={isLoading || !selectedAccountId || !selectedStrategyId || selectedRanks.length === 0}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
+                        onClick={handleAddSession}
+                        disabled={isLoading || !selectedAccountId || !selectedProfile}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
                     >
                         {isLoading ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                시작 중...
+                                생성 중...
                             </>
                         ) : (
                             <>
-                                <Play size={16} />
-                                세션 시작
+                                <Plus size={16} />
+                                세션 생성
                             </>
                         )}
                     </button>

@@ -502,12 +502,13 @@ class LiveManager:
 
     async def start_session(self, config: Dict[str, Any]) -> str:
         """
-        Create and Start a new Live Session.
+        Create and optionally Start a new Live Session.
         config: {
             "symbol": str,
             "strategy_name": str,
             "strategy_config": dict,
-            "initial_capital": float
+            "initial_capital": float,
+            "auto_start": bool (default: False) - if False, creates session in STOPPED state
         }
         """
         session_id = config.get("session_id") or str(uuid.uuid4())
@@ -517,11 +518,15 @@ class LiveManager:
         initial_capital = config.get("initial_capital", 0)
         is_paper = config.get("is_paper", True)
         account_id = config.get("account_id")  # 계좌 ID 필수
+        group_id = config.get("group_id")  # 세션 그룹 ID (optional)
+        profile_name = config.get("profile_name")  # 프로필 이름 (optional)
+        auto_start = config.get("auto_start", False)  # 자동 시작 여부 (기본: False)
 
         if not account_id:
             raise ValueError("account_id is required to start a live session")
 
-        # 1. DB Record
+        # 1. DB Record - status depends on auto_start
+        initial_status = SessionStatus.RUNNING if auto_start else SessionStatus.STOPPED
         db = SessionLocal()
         try:
             sess = LiveBotSession(
@@ -533,17 +538,25 @@ class LiveManager:
                 initial_capital=initial_capital,
                 is_paper=is_paper,
                 is_active=True,
-                status=SessionStatus.RUNNING, # Optimistic
-                started_at=datetime.now(),
-                interval="1m" # Default to 1m for now
+                status=initial_status,
+                started_at=datetime.now() if auto_start else None,
+                interval="1m", # Default to 1m for now
+                group_id=group_id,  # 세션 그룹 ID
+                profile_name=profile_name  # 프로필 이름
             )
             db.add(sess)
             db.commit()
         except Exception as e:
             db.close()
             raise e
-        
-        # 2. Engine Create & Start
+
+        # If auto_start is False, just return session_id without starting engine
+        if not auto_start:
+            logger.info(f"Created Live Session {session_id} in STOPPED state (auto_start=False)")
+            db.close()
+            return session_id
+
+        # 2. Engine Create & Start (only if auto_start=True)
         try:
             # Phase 2: Use account-specific adapter
             adapter = await self.get_or_create_adapter(account_id)
@@ -570,7 +583,7 @@ class LiveManager:
 
             logger.info(f"Started Live Session {session_id}")
             return session_id
-            
+
         except Exception as e:
             # Revert DB status
             sess.status = SessionStatus.ERROR

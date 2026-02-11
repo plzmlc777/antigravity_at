@@ -3,6 +3,7 @@ import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts, resumeSession, deleteSession } from '../api/client';
 import ConfirmModal from './ConfirmModal';
+import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
 import ActiveStrategiesPanel from './ActiveStrategiesPanel';
 import UnifiedSessionCards from './UnifiedSessionCards';
@@ -30,6 +31,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isResuming, setIsResuming] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Custom Alert Modal State (replaces system alert())
+    const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '', type: 'info' });
+    const showAlert = (message, type = 'error', title = '') => {
+        setAlertModal({ isOpen: true, title, message, type });
+    };
 
     // Parallel mode: track multiple sessions {rankIndex: sessionId}
     const [parallelSessions, setParallelSessions] = useState({});
@@ -70,6 +77,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // Multi-Account State (Phase 5)
     const [accounts, setAccounts] = useState([]); // List of all accounts
     const [selectedAccountId, setSelectedAccountId] = useState(null); // Selected account for session
+    const [isPaperMode, setIsPaperMode] = useState(true); // Paper mode by default for safety
 
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
@@ -126,6 +134,83 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         };
         fetchAccountsList();
     }, []);
+
+    // Sync panel state when activeSessionGroup changes (Phase 5: Session Selection)
+    useEffect(() => {
+        const selectedSession = activeSessionGroup?.sessions?.[0];
+        if (!selectedSession) return;
+
+        // Update session ID
+        setSessionId(selectedSession.session_id);
+
+        // Update capital from session
+        if (selectedSession.initial_capital) {
+            setInputCapital(selectedSession.initial_capital);
+        }
+
+        // Update account selection
+        if (selectedSession.account_id) {
+            setSelectedAccountId(selectedSession.account_id);
+        }
+
+        // Update status based on session status
+        if (selectedSession.status === 'RUNNING') {
+            setStatus('RUNNING');
+            // Polling will be started by checkLiveStatus
+        } else if (selectedSession.status === 'STOPPED') {
+            setStatus('STOPPED');
+        } else if (selectedSession.status === 'ERROR') {
+            setStatus('ERROR');
+            if (selectedSession.error_log) {
+                setError(selectedSession.error_log);
+            }
+        } else if (selectedSession.status === 'PAUSED') {
+            setStatus('PAUSED');
+        } else {
+            setStatus('IDLE');
+        }
+
+        console.log('[LiveStrategyPanel] Session selected:', selectedSession.session_id, selectedSession.status);
+    }, [activeSessionGroup]);
+
+    // Derive selected session info for display (Phase 5)
+    const selectedSessionInfo = useMemo(() => {
+        const session = activeSessionGroup?.sessions?.[0];
+        if (!session) return null;
+
+        // Get symbol name
+        const symbolMatch = savedSymbols.find(s => s.code === session.symbol);
+        const symbolName = symbolMatch?.name || session.symbol;
+
+        // Get account name
+        const account = accounts.find(a => a.id === session.account_id);
+        const accountName = account?.account_name || `Account ${session.account_id}`;
+
+        // Get profile name (group name) - prioritize profile_name from session
+        const profileName = session.profile_name || activeSessionGroup?.profile_name;
+
+        // Count sessions in group
+        const sessionCount = activeSessionGroup?.sessions?.length || 1;
+
+        return {
+            sessionId: session.session_id,
+            symbol: session.symbol,
+            symbolName,
+            strategyName: session.strategy_name,
+            strategyConfig: session.strategy_config || {},
+            initialCapital: session.initial_capital || 0,
+            isPaper: session.is_paper,
+            status: session.status,
+            accountId: session.account_id,
+            accountName,
+            startedAt: session.started_at,
+            stoppedAt: session.stopped_at,
+            pnl: session.pnl || 0,
+            errorLog: session.error_log,
+            profileName,  // Profile/Group name for display
+            sessionCount, // Number of sessions in this group
+        };
+    }, [activeSessionGroup, savedSymbols, accounts]);
 
     // Overview Chart: Transform historyData cycles → rank-based chart (like IntegratedAnalysis)
     const { overviewChartData, overviewTrades, overviewRankFormatter, overviewPriceScaleOptions, overviewSymbolRanks } = useMemo(() => {
@@ -713,40 +798,64 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
-    // Session Actions: Resume (Option B - actions in panel)
+    // Session Actions: Resume ALL sessions in the group (Option B - actions in panel)
     const handleResumeSession = async () => {
-        const session = activeSessionGroup?.sessions?.[0];
-        if (!session) return;
+        const sessions = activeSessionGroup?.sessions;
+        if (!sessions || sessions.length === 0) return;
 
         setIsResuming(true);
         try {
-            await resumeSession(session.session_id);
-            addLog("System", `Session resumed: ${session.symbol} (${session.strategy_name})`);
+            // Resume all sessions in the group
+            const results = await Promise.allSettled(
+                sessions.map(s => resumeSession(s.session_id))
+            );
+
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+
+            if (failed > 0) {
+                addLog("Warning", `Group resumed: ${succeeded}/${sessions.length} succeeded, ${failed} failed`);
+            } else {
+                addLog("System", `Group resumed: ${succeeded} session(s) (${sessions[0].strategy_name})`);
+            }
+
             // Notify parent to refresh session list
-            if (onSessionAction) onSessionAction('resume', session);
+            if (onSessionAction) onSessionAction('resume', sessions[0]);
         } catch (err) {
-            console.error('Failed to resume session:', err);
-            alert(`재시작 실패: ${err.response?.data?.detail || err.message}`);
+            console.error('Failed to resume sessions:', err);
+            showAlert(`재시작 실패: ${err.response?.data?.detail || err.message}`, 'error', '세션 재시작 오류');
         } finally {
             setIsResuming(false);
         }
     };
 
-    // Session Actions: Delete (Option B - actions in panel)
+    // Session Actions: Delete ALL sessions in the group (Option B - actions in panel)
     const handleDeleteSession = async () => {
-        const session = activeSessionGroup?.sessions?.[0];
-        if (!session) return;
+        const sessions = activeSessionGroup?.sessions;
+        if (!sessions || sessions.length === 0) return;
 
         setIsDeleting(true);
         try {
-            await deleteSession(session.session_id);
-            addLog("System", `Session deleted: ${session.symbol} (${session.strategy_name})`);
+            // Delete all sessions in the group
+            const results = await Promise.allSettled(
+                sessions.map(s => deleteSession(s.session_id))
+            );
+
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+
+            if (failed > 0) {
+                addLog("Warning", `Group deleted: ${succeeded}/${sessions.length} succeeded, ${failed} failed`);
+            } else {
+                addLog("System", `Group deleted: ${succeeded} session(s) (${sessions[0].strategy_name})`);
+            }
+
             setIsDeleteModalOpen(false);
             // Notify parent to refresh session list and clear selection
-            if (onSessionAction) onSessionAction('delete', session);
+            if (onSessionAction) onSessionAction('delete', sessions[0]);
         } catch (err) {
-            console.error('Failed to delete session:', err);
-            alert(`삭제 실패: ${err.response?.data?.detail || err.message}`);
+            console.error('Failed to delete sessions:', err);
+            showAlert(`삭제 실패: ${err.response?.data?.detail || err.message}`, 'error', '세션 삭제 오류');
         } finally {
             setIsDeleting(false);
         }
@@ -760,13 +869,13 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const handleStart = async () => {
         if (!strategyConfig.symbol) {
-            alert("Symbol not selected");
+            showAlert("종목을 선택해주세요", 'warning', '종목 미선택');
             return;
         }
 
         // Phase 5: Validate account selection
         if (!selectedAccountId) {
-            alert("계좌를 선택해주세요");
+            showAlert("계좌를 선택해주세요", 'warning', '계좌 미선택');
             return;
         }
 
@@ -809,6 +918,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     .filter(([idx]) => configList[idx]?.is_active)
                     .reduce((s, [, w]) => s + w, 0);
 
+                // Generate group_id for all sessions in this batch
+                const groupId = crypto.randomUUID();
+
                 const newSessions = {};
                 for (let i = 0; i < configList.length; i++) {
                     const cfg = configList[i];
@@ -824,7 +936,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         strategy_name: strategyName || "time_momentum",
                         strategy_config: cfg,
                         initial_capital: rankCapital,
-                        account_id: selectedAccountId  // Phase 5: Explicit account selection
+                        is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
+                        account_id: selectedAccountId,  // Phase 5: Explicit account selection
+                        group_id: groupId  // Phase 5: Session grouping for multi-rank
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -854,6 +968,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 }
                 const totalCapital = parseFloat(inputCapital) || 0;
 
+                // Generate group_id for all sessions in this batch
+                const groupId = crypto.randomUUID();
+
                 const newSessions = {};
                 for (let i = 0; i < configList.length; i++) {
                     const cfg = configList[i];
@@ -864,7 +981,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         strategy_name: strategyName || "time_momentum",
                         strategy_config: { ...cfg, execution_mode: 'exclusive' },
                         initial_capital: totalCapital,  // Full capital (only one trades at a time)
-                        account_id: selectedAccountId  // Phase 5: Explicit account selection
+                        is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
+                        account_id: selectedAccountId,  // Phase 5: Explicit account selection
+                        group_id: groupId  // Phase 5: Session grouping for multi-rank
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -1236,22 +1355,55 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 isDanger={true}
             />
 
-            {/* Delete Session Modal (Option B: actions in panel) */}
+            {/* Delete Session Modal (Option B: actions in panel) - supports group deletion */}
             <DeleteConfirmModal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={handleDeleteSession}
-                session={activeSessionGroup?.sessions?.[0]}
+                sessions={activeSessionGroup?.sessions}
                 getSymbolName={getSymbolName}
                 isDeleting={isDeleting}
+            />
+
+            {/* Custom Alert Modal (replaces system alert()) */}
+            <AlertModal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
             />
 
             {/* 1. TOP ROW: Live Operation Controls (Combined & Full Width) */}
             <div className={`lg:col-span-3 bg-white/5 border border-white/10 rounded-xl overflow-hidden ${status === 'RUNNING' ? 'glow-pulse-green' : ''}`}>
                     <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                        <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
-                            <Radio size={14} className={status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-400'} /> Live Operation
-                        </h3>
+                        <div className="flex items-center gap-3">
+                            <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                <Radio size={14} className={status === 'RUNNING' ? 'text-green-400 animate-pulse' : 'text-gray-400'} /> Live Operation
+                            </h3>
+                            {/* Selected Session Group Info Badge */}
+                            {selectedSessionInfo && (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500">|</span>
+                                    <span className="text-sm font-medium text-indigo-400">
+                                        {selectedSessionInfo.profileName || selectedSessionInfo.strategyName}
+                                    </span>
+                                    {selectedSessionInfo.sessionCount > 1 && (
+                                        <span className="text-[9px] px-1 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                                            x{selectedSessionInfo.sessionCount}
+                                        </span>
+                                    )}
+                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                        selectedSessionInfo.isPaper
+                                            ? 'bg-amber-500/20 text-amber-400'
+                                            : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                        {selectedSessionInfo.isPaper ? 'Paper' : 'Real'}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500">{selectedSessionInfo.accountName}</span>
+                                </div>
+                            )}
+                        </div>
                         <div className="flex items-center gap-2">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${executionMode === 'parallel' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'}`}>
                                 {executionMode === 'parallel' ? 'Parallel' : 'Exclusive'}
@@ -1412,20 +1564,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 </p>
                             </div>
 
-                            {/* Execution Mode Selector */}
+                            {/* Execution Mode (Read-only - set in Integrated tab) */}
                             <div className="w-full md:w-48">
                                 <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
                                     Execution Mode
                                 </label>
-                                <select
-                                    value={executionMode}
-                                    onChange={(e) => onExecutionModeChange?.(e.target.value)}
-                                    disabled={status === 'RUNNING' || status === 'STARTING'}
-                                    className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-3 text-white text-sm font-bold outline-none focus:border-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
-                                >
-                                    <option value="exclusive">Exclusive</option>
-                                    <option value="parallel">Parallel</option>
-                                </select>
+                                <div className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-3 text-white text-sm font-bold">
+                                    {executionMode === 'exclusive' ? 'Exclusive' : 'Parallel'}
+                                </div>
                                 <p className="text-gray-500 text-[9px] mt-1.5">
                                     {executionMode === 'exclusive'
                                         ? 'Waterfall: Rank 1 → 2 → 3'
@@ -1433,97 +1579,141 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 </p>
                             </div>
 
-                            {/* Main Action Buttons */}
-                            <div className="flex-[0.5] w-full flex flex-col gap-2">
-                                {status !== 'RUNNING' ? (
-                                    <>
-                                        {/* Option B: Session action buttons for selected STOPPED/ERROR session */}
-                                        {activeSessionGroup?.sessions?.[0] &&
-                                         STATUS_CONFIG[activeSessionGroup.sessions[0].status]?.canResume ? (
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <button
-                                                    onClick={handleResumeSession}
-                                                    disabled={isResuming}
-                                                    className="h-14 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-blue-900/20"
-                                                >
-                                                    {isResuming ? (
-                                                        <>
-                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                            재시작 중...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <RotateCcw size={16} />
-                                                            RESUME
-                                                        </>
-                                                    )}
-                                                </button>
-                                                <button
-                                                    onClick={() => setIsDeleteModalOpen(true)}
-                                                    disabled={isDeleting}
-                                                    className="h-14 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-bold tracking-wide rounded-lg transition-all border border-red-500/50 disabled:opacity-50"
-                                                >
-                                                    <Trash2 size={16} />
-                                                    DELETE
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="h-14 flex items-center justify-center text-gray-500 text-sm border border-dashed border-gray-700 rounded-lg">
-                                                세션을 선택하거나 새 세션을 만드세요
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => {
-                                                if (liveData?.is_paper !== false) { // Moving from Paper to Real
-                                                    if (availableBalance !== null && inputCapital > availableBalance) {
-                                                        alert("Cannot enable REAL MODE: Allocated capital exceeds actual account balance. Funds are insufficient for real trading.");
-                                                        return;
-                                                    }
-                                                    setIsRealModeModalOpen(true);
+                            {/* Paper/Real Mode Toggle (Phase 5) */}
+                            <div className="w-full md:w-40">
+                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                    Trading Mode
+                                </label>
+                                <button
+                                    onClick={() => {
+                                        if (status !== 'RUNNING' && status !== 'STARTING') {
+                                            if (isPaperMode) {
+                                                // Switching to Real - check balance
+                                                if (availableBalance !== null && inputCapital > availableBalance) {
+                                                    showAlert(
+                                                        `실제 계좌 잔고가 부족합니다.\n\n설정 금액: ${Number(inputCapital).toLocaleString()}원\n계좌 잔고: ${Number(availableBalance).toLocaleString()}원\n\n리얼 모드로 전환하려면 설정 금액을 줄이거나 계좌에 입금해주세요.`,
+                                                        'warning',
+                                                        '잔고 부족'
+                                                    );
                                                     return;
                                                 }
-                                                handleToggleMode();
-                                            }}
-                                            className={`h-14 flex items-center justify-center gap-2 text-[10px] font-bold tracking-wide rounded-lg border transition-all ${liveData?.is_paper === false
-                                                ? 'bg-red-900/40 border-red-500 text-red-500 hover:bg-red-900/60'
-                                                : (availableBalance !== null && inputCapital > availableBalance)
-                                                    ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-                                                    : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
-                                                }`}
-                                        >
-                                            {liveData?.is_paper === false ? (
-                                                <><ShieldOff size={14} /> REAL MODE (ON)</>
-                                            ) : (
-                                                <><Shield size={14} /> PAPER MODE (ACTIVE)</>
-                                            )}
-                                        </button>
+                                            }
+                                            setIsPaperMode(!isPaperMode);
+                                        }
+                                    }}
+                                    disabled={status === 'RUNNING' || status === 'STARTING'}
+                                    className={`w-full h-[46px] flex items-center justify-center gap-2 text-sm font-bold rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        isPaperMode
+                                            ? 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                            : 'bg-red-900/40 border-red-500 text-red-400 hover:bg-red-900/60'
+                                    }`}
+                                >
+                                    {isPaperMode ? (
+                                        <><Shield size={14} /> Paper</>
+                                    ) : (
+                                        <><ShieldOff size={14} /> Real</>
+                                    )}
+                                </button>
+                                <p className="text-gray-500 text-[9px] mt-1.5">
+                                    {isPaperMode ? '시뮬레이션 모드' : '실제 주문 실행'}
+                                </p>
+                            </div>
+                        </div>
 
-                                        <button
-                                            onClick={async () => {
-                                                try {
-                                                    const posCheck = await checkLivePosition();
-                                                    if (posCheck.has_position) {
-                                                        setPositionWarningMessage(`현재 세션 포지션을 보유 중이기 때문에 종료할 수 없습니다.\n(${posCheck.detail})`);
-                                                        setIsPositionWarningOpen(true);
-                                                    } else {
-                                                        setIsStopModalOpen(true);
-                                                    }
-                                                } catch (err) {
-                                                    console.error('Position check failed:', err);
+                        {/* Session Action Buttons - Full Width Row */}
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                            {status !== 'RUNNING' ? (
+                                <>
+                                    {/* Session action buttons for selected STOPPED/ERROR session */}
+                                    {activeSessionGroup?.sessions?.[0] &&
+                                     STATUS_CONFIG[activeSessionGroup.sessions[0].status]?.canResume ? (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                onClick={handleResumeSession}
+                                                disabled={isResuming}
+                                                className="h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-base font-bold tracking-wide rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-blue-900/30"
+                                            >
+                                                {isResuming ? (
+                                                    <>
+                                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        재시작 중...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <RotateCcw size={20} />
+                                                        세션 재시작 (RESUME)
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => setIsDeleteModalOpen(true)}
+                                                disabled={isDeleting}
+                                                className="h-14 flex items-center justify-center gap-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-base font-bold tracking-wide rounded-xl transition-all border-2 border-red-500/50 disabled:opacity-50"
+                                            >
+                                                <Trash2 size={20} />
+                                                세션 삭제 (DELETE)
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="h-14 flex items-center justify-center text-gray-500 text-sm border-2 border-dashed border-gray-700 rounded-xl bg-black/20">
+                                            세션을 선택하거나 새 세션을 만드세요
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => {
+                                            if (liveData?.is_paper !== false) { // Moving from Paper to Real
+                                                if (availableBalance !== null && inputCapital > availableBalance) {
+                                                    showAlert(
+                                                        `실제 계좌 잔고가 부족하여 리얼 모드를 활성화할 수 없습니다.\n\n설정 금액: ${Number(inputCapital).toLocaleString()}원\n계좌 잔고: ${Number(availableBalance).toLocaleString()}원\n\n리얼 모드로 전환하려면 설정 금액을 줄이거나 계좌에 입금해주세요.`,
+                                                        'warning',
+                                                        '잔고 부족'
+                                                    );
+                                                    return;
+                                                }
+                                                setIsRealModeModalOpen(true);
+                                                return;
+                                            }
+                                            handleToggleMode();
+                                        }}
+                                        className={`h-14 flex items-center justify-center gap-3 text-base font-bold tracking-wide rounded-xl border-2 transition-all ${liveData?.is_paper === false
+                                            ? 'bg-red-900/40 border-red-500 text-red-400 hover:bg-red-900/60'
+                                            : (availableBalance !== null && inputCapital > availableBalance)
+                                                ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                                                : 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                            }`}
+                                    >
+                                        {liveData?.is_paper === false ? (
+                                            <><ShieldOff size={20} /> 리얼 모드 (REAL MODE)</>
+                                        ) : (
+                                            <><Shield size={20} /> 페이퍼 모드 (PAPER MODE)</>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const posCheck = await checkLivePosition();
+                                                if (posCheck.has_position) {
+                                                    setPositionWarningMessage(`현재 세션 포지션을 보유 중이기 때문에 종료할 수 없습니다.\n(${posCheck.detail})`);
+                                                    setIsPositionWarningOpen(true);
+                                                } else {
                                                     setIsStopModalOpen(true);
                                                 }
-                                            }}
-                                            className="h-14 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] font-bold tracking-wide rounded-lg transition-all border border-gray-600"
-                                        >
-                                            <Square size={14} />
-                                            STOP
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                            } catch (err) {
+                                                console.error('Position check failed:', err);
+                                                setIsStopModalOpen(true);
+                                            }
+                                        }}
+                                        className="h-14 flex items-center justify-center gap-3 bg-gray-700 hover:bg-gray-600 text-white text-base font-bold tracking-wide rounded-xl transition-all border-2 border-gray-600 shadow-lg"
+                                    >
+                                        <Square size={20} />
+                                        세션 중지 (STOP)
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Parallel Mode: Per-Rank Capital Allocation */}
@@ -1666,10 +1856,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                         <BarChart3 size={14} className="text-gray-400" />
-                        Real-time Ticks {(() => {
-                            const match = savedSymbols.find(s => s.code === strategyConfig.symbol);
-                            return match && match.name ? `(${match.name})` : `(${strategyConfig.symbol})`;
-                        })()}
+                        Real-time Ticks {selectedSessionInfo
+                            ? `(${selectedSessionInfo.symbolName})`
+                            : strategyConfig.symbol
+                                ? `(${savedSymbols.find(s => s.code === strategyConfig.symbol)?.name || strategyConfig.symbol})`
+                                : ''}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     </h3>
                     {/* WebSocket Connection Status Indicator */}
