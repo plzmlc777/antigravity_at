@@ -6,7 +6,7 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getStrategyConfigs, syncStrategyConfigsSelective, getAccountPreferences, updateLastSelectedStrategy, recalculateOptimizationScores, getAccounts } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getAccountPreferences, updateLastSelectedStrategy, recalculateOptimizationScores, getAccounts } from '../api/client';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
 import { isValidScope } from '../types/ConfigScope';
@@ -593,32 +593,6 @@ const StrategyView = () => {
         }
     }, [profileMeta.strategy_name, selectedStrategy, strategies]);
 
-    // Save Strategy Config List on Change (Debounced DB Sync) - DISABLED (Manual Save with Apply button)
-    // useEffect(() => {
-    //     const timer = setTimeout(async () => {
-    //         if (isConfigLoaded && selectedStrategy && configList.length > 0) {
-    //             // Map UI Config to DB Schema
-    //             const configsToSave = configList.map((cfg, index) => ({
-    //                 tab_id: cfg.uuid,
-    //                 strategy_id: selectedStrategy.id,
-    //                 rank: index, // 0-based for list order
-    //                 is_active: cfg.is_active !== false,
-    //                 tab_name: cfg.tabName,
-    //                 config_json: cfg
-    //             }));
-
-    //             try {
-    //                 await syncStrategyConfigsSelective(selectedStrategy.id, configsToSave, true);
-    //                 // console.log("Strategy configs saved to DB (Inactive tabs preserved)");
-    //             } catch (e) {
-    //                 console.error("Failed to save configs to DB", e);
-    //             }
-    //         }
-    //     }, 1000); // 1s debounce
-
-    //     return () => clearTimeout(timer);
-    // }, [configList, selectedStrategy, isConfigLoaded]);
-
     const moveRankTab = (index, direction, e) => {
         if (e) e.stopPropagation(); // Prevent tab selection
         if (activeTab === -1) return;
@@ -706,15 +680,9 @@ const StrategyView = () => {
                     setActiveTab(activeTab - 1);
                 }
 
-                // Auto-save to DB after deletion (ConfigScope 사용)
-                try {
-                    const configsToSave = reLabeledList.map((cfg, idx) => transformUiToDbConfig(cfg, idx));
-                    console.log("[Delete] Saving after tab deletion:", configsToSave.map(c => c.tab_name));
-                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, false); // preserve_inactive=false to allow deletion
-                    setIsDirty(false);
-                } catch (err) {
-                    console.error("Failed to save after deletion:", err);
-                }
+                // Tab deletion is reflected in configList state
+                // User must explicitly save profile to persist changes
+                setIsDirty(true); // Mark as dirty to prompt save
             },
             true // isDanger
         );
@@ -1650,30 +1618,15 @@ const StrategyView = () => {
         if (!selectedStrategy || !isConfigLoaded || configList.length === 0) return;
 
         try {
-            // 프로필 중심 아키텍처: 프로필이 선택되었으면 프로필에 저장
-            if (selectedProfileId) {
-                console.log("[Apply] Saving to profile:", selectedProfileId);
-                await saveProfile();
-                console.log("[Apply] Profile saved successfully");
-            } else {
-                // 프로필이 없으면 레거시 방식 (계좌 필요)
-                if (!isValidScope(scope)) {
-                    openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
-                    return;
-                }
-
-                // ConfigScope를 사용하여 configsToSave 생성
-                const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
-
-                console.log("[Apply] Saving configs (legacy):", configsToSave.map(c => ({
-                    tab_name: c.tab_name,
-                    is_active: c.is_active,
-                    account_id: c.account_id
-                })));
-
-                await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                console.log("Configuration saved to DB (legacy)");
+            // 프로필 중심 아키텍처: 프로필에 저장
+            if (!selectedProfileId) {
+                openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
+                return;
             }
+
+            console.log("[Apply] Saving to profile:", selectedProfileId);
+            await saveProfile();
+            console.log("[Apply] Profile saved successfully");
 
             // 2. Save pending optimization results if exists
             if (pendingOptResult) {
@@ -1699,47 +1652,18 @@ const StrategyView = () => {
         }
     };
 
-    // Discard all changes (reload from DB)
+    // Discard all changes (restore from profile)
     const handleDiscardChanges = async () => {
-        if (!selectedStrategy) return;
-
         try {
-            // 1. Reload configs from DB
-            const savedList = await getStrategyConfigs(selectedStrategy.id);
+            // 프로필 중심 아키텍처: 프로필에서 원본 상태로 복원
+            discardChanges(); // useProfileConfig hook의 discardChanges 사용
 
-            if (savedList && savedList.length > 0) {
-                // Build dynamic default config from current strategy's schema
-                let dynamicDefault = { ...DEFAULT_CONFIG };
-                const schema = selectedStrategy?.parameter_schema;
-                if (schema?.fields && schema.fields.length > 0) {
-                    schema.fields.forEach(field => {
-                        const key = field.key || field.name;
-                        if (field.default !== undefined) {
-                            dynamicDefault[key] = field.default;
-                        }
-                    });
-                }
-
-                const migratedList = savedList.map(cfg => {
-                    let configData = cfg.config_json || {};
-                    let mergedCfg = { ...dynamicDefault, ...configData };
-                    mergedCfg.rank = cfg.rank;
-                    mergedCfg.is_active = cfg.is_active === false ? false : true;
-                    mergedCfg.tabName = cfg.tab_name;
-                    mergedCfg.uuid = cfg.tab_id;
-                    if (!mergedCfg.uuid) mergedCfg.uuid = generateUUID();
-                    return mergedCfg;
-                });
-
-                setConfigList(migratedList);
-            }
-
-            // 2. Discard pending optimization results
+            // Discard pending optimization results
             if (pendingOptResult) {
                 setPendingOptResult(null);
             }
 
-            // 3. Clear dirty flag
+            // Clear dirty flag
             setIsDirty(false);
             addLog('🔄 Changes discarded, reverted to saved state', 'info');
         } catch (e) {
@@ -1815,24 +1739,17 @@ const StrategyView = () => {
                 }
             );
         } else {
-            // Rank/Draft tabs - use existing config save logic
+            // Rank/Draft tabs - use profile save logic
             openConfirm(
                 "⚠️ Unsaved Changes",
                 "You have unsaved configuration changes.\n\nWhat would you like to do?",
                 async () => {
-                    // Save & Switch (ConfigScope 사용)
+                    // Save & Switch (프로필 중심)
                     try {
-                        const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
-
-                        // Debug: Log what we're saving
-                        console.log("[TabSwitch Save] Saving configs:", configsToSave.map(c => ({
-                            tab_name: c.tab_name,
-                            is_active: c.is_active,
-                            account_id: c.account_id
-                        })));
-
-                        await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                        console.log("Configuration saved before tab switch");
+                        if (selectedProfileId) {
+                            await saveProfile();
+                            console.log("Profile saved before tab switch");
+                        }
                         setIsDirty(false);
                         setActiveTab(newTabIndex);
                         localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
@@ -1874,19 +1791,12 @@ const StrategyView = () => {
             "⚠️ Unsaved Changes",
             "You have unsaved configuration changes.\n\nWhat would you like to do before switching strategies?",
             async () => {
-                // Save & Switch Strategy (ConfigScope 사용)
+                // Save & Switch Strategy (프로필 중심)
                 try {
-                    const configsToSave = configList.map((cfg, index) => transformUiToDbConfig(cfg, index));
-
-                    // Debug: Log what we're saving
-                    console.log("[StrategyChange Save] Saving configs:", configsToSave.map(c => ({
-                        tab_name: c.tab_name,
-                        is_active: c.is_active,
-                        account_id: c.account_id
-                    })));
-
-                    await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                    console.log("Configuration saved before strategy change");
+                    if (selectedProfileId) {
+                        await saveProfile();
+                        console.log("Profile saved before strategy change");
+                    }
                     setIsDirty(false);
                     setSelectedStrategy(newStrategy);
                     setBacktestResult(null);
@@ -3733,15 +3643,8 @@ const StrategyView = () => {
                                         setActiveTab(newList.length - 1);
                                         localStorage.setItem('strategyViewActiveTab', (newList.length - 1).toString());
 
-                                        // Auto-save to DB after adding new tab (ConfigScope 사용)
-                                        try {
-                                            const configsToSave = newList.map((cfg, idx) => transformUiToDbConfig(cfg, idx));
-                                            console.log("[Add Tab] Saving new tab:", configsToSave.map(c => ({ name: c.tab_name, is_active: c.is_active })));
-                                            await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                                            setIsDirty(false);
-                                        } catch (err) {
-                                            console.error("Failed to save new tab:", err);
-                                        }
+                                        // Mark profile as dirty - actual save happens via profile save
+                                        setIsDirty(true);
                                     }}
                                     className="px-3 py-2 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all"
                                 >
@@ -5515,13 +5418,8 @@ const StrategyView = () => {
                                                                                                                 return next;
                                                                                                             });
 
-                                                                                                            // Save to DB
-                                                                                                            try {
-                                                                                                                const configsToSave = updatedConfigList.map((cfg, index) => transformUiToDbConfig(cfg, index));
-                                                                                                                await syncStrategyConfigsSelective(scope.strategyId, configsToSave, true);
-                                                                                                            } catch (e) {
-                                                                                                                console.error("Failed to save optimization config:", e);
-                                                                                                            }
+                                                                                                            // Mark profile as dirty - actual save happens via profile save
+                                                                                                            setIsDirty(true);
 
                                                                                                             // Trigger Real Backtest
                                                                                                             runBacktest(selectedStrategy.id, configToApply);

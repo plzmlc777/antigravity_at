@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useMarketData } from '../context/MarketDataContext';
 import { useWatchlist } from '../context/WatchlistContext';
-import { getAccountPreferences, updateExecutionMode } from '../api/client';
 import LiveStrategyPanel from '../components/LiveStrategyPanel';
 import SessionSwitcher from '../components/SessionSwitcher';
 import NewSessionModal from '../components/NewSessionModal';
@@ -62,32 +61,14 @@ const LiveTradingView = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
 
-    // Save execution mode to DB (with localStorage fallback)
+    // Save execution mode to localStorage (profile-level setting is in NewSessionModal)
     useEffect(() => {
         localStorage.setItem('integratedExecutionMode', executionMode);
-        updateExecutionMode(executionMode).catch(e => {
-            console.warn('Failed to save execution mode to DB:', e);
-        });
     }, [executionMode]);
 
     // Fetch strategies on mount (for NewSessionModal)
     useEffect(() => {
         fetchStrategies();
-    }, []);
-
-    // Load execution mode from DB on mount
-    useEffect(() => {
-        const loadExecutionMode = async () => {
-            try {
-                const preferences = await getAccountPreferences();
-                if (preferences?.execution_mode) {
-                    setExecutionMode(preferences.execution_mode);
-                }
-            } catch (e) {
-                console.warn('Failed to load execution mode:', e);
-            }
-        };
-        loadExecutionMode();
     }, []);
 
     const fetchStrategies = async () => {

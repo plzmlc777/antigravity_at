@@ -278,8 +278,7 @@ class AccountPreferencesOut(BaseModel):
     last_selected_profile_id: Optional[str] = None
     last_symbol: Optional[str] = None
     saved_symbols: Optional[List] = None
-    symbol_compare_settings: Optional[dict] = None
-    execution_mode: Optional[str] = None
+    # NOTE: symbol_compare_settings, execution_mode moved to strategy_profiles (Profile-Centric Architecture)
 
 
 class UpdateLastStrategyRequest(BaseModel):
@@ -294,16 +293,6 @@ class UpdateWatchlistRequest(BaseModel):
     """워치리스트 업데이트"""
     last_symbol: Optional[str] = None
     saved_symbols: Optional[List] = None
-
-
-class UpdateSymbolCompareRequest(BaseModel):
-    """종목 비교 설정 업데이트"""
-    symbol_compare_settings: Optional[dict] = None
-
-
-class UpdateExecutionModeRequest(BaseModel):
-    """실행 모드 업데이트"""
-    execution_mode: Optional[str] = None  # 'exclusive' | 'parallel'
 
 
 @router.get("/preferences", response_model=AccountPreferencesOut)
@@ -328,9 +317,7 @@ def get_account_preferences(
         last_selected_strategy_id=account.last_selected_strategy_id,
         last_selected_profile_id=account.last_selected_profile_id,
         last_symbol=account.last_symbol,
-        saved_symbols=account.saved_symbols,
-        symbol_compare_settings=account.symbol_compare_settings,
-        execution_mode=account.execution_mode
+        saved_symbols=account.saved_symbols
     )
 
 
@@ -420,71 +407,9 @@ def update_watchlist(
     }
 
 
-@router.put("/preferences/symbol-compare")
-def update_symbol_compare(
-    request: UpdateSymbolCompareRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Update symbol compare settings for current active account
-    계좌별로 종목 비교 설정 저장
-    """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Update symbol compare settings
-    if request.symbol_compare_settings is not None:
-        account.symbol_compare_settings = request.symbol_compare_settings
-
-    db.commit()
-
-    return {
-        "status": "success",
-        "symbol_compare_settings": account.symbol_compare_settings
-    }
-
-
-@router.put("/preferences/execution-mode")
-def update_execution_mode(
-    request: UpdateExecutionModeRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Update execution mode for current active account
-    계좌별로 실행 모드 저장
-    """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Validate execution mode
-    valid_modes = ['exclusive', 'parallel']
-    if request.execution_mode and request.execution_mode not in valid_modes:
-        raise HTTPException(status_code=400, detail=f"Invalid execution mode. Must be one of: {valid_modes}")
-
-    # Update execution mode
-    if request.execution_mode is not None:
-        account.execution_mode = request.execution_mode
-
-    db.commit()
-
-    return {
-        "status": "success",
-        "execution_mode": account.execution_mode
-    }
+# NOTE: symbol_compare_settings, execution_mode endpoints removed
+# These are now managed at the profile level (strategy_profiles table)
+# See: /api/v1/live/profiles endpoints
 
 
 # ========================================

@@ -413,15 +413,8 @@ export const updateWatchlist = async (lastSymbol, savedSymbols) => {
     return data;
 };
 
-export const updateSymbolCompareSettings = async (settings) => {
-    const { data } = await api.put('/accounts/preferences/symbol-compare', { symbol_compare_settings: settings });
-    return data;
-};
-
-export const updateExecutionMode = async (mode) => {
-    const { data } = await api.put('/accounts/preferences/execution-mode', { execution_mode: mode });
-    return data;
-};
+// NOTE: updateSymbolCompareSettings, updateExecutionMode removed
+// These are now managed at the profile level via /api/v1/live/profiles endpoints
 
 // Score Recalculation (reads full CSV, can take time)
 export const recalculateOptimizationScores = async (taskId, weights, topN = 50) => {
