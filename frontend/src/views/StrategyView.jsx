@@ -12,9 +12,7 @@ import { useStrategyConfig } from '../hooks/useStrategyConfig';
 import { isValidScope } from '../types/ConfigScope';
 import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
-import LiveStrategyPanel from '../components/LiveStrategyPanel'; // Live Panel
-import SessionSwitcher from '../components/SessionSwitcher'; // Phase 5: Multi-Account Session Switcher
-import NewSessionModal from '../components/NewSessionModal'; // Phase 5: New Session Modal
+// Live components moved to LiveTradingView.jsx
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import LiveHistoryList from '../components/LiveHistoryList';
 import LiveReplayView from '../components/LiveReplayView';
@@ -29,7 +27,7 @@ import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, Activity, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Lock, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
+import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 
 const generateUUID = () => {
@@ -296,14 +294,7 @@ const StrategyView = () => {
     const [integratedResults, setIntegratedResults] = useState(null);
     const [selectedVisualSymbol, setSelectedVisualSymbol] = useState(null); // For Multi-Symbol Analysis
     const [activeAnalysisTab, setActiveAnalysisTab] = useState('overview'); // 'overview' | 'rank_details'
-    const [liveRankIndex, setLiveRankIndex] = useState(() => {
-        const saved = localStorage.getItem('live_currentRankIndex');
-        return saved ? parseInt(saved, 10) : 0;
-    }); // Selected Rank Index for Live Tab (persisted)
-    const [isLiveRunning, setIsLiveRunning] = useState(false); // Live session running status (locks strategy change)
-    // Phase 5: Multi-Account Session Management
-    const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
-    const [activeSessionGroup, setActiveSessionGroup] = useState(null); // { accountId, strategyName, sessions }
+    // Live state variables moved to LiveTradingView.jsx
     const [executionMode, setExecutionMode] = useState(() => {
         const saved = localStorage.getItem('integratedExecutionMode');
         return saved || 'exclusive';
@@ -424,7 +415,9 @@ const StrategyView = () => {
 
     const [activeTab, setActiveTab] = useState(() => {
         const saved = localStorage.getItem('strategyViewActiveTab');
-        return saved !== null ? parseInt(saved, 10) : 0;
+        const val = saved !== null ? parseInt(saved, 10) : 0;
+        // Redirect from old Live tab (-2) to Rank 1 (0) - Live tab moved to /live page
+        return val === -2 ? 0 : val;
     });
     const [isDirty, setIsDirty] = useState(false); // Track unsaved configuration changes
     const [pendingTabSwitch, setPendingTabSwitch] = useState(null); // Store pending tab switch during confirmation
@@ -435,8 +428,7 @@ const StrategyView = () => {
     }, [activeTab]);
     // isConfigLoaded는 useStrategyConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
-    const capitalSaveTimeoutRef = useRef(null); // Debounce timeout for auto-saving capital changes in Live tab
-    const sessionSwitcherRef = useRef(null); // Ref for SessionSwitcher to call refresh after actions
+    // Live refs moved to LiveTradingView.jsx
 
 
 
@@ -462,17 +454,7 @@ const StrategyView = () => {
         });
     }, [executionMode]);
 
-    // Save liveRankIndex to localStorage for persistence across refresh
-    useEffect(() => {
-        localStorage.setItem('live_currentRankIndex', liveRankIndex.toString());
-    }, [liveRankIndex]);
-
-    // Validate liveRankIndex when configList changes (prevent out-of-bounds)
-    useEffect(() => {
-        if (configList.length > 0 && liveRankIndex >= configList.length) {
-            setLiveRankIndex(0);
-        }
-    }, [configList.length, liveRankIndex]);
+    // liveRankIndex effects moved to LiveTradingView.jsx
 
     // Persistence logic removed for initialCapital
 
@@ -3216,11 +3198,6 @@ const StrategyView = () => {
                 <div className="flex flex-col gap-3">
                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                         <HelpCircle size={14} className="text-gray-400" /> Strategy
-                        {isLiveRunning && (
-                            <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full ml-2">
-                                <Lock size={10} /> Live Running
-                            </span>
-                        )}
                     </h3>
                     <div className="flex flex-col md:flex-row items-center gap-4 w-full">
                         <div className="relative w-full md:max-w-md">
@@ -3238,12 +3215,7 @@ const StrategyView = () => {
                                     const strat = strategies.find(s => s.id === e.target.value);
                                     handleStrategyChange(strat);
                                 }}
-                                disabled={isLiveRunning}
-                                className={`w-full bg-black/40 border rounded-lg px-4 py-3 appearance-none outline-none text-sm font-medium ${
-                                    isLiveRunning
-                                        ? 'border-amber-500/30 text-gray-500 cursor-not-allowed opacity-60'
-                                        : 'border-white/20 text-white cursor-pointer focus:border-blue-500'
-                                }`}
+                                className="w-full bg-black/40 border border-white/20 text-white cursor-pointer focus:border-blue-500 rounded-lg px-4 py-3 appearance-none outline-none text-sm font-medium"
                             >
                                 <option value="" className="bg-slate-900 text-gray-400">
                                     전략을 선택하세요
@@ -3254,17 +3226,11 @@ const StrategyView = () => {
                                     </option>
                                 ))}
                             </select>
-                            <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isLiveRunning ? 'text-gray-600' : 'text-gray-400'}`}>
-                                {isLiveRunning ? <Lock size={14} /> : '▼'}
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                ▼
                             </div>
                         </div>
-                        {isLiveRunning && (
-                            <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
-                                <Lock size={12} />
-                                <span>라이브 세션 실행 중 - 전략 변경 불가</span>
-                            </div>
-                        )}
-                        {selectedStrategy && !isLiveRunning && (
+                        {selectedStrategy && (
                             <div className="hidden md:flex items-center gap-2 text-sm text-gray-400 border-l border-white/10 pl-4 h-10 flex-1">
                                 <span className="flex-1 truncate">{selectedStrategy.description}</span>
                                 <button
@@ -3304,37 +3270,9 @@ const StrategyView = () => {
                         <div className="space-y-4">
 
                             <div className="bg-white/5 border border-white/10 rounded-xl px-4 pt-4 pb-5 mb-6 overflow-x-auto scrollbar-hide">
-                            {/* Row 1: Main Tabs (Live, Integrated, Symbol Compare) */}
+                            {/* Row 1: Main Tabs (Integrated, Symbol Compare) */}
+                            {/* Live Operation tab moved to /live page */}
                             <div className="flex items-center gap-2 mb-3">
-                                {/* Live Operation Tab */}
-                                <button
-                                    type="button"
-                                    key="live-tab"
-                                    onClick={(e) => { e.preventDefault(); handleTabSwitch(-2); }}
-                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -2
-                                        ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-red-400 shadow-[0_0_15px_rgba(225,29,72,0.4)] scale-105'
-                                        : 'bg-gradient-to-r from-gray-800 to-gray-900 text-rose-500 border-rose-500/30 hover:border-rose-500 hover:text-rose-400 hover:shadow-[0_0_10px_rgba(225,29,72,0.2)]'
-                                        }`}
-                                >
-                                    {activeTab === -2 && <span className="text-green-400 font-bold">✓</span>}
-                                    <span className="text-lg">🔴</span>
-                                    <Activity size={16} className={activeTab === -2 ? "animate-pulse" : ""} />
-                                    <span>Live Operation</span>
-                                    {/* Badge: Active Rank Count */}
-                                    {configList.filter(c => c.is_active !== false).length > 0 && (
-                                        <TabBadge
-                                            count={configList.filter(c => c.is_active !== false).length}
-                                            status={activeTab === -2 ? "running" : "success"}
-                                            size="xs"
-                                        />
-                                    )}
-                                </button>
-
-                                {/* Workflow Arrow: Live → Portfolio */}
-                                <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
-                                    <ChevronRight size={16} />
-                                </div>
-
                                 {/* Integrated Tab */}
                                 <button
                                     onClick={() => handleTabSwitch(-1)}
@@ -3481,7 +3419,7 @@ const StrategyView = () => {
                             {/* Active tab indicator line */}
                             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs text-gray-500">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 animate-pulse" />
-                                <span>{activeTab === -2 ? 'Live Operation' : activeTab === -1 ? 'Integrated Portfolio' : activeTab === -3 ? 'Symbol Compare' : `Rank ${activeTab + 1}`} selected</span>
+                                <span>{activeTab === -1 ? 'Integrated Portfolio' : activeTab === -3 ? 'Symbol Compare' : `Rank ${activeTab + 1}`} selected</span>
                             </div>
                             </div>
 
@@ -4172,114 +4110,7 @@ const StrategyView = () => {
                             )}
 
                             {/* Content Area based on Tab */}
-
-
-                            {activeTab === -2 && (
-                                <div className="animate-fade-in-up">
-                                    {/* Phase 5: Session Switcher for Multi-Account Support */}
-                                    <SessionSwitcher
-                                        ref={sessionSwitcherRef}
-                                        onSelectSessionGroup={(group) => {
-                                            setActiveSessionGroup(group);
-                                            // If switching to a different strategy, update selection
-                                            if (group?.strategyName && group.strategyName !== selectedStrategy?.id) {
-                                                const matchingStrategy = strategies.find(s => s.id === group.strategyName);
-                                                if (matchingStrategy) {
-                                                    handleStrategyChange(matchingStrategy);
-                                                }
-                                            }
-                                        }}
-                                        onNewSession={() => setIsNewSessionModalOpen(true)}
-                                        activeSessionGroup={activeSessionGroup}
-                                        savedSymbols={savedSymbols}
-                                    />
-
-                                    <LiveStrategyPanel
-                                        strategyConfig={configList[liveRankIndex] || configList[0]}
-                                        strategyName={selectedStrategy?.id}
-                                        configList={configList}
-                                        savedSymbols={savedSymbols}
-                                        currentRankIndex={liveRankIndex}
-                                        executionMode={executionMode}
-                                        onExecutionModeChange={(mode) => setExecutionMode(mode)}
-                                        onRankChange={(index) => {
-                                            setLiveRankIndex(index);
-                                            if (configList[index] && configList[index].symbol) {
-                                                setCurrentSymbol(configList[index].symbol);
-                                            }
-                                        }}
-                                        parameterSchema={selectedStrategy?.parameter_schema}
-                                        onStatusChange={(newStatus) => setIsLiveRunning(newStatus === 'RUNNING')}
-                                        activeSessionGroup={activeSessionGroup}
-                                        onSessionAction={(action, session) => {
-                                            // Refresh session list after resume/delete
-                                            sessionSwitcherRef.current?.refresh?.();
-                                            // Clear selection if deleted - delay to allow refresh to complete
-                                            // SessionSwitcher's auto-select effect will pick the first remaining group
-                                            if (action === 'delete') {
-                                                setTimeout(() => {
-                                                    setActiveSessionGroup(null);
-                                                }, 300);
-                                            }
-                                        }}
-                                        onCapitalChange={(newCapital) => {
-                                            // Update initial_capital in configList for the current liveRankIndex
-                                            const targetIndex = liveRankIndex >= 0 && liveRankIndex < configList.length ? liveRankIndex : 0;
-                                            setConfigList(prev => {
-                                                const newList = [...prev];
-                                                if (newList[targetIndex]) {
-                                                    newList[targetIndex] = {
-                                                        ...newList[targetIndex],
-                                                        initial_capital: newCapital
-                                                    };
-                                                }
-                                                return newList;
-                                            });
-                                            // Auto-save with debounce for Live tab capital (critical setting)
-                                            if (capitalSaveTimeoutRef.current) {
-                                                clearTimeout(capitalSaveTimeoutRef.current);
-                                            }
-                                            capitalSaveTimeoutRef.current = setTimeout(async () => {
-                                                try {
-                                                    await saveConfigs();
-                                                    console.log('[Live] Capital auto-saved:', newCapital);
-                                                } catch (e) {
-                                                    console.error('[Live] Failed to auto-save capital:', e);
-                                                }
-                                            }, 1000); // 1 second debounce
-                                        }}
-                                    />
-
-                                    {/* Phase 5: New Session Modal */}
-                                    <NewSessionModal
-                                        isOpen={isNewSessionModalOpen}
-                                        onClose={() => setIsNewSessionModalOpen(false)}
-                                        onSessionStarted={(result) => {
-                                            // Refresh SessionSwitcher first to get new session data
-                                            sessionSwitcherRef.current?.refresh?.();
-
-                                            // Set the new session group as active
-                                            setActiveSessionGroup({
-                                                accountId: result.accountId,
-                                                strategyName: result.strategyName,
-                                                groupId: result.groupId,
-                                                sessionId: result.sessions?.[0]?.sessionId,
-                                                sessions: result.sessions
-                                            });
-
-                                            // Switch to the new strategy if different
-                                            if (result.strategyName !== selectedStrategy?.id) {
-                                                const matchingStrategy = strategies.find(s => s.id === result.strategyName);
-                                                if (matchingStrategy) {
-                                                    handleStrategyChange(matchingStrategy);
-                                                }
-                                            }
-                                        }}
-                                        strategies={strategies}
-                                    />
-
-                                </div>
-                            )}
+                            {/* Live tab content moved to /live page (LiveTradingView.jsx) */}
 
                             {/* Symbol Comparison Tab Content */}
                             {activeTab === -3 && (

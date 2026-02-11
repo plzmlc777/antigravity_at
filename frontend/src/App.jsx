@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import Dashboard from './views/Dashboard';
 import ManualTrading from './views/ManualTrading';
-
+import LiveTradingView from './views/LiveTradingView';
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
 import Settings from './views/Settings';
@@ -90,6 +90,7 @@ function AppContent() {
                         <div className="flex gap-2">
                             <NavLink to="/">Dashboard</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
+                            <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Strategies</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
@@ -108,15 +109,16 @@ function AppContent() {
                 </div>
             </nav>
 
-            {/* Account Status Panel */}
-            <AccountStatusPanel />
+            {/* Account Status Panel - hidden on /live and /strategies pages */}
+            {location.pathname !== '/live' && location.pathname !== '/strategies' && <AccountStatusPanel />}
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8">
                 <Routes>
                     <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
-                    <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} /> {/* New Route */}
+                    <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
+                    <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>

@@ -309,6 +309,103 @@ async def delete_session(
 class ToggleOrdersRequest(BaseModel):
     enabled: bool
 
+
+class UpdateSessionSettingsRequest(BaseModel):
+    initial_capital: Optional[float] = None
+    is_paper: Optional[bool] = None
+    account_id: Optional[int] = None  # Change account for stopped session
+    rank_weights: Optional[Dict[str, float]] = None  # Capital allocation per rank (parallel mode)
+
+
+@router.patch("/session/{session_id}")
+async def update_session_settings(
+    session_id: str,
+    req: UpdateSessionSettingsRequest,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Update settings for a STOPPED session.
+    Only allowed for STOPPED or ERROR sessions (not RUNNING).
+
+    This allows users to change capital/mode before restarting.
+    """
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..models.account import ExchangeAccount
+
+    # Find the session
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership (session must belong to one of user's accounts)
+    user_accounts = db.query(ExchangeAccount.id).filter(
+        ExchangeAccount.user_id == ctx.user_id
+    ).all()
+    user_account_ids = [a.id for a in user_accounts]
+
+    if session.account_id not in user_account_ids:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    # Only allow updating STOPPED or ERROR sessions
+    if session.status not in [SessionStatus.STOPPED, SessionStatus.ERROR]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot update settings for session with status: {session.status}. Stop the session first."
+        )
+
+    # Apply updates
+    updates_made = []
+
+    if req.initial_capital is not None:
+        session.initial_capital = req.initial_capital
+        updates_made.append(f"capital → {req.initial_capital:,.0f}")
+
+    if req.is_paper is not None:
+        session.is_paper = req.is_paper
+        updates_made.append(f"mode → {'Paper' if req.is_paper else 'Real'}")
+
+    if req.account_id is not None and req.account_id != session.account_id:
+        # Verify new account belongs to user
+        new_account = db.query(ExchangeAccount).filter(
+            ExchangeAccount.id == req.account_id,
+            ExchangeAccount.user_id == ctx.user_id
+        ).first()
+        if not new_account:
+            raise HTTPException(status_code=403, detail="Target account not found or access denied")
+        if new_account.is_disabled:
+            raise HTTPException(status_code=400, detail="Target account is disabled")
+
+        old_account = db.query(ExchangeAccount).filter(ExchangeAccount.id == session.account_id).first()
+        old_name = old_account.account_name if old_account else str(session.account_id)
+        session.account_id = req.account_id
+        updates_made.append(f"account → {new_account.account_name}")
+
+    if req.rank_weights is not None:
+        # Update rank_weights in strategy_config
+        config = session.strategy_config or {}
+        config["rank_weights"] = req.rank_weights
+        session.strategy_config = config
+        updates_made.append("rank_weights updated")
+
+    if not updates_made:
+        return {"status": "no_change", "message": "No settings were changed"}
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Session settings updated: {', '.join(updates_made)}",
+        "session_id": session_id,
+        "updated": {
+            "initial_capital": float(session.initial_capital) if session.initial_capital else None,
+            "is_paper": session.is_paper,
+            "account_id": session.account_id,
+            "rank_weights": req.rank_weights
+        }
+    }
+
+
 @router.post("/toggle-orders/{session_id}")
 async def toggle_orders(
     session_id: str,

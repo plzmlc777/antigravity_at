@@ -236,6 +236,12 @@ export const resumeSession = async (sessionId) => {
     return data;
 };
 
+export const updateSessionSettings = async (sessionId, settings) => {
+    // settings: { initial_capital?: number, is_paper?: boolean }
+    const { data } = await api.patch(`/live/session/${sessionId}`, settings);
+    return data;
+};
+
 export const toggleLiveOrders = async (sessionId, enabled) => {
     const { data } = await api.post(`/live/toggle-orders/${sessionId}`, { enabled });
     return data;

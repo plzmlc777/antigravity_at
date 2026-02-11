@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2 } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts, resumeSession, deleteSession } from '../api/client';
+import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, getAccounts, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -79,6 +79,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [isPaperMode, setIsPaperMode] = useState(true); // Paper mode by default for safety
     const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
 
+    // Apply Changes State (track original session values for dirty detection)
+    const [originalSessionSettings, setOriginalSessionSettings] = useState(null); // { capital, isPaper, accountId }
+    const [isApplying, setIsApplying] = useState(false);
+    const [applyStatus, setApplyStatus] = useState(null); // 'success' | 'error' | null
+
     // Notify parent of status changes (for strategy change lock)
     useEffect(() => {
         if (onStatusChange) {
@@ -86,12 +91,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     }, [status, onStatusChange]);
 
-    // Sync inputCapital when strategyConfig.initial_capital changes (e.g., after page refresh/DB load)
+    // Sync inputCapital when strategyConfig.initial_capital changes (only when no session is selected)
+    // When a session is selected, the session's capital takes precedence
     useEffect(() => {
-        if (strategyConfig?.initial_capital !== undefined && strategyConfig.initial_capital !== null) {
+        // Only sync from strategyConfig if no active session is selected
+        if (!activeSessionGroup && strategyConfig?.initial_capital !== undefined && strategyConfig.initial_capital !== null) {
             setInputCapital(strategyConfig.initial_capital);
         }
-    }, [strategyConfig?.initial_capital]);
+    }, [strategyConfig?.initial_capital, activeSessionGroup]);
 
     // Fetch accumulated stats on mount and when configList/strategyName changes
     // This aggregates ALL historical cycles across all sessions with matching (symbol, strategy)
@@ -136,19 +143,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     }, []);
 
     // Sync panel state when activeSessionGroup changes (Phase 5: Session Selection)
+    // Note: Only depends on activeSessionGroup, not strategyConfig - user's capital edits should persist
     useEffect(() => {
         const selectedSession = activeSessionGroup?.sessions?.[0];
 
         // Reset to default values when no session is selected
         if (!selectedSession) {
             setSessionId(null);
-            setInputCapital(strategyConfig?.initial_capital || 10000000);
+            // Don't reset inputCapital here - let the other useEffect handle it
+            // or keep user's current input
             setStatus('IDLE');
             setError(null);
             setLiveData(null);
             setLogs([]);
             // Keep account selection to the active account (don't reset selectedAccountId)
             // isPaperMode keeps its current state for new session creation
+            // Reset apply state
+            setOriginalSessionSettings(null);
+            setApplyStatus(null);
             console.log('[LiveStrategyPanel] No session selected - reset to defaults');
             return;
         }
@@ -156,7 +168,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         // Update session ID
         setSessionId(selectedSession.session_id);
 
-        // Update capital from session
+        // Update capital from session (only when session changes, not on every render)
         if (selectedSession.initial_capital) {
             setInputCapital(selectedSession.initial_capital);
         }
@@ -167,7 +179,25 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
 
         // Update paper mode from session
-        setIsPaperMode(selectedSession.is_paper !== false);
+        const sessionIsPaper = selectedSession.is_paper !== false;
+        setIsPaperMode(sessionIsPaper);
+
+        // Load rankWeights from session's strategy_config (parallel mode)
+        const sessionRankWeights = selectedSession.strategy_config?.rank_weights || {};
+        setRankWeights(sessionRankWeights);
+
+        // Save original settings for dirty detection (only for non-running sessions)
+        if (selectedSession.status !== 'RUNNING') {
+            setOriginalSessionSettings({
+                capital: selectedSession.initial_capital || 0,
+                isPaper: sessionIsPaper,
+                accountId: selectedSession.account_id,
+                rankWeights: sessionRankWeights
+            });
+        } else {
+            setOriginalSessionSettings(null);
+        }
+        setApplyStatus(null);
 
         // Update status based on session status
         if (selectedSession.status === 'RUNNING') {
@@ -187,7 +217,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
 
         console.log('[LiveStrategyPanel] Session selected:', selectedSession.session_id, selectedSession.status);
-    }, [activeSessionGroup, strategyConfig?.initial_capital]);
+    }, [activeSessionGroup]);
 
     // Derive selected session info for display (Phase 5)
     const selectedSessionInfo = useMemo(() => {
@@ -227,6 +257,96 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             sessionCount, // Number of sessions in this group
         };
     }, [activeSessionGroup, savedSymbols, accounts]);
+
+    // Check if settings have changed from original (dirty state)
+    const hasUnsavedChanges = useMemo(() => {
+        if (!originalSessionSettings) return false;
+        if (status === 'RUNNING') return false;
+
+        const capitalChanged = parseFloat(inputCapital) !== originalSessionSettings.capital;
+        const modeChanged = isPaperMode !== originalSessionSettings.isPaper;
+        const accountChanged = selectedAccountId !== originalSessionSettings.accountId;
+
+        // Compare rankWeights (deep comparison)
+        const originalWeights = originalSessionSettings.rankWeights || {};
+        const rankWeightsChanged = JSON.stringify(rankWeights) !== JSON.stringify(originalWeights);
+
+        return capitalChanged || modeChanged || accountChanged || rankWeightsChanged;
+    }, [originalSessionSettings, inputCapital, isPaperMode, selectedAccountId, rankWeights, status]);
+
+    // Handle Apply Settings to backend
+    const handleApplySettings = async () => {
+        if (!sessionId || !hasUnsavedChanges) return;
+
+        setIsApplying(true);
+        setApplyStatus(null);
+
+        try {
+            const settings = {};
+
+            // Send all changed values including account_id and rankWeights
+            if (parseFloat(inputCapital) !== originalSessionSettings.capital) {
+                settings.initial_capital = parseFloat(inputCapital);
+            }
+            if (isPaperMode !== originalSessionSettings.isPaper) {
+                settings.is_paper = isPaperMode;
+            }
+            if (selectedAccountId !== originalSessionSettings.accountId) {
+                settings.account_id = selectedAccountId;
+            }
+
+            // Check rankWeights change
+            const originalWeights = originalSessionSettings.rankWeights || {};
+            if (JSON.stringify(rankWeights) !== JSON.stringify(originalWeights)) {
+                settings.rank_weights = rankWeights;
+            }
+
+            // If nothing changed, nothing to save
+            if (Object.keys(settings).length === 0) {
+                setApplyStatus('success');
+                setTimeout(() => setApplyStatus(null), 2000);
+                return;
+            }
+
+            const result = await updateSessionSettings(sessionId, settings);
+            console.log('[LiveStrategyPanel] Settings applied:', result);
+
+            // Update original settings to new values
+            setOriginalSessionSettings({
+                capital: parseFloat(inputCapital),
+                isPaper: isPaperMode,
+                accountId: selectedAccountId,
+                rankWeights: { ...rankWeights }
+            });
+
+            setApplyStatus('success');
+
+            // Clear success status after 3 seconds
+            setTimeout(() => setApplyStatus(null), 3000);
+
+        } catch (err) {
+            console.error('[LiveStrategyPanel] Failed to apply settings:', err);
+            setApplyStatus('error');
+            showAlert(
+                err.response?.data?.detail || 'Failed to save settings',
+                'error',
+                '설정 저장 실패'
+            );
+        } finally {
+            setIsApplying(false);
+        }
+    };
+
+    // Handle Discard Changes - reset to original values
+    const handleDiscardChanges = () => {
+        if (!originalSessionSettings) return;
+
+        setInputCapital(originalSessionSettings.capital);
+        setIsPaperMode(originalSessionSettings.isPaper);
+        setSelectedAccountId(originalSessionSettings.accountId);
+        setRankWeights(originalSessionSettings.rankWeights || {});
+        setApplyStatus(null);
+    };
 
     // Overview Chart: Transform historyData cycles → rank-based chart (like IntegratedAnalysis)
     const { overviewChartData, overviewTrades, overviewRankFormatter, overviewPriceScaleOptions, overviewSymbolRanks } = useMemo(() => {
@@ -1290,19 +1410,125 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         );
     }
 
-    // Show empty state when no session is selected
+    // Show configuration section even when no session is selected
+    // User can set Trading Capital, Account, and Paper/Real mode before creating a session
     if (!activeSessionGroup) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                    <div className="w-20 h-20 bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Radio size={36} className="text-gray-600" />
+            <div className="space-y-6 pb-10">
+                {/* Configuration Section - Always visible for session setup */}
+                <div className="w-full bg-black/40 border border-white/10 rounded-xl p-5">
+                    <h3 className="text-gray-300 font-bold text-sm mb-4 flex items-center gap-2">
+                        <Settings size={14} className="text-gray-500" />
+                        새 세션 설정
+                    </h3>
+                    <div className="flex flex-col md:flex-row items-start gap-6">
+                        {/* Capital Input */}
+                        <div className="flex-1 w-full">
+                            <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                Trading Capital (KRW)
+                            </label>
+                            <div className="relative group">
+                                <input
+                                    type="number"
+                                    value={inputCapital}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value;
+                                        setInputCapital(newValue);
+                                        if (onCapitalChange) {
+                                            onCapitalChange(parseFloat(newValue) || 0);
+                                        }
+                                    }}
+                                    className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all"
+                                    placeholder="Enter amount..."
+                                />
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                            </div>
+                        </div>
+
+                        {/* Account Selector */}
+                        <div className="w-full md:w-56">
+                            <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                Trading Account
+                            </label>
+                            <select
+                                value={selectedAccountId || ''}
+                                onChange={(e) => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}
+                                className="w-full bg-black/60 border border-white/10 rounded-lg px-3 py-3 text-white text-sm font-bold outline-none focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+                            >
+                                {accounts.filter(acc => !acc.is_disabled).map(acc => (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.account_name} ({acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼'})
+                                        {acc.is_active ? ' ★' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-gray-500 text-[9px] mt-1.5">
+                                {accounts.find(a => a.id === selectedAccountId)?.account_number?.slice(-4)
+                                    ? `계좌번호: ****${accounts.find(a => a.id === selectedAccountId)?.account_number?.slice(-4)}`
+                                    : '계좌를 선택하세요'}
+                            </p>
+                        </div>
+
+                        {/* Paper/Real Mode Toggle */}
+                        <div className="w-full md:w-40">
+                            <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
+                                Trading Mode
+                            </label>
+                            <button
+                                onClick={() => {
+                                    if (isPaperMode) {
+                                        setModeSwitchConfirm({ isOpen: true, toReal: true, isRunningSession: false });
+                                    } else {
+                                        setModeSwitchConfirm({ isOpen: true, toReal: false, isRunningSession: false });
+                                    }
+                                }}
+                                className={`w-full h-[46px] flex items-center justify-center gap-2 text-sm font-bold rounded-lg border transition-all ${
+                                    isPaperMode
+                                        ? 'bg-green-600/20 border-green-500 text-green-400 hover:bg-green-600/30'
+                                        : 'bg-red-900/40 border-red-500 text-red-400 hover:bg-red-900/60'
+                                }`}
+                            >
+                                {isPaperMode ? (
+                                    <><Shield size={14} /> Paper</>
+                                ) : (
+                                    <><ShieldOff size={14} /> Real</>
+                                )}
+                            </button>
+                            <p className="text-gray-500 text-[9px] mt-1.5">
+                                {isPaperMode ? '시뮬레이션 모드' : '실제 주문 실행'}
+                            </p>
+                        </div>
                     </div>
-                    <h3 className="text-gray-400 font-bold text-lg mb-2">세션이 선택되지 않았습니다</h3>
-                    <p className="text-gray-600 text-sm">
-                        왼쪽 패널에서 세션 그룹을 선택하거나 새 세션을 추가하세요
-                    </p>
                 </div>
+
+                {/* Empty State Message */}
+                <div className="flex items-center justify-center min-h-[200px] bg-white/5 border border-white/10 rounded-xl">
+                    <div className="text-center">
+                        <div className="w-16 h-16 bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Radio size={28} className="text-gray-600" />
+                        </div>
+                        <h3 className="text-gray-400 font-bold text-base mb-2">세션을 선택하세요</h3>
+                        <p className="text-gray-600 text-sm">
+                            위 패널에서 세션 그룹을 선택하거나 '+ 새 세션' 버튼으로 세션을 추가하세요
+                        </p>
+                    </div>
+                </div>
+
+                {/* Trading Mode Switch Confirmation Modal */}
+                <ConfirmModal
+                    isOpen={modeSwitchConfirm.isOpen}
+                    onClose={() => setModeSwitchConfirm({ isOpen: false, toReal: false, isRunningSession: false })}
+                    onConfirm={() => {
+                        setIsPaperMode(!modeSwitchConfirm.toReal);
+                        setModeSwitchConfirm({ isOpen: false, toReal: false, isRunningSession: false });
+                    }}
+                    title={modeSwitchConfirm.toReal ? "🔴 실거래 모드로 전환" : "🟢 페이퍼 모드로 전환"}
+                    message={modeSwitchConfirm.toReal
+                        ? "실거래 모드로 전환하시겠습니까?\n\n⚠️ 주의: 실제 자금이 사용됩니다!"
+                        : "페이퍼(시뮬레이션) 모드로 전환하시겠습니까?\n\n실제 주문이 실행되지 않습니다."}
+                    confirmText={modeSwitchConfirm.toReal ? "실거래로 전환" : "페이퍼로 전환"}
+                    isDanger={modeSwitchConfirm.toReal}
+                />
             </div>
         );
     }
@@ -1605,21 +1831,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 </p>
                             </div>
 
-                            {/* Execution Mode (Read-only - set in Integrated tab) */}
-                            <div className="w-full md:w-48">
-                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                    Execution Mode
-                                </label>
-                                <div className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-3 text-white text-sm font-bold">
-                                    {executionMode === 'exclusive' ? 'Exclusive' : 'Parallel'}
-                                </div>
-                                <p className="text-gray-500 text-[9px] mt-1.5">
-                                    {executionMode === 'exclusive'
-                                        ? 'Waterfall: Rank 1 → 2 → 3'
-                                        : `${configList.filter(c => c.is_active).length} ranks (custom %)`}
-                                </p>
-                            </div>
-
                             {/* Paper/Real Mode Toggle (Phase 5) */}
                             <div className="w-full md:w-40">
                                 <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
@@ -1665,6 +1876,156 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             </div>
                         </div>
 
+                        {/* Parallel Mode: Per-Rank Capital Allocation - Slider UI */}
+                        {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (
+                            <div className="mt-4 p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-gray-400 text-[10px] font-bold tracking-wider uppercase">Capital Allocation per Rank</span>
+                                    <button
+                                        onClick={() => {
+                                            const activeIndices = configList.map((c, i) => c.is_active ? i : -1).filter(i => i >= 0);
+                                            const eq = Math.floor(100 / activeIndices.length);
+                                            const rem = 100 - (eq * activeIndices.length);
+                                            const w = {};
+                                            activeIndices.forEach((idx, pos) => { w[idx] = eq + (pos === 0 ? rem : 0); });
+                                            setRankWeights(w);
+                                        }}
+                                        disabled={status === 'RUNNING' || status === 'STARTING'}
+                                        className="text-[9px] text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Reset Equal
+                                    </button>
+                                </div>
+                                <div className="space-y-3">
+                                    {(() => {
+                                        const activeIndices = configList.map((c, i) => c.is_active ? i : -1).filter(i => i >= 0);
+
+                                        // Slider change handler - redistributes remaining to other ranks
+                                        const handleSliderChange = (changedIdx, newValue) => {
+                                            const otherIndices = activeIndices.filter(i => i !== changedIdx);
+                                            const remaining = 100 - newValue;
+
+                                            // Calculate current total of other ranks
+                                            const otherTotal = otherIndices.reduce((sum, i) => sum + (rankWeights[i] || 0), 0);
+
+                                            const newWeights = { ...rankWeights, [changedIdx]: newValue };
+
+                                            if (otherTotal === 0) {
+                                                // If others are all 0, distribute equally
+                                                const each = Math.floor(remaining / otherIndices.length);
+                                                const extra = remaining - (each * otherIndices.length);
+                                                otherIndices.forEach((i, pos) => {
+                                                    newWeights[i] = each + (pos === 0 ? extra : 0);
+                                                });
+                                            } else {
+                                                // Proportional redistribution
+                                                let distributed = 0;
+                                                otherIndices.forEach((i, pos) => {
+                                                    const ratio = (rankWeights[i] || 0) / otherTotal;
+                                                    if (pos === otherIndices.length - 1) {
+                                                        // Last one gets remainder to ensure exactly 100%
+                                                        newWeights[i] = remaining - distributed;
+                                                    } else {
+                                                        const share = Math.round(remaining * ratio);
+                                                        newWeights[i] = share;
+                                                        distributed += share;
+                                                    }
+                                                });
+                                            }
+
+                                            setRankWeights(newWeights);
+                                        };
+
+                                        return configList.map((cfg, idx) => {
+                                            if (!cfg.is_active) return null;
+                                            const weight = rankWeights[idx] || 0;
+                                            const capital = Math.floor((parseFloat(inputCapital) || 0) * weight / 100);
+                                            const isDisabled = status === 'RUNNING' || status === 'STARTING';
+
+                                            return (
+                                                <div key={idx} className="flex items-center gap-3">
+                                                    <span className="text-gray-400 text-[10px] w-24 truncate font-mono">
+                                                        R{idx + 1} {cfg.symbol?.slice(0, 6)}
+                                                    </span>
+                                                    <div className="flex-1 relative">
+                                                        <input
+                                                            type="range"
+                                                            min={0}
+                                                            max={100}
+                                                            value={weight}
+                                                            onChange={(e) => handleSliderChange(idx, parseInt(e.target.value))}
+                                                            disabled={isDisabled}
+                                                            className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed
+                                                                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                                                                [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500
+                                                                [&::-webkit-slider-thumb]:hover:bg-blue-400 [&::-webkit-slider-thumb]:cursor-pointer
+                                                                [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-blue-500/30
+                                                                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full
+                                                                [&::-moz-range-thumb]:bg-blue-500 [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
+                                                            style={{
+                                                                background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${weight}%, rgba(255,255,255,0.1) ${weight}%, rgba(255,255,255,0.1) 100%)`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-white text-xs font-mono w-10 text-right font-bold">
+                                                        {weight}%
+                                                    </span>
+                                                    <span className="text-gray-500 text-[10px] font-mono w-20 text-right">
+                                                        ₩{capital.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                                <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5 text-[10px] text-green-400">
+                                    <span>Total: 100%</span>
+                                    <span className="text-gray-500">자동 조정됨</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Apply/Discard Changes - Shows when settings changed */}
+                        {hasUnsavedChanges && (
+                            <div className="mt-4 pt-4 border-t border-yellow-500/30">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 text-yellow-400 text-xs">
+                                        <span className="animate-pulse">●</span> 변경사항이 있습니다
+                                    </div>
+                                    <button
+                                        onClick={handleDiscardChanges}
+                                        disabled={isApplying}
+                                        className="h-10 px-4 flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-bold rounded-lg transition-all disabled:opacity-50"
+                                    >
+                                        <X size={16} />
+                                        Discard
+                                    </button>
+                                    <button
+                                        onClick={handleApplySettings}
+                                        disabled={isApplying}
+                                        className="h-10 px-6 flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-600 to-amber-500 hover:from-yellow-500 hover:to-amber-400 text-black text-sm font-bold tracking-wide rounded-lg transition-all disabled:opacity-50 shadow-lg shadow-yellow-900/30"
+                                    >
+                                        {isApplying ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                저장 중...
+                                            </>
+                                        ) : applyStatus === 'success' ? (
+                                            <>
+                                                <Check size={16} />
+                                                저장 완료!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check size={16} />
+                                                Apply
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Session Action Buttons - Full Width Row */}
                         <div className="mt-4 pt-4 border-t border-white/10">
                             {status !== 'RUNNING' ? (
@@ -1675,13 +2036,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         <div className="grid grid-cols-2 gap-3">
                                             <button
                                                 onClick={handleResumeSession}
-                                                disabled={isResuming}
+                                                disabled={isResuming || hasUnsavedChanges}
                                                 className="h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-base font-bold tracking-wide rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-blue-900/30"
                                             >
                                                 {isResuming ? (
                                                     <>
                                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                         재시작 중...
+                                                    </>
+                                                ) : hasUnsavedChanges ? (
+                                                    <>
+                                                        <AlertTriangle size={20} />
+                                                        먼저 Apply 하세요
                                                     </>
                                                 ) : (
                                                     <>
@@ -1762,71 +2128,6 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 </div>
                             )}
                         </div>
-
-                        {/* Parallel Mode: Per-Rank Capital Allocation */}
-                        {executionMode === 'parallel' && configList.filter(c => c.is_active).length > 1 && (
-                            <div className="mt-4 p-3 bg-blue-900/10 border border-blue-500/20 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-gray-400 text-[10px] font-bold tracking-wider uppercase">Capital Allocation per Rank</span>
-                                    <button
-                                        onClick={() => {
-                                            const activeIndices = configList.map((c, i) => c.is_active ? i : -1).filter(i => i >= 0);
-                                            const eq = Math.floor(100 / activeIndices.length);
-                                            const rem = 100 - (eq * activeIndices.length);
-                                            const w = {};
-                                            activeIndices.forEach((idx, pos) => { w[idx] = eq + (pos === 0 ? rem : 0); });
-                                            setRankWeights(w);
-                                        }}
-                                        disabled={status === 'RUNNING' || status === 'STARTING'}
-                                        className="text-[9px] text-blue-400 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        Reset Equal
-                                    </button>
-                                </div>
-                                <div className="space-y-1.5">
-                                    {configList.map((cfg, idx) => {
-                                        if (!cfg.is_active) return null;
-                                        const weight = rankWeights[idx] || 0;
-                                        const capital = Math.floor((parseFloat(inputCapital) || 0) * weight / 100);
-                                        return (
-                                            <div key={idx} className="flex items-center gap-2">
-                                                <span className="text-gray-500 text-[10px] w-20 truncate font-mono">R{idx + 1} {cfg.symbol?.slice(0, 6)}</span>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    max={100}
-                                                    value={weight}
-                                                    onChange={(e) => {
-                                                        const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-                                                        setRankWeights(prev => ({ ...prev, [idx]: v }));
-                                                    }}
-                                                    disabled={status === 'RUNNING' || status === 'STARTING'}
-                                                    className="w-14 bg-black/60 border border-white/10 rounded px-2 py-1 text-white text-xs font-mono text-center outline-none focus:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                />
-                                                <span className="text-gray-600 text-[10px]">%</span>
-                                                <div className="flex-1 bg-white/5 rounded-full h-1.5 overflow-hidden">
-                                                    <div className="bg-blue-500/60 h-full rounded-full transition-all" style={{ width: `${Math.min(weight, 100)}%` }} />
-                                                </div>
-                                                <span className="text-gray-500 text-[10px] font-mono w-24 text-right">{capital.toLocaleString()}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {(() => {
-                                    const total = Object.values(rankWeights).reduce((s, w) => s + w, 0);
-                                    return (
-                                        <div className={`flex items-center justify-between mt-2 pt-2 border-t border-white/5 text-[10px] ${total !== 100 ? 'text-yellow-400' : 'text-gray-500'}`}>
-                                            <span>Total: {total}%</span>
-                                            {total !== 100 && (
-                                                <span className="flex items-center gap-1">
-                                                    <AlertTriangle size={10} /> Must be 100%
-                                                </span>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-                        )}
 
                         {/* Over-allocation Warning & Status */}
                         {availableBalance !== null && inputCapital > availableBalance && (
