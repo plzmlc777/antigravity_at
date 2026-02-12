@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getProfiles, getProfile, createProfile, updateProfile, deleteProfile, getAccountPreferences, updateLastSelectedProfile } from '../api/client';
+import { STORAGE_KEYS } from '../constants/strategies';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// localStorage Draft Utilities
+// ═══════════════════════════════════════════════════════════════════════════════
+const getDraftKey = (profileId) => `${STORAGE_KEYS.DRAFT_PREFIX}${profileId}`;
+const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * useProfileConfig - Profile-centric strategy configuration hook
@@ -208,6 +215,88 @@ export const useProfileConfig = ({
         return configChanged || metaChanged || symbolCompareChanged;
     }, [configList, originalConfigList, profileMeta, originalProfileMeta, symbolCompareSettings, originalSymbolCompareSettings]);
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // localStorage Draft Functions (must be declared before auto-save useEffect)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Save draft to localStorage (auto-called on state changes)
+     */
+    const saveDraft = useCallback((profileId, configs, meta, symbolCompare) => {
+        if (!profileId) return;
+        try {
+            const draft = {
+                configList: configs,
+                profileMeta: meta,
+                symbolCompareSettings: symbolCompare,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(getDraftKey(profileId), JSON.stringify(draft));
+        } catch (e) {
+            console.warn('[useProfileConfig] Failed to save draft:', e);
+        }
+    }, []);
+
+    /**
+     * Load draft from localStorage (returns null if expired or not found)
+     */
+    const loadDraft = useCallback((profileId) => {
+        if (!profileId) return null;
+        try {
+            const raw = localStorage.getItem(getDraftKey(profileId));
+            if (!raw) return null;
+
+            const draft = JSON.parse(raw);
+
+            // Expiration check (7 days)
+            if (Date.now() - draft.timestamp > DRAFT_MAX_AGE_MS) {
+                localStorage.removeItem(getDraftKey(profileId));
+                console.log('[useProfileConfig] Draft expired, removed:', profileId);
+                return null;
+            }
+
+            return draft;
+        } catch (e) {
+            console.warn('[useProfileConfig] Failed to load draft:', e);
+            localStorage.removeItem(getDraftKey(profileId));
+            return null;
+        }
+    }, []);
+
+    /**
+     * Clear draft from localStorage
+     */
+    const clearDraft = useCallback((profileId) => {
+        if (!profileId) return;
+        try {
+            localStorage.removeItem(getDraftKey(profileId));
+            console.log('[useProfileConfig] Draft cleared:', profileId);
+        } catch (e) {
+            console.warn('[useProfileConfig] Failed to clear draft:', e);
+        }
+    }, []);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Auto-save Draft to localStorage (300ms debounce)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const draftTimerRef = useRef(null);
+
+    useEffect(() => {
+        // Only auto-save when dirty and profile is selected
+        if (!isDirty || !selectedProfileId || !isLoaded) return;
+
+        // Clear previous timer
+        if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+
+        draftTimerRef.current = setTimeout(() => {
+            saveDraft(selectedProfileId, configList, profileMeta, symbolCompareSettings);
+        }, 300);
+
+        return () => {
+            if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+        };
+    }, [isDirty, selectedProfileId, isLoaded, configList, profileMeta, symbolCompareSettings, saveDraft]);
+
     /**
      * Load all profiles and optionally find last used profile ID
      * Returns { profiles, autoSelectedId } for init() to handle state setting
@@ -332,6 +421,12 @@ export const useProfileConfig = ({
             // Set Symbol Compare settings
             // If null, initialize from Rank 0 for independent Symbol Compare tab settings
             let compareSettings = profile.symbol_compare_settings;
+            // Migration: unwrap legacy nested structure {config: {...}, selectedSymbols, results, ...}
+            if (compareSettings && compareSettings.config && !compareSettings.symbol && !compareSettings.interval) {
+                const { config: nestedConfig, ...rest } = compareSettings;
+                compareSettings = { ...nestedConfig, ...rest };
+                console.log('[useProfileConfig] Migrated legacy nested symbolCompareSettings to flat structure');
+            }
             if (!compareSettings && configs.length > 0) {
                 const rank0 = configs[0];
                 compareSettings = {
@@ -342,10 +437,21 @@ export const useProfileConfig = ({
                 };
                 console.log('[useProfileConfig] Initialized symbolCompareSettings from Rank 0');
             }
-            setSymbolCompareSettings(compareSettings || null);
             setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
 
-            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbolCompare:', !!compareSettings);
+            // Check for localStorage draft and apply if exists
+            const draft = loadDraft(profileId);
+            if (draft) {
+                console.log('[useProfileConfig] Found draft for profile, applying...');
+                if (draft.configList) setConfigList(draft.configList);
+                if (draft.profileMeta) setProfileMeta(draft.profileMeta);
+                if (draft.symbolCompareSettings !== undefined) setSymbolCompareSettings(draft.symbolCompareSettings);
+                // Original values stay as DB values → isDirty will be true
+            } else {
+                setSymbolCompareSettings(compareSettings || null);
+            }
+
+            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbolCompare:', !!compareSettings, 'hasDraft:', !!draft);
         } catch (e) {
             console.error('[useProfileConfig] Failed to load profile:', e);
             setError(e);
@@ -354,7 +460,7 @@ export const useProfileConfig = ({
                 setIsLoaded(true);
             }
         }
-    }, [transformProfileToConfigList]);
+    }, [transformProfileToConfigList, loadDraft]);
 
     /**
      * Create a new profile (for New Profile wizard)
@@ -519,6 +625,9 @@ export const useProfileConfig = ({
             setOriginalProfileMeta(JSON.parse(JSON.stringify(profileMeta)));
             setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
 
+            // Clear localStorage draft (no longer needed after DB save)
+            clearDraft(selectedProfileId || result?.data?.id);
+
             setSaveStatus('saved');
 
             // Refresh profiles list
@@ -535,7 +644,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [selectedProfileId, profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles]);
+    }, [selectedProfileId, profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles, clearDraft]);
 
     /**
      * Save as new profile (always creates new)
@@ -595,6 +704,9 @@ export const useProfileConfig = ({
             setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName, description: newDescription })));
             setOriginalSymbolCompareSettings(effectiveSymbolCompareSettings ? JSON.parse(JSON.stringify(effectiveSymbolCompareSettings)) : null);
 
+            // Clear draft for old profile, new profile starts clean
+            clearDraft(selectedProfileId);
+
             setSaveStatus('saved');
             await loadProfiles();
 
@@ -609,7 +721,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles]);
+    }, [profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles, selectedProfileId, clearDraft]);
 
     /**
      * Delete current profile
@@ -651,8 +763,10 @@ export const useProfileConfig = ({
         }
         // Restore Symbol Compare settings
         setSymbolCompareSettings(originalSymbolCompareSettings ? JSON.parse(JSON.stringify(originalSymbolCompareSettings)) : null);
+        // Clear localStorage draft
+        clearDraft(selectedProfileId);
         console.log('[useProfileConfig] Changes discarded');
-    }, [originalConfigList, originalProfileMeta, originalSymbolCompareSettings]);
+    }, [originalConfigList, originalProfileMeta, originalSymbolCompareSettings, selectedProfileId, clearDraft]);
 
     /**
      * Initialize on mount - load profiles and auto-select last used
@@ -691,6 +805,12 @@ export const useProfileConfig = ({
                     // Set Symbol Compare settings
                     // If null, initialize from Rank 0 for independent Symbol Compare tab settings
                     let compareSettings = profile.symbol_compare_settings;
+                    // Migration: unwrap legacy nested structure
+                    if (compareSettings && compareSettings.config && !compareSettings.symbol && !compareSettings.interval) {
+                        const { config: nestedConfig, ...rest } = compareSettings;
+                        compareSettings = { ...nestedConfig, ...rest };
+                        log('Migrated legacy nested symbolCompareSettings to flat structure');
+                    }
                     if (!compareSettings && configs.length > 0) {
                         const rank0 = configs[0];
                         compareSettings = {
@@ -702,18 +822,28 @@ export const useProfileConfig = ({
                         log('Initialized symbolCompareSettings from Rank 0');
                     }
 
-                    // Set all state together
+                    // Set original state from DB
                     setSelectedProfileId(result.autoSelectedId);
                     setSelectedProfile(profile);
-                    setConfigList(configs);
                     setOriginalConfigList(JSON.parse(JSON.stringify(configs)));
-                    setProfileMeta(meta);
                     setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
-                    setSymbolCompareSettings(compareSettings || null);
                     setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
+
+                    // Check for localStorage draft and apply if exists
+                    const draft = loadDraft(result.autoSelectedId);
+                    if (draft) {
+                        log('Found draft for auto-loaded profile, applying...');
+                        setConfigList(draft.configList || configs);
+                        setProfileMeta(draft.profileMeta || meta);
+                        setSymbolCompareSettings(draft.symbolCompareSettings !== undefined ? draft.symbolCompareSettings : (compareSettings || null));
+                    } else {
+                        setConfigList(configs);
+                        setProfileMeta(meta);
+                        setSymbolCompareSettings(compareSettings || null);
+                    }
                     setIsLoaded(true);
 
-                    log(`Auto-loaded: ${profile.name}, selectedProfileId=${result.autoSelectedId}, symbolCompare=${!!compareSettings}`, 'success');
+                    log(`Auto-loaded: ${profile.name}, selectedProfileId=${result.autoSelectedId}, symbolCompare=${!!compareSettings}, hasDraft=${!!draft}`, 'success');
                 } catch (e) {
                     log(`Failed to auto-load profile: ${e.message}`, 'error');
                     setIsLoaded(true);
@@ -729,7 +859,7 @@ export const useProfileConfig = ({
         return () => {
             isMountedRef.current = false;
         };
-    }, [log, loadProfiles, transformProfileToConfigList]); // Include stable deps
+    }, [log, loadProfiles, transformProfileToConfigList, loadDraft]); // Include stable deps
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // Backward Compatible Interface (matches useStrategyConfig)
@@ -771,6 +901,7 @@ export const useProfileConfig = ({
         saveProfileAs,
         deleteCurrentProfile,
         discardChanges,
+        clearDraft, // Clear localStorage draft for a profile
 
         // Profile Metadata
         profileMeta,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
@@ -48,21 +48,7 @@ import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, co
 
 // Constants imported from '../constants/strategies' (Single Source of Truth)
 
-// 공통 ApplyButton 컴포넌트 - 중앙 집중화된 Apply/Saved 버튼
-const ApplyButton = ({ onClick, disabled, feedback }) => (
-    <button
-        onClick={onClick}
-        disabled={disabled}
-        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-            feedback === 'saved'
-                ? 'bg-green-600/30 text-green-300 border border-green-500/30'
-                : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/30 disabled:bg-gray-700'
-        }`}
-    >
-        <Save size={14} />
-        {feedback === 'saved' ? 'Saved!' : 'Apply'}
-    </button>
-);
+// ApplyButton 컴포넌트 제거 — 탭별 Apply 제거, 헤더 Save로 통합
 
 // 공통 CopyPasteButtons 컴포넌트 - 중앙 집중화된 Copy/Paste 버튼
 const CopyPasteButtons = ({ onCopy, onPaste, feedback, hasCopied, sourceLabel }) => (
@@ -207,7 +193,7 @@ const StrategyView = () => {
     // Parameter Copy/Paste State
     const [copiedParams, setCopiedParams] = useState(null);
     const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
-    const [applyFeedback, setApplyFeedback] = useState(null); // 'saved' | null
+    // applyFeedback removed — 탭별 Apply 제거, 헤더 Save로 통합
 
     // Optimization Settings Copy/Paste State (separate from params)
     const [copiedOptSettings, setCopiedOptSettings] = useState(null);
@@ -414,6 +400,27 @@ const StrategyView = () => {
         }
         prevProfileIdRef.current = selectedProfileId;
     }, [selectedProfileId]);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Navigation Guards — 저장하지 않은 변경사항이 있을 때 페이지 이탈 방지
+    // ═══════════════════════════════════════════════════════════════════════════
+    const hasPendingChanges = useMemo(() =>
+        isProfileDirty || isDirty || isSymbolCompareDirty || !!pendingOptResult,
+        [isProfileDirty, isDirty, isSymbolCompareDirty, pendingOptResult]
+    );
+
+    // beforeunload (브라우저 닫기/새로고침 방지)
+    // Note: useBlocker는 createBrowserRouter에서만 지원되므로 beforeunload만 사용
+    useEffect(() => {
+        const handler = (e) => {
+            if (hasPendingChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [hasPendingChanges]);
 
     // Sync Symbol Compare state from profile's symbolCompareConfig
     useEffect(() => {
@@ -1266,72 +1273,65 @@ const StrategyView = () => {
         }
     };
 
-    // Manual Save & Backtest (Apply button handler)
-    const handleApplyConfig = async () => {
-        if (!selectedStrategy || !isConfigLoaded || configList.length === 0) return;
+    // Profile Save (header Save button handler) — DB 저장만, 자동 백테스트 없음
+    const handleProfileSave = async () => {
+        if (!selectedProfileId) {
+            openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
+            return;
+        }
 
         try {
-            // 프로필 중심 아키텍처: 프로필에 저장
-            if (!selectedProfileId) {
-                openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
-                return;
+            // 1. Merge Symbol Compare local state into symbolCompareConfig before save
+            if (symbolCompareConfig) {
+                setSymbolCompareConfig({
+                    ...symbolCompareConfig,
+                    selectedSymbols: selectedCompareSymbols,
+                    results: stockCompareResults,
+                });
             }
 
-            console.log("[Apply] Saving to profile:", selectedProfileId);
+            // 2. DB 저장
             await saveProfile();
-            console.log("[Apply] Profile saved successfully");
 
-            // 2. Save pending optimization results if exists
+            // 3. Save pending optimization results if exists
             if (pendingOptResult) {
                 await saveStrategyResult(pendingOptResult.tabUuid, 'optimization', pendingOptResult.data);
-                addLog('💾 Optimization results saved to DB', 'info');
+                addLog('Optimization results saved to DB', 'info');
                 setPendingOptResult(null);
             }
 
-            // Visual feedback (Saved!)
-            setApplyFeedback('saved');
-            setTimeout(() => setApplyFeedback(null), 2000);
-
-            // 3. Automatically trigger backtest
-            if (activeTab !== -1 && selectedStrategy?.id) {
-                await runBacktest(selectedStrategy.id);
-            }
-
-            // Clear dirty flag after successful save AND backtest
+            // 4. Clear dirty flags
             setIsDirty(false);
+            setIsSymbolCompareDirty(false);
+
+            addLog('Profile saved successfully', 'success');
         } catch (e) {
-            console.error("Failed to save configuration:", e);
-            openConfirm("❌ Save Failed", `설정 저장에 실패했습니다.\n\n${e.message || "다시 시도해주세요."}`, () => {}, true);
+            console.error("Failed to save profile:", e);
+            openConfirm("❌ Save Failed", `프로필 저장에 실패했습니다.\n\n${e.message || "다시 시도해주세요."}`, () => {}, true);
         }
     };
 
-    // Discard all changes (restore from profile)
-    const handleDiscardChanges = async () => {
+    // Discard all changes (restore from profile) — 모든 탭의 변경사항 폐기
+    const handleDiscardAll = () => {
         try {
-            // 프로필 중심 아키텍처: 프로필에서 원본 상태로 복원
-            discardChanges(); // useProfileConfig hook의 discardChanges 사용
-
-            // Discard pending optimization results
-            if (pendingOptResult) {
-                setPendingOptResult(null);
-            }
-
-            // Clear dirty flag
+            discardChanges(); // useProfileConfig hook (원본 복원 + localStorage draft 삭제)
+            setPendingOptResult(null);
             setIsDirty(false);
-            addLog('🔄 Changes discarded, reverted to saved state', 'info');
+            setIsSymbolCompareDirty(false);
+            addLog('Changes discarded, reverted to saved state', 'info');
         } catch (e) {
             console.error("Failed to discard changes:", e);
             addLog('Failed to discard changes', 'error');
         }
     };
 
-    // Tab Switch with Unsaved Changes Confirmation
+    // Tab Switch — draft가 자동 저장되므로 탭 전환 시 확인 불필요 (pendingOptResult만 체크)
     const handleTabSwitch = (newTabIndex) => {
-        // Check for pending optimization results first
+        // Check for pending optimization results (not saved to localStorage draft)
         if (pendingOptResult) {
             setPendingTabSwitch(newTabIndex);
             openConfirm(
-                "📊 Unsaved Optimization Results",
+                "Unsaved Optimization Results",
                 "You have unsaved optimization results.\n\nWould you like to save them before switching tabs?",
                 async () => {
                     // Save & Switch
@@ -1354,79 +1354,9 @@ const StrategyView = () => {
             return;
         }
 
-        // Determine if current tab has unsaved changes
-        const hasUnsavedChanges = activeTab === -3 ? isSymbolCompareDirty : isDirty;
-
-        // If no unsaved changes, switch immediately
-        if (!hasUnsavedChanges) {
-            setActiveTab(newTabIndex);
-            localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
-            return;
-        }
-
-        // If there are unsaved changes, show confirmation
-        setPendingTabSwitch(newTabIndex);
-
-        // Different save/discard logic based on current tab type
-        if (activeTab === -3) {
-            // Symbol Compare tab - use handleApplySymbolCompare / handleDiscardSymbolCompare
-            openConfirm(
-                "⚠️ Unsaved Changes",
-                "You have unsaved Symbol Compare changes.\n\nWhat would you like to do?",
-                async () => {
-                    // Save & Switch
-                    await handleApplySymbolCompare();
-                    setActiveTab(newTabIndex);
-                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
-                    setPendingTabSwitch(null);
-                },
-                false, // not danger
-                "Save & Switch",
-                "Discard & Switch",
-                async () => {
-                    // Discard & Switch
-                    await handleDiscardSymbolCompare();
-                    setActiveTab(newTabIndex);
-                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
-                    setPendingTabSwitch(null);
-                }
-            );
-        } else {
-            // Rank/Draft tabs - use profile save logic
-            openConfirm(
-                "⚠️ Unsaved Changes",
-                "You have unsaved configuration changes.\n\nWhat would you like to do?",
-                async () => {
-                    // Save & Switch (프로필 중심)
-                    try {
-                        if (selectedProfileId) {
-                            await saveProfile();
-                            console.log("Profile saved before tab switch");
-                        }
-                        setIsDirty(false);
-                        setActiveTab(newTabIndex);
-                        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
-                        setPendingTabSwitch(null);
-                    } catch (e) {
-                        console.error("Failed to save configuration:", e);
-                        openConfirm("❌ Save Failed", `설정 저장에 실패했습니다. 탭 전환이 취소되었습니다.\n\n${e.message || ""}`, () => {}, true);
-                        setPendingTabSwitch(null);
-                    }
-                },
-                false, // not danger
-                "Save & Switch",
-                "Discard & Switch",
-                () => {
-                    // Discard & Switch
-                    setIsDirty(false);
-                    setActiveTab(newTabIndex);
-                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
-                    setPendingTabSwitch(null);
-                    // Reload config from configList to discard changes
-                    // (changes are already in configList, so no action needed)
-                }
-            );
-        }
+        // No confirmation needed — changes auto-saved to localStorage draft
+        setActiveTab(newTabIndex);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
     };
 
     // Strategy Change with Unsaved Changes Confirmation
@@ -2683,56 +2613,7 @@ const StrategyView = () => {
         }
     };
 
-    // Apply Symbol Compare settings (save to profile)
-    const handleApplySymbolCompare = async () => {
-        try {
-            // Update Symbol Compare settings in profile state
-            // symbolCompareConfig은 이제 useProfileConfig에서 관리됨 (프로필별 저장)
-            const updatedSettings = {
-                selectedSymbols: selectedCompareSymbols,
-                results: stockCompareResults,
-                config: symbolCompareConfig,
-                optEnabled: symbolCompareConfig?.optEnabled || {},
-                optValues: symbolCompareConfig?.optValues || {}
-            };
-            setSymbolCompareConfig(updatedSettings);
-
-            // Save profile to persist Symbol Compare settings
-            await saveProfile();
-
-            setIsSymbolCompareDirty(false);
-
-            // Visual feedback
-            setApplyFeedback('saved');
-            setTimeout(() => setApplyFeedback(null), 2000);
-
-            addLog('Symbol Compare settings saved to profile', 'success');
-        } catch (e) {
-            console.error('Failed to save Symbol Compare settings:', e);
-            addLog('Failed to save Symbol Compare settings', 'error');
-        }
-    };
-
-    // Discard Symbol Compare changes (reload from profile)
-    const handleDiscardSymbolCompare = async () => {
-        try {
-            // Reload profile to get original Symbol Compare settings
-            if (selectedProfileId) {
-                await selectProfile(selectedProfileId);
-                addLog('Symbol Compare settings restored from profile', 'info');
-            } else {
-                // No profile selected, just clear
-                setSelectedCompareSymbols([]);
-                setStockCompareResults([]);
-                setSymbolCompareConfig(null);
-                addLog('Symbol Compare settings cleared (no profile)', 'info');
-            }
-            setIsSymbolCompareDirty(false);
-        } catch (e) {
-            console.error('Failed to restore Symbol Compare settings:', e);
-            addLog('Failed to restore Symbol Compare settings', 'error');
-        }
-    };
+    // (handleApplySymbolCompare / handleDiscardSymbolCompare removed — 헤더 Save/Discard로 통합)
 
     return (
         <div className="flex flex-col gap-6 pb-10">
@@ -2797,35 +2678,34 @@ const StrategyView = () => {
                                         return;
                                     }
 
-                                    // Check for unsaved changes
-                                    if (isProfileDirty || isDirty) {
+                                    // Check for unsaved changes (all dirty states)
+                                    const hasPendingChanges = isProfileDirty || isDirty || isSymbolCompareDirty || !!pendingOptResult;
+                                    if (hasPendingChanges) {
                                         openConfirm(
                                             '저장하지 않은 변경사항',
                                             '현재 프로필에 저장하지 않은 변경사항이 있습니다. 저장하시겠습니까?',
                                             async () => {
                                                 // Save then switch
-                                                await saveProfile();
+                                                await handleProfileSave();
                                                 await selectProfile(newProfileId);
-                                                // Find and set the strategy
                                                 const profile = profiles.find(p => p.id === newProfileId);
                                                 if (profile) {
                                                     const strat = strategies.find(s => s.id === profile.strategy_name);
                                                     setSelectedStrategy(strat);
                                                 }
-                                                setIsDirty(false);
                                             },
                                             false,
                                             'Save',
                                             'Discard',
                                             async () => {
                                                 // Discard and switch
+                                                handleDiscardAll();
                                                 await selectProfile(newProfileId);
                                                 const profile = profiles.find(p => p.id === newProfileId);
                                                 if (profile) {
                                                     const strat = strategies.find(s => s.id === profile.strategy_name);
                                                     setSelectedStrategy(strat);
                                                 }
-                                                setIsDirty(false);
                                             }
                                         );
                                     } else {
@@ -2874,34 +2754,38 @@ const StrategyView = () => {
                         )}
                     </div>
 
-                    {/* Row 3: Save/Discard Buttons (when dirty) */}
-                    {(isProfileDirty || isDirty) && selectedProfileId && (
-                        <div className="flex items-center gap-3 pt-2 border-t border-yellow-500/30 mt-1">
-                            <div className="flex-1 text-yellow-400 text-xs flex items-center gap-2">
-                                <span className="animate-pulse">●</span>
-                                변경사항이 있습니다
+                    {/* Row 3: Save/Discard Buttons (always visible when profile selected) */}
+                    {selectedProfileId && (
+                        <div className={`flex items-center gap-3 pt-2 border-t mt-1 ${
+                            (isProfileDirty || isDirty || isSymbolCompareDirty || pendingOptResult)
+                                ? 'border-yellow-500/30'
+                                : 'border-white/10'
+                        }`}>
+                            {/* 변경 상태 표시 */}
+                            <div className="flex-1 text-xs flex items-center gap-2">
+                                {(isProfileDirty || isDirty || isSymbolCompareDirty || pendingOptResult) ? (
+                                    <span className="text-yellow-400 flex items-center gap-2">
+                                        <span className="animate-pulse">●</span>
+                                        변경사항이 있습니다
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-500 flex items-center gap-1">
+                                        <Check size={12} /> 저장됨
+                                    </span>
+                                )}
                             </div>
                             <button
-                                onClick={() => {
-                                    discardChanges();
-                                    setIsDirty(false);
-                                }}
-                                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                                onClick={handleDiscardAll}
+                                disabled={!(isProfileDirty || isDirty || isSymbolCompareDirty || pendingOptResult)}
+                                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 <X size={14} />
                                 Discard
                             </button>
                             <button
-                                onClick={async () => {
-                                    try {
-                                        await saveProfile();
-                                        setIsDirty(false);
-                                    } catch (e) {
-                                        console.error('Failed to save profile:', e);
-                                    }
-                                }}
-                                disabled={saveStatus === 'saving'}
-                                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-50 flex items-center gap-1.5"
+                                onClick={handleProfileSave}
+                                disabled={!(isProfileDirty || isDirty || isSymbolCompareDirty || pendingOptResult) || saveStatus === 'saving'}
+                                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
                             >
                                 {saveStatus === 'saving' ? (
                                     <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
@@ -3456,39 +3340,7 @@ const StrategyView = () => {
                                                             <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
                                                         )}
                                                     </button>
-                                                    <button
-                                                        onClick={async () => {
-                                                            const activeConfigs = configList.filter(c => c.is_active);
-                                                            if (activeConfigs.length === 0) {
-                                                                openConfirm('No Active Ranks', 'Please activate at least one rank before saving.', () => {}, false, 'OK');
-                                                                return;
-                                                            }
-
-                                                            // If profile already has a name, save directly
-                                                            if (selectedProfileId && profileMeta.name) {
-                                                                try {
-                                                                    await saveProfile();
-                                                                    setIsDirty(false);
-                                                                    openConfirm('Saved', `Profile "${profileMeta.name}" has been saved.`, () => {}, false, 'OK');
-                                                                } catch (e) {
-                                                                    console.error('Failed to save profile:', e);
-                                                                }
-                                                            } else {
-                                                                // New profile - prompt for name
-                                                                setSaveAsName(profileMeta.name || '');
-                                                                setSaveAsDescription(profileMeta.description || '');
-                                                                setIsSaveAsModalOpen(true);
-                                                            }
-                                                        }}
-                                                        disabled={isLoading || saveStatus === 'saving'}
-                                                        className="px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
-                                                    >
-                                                        {saveStatus === 'saving' ? (
-                                                            <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</>
-                                                        ) : (
-                                                            <><Save size={20} /> {selectedProfileId ? 'Save Profile' : 'Save As New Profile'}</>
-                                                        )}
-                                                    </button>
+                                                    {/* Save Profile 버튼 제거 — 헤더 Save로 통합 */}
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-3">
                                                     {profileMeta.execution_mode === 'exclusive'
@@ -3645,48 +3497,9 @@ const StrategyView = () => {
                                             <Crosshair size={14} className="text-gray-400" /> Configuration
                                         </h3>
                                         <div className="flex items-center gap-4">
-                                            {/* Apply/Discard - Only for Rank tabs */}
-                                            {activeTab >= 0 && (
-                                                <div className="flex items-center gap-2">
-                                                    <ApplyButton
-                                                        onClick={handleApplyConfig}
-                                                        disabled={isLoading || !selectedStrategy}
-                                                        feedback={applyFeedback}
-                                                    />
-                                                    {(isDirty || pendingOptResult) && (
-                                                        <button
-                                                            onClick={handleDiscardChanges}
-                                                            disabled={isLoading}
-                                                            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                            Discard
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {/* Apply/Discard/Reset - Only for Symbol Compare */}
+                                            {/* Reset to Rank 1 + Mode label - Only for Symbol Compare */}
                                             {activeTab === -3 && (
                                                 <div className="flex items-center gap-2">
-                                                    <ApplyButton
-                                                        onClick={handleApplySymbolCompare}
-                                                        disabled={isStockComparing}
-                                                        feedback={applyFeedback}
-                                                    />
-                                                    {isSymbolCompareDirty && (
-                                                        <button
-                                                            onClick={handleDiscardSymbolCompare}
-                                                            disabled={isStockComparing}
-                                                            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                            Discard
-                                                        </button>
-                                                    )}
                                                     <button
                                                         onClick={() => {
                                                             if (configList[0]) {

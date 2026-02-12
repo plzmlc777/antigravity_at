@@ -187,4 +187,5 @@ export const STORAGE_KEYS = {
     ACTIVE_TAB: 'strategyViewActiveTab',
     HEAVY_OPT_TASK_ID: 'heavyOptTaskId',
     LAST_STRATEGY_ID: 'lastStrategyId',
+    DRAFT_PREFIX: 'strategy_draft_',
 };
