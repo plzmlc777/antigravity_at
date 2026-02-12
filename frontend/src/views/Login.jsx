@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,12 +8,23 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(true);
     const [error, setError] = useState('');
+    const [sessionKickMessage, setSessionKickMessage] = useState('');
     const { login, register } = useAuth();
     const navigate = useNavigate();
+
+    // Check if redirected due to session kick
+    useEffect(() => {
+        const reason = sessionStorage.getItem('logout_reason');
+        if (reason === 'session_kicked') {
+            setSessionKickMessage('다른 기기에서 로그인하여 현재 세션이 종료되었습니다.');
+            sessionStorage.removeItem('logout_reason');
+        }
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setSessionKickMessage('');
 
         let result;
         if (isLogin) {
@@ -41,6 +52,12 @@ const Login = () => {
                 <h2 className="text-2xl font-bold mb-6 text-center bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
                     {isLogin ? 'Welcome Back' : 'Create Account'}
                 </h2>
+
+                {sessionKickMessage && (
+                    <div className="mb-4 p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
+                        {sessionKickMessage}
+                    </div>
+                )}
 
                 {error && (
                     <div className="mb-4 p-3 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-sm">

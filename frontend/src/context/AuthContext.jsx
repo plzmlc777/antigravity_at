@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { setAuthToken, setupInterceptors } from '../api/client';
+import { setAuthToken, setupInterceptors, resetRedirectFlag } from '../api/client';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
@@ -25,10 +25,9 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, [token]);
 
-    // Setup Axios Interceptor for 401s - auto logout on token expiration
+    // Setup Axios Interceptor for 401s - auto logout on token expiration or session kick
     useEffect(() => {
-        setupInterceptors(() => {
-            // JWT 만료 시 자동 로그아웃 → 로그인 페이지로 이동
+        setupInterceptors((reason) => {
             localStorage.removeItem('token');
             localStorage.removeItem('is_admin');
             localStorage.removeItem('user_email');
@@ -37,6 +36,9 @@ export const AuthProvider = ({ children }) => {
             sessionStorage.removeItem('is_admin');
             sessionStorage.removeItem('user_email');
             sessionStorage.removeItem('has_active_account');
+            if (reason === 'session_kicked') {
+                sessionStorage.setItem('logout_reason', 'session_kicked');
+            }
             window.location.href = '/login';
         });
     }, []);
@@ -75,6 +77,7 @@ export const AuthProvider = ({ children }) => {
                 localStorage.removeItem('has_active_account');
             }
 
+            resetRedirectFlag();
             setToken(access_token);
             setUser({ email, is_admin });
             return { success: true, has_active_account };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getBalance, getStatus, getPrice } from '../api/client';
 import { useAuth } from './AuthContext';
 
@@ -12,6 +12,22 @@ const MarketDataContext = createContext({
     error: null,
     refresh: () => { }
 });
+
+// Direct 401 check — forces logout when session is kicked
+const check401AndKick = (err) => {
+    if (err?.response?.status === 401) {
+        const detail = err.response.data?.detail || '';
+        const isSessionKick = detail.includes('logged in from another device');
+        if (isSessionKick) {
+            sessionStorage.setItem('logout_reason', 'session_kicked');
+        }
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        window.location.href = '/login';
+        return true;
+    }
+    return false;
+};
 
 export const MarketDataProvider = ({ children }) => {
     const { token } = useAuth();
@@ -34,10 +50,12 @@ export const MarketDataProvider = ({ children }) => {
             // Parallel Fetch with individual error handling
             const [balance, status] = await Promise.all([
                 getBalance().catch(err => {
+                    if (check401AndKick(err)) return null;
                     console.error("Balance fetch error:", err);
                     return { cash: { KRW: 0 }, holdings: {} };
                 }),
                 getStatus().catch(err => {
+                    if (check401AndKick(err)) return null;
                     console.error("Status fetch error:", err);
                     return { exchange: 'Error', status: 'offline', mode: 'UNKNOWN' };
                 })

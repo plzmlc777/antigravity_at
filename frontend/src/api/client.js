@@ -11,6 +11,10 @@ const api = axios.create({
     timeout: 5000,
 });
 
+// Single-use flag to prevent multiple 401 redirects
+let _isRedirecting = false;
+export const resetRedirectFlag = () => { _isRedirecting = false; };
+
 // Request Interceptor
 api.interceptors.request.use((config) => {
     const logId = Date.now();
@@ -31,7 +35,7 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// Response Interceptor
+// Response Interceptor (includes 401 session kick detection)
 api.interceptors.response.use(
     (response) => {
         const { logId, startTime } = response.config.metadata || {};
@@ -64,7 +68,22 @@ api.interceptors.response.use(
             isError: true
         });
 
-        console.error(`[API Error]`, error);
+        // 401 session enforcement — redirect once, skip auth endpoints
+        if (response?.status === 401 && !_isRedirecting) {
+            const url = config?.url || '';
+            if (!url.includes('/auth/')) {
+                _isRedirecting = true;
+                const detail = response.data?.detail || '';
+                const isSessionKick = detail.includes('logged in from another device');
+                if (isSessionKick) {
+                    sessionStorage.setItem('logout_reason', 'session_kicked');
+                }
+                localStorage.removeItem('token');
+                sessionStorage.removeItem('token');
+                window.location.href = '/login';
+            }
+        }
+
         return Promise.reject(error);
     }
 );
@@ -149,11 +168,16 @@ export const cancelConditionalOrder = async (id) => {
 };
 
 export const setupInterceptors = (onUnauth) => {
+    // Legacy interceptor kept for backward compatibility
+    // Primary 401 handling is now in the main response interceptor above
     api.interceptors.response.use(
         (response) => response,
         (error) => {
-            if (error.response && error.response.status === 401) {
-                if (onUnauth) onUnauth();
+            if (error.response && error.response.status === 401 && !_isRedirecting) {
+                _isRedirecting = true;
+                const detail = error.response.data?.detail || '';
+                const isSessionKick = detail.includes('logged in from another device');
+                if (onUnauth) onUnauth(isSessionKick ? 'session_kicked' : 'expired');
             }
             return Promise.reject(error);
         }

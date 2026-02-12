@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -36,20 +37,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     try:
         payload = security.jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
-        print(f"DEBUG: Token decoded. Subject/Email: {email}") # DEBUG
+        token_session_id: str = payload.get("sid")
         if email is None:
-            print("DEBUG: Email is None in token") # DEBUG
             raise credentials_exception
-    except security.jwt.JWTError as e:
-        print(f"DEBUG: JWT Error: {e}") # DEBUG
+    except security.jwt.JWTError:
         raise credentials_exception
-    
-    print(f"DEBUG: Querying user for email: {email}") # DEBUG
+
     user = db.query(User).filter(User.email == email).first()
     if user is None:
-        print("DEBUG: User not found in DB") # DEBUG
         raise credentials_exception
-    print(f"DEBUG: User found: {user.email}") # DEBUG
+
+    # Single session enforcement: reject if session_id doesn't match
+    # If DB has active_session_id set, token MUST have matching sid (legacy tokens without sid are also rejected)
+    if user.active_session_id and token_session_id != user.active_session_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired: logged in from another device",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 async def get_current_active_admin(current_user: User = Depends(get_current_user)):
@@ -67,12 +73,13 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = security.get_password_hash(user_in.password)
-    new_user = User(email=user_in.email, hashed_password=hashed_password)
+    session_id = str(uuid.uuid4())
+    new_user = User(email=user_in.email, hashed_password=hashed_password, active_session_id=session_id)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
-    access_token = security.create_access_token(subject=new_user.email)
+
+    access_token = security.create_access_token(subject=new_user.email, session_id=session_id)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/token", response_model=Token)
@@ -89,7 +96,12 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Ses
         ExchangeAccount.is_active == True
     ).first()
 
-    access_token = security.create_access_token(subject=user.email)
+    # Generate new session_id and invalidate previous session
+    session_id = str(uuid.uuid4())
+    user.active_session_id = session_id
+    db.commit()
+
+    access_token = security.create_access_token(subject=user.email, session_id=session_id)
     return {
         "access_token": access_token,
         "token_type": "bearer",
