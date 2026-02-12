@@ -726,7 +726,7 @@ async def get_trade_history_integrated(
                  detail=f"No 1m Market Data found for symbol {sym}. Please ensure data is collected."
              )
              
-        multi_ohlcv[sym] = candles
+        multi_ohlcv_data[sym] = candles
 
     # 4. Get Rank 1 Start Date for Timeline Anchoring
     rank1_start_date = None
@@ -745,8 +745,8 @@ async def get_trade_history_integrated(
                     if isinstance(first_val, dict):
                         rank1_symbol = first_val.get('symbol')
 
-            if rank1_symbol and rank1_symbol in multi_ohlcv:
-                candles = multi_ohlcv[rank1_symbol]
+            if rank1_symbol and rank1_symbol in multi_ohlcv_data:
+                candles = multi_ohlcv_data[rank1_symbol]
                 # candles should be list of dicts
                 if isinstance(candles, list) and len(candles) > 0:
                     rank1_start_date = candles[0].get('timestamp')
@@ -759,7 +759,7 @@ async def get_trade_history_integrated(
 
     return {
         "trades": trades_data,
-        "multi_ohlcv_data": multi_ohlcv,
+        "multi_ohlcv_data": multi_ohlcv_data,
         "strategies_config": strategies_config,
         "strategy_id": "live_integrated_view",
         "total_trades": len(trades_data),
