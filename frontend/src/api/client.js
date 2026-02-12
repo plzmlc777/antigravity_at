@@ -69,6 +69,9 @@ api.interceptors.response.use(
     }
 );
 
+// Export api instance for use in specialized API modules (e.g., api/strategies.js)
+export { api };
+
 export const getStatus = async () => {
     const { data } = await api.get('/status');
     return data;

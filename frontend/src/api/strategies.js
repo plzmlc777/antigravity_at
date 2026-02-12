@@ -1,0 +1,149 @@
+/**
+ * Strategy API Functions
+ *
+ * Centralized API calls for Strategies page.
+ * Uses the shared `api` axios instance from client.js
+ * (includes interceptors for logging, auth, error handling).
+ *
+ * Long-running operations override the default 5s timeout.
+ */
+
+import { api } from './client';
+
+// Timeout for long-running operations (5 minutes)
+const LONG_TIMEOUT = 300000;
+
+// ==========================================
+// Backtest
+// ==========================================
+
+/**
+ * Run a single-symbol backtest
+ */
+export const runBacktest = async (strategyId, payload) => {
+    const { data } = await api.post(`/strategies/${strategyId}/backtest`, payload, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+/**
+ * Run integrated portfolio backtest (multi-rank)
+ */
+export const runIntegratedBacktestApi = async (payload) => {
+    const { data } = await api.post('/strategies/integrated-backtest', payload, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+// ==========================================
+// Optimization (Regular)
+// ==========================================
+
+/**
+ * Start optimization task
+ */
+export const startOptimization = async (strategyId, payload) => {
+    const { data } = await api.post(`/strategies/${strategyId}/optimize`, payload, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+/**
+ * Poll optimization status
+ */
+export const getOptimizationStatus = async (taskId) => {
+    const { data } = await api.get(`/strategies/optimize/status/${taskId}`);
+    return data;
+};
+
+/**
+ * Download full optimization results as CSV blob
+ */
+export const downloadOptimizationCSV = async (taskId) => {
+    const response = await api.get(`/strategies/optimize/download/${taskId}`, {
+        responseType: 'blob',
+        timeout: LONG_TIMEOUT
+    });
+    return response.data; // Returns Blob
+};
+
+/**
+ * Cancel a running optimization
+ */
+export const cancelOptimization = async (taskId) => {
+    const { data } = await api.post(`/strategies/optimize/cancel/${taskId}`);
+    return data;
+};
+
+// ==========================================
+// Heavy Optimization (Large-scale)
+// ==========================================
+
+/**
+ * Start heavy optimization task
+ */
+export const startHeavyOptimization = async (strategyId, payload) => {
+    const { data } = await api.post(`/strategies/heavy-optimize/${strategyId}`, payload, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+/**
+ * Poll heavy optimization status
+ */
+export const getHeavyOptimizationStatus = async (taskId) => {
+    const { data } = await api.get(`/strategies/heavy-optimize/status/${taskId}`);
+    return data;
+};
+
+/**
+ * Cancel a running heavy optimization
+ */
+export const cancelHeavyOptimization = async (taskId) => {
+    const { data } = await api.post(`/strategies/heavy-optimize/cancel/${taskId}`);
+    return data;
+};
+
+// ==========================================
+// Market Data
+// ==========================================
+
+/**
+ * Fetch symbol info (name, etc.)
+ */
+export const getSymbolInfo = async (symbol) => {
+    const { data } = await api.get(`/market-data/info/${symbol}`);
+    return data;
+};
+
+/**
+ * Fetch/update market data for a symbol
+ */
+export const fetchMarketDataForSymbol = async (symbol, params = {}) => {
+    const { data } = await api.post(`/market-data/fetch/${symbol}`, params, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+// ==========================================
+// AI Analysis
+// ==========================================
+
+/**
+ * Fetch available AI models
+ */
+export const getAiModels = async () => {
+    const { data } = await api.get('/accounts/ai-models');
+    return data;
+};
+
+/**
+ * Get AI key status (default model, etc.)
+ */
+export const getAiKeyStatus = async () => {
+    const { data } = await api.get('/accounts/ai-key/status');
+    return data;
+};
+
+/**
+ * Run AI analysis on optimization CSV
+ */
+export const runAiAnalysis = async (payload) => {
+    const { data } = await api.post('/ai/analyze', payload, { timeout: LONG_TIMEOUT });
+    return data;
+};

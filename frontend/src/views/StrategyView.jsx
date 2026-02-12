@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, recalculateOptimizationScores } from '../api/client';
+import { saveStrategyResult, getStrategyResults, getMarketDataStatus, recalculateOptimizationScores } from '../api/client';
+import {
+    runBacktest as apiRunBacktest,
+    runIntegratedBacktestApi,
+    startOptimization, getOptimizationStatus, downloadOptimizationCSV,
+    cancelOptimization as apiCancelOptimization,
+    startHeavyOptimization as apiStartHeavyOpt, getHeavyOptimizationStatus, cancelHeavyOptimization,
+    getSymbolInfo, fetchMarketDataForSymbol,
+    getAiModels as apiGetAiModels, getAiKeyStatus, runAiAnalysis as apiRunAiAnalysis,
+} from '../api/strategies';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
 import { useMarketData } from '../context/MarketDataContext';
@@ -911,11 +919,11 @@ const StrategyView = () => {
                     }
 
                     try {
-                        const res = await axios.get(`/api/v1/market-data/info/${sym.code}`);
-                        if (res.data.name && res.data.name !== sym.code) {
+                        const infoData = await getSymbolInfo(sym.code);
+                        if (infoData.name && infoData.name !== sym.code) {
                             // 종목명 업데이트
                             setSavedSymbols(prev => prev.map(s =>
-                                s.code === sym.code ? { ...s, name: res.data.name } : s
+                                s.code === sym.code ? { ...s, name: infoData.name } : s
                             ));
                         }
                         fetchedCount++;
@@ -1325,11 +1333,11 @@ const StrategyView = () => {
         const target = savedSymbols.find(s => s.code === currentSymbol);
         // Fetch if name is missing OR name equals code (invalid cached data)
         if (target && (!target.name || target.name === target.code)) {
-            axios.get(`/api/v1/market-data/info/${currentSymbol}`)
-                .then(res => {
-                    if (res.data.name && res.data.name !== currentSymbol) {
+            getSymbolInfo(currentSymbol)
+                .then(infoData => {
+                    if (infoData.name && infoData.name !== currentSymbol) {
                         setSavedSymbols(prev => prev.map(s =>
-                            s.code === currentSymbol ? { ...s, name: res.data.name } : s
+                            s.code === currentSymbol ? { ...s, name: infoData.name } : s
                         ));
                     }
                 })
@@ -1376,13 +1384,13 @@ const StrategyView = () => {
 
             setBacktestStatus({ status: 'running', message: `Running Backtest on ${activeConfig.symbol || currentSymbol}...` });
 
-            const res = await axios.post(`/api/v1/strategies/${strategyId}/backtest`, payload);
-            setBacktestResult(res.data);
+            const backtestData = await apiRunBacktest(strategyId, payload);
+            setBacktestResult(backtestData);
             setBacktestStatus({ status: 'success', message: 'Backtest Completed' });
 
             // Persistence
             if (activeConfig.uuid) {
-                saveStrategyResult(activeConfig.uuid, 'backtest', res.data).catch(err => console.error("Failed to save backtest result", err));
+                saveStrategyResult(activeConfig.uuid, 'backtest', backtestData).catch(err => console.error("Failed to save backtest result", err));
             }
 
         } catch (e) {
@@ -1832,11 +1840,9 @@ const StrategyView = () => {
         }
 
         try {
-            const response = await axios.get(`/api/v1/strategies/optimize/download/${completedOptTaskId}`, {
-                responseType: 'blob'
-            });
+            const csvBlob = await downloadOptimizationCSV(completedOptTaskId);
 
-            const blob = new Blob([response.data], { type: 'text/csv' });
+            const blob = new Blob([csvBlob], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -1877,7 +1883,7 @@ const StrategyView = () => {
         if (!taskId) return;
         setIsCancelling(true);
         try {
-            await axios.post(`/api/v1/strategies/optimize/cancel/${taskId}`);
+            await apiCancelOptimization(taskId);
             // UI update handled by polling
         } catch (e) {
             console.error("Cancellation failed", e);
@@ -1967,7 +1973,7 @@ const StrategyView = () => {
                     message: `Updating data (${i + 1}/${symbols.length}): ${sym}...`
                 });
                 try {
-                    await axios.post(`/api/v1/market-data/fetch/${sym}`, {
+                    await fetchMarketDataForSymbol(sym, {
                         interval: activeConfig?.interval || "1m",
                         days: activeConfig?.days || 365
                     });
@@ -2023,13 +2029,13 @@ const StrategyView = () => {
             const paramCombos = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
             addLog(`  - Total: ${symbols.length} × ${paramCombos} = ${symbols.length * paramCombos} combinations`, 'info');
 
-            const response = await axios.post(`/api/v1/strategies/heavy-optimize/${selectedStrategy.id}`, payload);
+            const heavyOptData = await apiStartHeavyOpt(selectedStrategy.id, payload);
 
-            if (response.data.task_id) {
-                const taskId = response.data.task_id;
+            if (heavyOptData.task_id) {
+                const taskId = heavyOptData.task_id;
                 setHeavyOptTaskId(taskId);
                 localStorage.setItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID, taskId);
-                addLog(`Optimization started: ${response.data.total_combinations} combinations`, 'info');
+                addLog(`Optimization started: ${heavyOptData.total_combinations} combinations`, 'info');
 
                 // Start polling
                 pollHeavyOptStatus(taskId);
@@ -2049,8 +2055,7 @@ const StrategyView = () => {
             await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
 
             try {
-                const res = await axios.get(`/api/v1/strategies/heavy-optimize/status/${taskId}`);
-                const data = res.data;
+                const data = await getHeavyOptimizationStatus(taskId);
 
                 setHeavyOptStatus(data);
 
@@ -2141,11 +2146,11 @@ const StrategyView = () => {
         }
     };
 
-    const cancelHeavyOptimization = async () => {
+    const handleCancelHeavyOpt = async () => {
         if (!heavyOptTaskId) return;
 
         try {
-            await axios.post(`/api/v1/strategies/heavy-optimize/cancel/${heavyOptTaskId}`);
+            await cancelHeavyOptimization(heavyOptTaskId);
             addLog('Optimization cancellation requested.', 'info');
         } catch (e) {
             console.error("Heavy opt cancellation failed", e);
@@ -2168,11 +2173,11 @@ const StrategyView = () => {
     // Fetch AI models for model selection
     const fetchAiModels = async () => {
         try {
-            const response = await axios.get('/api/v1/accounts/ai-models');
-            setAiModels(response.data.models || []);
+            const modelsData = await apiGetAiModels();
+            setAiModels(modelsData.models || []);
             // Also fetch user's default model
-            const statusRes = await axios.get('/api/v1/accounts/ai-key/status');
-            setSelectedAiModel(statusRes.data.ai_model || response.data.default || '');
+            const statusData = await getAiKeyStatus();
+            setSelectedAiModel(statusData.ai_model || modelsData.default || '');
         } catch (err) {
             console.error('Failed to fetch AI models:', err);
         }
@@ -2197,16 +2202,16 @@ const StrategyView = () => {
         addLog(`Starting AI analysis with ${modelName}...`, 'info');
 
         try {
-            const response = await axios.post('/api/v1/ai/analyze', {
+            const analysisData = await apiRunAiAnalysis({
                 csv_filename: heavyOptStatus.csv_file,
                 strategy_id: 'DipMartingaleStrategy',
                 user_question: null,
                 model: modelToUse || undefined
             });
 
-            setAiAnalysisResult(response.data);
+            setAiAnalysisResult(analysisData);
             setShowAiAnalysisModal(true);
-            addLog(`AI analysis completed: ${response.data.total_rows?.toLocaleString()} rows analyzed`, 'success');
+            addLog(`AI analysis completed: ${analysisData.total_rows?.toLocaleString()} rows analyzed`, 'success');
         } catch (err) {
             console.error('AI analysis error:', err);
             const msg = err.response?.data?.detail || err.message;
@@ -2227,16 +2232,14 @@ const StrategyView = () => {
         const savedTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
         if (savedTaskId) {
             // Check if task is still running
-            axios.get(`/api/v1/strategies/heavy-optimize/status/${savedTaskId}`)
-                .then(res => {
+            getHeavyOptimizationStatus(savedTaskId)
+                .then(data => {
                     // Verify localStorage still has this task (not cleared by profile change)
                     const currentTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
                     if (currentTaskId !== savedTaskId) {
                         console.log('[StrategyView] Task ID changed during fetch, ignoring result');
                         return;
                     }
-
-                    const data = res.data;
                     setHeavyOptStatus(data);
                     setHeavyOptTaskId(savedTaskId);
 
@@ -2340,7 +2343,7 @@ const StrategyView = () => {
                     const sym = selectedCompareSymbols[i];
                     setOptStatusMessage(`Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`);
                     try {
-                        await axios.post(`/api/v1/market-data/fetch/${sym}`, { interval: "1m", days: 365 });
+                        await fetchMarketDataForSymbol(sym, { interval: "1m", days: 365 });
                     } catch (err) {
                         console.warn(`Failed to update data for ${sym}`, err);
                         addLog(`${sym}: data update failed`, 'warning');
@@ -2395,14 +2398,12 @@ const StrategyView = () => {
                 save_to_tab_id: saveTabId  // Server-side auto-save on completion
             };
 
-            const url = `/api/v1/strategies/${selectedStrategy.id}/optimize`;
-
             // 1. Start Optimization (Async)
-            const response = await axios.post(url, payload);
+            const optStartData = await startOptimization(selectedStrategy.id, payload);
 
-            if (response.data.task_id) {
-                const taskId = response.data.task_id;
-                const totalCombos = response.data.total_combinations;
+            if (optStartData.task_id) {
+                const taskId = optStartData.task_id;
+                const totalCombos = optStartData.total_combinations;
                 setOptProgress({ current: 0, total: totalCombos });
 
                 // 2. Poll for Status
@@ -2417,8 +2418,7 @@ const StrategyView = () => {
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
 
                     try {
-                        const statusRes = await axios.get(`/api/v1/strategies/optimize/status/${taskId}`);
-                        const statusData = statusRes.data;
+                        const statusData = await getOptimizationStatus(taskId);
 
                         setOptProgress({
                             current: statusData.progress_current,
@@ -2618,13 +2618,11 @@ const StrategyView = () => {
             // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
             // backfill=true: Fetch full 2-year history even if partial data exists
             // backfill=false: Incremental update, stops when hitting existing data
-            const res = await axios.post(`/api/v1/market-data/fetch/${symbolToFetch}`, {
+            const data = await fetchMarketDataForSymbol(symbolToFetch, {
                 interval: "1m",
                 days: 365, // Max 1 year (API limit)
                 backfill: backfill
             });
-
-            const data = res.data;
             const added = data.added;
             setFetchMessage(null);
 
@@ -2657,11 +2655,11 @@ const StrategyView = () => {
                 setFetchMessage(`Updating Rank ${i + 1} (${cfg.symbol})...`);
                 try {
                     // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
-                    const res = await axios.post(`/api/v1/market-data/fetch/${cfg.symbol}`, {
+                    const fetchResult = await fetchMarketDataForSymbol(cfg.symbol, {
                         interval: "1m",
                         days: 365 // Max 1 year (API limit)
                     });
-                    totalAdded += (res.data.added || 0);
+                    totalAdded += (fetchResult.added || 0);
                     updatedCount++;
                 } catch (err) {
                     console.error(`Failed to update Rank ${i + 1}`, err);
@@ -2710,11 +2708,11 @@ const StrategyView = () => {
                 const symbol = selectedCompareSymbols[i];
                 setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
                 try {
-                    const res = await axios.post(`/api/v1/market-data/fetch/${symbol}`, {
+                    const fetchRes = await fetchMarketDataForSymbol(symbol, {
                         interval: "1m",
                         days: 365
                     });
-                    const added = res.data?.added || 0;
+                    const added = fetchRes?.added || 0;
                     totalDataAdded += added;
                     if (added > 0) {
                         addLog(`${symbol}: +${added} candles updated`, 'info');
@@ -2750,12 +2748,7 @@ const StrategyView = () => {
                         }
                     };
 
-                    const response = await axios.post(
-                        `/api/v1/strategies/${selectedStrategy.id}/backtest`,
-                        payload
-                    );
-
-                    const data = response.data;
+                    const data = await apiRunBacktest(selectedStrategy.id, payload);
                     const ret = parseFloat(String(data.total_return || 0).replace('%', '').replace(',', ''));
                     const wr = parseFloat(String(data.win_rate || 0).replace('%', ''));
                     const score = ret * (wr / 100);
@@ -3610,7 +3603,7 @@ const StrategyView = () => {
                                                                     ? rank1Capital * activeConfigs.length  // Parallel: Rank1 capital × number of active ranks
                                                                     : rank1Capital;                         // Exclusive: Just Rank1 capital
 
-                                                                const result = await axios.post('/api/v1/strategies/integrated-backtest', {
+                                                                const integratedData = await runIntegratedBacktestApi({
                                                                     configs: validConfigs,
                                                                     symbol: currentSymbol || "KRW-BTC", // Use global or default
                                                                     interval: leaderConfig?.interval || "1m", // Use selected interval
@@ -3621,14 +3614,14 @@ const StrategyView = () => {
                                                                 });
 
                                                                 // Update Result State and Store for Visualization
-                                                                setBacktestResult(result.data);
-                                                                setIntegratedResults(result.data); // Store full result for visualization
+                                                                setBacktestResult(integratedData);
+                                                                setIntegratedResults(integratedData); // Store full result for visualization
                                                                 setBacktestStatus({ status: 'completed', message: 'Simulation Complete' });
 
                                                                 // Save Result for Persistence (profile-specific UUID)
                                                                 const integratedUUID = getIntegratedUUID(selectedProfileId);
                                                                 console.log('[Integrated] Saving result with UUID:', integratedUUID, 'profileId:', selectedProfileId);
-                                                                saveStrategyResult(integratedUUID, 'backtest', result.data)
+                                                                saveStrategyResult(integratedUUID, 'backtest', integratedData)
                                                                     .then(() => console.log('[Integrated] Result saved successfully'))
                                                                     .catch(err => console.error("Failed to save Integrated Result", err));
 
@@ -4751,7 +4744,7 @@ const StrategyView = () => {
                                                             </div>
                                                             {heavyOptStatus.status === 'running' && (
                                                                 <button
-                                                                    onClick={cancelHeavyOptimization}
+                                                                    onClick={handleCancelHeavyOpt}
                                                                     className="px-3 py-1 text-xs bg-red-600 hover:bg-red-500 text-white rounded font-bold"
                                                                 >
                                                                     Cancel
