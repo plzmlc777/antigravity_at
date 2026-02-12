@@ -281,6 +281,9 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         logger.info(f"[TEMP] Running {total_combos} combinations sequentially (no multiprocessing)")
 
         for i, args in enumerate(run_args):
+            # Throttle: yield CPU to live trading engine every iteration
+            if i % 5 == 0:
+                time.sleep(0.01)
             try:
                 config, res = _run_sync_in_process(*args)
 
@@ -880,6 +883,10 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                     HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
                     HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {i}/{total_combos}"
                     break
+
+                # Throttle: yield CPU to live trading engine every 5 iterations
+                if i % 5 == 0:
+                    time.sleep(0.01)
 
                 try:
                     config, res = _run_sync_in_process(*args)
