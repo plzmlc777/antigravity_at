@@ -714,7 +714,7 @@ class WaterfallBacktestEngine:
             initial_capital=initial_capital
         )
 
-    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
         """
         Parallel Execution Mode: Each Rank runs independently with equal capital split.
         All ranks operate simultaneously without affecting each other.
@@ -765,15 +765,17 @@ class WaterfallBacktestEngine:
 
         t_data = time.time()
 
-        # Fetch visualization feeds
-        viz_feeds = await fetch_visualization_feeds(
-            strategies_config=strategies_config,
-            global_symbol=global_symbol,
-            interval=interval,
-            duration_days=duration_days,
-            from_date=from_date,
-            preloaded_feeds=feeds
-        )
+        # Fetch visualization feeds (skip in optimize mode)
+        viz_feeds = {}
+        if not optimize_mode:
+            viz_feeds = await fetch_visualization_feeds(
+                strategies_config=strategies_config,
+                global_symbol=global_symbol,
+                interval=interval,
+                duration_days=duration_days,
+                from_date=from_date,
+                preloaded_feeds=feeds
+            )
 
         primary_symbol = strategies_config[0].get('symbol', global_symbol)
 
@@ -887,8 +889,10 @@ class WaterfallBacktestEngine:
         traded_count = len(traded_dates)
         activity_rate = (traded_count / total_days * 100) if total_days > 0 else 0
 
-        # Build resampled OHLCV data for visualization (performance optimization)
-        resampled_ohlcv = self._resample_ohlcv(ref_feed, 3000)
+        # Build resampled OHLCV data for visualization (skip in optimize mode)
+        resampled_ohlcv = []
+        if not optimize_mode:
+            resampled_ohlcv = self._resample_ohlcv(ref_feed, 3000)
 
         t_stats = time.time()
         perf_msg = f"[PARALLEL] Data: {t_data - t_start:.4f}s | Exec: {t_exec - t_data:.4f}s | Stats: {t_stats - t_exec:.4f}s | Total: {t_stats - t_start:.4f}s"
@@ -924,7 +928,7 @@ class WaterfallBacktestEngine:
             total_days=total_days,
             calc_ranks=False,  # Already have rank_stats_list
             initial_capital=initial_capital,
-            optimize_mode=False,  # Include monthly_stats
+            optimize_mode=optimize_mode,
             equity_curve=combined_equity_curve
         )
         decile_stats = trade_analysis.get('decile_stats', [])
@@ -941,10 +945,10 @@ class WaterfallBacktestEngine:
             "activity_rate": activity_rate,
             "total_days": total_days,
             "total_trades": combined_trade_stats.get('total_trades', sum(r.get('full_stats', {}).get('total_trades', 0) for r in rank_results)),
-            "chart_data": combined_equity_curve,
+            "chart_data": [] if optimize_mode else combined_equity_curve,
             "equity_curve": combined_equity_curve,
-            "ohlcv_data": resampled_ohlcv,
-            "multi_ohlcv_data": viz_feeds,
+            "ohlcv_data": [] if optimize_mode else resampled_ohlcv,
+            "multi_ohlcv_data": {} if optimize_mode else viz_feeds,
             "trades": all_trades,
             "logs": combined_logs[-100:],
             "perf_log": perf_msg,

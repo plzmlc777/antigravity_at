@@ -991,11 +991,22 @@ const StrategyView = () => {
     const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
     const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
 
-    // Initialize symbolCompareConfig from Rank 1 if null
+    // Initialize symbolCompareConfig from Rank 1 if null, inherit missing date fields
     const getSymbolCompareConfig = () => {
-        if (symbolCompareConfig) return symbolCompareConfig;
+        const rank1 = configList[0];
+        if (symbolCompareConfig) {
+            // Inherit from_date/to_date from Rank 1 if not set in Symbol Compare
+            if (rank1 && (!symbolCompareConfig.from_date || !symbolCompareConfig.to_date)) {
+                return {
+                    ...symbolCompareConfig,
+                    from_date: symbolCompareConfig.from_date || rank1.from_date || '',
+                    to_date: symbolCompareConfig.to_date || rank1.to_date || '',
+                };
+            }
+            return symbolCompareConfig;
+        }
         // Initialize from Rank 1 or default
-        const baseConfig = configList[0] || getDynamicDefaultConfig();
+        const baseConfig = rank1 || getDynamicDefaultConfig();
         return { ...baseConfig, symbol: '', tabName: 'Symbol Compare' };
     };
 
@@ -2565,11 +2576,13 @@ const StrategyView = () => {
                 setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'backtest' });
 
                 try {
+                    const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
                     const payload = {
                         symbol: symbol,
                         interval: baseConfig.interval || "1m",
                         days: baseConfig.days || 365,
                         from_date: baseConfig.from_date || "",
+                        to_date: baseConfig.to_date || defaultToDate,
                         initial_capital: baseConfig.initial_capital || 10000000,
                         config: {
                             ...baseConfig,

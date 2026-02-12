@@ -81,7 +81,8 @@ async def _run_unified_backtest(
     from_date: str,
     initial_capital: int,
     execution_mode: str = "single",  # "single", "parallel", "exclusive"
-    to_date: str = None
+    to_date: str = None,
+    optimize_mode: bool = False  # True = skip chart/visualization data (optimization)
 ) -> Dict[str, Any]:
     """
     Unified backtest execution function.
@@ -110,7 +111,8 @@ async def _run_unified_backtest(
     engine = WaterfallBacktestEngine(strategy_class, {})
 
     # 3. Execute based on mode
-    if execution_mode == "single" or len(configs) == 1:
+    # Respect explicit execution_mode; only use len(configs)==1 shortcut for "single" mode
+    if execution_mode == "single":
         # Single backtest - use run_single_backtest directly
         data_service = MarketDataService()
         config = configs[0]
@@ -130,7 +132,7 @@ async def _run_unified_backtest(
             feed=raw_feed,
             initial_capital=initial_capital,
             symbol=rank_symbol,
-            optimize_mode=False,
+            optimize_mode=optimize_mode,
             rank=1
         )
         result['strategy_id'] = strategy_id
@@ -144,7 +146,8 @@ async def _run_unified_backtest(
             from_date=from_date,
             to_date=to_date,
             interval=interval,
-            initial_capital=initial_capital
+            initial_capital=initial_capital,
+            optimize_mode=optimize_mode
         )
         result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
         result['execution_mode'] = 'parallel'
@@ -157,7 +160,8 @@ async def _run_unified_backtest(
             from_date=from_date,
             to_date=to_date,
             interval=interval,
-            initial_capital=initial_capital
+            initial_capital=initial_capital,
+            optimize_mode=optimize_mode
         )
         result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
         result['execution_mode'] = 'exclusive'
@@ -226,38 +230,36 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
                 pass  # Continue if reload fails
 
     import asyncio
-    # [MIGRATION] Use WaterfallBacktestEngine for consistent logic (Unified, Standard MDD, StockOrder)
-    from ..core.waterfall_engine import WaterfallBacktestEngine
 
     # IMPORTANT: After module reload, get FRESH strategy class from registry
     # The strategy_cls parameter is the OLD class reference from before reload
     from ..core.strategy_registry import StrategyRegistry
     strategy_id = config.get('strategy_id', 'dip_martingale')
-    fresh_strategy_cls = StrategyRegistry.get_strategy_class(strategy_id) or strategy_cls
 
-    # Initialize Engine with Unified Logic (using fresh class)
-    engine = WaterfallBacktestEngine(fresh_strategy_cls, config)
-    
     # create new loop for this process
     try:
         loop = asyncio.get_event_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
+
     # Use unified config builder (Single Source of Truth)
     print(f"[OPT_WORKER] symbol={symbol}, interval={interval}, days={days}, from_date={from_date}, to_date={to_date}")
     config = build_backtest_config(config, symbol, interval, days, from_date, initial_capital, to_date=to_date)
     actual_interval = config['interval']
 
-    result = loop.run_until_complete(engine.run_integrated(
-        strategies_config=[config],
-        global_symbol=symbol,
+    # Delegate to _run_unified_backtest (Single Source of Truth)
+    # execution_mode="exclusive" preserves original run_integrated() path
+    result = loop.run_until_complete(_run_unified_backtest(
+        strategy_id=strategy_id,
+        configs=[config],
+        symbol=symbol,
         interval=actual_interval,
-        duration_days=days,
+        days=days,
         from_date=from_date,
-        to_date=to_date,
         initial_capital=initial_capital,
+        execution_mode="exclusive",
+        to_date=to_date,
         optimize_mode=True
     ))
 
