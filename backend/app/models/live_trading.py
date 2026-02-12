@@ -66,6 +66,7 @@ class LiveBotSession(Base):
     # Session Grouping (for parallel/exclusive multi-rank sessions)
     group_id = Column(String, index=True, nullable=True)  # UUID shared by sessions started together
     profile_name = Column(String, nullable=True)  # Profile name for display (from strategy_profiles)
+    profile_id = Column(String, index=True, nullable=True)  # Profile ID for locking (from strategy_profiles)
 
     # Performance (Cached for ease of access)
     initial_capital = Column(Float, default=0.0)

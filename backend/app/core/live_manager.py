@@ -524,6 +524,7 @@ class LiveManager:
         account_id = config.get("account_id")  # 계좌 ID 필수
         group_id = config.get("group_id")  # 세션 그룹 ID (optional)
         profile_name = config.get("profile_name")  # 프로필 이름 (optional)
+        profile_id = config.get("profile_id")  # 프로필 ID for lock detection (optional)
         auto_start = config.get("auto_start", False)  # 자동 시작 여부 (기본: False)
 
         if not account_id:
@@ -546,7 +547,8 @@ class LiveManager:
                 started_at=datetime.now(),  # Always set creation time for display
                 interval="1m", # Default to 1m for now
                 group_id=group_id,  # 세션 그룹 ID
-                profile_name=profile_name  # 프로필 이름
+                profile_name=profile_name,  # 프로필 이름
+                profile_id=profile_id  # 프로필 ID for lock detection
             )
             db.add(sess)
             db.commit()

@@ -16,6 +16,7 @@ import {
     saveStrategyResult, getStrategyResults, getMarketDataStatus, recalculateOptimizationScores,
     getHeavyOptDownloadUrl,
 } from '../api/strategies';
+import { getAllSessions } from '../api/client';
 import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames, coerceConfigTypes } from '../utils/strategyParamUtils';
 import {
@@ -27,7 +28,7 @@ import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
 import { useMarketData } from '../context/MarketDataContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
-import { getAllSessions } from '../api/client';
+
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
@@ -42,7 +43,7 @@ import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check } from 'lucide-react';
+import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check, Lock } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getIntegratedUUID, getCrossOptUUID, SCORE_WEIGHT_PRESETS, STORAGE_KEYS, createConfigHash } from '../constants/strategies';
 
@@ -267,6 +268,46 @@ const StrategyView = () => {
         accountId: effectiveAccountId // 실계좌 우선 자동 선택된 계좌 ID
     });
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Profile Lock Detection (read-only when live session uses this profile)
+    // ═══════════════════════════════════════════════════════════════════════════
+    const [isProfileLocked, setIsProfileLocked] = useState(false);
+
+    useEffect(() => {
+        if (!selectedProfileId) {
+            setIsProfileLocked(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        const checkLock = async () => {
+            try {
+                const sessions = await getAllSessions({ includeStopped: false, limit: 100 });
+                if (cancelled) return;
+                const activeSessions = (sessions || []).filter(
+                    s => s.status === 'RUNNING' || s.status === 'PAUSED'
+                );
+                // Match by profile_id (robust) or fall back to profile_name
+                const locked = activeSessions.some(
+                    s => (s.profile_id && s.profile_id === selectedProfileId)
+                        || (!s.profile_id && s.profile_name && s.profile_name === profileMeta.name)
+                );
+                setIsProfileLocked(locked);
+            } catch (err) {
+                console.warn('[StrategyView] Failed to check profile lock:', err);
+            }
+        };
+
+        checkLock();
+        const interval = setInterval(checkLock, 30000); // Check every 30s
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [selectedProfileId, profileMeta.name]);
+
     // New Profile Modal State
     const [isNewProfileModalOpen, setIsNewProfileModalOpen] = useState(false);
     const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
@@ -300,32 +341,6 @@ const StrategyView = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
 
-    // Locked preset IDs — presets used by RUNNING live sessions cannot be deleted/renamed
-    const [lockedPresetIds, setLockedPresetIds] = useState(null);
-
-    useEffect(() => {
-        const fetchLockedPresets = async () => {
-            try {
-                const sessions = await getAllSessions({ includeStopped: false, allAccounts: true });
-                const sessionList = sessions?.sessions || sessions || [];
-                const locked = new Set();
-                for (const s of sessionList) {
-                    if (s.status === 'RUNNING' || s.status === 'PAUSED') {
-                        const presetId = s.strategy_config?.selected_preset_id;
-                        if (presetId) locked.add(presetId);
-                    }
-                }
-                setLockedPresetIds(locked);
-            } catch (err) {
-                console.error('Failed to fetch running sessions for preset lock:', err);
-                setLockedPresetIds(new Set());
-            }
-        };
-        fetchLockedPresets();
-        // Refresh every 30s to catch session start/stop
-        const interval = setInterval(fetchLockedPresets, 30000);
-        return () => clearInterval(interval);
-    }, []);
 
     const [activeTab, setActiveTab] = useState(() => {
         const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
@@ -398,6 +413,7 @@ const StrategyView = () => {
 
     // Reset related state when profile changes (Symbol Compare, Integrated, Backtest results)
     const prevProfileIdRef = useRef(selectedProfileId);
+    const isFirstProfileLoadRef = useRef(true);
     useEffect(() => {
         if (prevProfileIdRef.current !== selectedProfileId && selectedProfileId !== null) {
             console.log('[StrategyView] Profile changed, resetting tab states');
@@ -427,8 +443,26 @@ const StrategyView = () => {
             setHeavyOptStatus(null);
             localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
 
-            // Reset active tab to Rank 0
-            setActiveTab(0);
+            // Restore score weights from profile config
+            const restoredWeights = {};
+            if (configList) {
+                configList.forEach((cfg, idx) => {
+                    if (cfg?.score_weights) restoredWeights[idx] = cfg.score_weights;
+                });
+            }
+            if (symbolCompareConfig?.score_weights) {
+                restoredWeights[-3] = symbolCompareConfig.score_weights;
+            }
+            setScoreWeightsMap(restoredWeights);
+
+            // On first load (page refresh), restore saved tab from localStorage
+            // On subsequent profile switches, reset to Rank 0
+            if (isFirstProfileLoadRef.current) {
+                isFirstProfileLoadRef.current = false;
+                // activeTab already initialized from localStorage in useState
+            } else {
+                setActiveTab(0);
+            }
         }
         prevProfileIdRef.current = selectedProfileId;
     }, [selectedProfileId]);
@@ -580,6 +614,7 @@ const StrategyView = () => {
 
     const handleConfigChange = (key, value) => {
         if (activeTab === -1) return; // Cannot edit in Integrated View
+        if (isProfileLocked) return; // Cannot edit locked profile (live session in use)
 
         // Handle full config replacement (e.g., from Parameter Version restore)
         if (typeof key === 'object' && key !== null && value === undefined) {
@@ -1311,6 +1346,10 @@ const StrategyView = () => {
             openConfirm("⚠️ No Profile Selected", "프로필을 먼저 선택하거나 새로 만들어주세요.", () => {}, true);
             return;
         }
+        if (isProfileLocked) {
+            openConfirm("🔒 Profile Locked", "라이브 세션에서 사용 중인 프로필은 수정할 수 없습니다. 'Save As'로 복사본을 만들어 사용해주세요.", () => {}, true);
+            return;
+        }
 
         try {
             // 1. Merge Symbol Compare local state into symbolCompareConfig before save
@@ -1532,20 +1571,41 @@ const StrategyView = () => {
         }));
     };
 
-    // Score Weight State for Recalculation (SCORE_WEIGHT_PRESETS imported from constants)
-    const [scoreWeights, setScoreWeights] = useState(SCORE_WEIGHT_PRESETS.balanced);
+    // Score Weight State for Recalculation (per-tab, keyed by activeTab)
+    // Persisted to configList[rank].score_weights / symbolCompareConfig.score_weights
+    const [scoreWeightsMap, setScoreWeightsMap] = useState({});
+    const scoreWeights = scoreWeightsMap[activeTab] || SCORE_WEIGHT_PRESETS.balanced;
     const [isRecalculating, setIsRecalculating] = useState(false);
     const [showWeightPanel, setShowWeightPanel] = useState(false);
 
+    // Persist score weights to profile config (triggers dirty state)
+    const persistScoreWeights = useCallback((newWeights) => {
+        if (activeTab >= 0) {
+            // Rank tab → configList[activeTab].score_weights
+            setConfigList(prev => {
+                const updated = [...prev];
+                if (updated[activeTab]) {
+                    updated[activeTab] = { ...updated[activeTab], score_weights: newWeights };
+                }
+                return updated;
+            });
+        } else if (activeTab === -3) {
+            // Symbol Compare tab → symbolCompareConfig.score_weights
+            setSymbolCompareConfig(prev => prev ? { ...prev, score_weights: newWeights } : prev);
+        }
+    }, [activeTab, setConfigList, setSymbolCompareConfig]);
+
     const handleWeightChange = (key, value) => {
-        setScoreWeights(prev => ({
-            ...prev,
-            [key]: parseFloat(value) || 0
-        }));
+        const current = scoreWeightsMap[activeTab] || SCORE_WEIGHT_PRESETS.balanced;
+        const newWeights = { ...current, [key]: parseFloat(value) || 0 };
+        setScoreWeightsMap(prev => ({ ...prev, [activeTab]: newWeights }));
+        persistScoreWeights(newWeights);
     };
 
     const applyWeightPreset = (presetName) => {
-        setScoreWeights(SCORE_WEIGHT_PRESETS[presetName]);
+        const newWeights = SCORE_WEIGHT_PRESETS[presetName];
+        setScoreWeightsMap(prev => ({ ...prev, [activeTab]: newWeights }));
+        persistScoreWeights(newWeights);
     };
 
     const recalculateScores = async () => {
@@ -2666,7 +2726,7 @@ const StrategyView = () => {
                                 <Plus size={14} />
                                 New Profile
                             </button>
-                            {selectedProfileId && (
+                            {selectedProfileId && !isProfileLocked && (
                                 <button
                                     onClick={() => {
                                         openConfirm(
@@ -2773,6 +2833,11 @@ const StrategyView = () => {
                                     <Rocket size={14} className="text-blue-400" />
                                     <span className="text-white font-medium">{selectedStrategy.name}</span>
                                 </div>
+                                {isProfileLocked && (
+                                    <span className="flex items-center gap-1 text-xs text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded">
+                                        <Lock size={10} /> LIVE
+                                    </span>
+                                )}
                                 <span className="text-gray-600">|</span>
                                 <span className="flex-1 truncate text-gray-500">{profileMeta.description || '설명 없음'}</span>
                                 <button
@@ -2786,8 +2851,27 @@ const StrategyView = () => {
                         )}
                     </div>
 
-                    {/* Row 3: Save/Discard Buttons (always visible when profile selected) */}
-                    {selectedProfileId && (
+                    {/* Row 3: Lock Banner or Save/Discard Buttons */}
+                    {selectedProfileId && isProfileLocked && (
+                        <div className="flex items-center gap-3 pt-2 border-t mt-1 border-orange-500/30">
+                            <div className="flex-1 flex items-center gap-2 text-xs text-orange-400">
+                                <Lock size={12} />
+                                <span>라이브 세션에서 사용 중 — 수정 불가</span>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSaveAsName(profileMeta.name + ' (Copy)');
+                                    setSaveAsDescription(profileMeta.description || '');
+                                    setIsSaveAsModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+                            >
+                                <Copy size={14} />
+                                Save As...
+                            </button>
+                        </div>
+                    )}
+                    {selectedProfileId && !isProfileLocked && (
                         <div className={`flex items-center gap-3 pt-2 border-t mt-1 ${
                             (isProfileDirty || isDirty || isSymbolCompareDirty || pendingOptResult)
                                 ? 'border-yellow-500/30'
@@ -3029,7 +3113,7 @@ const StrategyView = () => {
                                                 <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />
 
                                                 {/* Left Arrow */}
-                                                {showLeft && (
+                                                {!isProfileLocked && showLeft && (
                                                     <span
                                                         onClick={(e) => moveRankTab(idx, -1, e)}
                                                         className="hover:bg-black/20 rounded px-1 -ml-1 text-white/50 hover:text-white"
@@ -3046,7 +3130,7 @@ const StrategyView = () => {
                                                 )}
 
                                                 {/* Right Arrow */}
-                                                {showRight && (
+                                                {!isProfileLocked && showRight && (
                                                     <span
                                                         onClick={(e) => moveRankTab(idx, 1, e)}
                                                         className="hover:bg-black/20 rounded px-1 -mr-1 text-white/50 hover:text-white"
@@ -3056,7 +3140,7 @@ const StrategyView = () => {
                                                 )}
 
                                                 {/* Delete Button */}
-                                                {configList.length > 1 && (
+                                                {!isProfileLocked && configList.length > 1 && (
                                                     <span
                                                         onClick={(e) => removeRankTab(idx, e)}
                                                         className="ml-1 w-4 h-4 flex items-center justify-center rounded-full hover:bg-black/40 text-gray-400 hover:text-red-400 transition-colors z-20"
@@ -3071,27 +3155,29 @@ const StrategyView = () => {
                                 })()}
 
                                 {/* Add Tab Button */}
-                                <button
-                                    onClick={async () => {
-                                        const newConfig = {
-                                            ...getDynamicDefaultConfig(),
-                                            is_active: false,
-                                            tabName: `Draft ${configList.filter(c => c.is_active === false).length + 1}`,
-                                            symbol: currentSymbol,
-                                            uuid: generateUUID() // Generate UUID for new tab
-                                        };
-                                        const newList = [...configList, newConfig];
-                                        setConfigList(newList);
-                                        setActiveTab(newList.length - 1);
-                                        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, (newList.length - 1).toString());
+                                {!isProfileLocked && (
+                                    <button
+                                        onClick={async () => {
+                                            const newConfig = {
+                                                ...getDynamicDefaultConfig(),
+                                                is_active: false,
+                                                tabName: `Draft ${configList.filter(c => c.is_active === false).length + 1}`,
+                                                symbol: currentSymbol,
+                                                uuid: generateUUID() // Generate UUID for new tab
+                                            };
+                                            const newList = [...configList, newConfig];
+                                            setConfigList(newList);
+                                            setActiveTab(newList.length - 1);
+                                            localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, (newList.length - 1).toString());
 
-                                        // Mark profile as dirty - actual save happens via profile save
-                                        setIsDirty(true);
-                                    }}
-                                    className="px-3 py-2 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all"
-                                >
-                                    +
-                                </button>
+                                            // Mark profile as dirty - actual save happens via profile save
+                                            setIsDirty(true);
+                                        }}
+                                        className="px-3 py-2 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all"
+                                    >
+                                        +
+                                    </button>
+                                )}
                             </div>
                             {/* Active tab indicator line */}
                             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs text-gray-500">
@@ -3585,7 +3671,7 @@ const StrategyView = () => {
                                                 {/* SymbolSelector - shared for both Rank and Symbol Compare */}
                                                 <SymbolSelector
                                                     currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)} // No single selection for Symbol Compare
-                                                    setCurrentSymbol={activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol)}
+                                                    setCurrentSymbol={isProfileLocked ? () => {} : (activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol))}
                                                     savedSymbols={savedSymbols}
                                                     setSavedSymbols={setSavedSymbols}
                                                     hideSymbolList={activeTab === -3} // Hide symbol list for Symbol Compare (uses multi-select below)
@@ -3654,7 +3740,7 @@ const StrategyView = () => {
                                                         presets={currentConfig?.parameter_presets || []}
                                                         selectedPresetId={currentConfig?.selected_preset_id}
                                                         currentParams={currentConfig}
-                                                        lockedPresetIds={lockedPresetIds}
+                                                        disabled={isProfileLocked}
                                                         parameterSchema={selectedStrategy?.parameter_schema}
                                                         onSelectPreset={(presetId) => {
                                                             if (activeTab === -3) {
@@ -3754,6 +3840,7 @@ const StrategyView = () => {
                                                         schema={selectedStrategy.parameter_schema}
                                                         values={currentConfig}
                                                         onChange={handleConfigChange}
+                                                        disabled={isProfileLocked}
                                                     />
                                                 ) : (
                                                     <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>

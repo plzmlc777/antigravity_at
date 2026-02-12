@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, Save, Trash2, X, AlertCircle, Pencil, Lock } from 'lucide-react';
+import { ChevronDown, Save, Trash2, X, AlertCircle, Pencil } from 'lucide-react';
 
 /**
  * RankVersionSelector - Compact preset dropdown for Rank tabs
@@ -11,12 +11,12 @@ const RankVersionSelector = ({
     selectedPresetId,       // configList[rank].selected_preset_id
     currentParams,          // configList[rank] (full config)
     parameterSchema,
+    disabled = false,       // true when profile is locked (live session in use)
     onSelectPreset,         // (presetId) => void
     onAddPreset,            // (description) => void
     onDeletePreset,         // (presetId) => void
     onRenamePreset,         // (presetId, newName) => void
     onRevertParams,         // (params) => void — revert to selected preset's params
-    lockedPresetIds = null, // Set<string> — preset IDs locked by running live sessions
 }) => {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [newPresetDesc, setNewPresetDesc] = useState('');
@@ -34,9 +34,6 @@ const RankVersionSelector = ({
     }, [presets, selectedPresetId]);
 
     const isCustom = !currentPreset && presets.length > 0;
-
-    // Check if current preset is locked by a running live session
-    const isCurrentLocked = currentPreset && lockedPresetIds instanceof Set && lockedPresetIds.has(currentPreset.id);
 
     // Check if params have been modified from selected preset
     const isModified = useMemo(() => {
@@ -82,21 +79,24 @@ const RankVersionSelector = ({
             {presets.length === 0 ? (
                 <div className="inline-flex items-center gap-2">
                     <span className="text-xs text-yellow-500 italic">No saved presets</span>
-                    <button
-                        onClick={() => setShowSaveDialog(true)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
-                        title="현재 파라미터를 첫 프리셋으로 저장"
-                    >
-                        <Save className="w-3 h-3" />
-                        첫 프리셋 저장
-                    </button>
+                    {!disabled && (
+                        <button
+                            onClick={() => setShowSaveDialog(true)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
+                            title="현재 파라미터를 첫 프리셋으로 저장"
+                        >
+                            <Save className="w-3 h-3" />
+                            첫 프리셋 저장
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="relative inline-flex items-center gap-1.5">
                     <select
                         value={currentPreset?.id || 'custom'}
                         onChange={handleSelect}
-                        className="appearance-none bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 pr-6 focus:outline-none focus:border-indigo-500 cursor-pointer min-w-[120px]"
+                        disabled={disabled}
+                        className={`appearance-none bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 pr-6 focus:outline-none focus:border-indigo-500 min-w-[120px] ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                         {isCustom && (
                             <option value="custom" disabled className="text-gray-400">
@@ -117,7 +117,7 @@ const RankVersionSelector = ({
             </span>
 
             {/* Modified indicator and action buttons */}
-            {(isModified || isCustom) && (
+            {!disabled && (isModified || isCustom) && (
                 <>
                     {isModified && <span className="text-xs text-yellow-400 font-medium">(수정됨)</span>}
                     <button
@@ -142,25 +142,17 @@ const RankVersionSelector = ({
             )}
 
             {/* Edit & Delete buttons for current preset */}
-            {currentPreset && (
+            {!disabled && currentPreset && (
                 <>
-                    {isCurrentLocked && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/80" title="라이브 세션에서 사용 중 — 삭제/수정 불가">
-                            <Lock className="w-3 h-3" /> Live
-                        </span>
-                    )}
                     {onRenamePreset && (
                         <button
                             onClick={() => {
-                                if (isCurrentLocked) return;
-                                // Extract description part (after NNN_)
                                 const match = currentPreset.name?.match(/^\d{3}_(.*)/);
                                 setRenameValue(match ? match[1] : currentPreset.name || '');
                                 setShowRenameDialog(true);
                             }}
-                            disabled={isCurrentLocked}
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors ${isCurrentLocked ? 'opacity-30 cursor-not-allowed text-gray-600' : 'hover:bg-blue-600/20 text-gray-500 hover:text-blue-400'}`}
-                            title={isCurrentLocked ? "라이브 세션에서 사용 중 — 수정 불가" : "프리셋 이름 변경"}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors hover:bg-blue-600/20 text-gray-500 hover:text-blue-400"
+                            title="프리셋 이름 변경"
                         >
                             <Pencil className="w-3 h-3" />
                         </button>
@@ -168,14 +160,12 @@ const RankVersionSelector = ({
                     {onDeletePreset && (
                         <button
                             onClick={() => {
-                                if (isCurrentLocked) return;
                                 if (window.confirm(`프리셋 "${currentPreset.name}" 삭제?`)) {
                                     onDeletePreset(currentPreset.id);
                                 }
                             }}
-                            disabled={isCurrentLocked}
-                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors ${isCurrentLocked ? 'opacity-30 cursor-not-allowed text-gray-600' : 'hover:bg-red-600/20 text-gray-500 hover:text-red-400'}`}
-                            title={isCurrentLocked ? "라이브 세션에서 사용 중 — 삭제 불가" : "현재 프리셋 삭제"}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors hover:bg-red-600/20 text-gray-500 hover:text-red-400"
+                            title="현재 프리셋 삭제"
                         >
                             <Trash2 className="w-3 h-3" />
                         </button>

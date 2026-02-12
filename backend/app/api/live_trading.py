@@ -17,6 +17,7 @@ class LiveBotStartRequest(BaseModel):
     account_id: Optional[int] = None  # Phase 5: Explicit account selection
     group_id: Optional[str] = None    # Phase 5: Session grouping for multi-rank parallel/exclusive
     profile_name: Optional[str] = None  # Profile name for display
+    profile_id: Optional[str] = None  # Profile ID for lock detection
     auto_start: bool = False  # Phase 5: If False, create session in STOPPED state without starting engine
 
 class StopAllRequest(BaseModel):
@@ -602,6 +603,7 @@ async def get_all_sessions(
             "account_id": sess.account_id,
             "group_id": sess.group_id,  # Session group ID for multi-rank parallel/exclusive
             "profile_name": sess.profile_name,  # Profile name for display
+            "profile_id": sess.profile_id,  # Profile ID for lock detection
             "symbol": sess.symbol,
             "strategy_name": sess.strategy_name,
             "status": effective_status,

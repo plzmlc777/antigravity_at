@@ -131,6 +131,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                     account_id: selectedAccountId,
                     group_id: isMultiRank ? groupId : null,
                     profile_name: selectedProfile.name,
+                    profile_id: selectedProfileId,
                     auto_start: false
                 };
 
