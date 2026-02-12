@@ -3,166 +3,136 @@
  *
  * Centralized state management for Strategies page functionality.
  * Provides single source of truth for:
- * - Strategy list (cached, loaded once)
  * - Selected strategy (with DB persistence)
- * - Accounts list & effective account ID (real account priority)
+ * - Effective account ID (real account priority auto-selection)
+ *
+ * Shared data (accounts, strategies) is consumed from LiveTradingContext
+ * to avoid duplicate API calls.
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { getAccounts, getAccountPreferences, updateLastSelectedStrategy } from '../api/client';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { getAccountPreferences, updateLastSelectedStrategy } from '../api/client';
 import { STORAGE_KEYS } from '../constants/strategies';
+import { useLiveTrading } from './LiveTradingContext';
 import { useMarketData } from './MarketDataContext';
 
 const StrategiesContext = createContext(null);
 
 export const StrategiesProvider = ({ children }) => {
     // ==========================================
-    // MarketData Context (for active account)
+    // Shared Data from LiveTradingContext (single source of truth)
+    // Avoids duplicate getAccounts() and strategies/list API calls
+    // ==========================================
+    const {
+        accounts,
+        strategies,
+        strategiesLoading,
+        loadStrategies,
+        loadAccounts,
+    } = useLiveTrading();
+
+    // ==========================================
+    // MarketData Context (for active account ID)
     // ==========================================
     const { systemStatus } = useMarketData();
     const activeAccountId = systemStatus?.account_id || null;
 
     // ==========================================
-    // Strategy List (loaded once, cached)
-    // ==========================================
-    const [strategies, setStrategies] = useState([]);
-    const [strategiesLoading, setStrategiesLoading] = useState(false);
-    const strategiesLoadedRef = useRef(false);
-
-    // ==========================================
     // Selected Strategy (persisted to DB + localStorage)
+    // This is separate from LiveTradingContext's selectedStrategy
+    // (which is derived from active live session)
     // ==========================================
     const [selectedStrategy, setSelectedStrategy] = useState(null);
+    const strategiesRestoredRef = React.useRef(false);
 
     // ==========================================
-    // Accounts & Effective Account ID
+    // Effective Account ID (real account priority auto-selection)
     // ==========================================
-    const [accounts, setAccounts] = useState([]);
     const [effectiveAccountId, setEffectiveAccountId] = useState(null);
-    const accountsLoadedRef = useRef(false);
 
     // ==========================================
-    // Load Strategies (once, with last-selected restore)
+    // Restore last selected strategy when strategies load
     // ==========================================
-    const loadStrategies = useCallback(async (force = false) => {
-        if (strategiesLoadedRef.current && !force) {
-            return strategies;
+    useEffect(() => {
+        if (strategiesRestoredRef.current || strategies.length === 0 || selectedStrategy) {
+            return;
         }
 
-        setStrategiesLoading(true);
-        try {
-            const res = await axios.get('/api/v1/strategies/list');
-            const strategyList = res.data || [];
-            setStrategies(strategyList);
-            strategiesLoadedRef.current = true;
+        const restoreSelectedStrategy = async () => {
+            try {
+                const preferences = await getAccountPreferences();
+                const savedId = preferences?.last_selected_strategy_id;
 
-            // Restore last selected strategy (only on first load)
-            if (!force && strategyList.length > 0 && !selectedStrategy) {
-                try {
-                    const preferences = await getAccountPreferences();
-                    const savedId = preferences?.last_selected_strategy_id;
-
-                    if (savedId) {
-                        const target = strategyList.find(s => s.id === savedId);
-                        if (target) {
-                            setSelectedStrategy(target);
-                        }
-                    } else {
-                        // Fallback to localStorage (migration period)
-                        const localStorageId = localStorage.getItem(STORAGE_KEYS.LAST_STRATEGY_ID);
-                        if (localStorageId) {
-                            const target = strategyList.find(s => s.id === localStorageId);
-                            if (target) {
-                                setSelectedStrategy(target);
-                                // Migrate to DB
-                                updateLastSelectedStrategy(localStorageId).catch(e =>
-                                    console.warn('Failed to migrate strategy to DB:', e)
-                                );
-                            }
-                        }
+                if (savedId) {
+                    const target = strategies.find(s => s.id === savedId);
+                    if (target) {
+                        setSelectedStrategy(target);
+                        strategiesRestoredRef.current = true;
+                        return;
                     }
-                } catch (e) {
-                    console.warn('Failed to load account preferences:', e);
-                    // Fallback to localStorage
-                    const localStorageId = localStorage.getItem(STORAGE_KEYS.LAST_STRATEGY_ID);
-                    if (localStorageId) {
-                        const target = strategyList.find(s => s.id === localStorageId);
-                        if (target) {
-                            setSelectedStrategy(target);
-                        }
+                }
+
+                // Fallback to localStorage (migration period)
+                const localStorageId = localStorage.getItem(STORAGE_KEYS.LAST_STRATEGY_ID);
+                if (localStorageId) {
+                    const target = strategies.find(s => s.id === localStorageId);
+                    if (target) {
+                        setSelectedStrategy(target);
+                        // Migrate to DB
+                        updateLastSelectedStrategy(localStorageId).catch(e =>
+                            console.warn('Failed to migrate strategy to DB:', e)
+                        );
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to load account preferences:', e);
+                const localStorageId = localStorage.getItem(STORAGE_KEYS.LAST_STRATEGY_ID);
+                if (localStorageId) {
+                    const target = strategies.find(s => s.id === localStorageId);
+                    if (target) {
+                        setSelectedStrategy(target);
                     }
                 }
             }
+            strategiesRestoredRef.current = true;
+        };
 
-            return strategyList;
-        } catch (e) {
-            console.error('Failed to load strategies:', e);
-            return [];
-        } finally {
-            setStrategiesLoading(false);
-        }
+        restoreSelectedStrategy();
     }, [strategies, selectedStrategy]);
 
     // ==========================================
-    // Load Accounts (once, with auto-selection)
-    // ==========================================
-    const loadAccounts = useCallback(async (force = false) => {
-        if (accountsLoadedRef.current && !force) {
-            return accounts;
-        }
-
-        try {
-            const accountList = await getAccounts();
-            setAccounts(accountList || []);
-            accountsLoadedRef.current = true;
-
-            // Auto-select effective account
-            if (activeAccountId) {
-                setEffectiveAccountId(activeAccountId);
-                return accountList;
-            }
-
-            // Real account priority (environment === 'real')
-            const realAccount = accountList?.find(a => a.environment === 'real' && !a.is_disabled);
-            if (realAccount) {
-                setEffectiveAccountId(realAccount.id);
-                console.log('[StrategiesContext] Auto-selected real account:', realAccount.account_name);
-                return accountList;
-            }
-
-            // Virtual/paper account fallback
-            const virtualAccount = accountList?.find(a =>
-                (a.environment === 'virtual' || a.environment === 'paper') && !a.is_disabled
-            );
-            if (virtualAccount) {
-                setEffectiveAccountId(virtualAccount.id);
-                console.log('[StrategiesContext] Auto-selected virtual account:', virtualAccount.account_name);
-                return accountList;
-            }
-
-            // Last fallback: first non-disabled account
-            const anyAccount = accountList?.find(a => !a.is_disabled);
-            if (anyAccount) {
-                setEffectiveAccountId(anyAccount.id);
-                console.log('[StrategiesContext] Auto-selected first available account:', anyAccount.account_name);
-            }
-
-            return accountList;
-        } catch (e) {
-            console.error('[StrategiesContext] Failed to load accounts:', e);
-            return [];
-        }
-    }, [accounts, activeAccountId]);
-
-    // ==========================================
-    // Update effectiveAccountId when activeAccountId changes
+    // Auto-select effective account ID from accounts
     // ==========================================
     useEffect(() => {
         if (activeAccountId) {
             setEffectiveAccountId(activeAccountId);
+            return;
         }
-    }, [activeAccountId]);
+
+        if (accounts.length === 0) return;
+
+        // Real account priority (environment === 'real')
+        const realAccount = accounts.find(a => a.environment === 'real' && !a.is_disabled);
+        if (realAccount) {
+            setEffectiveAccountId(realAccount.id);
+            return;
+        }
+
+        // Virtual/paper account fallback
+        const virtualAccount = accounts.find(a =>
+            (a.environment === 'virtual' || a.environment === 'paper') && !a.is_disabled
+        );
+        if (virtualAccount) {
+            setEffectiveAccountId(virtualAccount.id);
+            return;
+        }
+
+        // Last fallback: first non-disabled account
+        const anyAccount = accounts.find(a => !a.is_disabled);
+        if (anyAccount) {
+            setEffectiveAccountId(anyAccount.id);
+        }
+    }, [accounts, activeAccountId]);
 
     // ==========================================
     // Persist selected strategy to DB + localStorage
@@ -177,40 +147,22 @@ export const StrategiesProvider = ({ children }) => {
     }, [selectedStrategy]);
 
     // ==========================================
-    // Load initial data on mount
-    // ==========================================
-    useEffect(() => {
-        loadStrategies();
-        loadAccounts();
-    }, []);
-
-    // ==========================================
-    // Reload accounts when activeAccountId changes
-    // ==========================================
-    useEffect(() => {
-        if (activeAccountId && !accountsLoadedRef.current) {
-            loadAccounts();
-        }
-    }, [activeAccountId]);
-
-    // ==========================================
     // Context Value
     // ==========================================
-    const value = {
-        // Strategy list
+    const value = useMemo(() => ({
+        // Shared data (from LiveTradingContext)
         strategies,
         strategiesLoading,
         loadStrategies,
+        accounts,
+        loadAccounts,
 
-        // Selected strategy
+        // Strategies-page specific
         selectedStrategy,
         setSelectedStrategy,
-
-        // Account management
-        accounts,
         effectiveAccountId,
-        loadAccounts,
-    };
+    }), [strategies, strategiesLoading, loadStrategies, accounts, loadAccounts,
+         selectedStrategy, effectiveAccountId]);
 
     return (
         <StrategiesContext.Provider value={value}>
