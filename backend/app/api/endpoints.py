@@ -717,7 +717,7 @@ async def get_trade_history_integrated(
         
         # User Rule: Everything from Kiwoom is 1m. We fetch 1m from DB and let frontend/backend handle sampling.
         # FIX: Force '1m' fetch.
-        candles = await service.get_candles(sym, interval="1m", days=365, limit=50000)
+        candles = await md_service.get_candles(sym, interval="1m", days=365, limit=50000)
         
         if not candles:
              # FIX: Fail Loudly if data is missing.
