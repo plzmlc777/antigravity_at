@@ -6,12 +6,13 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, getAccountPreferences, updateLastSelectedStrategy, recalculateOptimizationScores, getAccounts } from '../api/client';
+import { saveStrategyResult, getStrategyResults, runIntegratedBacktest, fetchMarketData, getMarketDataStatus, recalculateOptimizationScores } from '../api/client';
 import { useWatchlist } from '../context/WatchlistContext';
+import { useStrategies } from '../context/StrategiesContext';
+import { useMarketData } from '../context/MarketDataContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
-import { useMarketData } from '../context/MarketDataContext';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import StrategyDetailModal from '../components/StrategyDetailModal';
@@ -27,128 +28,9 @@ import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, com
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
+import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getIntegratedUUID, getCrossOptUUID, SCORE_WEIGHT_PRESETS, STORAGE_KEYS } from '../constants/strategies';
 
-const generateUUID = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-};
-
-// Defined outside component to prevent re-creation
-// Defined outside component to prevent re-creation
-// [Single Source of Truth] All strategy parameters defined here.
-const PARAM_DEFINITIONS = [
-    {
-        key: 'start_time',
-        label: 'Start Time',
-        type: 'select',
-        defaultValue: "09:00",
-        defaultOptRange: "09:00, 09:30, 10:00",
-        options: Array.from({ length: 14 }).map((_, i) => {
-            const h = 9 + Math.floor(i / 2);
-            const m = i % 2 === 0 ? "00" : "30";
-            return `${h.toString().padStart(2, '0')}:${m}`;
-        }),
-        placeholder: '09:00, 09:30'
-    },
-    { key: 'delay_minutes', label: 'Delay (min)', type: 'number', defaultValue: 60, defaultOptRange: "30, 60, 90", placeholder: '5, 10, 15' },
-    { key: 'direction', label: 'Direction', type: 'select', defaultValue: "fall", defaultOptRange: "rise, fall", options: ['rise', 'fall'], placeholder: 'rise, fall' },
-    { key: 'target_percent', label: 'Target (%)', type: 'number', defaultValue: 0.2, defaultOptRange: "0.1, 0.2, 0.3, 0.5", placeholder: '1, 2, 3' },
-    { key: 'safety_stop_percent', label: 'Stop Loss (%)', type: 'number', defaultValue: 10, defaultOptRange: "3, 5, 10", placeholder: '2, 3, 5' },
-    { key: 'trailing_start_percent', label: 'Trail Start (%)', type: 'number', defaultValue: 1, defaultOptRange: "0.5, 1.0, 1.5", placeholder: '3, 5' },
-    { key: 'trailing_stop_drop', label: 'Trail Drop (%)', type: 'number', defaultValue: 0, defaultOptRange: "0, 0.2, 0.5", placeholder: '1, 2' },
-    {
-        key: 'stop_time',
-        label: 'Stop Time',
-        type: 'select',
-        defaultValue: "15:00",
-        defaultOptRange: "14:30, 15:00, 15:20",
-        options: Array.from({ length: 48 }).map((_, i) => {
-            const h = Math.floor(i / 2);
-            const m = i % 2 === 0 ? "00" : "30";
-            return `${h.toString().padStart(2, '0')}:${m}`;
-        }),
-        placeholder: '15:00, 15:20'
-    }
-];
-
-// Helper: Generate Defaults from Definitions
-const generateDefaultConfig = () => {
-    // 기본 시작일: 1년 전
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const defaultFromDate = oneYearAgo.toISOString().split('T')[0]; // YYYY-MM-DD
-
-    const config = {
-        // System Defaults (Non-Param)
-        initial_capital: 10000000,
-        from_date: defaultFromDate,
-        interval: "1m",
-        symbol: "005930",
-        betting_strategy: "fixed",
-        uuid: null // Will be generated
-    };
-
-    // Merge Parameter Defaults
-    PARAM_DEFINITIONS.forEach(p => {
-        config[p.key] = p.defaultValue;
-    });
-
-    return config;
-};
-
-const generateDefaultOptValues = () => {
-    const opts = {};
-    PARAM_DEFINITIONS.forEach(p => {
-        opts[p.key] = p.defaultOptRange;
-    });
-    return opts;
-};
-
-// Helper: Convert DB parameter_schema to PARAM_DEFINITIONS format
-// This allows the optimization panel to use dynamic schema instead of hardcoded definitions
-// IMPORTANT: Ensures that optimization panel and backtest settings use identical options
-// (e.g., interval options must match for proper chart calculations during optimization)
-const convertSchemaToParamDefs = (schema) => {
-    if (!schema || !schema.fields) return PARAM_DEFINITIONS;
-
-    const fields = schema.fields;
-
-    // Handle both array and object formats
-    const fieldArray = Array.isArray(fields) ? fields : Object.values(fields);
-
-    return fieldArray.map(field => {
-        const key = field.key || field.name;
-        const def = {
-            key,
-            label: field.label || key,
-            type: field.type || 'text',
-            defaultValue: field.default || field.defaultValue,
-            defaultOptRange: field.defaultOptRange || '',
-            placeholder: field.placeholder || ''
-        };
-
-        // Handle select options - directly from schema to ensure consistency
-        // Backtest Settings (DynamicParameterForm) and Optimization panel MUST use same options
-        if (field.type === 'select' && field.options) {
-            def.options = field.options; // Direct copy from schema ensures identical options
-        } else if (field.type === 'time') {
-            // Generate time options for time-type fields
-            def.type = 'select';
-            def.options = Array.from({ length: 48 }).map((_, i) => {
-                const h = Math.floor(i / 2);
-                const m = i % 2 === 0 ? "00" : "30";
-                return `${h.toString().padStart(2, '0')}:${m}`;
-            });
-        }
-
-        return def;
-    });
-};
-
-const DEFAULT_CONFIG = generateDefaultConfig();
+// Constants imported from '../constants/strategies' (Single Source of Truth)
 
 // 공통 ApplyButton 컴포넌트 - 중앙 집중화된 Apply/Saved 버튼
 const ApplyButton = ({ onClick, disabled, feedback }) => (
@@ -262,71 +144,24 @@ const ImportExportButtons = ({ onExport, onImport, feedback, disabled = false, e
         </div>
     );
 };
-const DEFAULT_OPT_VALUES = generateDefaultOptValues();
-
-// Generate UUID for Integrated View Persistence (profile-specific)
-const getIntegratedUUID = (profileId) => `integrated-${profileId || 'unknown'}`;
-
-// Generate UUID for Cross-Optimization Persistence (profile-specific)
-const getCrossOptUUID = (profileId) => `cross-opt-${profileId || 'unknown'}`;
+// DEFAULT_OPT_VALUES, getIntegratedUUID, getCrossOptUUID imported from constants/strategies
 
 const StrategyView = () => {
-    // 계좌 중심: 활성 계좌 ID 가져오기
+    // ==========================================
+    // Context: Strategies (centralized state)
+    // ==========================================
+    const {
+        strategies,
+        selectedStrategy, setSelectedStrategy,
+        accounts, effectiveAccountId,
+    } = useStrategies();
+
+    // MarketData Context (for systemStatus - used in export/import)
     const { systemStatus } = useMarketData();
-    const activeAccountId = systemStatus?.account_id || null;
-
-    // 계좌 자동 선택: 실계좌 우선, 없으면 모의계좌
-    const [accounts, setAccounts] = useState([]);
-    const [effectiveAccountId, setEffectiveAccountId] = useState(null);
-
-    useEffect(() => {
-        const loadAccounts = async () => {
-            try {
-                const accountList = await getAccounts();
-                setAccounts(accountList || []);
-
-                // 이미 활성 계좌가 있으면 사용
-                if (activeAccountId) {
-                    setEffectiveAccountId(activeAccountId);
-                    return;
-                }
-
-                // 실계좌 우선 선택 (environment === 'real')
-                const realAccount = accountList?.find(a => a.environment === 'real' && !a.is_disabled);
-                if (realAccount) {
-                    setEffectiveAccountId(realAccount.id);
-                    console.log('[StrategyView] Auto-selected real account:', realAccount.account_name);
-                    return;
-                }
-
-                // 실계좌가 없으면 모의계좌 선택 (virtual 또는 paper)
-                const virtualAccount = accountList?.find(a =>
-                    (a.environment === 'virtual' || a.environment === 'paper') && !a.is_disabled
-                );
-                if (virtualAccount) {
-                    setEffectiveAccountId(virtualAccount.id);
-                    console.log('[StrategyView] Auto-selected virtual account:', virtualAccount.account_name);
-                    return;
-                }
-
-                // 마지막 fallback: 비활성화되지 않은 첫 번째 계좌
-                const anyAccount = accountList?.find(a => !a.is_disabled);
-                if (anyAccount) {
-                    setEffectiveAccountId(anyAccount.id);
-                    console.log('[StrategyView] Auto-selected first available account:', anyAccount.account_name);
-                }
-            } catch (e) {
-                console.error('[StrategyView] Failed to load accounts:', e);
-            }
-        };
-        loadAccounts();
-    }, [activeAccountId]);
 
     // Symbol State - Use shared watchlist context (synced with DB)
     const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
 
-    const [strategies, setStrategies] = useState([]);
-    const [selectedStrategy, setSelectedStrategy] = useState(null);
     const [backtestResult, setBacktestResult] = useState(null);
     const [executionLogs, setExecutionLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -459,7 +294,7 @@ const StrategyView = () => {
     };
 
     const [activeTab, setActiveTab] = useState(() => {
-        const saved = localStorage.getItem('strategyViewActiveTab');
+        const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
         const val = saved !== null ? parseInt(saved, 10) : 0;
         // Redirect from old Live tab (-2) to Rank 1 (0) - Live tab moved to /live page
         return val === -2 ? 0 : val;
@@ -469,7 +304,7 @@ const StrategyView = () => {
     const [pendingOptResult, setPendingOptResult] = useState(null); // Unsaved optimization result (tab_uuid -> resultData)
 
     useEffect(() => {
-        localStorage.setItem('strategyViewActiveTab', activeTab);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
     }, [activeTab]);
     // isConfigLoaded는 useProfileConfig 훅에서 제공됨
     const lastInitializedStrategyRef = useRef(null); // Track which strategy schema was initialized for
@@ -556,7 +391,7 @@ const StrategyView = () => {
             setCompletedOptTaskId(null);
             setHeavyOptTaskId(null);
             setHeavyOptStatus(null);
-            localStorage.removeItem('heavyOptTaskId');
+            localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
 
             // Reset active tab to Rank 0
             setActiveTab(0);
@@ -1439,59 +1274,10 @@ const StrategyView = () => {
     }, [activeTab, isConfigLoaded, selectedProfileId]); // Re-run on tab change or profile change
 
     // 4. Persistence & Initialization
+    // Strategy list & selection are now managed by StrategiesContext
     useEffect(() => {
         setExecutionLogs([]); // Clear logs on page load/refresh
-        fetchStrategies();
     }, []);
-
-    const fetchStrategies = async () => {
-        try {
-            const res = await axios.get('/api/v1/strategies/list');
-            setStrategies(res.data);
-
-            if (res.data.length > 0) {
-                // Try to restore last selected strategy from DB (계좌 중심)
-                try {
-                    const preferences = await getAccountPreferences();
-                    const savedId = preferences?.last_selected_strategy_id;
-
-                    if (savedId) {
-                        const target = res.data.find(s => s.id === savedId);
-                        if (target) {
-                            setSelectedStrategy(target);
-                        }
-                    }
-                    // Fallback to localStorage (마이그레이션 기간 동안)
-                    else {
-                        const localStorageId = localStorage.getItem('lastStrategyId');
-                        if (localStorageId) {
-                            const target = res.data.find(s => s.id === localStorageId);
-                            if (target) {
-                                setSelectedStrategy(target);
-                                // DB에도 저장 (마이그레이션)
-                                await updateLastSelectedStrategy(localStorageId).catch(e => console.warn('Failed to migrate strategy to DB:', e));
-                            }
-                        }
-                    }
-
-                    // execution_mode and symbol_compare_settings are now loaded from profile
-                    // (via useProfileConfig hook)
-                } catch (e) {
-                    console.warn('Failed to load account preferences:', e);
-                    // Fallback to localStorage
-                    const localStorageId = localStorage.getItem('lastStrategyId');
-                    if (localStorageId) {
-                        const target = res.data.find(s => s.id === localStorageId);
-                        if (target) {
-                            setSelectedStrategy(target);
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     // Log schema information when strategy changes (NO configList initialization - handled by loadConfigs)
     useEffect(() => {
@@ -1684,7 +1470,7 @@ const StrategyView = () => {
                     // Save & Switch
                     await savePendingOptResult();
                     setActiveTab(newTabIndex);
-                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                     setPendingTabSwitch(null);
                 },
                 false,
@@ -1694,7 +1480,7 @@ const StrategyView = () => {
                     // Discard & Switch
                     discardPendingOptResult();
                     setActiveTab(newTabIndex);
-                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                     setPendingTabSwitch(null);
                 }
             );
@@ -1707,7 +1493,7 @@ const StrategyView = () => {
         // If no unsaved changes, switch immediately
         if (!hasUnsavedChanges) {
             setActiveTab(newTabIndex);
-            localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+            localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
             return;
         }
 
@@ -1724,7 +1510,7 @@ const StrategyView = () => {
                     // Save & Switch
                     await handleApplySymbolCompare();
                     setActiveTab(newTabIndex);
-                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                     setPendingTabSwitch(null);
                 },
                 false, // not danger
@@ -1734,7 +1520,7 @@ const StrategyView = () => {
                     // Discard & Switch
                     await handleDiscardSymbolCompare();
                     setActiveTab(newTabIndex);
-                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                     setPendingTabSwitch(null);
                 }
             );
@@ -1752,7 +1538,7 @@ const StrategyView = () => {
                         }
                         setIsDirty(false);
                         setActiveTab(newTabIndex);
-                        localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                         setPendingTabSwitch(null);
                     } catch (e) {
                         console.error("Failed to save configuration:", e);
@@ -1767,7 +1553,7 @@ const StrategyView = () => {
                     // Discard & Switch
                     setIsDirty(false);
                     setActiveTab(newTabIndex);
-                    localStorage.setItem('strategyViewActiveTab', newTabIndex.toString());
+                    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, newTabIndex.toString());
                     setPendingTabSwitch(null);
                     // Reload config from configList to discard changes
                     // (changes are already in configList, so no action needed)
@@ -1896,7 +1682,7 @@ const StrategyView = () => {
     const [completedOptTaskId, setCompletedOptTaskId] = useState(null); // For CSV download
 
     // Heavy Optimization State (Large-scale, 10K-100K+ combinations)
-    const [heavyOptTaskId, setHeavyOptTaskId] = useState(() => localStorage.getItem('heavyOptTaskId'));
+    const [heavyOptTaskId, setHeavyOptTaskId] = useState(() => localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID));
     const [heavyOptStatus, setHeavyOptStatus] = useState(null);
     const [isHeavyOptRunning, setIsHeavyOptRunning] = useState(false);
 
@@ -1917,50 +1703,7 @@ const StrategyView = () => {
         }));
     };
 
-    // Score Weight State for Recalculation
-    // Note: All metrics are now cycle-based (total_trades = cycles, avg_pnl = cycle avg pnl)
-    const SCORE_WEIGHT_PRESETS = {
-        balanced: { // 균형 (DEFAULT)
-            return_weight: 1.0,
-            sharpe_weight: 1.2,
-            stability_weight: 1.0,
-            mdd_weight: 1.5,
-            avg_pnl_weight: 1.0,  // 사이클당 평균 손익 (마틴게일 핵심 지표)
-            win_rate_weight: 0.0,
-            recent_10_weight: 0.0,  // 최근 10 사이클 승률 (모멘텀)
-            profit_factor_weight: 0.0,
-            accel_weight: 0.0,
-            trades_weight: 0.0,  // = Cycle count
-            activity_weight: 0.0
-        },
-        return_focused: { // 수익 중심
-            return_weight: 2.0,
-            sharpe_weight: 0.5,
-            stability_weight: 0.0,
-            mdd_weight: 0.5,
-            avg_pnl_weight: 1.5,  // 사이클당 수익 강조
-            win_rate_weight: 0.5,
-            recent_10_weight: 0.0,
-            profit_factor_weight: 0.5,
-            accel_weight: 0.0,
-            trades_weight: 0.0,
-            activity_weight: 0.0
-        },
-        stability_focused: { // 안정 중심
-            return_weight: 0.5,
-            sharpe_weight: 1.5,
-            stability_weight: 2.0,
-            mdd_weight: 2.0,
-            avg_pnl_weight: 0.5,  // 일관된 사이클 손익
-            win_rate_weight: 0.5,
-            recent_10_weight: 0.0,
-            profit_factor_weight: 0.0,
-            accel_weight: 0.0,
-            trades_weight: 0.5,  // 많은 사이클 = 검증된 전략
-            activity_weight: 0.0
-        }
-    };
-
+    // Score Weight State for Recalculation (SCORE_WEIGHT_PRESETS imported from constants)
     const [scoreWeights, setScoreWeights] = useState(SCORE_WEIGHT_PRESETS.balanced);
     const [isRecalculating, setIsRecalculating] = useState(false);
     const [showWeightPanel, setShowWeightPanel] = useState(false);
@@ -2285,7 +2028,7 @@ const StrategyView = () => {
             if (response.data.task_id) {
                 const taskId = response.data.task_id;
                 setHeavyOptTaskId(taskId);
-                localStorage.setItem('heavyOptTaskId', taskId);
+                localStorage.setItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID, taskId);
                 addLog(`Optimization started: ${response.data.total_combinations} combinations`, 'info');
 
                 // Start polling
@@ -2387,7 +2130,7 @@ const StrategyView = () => {
                         setOptError(`Heavy optimization failed: ${data.message}`);
                     } else if (data.status === 'not_found') {
                         setOptError('Optimization task not found (server restarted?)');
-                        localStorage.removeItem('heavyOptTaskId');
+                        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
                         setHeavyOptTaskId(null);
                     }
                 }
@@ -2416,7 +2159,7 @@ const StrategyView = () => {
     };
 
     const clearHeavyOptTask = () => {
-        localStorage.removeItem('heavyOptTaskId');
+        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
         setHeavyOptTaskId(null);
         setHeavyOptStatus(null);
         setIsHeavyOptRunning(false);
@@ -2481,13 +2224,13 @@ const StrategyView = () => {
         if (hasRestoredOptRef.current) return;
         hasRestoredOptRef.current = true;
 
-        const savedTaskId = localStorage.getItem('heavyOptTaskId');
+        const savedTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
         if (savedTaskId) {
             // Check if task is still running
             axios.get(`/api/v1/strategies/heavy-optimize/status/${savedTaskId}`)
                 .then(res => {
                     // Verify localStorage still has this task (not cleared by profile change)
-                    const currentTaskId = localStorage.getItem('heavyOptTaskId');
+                    const currentTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
                     if (currentTaskId !== savedTaskId) {
                         console.log('[StrategyView] Task ID changed during fetch, ignoring result');
                         return;
@@ -2534,7 +2277,7 @@ const StrategyView = () => {
                 })
                 .catch(() => {
                     // Task not found, clear it
-                    localStorage.removeItem('heavyOptTaskId');
+                    localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
                     setHeavyOptTaskId(null);
                 });
         }
@@ -2812,17 +2555,7 @@ const StrategyView = () => {
     // Persistence Effects
     // Persistence logic removed for interval
 
-    // Save last selected strategy to DB (계좌 중심)
-    useEffect(() => {
-        if (selectedStrategy) {
-            // Save to DB (primary)
-            updateLastSelectedStrategy(selectedStrategy.id).catch(e => {
-                console.warn('Failed to save strategy preference to DB:', e);
-            });
-            // Keep localStorage as fallback (캐싱)
-            localStorage.setItem('lastStrategyId', selectedStrategy.id);
-        }
-    }, [selectedStrategy]);
+    // Strategy persistence (DB + localStorage) is now handled by StrategiesContext
 
     // Check Data Status
     useEffect(() => {
@@ -3641,7 +3374,7 @@ const StrategyView = () => {
                                         const newList = [...configList, newConfig];
                                         setConfigList(newList);
                                         setActiveTab(newList.length - 1);
-                                        localStorage.setItem('strategyViewActiveTab', (newList.length - 1).toString());
+                                        localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, (newList.length - 1).toString());
 
                                         // Mark profile as dirty - actual save happens via profile save
                                         setIsDirty(true);

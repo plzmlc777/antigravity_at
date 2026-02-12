@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { MarketDataProvider } from './context/MarketDataContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { LiveTradingProvider } from './context/LiveTradingContext';
+import { StrategiesProvider } from './context/StrategiesContext';
 import { APP_VERSION, COMMIT_HASH, CODE_NAME } from './version';
 
 const NavLink = ({ to, children }) => {
@@ -138,7 +139,9 @@ function App() {
                         <MarketDataProvider>
                             <WatchlistProvider>
                                 <LiveTradingProvider>
-                                    <AppContent />
+                                    <StrategiesProvider>
+                                        <AppContent />
+                                    </StrategiesProvider>
                                 </LiveTradingProvider>
                             </WatchlistProvider>
                         </MarketDataProvider>
