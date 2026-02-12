@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { List, ChevronDown, PlayCircle } from 'lucide-react';
-import { listParameterVersions } from '../api/client';
+import { List, ChevronDown } from 'lucide-react';
 
 /**
- * ActiveStrategiesPanel - Dynamic strategy configuration table with version selection.
+ * ActiveStrategiesPanel - Dynamic strategy configuration table with preset selection.
  *
+ * Reads presets from configList's parameter_presets (no API calls).
  * Renders parameter columns dynamically from parameterSchema.
  * Only fields with show_in_table !== false are displayed as columns.
  * Fixed columns: Rank, Symbol (always shown regardless of schema).
- * VERSION column: Dropdown to select from saved parameter versions.
  *
- * @param {Array} configList - List of strategy configurations
+ * @param {Array} configList - List of strategy configurations (each may have parameter_presets)
  * @param {Array} savedSymbols - Saved symbol info for name resolution
- * @param {Function} onVersionChange - Version change callback (idx, newParams, versionInfo) => void
+ * @param {Function} onVersionChange - Preset change callback (idx, newParams, presetInfo) => void
  * @param {Object} parameterSchema - Strategy parameter schema from API
  * @param {string} strategyId - Current strategy ID (e.g., "rsi_martingale")
  */
@@ -22,81 +21,18 @@ const ActiveStrategiesPanel = ({
     onVersionChange,
     parameterSchema,
     strategyId,
-    disabled = false,  // When true, version dropdown is read-only (for Live tab)
+    disabled = false,  // When true, preset dropdown is read-only (for Live tab)
 }) => {
     const activeCount = configList ? configList.filter(c => c.is_active !== false).length : 0;
 
-    // Store versions per symbol: { symbol: { versions: [], loading: bool } }
-    const [versionsBySymbol, setVersionsBySymbol] = useState({});
-
-    // Track which configs have been auto-initialized to avoid infinite loops
-    const initializedConfigs = useRef(new Set());
-
-    // Extract table-visible fields from schema
+    // Parse schema fields for table columns
+    const getFieldKey = (field) => field.key || field.name;
     const fields = parameterSchema?.fields || [];
     const tableFields = fields.filter(f => f.show_in_table !== false);
 
-    // Get the actual key from a field (schema may use 'key' or 'name')
-    const getFieldKey = (field) => field.key || field.name;
+    // Auto-select first preset for configs without selected_preset_id
+    const initializedConfigs = useRef(new Set());
 
-    // Simple hash function for comparing params (similar to backend's MD5)
-    const createConfigHash = (params) => {
-        if (!params) return null;
-        try {
-            const str = JSON.stringify(params, Object.keys(params).sort());
-            // Simple hash for comparison
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return Math.abs(hash).toString(16).padStart(8, '0').slice(0, 12);
-        } catch {
-            return null;
-        }
-    };
-
-    // Fetch versions for all active symbols
-    const fetchVersionsForSymbols = useCallback(async () => {
-        if (!strategyId || !configList) return;
-
-        const activeConfigs = configList.filter(c => c.is_active !== false);
-        const symbols = [...new Set(activeConfigs.map(c => c.symbol).filter(Boolean))];
-
-        // Fetch versions for each unique symbol
-        for (const symbol of symbols) {
-            if (versionsBySymbol[symbol]?.versions) continue; // Already fetched
-
-            setVersionsBySymbol(prev => ({
-                ...prev,
-                [symbol]: { ...prev[symbol], loading: true }
-            }));
-
-            try {
-                const result = await listParameterVersions(strategyId, symbol);
-                setVersionsBySymbol(prev => ({
-                    ...prev,
-                    [symbol]: {
-                        versions: result.data || [],
-                        loading: false
-                    }
-                }));
-            } catch (err) {
-                console.error(`Failed to fetch versions for ${symbol}:`, err);
-                setVersionsBySymbol(prev => ({
-                    ...prev,
-                    [symbol]: { versions: [], loading: false }
-                }));
-            }
-        }
-    }, [strategyId, configList]);
-
-    useEffect(() => {
-        fetchVersionsForSymbols();
-    }, [fetchVersionsForSymbols]);
-
-    // Auto-select first version for configs without selected_version_id
     useEffect(() => {
         if (!onVersionChange || !configList) return;
 
@@ -106,93 +42,75 @@ const ActiveStrategiesPanel = ({
             const configKey = `${idx}_${cfg.symbol}`;
             if (initializedConfigs.current.has(configKey)) return;
 
-            const versions = versionsBySymbol[cfg.symbol]?.versions || [];
-            const isLoading = versionsBySymbol[cfg.symbol]?.loading;
+            const presets = cfg.parameter_presets || [];
+            if (presets.length === 0) return;
 
-            if (isLoading || versions.length === 0) return;
-
-            // Already has a selected version
-            if (cfg.selected_version_id) {
-                const exists = versions.find(v => v.id === cfg.selected_version_id);
+            // Already has a selected preset
+            if (cfg.selected_preset_id) {
+                const exists = presets.find(p => p.id === cfg.selected_preset_id);
                 if (exists) {
                     initializedConfigs.current.add(configKey);
                     return;
                 }
             }
 
-            // Try to match by comparing current config params with version params
-            // Extract only parameter keys from schema for comparison
+            // Try to match by comparing current config params with preset params
             const paramKeys = fields.map(f => f.key || f.name);
             const currentParams = {};
             paramKeys.forEach(key => {
-                if (cfg[key] !== undefined) {
-                    currentParams[key] = cfg[key];
-                }
+                if (cfg[key] !== undefined) currentParams[key] = cfg[key];
             });
 
-            // Find matching version by comparing params
-            let matchedVersion = null;
-            for (const v of versions) {
-                if (v.params) {
-                    const versionParams = {};
+            let matchedPreset = null;
+            for (const p of presets) {
+                if (p.params) {
+                    const presetParams = {};
                     paramKeys.forEach(key => {
-                        if (v.params[key] !== undefined) {
-                            versionParams[key] = v.params[key];
-                        }
+                        if (p.params[key] !== undefined) presetParams[key] = p.params[key];
                     });
-
-                    // Compare JSON strings
-                    if (JSON.stringify(currentParams) === JSON.stringify(versionParams)) {
-                        matchedVersion = v;
+                    if (JSON.stringify(currentParams) === JSON.stringify(presetParams)) {
+                        matchedPreset = p;
                         break;
                     }
                 }
             }
 
-            // If no match, use first version as default
-            const versionToUse = matchedVersion || versions[0];
-
+            const presetToUse = matchedPreset || presets[0];
             initializedConfigs.current.add(configKey);
 
-            // Apply the version
-            onVersionChange(idx, versionToUse.params, {
-                id: versionToUse.id,
-                version_name: versionToUse.version_name,
-                config_hash: versionToUse.config_hash,
+            onVersionChange(idx, presetToUse.params, {
+                id: presetToUse.id,
+                version_name: presetToUse.name,
+                config_hash: presetToUse.config_hash,
             });
         });
-    }, [configList, versionsBySymbol, onVersionChange, fields]);
+    }, [configList, onVersionChange, fields]);
 
-    // Handle version selection
-    const handleVersionSelect = (idx, cfg, versionId) => {
-        const symbol = cfg.symbol;
-        const versions = versionsBySymbol[symbol]?.versions || [];
-        const selectedVersion = versions.find(v => v.id === versionId);
+    // Handle preset selection
+    const handlePresetSelect = (idx, cfg, presetId) => {
+        const presets = cfg.parameter_presets || [];
+        const selected = presets.find(p => p.id === presetId);
 
-        if (selectedVersion && onVersionChange) {
-            onVersionChange(idx, selectedVersion.params, {
-                id: selectedVersion.id,
-                version_name: selectedVersion.version_name,
-                config_hash: selectedVersion.config_hash,
+        if (selected && onVersionChange) {
+            onVersionChange(idx, selected.params, {
+                id: selected.id,
+                version_name: selected.name,
+                config_hash: selected.config_hash,
             });
         }
     };
 
-    // Find current version based on selected_version_id
-    const findCurrentVersion = (cfg) => {
-        const symbol = cfg.symbol;
-        const versions = versionsBySymbol[symbol]?.versions || [];
+    // Find current preset
+    const findCurrentPreset = (cfg) => {
+        const presets = cfg.parameter_presets || [];
+        if (!presets.length) return null;
 
-        if (!versions.length) return null;
-
-        // Match by selected_version_id
-        if (cfg.selected_version_id) {
-            const match = versions.find(v => v.id === cfg.selected_version_id);
+        if (cfg.selected_preset_id) {
+            const match = presets.find(p => p.id === cfg.selected_preset_id);
             if (match) return match;
         }
 
-        // Fallback: return first version (should have been auto-selected)
-        return versions[0];
+        return presets[0];
     };
 
     const formatValue = (cfg, field) => {
@@ -203,7 +121,6 @@ const ActiveStrategiesPanel = ({
         if (field.type === 'select' || field.type === 'time') {
             return String(val);
         }
-        // number: append % if label contains (%)
         const hasPercent = (field.label || '').includes('%');
         return hasPercent ? `${val}%` : String(val);
     };
@@ -233,7 +150,7 @@ const ActiveStrategiesPanel = ({
                                         {f.label}
                                     </th>
                                 ))}
-                                <th className="px-4 py-3 text-right">Version</th>
+                                <th className="px-4 py-3 text-right">Preset</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -241,9 +158,8 @@ const ActiveStrategiesPanel = ({
                                 if (cfg.is_active === false) return null;
                                 const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
                                 const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
-                                const versions = versionsBySymbol[cfg.symbol]?.versions || [];
-                                const isLoading = versionsBySymbol[cfg.symbol]?.loading;
-                                const currentVersion = findCurrentVersion(cfg);
+                                const presets = cfg.parameter_presets || [];
+                                const currentPreset = findCurrentPreset(cfg);
 
                                 return (
                                     <tr key={cfg.uuid || idx} className="hover:bg-white/5 transition">
@@ -276,30 +192,29 @@ const ActiveStrategiesPanel = ({
                                             );
                                         })}
                                         <td className="px-4 py-3 text-right">
-                                            {isLoading ? (
-                                                <span className="text-xs text-gray-500">Loading...</span>
-                                            ) : versions.length === 0 ? (
-                                                <span className="text-xs text-yellow-500 italic">No saved versions</span>
+                                            {presets.length === 0 ? (
+                                                cfg.selected_preset_name ? (
+                                                    <span className="text-xs text-gray-400 font-medium">{cfg.selected_preset_name}</span>
+                                                ) : (
+                                                    <span className="text-xs text-gray-600 italic">-</span>
+                                                )
                                             ) : (
                                                 <div className="inline-flex items-center gap-1.5">
                                                     <div className="relative">
                                                         <select
-                                                            value={currentVersion?.id || versions[0]?.id || ''}
-                                                            onChange={(e) => handleVersionSelect(idx, cfg, e.target.value)}
+                                                            value={currentPreset?.id || presets[0]?.id || ''}
+                                                            onChange={(e) => handlePresetSelect(idx, cfg, e.target.value)}
                                                             disabled={disabled}
                                                             className={`appearance-none bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1.5 pr-7 focus:outline-none focus:border-indigo-500 min-w-[140px] ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                                         >
-                                                            {versions.map(v => (
-                                                                <option key={v.id} value={v.id}>
-                                                                    {v.version_name}
+                                                            {presets.map(p => (
+                                                                <option key={p.id} value={p.id}>
+                                                                    {p.name}
                                                                 </option>
                                                             ))}
                                                         </select>
                                                         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
                                                     </div>
-                                                    {currentVersion?.is_in_use && (
-                                                        <PlayCircle className="w-4 h-4 text-green-400 flex-shrink-0" title="Currently running in live session" />
-                                                    )}
                                                 </div>
                                             )}
                                         </td>

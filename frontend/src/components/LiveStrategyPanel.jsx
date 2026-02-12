@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, stopAllLiveBots, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
@@ -928,7 +928,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const checkStatus = async () => {
         try {
-            const sessions = await getLiveStatus();
+            const allSessions = await getLiveStatus();
+
+            // Filter to only sessions belonging to the selected group
+            const groupSessionIds = new Set(
+                (activeSessionGroup?.sessions || []).map(s => s.session_id)
+            );
+            const sessions = groupSessionIds.size > 0
+                ? allSessions.filter(s => groupSessionIds.has(s.session_id))
+                : allSessions;
 
             if (executionMode === 'parallel' || Object.keys(parallelSessions).length > 1) {
                 // Multi-session: detect sessions for all active ranks (parallel & exclusive)
@@ -977,8 +985,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     setStatus('RUNNING');
                     setSessionId(mySession.session_id);
                     // Include all session data for configured symbols in _parallel_sessions
-                    const configuredSymbols = configList.map(c => c.symbol);
-                    const allConfiguredSessions = sessions.filter(s => configuredSymbols.includes(s.symbol));
+                    const allConfiguredSessions = sessions.filter(s => s.is_running);
                     // Track which rank index has active session
                     const activeSessions = {};
                     configList.forEach((cfg, idx) => {
@@ -1091,15 +1098,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setError(null);
             setStatus('STARTING');
 
-            // First, stop all existing sessions for this account to prevent duplicates
-            // force=true: bypass position check (START flow needs to clean up old sessions)
+            // Stop only the selected group's running sessions before starting new ones
+            // (don't touch other groups' sessions)
             try {
-                const stopResult = await stopAllLiveBots({ force: true });
-                if (stopResult.stopped_count > 0) {
-                    addLog("System", `Stopped ${stopResult.stopped_count} existing session(s) before starting new ones`);
+                const groupSessions = activeSessionGroup?.sessions || [];
+                const runningIds = groupSessions
+                    .filter(s => s.status === 'RUNNING' || s.status === 'PAUSED')
+                    .map(s => s.session_id);
+                if (runningIds.length > 0) {
+                    const results = await Promise.allSettled(
+                        runningIds.map(sid => stopLiveBot(sid))
+                    );
+                    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                    if (succeeded > 0) {
+                        addLog("System", `Stopped ${succeeded} existing session(s) in group before starting new ones`);
+                    }
                 }
             } catch (stopErr) {
-                console.warn("Failed to stop existing sessions:", stopErr);
+                console.warn("Failed to stop existing group sessions:", stopErr);
                 // Continue anyway - the sessions might not exist
             }
 
@@ -1139,10 +1155,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         ? Math.floor(totalCapital * weight / totalWeight)
                         : Math.floor(totalCapital / activeConfigs.length);
 
+                    // Resolve preset name for live session tracking
+                    const presetName = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
                     const payload = {
                         symbol: cfg.symbol,
                         strategy_name: strategyName || "time_momentum",
-                        strategy_config: cfg,
+                        strategy_config: { ...cfg, selected_preset_name: presetName },
                         initial_capital: rankCapital,
                         is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
                         account_id: selectedAccountId,  // Phase 5: Explicit account selection
@@ -1184,10 +1202,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     const cfg = configList[i];
                     if (!cfg.is_active) continue;
 
+                    // Resolve preset name for live session tracking
+                    const presetNameExcl = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
                     const payload = {
                         symbol: cfg.symbol,
                         strategy_name: strategyName || "time_momentum",
-                        strategy_config: { ...cfg, execution_mode: 'exclusive' },
+                        strategy_config: { ...cfg, execution_mode: 'exclusive', selected_preset_name: presetNameExcl },
                         initial_capital: totalCapital,  // Full capital (only one trades at a time)
                         is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
                         account_id: selectedAccountId,  // Phase 5: Explicit account selection
@@ -1236,17 +1256,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const handleForceClosePosition = async () => {
         try {
-            // Force close ALL tracked sessions (both exclusive and parallel modes)
+            // Force close positions only (no session stop) — sessions keep running
             const sessionIds = Object.values(parallelSessions);
             if (sessionIds.length > 0) {
                 for (const sid of sessionIds) {
-                    await liquidateLiveBot(sid);
+                    await liquidateLiveBot(sid, { autoStop: false });
                 }
-                addLog("System", `Force-closed positions across ${sessionIds.length} session(s).`);
+                addLog("System", `Force-closed positions for ${sessionIds.length} session(s). Sessions still running.`);
             } else if (sessionId) {
-                await liquidateLiveBot(sessionId);
-                addLog("System", "Force-closed all positions (market sell).");
+                await liquidateLiveBot(sessionId, { autoStop: false });
+                addLog("System", "Force-closed all positions. Session still running.");
             }
+            // Notify parent to refresh session list
+            if (onSessionAction) onSessionAction('force_close', activeSessionGroup?.sessions?.[0]);
         } catch (err) {
             setError(err.message);
             addLog("Error", `Force close failed: ${err.message}`);
@@ -1695,13 +1717,38 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 onClose={() => setIsStopModalOpen(false)}
                 onConfirm={async () => {
                     try {
-                        // Stop all sessions for this account
-                        const result = await stopAllLiveBots();
-                        setParallelSessions({});
-                        setSessionId(null);
-                        addLog("System", `Stopped ${result.stopped_count} session(s)`);
+                        // Stop only sessions in the selected group
+                        const groupSessions = activeSessionGroup?.sessions || [];
+                        const runningIds = groupSessions
+                            .filter(s => s.status === 'RUNNING' || s.status === 'PAUSED')
+                            .map(s => s.session_id);
+
+                        if (runningIds.length > 0) {
+                            const results = await Promise.allSettled(
+                                runningIds.map(sid => stopLiveBot(sid))
+                            );
+                            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                            const failed = results.filter(r => r.status === 'rejected').length;
+                            if (failed > 0) {
+                                const errors = results
+                                    .filter(r => r.status === 'rejected')
+                                    .map(r => r.reason?.response?.data?.detail || r.reason?.message || 'Unknown')
+                                    .join(', ');
+                                addLog("Warning", `Stopped ${succeeded}/${runningIds.length} session(s). Errors: ${errors}`);
+                                if (succeeded === 0) {
+                                    setError(errors);
+                                    return;
+                                }
+                            } else {
+                                addLog("System", `Stopped ${succeeded} session(s)`);
+                            }
+                        } else {
+                            addLog("System", "No running sessions to stop");
+                        }
                         setStatus('STOPPED');
                         stopPolling();
+                        // Notify parent to refresh session list (so SessionSwitcher updates status)
+                        if (onSessionAction) onSessionAction('stop', activeSessionGroup?.sessions?.[0]);
                     } catch (err) {
                         setError(err.message);
                     }
@@ -2249,7 +2296,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const posCheck = await checkLivePosition();
+                                                // Only check positions for the selected session group
+                                                const groupSessionIds = activeSessionGroup?.sessions?.map(s => s.session_id) || [];
+                                                const posCheck = await checkLivePosition(groupSessionIds.length > 0 ? groupSessionIds : null);
                                                 if (posCheck.has_position) {
                                                     setPositionWarningMessage(`현재 세션 포지션을 보유 중이기 때문에 종료할 수 없습니다.\n(${posCheck.detail})`);
                                                     setIsPositionWarningOpen(true);

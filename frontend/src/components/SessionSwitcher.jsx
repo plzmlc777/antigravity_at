@@ -345,8 +345,26 @@ const SessionSwitcher = forwardRef(({
                     configList: selectedGroup.configList || []  // For ActiveStrategiesPanel
                 });
             }
+        } else {
+            // Selected group no longer exists (deleted or all sessions removed)
+            // Auto-select first available group, or clear selection
+            if (sessionGroups.length > 0) {
+                const firstGroup = sessionGroups[0];
+                console.log('[SessionSwitcher] Selected group disappeared, auto-selecting:', firstGroup.groupKey);
+                onSelectSessionGroup({
+                    accountId: firstGroup.account_id,
+                    strategyName: firstGroup.strategy_name,
+                    groupId: firstGroup.groupId,
+                    sessionId: firstGroup.sessions[0]?.session_id,
+                    sessions: firstGroup.sessions,
+                    configList: firstGroup.configList || []
+                });
+            } else {
+                console.log('[SessionSwitcher] Selected group disappeared, no groups left - clearing selection');
+                onSelectSessionGroup(null);
+            }
         }
-    }, [sessionGroups]);
+    }, [sessionGroups, activeSessionGroup]);
 
     // Check if a group is selected
     const isGroupSelected = (group) => {

@@ -6,6 +6,19 @@
  */
 
 // ==========================================
+// Config Hash Utility (for preset identification)
+// ==========================================
+export const createConfigHash = (params) => {
+    const str = JSON.stringify(params, Object.keys(params).sort());
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(36).padStart(8, '0').slice(0, 12);
+};
+
+// ==========================================
 // UUID Generation
 // ==========================================
 export const generateUUID = () => {

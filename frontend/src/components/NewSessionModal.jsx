@@ -120,10 +120,12 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                 const cfg = rankConfigs[idx];
                 // 프로필 데이터를 그대로 사용 (Strategies 탭에서 설정한 값 그대로)
                 // Live에서는 계좌, 자본금, Paper/Real 모드만 설정
+                // Resolve preset name for live session tracking
+                const presetName = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
                 const payload = {
                     symbol: cfg.symbol,
                     strategy_name: selectedProfile.strategy_name,
-                    strategy_config: { ...cfg, execution_mode: executionMode },
+                    strategy_config: { ...cfg, execution_mode: executionMode, selected_preset_name: presetName },
                     initial_capital: capitalPerRank,
                     is_paper: true,  // 기본값 Paper (LiveStrategyPanel에서 변경 가능)
                     account_id: selectedAccountId,

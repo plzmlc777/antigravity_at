@@ -24,8 +24,8 @@ const ParameterVersionManager = ({
     className = '',
 }) => {
     const [versions, setVersions] = useState([]);
-    const [remainingSlots, setRemainingSlots] = useState(10);
-    const [maxVersions, setMaxVersions] = useState(10);
+    const [remainingSlots, setRemainingSlots] = useState(20);
+    const [maxVersions, setMaxVersions] = useState(20);
     const [isExpanded, setIsExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showSaveForm, setShowSaveForm] = useState(false);
@@ -41,8 +41,8 @@ const ParameterVersionManager = ({
         try {
             const result = await listParameterVersions(strategyId, symbol || '');
             setVersions(result.data || []);
-            setRemainingSlots(result.remaining_slots ?? 10);
-            setMaxVersions(result.max_versions ?? 10);
+            setRemainingSlots(result.remaining_slots ?? 20);
+            setMaxVersions(result.max_versions ?? 20);
         } catch (err) {
             console.error('Failed to fetch versions:', err);
             setError('Failed to load versions');
@@ -72,11 +72,6 @@ const ParameterVersionManager = ({
             return;
         }
 
-        if (remainingSlots <= 0) {
-            setError('Maximum versions reached. Delete old versions first.');
-            return;
-        }
-
         setIsLoading(true);
         setError(null);
         try {
@@ -89,7 +84,11 @@ const ParameterVersionManager = ({
             });
             setNewVersionDesc('');
             setShowSaveForm(false);
-            setSuccessMsg(`Saved: ${result.data?.version_name}`);
+            if (result?.archived_version) {
+                setSuccessMsg(`Saved: ${result.data?.version_name} (Auto-archived: ${result.archived_version})`);
+            } else {
+                setSuccessMsg(`Saved: ${result.data?.version_name}`);
+            }
             await fetchVersions();
         } catch (err) {
             console.error('Failed to save version:', err);
@@ -230,7 +229,7 @@ const ParameterVersionManager = ({
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleSave}
-                                    disabled={isLoading || remainingSlots <= 0}
+                                    disabled={isLoading}
                                     className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs py-1.5 rounded transition-colors"
                                 >
                                     {isLoading ? 'Saving...' : 'Save'}
@@ -250,13 +249,10 @@ const ParameterVersionManager = ({
                     ) : (
                         <button
                             onClick={() => setShowSaveForm(true)}
-                            disabled={remainingSlots <= 0}
-                            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/30 text-indigo-300 text-xs py-2 rounded transition-colors"
+                            className="mt-3 w-full flex items-center justify-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs py-2 rounded transition-colors"
                         >
                             <Save className="w-3.5 h-3.5" />
-                            {remainingSlots > 0
-                                ? `Save Current (${remainingSlots} slots left)`
-                                : 'Max versions reached'}
+                            Save Current ({remainingSlots} slots left)
                         </button>
                     )}
 

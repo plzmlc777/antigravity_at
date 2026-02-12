@@ -198,8 +198,12 @@ export const stopAllLiveBots = async ({ force = false } = {}) => {
     return data;
 };
 
-export const checkLivePosition = async () => {
-    const { data } = await api.get('/live/check-position');
+export const checkLivePosition = async (sessionIds = null) => {
+    const params = {};
+    if (sessionIds && sessionIds.length > 0) {
+        params.session_ids = sessionIds.join(',');
+    }
+    const { data } = await api.get('/live/check-position', { params });
     return data;
 };
 
@@ -247,8 +251,10 @@ export const toggleLiveMode = async (sessionId, isPaper) => {
     return data;
 };
 
-export const liquidateLiveBot = async (sessionId) => {
-    const { data } = await api.post(`/live/liquidate/${sessionId}`);
+export const liquidateLiveBot = async (sessionId, { autoStop = true } = {}) => {
+    const { data } = await api.post(`/live/liquidate/${sessionId}`, null, {
+        params: { auto_stop: autoStop }
+    });
     return data;
 };
 

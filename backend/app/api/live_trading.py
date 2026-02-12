@@ -105,11 +105,17 @@ async def verify_session_ownership(session_id: str, account_id: int, db: Session
 
 @router.get("/check-position")
 async def check_session_positions(
+    session_ids: Optional[str] = None,
     ctx: UserAccountContext = Depends(get_user_context)
 ):
     """
-    Check if any running session for this account has an open position.
+    Check if running sessions have open positions.
     Used by frontend to decide whether to show stop confirmation or position warning.
+
+    Args:
+        session_ids: Comma-separated session IDs to check (optional).
+                     If provided, only checks those sessions.
+                     If omitted, checks all running sessions for the account.
     """
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account selected")
@@ -118,10 +124,20 @@ async def check_session_positions(
     from ..db.session import SessionLocal
     db = SessionLocal()
     try:
-        running_sessions = db.query(LiveBotSession).filter(
-            LiveBotSession.account_id == ctx.account_id,
-            LiveBotSession.status == SessionStatus.RUNNING
-        ).all()
+        if session_ids:
+            # Check only specified sessions (selected group)
+            sid_list = [s.strip() for s in session_ids.split(",") if s.strip()]
+            running_sessions = db.query(LiveBotSession).filter(
+                LiveBotSession.account_id == ctx.account_id,
+                LiveBotSession.id.in_(sid_list),
+                LiveBotSession.status == SessionStatus.RUNNING
+            ).all()
+        else:
+            # Fallback: check all running sessions for account
+            running_sessions = db.query(LiveBotSession).filter(
+                LiveBotSession.account_id == ctx.account_id,
+                LiveBotSession.status == SessionStatus.RUNNING
+            ).all()
 
         for sess in running_sessions:
             pos = live_manager._check_session_position(sess.id)
@@ -456,18 +472,22 @@ async def toggle_mode(
 @router.post("/liquidate/{session_id}")
 async def liquidate_session(
     session_id: str,
+    auto_stop: bool = True,
     ctx: UserAccountContext = Depends(get_user_context),
     db: Session = Depends(get_db)
 ):
     """
-    Emergency: Market Sell all positions and pause trading.
+    Emergency: Market Sell all positions.
+    auto_stop=True (default): also stop the session after liquidation.
+    auto_stop=False: only close positions, keep session running.
     """
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account")
     await verify_session_ownership(session_id, ctx.account_id, db)
     try:
-        await live_manager.liquidate_session(session_id)
-        return {"status": "success", "message": "Liquidation order sent and trading paused."}
+        await live_manager.liquidate_session(session_id, auto_stop=auto_stop)
+        msg = "Liquidation order sent and session stopped." if auto_stop else "Liquidation order sent. Session still running."
+        return {"status": "success", "message": msg}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1117,7 +1137,7 @@ class ParameterVersionCreate(PydanticBaseModel):
     params: Dict[str, Any]
     is_default: bool = False
 
-MAX_VERSIONS_PER_RANK = 10  # Maximum versions per strategy_id + symbol combination
+MAX_VERSIONS_PER_RANK = 20  # Maximum versions per strategy_id + symbol combination
 
 class ParameterVersionUpdate(PydanticBaseModel):
     version_name: Optional[str] = None
@@ -1127,13 +1147,19 @@ class ParameterVersionUpdate(PydanticBaseModel):
 
 
 @router.get("/parameter-versions")
-async def list_parameter_versions(strategy_id: str = "", symbol: str = "", include_inactive: bool = False):
+async def list_parameter_versions(
+    strategy_id: str = "",
+    symbol: str = "",
+    include_all_symbols: bool = False,
+    include_inactive: bool = False
+):
     """
     List all saved parameter versions.
 
     Query params:
     - strategy_id: filter by strategy (e.g., "dip_martingale")
-    - symbol: filter by symbol (optional)
+    - symbol: filter by symbol (required unless include_all_symbols=True)
+    - include_all_symbols: skip symbol filter, return all symbols
     - include_inactive: include soft-deleted versions
 
     Returns:
@@ -1155,8 +1181,12 @@ async def list_parameter_versions(strategy_id: str = "", symbol: str = "", inclu
         if strategy_id:
             query = query.filter(StrategyParameterVersion.strategy_id == strategy_id)
 
-        if symbol:
-            query = query.filter(StrategyParameterVersion.symbol == symbol)
+        # Symbol filtering: consistent with create endpoint
+        if not include_all_symbols:
+            if symbol:
+                query = query.filter(StrategyParameterVersion.symbol == symbol)
+            else:
+                query = query.filter(StrategyParameterVersion.symbol.is_(None))
 
         versions = query.order_by(StrategyParameterVersion.version_name.asc()).all()
 
@@ -1170,6 +1200,10 @@ async def list_parameter_versions(strategy_id: str = "", symbol: str = "", inclu
             if symbol:
                 active_sessions_query = active_sessions_query.filter(
                     LiveBotSession.symbol == symbol
+                )
+            else:
+                active_sessions_query = active_sessions_query.filter(
+                    LiveBotSession.symbol.is_(None)
                 )
             for session in active_sessions_query.all():
                 session_hash = _create_config_hash(session.strategy_config)
@@ -1206,10 +1240,12 @@ async def create_parameter_version(req: ParameterVersionCreate):
     """
     Save current parameters as a named version.
     Auto-generates version number in format: 001_description
-    Maximum 10 versions per strategy_id + symbol combination.
+    Maximum versions per strategy_id + symbol combination.
+    When limit is reached, auto-archives the oldest non-default, non-in-use version.
     """
     from ..db.session import SessionLocal
-    from ..models.live_trading import StrategyParameterVersion
+    from ..models.live_trading import StrategyParameterVersion, LiveBotSession, SessionStatus
+    from datetime import datetime
     import uuid
     import re
 
@@ -1227,12 +1263,43 @@ async def create_parameter_version(req: ParameterVersionCreate):
 
         existing_versions = existing_query.all()
 
-        # Check 10 version limit
+        # Auto-archive when limit reached
+        archived_version_name = None
         if len(existing_versions) >= MAX_VERSIONS_PER_RANK:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Maximum {MAX_VERSIONS_PER_RANK} versions allowed per strategy+symbol. Delete old versions first."
+            # Get active session config hashes to protect in-use versions
+            active_config_hashes = set()
+            active_sessions_query = db.query(LiveBotSession).filter(
+                LiveBotSession.status == SessionStatus.RUNNING,
+                LiveBotSession.strategy_name == req.strategy_id,
             )
+            if req.symbol:
+                active_sessions_query = active_sessions_query.filter(
+                    LiveBotSession.symbol == req.symbol
+                )
+            else:
+                active_sessions_query = active_sessions_query.filter(
+                    LiveBotSession.symbol.is_(None)
+                )
+            for session in active_sessions_query.all():
+                session_hash = _create_config_hash(session.strategy_config)
+                active_config_hashes.add(session_hash)
+
+            # Find oldest non-default, non-in-use version to archive
+            archivable = [
+                v for v in sorted(existing_versions, key=lambda v: v.created_at or datetime.min)
+                if not v.is_default and (not v.config_hash or v.config_hash not in active_config_hashes)
+            ]
+            if archivable:
+                oldest = archivable[0]
+                oldest.is_active = False  # Soft delete (archive)
+                archived_version_name = oldest.version_name
+                # Remove from existing_versions for numbering
+                existing_versions = [v for v in existing_versions if v.id != oldest.id]
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Maximum {MAX_VERSIONS_PER_RANK} versions. All versions are default or in active use — delete manually."
+                )
 
         # Find the next available number by scanning existing version_names
         used_numbers = set()
@@ -1278,7 +1345,7 @@ async def create_parameter_version(req: ParameterVersionCreate):
         db.commit()
         db.refresh(new_version)
 
-        return {
+        result = {
             "status": "success",
             "message": f"Version '{version_name}' saved",
             "data": {
@@ -1290,6 +1357,9 @@ async def create_parameter_version(req: ParameterVersionCreate):
                 "remaining_slots": MAX_VERSIONS_PER_RANK - len(existing_versions) - 1,
             }
         }
+        if archived_version_name:
+            result["archived_version"] = archived_version_name
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -1415,6 +1485,10 @@ async def delete_parameter_version(version_id: str, hard_delete: bool = False):
             if version.symbol:
                 active_sessions_query = active_sessions_query.filter(
                     LiveBotSession.symbol == version.symbol
+                )
+            else:
+                active_sessions_query = active_sessions_query.filter(
+                    LiveBotSession.symbol.is_(None)
                 )
 
             active_sessions = active_sessions_query.all()

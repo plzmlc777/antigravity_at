@@ -27,13 +27,13 @@ import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
 import { useMarketData } from '../context/MarketDataContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
+import { getAllSessions } from '../api/client';
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
-import ParameterVersionManager from '../components/ParameterVersionManager';
 import RankVersionSelector from '../components/RankVersionSelector';
 import TabBadge from '../components/TabBadge';
 import DateDropdown from '../components/DateDropdown';
@@ -44,7 +44,7 @@ import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, com
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
-import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getIntegratedUUID, getCrossOptUUID, SCORE_WEIGHT_PRESETS, STORAGE_KEYS } from '../constants/strategies';
+import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getIntegratedUUID, getCrossOptUUID, SCORE_WEIGHT_PRESETS, STORAGE_KEYS, createConfigHash } from '../constants/strategies';
 
 // Constants imported from '../constants/strategies' (Single Source of Truth)
 
@@ -253,7 +253,12 @@ const StrategyView = () => {
         transformUiToDbConfig, // Legacy API compatibility
         // reloadConfigs already aliased to loadProfiles above
         initDefaultList: hookInitDefaultList,
-        getDynamicDefaultConfig: getHookDefaultConfig
+        getDynamicDefaultConfig: getHookDefaultConfig,
+        // Parameter Preset Management
+        addPreset,
+        deletePreset,
+        renamePreset,
+        selectPreset,
     } = useProfileConfig({
         selectedStrategy,
         defaultConfig: DEFAULT_CONFIG,
@@ -294,6 +299,33 @@ const StrategyView = () => {
     const closeConfirm = () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
+
+    // Locked preset IDs — presets used by RUNNING live sessions cannot be deleted/renamed
+    const [lockedPresetIds, setLockedPresetIds] = useState(null);
+
+    useEffect(() => {
+        const fetchLockedPresets = async () => {
+            try {
+                const sessions = await getAllSessions({ includeStopped: false, allAccounts: true });
+                const sessionList = sessions?.sessions || sessions || [];
+                const locked = new Set();
+                for (const s of sessionList) {
+                    if (s.status === 'RUNNING' || s.status === 'PAUSED') {
+                        const presetId = s.strategy_config?.selected_preset_id;
+                        if (presetId) locked.add(presetId);
+                    }
+                }
+                setLockedPresetIds(locked);
+            } catch (err) {
+                console.error('Failed to fetch running sessions for preset lock:', err);
+                setLockedPresetIds(new Set());
+            }
+        };
+        fetchLockedPresets();
+        // Refresh every 30s to catch session start/stop
+        const interval = setInterval(fetchLockedPresets, 30000);
+        return () => clearInterval(interval);
+    }, []);
 
     const [activeTab, setActiveTab] = useState(() => {
         const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
@@ -3077,16 +3109,13 @@ const StrategyView = () => {
                                                     savedSymbols={savedSymbols}
                                                     strategyId={selectedStrategy?.id}
                                                     parameterSchema={selectedStrategy?.parameter_schema}
-                                                    onVersionChange={(idx, newParams, versionInfo) => {
-                                                        // Update configList with new params from selected version
-                                                        // IMPORTANT: Only apply strategy parameters, preserve metadata
-                                                        const metadataFields = ['uuid', 'tabName', 'is_active', 'symbol', 'selected_version_id', 'selected_version_name', 'initial_capital', 'start_date'];
+                                                    onVersionChange={(idx, newParams, presetInfo) => {
+                                                        // Update configList with params from selected preset
                                                         const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
 
                                                         setConfigList(prev => {
                                                             const updated = [...prev];
                                                             if (updated[idx]) {
-                                                                // Only copy parameter fields from newParams
                                                                 const filteredParams = {};
                                                                 parameterFields.forEach(key => {
                                                                     if (newParams[key] !== undefined) {
@@ -3095,10 +3124,9 @@ const StrategyView = () => {
                                                                 });
 
                                                                 updated[idx] = {
-                                                                    ...updated[idx],  // Preserve all existing fields (including is_active, tabName, etc.)
-                                                                    ...filteredParams,  // Only apply strategy parameters
-                                                                    selected_version_id: versionInfo.id,
-                                                                    selected_version_name: versionInfo.version_name,
+                                                                    ...updated[idx],
+                                                                    ...filteredParams,
+                                                                    selected_preset_id: presetInfo.id,
                                                                 };
                                                             }
                                                             return updated;
@@ -3623,42 +3651,82 @@ const StrategyView = () => {
                                                 <div className="flex items-center gap-4">
                                                     <h4 className="text-sm font-bold text-gray-300">Parameters</h4>
                                                     <RankVersionSelector
-                                                        strategyId={selectedStrategy?.id}
-                                                        symbol={currentConfig?.symbol || currentSymbol}
+                                                        presets={currentConfig?.parameter_presets || []}
+                                                        selectedPresetId={currentConfig?.selected_preset_id}
                                                         currentParams={currentConfig}
-                                                        selectedVersionId={currentConfig?.selected_version_id}
+                                                        lockedPresetIds={lockedPresetIds}
                                                         parameterSchema={selectedStrategy?.parameter_schema}
-                                                        onVersionSelect={(params, versionInfo) => {
-                                                            // Only apply strategy parameters, preserve metadata
-                                                            const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
-                                                            const filteredParams = {};
-                                                            parameterFields.forEach(key => {
-                                                                if (params[key] !== undefined) {
-                                                                    filteredParams[key] = params[key];
-                                                                }
-                                                            });
-
-                                                            handleConfigChange({
-                                                                ...currentConfig,
-                                                                ...filteredParams,
-                                                                selected_version_id: versionInfo.id,
-                                                                selected_version_name: versionInfo.version_name,
-                                                            });
+                                                        onSelectPreset={(presetId) => {
+                                                            if (activeTab === -3) {
+                                                                // Symbol Compare tab: update symbolCompareConfig directly
+                                                                const preset = (currentConfig?.parameter_presets || []).find(p => p.id === presetId);
+                                                                if (!preset) return;
+                                                                const paramKeys = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
+                                                                const updated = { ...currentConfig };
+                                                                paramKeys.forEach(key => { if (preset.params[key] !== undefined) updated[key] = preset.params[key]; });
+                                                                updated.selected_preset_id = presetId;
+                                                                setSymbolCompareConfig(updated);
+                                                                setIsDirty(true);
+                                                            } else {
+                                                                selectPreset(activeTab, presetId, selectedStrategy?.parameter_schema);
+                                                            }
+                                                        }}
+                                                        onAddPreset={(desc) => {
+                                                            if (activeTab === -3) {
+                                                                // Symbol Compare tab: add preset to symbolCompareConfig
+                                                                const schema = selectedStrategy?.parameter_schema;
+                                                                const paramKeys = schema?.fields?.map(f => f.key || f.name) || [];
+                                                                const params = {};
+                                                                paramKeys.forEach(key => { if (currentConfig[key] !== undefined) params[key] = currentConfig[key]; });
+                                                                const presets = [...(currentConfig?.parameter_presets || [])];
+                                                                const usedNums = new Set(presets.map(p => { const m = p.name?.match(/^(\d{3})_/); return m ? parseInt(m[1]) : 0; }));
+                                                                let nextNum = 1;
+                                                                while (usedNums.has(nextNum)) nextNum++;
+                                                                const cleanDesc = (desc || 'unnamed').replace(/[^\w\s가-힣-]/g, '').trim().slice(0, 30) || 'unnamed';
+                                                                const newPreset = {
+                                                                    id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                                                                    name: `${String(nextNum).padStart(3, '0')}_${cleanDesc}`,
+                                                                    params,
+                                                                    config_hash: createConfigHash(params),
+                                                                    created_at: new Date().toISOString()
+                                                                };
+                                                                if (presets.length >= 20) presets.shift();
+                                                                presets.push(newPreset);
+                                                                setSymbolCompareConfig({ ...currentConfig, parameter_presets: presets, selected_preset_id: newPreset.id });
+                                                                setIsDirty(true);
+                                                            } else {
+                                                                addPreset(activeTab, desc, selectedStrategy?.parameter_schema);
+                                                            }
+                                                        }}
+                                                        onDeletePreset={(presetId) => {
+                                                            if (activeTab === -3) {
+                                                                const presets = (currentConfig?.parameter_presets || []).filter(p => p.id !== presetId);
+                                                                const updated = { ...currentConfig, parameter_presets: presets };
+                                                                if (currentConfig?.selected_preset_id === presetId) updated.selected_preset_id = null;
+                                                                setSymbolCompareConfig(updated);
+                                                                setIsDirty(true);
+                                                            } else {
+                                                                deletePreset(activeTab, presetId);
+                                                            }
+                                                        }}
+                                                        onRenamePreset={(presetId, newName) => {
+                                                            if (activeTab === -3) {
+                                                                const presets = (currentConfig?.parameter_presets || []).map(p =>
+                                                                    p.id === presetId ? { ...p, name: newName } : p
+                                                                );
+                                                                setSymbolCompareConfig({ ...currentConfig, parameter_presets: presets });
+                                                                setIsDirty(true);
+                                                            } else {
+                                                                renamePreset(activeTab, presetId, newName);
+                                                            }
                                                         }}
                                                         onRevertParams={(params) => {
-                                                            // Revert to selected version's params (cancel modification)
                                                             const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
                                                             const filteredParams = {};
                                                             parameterFields.forEach(key => {
-                                                                if (params[key] !== undefined) {
-                                                                    filteredParams[key] = params[key];
-                                                                }
+                                                                if (params[key] !== undefined) filteredParams[key] = params[key];
                                                             });
-
-                                                            handleConfigChange({
-                                                                ...currentConfig,
-                                                                ...filteredParams,
-                                                            });
+                                                            handleConfigChange({...currentConfig, ...filteredParams});
                                                         }}
                                                     />
                                                 </div>
@@ -3691,24 +3759,6 @@ const StrategyView = () => {
                                                     <div className="text-gray-500 text-sm text-center py-4">No configurable parameters for this strategy</div>
                                                 )}
 
-                                                {/* Parameter Version Manager */}
-                                                <ParameterVersionManager
-                                                    strategyId={selectedStrategy?.id}
-                                                    symbol={currentConfig?.symbol || currentSymbol}
-                                                    currentParams={currentConfig}
-                                                    onRestore={(restoredParams) => {
-                                                        // Only apply strategy parameters, preserve metadata
-                                                        const parameterFields = selectedStrategy?.parameter_schema?.fields?.map(f => f.key || f.name) || [];
-                                                        const filteredParams = {};
-                                                        parameterFields.forEach(key => {
-                                                            if (restoredParams[key] !== undefined) {
-                                                                filteredParams[key] = restoredParams[key];
-                                                            }
-                                                        });
-                                                        handleConfigChange({...currentConfig, ...filteredParams});
-                                                    }}
-                                                    className="mt-4"
-                                                />
                                             </div>
                                         </div>
                                     </div>

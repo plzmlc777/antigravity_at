@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getProfiles, getProfile, createProfile, updateProfile, deleteProfile, getAccountPreferences, updateLastSelectedProfile } from '../api/client';
-import { STORAGE_KEYS } from '../constants/strategies';
+import { STORAGE_KEYS, createConfigHash } from '../constants/strategies';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // localStorage Draft Utilities
 // ═══════════════════════════════════════════════════════════════════════════════
 const getDraftKey = (profileId) => `${STORAGE_KEYS.DRAFT_PREFIX}${profileId}`;
 const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_PRESETS_PER_RANK = 20;
 
 /**
  * useProfileConfig - Profile-centric strategy configuration hook
@@ -144,6 +145,11 @@ export const useProfileConfig = ({
             if (merged.rank === undefined) merged.rank = index;
             if (merged.is_active === undefined) merged.is_active = true;
             if (!merged.tabName) merged.tabName = `Rank ${index + 1}`;
+
+            // Compatibility: selected_version_id → selected_preset_id
+            if (merged.selected_version_id && !merged.selected_preset_id) {
+                merged.selected_preset_id = merged.selected_version_id;
+            }
 
             // Sanitize optEnabled: remove keys that are not valid strategy parameter names
             if (merged.optEnabled && validParamNames.size > 0) {
@@ -751,6 +757,104 @@ export const useProfileConfig = ({
         }
     }, [selectedProfileId, loadProfiles]);
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Parameter Preset Management (replaces strategy_parameter_versions)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Add a new preset from current rank parameters
+     */
+    const addPreset = useCallback((rankIndex, description, parameterSchema) => {
+        setConfigList(prev => {
+            const updated = [...prev];
+            const cfg = { ...updated[rankIndex] };
+            const presets = [...(cfg.parameter_presets || [])];
+
+            // Extract strategy parameters only
+            const paramKeys = parameterSchema?.fields?.map(f => f.key || f.name) || [];
+            const params = {};
+            paramKeys.forEach(key => { if (cfg[key] !== undefined) params[key] = cfg[key]; });
+
+            // Auto-number: find next available NNN
+            const usedNums = new Set(presets.map(p => {
+                const m = p.name?.match(/^(\d{3})_/);
+                return m ? parseInt(m[1]) : 0;
+            }));
+            let nextNum = 1;
+            while (usedNums.has(nextNum)) nextNum++;
+
+            const cleanDesc = (description || 'unnamed').replace(/[^\w\s가-힣-]/g, '').trim().slice(0, 30) || 'unnamed';
+            const newPreset = {
+                id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                name: `${String(nextNum).padStart(3, '0')}_${cleanDesc}`,
+                params,
+                config_hash: createConfigHash(params),
+                created_at: new Date().toISOString()
+            };
+
+            // Max presets per rank — remove oldest if exceeded
+            if (presets.length >= MAX_PRESETS_PER_RANK) {
+                presets.shift();
+            }
+
+            presets.push(newPreset);
+            cfg.parameter_presets = presets;
+            cfg.selected_preset_id = newPreset.id;
+            updated[rankIndex] = cfg;
+            return updated;
+        });
+    }, []);
+
+    /**
+     * Delete a preset from a rank
+     */
+    const deletePreset = useCallback((rankIndex, presetId) => {
+        setConfigList(prev => {
+            const updated = [...prev];
+            const cfg = { ...updated[rankIndex] };
+            cfg.parameter_presets = (cfg.parameter_presets || []).filter(p => p.id !== presetId);
+            if (cfg.selected_preset_id === presetId) cfg.selected_preset_id = null;
+            updated[rankIndex] = cfg;
+            return updated;
+        });
+    }, []);
+
+    /**
+     * Rename a preset
+     */
+    const renamePreset = useCallback((rankIndex, presetId, newName) => {
+        setConfigList(prev => {
+            const updated = [...prev];
+            const cfg = { ...updated[rankIndex] };
+            cfg.parameter_presets = (cfg.parameter_presets || []).map(p =>
+                p.id === presetId ? { ...p, name: newName } : p
+            );
+            updated[rankIndex] = cfg;
+            return updated;
+        });
+    }, []);
+
+    /**
+     * Select a preset and apply its parameters to the rank
+     */
+    const selectPreset = useCallback((rankIndex, presetId, parameterSchema) => {
+        setConfigList(prev => {
+            const updated = [...prev];
+            const cfg = { ...updated[rankIndex] };
+            const preset = (cfg.parameter_presets || []).find(p => p.id === presetId);
+            if (!preset) return prev;
+
+            // Apply only strategy parameters (preserve metadata)
+            const paramKeys = parameterSchema?.fields?.map(f => f.key || f.name) || [];
+            paramKeys.forEach(key => {
+                if (preset.params[key] !== undefined) cfg[key] = preset.params[key];
+            });
+            cfg.selected_preset_id = presetId;
+            updated[rankIndex] = cfg;
+            return updated;
+        });
+    }, []);
+
     /**
      * Discard changes (revert to original)
      */
@@ -902,6 +1006,7 @@ export const useProfileConfig = ({
         deleteCurrentProfile,
         discardChanges,
         clearDraft, // Clear localStorage draft for a profile
+        addPreset, deletePreset, renamePreset, selectPreset, // Parameter preset management
 
         // Profile Metadata
         profileMeta,

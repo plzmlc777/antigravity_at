@@ -746,14 +746,18 @@ class LiveManager:
         finally:
             db.close()
 
-    async def liquidate_session(self, session_id: str):
+    async def liquidate_session(self, session_id: str, auto_stop: bool = True):
         """
-        Force Close Position: Market sell all holdings.
-        Does NOT disable orders - use toggle_orders() separately for that.
+        Force Close Position: Market sell all holdings, then stop the session.
+        auto_stop=True (default): automatically stop session after liquidation.
         """
         if session_id in self.engines:
             await self.engines[session_id].liquidate_all()
             logger.info(f"Session {session_id}: Force-closed all positions.")
+
+        if auto_stop:
+            await self.stop_session(session_id, force=True)
+            logger.info(f"Session {session_id}: Auto-stopped after force close.")
 
     async def get_status(self, session_id: str = None, account_id: int = None, account_ids: List[int] = None) -> List[Dict]:
         """

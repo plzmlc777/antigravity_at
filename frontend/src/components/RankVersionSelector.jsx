@@ -1,194 +1,100 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronDown, Save, PlayCircle, X, AlertCircle } from 'lucide-react';
-import { listParameterVersions, createParameterVersion } from '../api/client';
+import React, { useState, useMemo } from 'react';
+import { ChevronDown, Save, Trash2, X, AlertCircle, Pencil, Lock } from 'lucide-react';
 
 /**
- * RankVersionSelector - Compact version dropdown for Rank tabs
- * Shows current version and allows quick selection
+ * RankVersionSelector - Compact preset dropdown for Rank tabs
+ * Reads presets from profile's configList (no API calls).
+ * All changes go through callbacks that update configList → isDirty → profile Save.
  */
 const RankVersionSelector = ({
-    strategyId,
-    symbol,
-    currentParams,
-    selectedVersionId,
-    onVersionSelect,
-    onRevertParams,  // Callback to revert params to selected version
+    presets = [],           // configList[rank].parameter_presets
+    selectedPresetId,       // configList[rank].selected_preset_id
+    currentParams,          // configList[rank] (full config)
     parameterSchema,
+    onSelectPreset,         // (presetId) => void
+    onAddPreset,            // (description) => void
+    onDeletePreset,         // (presetId) => void
+    onRenamePreset,         // (presetId, newName) => void
+    onRevertParams,         // (params) => void — revert to selected preset's params
+    lockedPresetIds = null, // Set<string> — preset IDs locked by running live sessions
 }) => {
-    const [versions, setVersions] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [remainingSlots, setRemainingSlots] = useState(10);
     const [showSaveDialog, setShowSaveDialog] = useState(false);
-    const [newVersionDesc, setNewVersionDesc] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
+    const [newPresetDesc, setNewPresetDesc] = useState('');
     const [saveError, setSaveError] = useState(null);
+    const [showRenameDialog, setShowRenameDialog] = useState(false);
+    const [renameValue, setRenameValue] = useState('');
 
-    // Fetch versions
-    const fetchVersions = useCallback(async () => {
-        if (!strategyId || !symbol) return;
-
-        setIsLoading(true);
-        try {
-            const result = await listParameterVersions(strategyId, symbol);
-            setVersions(result.data || []);
-            setRemainingSlots(result.remaining_slots ?? 10);
-        } catch (err) {
-            console.error('Failed to fetch versions:', err);
-        } finally {
-            setIsLoading(false);
+    // Find current preset
+    const currentPreset = useMemo(() => {
+        if (!presets.length) return null;
+        if (selectedPresetId) {
+            return presets.find(p => p.id === selectedPresetId) || null;
         }
-    }, [strategyId, symbol]);
-
-    useEffect(() => {
-        fetchVersions();
-    }, [fetchVersions]);
-
-    // Find current version by matching params or selectedVersionId
-    const findCurrentVersion = () => {
-        if (!versions.length) return null;
-
-        // First try to match by selectedVersionId
-        if (selectedVersionId) {
-            const match = versions.find(v => v.id === selectedVersionId);
-            if (match) return match;
-        }
-
-        // Try to match by comparing params
-        if (currentParams && parameterSchema?.fields) {
-            const paramKeys = parameterSchema.fields.map(f => f.key || f.name);
-
-            for (const v of versions) {
-                if (v.params) {
-                    let isMatch = true;
-                    for (const key of paramKeys) {
-                        if (currentParams[key] !== v.params[key]) {
-                            isMatch = false;
-                            break;
-                        }
-                    }
-                    if (isMatch) return v;
-                }
-            }
-        }
-
         return null;
-    };
+    }, [presets, selectedPresetId]);
 
-    const currentVersion = findCurrentVersion();
-    const isCustom = !currentVersion && versions.length > 0;
+    const isCustom = !currentPreset && presets.length > 0;
 
-    // Check if params have been modified from selected version
+    // Check if current preset is locked by a running live session
+    const isCurrentLocked = currentPreset && lockedPresetIds instanceof Set && lockedPresetIds.has(currentPreset.id);
+
+    // Check if params have been modified from selected preset
     const isModified = useMemo(() => {
-        if (!currentVersion || !currentParams || !parameterSchema?.fields) {
-            return false;
-        }
+        if (!currentPreset || !currentParams || !parameterSchema?.fields) return false;
         const paramKeys = parameterSchema.fields.map(f => f.key || f.name);
         for (const key of paramKeys) {
-            if (currentParams[key] !== currentVersion.params?.[key]) {
-                return true;
-            }
+            if (currentParams[key] !== currentPreset.params?.[key]) return true;
         }
         return false;
-    }, [currentVersion, currentParams, parameterSchema]);
+    }, [currentPreset, currentParams, parameterSchema]);
 
-    // Handle save new version
-    const handleSaveNewVersion = async () => {
-        if (!newVersionDesc.trim()) {
+    // Handle save new preset
+    const handleSavePreset = () => {
+        if (!newPresetDesc.trim()) {
             setSaveError('설명을 입력해주세요');
             return;
         }
-        if (remainingSlots <= 0) {
-            setSaveError('버전 슬롯이 가득 찼습니다. 기존 버전을 삭제해주세요.');
-            return;
+        if (onAddPreset) {
+            onAddPreset(newPresetDesc.trim());
         }
-
-        // Extract only strategy parameters (exclude metadata like uuid, symbol, etc.)
-        const paramKeys = parameterSchema?.fields?.map(f => f.key || f.name) || [];
-        const filteredParams = {};
-        paramKeys.forEach(key => {
-            if (currentParams[key] !== undefined) {
-                filteredParams[key] = currentParams[key];
-            }
-        });
-
-        setIsSaving(true);
+        setShowSaveDialog(false);
+        setNewPresetDesc('');
         setSaveError(null);
-        try {
-            const result = await createParameterVersion({
-                strategy_id: strategyId,
-                symbol: symbol || null,
-                description: newVersionDesc.trim(),
-                params: filteredParams,
-                is_default: false,
-            });
-            setShowSaveDialog(false);
-            setNewVersionDesc('');
-            await fetchVersions();  // Refresh versions list
-
-            // Auto-select the newly saved version
-            if (result?.data && onVersionSelect) {
-                onVersionSelect(filteredParams, {
-                    id: result.data.id,
-                    version_name: result.data.version_name,
-                    config_hash: result.data.config_hash,
-                });
-            }
-        } catch (err) {
-            console.error('Failed to save version:', err);
-            const detail = err.response?.data?.detail || '버전 저장 실패';
-            setSaveError(detail);
-        } finally {
-            setIsSaving(false);
-        }
     };
 
-    // Handle cancel (revert to selected version's params)
-    const handleCancel = () => {
-        if (currentVersion && onRevertParams) {
-            onRevertParams(currentVersion.params);
-        }
-    };
-
-    // Handle version selection
+    // Handle preset selection
     const handleSelect = (e) => {
-        const versionId = e.target.value;
-        if (versionId === 'custom') return;
-
-        const selected = versions.find(v => v.id === versionId);
-        if (selected && onVersionSelect) {
-            onVersionSelect(selected.params, {
-                id: selected.id,
-                version_name: selected.version_name,
-                config_hash: selected.config_hash,
-            });
-        }
+        const presetId = e.target.value;
+        if (presetId === 'custom') return;
+        if (onSelectPreset) onSelectPreset(presetId);
     };
 
-    if (!strategyId || !symbol) {
-        return null;
-    }
+    // Handle cancel (revert to selected preset's params)
+    const handleCancel = () => {
+        if (currentPreset && onRevertParams) {
+            onRevertParams(currentPreset.params);
+        }
+    };
 
     return (
         <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500">Version:</span>
-            {isLoading ? (
-                <span className="text-xs text-gray-500">Loading...</span>
-            ) : versions.length === 0 ? (
+            <span className="text-xs text-gray-500">Preset:</span>
+            {presets.length === 0 ? (
                 <div className="inline-flex items-center gap-2">
-                    <span className="text-xs text-yellow-500 italic">No saved versions</span>
+                    <span className="text-xs text-yellow-500 italic">No saved presets</span>
                     <button
                         onClick={() => setShowSaveDialog(true)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
-                        title="현재 파라미터를 첫 버전으로 저장"
+                        title="현재 파라미터를 첫 프리셋으로 저장"
                     >
                         <Save className="w-3 h-3" />
-                        첫 버전 저장
+                        첫 프리셋 저장
                     </button>
                 </div>
             ) : (
                 <div className="relative inline-flex items-center gap-1.5">
                     <select
-                        value={currentVersion?.id || 'custom'}
+                        value={currentPreset?.id || 'custom'}
                         onChange={handleSelect}
                         className="appearance-none bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1 pr-6 focus:outline-none focus:border-indigo-500 cursor-pointer min-w-[120px]"
                     >
@@ -197,20 +103,17 @@ const RankVersionSelector = ({
                                 (Custom)
                             </option>
                         )}
-                        {versions.map(v => (
-                            <option key={v.id} value={v.id}>
-                                {v.version_name}
+                        {presets.map(p => (
+                            <option key={p.id} value={p.id}>
+                                {p.name}
                             </option>
                         ))}
                     </select>
                     <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-                    {currentVersion?.is_in_use && (
-                        <PlayCircle className="w-4 h-4 text-green-400 flex-shrink-0" title="Running in live session" />
-                    )}
                 </div>
             )}
             <span className="text-[10px] text-gray-600">
-                ({versions.length}/10)
+                ({presets.length}/20)
             </span>
 
             {/* Modified indicator and action buttons */}
@@ -220,19 +123,61 @@ const RankVersionSelector = ({
                     <button
                         onClick={() => setShowSaveDialog(true)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
-                        title="현재 파라미터를 새 버전으로 저장"
+                        title="현재 파라미터를 새 프리셋으로 저장"
                     >
                         <Save className="w-3 h-3" />
-                        새 버전 저장
+                        새 프리셋 저장
                     </button>
                     {isModified && onRevertParams && (
                         <button
                             onClick={handleCancel}
                             className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-600/80 hover:bg-gray-600 text-gray-200 text-xs rounded transition-colors"
-                            title="선택된 버전의 파라미터로 복원"
+                            title="선택된 프리셋의 파라미터로 복원"
                         >
                             <X className="w-3 h-3" />
                             취소
+                        </button>
+                    )}
+                </>
+            )}
+
+            {/* Edit & Delete buttons for current preset */}
+            {currentPreset && (
+                <>
+                    {isCurrentLocked && (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-400/80" title="라이브 세션에서 사용 중 — 삭제/수정 불가">
+                            <Lock className="w-3 h-3" /> Live
+                        </span>
+                    )}
+                    {onRenamePreset && (
+                        <button
+                            onClick={() => {
+                                if (isCurrentLocked) return;
+                                // Extract description part (after NNN_)
+                                const match = currentPreset.name?.match(/^\d{3}_(.*)/);
+                                setRenameValue(match ? match[1] : currentPreset.name || '');
+                                setShowRenameDialog(true);
+                            }}
+                            disabled={isCurrentLocked}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors ${isCurrentLocked ? 'opacity-30 cursor-not-allowed text-gray-600' : 'hover:bg-blue-600/20 text-gray-500 hover:text-blue-400'}`}
+                            title={isCurrentLocked ? "라이브 세션에서 사용 중 — 수정 불가" : "프리셋 이름 변경"}
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                    )}
+                    {onDeletePreset && (
+                        <button
+                            onClick={() => {
+                                if (isCurrentLocked) return;
+                                if (window.confirm(`프리셋 "${currentPreset.name}" 삭제?`)) {
+                                    onDeletePreset(currentPreset.id);
+                                }
+                            }}
+                            disabled={isCurrentLocked}
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors ${isCurrentLocked ? 'opacity-30 cursor-not-allowed text-gray-600' : 'hover:bg-red-600/20 text-gray-500 hover:text-red-400'}`}
+                            title={isCurrentLocked ? "라이브 세션에서 사용 중 — 삭제 불가" : "현재 프리셋 삭제"}
+                        >
+                            <Trash2 className="w-3 h-3" />
                         </button>
                     )}
                 </>
@@ -242,7 +187,7 @@ const RankVersionSelector = ({
             {showSaveDialog && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 w-80 shadow-xl">
-                        <h3 className="text-sm font-bold text-white mb-3">새 버전 저장</h3>
+                        <h3 className="text-sm font-bold text-white mb-3">새 프리셋 저장</h3>
 
                         {saveError && (
                             <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-500/10 px-2 py-1.5 rounded mb-3">
@@ -257,33 +202,95 @@ const RankVersionSelector = ({
                         <input
                             type="text"
                             placeholder="설명 (예: 보수적, 공격적)"
-                            value={newVersionDesc}
-                            onChange={(e) => setNewVersionDesc(e.target.value)}
+                            value={newPresetDesc}
+                            onChange={(e) => setNewPresetDesc(e.target.value)}
                             className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 mb-3"
                             autoFocus
                             maxLength={30}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveNewVersion();
+                                if (e.key === 'Enter') handleSavePreset();
                                 if (e.key === 'Escape') {
                                     setShowSaveDialog(false);
-                                    setNewVersionDesc('');
+                                    setNewPresetDesc('');
                                     setSaveError(null);
                                 }
                             }}
                         />
                         <div className="flex gap-2">
                             <button
-                                onClick={handleSaveNewVersion}
-                                disabled={isSaving || remainingSlots <= 0}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs py-1.5 rounded transition-colors"
+                                onClick={handleSavePreset}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1.5 rounded transition-colors"
                             >
-                                {isSaving ? '저장 중...' : '저장'}
+                                저장
                             </button>
                             <button
                                 onClick={() => {
                                     setShowSaveDialog(false);
-                                    setNewVersionDesc('');
+                                    setNewPresetDesc('');
                                     setSaveError(null);
+                                }}
+                                className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 rounded transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Rename Dialog */}
+            {showRenameDialog && currentPreset && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 w-80 shadow-xl">
+                        <h3 className="text-sm font-bold text-white mb-3">프리셋 이름 변경</h3>
+                        <div className="text-[10px] text-gray-500 mb-2">
+                            현재: <span className="text-indigo-400 font-mono">{currentPreset.name}</span>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="새 설명"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 mb-3"
+                            autoFocus
+                            maxLength={30}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    if (renameValue.trim() && onRenamePreset) {
+                                        // Preserve NNN_ prefix
+                                        const match = currentPreset.name?.match(/^(\d{3})_/);
+                                        const prefix = match ? match[1] : '001';
+                                        const cleanDesc = renameValue.trim().replace(/[^\w\s가-힣-]/g, '').slice(0, 30) || 'unnamed';
+                                        onRenamePreset(currentPreset.id, `${prefix}_${cleanDesc}`);
+                                        setShowRenameDialog(false);
+                                        setRenameValue('');
+                                    }
+                                }
+                                if (e.key === 'Escape') {
+                                    setShowRenameDialog(false);
+                                    setRenameValue('');
+                                }
+                            }}
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    if (renameValue.trim() && onRenamePreset) {
+                                        const match = currentPreset.name?.match(/^(\d{3})_/);
+                                        const prefix = match ? match[1] : '001';
+                                        const cleanDesc = renameValue.trim().replace(/[^\w\s가-힣-]/g, '').slice(0, 30) || 'unnamed';
+                                        onRenamePreset(currentPreset.id, `${prefix}_${cleanDesc}`);
+                                        setShowRenameDialog(false);
+                                        setRenameValue('');
+                                    }
+                                }}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1.5 rounded transition-colors"
+                            >
+                                변경
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowRenameDialog(false);
+                                    setRenameValue('');
                                 }}
                                 className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 rounded transition-colors"
                             >
