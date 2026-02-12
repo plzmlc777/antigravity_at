@@ -8,26 +8,23 @@ import VisualBacktestChart from '../components/VisualBacktestChart';
 import {
     runBacktest as apiRunBacktest,
     runIntegratedBacktestApi,
-    startOptimization, getOptimizationStatus, downloadOptimizationCSV,
-    cancelOptimization as apiCancelOptimization,
-    startHeavyOptimization as apiStartHeavyOpt, getHeavyOptimizationStatus, cancelHeavyOptimization,
-    getSymbolInfo, fetchMarketDataForSymbol,
-    getAiModels as apiGetAiModels, getAiKeyStatus, runAiAnalysis as apiRunAiAnalysis,
-    saveStrategyResult, getStrategyResults, getMarketDataStatus, recalculateOptimizationScores,
-    getHeavyOptDownloadUrl,
+    getSymbolInfo,
+    saveStrategyResult, getStrategyResults,
 } from '../api/strategies';
-import { getAllSessions } from '../api/client';
-import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
+import { buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames, coerceConfigTypes } from '../utils/strategyParamUtils';
-import {
-    exportOptResultsToCSV as exportOptCSV, exportCompareResultsToCSV,
-    exportAssetsToJSON, exportParamsToJSON,
-    parseImportedAssets, parseImportedParams, readFileAsText,
-} from '../utils/strategyExportImport';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
 import { useMarketData } from '../context/MarketDataContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
+import { useProfileLock } from '../hooks/useProfileLock';
+import { useCopyPaste } from '../hooks/useCopyPaste';
+import { useImportExport } from '../hooks/useImportExport';
+import { useDataFetching } from '../hooks/useDataFetching';
+import { useSymbolComparison } from '../hooks/useSymbolComparison';
+import { useOptimization } from '../hooks/useOptimization';
+import { useScoreWeights } from '../hooks/useScoreWeights';
+import { useAiAnalysis } from '../hooks/useAiAnalysis';
 
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
@@ -182,29 +179,8 @@ const StrategyView = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     // Old Profile Save Modal state removed - now using Profile Selector's Save As modal
 
-    // Symbol Comparison State (프로필에서 로드됨)
-    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
-    const [stockCompareResults, setStockCompareResults] = useState([]);
-    const [isStockComparing, setIsStockComparing] = useState(false); // Running status
-    const [stockCompareProgress, setStockCompareProgress] = useState({ current: 0, total: 0, phase: 'data' });
-    // symbolCompareConfig is now from useProfileConfig (profile-level storage)
-    const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false); // Track unsaved changes
-    const [compareSortConfig, setCompareSortConfig] = useState({ key: 'score', direction: 'desc' }); // Sort config for comparison results
-
-    // Parameter Copy/Paste State
-    const [copiedParams, setCopiedParams] = useState(null);
-    const [copyPasteFeedback, setCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
-    // applyFeedback removed — 탭별 Apply 제거, 헤더 Save로 통합
-
-    // Optimization Settings Copy/Paste State (separate from params)
-    const [copiedOptSettings, setCopiedOptSettings] = useState(null);
-    const [optCopyPasteFeedback, setOptCopyPasteFeedback] = useState(null); // 'copied' | 'pasted' | null
-
-    // Import/Export Feedback State
-    const [assetImportExportFeedback, setAssetImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
-    const [assetImportError, setAssetImportError] = useState('');
-    const [paramImportExportFeedback, setParamImportExportFeedback] = useState(null); // 'exported' | 'imported' | 'importing' | 'error' | null
-    const [paramImportError, setParamImportError] = useState('');
+    // Symbol Compare dirty tracking (local state - hooks manage their own state)
+    const [isSymbolCompareDirty, setIsSymbolCompareDirty] = useState(false);
 
     // Execution Log Helper (moved up for useProfileConfig)
     const addLog = useCallback((message, level = 'info') => {
@@ -268,45 +244,8 @@ const StrategyView = () => {
         accountId: effectiveAccountId // 실계좌 우선 자동 선택된 계좌 ID
     });
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Profile Lock Detection (read-only when live session uses this profile)
-    // ═══════════════════════════════════════════════════════════════════════════
-    const [isProfileLocked, setIsProfileLocked] = useState(false);
-
-    useEffect(() => {
-        if (!selectedProfileId) {
-            setIsProfileLocked(false);
-            return;
-        }
-
-        let cancelled = false;
-
-        const checkLock = async () => {
-            try {
-                const sessions = await getAllSessions({ includeStopped: false, limit: 100 });
-                if (cancelled) return;
-                const activeSessions = (sessions || []).filter(
-                    s => s.status === 'RUNNING' || s.status === 'PAUSED'
-                );
-                // Match by profile_id (robust) or fall back to profile_name
-                const locked = activeSessions.some(
-                    s => (s.profile_id && s.profile_id === selectedProfileId)
-                        || (!s.profile_id && s.profile_name && s.profile_name === profileMeta.name)
-                );
-                setIsProfileLocked(locked);
-            } catch (err) {
-                console.warn('[StrategyView] Failed to check profile lock:', err);
-            }
-        };
-
-        checkLock();
-        const interval = setInterval(checkLock, 30000); // Check every 30s
-
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, [selectedProfileId, profileMeta.name]);
+    // Profile Lock Detection (extracted to useProfileLock hook)
+    const { isProfileLocked } = useProfileLock({ selectedProfileId, profileName: profileMeta.name });
 
     // New Profile Modal State
     const [isNewProfileModalOpen, setIsNewProfileModalOpen] = useState(false);
@@ -350,7 +289,6 @@ const StrategyView = () => {
     });
     const [isDirty, setIsDirty] = useState(false); // Track unsaved configuration changes
     const [pendingTabSwitch, setPendingTabSwitch] = useState(null); // Store pending tab switch during confirmation
-    const [pendingOptResult, setPendingOptResult] = useState(null); // Unsaved optimization result (tab_uuid -> resultData)
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
@@ -411,6 +349,124 @@ const StrategyView = () => {
         }
     }, [needsInit, selectedProfileId, selectedStrategy, configList.length]);
 
+    // ==========================================
+    // Dynamic Config Helpers
+    // ==========================================
+    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
+    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
+
+    const getSymbolCompareConfig = () => {
+        const rank1 = configList[0];
+        if (symbolCompareConfig) {
+            if (rank1 && (!symbolCompareConfig.from_date || !symbolCompareConfig.to_date)) {
+                return {
+                    ...symbolCompareConfig,
+                    from_date: symbolCompareConfig.from_date || rank1.from_date || '',
+                    to_date: symbolCompareConfig.to_date || rank1.to_date || '',
+                };
+            }
+            return symbolCompareConfig;
+        }
+        const baseConfig = rank1 || getDynamicDefaultConfig();
+        return { ...baseConfig, symbol: '', tabName: 'Symbol Compare' };
+    };
+
+    const currentConfig = (activeTab >= 0 && configList[activeTab])
+        ? configList[activeTab]
+        : (activeTab === -3
+            ? getSymbolCompareConfig()
+            : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig()));
+
+    const activeSymbol = currentConfig?.symbol || currentSymbol;
+    const isSymbolValid = !!activeSymbol && activeSymbol.trim().length > 0;
+
+    // ==========================================
+    // Extracted Hooks
+    // ==========================================
+    const {
+        copiedParams, copyPasteFeedback,
+        copiedOptSettings, optCopyPasteFeedback,
+        handleCopyParams, handlePasteParams,
+        handleCopyOptSettings, handlePasteOptSettings,
+        getStrategyParamNames
+    } = useCopyPaste({
+        configList, setConfigList, activeTab,
+        parameterSchema: selectedStrategy?.parameter_schema,
+        symbolCompareConfig, setSymbolCompareConfig,
+        setIsDirty, setIsSymbolCompareDirty, addLog,
+        extractParamNames
+    });
+
+    const {
+        assetImportExportFeedback, assetImportError,
+        paramImportExportFeedback, paramImportError,
+        handleExportAssets, handleImportAssets,
+        handleExportParams, handleImportParams
+    } = useImportExport({
+        configList, setConfigList, activeTab,
+        symbolCompareConfig, setSymbolCompareConfig,
+        setIsDirty, setIsSymbolCompareDirty,
+        savedSymbols, setSavedSymbols, systemStatus,
+        selectedStrategy, getStrategyParamNames, addLog
+    });
+
+    const {
+        selectedCompareSymbols, setSelectedCompareSymbols,
+        stockCompareResults, setStockCompareResults,
+        isStockComparing, stockCompareProgress,
+        compareSortConfig, setCompareSortConfig,
+        handleStockCompareBacktest, handleExportCompareResults
+    } = useSymbolComparison({
+        symbolCompareConfig, configList, selectedStrategy,
+        savedSymbols, setIsSymbolCompareDirty, addLog
+    });
+
+    const {
+        dataStatus, isFetchingData, fetchMessage, setFetchMessage,
+        checkDataStatus, handleFetchData, handleUpdateAllData
+    } = useDataFetching({
+        currentConfig, currentSymbol, configList, setConfigList,
+        activeTab, isConfigLoaded, addLog
+    });
+
+    const {
+        optResults, setOptResults, optProgress, optError, setOptError,
+        isOptimizing, sortConfig, heavyOptTaskId, heavyOptStatus,
+        pendingOptResult, setPendingOptResult, completedOptTaskId,
+        currentOptTaskId, isCancelling, isHeavyOptRunning, optStatusMessage,
+        runOptimization, cancelOptimization, startHeavyOptimization,
+        handleCancelHeavyOpt, handleSort, exportOptResultsToCSV,
+        downloadFullOptResultsCSV, applyOptParams, savePendingOptResult,
+        discardPendingOptResult, downloadHeavyOptCSV, clearHeavyOptTask,
+        handleOptEnableChange, handleOptValueChange, resetOptState
+    } = useOptimization({
+        currentConfig, selectedStrategy, configList, setConfigList,
+        activeTab, savedSymbols, addLog,
+        symbolCompareConfig, setSymbolCompareConfig,
+        setIsDirty, setIsSymbolCompareDirty,
+        selectedCompareSymbols, selectedProfileId, currentSymbol,
+    });
+
+    const {
+        scoreWeightsMap, setScoreWeightsMap,
+        scoreWeights, isRecalculating, showWeightPanel, setShowWeightPanel,
+        handleWeightChange, applyWeightPreset, recalculateScores,
+        initScoreWeightsFromProfile
+    } = useScoreWeights({
+        activeTab, configList, setConfigList,
+        symbolCompareConfig, setSymbolCompareConfig,
+        completedOptTaskId, heavyOptTaskId,
+        optResults, setOptResults,
+        selectedStrategy, savedSymbols, addLog
+    });
+
+    const {
+        aiAnalysisLoading, aiAnalysisResult, setAiAnalysisResult,
+        showAiAnalysisModal, setShowAiAnalysisModal,
+        aiModels, selectedAiModel, setSelectedAiModel,
+        fetchAiModels, runAiAnalysis
+    } = useAiAnalysis({ heavyOptStatus, heavyOptTaskId, addLog });
+
     // Reset related state when profile changes (Symbol Compare, Integrated, Backtest results)
     const prevProfileIdRef = useRef(selectedProfileId);
     const isFirstProfileLoadRef = useRef(true);
@@ -422,9 +478,7 @@ const StrategyView = () => {
             setIntegratedResults(null);
             setShowIntegratedAnalysis(false);
 
-            // Reset Symbol Compare tab state
-            // symbolCompareConfig is now profile-level, will be loaded via useEffect
-            // Clear local state - will be repopulated from new profile's symbolCompareConfig
+            // Reset Symbol Compare tab state (hook manages its own state)
             setSelectedCompareSymbols([]);
             setStockCompareResults([]);
             setIsSymbolCompareDirty(false);
@@ -432,28 +486,11 @@ const StrategyView = () => {
             // Reset backtest result
             setBacktestResult(null);
 
-            // Reset optimization results and progress
-            setOptResults(null);
-            setPendingOptResult(null);
-            setIsOptimizing(false);
-            setOptProgress({ current: 0, total: 0 });
-            setOptStatusMessage("");
-            setCompletedOptTaskId(null);
-            setHeavyOptTaskId(null);
-            setHeavyOptStatus(null);
-            localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
+            // Reset optimization state (hook manages all opt state)
+            resetOptState();
 
             // Restore score weights from profile config
-            const restoredWeights = {};
-            if (configList) {
-                configList.forEach((cfg, idx) => {
-                    if (cfg?.score_weights) restoredWeights[idx] = cfg.score_weights;
-                });
-            }
-            if (symbolCompareConfig?.score_weights) {
-                restoredWeights[-3] = symbolCompareConfig.score_weights;
-            }
-            setScoreWeightsMap(restoredWeights);
+            initScoreWeightsFromProfile(configList, symbolCompareConfig);
 
             // On first load (page refresh), restore saved tab from localStorage
             // On subsequent profile switches, reset to Rank 0
@@ -728,380 +765,7 @@ const StrategyView = () => {
         setIsDirty(true); // Mark configuration as dirty (unsaved changes)
     };
 
-    // Parameter Copy/Paste Handlers
-    // Strategy parameters are determined from parameter_schema (no manual maintenance needed)
-    const getStrategyParamNames = () => extractParamNames(selectedStrategy?.parameter_schema);
-
-    const handleCopyParams = () => {
-        // Determine source config based on active tab
-        let currentCfg;
-        let sourceLabel;
-
-        if (activeTab === -3) {
-            // Symbol Compare tab - use fallback if symbolCompareConfig is null
-            currentCfg = symbolCompareConfig || configList[0] || {};
-            sourceLabel = 'Symbol Compare';
-        } else if (activeTab >= 0 && configList[activeTab]) {
-            // Rank tabs
-            currentCfg = configList[activeTab];
-            sourceLabel = currentCfg.tabName || `Tab ${activeTab + 1}`;
-        } else {
-            return;
-        }
-
-        if (!currentCfg) return;
-
-        const paramsToCopy = {};
-
-        // Copy only strategy parameters defined in schema (whitelist approach)
-        const strategyParams = getStrategyParamNames();
-        strategyParams.forEach(key => {
-            if (key in currentCfg) {
-                paramsToCopy[key] = currentCfg[key];
-            }
-        });
-
-        setCopiedParams({
-            params: paramsToCopy,
-            sourceTab: sourceLabel,
-            sourceSymbol: currentCfg.symbol || 'Multi',
-            timestamp: Date.now()
-        });
-
-        // Show visual feedback
-        setCopyPasteFeedback('copied');
-        setTimeout(() => setCopyPasteFeedback(null), 2000);
-
-        addLog(`📋 Parameters copied from ${sourceLabel}`, 'info');
-    };
-
-    const handlePasteParams = () => {
-        if (!copiedParams) return;
-
-        // Handle Symbol Compare tab (activeTab === -3)
-        if (activeTab === -3) {
-            const baseConfig = symbolCompareConfig || configList[0] || {};
-            const newConfig = { ...baseConfig };
-
-            // Merge copied params into Symbol Compare config
-            Object.keys(copiedParams.params).forEach(key => {
-                newConfig[key] = copiedParams.params[key];
-            });
-
-            setSymbolCompareConfig(newConfig);
-            setIsSymbolCompareDirty(true);
-
-            // Show visual feedback
-            setCopyPasteFeedback('pasted');
-            setTimeout(() => setCopyPasteFeedback(null), 2000);
-
-            addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
-            return;
-        }
-
-        // Handle Rank tabs (activeTab >= 0)
-        if (activeTab < 0 || !configList[activeTab]) return;
-
-        const newList = [...configList];
-        const currentItem = { ...newList[activeTab] };
-
-        // Merge copied params into current config (overwrite strategy params only)
-        Object.keys(copiedParams.params).forEach(key => {
-            currentItem[key] = copiedParams.params[key];
-        });
-
-        newList[activeTab] = currentItem;
-        setConfigList(newList);
-        setIsDirty(true);
-
-        // Show visual feedback
-        setCopyPasteFeedback('pasted');
-        setTimeout(() => setCopyPasteFeedback(null), 2000);
-
-        addLog(`📥 Parameters pasted from ${copiedParams.sourceTab} (${copiedParams.sourceSymbol})`, 'info');
-    };
-
-    // Optimization Settings Copy/Paste Handlers (separate from strategy params)
-    const handleCopyOptSettings = () => {
-        // Determine source config based on active tab
-        let currentCfg;
-        let sourceLabel;
-
-        if (activeTab === -3) {
-            currentCfg = symbolCompareConfig || configList[0] || {};
-            sourceLabel = 'Symbol Compare';
-        } else if (activeTab >= 0 && configList[activeTab]) {
-            currentCfg = configList[activeTab];
-            sourceLabel = currentCfg.tabName || `Rank ${activeTab + 1}`;
-        } else {
-            return;
-        }
-
-        if (!currentCfg) return;
-
-        const optEnabled = currentCfg.optEnabled || {};
-        const optValues = currentCfg.optValues || {};
-        const optCount = Object.values(optEnabled).filter(Boolean).length;
-
-        setCopiedOptSettings({
-            optEnabled: optEnabled,
-            optValues: optValues,
-            sourceTab: sourceLabel,
-            timestamp: Date.now()
-        });
-
-        // Show visual feedback
-        setOptCopyPasteFeedback('copied');
-        setTimeout(() => setOptCopyPasteFeedback(null), 2000);
-
-        addLog(`📋 Opt settings copied from ${sourceLabel} (${optCount} params)`, 'info');
-    };
-
-    const handlePasteOptSettings = () => {
-        if (!copiedOptSettings) return;
-
-        // Handle Symbol Compare tab (activeTab === -3)
-        if (activeTab === -3) {
-            const baseConfig = symbolCompareConfig || configList[0] || {};
-            const newConfig = {
-                ...baseConfig,
-                optEnabled: { ...copiedOptSettings.optEnabled },
-                optValues: { ...copiedOptSettings.optValues }
-            };
-
-            setSymbolCompareConfig(newConfig);
-            setIsSymbolCompareDirty(true);
-
-            // Show visual feedback
-            setOptCopyPasteFeedback('pasted');
-            setTimeout(() => setOptCopyPasteFeedback(null), 2000);
-
-            const optCount = Object.values(copiedOptSettings.optEnabled).filter(Boolean).length;
-            addLog(`📥 Opt settings pasted from ${copiedOptSettings.sourceTab} (${optCount} params)`, 'info');
-            return;
-        }
-
-        // Handle Rank tabs (activeTab >= 0)
-        if (activeTab < 0 || !configList[activeTab]) return;
-
-        const newList = [...configList];
-        const currentItem = {
-            ...newList[activeTab],
-            optEnabled: { ...copiedOptSettings.optEnabled },
-            optValues: { ...copiedOptSettings.optValues }
-        };
-
-        newList[activeTab] = currentItem;
-        setConfigList(newList);
-        setIsDirty(true);
-
-        // Show visual feedback
-        setOptCopyPasteFeedback('pasted');
-        setTimeout(() => setOptCopyPasteFeedback(null), 2000);
-
-        const optCount = Object.values(copiedOptSettings.optEnabled).filter(Boolean).length;
-        addLog(`📥 Opt settings pasted from ${copiedOptSettings.sourceTab} (${optCount} params)`, 'info');
-    };
-
-    // Target Asset Import/Export Handlers
-    const handleExportAssets = () => {
-        if (!savedSymbols || savedSymbols.length === 0) {
-            addLog('⚠️ No symbols to export', 'warn');
-            return;
-        }
-        const filename = exportAssetsToJSON({ savedSymbols, accountName: systemStatus?.account_name });
-        if (filename) {
-            setAssetImportExportFeedback('exported');
-            setTimeout(() => setAssetImportExportFeedback(null), 2000);
-            addLog(`📤 Exported ${savedSymbols.length} symbols`, 'info');
-        }
-    };
-
-    const handleImportAssets = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = ''; // Reset input
-
-        setAssetImportExportFeedback('importing');
-        setAssetImportError('');
-
-        try {
-            const text = await readFileAsText(file);
-            const result = parseImportedAssets(text);
-
-            if (!result.ok) {
-                setAssetImportError(result.error);
-                setAssetImportExportFeedback('error');
-                setTimeout(() => setAssetImportExportFeedback(null), 3000);
-                addLog(`⚠️ ${result.error}`, 'error');
-                return;
-            }
-
-            const data = result.data;
-
-            // 1. 먼저 종목 코드만 즉시 표시
-            const symbolsWithoutNames = data.symbols.map(s => ({
-                code: s.code,
-                name: s.name || ''
-            }));
-            setSavedSymbols(symbolsWithoutNames);
-            addLog(`📥 Importing ${data.symbols.length} symbols...`, 'info');
-
-            // 2. 종목명을 순차적으로 가져오기
-            const DELAY_MS = 300;
-            let fetchedCount = 0;
-
-            for (let i = 0; i < data.symbols.length; i++) {
-                const sym = data.symbols[i];
-                if (sym.name) { fetchedCount++; continue; }
-
-                try {
-                    const infoData = await getSymbolInfo(sym.code);
-                    if (infoData.name && infoData.name !== sym.code) {
-                        setSavedSymbols(prev => prev.map(s =>
-                            s.code === sym.code ? { ...s, name: infoData.name } : s
-                        ));
-                    }
-                    fetchedCount++;
-                } catch (err) {
-                    console.warn(`Failed to fetch name for ${sym.code}:`, err.message);
-                }
-
-                if (i < data.symbols.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, DELAY_MS));
-                }
-            }
-
-            setAssetImportExportFeedback('imported');
-            setTimeout(() => setAssetImportExportFeedback(null), 2000);
-            addLog(`✅ Imported ${data.symbols.length} symbols (${fetchedCount} names fetched)`, 'info');
-        } catch (err) {
-            setAssetImportError(err.message);
-            setAssetImportExportFeedback('error');
-            setTimeout(() => setAssetImportExportFeedback(null), 3000);
-            addLog(`⚠️ ${err.message}`, 'error');
-        }
-    };
-
-    // Parameters Import/Export Handlers
-    const handleExportParams = () => {
-        let currentCfg;
-        let sourceLabel;
-
-        if (activeTab === -3) {
-            currentCfg = symbolCompareConfig || configList[0] || {};
-            sourceLabel = 'SymbolCompare';
-        } else if (activeTab >= 0 && configList[activeTab]) {
-            currentCfg = configList[activeTab];
-            sourceLabel = (currentCfg.tabName || `Tab${activeTab + 1}`).replace(/\s/g, '');
-        } else {
-            addLog('⚠️ No configuration to export', 'warn');
-            return;
-        }
-
-        const filename = exportParamsToJSON({
-            config: currentCfg,
-            sourceLabel,
-            accountName: systemStatus?.account_name,
-            strategyId: selectedStrategy?.id,
-            paramNames: getStrategyParamNames()
-        });
-
-        if (filename) {
-            setParamImportExportFeedback('exported');
-            setTimeout(() => setParamImportExportFeedback(null), 2000);
-            addLog(`📤 Exported parameters from ${sourceLabel}`, 'info');
-        }
-    };
-
-    const handleImportParams = async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = ''; // Reset input
-
-        setParamImportExportFeedback('importing');
-        setParamImportError('');
-
-        try {
-            const text = await readFileAsText(file);
-            const result = parseImportedParams(text);
-
-            if (!result.ok) {
-                setParamImportError(result.error);
-                setParamImportExportFeedback('error');
-                setTimeout(() => setParamImportExportFeedback(null), 3000);
-                addLog(`⚠️ ${result.error}`, 'error');
-                return;
-            }
-
-            const data = result.data;
-
-            // Apply imported params to current config
-            if (activeTab === -3) {
-                const baseConfig = symbolCompareConfig || configList[0] || {};
-                setSymbolCompareConfig({ ...baseConfig, ...data.params });
-                setIsSymbolCompareDirty(true);
-            } else if (activeTab >= 0 && configList[activeTab]) {
-                const newList = [...configList];
-                newList[activeTab] = { ...newList[activeTab], ...data.params };
-                setConfigList(newList);
-                setIsDirty(true);
-            }
-
-            setParamImportExportFeedback('imported');
-            setTimeout(() => setParamImportExportFeedback(null), 2000);
-            const strategyInfo = data.strategy ? ` from "${data.strategy}"` : '';
-            const sourceInfo = data.sourceTab ? ` (${data.sourceTab})` : '';
-            addLog(`📥 Imported parameters${strategyInfo}${sourceInfo} (${Object.keys(data.params).length} fields)`, 'info');
-        } catch (err) {
-            setParamImportError(err.message);
-            setParamImportExportFeedback('error');
-            setTimeout(() => setParamImportExportFeedback(null), 3000);
-            addLog(`⚠️ ${err.message}`, 'error');
-        }
-    };
-
-    // Wrappers binding component state to extracted pure utility functions
-    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
-    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
-
-    // Initialize symbolCompareConfig from Rank 1 if null, inherit missing date fields
-    const getSymbolCompareConfig = () => {
-        const rank1 = configList[0];
-        if (symbolCompareConfig) {
-            // Inherit from_date/to_date from Rank 1 if not set in Symbol Compare
-            if (rank1 && (!symbolCompareConfig.from_date || !symbolCompareConfig.to_date)) {
-                return {
-                    ...symbolCompareConfig,
-                    from_date: symbolCompareConfig.from_date || rank1.from_date || '',
-                    to_date: symbolCompareConfig.to_date || rank1.to_date || '',
-                };
-            }
-            return symbolCompareConfig;
-        }
-        // Initialize from Rank 1 or default
-        const baseConfig = rank1 || getDynamicDefaultConfig();
-        return { ...baseConfig, symbol: '', tabName: 'Symbol Compare' };
-    };
-
-    const currentConfig = (activeTab >= 0 && configList[activeTab])
-        ? configList[activeTab]
-        : (activeTab === -3
-            ? getSymbolCompareConfig()  // Symbol Compare tab
-            : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig()));
-
-    // Check Symbol Validity for UI
-    const activeSymbol = currentConfig?.symbol || currentSymbol;
-    const isSymbolValid = !!activeSymbol && activeSymbol.trim().length > 0;
-
-    // DEBUG: Log symbol selection info to Execution Logs
-    useEffect(() => {
-        if (activeTab >= 0 && isConfigLoaded) {
-            const finalSymbol = currentConfig?.symbol || currentSymbol;
-            const match = savedSymbols?.some(s => s.code === finalSymbol);
-            addLog(`🔍 [DEBUG] Symbol Selection: configSymbol=${currentConfig?.symbol}, contextSymbol=${currentSymbol}, finalSymbol=${finalSymbol}, match=${match}, savedCount=${savedSymbols?.length || 0}`, 'info');
-        }
-    }, [activeTab, isConfigLoaded, currentConfig?.symbol, currentSymbol, savedSymbols]);
+    // (Copy/Paste, Import/Export, Dynamic Config, currentConfig — all moved to hooks section above)
 
     // 3. Persistence: Load Results when switching tabs
     useEffect(() => {
@@ -1109,8 +773,6 @@ const StrategyView = () => {
 
         // Reset transient states
         setShowChart(false);
-        setIsOptimizing(false);
-        setIsCancelling(false);
 
         // Restore Results on Tab Change
 
@@ -1471,1241 +1133,9 @@ const StrategyView = () => {
         );
     };
 
-    // ... (Data Management logic stays here) ...
-    // Note: Implicitly preserving the gap where lines 106-175 were, but current ReplaceFileContent needs context.
-    // The previous block ended at handleAiGenerate (around line 103). 
-    // I need to be careful not to overwrite the data management hooks if I use a large range.
-    // So I will only replace runBacktest and the render part separately? 
-    // No, I can replace runBacktest first, then the render part.
-
-    // WAIT, I need to insert the state definition too. 
-    // It's safer to do 2 chunks: one for state+function, one for render.
-    // Let's split this tool call into 2 chunks.
-
-
-    // 5. Data Management & Persistence State
-    const [dataStatus, setDataStatus] = useState({ is_fresh: false, last_updated: null, count: 0 });
-    const [isFetchingData, setIsFetchingData] = useState(false);
-    // const [currentInterval, setCurrentInterval] = useState(() => localStorage.getItem('lastInterval') || "1m");
-    const [fetchMessage, setFetchMessage] = useState(null);
-
-    // 6. Optimization State
-    const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optResults, setOptResults] = useState(null);
-    const [optProgress, setOptProgress] = useState({ current: 0, total: 0 });
-    const [optStatusMessage, setOptStatusMessage] = useState("");
-    const [optError, setOptError] = useState(null);
-
-    // State for Dynamic Optimization
-    // Refactored to Per-Tab Config (Legacy Global State Removed)
-
-    // DEFAULT_OPT_VALUES constant defined below...
-
-
-    const handleOptEnableChange = (key, checked) => {
-        // Symbol Compare tab: store opt settings in symbolCompareConfig
-        if (activeTab === -3) {
-            setSymbolCompareConfig(prev => {
-                const base = prev || configList[0] || getDynamicDefaultConfig();
-                return { ...base, optEnabled: { ...(base.optEnabled || {}), [key]: checked } };
-            });
-            return;
-        }
-        if (activeTab === -1 || !configList[activeTab]) return;
-
-        setConfigList(prev => {
-            const next = [...prev];
-            const currentCfg = next[activeTab];
-            next[activeTab] = {
-                ...currentCfg,
-                optEnabled: { ...(currentCfg.optEnabled || {}), [key]: checked }
-            };
-            return next;
-        });
-    };
-
-    const handleOptValueChange = (key, value) => {
-        // Symbol Compare tab: store opt settings in symbolCompareConfig
-        if (activeTab === -3) {
-            setSymbolCompareConfig(prev => {
-                const base = prev || configList[0] || getDynamicDefaultConfig();
-                return { ...base, optValues: { ...(base.optValues || getDynamicOptValues()), [key]: value } };
-            });
-            return;
-        }
-        if (activeTab === -1 || !configList[activeTab]) return;
-
-        setConfigList(prev => {
-            const next = [...prev];
-            const currentCfg = next[activeTab];
-            next[activeTab] = {
-                ...currentCfg,
-                optValues: { ...(currentCfg.optValues || getDynamicOptValues()), [key]: value }
-            };
-            return next;
-        });
-    };
-
-    const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
-    const [completedOptTaskId, setCompletedOptTaskId] = useState(null); // For CSV download
-
-    // Heavy Optimization State (Large-scale, 10K-100K+ combinations)
-    const [heavyOptTaskId, setHeavyOptTaskId] = useState(() => localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID));
-    const [heavyOptStatus, setHeavyOptStatus] = useState(null);
-    const [isHeavyOptRunning, setIsHeavyOptRunning] = useState(false);
-
-    // AI Analysis State
-    const [aiAnalysisLoading, setAiAnalysisLoading] = useState(false);
-    const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
-    const [showAiAnalysisModal, setShowAiAnalysisModal] = useState(false);
-    const [aiModels, setAiModels] = useState([]);
-    const [selectedAiModel, setSelectedAiModel] = useState('');
-
-    // Sorting State
-    const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
-
-    const handleSort = (key) => {
-        setSortConfig(current => ({
-            key,
-            direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-        }));
-    };
-
-    // Score Weight State for Recalculation (per-tab, keyed by activeTab)
-    // Persisted to configList[rank].score_weights / symbolCompareConfig.score_weights
-    const [scoreWeightsMap, setScoreWeightsMap] = useState({});
-    const scoreWeights = scoreWeightsMap[activeTab] || SCORE_WEIGHT_PRESETS.balanced;
-    const [isRecalculating, setIsRecalculating] = useState(false);
-    const [showWeightPanel, setShowWeightPanel] = useState(false);
-
-    // Persist score weights to profile config (triggers dirty state)
-    const persistScoreWeights = useCallback((newWeights) => {
-        if (activeTab >= 0) {
-            // Rank tab → configList[activeTab].score_weights
-            setConfigList(prev => {
-                const updated = [...prev];
-                if (updated[activeTab]) {
-                    updated[activeTab] = { ...updated[activeTab], score_weights: newWeights };
-                }
-                return updated;
-            });
-        } else if (activeTab === -3) {
-            // Symbol Compare tab → symbolCompareConfig.score_weights
-            setSymbolCompareConfig(prev => prev ? { ...prev, score_weights: newWeights } : prev);
-        }
-    }, [activeTab, setConfigList, setSymbolCompareConfig]);
-
-    const handleWeightChange = (key, value) => {
-        const current = scoreWeightsMap[activeTab] || SCORE_WEIGHT_PRESETS.balanced;
-        const newWeights = { ...current, [key]: parseFloat(value) || 0 };
-        setScoreWeightsMap(prev => ({ ...prev, [activeTab]: newWeights }));
-        persistScoreWeights(newWeights);
-    };
-
-    const applyWeightPreset = (presetName) => {
-        const newWeights = SCORE_WEIGHT_PRESETS[presetName];
-        setScoreWeightsMap(prev => ({ ...prev, [activeTab]: newWeights }));
-        persistScoreWeights(newWeights);
-    };
-
-    const recalculateScores = async () => {
-        const taskId = completedOptTaskId || heavyOptTaskId;
-        if (!taskId) {
-            addLog('No optimization task to recalculate', 'error');
-            return;
-        }
-
-        setIsRecalculating(true);
-        try {
-            addLog(`Recalculating scores with weights: Return=${scoreWeights.return_weight}, Sharpe=${scoreWeights.sharpe_weight}, Stability=${scoreWeights.stability_weight}, MDD=${scoreWeights.mdd_weight}`, 'info');
-
-            const response = await recalculateOptimizationScores(taskId, scoreWeights, 50);
-
-            if (response && response.results) {
-                // Format results to match optResults format
-                const schema = selectedStrategy?.parameter_schema;
-                const formatted = response.results.map((item, idx) => {
-                    const stats = normalizeStats(item);
-                    // Coerce CSV string values to proper types based on schema
-                    const typedCfg = coerceConfigTypes(item.config, schema);
-                    return {
-                        ...typedCfg,
-                        ...stats, // Normalized stats with consistent types
-                        symbol: item.symbol || item.config?.symbol || '',
-                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                        return: stats.total_return,
-                        trades: stats.total_trades,
-                        score: item.score,
-                        full_config: typedCfg,
-                        rank: item.rank > 0 ? item.rank : (idx + 1)
-                    };
-                });
-
-                setOptResults(formatted);
-                addLog(`Recalculated! Top 50 from ${response.total_rows} total results`, 'success');
-            }
-        } catch (err) {
-            console.error('Recalculate error:', err);
-            addLog(`Recalculation failed: ${err.response?.data?.detail || err.message}`, 'error');
-        } finally {
-            setIsRecalculating(false);
-        }
-    };
-
-    // Save Pending Optimization Results to DB
-    const savePendingOptResult = async () => {
-        if (!pendingOptResult) {
-            addLog('No pending optimization results to save', 'warning');
-            return;
-        }
-        try {
-            await saveStrategyResult(pendingOptResult.tabUuid, 'optimization', pendingOptResult.data);
-            addLog('💾 Optimization results saved to DB', 'info');
-            setPendingOptResult(null);
-        } catch (err) {
-            console.error("Failed to save opt result", err);
-            addLog('Failed to save optimization results', 'error');
-        }
-    };
-
-    // Discard Pending Optimization Results
-    const discardPendingOptResult = () => {
-        setPendingOptResult(null);
-        addLog('🗑️ Optimization results discarded', 'info');
-    };
-
-    // Export Optimization Results to CSV
-    const exportOptResultsToCSV = () => {
-        if (!optResults || optResults.length === 0) {
-            addLog('No optimization results to export', 'error');
-            return;
-        }
-
-        const filename = exportOptCSV({
-            results: optResults,
-            strategy: selectedStrategy,
-            currentConfig,
-        });
-
-        if (filename) {
-            addLog(`Exported ${optResults.length} results to ${filename}`, 'success');
-        }
-    };
-
-    // Download FULL optimization results from backend (all combinations, not just top 200)
-    const downloadFullOptResultsCSV = async () => {
-        if (!completedOptTaskId) {
-            addLog('No optimization task available for download', 'error');
-            return;
-        }
-
-        try {
-            const csvBlob = await downloadOptimizationCSV(completedOptTaskId);
-
-            const blob = new Blob([csvBlob], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            const filename = `optimization_full_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.csv`;
-            link.download = filename;
-            link.click();
-            URL.revokeObjectURL(url);
-
-            addLog(`Downloaded full optimization results (all combinations)`, 'success');
-        } catch (error) {
-            const msg = error.response?.status === 404
-                ? 'CSV file not found. It may have been cleaned up.'
-                : error.message;
-            addLog(`Failed to download CSV: ${msg}`, 'error');
-        }
-    };
-
-    // parseValues is imported from utils/strategyParamUtils
-
-    const [isCancelling, setIsCancelling] = useState(false);
-
-    const cancelOptimization = async (taskId) => {
-        if (!taskId) return;
-        setIsCancelling(true);
-        try {
-            await apiCancelOptimization(taskId);
-            // UI update handled by polling
-        } catch (e) {
-            console.error("Cancellation failed", e);
-            setOptError("Failed to cancel optimization");
-            setIsCancelling(false);
-        }
-    };
-
-    // ========================================
-    // Heavy Optimization Functions
-    // ========================================
-    const startHeavyOptimization = async () => {
-        // Clear previous errors
-        setOptError(null);
-
-        if (!selectedStrategy) {
-            setOptError("Please select a strategy first.");
-            return;
-        }
-        if (activeTab === -1) {
-            setOptError("Optimization not available for Integrated Portfolio.");
-            return;
-        }
-
-        // Determine which tab type and get appropriate config/symbols
-        const isSymbolCompareTab = activeTab === -3;
-        const isRankTab = activeTab >= 0;
-
-        // Get symbols based on tab type
-        let symbols = [];
-        if (isSymbolCompareTab) {
-            if (selectedCompareSymbols.length === 0) {
-                setOptError("Please select symbols for optimization.");
-                return;
-            }
-            symbols = selectedCompareSymbols;
-        } else if (isRankTab) {
-            const symbol = currentConfig.symbol || currentSymbol;
-            if (!symbol) {
-                setOptError("No symbol selected.");
-                return;
-            }
-            symbols = [symbol];
-        }
-
-        // Get config based on tab type
-        const activeConfig = isSymbolCompareTab ? symbolCompareConfig : currentConfig;
-        const activeOptEnabled = activeConfig?.optEnabled || {};
-        const activeOptValues = activeConfig?.optValues || getDynamicOptValues();
-        // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
-        const validParamNames = new Set(getStrategyParamNames());
-        const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k] && validParamNames.has(k));
-
-        // Warn about invalid keys
-        const invalidKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k] && !validParamNames.has(k));
-        if (invalidKeys.length > 0) {
-            addLog(`⚠️ Ignored invalid optEnabled keys: [${invalidKeys.join(', ')}] (not in strategy schema)`, 'warning');
-        }
-
-        const parameter_ranges = {};
-        for (const key of varyingKeys) {
-            const values = parseValues(activeOptValues[key]);
-            if (values.length === 0) {
-                setOptError(`Parameter '${key}' is enabled but has no values.`);
-                return;
-            }
-            parameter_ranges[key] = values;
-        }
-
-        // Calculate total combinations
-        const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
-        const totalCombos = symbols.length * totalParams;
-
-        setIsHeavyOptRunning(true);
-        setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
-        // Set appropriate dirty flag based on tab
-        if (activeTab === -3) {
-            setIsSymbolCompareDirty(true);
-        } else {
-            setIsDirty(true);
-        }
-
-        try {
-            // Pre-fetch data for all symbols
-            const DATA_FETCH_DELAY_MS = 500;
-            addLog(`Updating data for ${symbols.length} symbol(s) before optimization...`, 'info');
-            for (let i = 0; i < symbols.length; i++) {
-                const sym = symbols[i];
-                setHeavyOptStatus({
-                    status: 'initializing',
-                    message: `Updating data (${i + 1}/${symbols.length}): ${sym}...`
-                });
-                try {
-                    await fetchMarketDataForSymbol(sym, {
-                        interval: activeConfig?.interval || "1m",
-                        days: activeConfig?.days || 365
-                    });
-                } catch (err) {
-                    console.warn(`Failed to update data for ${sym}`, err);
-                    addLog(`${sym}: data update failed`, 'warning');
-                }
-                if (i < symbols.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
-                }
-            }
-            addLog('Data update completed. Starting optimization...', 'info');
-            setHeavyOptStatus({ status: 'initializing', message: 'Starting optimization...' });
-
-            // Build base config
-            const base_config = {};
-            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
-            paramDefs.forEach(param => {
-                if (param.defaultValue !== undefined) {
-                    base_config[param.key] = param.defaultValue;
-                }
-            });
-            Object.keys(activeConfig || {}).forEach(key => {
-                if (activeConfig[key] !== undefined && activeConfig[key] !== '') {
-                    base_config[key] = activeConfig[key];
-                }
-            });
-
-            // Determine save target
-            const saveTabId = isSymbolCompareTab
-                ? getCrossOptUUID(selectedProfileId)
-                : (activeConfig?.uuid || null);
-
-            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const payload = {
-                symbols: symbols,
-                interval: activeConfig?.interval || "1m",
-                days: activeConfig?.days || 365,
-                from_date: activeConfig?.from_date || null,
-                to_date: activeConfig?.to_date || defaultToDate,
-                initial_capital: activeConfig?.initial_capital || 10000000,
-                parameter_ranges: parameter_ranges,
-                base_config: base_config,
-                strategy_id: selectedStrategy.id,
-                save_to_tab_id: saveTabId  // Auto-save to DB on completion
-            };
-
-            // Log optimization request details
-            addLog(`📊 Optimization Request:`, 'info');
-            addLog(`  - Symbols: ${symbols.length}개`, 'info');
-            addLog(`  - Parameter Ranges:`, 'info');
-            Object.entries(parameter_ranges).forEach(([key, values]) => {
-                addLog(`    • ${key}: [${values.join(', ')}] (${values.length}개)`, 'info');
-            });
-            const paramCombos = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
-            addLog(`  - Total: ${symbols.length} × ${paramCombos} = ${symbols.length * paramCombos} combinations`, 'info');
-
-            const heavyOptData = await apiStartHeavyOpt(selectedStrategy.id, payload);
-
-            if (heavyOptData.task_id) {
-                const taskId = heavyOptData.task_id;
-                setHeavyOptTaskId(taskId);
-                localStorage.setItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID, taskId);
-                addLog(`Optimization started: ${heavyOptData.total_combinations} combinations`, 'info');
-
-                // Start polling
-                pollHeavyOptStatus(taskId);
-            }
-        } catch (error) {
-            const msg = error.response?.data?.detail || error.message || "Unknown Error";
-            setOptError(`Optimization failed: ${msg}`);
-            setIsHeavyOptRunning(false);
-            setHeavyOptStatus(null);
-        }
-    };
-
-    const pollHeavyOptStatus = async (taskId) => {
-        let isComplete = false;
-
-        while (!isComplete) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
-
-            try {
-                const data = await getHeavyOptimizationStatus(taskId);
-
-                setHeavyOptStatus(data);
-
-                // Show partial results during running (like regular Cross-Optimize)
-                if (data.status === 'running' && data.top_results && data.top_results.length > 0) {
-                    const formattedPartial = data.top_results.map((item, index) => ({
-                        ...item.config,
-                        symbol: item.symbol || '',
-                        symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                        return: item.total_return,
-                        win_rate: item.win_rate,
-                        recent_10_win_rate: item.recent_10_win_rate,
-                        trades: item.total_trades,
-                        score: item.score,
-                        full_config: item.config,
-                        rank: index + 1,
-                        max_drawdown: item.max_drawdown,
-                        profit_factor: item.profit_factor,
-                        sharpe_ratio: item.sharpe_ratio,
-                        avg_pnl: item.avg_pnl,
-                        stability_score: item.stability_score,
-                        acceleration_score: item.acceleration_score,
-                        activity_rate: item.activity_rate,
-                        avg_holding_time: item.avg_holding_time,
-                        max_holding_time: item.max_holding_time,
-                        min_holding_time: item.min_holding_time,
-                        max_profit: item.max_profit,
-                        max_loss: item.max_loss,
-                        total_days: item.total_days,
-                        _isPartial: true  // Mark as partial result
-                    }));
-                    setOptResults(formattedPartial);
-                }
-
-                if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed' || data.status === 'not_found') {
-                    isComplete = true;
-                    setIsHeavyOptRunning(false);
-
-                    if (data.status === 'completed') {
-                        addLog(`Optimization completed! ${data.progress_current} results processed.`, 'info');
-
-                        // Format top_results to match regular optimization format and set optResults
-                        if (data.top_results && data.top_results.length > 0) {
-                            const formattedResults = data.top_results.map((item, index) => ({
-                                // Spread config first (so it can be overridden)
-                                ...item.config,
-                                // Core fields
-                                symbol: item.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                                return: item.total_return,
-                                win_rate: item.win_rate,
-                                recent_10_win_rate: item.recent_10_win_rate,
-                                trades: item.total_trades,
-                                score: item.score,
-                                full_config: item.config,
-                                rank: index + 1,
-                                // All metrics (same as regular optimization)
-                                max_drawdown: item.max_drawdown,
-                                profit_factor: item.profit_factor,
-                                sharpe_ratio: item.sharpe_ratio,
-                                avg_pnl: item.avg_pnl,
-                                stability_score: item.stability_score,
-                                acceleration_score: item.acceleration_score,
-                                activity_rate: item.activity_rate,
-                                avg_holding_time: item.avg_holding_time,
-                                max_holding_time: item.max_holding_time,
-                                min_holding_time: item.min_holding_time,
-                                max_profit: item.max_profit,
-                                max_loss: item.max_loss,
-                                total_days: item.total_days
-                            }));
-                            setOptResults(formattedResults);
-                        }
-                    } else if (data.status === 'cancelled') {
-                        addLog('Optimization cancelled.', 'warning');
-                    } else if (data.status === 'failed') {
-                        setOptError(`Heavy optimization failed: ${data.message}`);
-                    } else if (data.status === 'not_found') {
-                        setOptError('Optimization task not found (server restarted?)');
-                        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                        setHeavyOptTaskId(null);
-                    }
-                }
-            } catch (err) {
-                console.warn("Heavy opt polling error", err);
-                // Continue polling on network error
-            }
-        }
-    };
-
-    const handleCancelHeavyOpt = async () => {
-        if (!heavyOptTaskId) return;
-
-        try {
-            await cancelHeavyOptimization(heavyOptTaskId);
-            addLog('Optimization cancellation requested.', 'info');
-        } catch (e) {
-            console.error("Heavy opt cancellation failed", e);
-            setOptError("Failed to cancel optimization");
-        }
-    };
-
-    const downloadHeavyOptCSV = () => {
-        if (!heavyOptStatus?.csv_file) return;
-        window.open(getHeavyOptDownloadUrl(heavyOptTaskId), '_blank');
-    };
-
-    const clearHeavyOptTask = () => {
-        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-        setHeavyOptTaskId(null);
-        setHeavyOptStatus(null);
-        setIsHeavyOptRunning(false);
-    };
-
-    // Fetch AI models for model selection
-    const fetchAiModels = async () => {
-        try {
-            const modelsData = await apiGetAiModels();
-            setAiModels(modelsData.models || []);
-            // Also fetch user's default model
-            const statusData = await getAiKeyStatus();
-            setSelectedAiModel(statusData.ai_model || modelsData.default || '');
-        } catch (err) {
-            console.error('Failed to fetch AI models:', err);
-        }
-    };
-
-    // Fetch AI models on mount
-    useEffect(() => {
-        fetchAiModels();
-    }, []);
-
-    // AI Analysis of optimization results
-    const runAiAnalysis = async (modelOverride = null) => {
-        if (!heavyOptStatus?.csv_file) {
-            addLog('No CSV file available for AI analysis', 'error');
-            return;
-        }
-
-        setAiAnalysisLoading(true);
-        setAiAnalysisResult(null);
-        const modelToUse = modelOverride || selectedAiModel;
-        const modelName = aiModels.find(m => m.id === modelToUse)?.name || modelToUse;
-        addLog(`Starting AI analysis with ${modelName}...`, 'info');
-
-        try {
-            const analysisData = await apiRunAiAnalysis({
-                csv_filename: heavyOptStatus.csv_file,
-                strategy_id: 'DipMartingaleStrategy',
-                user_question: null,
-                model: modelToUse || undefined
-            });
-
-            setAiAnalysisResult(analysisData);
-            setShowAiAnalysisModal(true);
-            addLog(`AI analysis completed: ${analysisData.total_rows?.toLocaleString()} rows analyzed`, 'success');
-        } catch (err) {
-            console.error('AI analysis error:', err);
-            const msg = err.response?.data?.detail || err.message;
-            addLog(`AI analysis failed: ${msg}`, 'error');
-            setAiAnalysisResult({ error: msg });
-        } finally {
-            setAiAnalysisLoading(false);
-        }
-    };
-
-    // Restore heavy opt polling on page load (only on mount)
-    const hasRestoredOptRef = useRef(false);
-    useEffect(() => {
-        // Only run once on mount, not on savedSymbols changes
-        if (hasRestoredOptRef.current) return;
-        hasRestoredOptRef.current = true;
-
-        const savedTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-        if (savedTaskId) {
-            // Check if task is still running
-            getHeavyOptimizationStatus(savedTaskId)
-                .then(data => {
-                    // Verify localStorage still has this task (not cleared by profile change)
-                    const currentTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                    if (currentTaskId !== savedTaskId) {
-                        console.log('[StrategyView] Task ID changed during fetch, ignoring result');
-                        return;
-                    }
-                    setHeavyOptStatus(data);
-                    setHeavyOptTaskId(savedTaskId);
-
-                    if (data.status === 'running' || data.status === 'initializing') {
-                        setIsHeavyOptRunning(true);
-                        pollHeavyOptStatus(savedTaskId);
-                    } else if (data.status === 'completed') {
-                        // Task already completed - process top_results into optResults
-                        if (data.top_results && data.top_results.length > 0) {
-                            const formattedResults = data.top_results.map((item, index) => ({
-                                ...item.config,
-                                symbol: item.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                                return: item.total_return,
-                                win_rate: item.win_rate,
-                                recent_10_win_rate: item.recent_10_win_rate,
-                                trades: item.total_trades,
-                                score: item.score,
-                                full_config: item.config,
-                                rank: index + 1,
-                                max_drawdown: item.max_drawdown,
-                                profit_factor: item.profit_factor,
-                                sharpe_ratio: item.sharpe_ratio,
-                                avg_pnl: item.avg_pnl,
-                                stability_score: item.stability_score,
-                                acceleration_score: item.acceleration_score,
-                                activity_rate: item.activity_rate,
-                                avg_holding_time: item.avg_holding_time,
-                                max_holding_time: item.max_holding_time,
-                                min_holding_time: item.min_holding_time,
-                                max_profit: item.max_profit,
-                                max_loss: item.max_loss,
-                                total_days: item.total_days
-                            }));
-                            setOptResults(formattedResults);
-                        }
-                    }
-                })
-                .catch(() => {
-                    // Task not found, clear it
-                    localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                    setHeavyOptTaskId(null);
-                });
-        }
-    }, []);
-
-    const runOptimization = async () => {
-        if (!selectedStrategy) {
-            setOptError("Please select a strategy first.");
-            return;
-        }
-        if (activeTab === -1) {
-            setOptError("Optimization not available for Integrated Portfolio yet.");
-            return;
-        }
-
-        // Cross-optimization: validate symbol selection
-        const isCrossOpt = activeTab === -3;
-        if (isCrossOpt && selectedCompareSymbols.length === 0) {
-            setOptError("Please select symbols for cross-optimization.");
-            return;
-        }
-
-        // Validation: Check for empty optimization inputs
-        const currentOptEnabled = currentConfig.optEnabled || {};
-        const currentOptValues = currentConfig.optValues || getDynamicOptValues();
-
-        // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
-        const validParamNames = new Set(getStrategyParamNames());
-        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && validParamNames.has(k));
-
-        // Warn about invalid keys
-        const invalidKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && !validParamNames.has(k));
-        if (invalidKeys.length > 0) {
-            addLog(`⚠️ Ignored invalid optEnabled keys: [${invalidKeys.join(', ')}] (not in strategy schema)`, 'warning');
-        }
-
-        if (varyingKeys.length === 0) {
-            // If no params, run single backtest or warn?
-            // Actually allowed (runs base config 1 time)
-        }
-
-        const parameter_ranges = {};
-        for (const key of varyingKeys) {
-            const values = parseValues(currentOptValues[key]);
-            if (values.length === 0) {
-                setOptError(`Error: Parameter '${key}' is enabled but has no values. Please enter comma-separated values.`);
-                return;
-            }
-            parameter_ranges[key] = values;
-            // Log parsed values for verification
-            addLog(`Parsed ${key}: [${values.join(', ')}]`, 'info');
-        }
-
-        setIsOptimizing(true);
-        setIsCancelling(false);
-        setOptResults([]);
-        setOptError(null);
-        setOptStatusMessage("");
-        setOptProgress({ current: 0, total: 0 }); // Reset
-        setIsDirty(true); // Mark as dirty when running optimization
-
-        try {
-            // Cross-optimization: pre-fetch data for all selected symbols
-            if (isCrossOpt) {
-                const DATA_FETCH_DELAY_MS = 500;
-                addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
-                setOptStatusMessage(`Updating data (0/${selectedCompareSymbols.length})...`);
-                for (let i = 0; i < selectedCompareSymbols.length; i++) {
-                    const sym = selectedCompareSymbols[i];
-                    setOptStatusMessage(`Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`);
-                    try {
-                        await fetchMarketDataForSymbol(sym, { interval: "1m", days: 365 });
-                    } catch (err) {
-                        console.warn(`Failed to update data for ${sym}`, err);
-                        addLog(`${sym}: data update failed`, 'warning');
-                    }
-                    if (i < selectedCompareSymbols.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
-                    }
-                }
-                addLog('Data update completed. Starting optimization...', 'info');
-                setOptStatusMessage("Starting optimization...");
-            }
-
-            // Sanitize Config for Base - Include ALL schema defaults first
-            const base_config = {};
-
-            // 1. First, populate with schema default values (so ALL params are included)
-            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
-            paramDefs.forEach(param => {
-                if (param.defaultValue !== undefined) {
-                    base_config[param.key] = param.defaultValue;
-                }
-            });
-
-            // 2. Overlay with currentConfig values (user-entered values take precedence)
-            Object.keys(currentConfig).forEach(key => {
-                if (currentConfig[key] !== undefined && currentConfig[key] !== '') {
-                    base_config[key] = currentConfig[key];
-                }
-            });
-
-            // 3. Fill any remaining empty values from DEFAULT_CONFIG
-            Object.keys(base_config).forEach(key => {
-                if (base_config[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
-                    base_config[key] = DEFAULT_CONFIG[key];
-                }
-            });
-
-            // Determine tab UUID for server-side auto-save
-            const saveTabId = isCrossOpt
-                ? getCrossOptUUID(selectedProfileId)
-                : currentConfig?.uuid || null;
-
-            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const payload = {
-                symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
-                symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
-                interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
-                days: currentConfig?.days || 365, // Must match Backtest payload
-                from_date: currentConfig?.from_date || "",
-                to_date: currentConfig?.to_date || defaultToDate,
-                initial_capital: currentConfig?.initial_capital || 10000000,
-                parameter_ranges: parameter_ranges,
-                base_config: base_config,
-                save_to_tab_id: saveTabId  // Server-side auto-save on completion
-            };
-
-            // 1. Start Optimization (Async)
-            const optStartData = await startOptimization(selectedStrategy.id, payload);
-
-            if (optStartData.task_id) {
-                const taskId = optStartData.task_id;
-                const totalCombos = optStartData.total_combinations;
-                setOptProgress({ current: 0, total: totalCombos });
-
-                // 2. Poll for Status
-                let isComplete = false;
-                // Store taskId in ref or use local var for cancel button if we want to extract it
-                // For now, cancel button needs access to current taskId. 
-                // We'll rely on a state for currentTaskId or pass it? 
-                // Better: set a state `currentOptTaskId`
-                setCurrentOptTaskId(taskId);
-
-                while (!isComplete) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
-
-                    try {
-                        const statusData = await getOptimizationStatus(taskId);
-
-                        setOptProgress({
-                            current: statusData.progress_current,
-                            total: statusData.progress_total
-                        });
-
-                        if (statusData.message) {
-                            setOptStatusMessage(statusData.message);
-                        }
-
-                        // Show partial results during optimization (live preview)
-                        if (statusData.status === 'running' && statusData.partial_results && statusData.partial_results.length > 0) {
-                            const formattedPartial = statusData.partial_results.map((item, index) => {
-                                const stats = normalizeStats(item);
-                                return {
-                                    ...item.config,
-                                    ...stats, // Normalized stats with consistent types
-                                    symbol: item.symbol || item.config?.symbol || '',
-                                    symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                    return: stats.total_return,
-                                    trades: stats.total_trades,
-                                    score: item.score,
-                                    full_config: item.config,
-                                    rank: item.rank > 0 ? item.rank : (index + 1),
-                                    _isPartial: true
-                                };
-                            });
-                            setOptResults(formattedPartial);
-                        }
-
-                        if (statusData.status === 'completed' || statusData.status === 'cancelled') {
-                            // Finished (or Cancelled)
-                            const resultData = statusData.result;
-                            if (resultData && resultData.results && resultData.results.length > 0) {
-                                const formattedResults = resultData.results.map((item, index) => {
-                                    const stats = normalizeStats(item);
-                                    return {
-                                        ...item.config,
-                                        ...stats, // Normalized stats with consistent types
-                                        symbol: item.symbol || item.config?.symbol || '',
-                                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                        return: stats.total_return,
-                                        trades: stats.total_trades,
-                                        score: item.score,
-                                        full_config: item.config,
-                                        rank: item.rank > 0 ? item.rank : (index + 1)
-                                    };
-                                });
-                                setOptResults(formattedResults);
-                                setCompletedOptTaskId(taskId); // For full CSV download
-
-                                // Save optimization results
-                                if (statusData.status === 'completed') {
-                                    if (isCrossOpt) {
-                                        // Cross-optimization: auto-save to DB immediately (no Apply button flow)
-                                        const crossOptUuid = getCrossOptUUID(selectedProfileId);
-                                        try {
-                                            await saveStrategyResult(crossOptUuid, 'optimization', resultData);
-                                            addLog('Cross-optimization results saved to DB.', 'info');
-                                        } catch (err) {
-                                            console.error("Failed to save cross-opt result", err);
-                                            addLog('Failed to save cross-optimization results', 'error');
-                                        }
-                                    } else if (currentConfig.uuid) {
-                                        // Rank tab: auto-save to DB immediately
-                                        try {
-                                            await saveStrategyResult(currentConfig.uuid, 'optimization', resultData);
-                                            addLog('Optimization results saved to DB.', 'info');
-                                        } catch (err) {
-                                            console.error("Failed to save opt result", err);
-                                            addLog('Failed to save optimization results', 'error');
-                                        }
-                                    }
-                                }
-
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (Partial Results Shown Below)");
-                                }
-                            } else {
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (No Results)");
-                                } else {
-                                    const failureMsg = resultData.failures ? resultData.failures.join('\n') : "";
-                                    setOptError(`Optimization completed but resulted in 0 valid backtests.\n\nBackend Failures:\n${failureMsg}`);
-                                }
-                            }
-                            isComplete = true;
-                        } else if (statusData.status === 'failed') {
-                            setOptError(`Optimization Task Failed: ${statusData.message}`);
-                            isComplete = true;
-                        } else if (statusData.status === 'not_found') {
-                            setOptError("Optimization Task Lost (Server Restarted?)");
-                            isComplete = true;
-                        }
-                    } catch (pollErr) {
-                        console.warn("Polling failed, retrying...", pollErr);
-                        // Continue Polling if network glitch? 
-                        // Maybe limit retries, but for now just continue
-                    }
-                }
-            } else {
-                // Fallback for synchronous response (if any)
-                setOptError("Unexpected Sync Response");
-            }
-
-        } catch (error) {
-            const msg = error.response?.data?.detail || error.message || "Unknown Error";
-            setOptError(`Optimization Request Failed: ${msg}`);
-            console.error(error);
-        } finally {
-            setIsOptimizing(false);
-            setIsCancelling(false);
-            setCurrentOptTaskId(null);
-        }
-    };
-
-
-
-    const applyOptParams = (result) => {
-        // Find the active tab's config and update it
-        if (activeTab >= 0 && configList[activeTab]) {
-            setConfigList(prev => {
-                const next = [...prev];
-                next[activeTab] = { ...next[activeTab], ...result.full_config };
-                return next;
-            });
-        }
-        // Scroll to config
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-    // fromDate state moved to config
-
-
-    // Persistence Effects
-    // Persistence logic removed for interval
-
-    // Strategy persistence (DB + localStorage) is now handled by StrategiesContext
-
-    // Check Data Status
-    useEffect(() => {
-        if (!isConfigLoaded) return; // Prevent race condition before config loads
-        if (activeTab < 0) return; // Only check for Rank tabs (not Live, Integrated, Symbol Compare)
-
-        // Use currentConfig.symbol for data status check
-        const symbolToCheck = currentConfig.symbol || currentSymbol;
-        if (symbolToCheck) {
-            checkDataStatus(symbolToCheck);
-        }
-        setFetchMessage(null);
-    }, [currentConfig?.symbol, currentSymbol, isConfigLoaded, activeTab]); // activeTab 추가: Rank 탭 전환 시 from_date 자동 설정
-
-    const checkDataStatus = async (symbol) => {
-        try {
-            // Always check 1m data status - higher timeframes are aggregated from 1m
-            const data = await getMarketDataStatus(symbol, {
-                interval: "1m"
-            });
-            setDataStatus(data);
-
-            // Auto-set Start Date to Data Start (clamped to 1 year back)
-            if (data.start_date) {
-                // Server returns YY.MM.DD -> Convert to YYYY-MM-DD for input type="date"
-                const parts = data.start_date.split('.');
-                if (parts.length === 3) {
-                    const yyyy = `20${parts[0]}`;
-                    const mm = parts[1];
-                    const dd = parts[2];
-                    let newDate = `${yyyy}-${mm}-${dd}`;
-                    // Clamp to 1 year back silently (no popup on auto-set)
-                    const minDate = new Date();
-                    minDate.setDate(minDate.getDate() - 365);
-                    if (new Date(newDate) < minDate) {
-                        newDate = minDate.toISOString().split('T')[0];
-                    }
-                    if (currentConfig?.from_date !== newDate) {
-                        // 자동 설정은 isDirty를 트리거하지 않음 - 직접 configList 업데이트
-                        if (activeTab >= 0 && activeTab < configList.length) {
-                            const newList = [...configList];
-                            newList[activeTab] = { ...newList[activeTab], from_date: newDate };
-                            setConfigList(newList);
-                            // isDirty는 설정하지 않음 - 자동 설정은 사용자 변경이 아님
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("Failed to check data status", e);
-            setFetchMessage(`Status Error: ${e.message}`);
-        }
-    };
-
-    const handleFetchData = async (backfill = false) => {
-        setIsFetchingData(true);
-        setFetchMessage(backfill ? `Backfilling...` : `Updating...`);
-        const symbolToFetch = currentConfig.symbol || currentSymbol; // Use config's symbol
-        try {
-            // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
-            // backfill=true: Fetch full 2-year history even if partial data exists
-            // backfill=false: Incremental update, stops when hitting existing data
-            const data = await fetchMarketDataForSymbol(symbolToFetch, {
-                interval: "1m",
-                days: 365, // Max 1 year (API limit)
-                backfill: backfill
-            });
-            const added = data.added;
-            setFetchMessage(null);
-
-            const resultMsg = added > 0 ? `Updated (+${added})` : `Up to date (+0)`;
-
-            await checkDataStatus(symbolToFetch); // Pass symbol to checkDataStatus
-            setFetchMessage(resultMsg);
-
-        } catch (e) {
-            setFetchMessage("Failed");
-            setTimeout(() => setFetchMessage(null), 3000);
-        } finally {
-            setIsFetchingData(false);
-        }
-    };
-
-    // Integrated Tab: Update Data for All Ranks
-    const handleUpdateAllData = async () => {
-        if (configList.length === 0) return;
-        setIsFetchingData(true);
-        setFetchMessage("Queueing...");
-        try {
-            let totalAdded = 0;
-            let updatedCount = 0;
-
-            for (let i = 0; i < configList.length; i++) {
-                const cfg = configList[i];
-                if (!cfg.symbol) continue;
-
-                setFetchMessage(`Updating Rank ${i + 1} (${cfg.symbol})...`);
-                try {
-                    // Always fetch 1m data - higher timeframes are aggregated from 1m on demand
-                    const fetchResult = await fetchMarketDataForSymbol(cfg.symbol, {
-                        interval: "1m",
-                        days: 365 // Max 1 year (API limit)
-                    });
-                    totalAdded += (fetchResult.added || 0);
-                    updatedCount++;
-                } catch (err) {
-                    console.error(`Failed to update Rank ${i + 1}`, err);
-                }
-            }
-
-            setFetchMessage(`All Active (${updatedCount}) Updated (+${totalAdded})`);
-            setTimeout(() => setFetchMessage(null), 3000);
-
-        } catch (e) {
-            console.error("Update All Failed", e);
-            setFetchMessage("Failed");
-            setTimeout(() => setFetchMessage(null), 3000);
-        } finally {
-            setIsFetchingData(false);
-        }
-    };
-
-    // Symbol Comparison: Run backtest for multiple symbols with same strategy params
-    const handleStockCompareBacktest = async () => {
-        if (selectedCompareSymbols.length === 0) {
-            addLog('No symbols selected for comparison', 'error');
-            return;
-        }
-
-        // Use symbolCompareConfig if available, fallback to Rank 1
-        const baseConfig = symbolCompareConfig || configList[0];
-        if (!baseConfig) {
-            addLog('No configuration available for comparison', 'error');
-            return;
-        }
-
-        setIsStockComparing(true);
-        setStockCompareResults([]);
-        const totalSymbols = selectedCompareSymbols.length;
-        setStockCompareProgress({ current: 0, total: totalSymbols, phase: 'data' });
-        const results = [];
-
-        try {
-            // Step 1: Update chart data for all selected symbols
-            // Add delay between API calls to avoid Kiwoom rate limiting
-            const DATA_FETCH_DELAY_MS = 500; // 500ms delay between data fetches
-            addLog(`Updating chart data for ${totalSymbols} symbols...`, 'info');
-            let totalDataAdded = 0;
-            for (let i = 0; i < totalSymbols; i++) {
-                const symbol = selectedCompareSymbols[i];
-                setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
-                try {
-                    const fetchRes = await fetchMarketDataForSymbol(symbol, {
-                        interval: "1m",
-                        days: 365
-                    });
-                    const added = fetchRes?.added || 0;
-                    totalDataAdded += added;
-                    if (added > 0) {
-                        addLog(`${symbol}: +${added} candles updated`, 'info');
-                    }
-                } catch (err) {
-                    console.warn(`Failed to update data for ${symbol}`, err);
-                    addLog(`${symbol}: data update failed`, 'warning');
-                }
-                // Delay before next API call (skip delay after last item)
-                if (i < totalSymbols - 1) {
-                    await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
-                }
-            }
-            addLog(`Data update completed: +${totalDataAdded} total candles`, totalDataAdded > 0 ? 'success' : 'info');
-
-            // Step 2: Run backtest for each symbol sequentially
-            const BACKTEST_DELAY_MS = 200; // 200ms delay between backtests
-            addLog(`Running backtests for ${totalSymbols} symbols...`, 'info');
-            for (let i = 0; i < totalSymbols; i++) {
-                const symbol = selectedCompareSymbols[i];
-                setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'backtest' });
-
-                try {
-                    const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                    const payload = {
-                        symbol: symbol,
-                        interval: baseConfig.interval || "1m",
-                        days: baseConfig.days || 365,
-                        from_date: baseConfig.from_date || "",
-                        to_date: baseConfig.to_date || defaultToDate,
-                        initial_capital: baseConfig.initial_capital || 10000000,
-                        config: {
-                            ...baseConfig,
-                            symbol: symbol
-                        }
-                    };
-
-                    const data = await apiRunBacktest(selectedStrategy.id, payload);
-                    const ret = parseFloat(String(data.total_return || 0).replace('%', '').replace(',', ''));
-                    const wr = parseFloat(String(data.win_rate || 0).replace('%', ''));
-                    const score = ret * (wr / 100);
-
-                    // Extract ALL stats from STAT_COLUMNS (consistent with backtest results)
-                    results.push({
-                        symbol: symbol,
-                        name: savedSymbols?.find(s => s.code === symbol)?.name || '',
-                        // Core stats
-                        total_return: data.total_return,
-                        profit_factor: data.profit_factor,
-                        win_rate: data.win_rate,
-                        recent_10_win_rate: data.recent_10_win_rate,
-                        sharpe_ratio: data.sharpe_ratio,
-                        // Trading activity
-                        total_trades: data.total_trades,
-                        stability_score: data.stability_score,
-                        acceleration_score: data.acceleration_score,
-                        activity_rate: data.activity_rate,
-                        // PnL details
-                        avg_pnl: data.avg_pnl,
-                        avg_holding_time: data.avg_holding_time,
-                        max_holding_time: data.max_holding_time,
-                        min_holding_time: data.min_holding_time,
-                        max_profit: data.max_profit,
-                        max_loss: data.max_loss,
-                        // Max drawdown & score
-                        max_drawdown: data.max_drawdown,
-                        score: score
-                    });
-
-                    // Update results in real-time
-                    setStockCompareResults([...results]);
-
-                } catch (err) {
-                    console.error(`Backtest failed for ${symbol}`, err);
-                    results.push({
-                        symbol: symbol,
-                        name: savedSymbols?.find(s => s.code === symbol)?.name || '',
-                        total_return: 'Error',
-                        profit_factor: null,
-                        win_rate: null,
-                        recent_10_win_rate: null,
-                        sharpe_ratio: null,
-                        total_trades: 0,
-                        stability_score: null,
-                        acceleration_score: null,
-                        activity_rate: null,
-                        avg_pnl: null,
-                        avg_holding_time: null,
-                        max_holding_time: null,
-                        min_holding_time: null,
-                        max_profit: null,
-                        max_loss: null,
-                        max_drawdown: null,
-                        score: -999
-                    });
-                    setStockCompareResults([...results]);
-                }
-
-                // Delay before next backtest (skip delay after last item)
-                if (i < totalSymbols - 1) {
-                    await new Promise(resolve => setTimeout(resolve, BACKTEST_DELAY_MS));
-                }
-            }
-
-            addLog(`Stock comparison completed: ${results.length} symbols tested`, 'success');
-            setIsSymbolCompareDirty(true); // Mark as dirty after comparison
-
-        } catch (e) {
-            console.error("Symbol Comparison Failed", e);
-            addLog(`Stock comparison failed: ${e.message}`, 'error');
-        } finally {
-            setIsStockComparing(false);
-            setStockCompareProgress({ current: 0, total: 0, phase: 'data' });
-        }
-    };
-
-    // Export Symbol Compare results to CSV
-    const handleExportCompareResults = () => {
-        if (stockCompareResults.length === 0) {
-            addLog('No results to export', 'warning');
-            return;
-        }
-
-        const filename = exportCompareResultsToCSV(stockCompareResults);
-
-        if (filename) {
-            addLog(`Exported ${stockCompareResults.length} results to CSV`, 'success');
-        }
-    };
-
-    // (handleApplySymbolCompare / handleDiscardSymbolCompare removed — 헤더 Save/Discard로 통합)
+    // ==========================================
+    // All data/optimization/AI/score/comparison handlers moved to hooks above
+    // ==========================================
 
     return (
         <div className="flex flex-col gap-6 pb-10">
