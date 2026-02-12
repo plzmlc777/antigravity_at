@@ -8,7 +8,7 @@ export const useDataFetching = ({
     currentConfig, currentSymbol, configList, setConfigList,
     activeTab, isConfigLoaded, addLog
 }) => {
-    const [dataStatus, setDataStatus] = useState(null);
+    const [dataStatus, setDataStatus] = useState({ is_fresh: false, count: 0, start_date: null });
     const [isFetchingData, setIsFetchingData] = useState(false);
     const [fetchMessage, setFetchMessage] = useState(null);
 
