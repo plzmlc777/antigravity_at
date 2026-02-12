@@ -41,7 +41,8 @@ def build_backtest_config(
     interval: str,
     days: int,
     from_date: str,
-    initial_capital: int
+    initial_capital: int,
+    to_date: str = None
 ) -> Dict[str, Any]:
     """
     Builds a complete, normalized config for backtest execution.
@@ -62,6 +63,7 @@ def build_backtest_config(
     # 3. Request-level params - MUST be included for Select/Active to work correctly
     config['days'] = days
     config['from_date'] = from_date
+    config['to_date'] = to_date
     config['initial_capital'] = initial_capital
 
     return config
@@ -78,7 +80,8 @@ async def _run_unified_backtest(
     days: int,
     from_date: str,
     initial_capital: int,
-    execution_mode: str = "single"  # "single", "parallel", "exclusive"
+    execution_mode: str = "single",  # "single", "parallel", "exclusive"
+    to_date: str = None
 ) -> Dict[str, Any]:
     """
     Unified backtest execution function.
@@ -113,7 +116,7 @@ async def _run_unified_backtest(
         config = configs[0]
         rank_symbol = config.get('symbol', symbol)
 
-        raw_feed = await data_service.get_candles(rank_symbol, interval=interval, days=days)
+        raw_feed = await data_service.get_candles(rank_symbol, interval=interval, days=days, to_date=to_date)
         if raw_feed:
             if from_date:
                 raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]
@@ -139,6 +142,7 @@ async def _run_unified_backtest(
             global_symbol=symbol,
             duration_days=days,
             from_date=from_date,
+            to_date=to_date,
             interval=interval,
             initial_capital=initial_capital
         )
@@ -151,6 +155,7 @@ async def _run_unified_backtest(
             global_symbol=symbol,
             duration_days=days,
             from_date=from_date,
+            to_date=to_date,
             interval=interval,
             initial_capital=initial_capital
         )
@@ -194,7 +199,7 @@ def _run_backtest_wrapper(args):
     except Exception as e:
         return config, {"error": str(e)}
 
-def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital):
+def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None):
     # Force close inherited DB connections to prevent SSL/OperationalError in worker process
     try:
         from ..db.session import engine
@@ -241,7 +246,8 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         asyncio.set_event_loop(loop)
         
     # Use unified config builder (Single Source of Truth)
-    config = build_backtest_config(config, symbol, interval, days, from_date, initial_capital)
+    print(f"[OPT_WORKER] symbol={symbol}, interval={interval}, days={days}, from_date={from_date}, to_date={to_date}")
+    config = build_backtest_config(config, symbol, interval, days, from_date, initial_capital, to_date=to_date)
     actual_interval = config['interval']
 
     result = loop.run_until_complete(engine.run_integrated(
@@ -250,6 +256,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         interval=actual_interval,
         duration_days=days,
         from_date=from_date,
+        to_date=to_date,
         initial_capital=initial_capital,
         optimize_mode=True
     ))
@@ -613,6 +620,7 @@ class BacktestRequest(BaseModel):
     days: int = 365
     from_date: Optional[str] = None # Or start_date
     start_date: Optional[str] = None # Aliases
+    to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: int = 10000000
     config: Dict[str, Any] = {} # Nested config from frontend strategy selector
 
@@ -631,10 +639,11 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         interval=request.interval,
         days=request.days,
         from_date=start_date,
-        initial_capital=request.initial_capital
+        initial_capital=request.initial_capital,
+        to_date=request.to_date
     )
 
-    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={config['interval']}, days={request.days}, from_date={start_date}")
+    logger.info(f"[BACKTEST] symbol={request.symbol}, interval={config['interval']}, days={request.days}, from_date={start_date}, to_date={request.to_date}")
 
     # Use unified backtest function (Single Source of Truth)
     result = await _run_unified_backtest(
@@ -645,7 +654,8 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         days=request.days,
         from_date=start_date,
         initial_capital=request.initial_capital,
-        execution_mode="single"
+        execution_mode="single",
+        to_date=request.to_date
     )
 
     # Return standardized response
@@ -697,7 +707,7 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx:
     # No limit - user can stop manually via cancel button if needed
     # Accurate optimization results are more important than speed
     total_combinations = len(symbols) * len(param_combinations)
-    logger.info(f"[Optimization] Running {total_combinations} combinations ({len(symbols)} symbols x {len(param_combinations)} params) for {strategy_id}")
+    logger.info(f"[Optimization] Running {total_combinations} combinations ({len(symbols)} symbols x {len(param_combinations)} params) for {strategy_id}, to_date={request.to_date}, days={request.days}, from_date={request.from_date}")
 
     # 3. Prepare Tasks
     tasks = []
@@ -724,7 +734,8 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx:
                 request.interval,
                 request.days,
                 request.from_date,
-                request.initial_capital
+                request.initial_capital,
+                request.to_date
             ))
 
     # 4. Async Execution (Fire and Forget)
@@ -1115,7 +1126,8 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
                 request.interval,
                 request.days,
                 request.from_date,
-                request.initial_capital
+                request.initial_capital,
+                request.to_date
             ))
 
     # Create task
@@ -1499,6 +1511,7 @@ class IntegratedBacktestRequest(BaseModel):
     interval: str
     days: int
     from_date: Optional[str] = None
+    to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: float
     execution_mode: str = "exclusive"  # 'exclusive' (waterfall) or 'parallel' (equal split)
 
@@ -1533,7 +1546,8 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
                 interval=request.interval,
                 days=request.days,
                 from_date=request.from_date,
-                initial_capital=per_rank_capital
+                initial_capital=per_rank_capital,
+                to_date=request.to_date
             )
             strategies_config.append(normalized_config)
 
@@ -1551,7 +1565,8 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             days=request.days,
             from_date=request.from_date,
             initial_capital=int(request.initial_capital),
-            execution_mode=request.execution_mode
+            execution_mode=request.execution_mode,
+            to_date=request.to_date
         )
 
         return result

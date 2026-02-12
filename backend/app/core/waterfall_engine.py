@@ -328,7 +328,7 @@ class BacktestContext(IContext):
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
         ))
 
-async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, preloaded_feeds: Dict[str, List] = None) -> Dict[str, List]:
+async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None) -> Dict[str, List]:
     """
     Independent helper to fetch OHLCV data for Visualization (Background Charts).
     Can reuse preloaded_feeds (Simulation Data) if intervals match to save bandwidth.
@@ -362,7 +362,7 @@ async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol
              viz_feeds[sym] = preloaded_feeds[sym]
         else:
             # Fetch from DB/API
-            v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days)
+            v_feed = await data_service.get_candles(sym, interval=target_interval, days=duration_days, to_date=to_date)
             if v_feed:
                 if from_date:
                     v_feed = [c for c in v_feed if c['timestamp'] >= from_date]
@@ -466,7 +466,7 @@ class WaterfallBacktestEngine:
 
         return stats
 
-    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
+    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
         import time
         t_start = time.time()
         # 1. Prepare Symbols and Fetch Data
@@ -492,7 +492,7 @@ class WaterfallBacktestEngine:
         feeds = {}
         for sym in unique_symbols:
             print(f"[DEBUG] WaterfallEngine fetching {sym} with interval={interval}, days={duration_days}")
-            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
+            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days, to_date=to_date)
             if raw_feed:
                 # Filter Date (Safe String Comparison)
                 if from_date:
@@ -714,7 +714,7 @@ class WaterfallBacktestEngine:
             initial_capital=initial_capital
         )
 
-    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
         """
         Parallel Execution Mode: Each Rank runs independently with equal capital split.
         All ranks operate simultaneously without affecting each other.
@@ -752,7 +752,7 @@ class WaterfallBacktestEngine:
 
         feeds = {}
         for sym in unique_symbols:
-            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days)
+            raw_feed = await data_service.get_candles(sym, interval=interval, days=duration_days, to_date=to_date)
             if raw_feed:
                 if from_date:
                     raw_feed = [c for c in raw_feed if c['timestamp'] >= from_date]

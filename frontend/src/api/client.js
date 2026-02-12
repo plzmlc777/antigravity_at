@@ -148,19 +148,6 @@ export const cancelConditionalOrder = async (id) => {
     return data;
 };
 
-// Strategy Result Persistence
-export const saveStrategyResult = async (tabId, type, resultData) => {
-    // type: 'backtest' | 'optimization'
-    const { data } = await api.post(`/strategy-results/${tabId}/${type}`, { data: resultData });
-    return data;
-};
-
-export const getStrategyResults = async (tabId) => {
-    // Increase timeout for large backtest results (especially integrated)
-    const { data } = await api.get(`/strategy-results/${tabId}`, { timeout: 30000 });
-    return data;
-};
-
 export const setupInterceptors = (onUnauth) => {
     api.interceptors.response.use(
         (response) => response,
@@ -346,10 +333,6 @@ export const resetMarketData = async (symbol) => {
     return data;
 };
 
-export const getMarketDataStatus = async (symbol, params = {}) => {
-    const { data } = await api.get(`/market-data/status/${symbol}`, { params });
-    return data;
-};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Parameter Version Management API
@@ -424,15 +407,6 @@ export const updateWatchlist = async (lastSymbol, savedSymbols) => {
 // NOTE: updateSymbolCompareSettings, updateExecutionMode removed
 // These are now managed at the profile level via /api/v1/live/profiles endpoints
 
-// Score Recalculation (reads full CSV, can take time)
-export const recalculateOptimizationScores = async (taskId, weights, topN = 50) => {
-    const { data } = await api.post('/strategies/recalculate-scores', {
-        task_id: taskId,
-        weights: weights,
-        top_n: topN
-    }, { timeout: 180000 }); // 3 minute timeout for large CSV files
-    return data;
-};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Telegram Notification Settings (Per Account)

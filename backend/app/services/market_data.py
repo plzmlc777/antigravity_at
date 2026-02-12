@@ -21,7 +21,7 @@ class MarketDataService:
     MAX_DAYS = 365  # 1 year maximum (API limit)
     DEFAULT_DAYS = 365  # 1 year default
 
-    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000) -> List[Dict]:
+    async def get_candles(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000, to_date: str = None) -> List[Dict]:
         """
         Main entry point for getting candle data.
 
@@ -31,6 +31,10 @@ class MarketDataService:
         - This ensures consistency and reduces DB storage
 
         Supported intervals: 1m, 3m, 5m, 10m, 15m, 30m, 1h (60m), 4h, 1d.
+
+        Args:
+            to_date: End date string (YYYY-MM-DD). If provided, used as reference instead of now().
+                     Default (None) = yesterday, ensuring reproducible results within the same day.
         """
         # Enforce max days limit
         days = min(days, self.MAX_DAYS)
@@ -54,7 +58,7 @@ class MarketDataService:
         if interval in aggregation_map:
             base_interval, multiplier = aggregation_map[interval]
             print(f"[DEBUG] Aggregating {symbol} from {base_interval} to {interval}")
-            base_data = await self.get_candles(symbol, base_interval, days, limit * multiplier)
+            base_data = await self.get_candles(symbol, base_interval, days, limit * multiplier, to_date=to_date)
             aggregated = self._aggregate_candles(base_data, interval)
             print(f"[DEBUG] Aggregation result: {len(base_data)} {base_interval} candles -> {len(aggregated)} {interval} candles")
             return aggregated
@@ -70,18 +74,31 @@ class MarketDataService:
         
         db = SessionLocal()
         try:
-            # Calculate start date based on 'days'
-            start_date = datetime.now() - timedelta(days=days)
-            
+            # Calculate date range: use to_date as end reference (default: yesterday)
+            if to_date:
+                try:
+                    end_ref = datetime.strptime(to_date, "%Y-%m-%d") + timedelta(days=1)  # Include full to_date
+                except ValueError:
+                    end_ref = datetime.now()
+            else:
+                # Default: yesterday end-of-day (ensures reproducible results within same day)
+                end_ref = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = end_ref - timedelta(days=days)
+
             # Query only what's needed
-            db_candles = db.query(OHLCV).filter(
-                OHLCV.symbol == symbol, 
+            query_filters = [
+                OHLCV.symbol == symbol,
                 OHLCV.time_frame == interval,
                 OHLCV.timestamp >= start_date
+            ]
+            if to_date:
+                query_filters.append(OHLCV.timestamp < end_ref)
+            db_candles = db.query(OHLCV).filter(
+                *query_filters
             ).order_by(OHLCV.timestamp.asc()).all()
             
             if len(db_candles) >= 10: # Reduced threshold for testing
-                print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol}")
+                print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (to_date={to_date}, end_ref={end_ref}, start_date={start_date})")
                 return [
                     {
                         "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),

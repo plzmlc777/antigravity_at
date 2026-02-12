@@ -5,7 +5,6 @@ import SymbolSelector from '../components/SymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
-import { saveStrategyResult, getStrategyResults, getMarketDataStatus, recalculateOptimizationScores } from '../api/client';
 import {
     runBacktest as apiRunBacktest,
     runIntegratedBacktestApi,
@@ -14,7 +13,16 @@ import {
     startHeavyOptimization as apiStartHeavyOpt, getHeavyOptimizationStatus, cancelHeavyOptimization,
     getSymbolInfo, fetchMarketDataForSymbol,
     getAiModels as apiGetAiModels, getAiKeyStatus, runAiAnalysis as apiRunAiAnalysis,
+    saveStrategyResult, getStrategyResults, getMarketDataStatus, recalculateOptimizationScores,
+    getHeavyOptDownloadUrl,
 } from '../api/strategies';
+import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
+         getStrategyParamNames as extractParamNames, coerceConfigTypes } from '../utils/strategyParamUtils';
+import {
+    exportOptResultsToCSV as exportOptCSV, exportCompareResultsToCSV,
+    exportAssetsToJSON, exportParamsToJSON,
+    parseImportedAssets, parseImportedParams, readFileAsText,
+} from '../utils/strategyExportImport';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
 import { useMarketData } from '../context/MarketDataContext';
@@ -648,11 +656,7 @@ const StrategyView = () => {
 
     // Parameter Copy/Paste Handlers
     // Strategy parameters are determined from parameter_schema (no manual maintenance needed)
-    const getStrategyParamNames = () => {
-        const schema = selectedStrategy?.parameter_schema;
-        if (!schema?.fields) return [];
-        return schema.fields.map(f => f.name);
-    };
+    const getStrategyParamNames = () => extractParamNames(selectedStrategy?.parameter_schema);
 
     const handleCopyParams = () => {
         // Determine source config based on active tab
@@ -831,132 +835,78 @@ const StrategyView = () => {
             addLog('⚠️ No symbols to export', 'warn');
             return;
         }
-
-        // 계좌 별칭 (파일명에 사용)
-        const accountAlias = (systemStatus?.account_name || 'Unknown').replace(/\s+/g, '_');
-
-        const exportData = {
-            type: 'target_assets',
-            version: '1.0',
-            exportedAt: new Date().toISOString(),
-            accountName: systemStatus?.account_name,
-            symbols: savedSymbols
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `target_assets_${accountAlias}_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        setAssetImportExportFeedback('exported');
-        setTimeout(() => setAssetImportExportFeedback(null), 2000);
-        addLog(`📤 Exported ${savedSymbols.length} symbols`, 'info');
+        const filename = exportAssetsToJSON({ savedSymbols, accountName: systemStatus?.account_name });
+        if (filename) {
+            setAssetImportExportFeedback('exported');
+            setTimeout(() => setAssetImportExportFeedback(null), 2000);
+            addLog(`📤 Exported ${savedSymbols.length} symbols`, 'info');
+        }
     };
 
-    const handleImportAssets = (e) => {
+    const handleImportAssets = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        e.target.value = ''; // Reset input
 
-        // Show loading state
         setAssetImportExportFeedback('importing');
         setAssetImportError('');
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
+        try {
+            const text = await readFileAsText(file);
+            const result = parseImportedAssets(text);
 
-                // Validate format
-                if (!data.type || data.type !== 'target_assets') {
-                    const errMsg = 'Invalid file: missing or wrong "type" field (expected: target_assets)';
-                    setAssetImportError(errMsg);
-                    setAssetImportExportFeedback('error');
-                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                if (!Array.isArray(data.symbols)) {
-                    const errMsg = 'Invalid file: "symbols" must be an array';
-                    setAssetImportError(errMsg);
-                    setAssetImportExportFeedback('error');
-                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                if (data.symbols.length === 0) {
-                    const errMsg = 'Import file contains no symbols';
-                    setAssetImportError(errMsg);
-                    setAssetImportExportFeedback('error');
-                    setTimeout(() => setAssetImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                // 1. 먼저 종목 코드만 즉시 표시
-                const symbolsWithoutNames = data.symbols.map(s => ({
-                    code: s.code,
-                    name: s.name || ''  // 기존 이름이 있으면 유지
-                }));
-                setSavedSymbols(symbolsWithoutNames);
-                addLog(`📥 Importing ${data.symbols.length} symbols...`, 'info');
-
-                // 2. 종목명을 순차적으로 가져오기 (API 부하 방지를 위해 딜레이 적용)
-                const DELAY_MS = 300;  // 종목 간 300ms 딜레이
-                let fetchedCount = 0;
-
-                for (let i = 0; i < data.symbols.length; i++) {
-                    const sym = data.symbols[i];
-
-                    // 이미 이름이 있으면 스킵
-                    if (sym.name) {
-                        fetchedCount++;
-                        continue;
-                    }
-
-                    try {
-                        const infoData = await getSymbolInfo(sym.code);
-                        if (infoData.name && infoData.name !== sym.code) {
-                            // 종목명 업데이트
-                            setSavedSymbols(prev => prev.map(s =>
-                                s.code === sym.code ? { ...s, name: infoData.name } : s
-                            ));
-                        }
-                        fetchedCount++;
-                    } catch (err) {
-                        console.warn(`Failed to fetch name for ${sym.code}:`, err.message);
-                    }
-
-                    // 마지막이 아니면 딜레이
-                    if (i < data.symbols.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
-                    }
-                }
-
-                setAssetImportExportFeedback('imported');
-                setTimeout(() => setAssetImportExportFeedback(null), 2000);
-                addLog(`✅ Imported ${data.symbols.length} symbols (${fetchedCount} names fetched)`, 'info');
-            } catch (err) {
-                const errMsg = 'Failed to parse JSON file';
-                setAssetImportError(errMsg);
+            if (!result.ok) {
+                setAssetImportError(result.error);
                 setAssetImportExportFeedback('error');
                 setTimeout(() => setAssetImportExportFeedback(null), 3000);
-                addLog(`⚠️ ${errMsg}: ${err.message}`, 'error');
+                addLog(`⚠️ ${result.error}`, 'error');
+                return;
             }
-        };
-        reader.onerror = () => {
-            const errMsg = 'Failed to read file';
-            setAssetImportError(errMsg);
+
+            const data = result.data;
+
+            // 1. 먼저 종목 코드만 즉시 표시
+            const symbolsWithoutNames = data.symbols.map(s => ({
+                code: s.code,
+                name: s.name || ''
+            }));
+            setSavedSymbols(symbolsWithoutNames);
+            addLog(`📥 Importing ${data.symbols.length} symbols...`, 'info');
+
+            // 2. 종목명을 순차적으로 가져오기
+            const DELAY_MS = 300;
+            let fetchedCount = 0;
+
+            for (let i = 0; i < data.symbols.length; i++) {
+                const sym = data.symbols[i];
+                if (sym.name) { fetchedCount++; continue; }
+
+                try {
+                    const infoData = await getSymbolInfo(sym.code);
+                    if (infoData.name && infoData.name !== sym.code) {
+                        setSavedSymbols(prev => prev.map(s =>
+                            s.code === sym.code ? { ...s, name: infoData.name } : s
+                        ));
+                    }
+                    fetchedCount++;
+                } catch (err) {
+                    console.warn(`Failed to fetch name for ${sym.code}:`, err.message);
+                }
+
+                if (i < data.symbols.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+                }
+            }
+
+            setAssetImportExportFeedback('imported');
+            setTimeout(() => setAssetImportExportFeedback(null), 2000);
+            addLog(`✅ Imported ${data.symbols.length} symbols (${fetchedCount} names fetched)`, 'info');
+        } catch (err) {
+            setAssetImportError(err.message);
             setAssetImportExportFeedback('error');
             setTimeout(() => setAssetImportExportFeedback(null), 3000);
-            addLog(`⚠️ ${errMsg}`, 'error');
-        };
-        reader.readAsText(file);
-        e.target.value = ''; // Reset input
+            addLog(`⚠️ ${err.message}`, 'error');
+        }
     };
 
     // Parameters Import/Export Handlers
@@ -975,177 +925,71 @@ const StrategyView = () => {
             return;
         }
 
-        // 계좌 별칭 (파일명에 사용)
-        const accountAlias = (systemStatus?.account_name || 'Unknown').replace(/\s+/g, '_');
-
-        // Extract only strategy parameters
-        const paramNames = getStrategyParamNames();
-        const paramsToExport = {};
-        paramNames.forEach(key => {
-            if (key in currentCfg) {
-                paramsToExport[key] = currentCfg[key];
-            }
+        const filename = exportParamsToJSON({
+            config: currentCfg,
+            sourceLabel,
+            accountName: systemStatus?.account_name,
+            strategyId: selectedStrategy?.id,
+            paramNames: getStrategyParamNames()
         });
 
-        const exportData = {
-            type: 'strategy_parameters',
-            version: '1.0',
-            exportedAt: new Date().toISOString(),
-            accountName: systemStatus?.account_name,
-            strategyId: selectedStrategy?.id || 'unknown',
-            params: paramsToExport
-        };
-
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `params_${accountAlias}_${selectedStrategy?.id || 'strategy'}_${sourceLabel}_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        setParamImportExportFeedback('exported');
-        setTimeout(() => setParamImportExportFeedback(null), 2000);
-        addLog(`📤 Exported parameters from ${sourceLabel}`, 'info');
+        if (filename) {
+            setParamImportExportFeedback('exported');
+            setTimeout(() => setParamImportExportFeedback(null), 2000);
+            addLog(`📤 Exported parameters from ${sourceLabel}`, 'info');
+        }
     };
 
-    const handleImportParams = (e) => {
+    const handleImportParams = async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        e.target.value = ''; // Reset input
 
-        // Show loading state
         setParamImportExportFeedback('importing');
         setParamImportError('');
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const data = JSON.parse(event.target.result);
+        try {
+            const text = await readFileAsText(file);
+            const result = parseImportedParams(text);
 
-                // Validate format - support two formats:
-                // 1. Original: { type: 'strategy_parameters', params: {...} }
-                // 2. Exported: { version: '...', strategy: '...', params: {...} }
-                const isOriginalFormat = data.type === 'strategy_parameters';
-                const isExportedFormat = data.version && data.strategy && data.params;
-
-                if (!isOriginalFormat && !isExportedFormat) {
-                    const errMsg = 'Invalid file format: expected "type: strategy_parameters" or exported format with "version", "strategy", and "params"';
-                    setParamImportError(errMsg);
-                    setParamImportExportFeedback('error');
-                    setTimeout(() => setParamImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                if (!data.params || typeof data.params !== 'object') {
-                    const errMsg = 'Invalid file: "params" field is missing or invalid';
-                    setParamImportError(errMsg);
-                    setParamImportExportFeedback('error');
-                    setTimeout(() => setParamImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                if (Object.keys(data.params).length === 0) {
-                    const errMsg = 'Import file contains no parameters';
-                    setParamImportError(errMsg);
-                    setParamImportExportFeedback('error');
-                    setTimeout(() => setParamImportExportFeedback(null), 3000);
-                    addLog(`⚠️ ${errMsg}`, 'error');
-                    return;
-                }
-
-                // Apply imported params to current config
-                if (activeTab === -3) {
-                    const baseConfig = symbolCompareConfig || configList[0] || {};
-                    const newConfig = { ...baseConfig, ...data.params };
-                    setSymbolCompareConfig(newConfig);
-                    setIsSymbolCompareDirty(true);
-                } else if (activeTab >= 0 && configList[activeTab]) {
-                    const newList = [...configList];
-                    newList[activeTab] = { ...newList[activeTab], ...data.params };
-                    setConfigList(newList);
-                    setIsDirty(true);
-                }
-
-                setParamImportExportFeedback('imported');
-                setTimeout(() => setParamImportExportFeedback(null), 2000);
-                const strategyInfo = data.strategy ? ` from "${data.strategy}"` : '';
-                const sourceInfo = data.sourceTab ? ` (${data.sourceTab})` : '';
-                addLog(`📥 Imported parameters${strategyInfo}${sourceInfo} (${Object.keys(data.params).length} fields)`, 'info');
-            } catch (err) {
-                const errMsg = 'Failed to parse JSON file';
-                setParamImportError(errMsg);
+            if (!result.ok) {
+                setParamImportError(result.error);
                 setParamImportExportFeedback('error');
                 setTimeout(() => setParamImportExportFeedback(null), 3000);
-                addLog(`⚠️ ${errMsg}: ${err.message}`, 'error');
+                addLog(`⚠️ ${result.error}`, 'error');
+                return;
             }
-        };
-        reader.onerror = () => {
-            const errMsg = 'Failed to read file';
-            setParamImportError(errMsg);
+
+            const data = result.data;
+
+            // Apply imported params to current config
+            if (activeTab === -3) {
+                const baseConfig = symbolCompareConfig || configList[0] || {};
+                setSymbolCompareConfig({ ...baseConfig, ...data.params });
+                setIsSymbolCompareDirty(true);
+            } else if (activeTab >= 0 && configList[activeTab]) {
+                const newList = [...configList];
+                newList[activeTab] = { ...newList[activeTab], ...data.params };
+                setConfigList(newList);
+                setIsDirty(true);
+            }
+
+            setParamImportExportFeedback('imported');
+            setTimeout(() => setParamImportExportFeedback(null), 2000);
+            const strategyInfo = data.strategy ? ` from "${data.strategy}"` : '';
+            const sourceInfo = data.sourceTab ? ` (${data.sourceTab})` : '';
+            addLog(`📥 Imported parameters${strategyInfo}${sourceInfo} (${Object.keys(data.params).length} fields)`, 'info');
+        } catch (err) {
+            setParamImportError(err.message);
             setParamImportExportFeedback('error');
             setTimeout(() => setParamImportExportFeedback(null), 3000);
-            addLog(`⚠️ ${errMsg}`, 'error');
-        };
-        reader.readAsText(file);
-        e.target.value = ''; // Reset input
+            addLog(`⚠️ ${err.message}`, 'error');
+        }
     };
 
-    // Helper to get current config for UI rendering
-    // Build dynamic default config from selectedStrategy's schema if configList is empty
-    const getDynamicDefaultConfig = () => {
-        if (!selectedStrategy || !selectedStrategy.parameter_schema) {
-            return DEFAULT_CONFIG;
-        }
-
-        const schema = selectedStrategy.parameter_schema;
-        if (!schema.fields || schema.fields.length === 0) {
-            return DEFAULT_CONFIG;
-        }
-
-        const dynamicDefault = {
-            initial_capital: 10000000,
-            from_date: "",
-            interval: "30m",
-            symbol: currentSymbol,
-            betting_strategy: "fixed",
-            uuid: null,
-            is_active: true,
-            tabName: "Rank 1"
-        };
-
-        schema.fields.forEach(field => {
-            const key = field.key || field.name;
-            if (field.default !== undefined) {
-                dynamicDefault[key] = field.default;
-            }
-        });
-
-        return dynamicDefault;
-    };
-
-    // Helper to build dynamic optimization default values from schema
-    const getDynamicOptValues = () => {
-        if (!selectedStrategy || !selectedStrategy.parameter_schema) {
-            return DEFAULT_OPT_VALUES;
-        }
-
-        const schema = selectedStrategy.parameter_schema;
-        if (!schema.fields || schema.fields.length === 0) {
-            return DEFAULT_OPT_VALUES;
-        }
-
-        const dynamicOptValues = {};
-        schema.fields.forEach(field => {
-            const key = field.key || field.name;
-            if (field.defaultOptRange !== undefined) {
-                dynamicOptValues[key] = field.defaultOptRange;
-            }
-        });
-
-        return dynamicOptValues;
-    };
+    // Wrappers binding component state to extracted pure utility functions
+    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
+    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
 
     // Initialize symbolCompareConfig from Rank 1 if null
     const getSymbolCompareConfig = () => {
@@ -1373,12 +1217,16 @@ const StrategyView = () => {
                 }
             });
 
+            // to_date: fixed end boundary for reproducible results (default: yesterday)
+            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
             const payload = {
                 symbol: activeConfig.symbol || currentSymbol, // Use config's symbol if available, else global
                 from_date: activeConfig?.from_date || "",
                 days: activeConfig?.days || 365, // Default to 365 days
                 initial_capital: activeConfig?.initial_capital || 10000000,
                 interval: activeConfig?.interval || "1m",
+                to_date: activeConfig?.to_date || defaultToDate,
                 config: cleanConfig
             };
 
@@ -1742,16 +1590,21 @@ const StrategyView = () => {
 
             if (response && response.results) {
                 // Format results to match optResults format
-                const formatted = response.results.map(item => {
+                const schema = selectedStrategy?.parameter_schema;
+                const formatted = response.results.map((item, idx) => {
                     const stats = normalizeStats(item);
+                    // Coerce CSV string values to proper types based on schema
+                    const typedCfg = coerceConfigTypes(item.config, schema);
                     return {
-                        ...item.config,
+                        ...typedCfg,
                         ...stats, // Normalized stats with consistent types
-                        symbol: item.symbol || '',
+                        symbol: item.symbol || item.config?.symbol || '',
+                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                         return: stats.total_return,
                         trades: stats.total_trades,
                         score: item.score,
-                        rank: item.rank
+                        full_config: typedCfg,
+                        rank: item.rank > 0 ? item.rank : (idx + 1)
                     };
                 });
 
@@ -1795,41 +1648,15 @@ const StrategyView = () => {
             return;
         }
 
-        const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-
-        // Build headers: Rank + (Symbol) + Parameter columns + Stat columns + Score
-        const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
-        const paramHeaders = paramDefs.map(p => p.key);
-        const statHeaders = STAT_COLUMNS.map(col => col.key);
-        const hasSymbol = optResults.some(r => r.symbol);
-        const headers = ['Rank', ...(hasSymbol ? ['Symbol', 'Name'] : []), ...paramHeaders, ...statHeaders, 'Score'];
-
-        // Build rows
-        const rows = optResults.map(result => {
-            const paramValues = paramDefs.map(p => result[p.key] ?? '');
-            const statValues = STAT_COLUMNS.map(col => {
-                const dataKey = col.optKey || col.key;
-                return result[dataKey] ?? '';
-            });
-            return [result.rank ?? '', ...(hasSymbol ? [result.symbol ?? '', result.symbolName ?? ''] : []), ...paramValues, ...statValues, result.score ?? ''];
+        const filename = exportOptCSV({
+            results: optResults,
+            strategy: selectedStrategy,
+            currentConfig,
         });
 
-        const csvContent = [headers, ...rows]
-            .map(row => row.map(v => esc(v)).join(','))
-            .join('\n');
-
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const symbolPart = hasSymbol ? 'cross' : (currentConfig?.symbol || 'unknown');
-        const filename = `optimization_${selectedStrategy?.id}_${symbolPart}_${new Date().toISOString().split('T')[0]}.csv`;
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(url);
-
-        addLog(`Exported ${optResults.length} results to ${filename}`, 'success');
+        if (filename) {
+            addLog(`Exported ${optResults.length} results to ${filename}`, 'success');
+        }
     };
 
     // Download FULL optimization results from backend (all combinations, not just top 200)
@@ -1860,22 +1687,7 @@ const StrategyView = () => {
         }
     };
 
-    // Helper: Parse parameter string
-    const parseValues = (valStr) => {
-        if (!valStr) return [];
-        return valStr.split(',').map(v => {
-            const trimmed = v.trim();
-            // Fix: Do not parse as number if it looks like a time string (has colon)
-            if (trimmed.includes(':')) return trimmed;
-
-            // Fix: Do not parse as number if it looks like an interval (e.g., "1m", "5m", "1h", "1d")
-            // Pattern: digits followed by letters (like "1m", "60m", "1h", "1d")
-            if (/^\d+[a-zA-Z]+$/.test(trimmed)) return trimmed;
-
-            const num = parseFloat(trimmed);
-            return isNaN(num) ? trimmed : num;
-        }).filter(v => v !== "");
-    };
+    // parseValues is imported from utils/strategyParamUtils
 
     const [isCancelling, setIsCancelling] = useState(false);
 
@@ -1933,11 +1745,15 @@ const StrategyView = () => {
         const activeConfig = isSymbolCompareTab ? symbolCompareConfig : currentConfig;
         const activeOptEnabled = activeConfig?.optEnabled || {};
         const activeOptValues = activeConfig?.optValues || getDynamicOptValues();
-        const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k]);
+        // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
+        const validParamNames = new Set(getStrategyParamNames());
+        const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k] && validParamNames.has(k));
 
-        // Debug logging
-        addLog(`🔍 OptEnabled keys: ${JSON.stringify(activeOptEnabled)}`, 'info');
-        addLog(`🔍 Enabled params: [${varyingKeys.join(', ')}]`, 'info');
+        // Warn about invalid keys
+        const invalidKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k] && !validParamNames.has(k));
+        if (invalidKeys.length > 0) {
+            addLog(`⚠️ Ignored invalid optEnabled keys: [${invalidKeys.join(', ')}] (not in strategy schema)`, 'warning');
+        }
 
         const parameter_ranges = {};
         for (const key of varyingKeys) {
@@ -2007,11 +1823,13 @@ const StrategyView = () => {
                 ? getCrossOptUUID(selectedProfileId)
                 : (activeConfig?.uuid || null);
 
+            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
             const payload = {
                 symbols: symbols,
                 interval: activeConfig?.interval || "1m",
                 days: activeConfig?.days || 365,
                 from_date: activeConfig?.from_date || null,
+                to_date: activeConfig?.to_date || defaultToDate,
                 initial_capital: activeConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
@@ -2160,7 +1978,7 @@ const StrategyView = () => {
 
     const downloadHeavyOptCSV = () => {
         if (!heavyOptStatus?.csv_file) return;
-        window.open(`/api/v1/strategies/heavy-optimize/download/${heavyOptTaskId}`, '_blank');
+        window.open(getHeavyOptDownloadUrl(heavyOptTaskId), '_blank');
     };
 
     const clearHeavyOptTask = () => {
@@ -2307,7 +2125,16 @@ const StrategyView = () => {
         const currentOptEnabled = currentConfig.optEnabled || {};
         const currentOptValues = currentConfig.optValues || getDynamicOptValues();
 
-        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k]);
+        // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
+        const validParamNames = new Set(getStrategyParamNames());
+        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && validParamNames.has(k));
+
+        // Warn about invalid keys
+        const invalidKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && !validParamNames.has(k));
+        if (invalidKeys.length > 0) {
+            addLog(`⚠️ Ignored invalid optEnabled keys: [${invalidKeys.join(', ')}] (not in strategy schema)`, 'warning');
+        }
+
         if (varyingKeys.length === 0) {
             // If no params, run single backtest or warn?
             // Actually allowed (runs base config 1 time)
@@ -2386,12 +2213,14 @@ const StrategyView = () => {
                 ? getCrossOptUUID(selectedProfileId)
                 : currentConfig?.uuid || null;
 
+            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
             const payload = {
                 symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
                 symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
                 interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
                 days: currentConfig?.days || 365, // Must match Backtest payload
                 from_date: currentConfig?.from_date || "",
+                to_date: currentConfig?.to_date || defaultToDate,
                 initial_capital: currentConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
@@ -2834,53 +2663,11 @@ const StrategyView = () => {
             return;
         }
 
-        // Sort by score descending
-        const sortedResults = [...stockCompareResults].sort((a, b) => b.score - a.score);
+        const filename = exportCompareResultsToCSV(stockCompareResults);
 
-        // CSV header
-        const headers = ['Rank', 'Symbol', 'Name', 'Total Return', 'Win Rate', 'Max DD', 'Trades', 'Profit Factor', 'Sharpe', 'Avg PnL', 'Score'];
-
-        // CSV rows
-        const rows = sortedResults.map((result, idx) => [
-            idx + 1,
-            result.symbol,
-            result.name || '',
-            parseStatValue(result.total_return) ?? result.total_return,
-            parseStatValue(result.win_rate) ?? result.win_rate,
-            parseStatValue(result.max_drawdown) ?? result.max_drawdown,
-            result.total_trades,
-            parseStatValue(result.profit_factor) ?? result.profit_factor,
-            parseStatValue(result.sharpe_ratio) ?? result.sharpe_ratio,
-            parseStatValue(result.avg_pnl) ?? result.avg_pnl,
-            result.score?.toFixed(2) ?? ''
-        ]);
-
-        // Build CSV content
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => {
-                // Escape cells that contain commas or quotes
-                const str = String(cell);
-                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                    return `"${str.replace(/"/g, '""')}"`;
-                }
-                return str;
-            }).join(','))
-        ].join('\n');
-
-        // Create and download file
-        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-        link.download = `symbol_compare_${timestamp}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-
-        addLog(`Exported ${sortedResults.length} results to CSV`, 'success');
+        if (filename) {
+            addLog(`Exported ${stockCompareResults.length} results to CSV`, 'success');
+        }
     };
 
     // Apply Symbol Compare settings (save to profile)
@@ -3488,6 +3275,19 @@ const StrategyView = () => {
                                                                     })() : undefined}
                                                                 />
                                                             </div>
+                                                            <div className="text-left">
+                                                                <label className="text-xs text-gray-400 mb-1 block">
+                                                                    End Date {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                </label>
+                                                                <DateDropdown
+                                                                    value={displayConfig?.to_date || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                                                                    onChange={(dateStr) => {
+                                                                        if (isIntegrated) return;
+                                                                        handleConfigChange('to_date', dateStr);
+                                                                    }}
+                                                                    disabled={isIntegrated}
+                                                                />
+                                                            </div>
                                                             {isIntegrated && (
                                                                 <div className="text-left">
                                                                     <label className="text-xs text-gray-400 mb-1 block">
@@ -3603,12 +3403,14 @@ const StrategyView = () => {
                                                                     ? rank1Capital * activeConfigs.length  // Parallel: Rank1 capital × number of active ranks
                                                                     : rank1Capital;                         // Exclusive: Just Rank1 capital
 
+                                                                const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
                                                                 const integratedData = await runIntegratedBacktestApi({
                                                                     configs: validConfigs,
                                                                     symbol: currentSymbol || "KRW-BTC", // Use global or default
                                                                     interval: leaderConfig?.interval || "1m", // Use selected interval
                                                                     days: diffDays > 0 ? diffDays : 365,
                                                                     from_date: leaderConfig?.from_date || "",
+                                                                    to_date: leaderConfig?.to_date || defaultToDate,
                                                                     initial_capital: totalCapital,
                                                                     execution_mode: profileMeta.execution_mode // 'exclusive' or 'parallel'
                                                                 });
@@ -4136,6 +3938,16 @@ const StrategyView = () => {
                                                     />
                                                 </div>
 
+                                                <div className="relative">
+                                                    <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
+                                                        End Date
+                                                    </label>
+                                                    <DateDropdown
+                                                        value={currentConfig?.to_date || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                                                        onChange={(dateStr) => handleConfigChange('to_date', dateStr)}
+                                                    />
+                                                </div>
+
                                                 <div className="flex items-center justify-end">
                                                     <button
                                                         onClick={handleStockCompareBacktest}
@@ -4387,6 +4199,16 @@ const StrategyView = () => {
                                                         }
                                                         return undefined;
                                                     })() : undefined}
+                                                />
+                                            </div>
+
+                                            <div className="relative">
+                                                <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
+                                                    End Date
+                                                </label>
+                                                <DateDropdown
+                                                    value={currentConfig?.to_date || new Date(Date.now() - 86400000).toISOString().split('T')[0]}
+                                                    onChange={(dateStr) => handleConfigChange('to_date', dateStr)}
                                                 />
                                             </div>
                                         </div>
@@ -5122,21 +4944,36 @@ const StrategyView = () => {
                                                                                                     "Apply Optimization Config?",
                                                                                                     `${symbolInfo}Rank: #${res.rank}\nReturn: ${res.return}%\nScore: ${res.score}\n\nThis will overwrite your current configuration. Continue?`,
                                                                                                     async () => {
-                                                                                                        const configToApply = res.full_config || {};
+                                                                                                        // Extract ONLY strategy parameters (current config's initial_capital/days/from_date always takes priority)
+                                                                                                        const paramNames = getStrategyParamNames();
+                                                                                                        const source = res.full_config || res;
+                                                                                                        const configToApply = {};
+                                                                                                        paramNames.forEach(key => {
+                                                                                                            if (source[key] !== undefined) {
+                                                                                                                configToApply[key] = source[key];
+                                                                                                            }
+                                                                                                        });
+
+                                                                                                        // Coerce string values to proper types (CSV round-trip turns numbers into strings)
+                                                                                                        const typedConfig = coerceConfigTypes(configToApply, selectedStrategy?.parameter_schema);
+
+                                                                                                        if (Object.keys(typedConfig).length === 0) {
+                                                                                                            addLog(`⚠️ No strategy parameters found in optimization result #${res.rank}`, 'warning');
+                                                                                                            return;
+                                                                                                        }
 
                                                                                                         if (activeTab === -3) {
                                                                                                             // Symbol tab: apply to symbolCompareConfig
                                                                                                             setSymbolCompareConfig(prev => ({
                                                                                                                 ...(prev || {}),
-                                                                                                                ...configToApply
+                                                                                                                ...typedConfig
                                                                                                             }));
                                                                                                             addLog(`Applied config from ${res.symbol || 'optimization'} #${res.rank}`, 'success');
                                                                                                         } else {
-                                                                                                            // Rank tab: simple approach - same as clicking backtest button after applying params
-                                                                                                            // 1. Merge current config with optimization params
-                                                                                                            const merged = { ...currentConfig, ...configToApply };
+                                                                                                            // Rank tab: merge ONLY strategy params into current config (preserves metadata)
+                                                                                                            const merged = { ...currentConfig, ...typedConfig };
 
-                                                                                                            // 2. Update state
+                                                                                                            // Update state
                                                                                                             setConfigList(prev => {
                                                                                                                 const next = [...prev];
                                                                                                                 next[activeTab] = merged;
@@ -5144,7 +4981,9 @@ const StrategyView = () => {
                                                                                                             });
                                                                                                             setIsDirty(true);
 
-                                                                                                            // 3. Run backtest with merged config (same as manual backtest)
+                                                                                                            addLog(`Applied optimization #${res.rank} params: ${Object.entries(typedConfig).map(([k, v]) => `${k}=${v}`).join(', ')}`, 'success');
+
+                                                                                                            // Run backtest with merged config
                                                                                                             runBacktest(selectedStrategy.id, merged);
                                                                                                         }
                                                                                                     }

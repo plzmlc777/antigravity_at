@@ -122,6 +122,12 @@ export const useProfileConfig = ({
 
         const dynamicDefault = getDynamicDefaultConfig();
 
+        // Get valid parameter names from strategy schema for sanitization
+        const schema = selectedStrategyRef.current?.parameter_schema;
+        const validParamNames = new Set(
+            schema?.fields?.map(f => f.key || f.name) || []
+        );
+
         return profile.rank_configs.map((rankCfg, index) => {
             // Merge with defaults
             const merged = { ...dynamicDefault, ...rankCfg };
@@ -131,6 +137,23 @@ export const useProfileConfig = ({
             if (merged.rank === undefined) merged.rank = index;
             if (merged.is_active === undefined) merged.is_active = true;
             if (!merged.tabName) merged.tabName = `Rank ${index + 1}`;
+
+            // Sanitize optEnabled: remove keys that are not valid strategy parameter names
+            if (merged.optEnabled && validParamNames.size > 0) {
+                const sanitized = {};
+                let hadInvalid = false;
+                for (const [key, val] of Object.entries(merged.optEnabled)) {
+                    if (validParamNames.has(key)) {
+                        sanitized[key] = val;
+                    } else {
+                        hadInvalid = true;
+                        console.warn(`[useProfileConfig] Removed invalid optEnabled key: '${key}' in ${merged.tabName}`);
+                    }
+                }
+                if (hadInvalid) {
+                    merged.optEnabled = sanitized;
+                }
+            }
 
             return merged;
         });

@@ -7,6 +7,7 @@ class OptimizationRequest(BaseModel):
     interval: str = "1m"
     days: int = 365  # Default 1 year, max 730 (2 years)
     from_date: Optional[str] = None
+    to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: float = 10000000
     # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
@@ -72,6 +73,7 @@ class HeavyOptimizationRequest(BaseModel):
     interval: str = "1m"
     days: int = 365
     from_date: Optional[str] = None
+    to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: float = 10000000
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {}

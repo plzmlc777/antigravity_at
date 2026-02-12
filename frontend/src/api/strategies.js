@@ -147,3 +147,62 @@ export const runAiAnalysis = async (payload) => {
     const { data } = await api.post('/ai/analyze', payload, { timeout: LONG_TIMEOUT });
     return data;
 };
+
+// ==========================================
+// Strategy Results (Persistence)
+// ==========================================
+
+/**
+ * Save strategy result (backtest or optimization) to DB
+ */
+export const saveStrategyResult = async (tabId, type, resultData) => {
+    // type: 'backtest' | 'optimization'
+    const { data } = await api.post(`/strategy-results/${tabId}/${type}`, { data: resultData }, { timeout: LONG_TIMEOUT });
+    return data;
+};
+
+/**
+ * Get strategy results by tab UUID
+ */
+export const getStrategyResults = async (tabId) => {
+    const { data } = await api.get(`/strategy-results/${tabId}`, { timeout: 30000 });
+    return data;
+};
+
+// ==========================================
+// Market Data Status
+// ==========================================
+
+/**
+ * Get market data availability status for a symbol
+ */
+export const getMarketDataStatus = async (symbol, params = {}) => {
+    const { data } = await api.get(`/market-data/status/${symbol}`, { params });
+    return data;
+};
+
+// ==========================================
+// Score Recalculation
+// ==========================================
+
+/**
+ * Recalculate optimization scores with adjusted weights
+ */
+export const recalculateOptimizationScores = async (taskId, weights, topN = 50) => {
+    const { data } = await api.post('/strategies/recalculate-scores', {
+        task_id: taskId,
+        weights: weights,
+        top_n: topN
+    }, { timeout: 180000 });
+    return data;
+};
+
+// ==========================================
+// URL Helpers
+// ==========================================
+
+/**
+ * Get download URL for heavy optimization CSV
+ */
+export const getHeavyOptDownloadUrl = (taskId) =>
+    `/api/v1/strategies/heavy-optimize/download/${taskId}`;
