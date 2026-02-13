@@ -49,7 +49,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // Real-Time Candles State
     const [rawCandles, setRawCandles] = useState([]); // Always 1m candles (source of truth)
     const [realTimeCandles, setRealTimeCandles] = useState([]); // Aggregated to selectedInterval
-    const [selectedInterval, setSelectedInterval] = useState('1m');
+    const [selectedInterval, setSelectedInterval] = useState(() => localStorage.getItem('live_tick_interval') || '1m');
+    const handleIntervalChange = (val) => { localStorage.setItem('live_tick_interval', val); setSelectedInterval(val); };
 
     // WebSocket Connection State
     const [wsConnected, setWsConnected] = useState(false);
@@ -1497,7 +1498,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         }}
                         yAxisFormatter={(price) => price.toLocaleString()}
                         selectedInterval={selectedInterval}
-                        onIntervalChange={setSelectedInterval}
+                        onIntervalChange={handleIntervalChange}
                     />
                 </div>
             </div>
@@ -2447,7 +2448,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             }}
                             yAxisFormatter={(price) => price.toLocaleString()}
                             selectedInterval={selectedInterval}
-                            onIntervalChange={setSelectedInterval}
+                            onIntervalChange={handleIntervalChange}
                             priceLines={(() => {
                                 const lines = [];
                                 const avgPrice = strategyState?.average_price || 0;

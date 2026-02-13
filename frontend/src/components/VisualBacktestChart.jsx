@@ -26,8 +26,8 @@ const VisualBacktestChart = ({
     const [isReady, setIsReady] = useState(false);
     const [sliderValue, setSliderValue] = useState(100);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [speed, setSpeed] = useState(100);
-    const [zoomLevel, setZoomLevel] = useState(60);
+    const [speed, setSpeed] = useState(() => Number(localStorage.getItem('live_tick_speed')) || 100);
+    const [zoomLevel, setZoomLevel] = useState(() => Number(localStorage.getItem('live_tick_zoom')) || 60);
 
     // Data Refs
     const allDataRef = useRef([]);
@@ -601,13 +601,13 @@ const VisualBacktestChart = ({
                                 <option value="1d">1d</option>
                             </select>
                         )}
-                        <select value={zoomLevel} onChange={(e) => setZoomLevel(Number(e.target.value))} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
+                        <select value={zoomLevel} onChange={(e) => { const v = Number(e.target.value); localStorage.setItem('live_tick_zoom', v); setZoomLevel(v); }} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
                             <option value={30}>Zoom: 30</option>
                             <option value={60}>Zoom: 60</option>
                             <option value={120}>Zoom: 120</option>
                             <option value={300}>Zoom: 300</option>
                         </select>
-                        <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
+                        <select value={speed} onChange={(e) => { const v = Number(e.target.value); localStorage.setItem('live_tick_speed', v); setSpeed(v); }} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
                             <option value={1000}>Speed: 0.1x</option>
                             <option value={330}>Speed: 0.3x</option>
                             <option value={200}>Speed: 0.5x</option>
