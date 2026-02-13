@@ -1156,7 +1156,9 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
         "file_size_bytes": None,
         "top_results": [],
         "strategy_id": strategy_id,
-        "symbols": symbols
+        "symbols": symbols,
+        "profile_id": request.profile_id,
+        "tab_key": request.tab_key
     }
 
     # Start background task
@@ -1215,7 +1217,9 @@ async def get_heavy_optimization_status(task_id: str):
         estimated_remaining_seconds=task.get("estimated_remaining_seconds"),
         csv_file=task.get("csv_file"),
         file_size_bytes=task.get("file_size_bytes"),
-        top_results=task.get("top_results")
+        top_results=task.get("top_results"),
+        profile_id=task.get("profile_id"),
+        tab_key=task.get("tab_key")
     )
 
 
@@ -1259,10 +1263,12 @@ async def download_heavy_optimization_csv(task_id: str):
 
 
 @router.get("/heavy-optimize/list")
-async def list_heavy_optimization_tasks():
-    """List all heavy optimization tasks (for recovery after refresh)."""
+async def list_heavy_optimization_tasks(profile_id: Optional[str] = None):
+    """List heavy optimization tasks, optionally filtered by profile_id."""
     tasks = []
     for task_id, task in HEAVY_OPTIMIZATION_TASKS.items():
+        if profile_id and task.get("profile_id") != profile_id:
+            continue
         tasks.append({
             "task_id": task_id,
             "status": task.get("status"),
@@ -1270,7 +1276,9 @@ async def list_heavy_optimization_tasks():
             "strategy_id": task.get("strategy_id"),
             "symbols": task.get("symbols", []),
             "started_at": task.get("started_at"),
-            "csv_file": task.get("csv_file")
+            "csv_file": task.get("csv_file"),
+            "profile_id": task.get("profile_id"),
+            "tab_key": task.get("tab_key")
         })
     return {"tasks": tasks}
 

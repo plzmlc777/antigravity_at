@@ -100,6 +100,15 @@ export const cancelHeavyOptimization = async (taskId) => {
     return data;
 };
 
+/**
+ * List heavy optimization tasks, optionally filtered by profile_id
+ */
+export const listHeavyOptimizationTasks = async (profileId) => {
+    const params = profileId ? { profile_id: profileId } : {};
+    const { data } = await api.get('/strategies/heavy-optimize/list', { params });
+    return data;
+};
+
 // ==========================================
 // Market Data
 // ==========================================

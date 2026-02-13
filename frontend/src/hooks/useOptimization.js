@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     startOptimization, getOptimizationStatus, downloadOptimizationCSV,
     cancelOptimization as apiCancelOptimization,
     startHeavyOptimization as apiStartHeavyOpt, getHeavyOptimizationStatus, cancelHeavyOptimization,
+    listHeavyOptimizationTasks,
     fetchMarketDataForSymbol,
     saveStrategyResult,
     getHeavyOptDownloadUrl,
@@ -10,7 +11,7 @@ import {
 import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames } from '../utils/strategyParamUtils';
 import { exportOptResultsToCSV as exportOptCSV } from '../utils/strategyExportImport';
-import { DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getCrossOptUUID, STORAGE_KEYS } from '../constants/strategies';
+import { DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getCrossOptUUID } from '../constants/strategies';
 import { normalizeStats } from '../config/statsConfig';
 
 /**
@@ -40,10 +41,26 @@ export const useOptimization = ({
     const [currentOptTaskId, setCurrentOptTaskId] = useState(null);
     const [completedOptTaskId, setCompletedOptTaskId] = useState(null); // For CSV download
 
-    // Heavy Optimization State (Large-scale, 10K-100K+ combinations)
-    const [heavyOptTaskId, setHeavyOptTaskId] = useState(() => localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID));
-    const [heavyOptStatus, setHeavyOptStatus] = useState(null);
-    const [isHeavyOptRunning, setIsHeavyOptRunning] = useState(false);
+    // Heavy Optimization State — per-tab map
+    // { [tabKey]: { taskId, status, isRunning, results } }
+    const [heavyOptByTab, setHeavyOptByTab] = useState({});
+    const activeTabRef = useRef(activeTab);
+    useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+    // Derive current tab's heavy opt state
+    const tabKey = String(activeTab);
+    const currentTabOpt = heavyOptByTab[tabKey] || {};
+    const heavyOptTaskId = currentTabOpt.taskId || null;
+    const heavyOptStatus = currentTabOpt.status || null;
+    const isHeavyOptRunning = currentTabOpt.isRunning || false;
+
+    // Helper to update a specific tab's heavy opt state
+    const updateTabHeavyOpt = useCallback((tab, updates) => {
+        setHeavyOptByTab(prev => ({
+            ...prev,
+            [String(tab)]: { ...(prev[String(tab)] || {}), ...updates }
+        }));
+    }, []);
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
@@ -270,8 +287,11 @@ export const useOptimization = ({
         const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
         const totalCombos = symbols.length * totalParams;
 
-        setIsHeavyOptRunning(true);
-        setHeavyOptStatus({ status: 'initializing', message: 'Updating symbol data...' });
+        const startTab = activeTab;
+        updateTabHeavyOpt(startTab, {
+            taskId: null, status: { status: 'initializing', message: 'Updating symbol data...' },
+            isRunning: true, results: null
+        });
         // Set appropriate dirty flag based on tab
         if (activeTab === -3) {
             setIsSymbolCompareDirty(true);
@@ -285,9 +305,8 @@ export const useOptimization = ({
             addLog(`Updating data for ${symbols.length} symbol(s) before optimization...`, 'info');
             for (let i = 0; i < symbols.length; i++) {
                 const sym = symbols[i];
-                setHeavyOptStatus({
-                    status: 'initializing',
-                    message: `Updating data (${i + 1}/${symbols.length}): ${sym}...`
+                updateTabHeavyOpt(startTab, {
+                    status: { status: 'initializing', message: `Updating data (${i + 1}/${symbols.length}): ${sym}...` }
                 });
                 try {
                     await fetchMarketDataForSymbol(sym, {
@@ -303,7 +322,9 @@ export const useOptimization = ({
                 }
             }
             addLog('Data update completed. Starting optimization...', 'info');
-            setHeavyOptStatus({ status: 'initializing', message: 'Starting optimization...' });
+            updateTabHeavyOpt(startTab, {
+                status: { status: 'initializing', message: 'Starting optimization...' }
+            });
 
             // Build base config
             const base_config = {};
@@ -335,7 +356,9 @@ export const useOptimization = ({
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
                 strategy_id: selectedStrategy.id,
-                save_to_tab_id: saveTabId  // Auto-save to DB on completion
+                save_to_tab_id: saveTabId,  // Auto-save to DB on completion
+                profile_id: selectedProfileId,  // For task recovery across browsers
+                tab_key: String(startTab)  // Per-tab tracking
             };
 
             // Log optimization request details
@@ -352,25 +375,55 @@ export const useOptimization = ({
 
             if (heavyOptData.task_id) {
                 const taskId = heavyOptData.task_id;
-                setHeavyOptTaskId(taskId);
-                localStorage.setItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID, taskId);
+                updateTabHeavyOpt(startTab, { taskId });
                 addLog(`Optimization started: ${heavyOptData.total_combinations} combinations`, 'info');
 
                 // Start polling
-                pollHeavyOptStatus(taskId);
+                pollHeavyOptStatus(taskId, startTab);
             }
         } catch (error) {
             const msg = error.response?.data?.detail || error.message || "Unknown Error";
             setOptError(`Optimization failed: ${msg}`);
-            setIsHeavyOptRunning(false);
-            setHeavyOptStatus(null);
+            updateTabHeavyOpt(startTab, { isRunning: false, status: null });
         }
     };
 
     // ========================================
-    // Heavy Optimization Polling
+    // Format heavy opt top_results into display format
     // ========================================
-    const pollHeavyOptStatus = async (taskId) => {
+    const formatHeavyOptResults = useCallback((topResults, isPartial = false) => {
+        return topResults.map((item, index) => ({
+            ...item.config,
+            symbol: item.symbol || '',
+            symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
+            return: item.total_return,
+            win_rate: item.win_rate,
+            recent_10_win_rate: item.recent_10_win_rate,
+            trades: item.total_trades,
+            score: item.score,
+            full_config: item.config,
+            rank: index + 1,
+            max_drawdown: item.max_drawdown,
+            profit_factor: item.profit_factor,
+            sharpe_ratio: item.sharpe_ratio,
+            avg_pnl: item.avg_pnl,
+            stability_score: item.stability_score,
+            acceleration_score: item.acceleration_score,
+            activity_rate: item.activity_rate,
+            avg_holding_time: item.avg_holding_time,
+            max_holding_time: item.max_holding_time,
+            min_holding_time: item.min_holding_time,
+            max_profit: item.max_profit,
+            max_loss: item.max_loss,
+            total_days: item.total_days,
+            ...(isPartial ? { _isPartial: true } : {})
+        }));
+    }, [savedSymbols]);
+
+    // ========================================
+    // Heavy Optimization Polling (per-tab aware)
+    // ========================================
+    const pollHeavyOptStatus = async (taskId, forTab) => {
         let isComplete = false;
 
         while (!isComplete) {
@@ -378,78 +431,28 @@ export const useOptimization = ({
 
             try {
                 const data = await getHeavyOptimizationStatus(taskId);
+                const isCurrentTab = String(forTab) === String(activeTabRef.current);
 
-                setHeavyOptStatus(data);
+                // Update per-tab state
+                updateTabHeavyOpt(forTab, { status: data });
 
-                // Show partial results during running (like regular Cross-Optimize)
+                // Show partial results during running
                 if (data.status === 'running' && data.top_results && data.top_results.length > 0) {
-                    const formattedPartial = data.top_results.map((item, index) => ({
-                        ...item.config,
-                        symbol: item.symbol || '',
-                        symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                        return: item.total_return,
-                        win_rate: item.win_rate,
-                        recent_10_win_rate: item.recent_10_win_rate,
-                        trades: item.total_trades,
-                        score: item.score,
-                        full_config: item.config,
-                        rank: index + 1,
-                        max_drawdown: item.max_drawdown,
-                        profit_factor: item.profit_factor,
-                        sharpe_ratio: item.sharpe_ratio,
-                        avg_pnl: item.avg_pnl,
-                        stability_score: item.stability_score,
-                        acceleration_score: item.acceleration_score,
-                        activity_rate: item.activity_rate,
-                        avg_holding_time: item.avg_holding_time,
-                        max_holding_time: item.max_holding_time,
-                        min_holding_time: item.min_holding_time,
-                        max_profit: item.max_profit,
-                        max_loss: item.max_loss,
-                        total_days: item.total_days,
-                        _isPartial: true  // Mark as partial result
-                    }));
-                    setOptResults(formattedPartial);
+                    const formattedPartial = formatHeavyOptResults(data.top_results, true);
+                    updateTabHeavyOpt(forTab, { results: formattedPartial });
+                    if (isCurrentTab) setOptResults(formattedPartial);
                 }
 
                 if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'failed' || data.status === 'not_found') {
                     isComplete = true;
-                    setIsHeavyOptRunning(false);
+                    updateTabHeavyOpt(forTab, { isRunning: false });
 
                     if (data.status === 'completed') {
                         addLog(`Optimization completed! ${data.progress_current} results processed.`, 'info');
-
-                        // Format top_results to match regular optimization format and set optResults
                         if (data.top_results && data.top_results.length > 0) {
-                            const formattedResults = data.top_results.map((item, index) => ({
-                                // Spread config first (so it can be overridden)
-                                ...item.config,
-                                // Core fields
-                                symbol: item.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                                return: item.total_return,
-                                win_rate: item.win_rate,
-                                recent_10_win_rate: item.recent_10_win_rate,
-                                trades: item.total_trades,
-                                score: item.score,
-                                full_config: item.config,
-                                rank: index + 1,
-                                // All metrics (same as regular optimization)
-                                max_drawdown: item.max_drawdown,
-                                profit_factor: item.profit_factor,
-                                sharpe_ratio: item.sharpe_ratio,
-                                avg_pnl: item.avg_pnl,
-                                stability_score: item.stability_score,
-                                acceleration_score: item.acceleration_score,
-                                activity_rate: item.activity_rate,
-                                avg_holding_time: item.avg_holding_time,
-                                max_holding_time: item.max_holding_time,
-                                min_holding_time: item.min_holding_time,
-                                max_profit: item.max_profit,
-                                max_loss: item.max_loss,
-                                total_days: item.total_days
-                            }));
-                            setOptResults(formattedResults);
+                            const formattedResults = formatHeavyOptResults(data.top_results);
+                            updateTabHeavyOpt(forTab, { results: formattedResults });
+                            if (isCurrentTab) setOptResults(formattedResults);
                         }
                     } else if (data.status === 'cancelled') {
                         addLog('Optimization cancelled.', 'warning');
@@ -457,8 +460,7 @@ export const useOptimization = ({
                         setOptError(`Heavy optimization failed: ${data.message}`);
                     } else if (data.status === 'not_found') {
                         setOptError('Optimization task not found (server restarted?)');
-                        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                        setHeavyOptTaskId(null);
+                        updateTabHeavyOpt(forTab, { taskId: null });
                     }
                 }
             } catch (err) {
@@ -489,77 +491,76 @@ export const useOptimization = ({
     };
 
     const clearHeavyOptTask = () => {
-        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-        setHeavyOptTaskId(null);
-        setHeavyOptStatus(null);
-        setIsHeavyOptRunning(false);
+        setHeavyOptByTab(prev => {
+            const next = { ...prev };
+            delete next[String(activeTab)];
+            return next;
+        });
     };
 
     // ========================================
-    // Restore heavy opt polling on page load (only on mount)
+    // Restore heavy opt from server when profile changes
     // ========================================
-    const hasRestoredOptRef = useRef(false);
     useEffect(() => {
-        // Only run once on mount, not on savedSymbols changes
-        if (hasRestoredOptRef.current) return;
-        hasRestoredOptRef.current = true;
+        if (!selectedProfileId) return;
+        // Skip if any tab already has a running task (started in this session)
+        const anyRunning = Object.values(heavyOptByTab).some(t => t.isRunning);
+        if (anyRunning) return;
 
-        const savedTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-        if (savedTaskId) {
-            // Check if task is still running
-            getHeavyOptimizationStatus(savedTaskId)
-                .then(data => {
-                    // Verify localStorage still has this task (not cleared by profile change)
-                    const currentTaskId = localStorage.getItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                    if (currentTaskId !== savedTaskId) {
-                        console.log('[useOptimization] Task ID changed during fetch, ignoring result');
-                        return;
-                    }
-                    setHeavyOptStatus(data);
-                    setHeavyOptTaskId(savedTaskId);
+        listHeavyOptimizationTasks(selectedProfileId)
+            .then(({ tasks }) => {
+                // Restore all tasks to their respective tabs
+                tasks.forEach(task => {
+                    const taskTab = task.tab_key;
+                    if (!taskTab) return; // Skip tasks without tab_key (legacy)
 
-                    if (data.status === 'running' || data.status === 'initializing') {
-                        setIsHeavyOptRunning(true);
-                        pollHeavyOptStatus(savedTaskId);
-                    } else if (data.status === 'completed') {
-                        // Task already completed - process top_results into optResults
-                        if (data.top_results && data.top_results.length > 0) {
-                            const formattedResults = data.top_results.map((item, index) => ({
-                                ...item.config,
-                                symbol: item.symbol || '',
-                                symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
-                                return: item.total_return,
-                                win_rate: item.win_rate,
-                                recent_10_win_rate: item.recent_10_win_rate,
-                                trades: item.total_trades,
-                                score: item.score,
-                                full_config: item.config,
-                                rank: index + 1,
-                                max_drawdown: item.max_drawdown,
-                                profit_factor: item.profit_factor,
-                                sharpe_ratio: item.sharpe_ratio,
-                                avg_pnl: item.avg_pnl,
-                                stability_score: item.stability_score,
-                                acceleration_score: item.acceleration_score,
-                                activity_rate: item.activity_rate,
-                                avg_holding_time: item.avg_holding_time,
-                                max_holding_time: item.max_holding_time,
-                                min_holding_time: item.min_holding_time,
-                                max_profit: item.max_profit,
-                                max_loss: item.max_loss,
-                                total_days: item.total_days
-                            }));
-                            setOptResults(formattedResults);
-                        }
+                    if (task.status === 'running' || task.status === 'initializing') {
+                        updateTabHeavyOpt(taskTab, { taskId: task.task_id, isRunning: true });
+                        // Fetch full status and start polling
+                        getHeavyOptimizationStatus(task.task_id)
+                            .then(data => {
+                                updateTabHeavyOpt(taskTab, { status: data });
+                                if (String(taskTab) === String(activeTabRef.current) && data.top_results?.length > 0) {
+                                    setOptResults(formatHeavyOptResults(data.top_results, true));
+                                }
+                                pollHeavyOptStatus(task.task_id, taskTab);
+                            })
+                            .catch(() => {
+                                updateTabHeavyOpt(taskTab, { taskId: null, isRunning: false });
+                            });
+                    } else if (task.status === 'completed') {
+                        updateTabHeavyOpt(taskTab, { taskId: task.task_id });
+                        getHeavyOptimizationStatus(task.task_id)
+                            .then(data => {
+                                updateTabHeavyOpt(taskTab, { status: data });
+                                if (data.top_results?.length > 0) {
+                                    const results = formatHeavyOptResults(data.top_results);
+                                    updateTabHeavyOpt(taskTab, { results });
+                                    if (String(taskTab) === String(activeTabRef.current)) {
+                                        setOptResults(results);
+                                    }
+                                }
+                            })
+                            .catch(() => {});
                     }
-                })
-                .catch(() => {
-                    // Task not found, clear it
-                    localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
-                    setHeavyOptTaskId(null);
                 });
+            })
+            .catch(() => {});
+    }, [selectedProfileId]);
+
+    // ========================================
+    // Swap optResults when switching tabs
+    // ========================================
+    useEffect(() => {
+        const currentOpt = heavyOptByTab[String(activeTab)];
+        if (currentOpt?.results) {
+            setOptResults(currentOpt.results);
+        } else if (currentOpt?.taskId) {
+            // Tab has heavy opt but no results yet (initializing)
+            setOptResults(null);
         }
-    }, []);
+        // If no heavy opt on this tab, don't touch optResults (may have regular opt results)
+    }, [activeTab]);
 
     // ========================================
     // Run Optimization (Regular - polling based)
@@ -853,10 +854,7 @@ export const useOptimization = ({
         setCompletedOptTaskId(null);
         setCurrentOptTaskId(null);
         setIsCancelling(false);
-        setHeavyOptTaskId(null);
-        setHeavyOptStatus(null);
-        setIsHeavyOptRunning(false);
-        localStorage.removeItem(STORAGE_KEYS.HEAVY_OPT_TASK_ID);
+        setHeavyOptByTab({});
     }, []);
 
     // ========================================
