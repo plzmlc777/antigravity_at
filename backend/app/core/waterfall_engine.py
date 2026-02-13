@@ -11,7 +11,7 @@ from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
 #
 # NOTE: All metrics are now CYCLE-based (not individual trade-based).
 # A "cycle" = entry → exit (for martingale: multiple entries → single exit)
-# When max_levels=1, cycle == individual trade (backwards compatible)
+# When max_buy_count=1, cycle == individual trade (backwards compatible)
 PERFORMANCE_STAT_KEYS = [
     "total_return",
     "profit_factor",
@@ -555,7 +555,7 @@ class WaterfallBacktestEngine:
             strat = p['strategy']
             cfg = getattr(strat, 'config', {})
             key_params = {k: cfg.get(k) for k in ['dip_percent', 'level_gap_percent', 'trigger_level', 'trigger_direction',
-                          'reset_level', 'reset_direction', 'rsi_period', 'max_levels', 'base_quantity',
+                          'reset_level', 'reset_direction', 'rsi_period', 'max_buy_count', 'base_quantity',
                           'trailing_start_percent', 'trailing_stop_percent', 'max_loss_percent'] if cfg.get(k) is not None}
             print(f"  Rank {p['rank']}: {p['symbol']} params={key_params}")
             
@@ -794,7 +794,7 @@ class WaterfallBacktestEngine:
             # DEBUG: Log config
             combined_logs.append(f"[Rank {rank_idx+1}] === USING run_single_backtest() ===")
             combined_logs.append(f"[Rank {rank_idx+1}] symbol={rank_symbol}, capital={rank_capital:,}")
-            combined_logs.append(f"[Rank {rank_idx+1}] dip_percent={cfg_raw.get('dip_percent')}, trailing_start={cfg_raw.get('trailing_start_percent')}, max_levels={cfg_raw.get('max_levels')}")
+            combined_logs.append(f"[Rank {rank_idx+1}] dip_percent={cfg_raw.get('dip_percent')}, trailing_start={cfg_raw.get('trailing_start_percent')}, max_buy_count={cfg_raw.get('max_buy_count')}")
 
             # *** SINGLE SOURCE OF TRUTH ***
             # Use run_single_backtest() - same function used by individual backtest endpoint

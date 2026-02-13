@@ -14,67 +14,14 @@ class MartingaleBase(BaseStrategy):
     and cycle management. Subclasses only need to implement entry trigger logic.
     """
 
-    # Common parameters shared by all martingale variants.
-    # Subclasses should merge their own trigger-specific fields with these.
-    COMMON_PARAMETER_FIELDS = [
-        {"name": "interval", "type": "select", "label": "Interval",
-         "default": "1m",
-         "options": ["1m", "3m", "5m", "10m", "15m", "30m", "60m", "1d"],
-         "description": "Chart candle interval",
-         "show_in_table": False, "defaultOptRange": "1m, 5m, 15m, 60m"},
-        {"name": "max_levels", "type": "number", "label": "Max Levels",
-         "default": 4, "min": 1, "max": 100, "step": 1,
-         "description": "Maximum martingale levels (excluding L0)",
-         "show_in_table": True, "defaultOptRange": "3, 4, 5, 10"},
-        {"name": "lot_size_multiplier", "type": "number", "label": "Pyramid Multiplier",
-         "default": 2.0, "min": 1, "max": 10, "step": 0.5,
-         "description": "Position size multiplier per level (1->2->4->8...)",
-         "show_in_table": False, "defaultOptRange": "1.5, 2.0, 3.0"},
-        {"name": "base_quantity", "type": "number", "label": "Base Qty",
-         "default": 1, "min": 1, "max": 10000, "step": 1,
-         "description": "Starting quantity for Level 1",
-         "show_in_table": False, "defaultOptRange": "1, 5, 10"},
-        {"name": "trailing_start_percent", "type": "number", "label": "Trail Start (%)",
-         "default": 0.01, "min": 0.001, "max": 100, "step": 0.01,
-         "description": "Profit % of capital to activate trailing stop",
-         "show_in_table": True, "defaultOptRange": "0.5, 1.0, 5.0, 10.0, 20.0"},
-        {"name": "trailing_stop_percent", "type": "number", "label": "Trail Stop (%)",
-         "default": 0.003, "min": 0.001, "max": 50, "step": 0.001,
-         "description": "Drop % from peak price to trigger sell",
-         "show_in_table": True, "defaultOptRange": "0.1, 0.3, 0.5, 1.0"},
-        {"name": "max_loss_percent", "type": "number", "label": "Stop Loss (%)",
-         "default": 0.10, "min": 0.01, "max": 1000, "step": 0.01,
-         "description": "Capital loss % that triggers forced sell",
-         "show_in_table": False, "defaultOptRange": "5.0, 10.0, 20.0"},
-        {"name": "betting_strategy", "type": "select", "label": "Betting Mode",
-         "default": "fixed", "options": ["fixed", "compound"],
-         "description": "fixed=reset capital each cycle, compound=keep accumulated P&L",
-         "show_in_table": True},
-        {"name": "safety_margin_percent", "type": "number", "label": "Safety Margin (%)",
-         "default": 1.0, "min": 0, "max": 50, "step": 0.5,
-         "description": "Reserve % of capital not used for trading",
-         "show_in_table": False},
-        {"name": "cycle_max_hours", "type": "number", "label": "Cycle Max Hours",
-         "default": 0, "min": 0, "max": 720, "step": 1,
-         "description": "Force close cycle after N hours (0=unlimited)",
-         "show_in_table": False, "defaultOptRange": "0, 4, 8, 24, 48"},
-        {"name": "last_level_allin", "type": "select", "label": "Last Level All-In",
-         "default": "off", "options": ["off", "on"],
-         "description": "Use all remaining capital on final level (off=standard martingale qty)",
-         "show_in_table": False},
-        {"name": "require_lower_price", "type": "select", "label": "Require Lower Price",
-         "default": "off", "options": ["off", "on"],
-         "description": "L2+ entry only when current price < last entry price (off=buy at any price)",
-         "show_in_table": True},
-    ]
-
-    # Subclasses must set PARAMETER_SCHEMA with their own trigger fields + COMMON_PARAMETER_FIELDS
+    # Subclasses must set PARAMETER_SCHEMA with their own trigger fields + BaseStrategy.COMMON_PARAMETER_FIELDS
     PARAMETER_SCHEMA = None
 
     def initialize(self):
         # Configuration parameters
         self.symbol = self.config.get("symbol", "UNKNOWN")
-        self.max_levels = self.config.get("max_levels", 4)
+        self.max_buy_count = self.config.get("max_buy_count",
+            self.config.get("max_levels", 4))  # backward-compat alias
         self.lot_size_multiplier = self.config.get("lot_size_multiplier",
             self.config.get("pyramid_multiplier", 2.0))  # backward-compat alias
         self.base_quantity = self.config.get("base_quantity", 1)
@@ -317,7 +264,7 @@ class MartingaleBase(BaseStrategy):
                 return
 
             # 3e. Check Additional Entry (L2+)
-            if self.current_level < self.max_levels and not self.trailing_active:
+            if self.current_level < self.max_buy_count and not self.trailing_active:
                 # Block further entries after all-in was deployed at the final affordable level
                 if self.last_level_allin and self.cycle_max_level and self.current_level >= self.cycle_max_level:
                     pass  # All-in already deployed, no more entries
@@ -440,7 +387,7 @@ class MartingaleBase(BaseStrategy):
         cumulative_cost = 0
         max_level = 0
 
-        for level in range(1, self.max_levels + 1):
+        for level in range(1, self.max_buy_count + 1):
             qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
             level_cost = qty * price
             cumulative_cost += level_cost
@@ -464,7 +411,7 @@ class MartingaleBase(BaseStrategy):
             self.cycle_reference_price = price
             self.context.log(f"[{self._log_prefix}] Cycle Plan: Max affordable level = L{self.cycle_max_level} @ {price:,.0f}")
 
-        effective_max_level = min(self.cycle_max_level, self.max_levels)
+        effective_max_level = min(self.cycle_max_level, self.max_buy_count)
 
         if level >= effective_max_level and effective_max_level > 0:
             standard_qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
@@ -498,7 +445,7 @@ class MartingaleBase(BaseStrategy):
         return {
             "strategy_id": self._strategy_id,
             "current_level": self.current_level,
-            "max_levels": self.max_levels,
+            "max_buy_count": self.max_buy_count,
             "average_price": self.average_price,
             "total_quantity": self.total_quantity,
             "peak_price": self.peak_price,

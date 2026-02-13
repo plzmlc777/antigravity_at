@@ -1,4 +1,5 @@
 from typing import Dict, Any
+from .base import BaseStrategy
 from .martingale_base import MartingaleBase
 
 
@@ -21,7 +22,7 @@ class DipMartingaleStrategy(MartingaleBase):
              "default": 2.0, "min": 0.5, "max": 20, "step": 0.5,
              "description": "Price drop % from candle open to trigger L2+ entries",
              "show_in_table": True, "defaultOptRange": "1.0, 2.0, 3.0"},
-        ] + MartingaleBase.COMMON_PARAMETER_FIELDS
+        ] + BaseStrategy.COMMON_PARAMETER_FIELDS
     }
 
     def _initialize_trigger(self):

@@ -238,7 +238,7 @@ const UnifiedSessionCards = ({
 const DipMartingaleCard = ({ state, price, pnl = 0, isPaper = true, tradeStats = {}, dimmed = false, isSelected = false, strategyId = 'dip_martingale' }) => {
     const isRSI = strategyId === 'rsi_martingale';
     const currentLevel = state.current_level || 0;
-    const maxLevels = state.max_levels || 4;
+    const maxLevels = state.max_buy_count || 4;
     const totalQty = state.total_quantity || 0;
     const avgPrice = state.average_price || 0;
     const refPrice = state.reference_price || 0;

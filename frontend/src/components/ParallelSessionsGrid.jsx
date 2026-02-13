@@ -127,7 +127,7 @@ const ParallelSessionsGrid = ({
 
 const DipMartingaleMini = ({ state, price, pnl = 0, dimmed = false, isPaper = true, tradeStats = {} }) => {
     const currentLevel = state.current_level || 0;
-    const maxLevels = state.max_levels || 4;
+    const maxLevels = state.max_buy_count || 4;
     const paperCycle = state.paper_cycle_id ?? state.cycle_id ?? 0;
     const realCycle = state.real_cycle_id ?? 0;
     const cycleNum = isPaper ? paperCycle : realCycle;

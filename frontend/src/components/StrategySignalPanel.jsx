@@ -10,7 +10,7 @@ const StrategySignalPanel = ({ strategyState, strategyName }) => {
         reference_price = 0,
         current_price = 0,
         current_level = 0,
-        max_levels = 4,
+        max_buy_count = 4,
         trailing_active = false,
         is_hodl = false,
         dip_percent = 0,

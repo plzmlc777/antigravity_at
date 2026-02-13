@@ -1,5 +1,6 @@
 from typing import Dict, Any
 from collections import deque
+from .base import BaseStrategy
 from .martingale_base import MartingaleBase
 
 
@@ -37,7 +38,7 @@ class RsiMartingaleStrategy(MartingaleBase):
              "options": ["above", "below"],
              "description": "above = trigger re-arms when RSI rises above reset; below = when RSI drops below reset",
              "show_in_table": True},
-        ] + MartingaleBase.COMMON_PARAMETER_FIELDS
+        ] + BaseStrategy.COMMON_PARAMETER_FIELDS
     }
 
     def _initialize_trigger(self):

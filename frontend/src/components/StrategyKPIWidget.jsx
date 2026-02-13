@@ -204,7 +204,7 @@ const StrategyKPIWidget = ({ strategyId, strategyConfig, liveData, strategyState
     if (strategyId === 'dip_martingale') {
         const state = strategyState || {};
         const currentLevel = state.current_level || 0;
-        const maxLevels = state.max_levels || strategyConfig?.max_levels || 4;
+        const maxLevels = state.max_buy_count || strategyConfig?.max_buy_count || 4;
         const avgPrice = state.average_price || 0;
         const refPrice = state.reference_price || 0;
         const curPrice = state.current_price || liveData?.current_price || 0;
