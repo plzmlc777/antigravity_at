@@ -193,6 +193,12 @@ class MartingaleBase(BaseStrategy):
         """Check if L2+ additional entry condition is met. Return True to buy."""
         pass
 
+    def _check_exit_trigger(self, data: Dict[str, Any]) -> bool:
+        """Check if indicator-based exit condition is met. Return True to sell.
+        Override in subclass for custom exit logic (e.g., RSI > 70, MACD dead cross).
+        Called before trailing/stop-loss checks, after cycle time limit."""
+        return False
+
     def preload_history(self, candles: list):
         """Preload indicator state from historical candles. Override in subclass."""
         pass
@@ -238,13 +244,19 @@ class MartingaleBase(BaseStrategy):
                     self._liquidate(current_price)
                     return
 
+            # 3a-2. Check Indicator-Based Exit (custom hook)
+            if self._check_exit_trigger(data):
+                self.context.log(f"[{self._log_prefix}] EXIT TRIGGER! Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
+                self._liquidate(current_price)
+                return
+
             # Update peak profit for trailing stop
             current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
             if position_profit > current_peak_profit:
                 self.peak_price = current_price
 
-            # 3b. Check Trailing Stop Activation
-            if not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
+            # 3b. Check Trailing Stop Activation (0 = disabled)
+            if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
                 self.trailing_active = True
                 self.peak_price = current_price
                 self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%")
