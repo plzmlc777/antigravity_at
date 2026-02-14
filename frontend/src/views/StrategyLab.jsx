@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import {
-    getStrategyRequests, createStrategyRequest, updateStrategyRequest, deleteStrategyRequest
+    getStrategyRequests, createStrategyRequest, updateStrategyRequest, deleteStrategyRequest,
+    activateStrategy
 } from '../api/client';
+import DynamicParameterForm from '../components/DynamicParameterForm';
 import {
     Plus, FlaskConical, ChevronRight, ChevronLeft, Save, Send, Trash2,
     Edit3, Eye, X, AlertCircle, CheckCircle, Clock, Zap, TrendingUp,
-    BarChart3, Activity, Layers
+    BarChart3, Activity, Layers, Play
 } from 'lucide-react';
 
 // ============================================================
@@ -315,7 +318,7 @@ const STEPS = [
 // ============================================================
 // Detail View (read-only)
 // ============================================================
-const DetailView = ({ request, onEdit, onClose }) => (
+const DetailView = ({ request, onEdit, onClose, onActivate }) => (
     <div className="space-y-4">
         <div className="flex items-center justify-between">
             <div>
@@ -400,8 +403,191 @@ const DetailView = ({ request, onEdit, onClose }) => (
                 <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{request.notes}</p>
             </div>
         )}
+
+        {request.status === 'implemented' && request.strategy_id && (
+            <div className="mt-6 p-4 rounded-lg bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border border-emerald-500/30">
+                <BacktestPanel
+                    strategyId={request.strategy_id}
+                    requestId={request.id}
+                    onActivate={onActivate}
+                />
+            </div>
+        )}
     </div>
 );
+
+// ============================================================
+// BacktestPanel (for implemented strategies)
+// ============================================================
+const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
+    const [strategy, setStrategy] = useState(null);
+    const [params, setParams] = useState({});
+    const [config, setConfig] = useState({ symbol: '005930', interval: '1h', days: 90 });
+    const [result, setResult] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [activating, setActivating] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const res = await axios.get('/api/v1/strategies/list', { params: { status: 'testing' } });
+                const found = res.data.find(s => s.id === strategyId);
+                if (!found) {
+                    // Fallback: try loading from all strategies
+                    const allRes = await axios.get('/api/v1/strategies/list', { params: { status: '' } });
+                    const fallback = allRes.data.find(s => s.id === strategyId);
+                    setStrategy(fallback || null);
+                    if (fallback?.parameter_schema?.fields) {
+                        const defaults = {};
+                        fallback.parameter_schema.fields.forEach(f => { defaults[f.key || f.name] = f.default; });
+                        setParams(defaults);
+                    }
+                } else {
+                    setStrategy(found);
+                    if (found.parameter_schema?.fields) {
+                        const defaults = {};
+                        found.parameter_schema.fields.forEach(f => { defaults[f.key || f.name] = f.default; });
+                        setParams(defaults);
+                    }
+                }
+            } catch (err) {
+                setError('Failed to load strategy details');
+            }
+        };
+        load();
+    }, [strategyId]);
+
+    const runBacktest = async () => {
+        setLoading(true);
+        setError(null);
+        setResult(null);
+        try {
+            const res = await axios.post(`/api/v1/strategies/${strategyId}/backtest`, {
+                symbol: config.symbol,
+                interval: config.interval,
+                days: config.days,
+                initial_capital: 10000000,
+                config: params
+            });
+            setResult(res.data);
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Backtest failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleActivate = async () => {
+        if (!confirm('Activate this strategy? It will appear in the Profiles page.')) return;
+        setActivating(true);
+        try {
+            await activateStrategy(requestId);
+            onActivate();
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Activation failed');
+        } finally {
+            setActivating(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2">
+                    <CheckCircle size={16} /> Strategy Testing
+                </h3>
+                <button
+                    onClick={handleActivate}
+                    disabled={activating || !result}
+                    title={!result ? 'Run a backtest first' : 'Activate strategy'}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+                >
+                    <Zap size={12} /> {activating ? 'Activating...' : 'Activate Strategy'}
+                </button>
+            </div>
+
+            {strategy?.parameter_schema && (
+                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+                    <label className="block text-xs font-medium text-gray-400 mb-2">Strategy Parameters</label>
+                    <DynamicParameterForm
+                        schema={strategy.parameter_schema}
+                        values={params}
+                        onChange={(key, val) => setParams(prev => ({ ...prev, [key]: val }))}
+                    />
+                </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3">
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Symbol</label>
+                    <input
+                        type="text" value={config.symbol}
+                        onChange={e => setConfig(prev => ({ ...prev, symbol: e.target.value }))}
+                        className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-blue-500/50"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Interval</label>
+                    <select
+                        value={config.interval}
+                        onChange={e => setConfig(prev => ({ ...prev, interval: e.target.value }))}
+                        className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-blue-500/50"
+                    >
+                        <option value="1m">1m</option>
+                        <option value="5m">5m</option>
+                        <option value="1h">1h</option>
+                        <option value="1d">1d</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Days</label>
+                    <input
+                        type="number" value={config.days}
+                        onChange={e => setConfig(prev => ({ ...prev, days: parseInt(e.target.value) || 90 }))}
+                        className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-blue-500/50"
+                    />
+                </div>
+            </div>
+
+            <button
+                onClick={runBacktest} disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+                <Play size={14} /> {loading ? 'Running Backtest...' : 'Run Backtest'}
+            </button>
+
+            {error && (
+                <div className="flex items-center gap-2 p-2 bg-red-500/10 border border-red-500/20 rounded text-red-400 text-xs">
+                    <AlertCircle size={12} /> {error}
+                </div>
+            )}
+
+            {result && (
+                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5 space-y-3">
+                    <h4 className="text-xs font-medium text-gray-400">Backtest Results</h4>
+                    <div className="grid grid-cols-4 gap-3">
+                        {[
+                            { label: 'Return', value: `${(result.total_return || 0).toFixed(2)}%`,
+                              color: (result.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                            { label: 'Win Rate', value: `${(result.win_rate || 0).toFixed(1)}%`, color: 'text-white' },
+                            { label: 'Trades', value: result.total_trades || 0, color: 'text-white' },
+                            { label: 'Max DD', value: `${(result.max_drawdown || 0).toFixed(2)}%`, color: 'text-orange-400' },
+                        ].map(item => (
+                            <div key={item.label}>
+                                <span className="text-[10px] text-gray-500 block">{item.label}</span>
+                                <span className={`text-sm font-medium ${item.color}`}>{item.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-emerald-400/70 mt-1">
+                        Click "Activate Strategy" to make it available in Profiles.
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
 
 // ============================================================
 // Main Component
@@ -600,6 +786,7 @@ const StrategyLab = () => {
                                 request={selectedRequest}
                                 onEdit={() => startEditWizard(selectedRequest)}
                                 onClose={() => { setMode('list'); setSelectedRequest(null); }}
+                                onActivate={() => { loadRequests(); setMode('list'); setSelectedRequest(null); }}
                             />
                         </div>
                     )}

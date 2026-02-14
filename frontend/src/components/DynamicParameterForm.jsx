@@ -79,6 +79,32 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
                     </select>
                 );
 
+            case 'combobox':
+                // Select with free-text input (datalist)
+                const comboId = `${key}-list`;
+                const comboOptions = (field.options || []).map(opt =>
+                    typeof opt === 'string' ? { value: opt, label: opt } : opt
+                );
+                return (
+                    <div className="relative">
+                        <input
+                            type="text"
+                            id={key}
+                            list={comboId}
+                            value={value}
+                            onChange={(e) => onChange(key, e.target.value)}
+                            disabled={disabled}
+                            placeholder={field.placeholder || 'Select or type...'}
+                            className="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-white text-sm focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 disabled:opacity-50"
+                        />
+                        <datalist id={comboId}>
+                            {comboOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </datalist>
+                    </div>
+                );
+
             case 'checkbox':
                 return (
                     <input
@@ -107,23 +133,66 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
         }
     };
 
+    // Group labels for section headers
+    const GROUP_LABELS = {
+        common: 'Common',
+        martingale: 'Position Sizing',
+    };
+
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {schema.fields.map((field) => {
-                const key = field.key || field.name;
-                return (
-                    <div key={key} className="space-y-1">
-                        <label
-                            htmlFor={key}
-                            className="text-xs font-medium text-gray-400 block"
-                            title={field.description}
-                        >
-                            {field.label || key}
-                        </label>
-                        {renderField(field)}
-                    </div>
-                );
-            })}
+        <div className="space-y-1">
+            {(() => {
+                const sections = [];
+                let currentFields = [];
+                let currentGroup = null;
+
+                const flushSection = () => {
+                    if (currentFields.length > 0) {
+                        if (currentGroup && GROUP_LABELS[currentGroup]) {
+                            sections.push(
+                                <div key={`hdr-${currentGroup}`} className="pt-2 pb-1 border-t border-white/5 first:border-t-0 first:pt-0">
+                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">
+                                        {GROUP_LABELS[currentGroup]}
+                                    </span>
+                                </div>
+                            );
+                        }
+                        sections.push(
+                            <div key={`grp-${currentGroup || 'strategy'}`} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {currentFields}
+                            </div>
+                        );
+                        currentFields = [];
+                    }
+                };
+
+                schema.fields.forEach((field) => {
+                    const key = field.key || field.name;
+                    const group = field.group || null;
+
+                    // Detect group transition
+                    if (group !== currentGroup) {
+                        flushSection();
+                        currentGroup = group;
+                    }
+
+                    currentFields.push(
+                        <div key={key} className="space-y-1">
+                            <label
+                                htmlFor={key}
+                                className="text-xs font-medium text-gray-400 block"
+                                title={field.description}
+                            >
+                                {field.label || key}
+                            </label>
+                            {renderField(field)}
+                        </div>
+                    );
+                });
+
+                flushSection();
+                return sections;
+            })()}
         </div>
     );
 };

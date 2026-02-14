@@ -95,7 +95,7 @@ export const LiveTradingProvider = ({ children }) => {
 
         setStrategiesLoading(true);
         try {
-            const res = await axios.get('/api/v1/strategies/list');
+            const res = await axios.get('/api/v1/strategies/list', { params: { status: 'active' } });
             setStrategies(res.data || []);
             strategiesLoadedRef.current = true;
             return res.data || [];

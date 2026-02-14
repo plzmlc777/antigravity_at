@@ -25,6 +25,7 @@ class MartingaleBase(BaseStrategy):
         self.lot_size_multiplier = self.config.get("lot_size_multiplier",
             self.config.get("pyramid_multiplier", 2.0))  # backward-compat alias
         self.base_quantity = self.config.get("base_quantity", 1)
+        self.qty_mode = self.config.get("qty_mode", "fixed")
 
         self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01)
         self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003)
@@ -388,6 +389,18 @@ class MartingaleBase(BaseStrategy):
             self._pending_exit = False  # Unlock on immediate failure
             self.context.log(f"[{self._log_prefix}] SELL FAILED: {result.get('reason', 'Unknown')}")
 
+    def _resolve_level_qty(self, level: int, price: float) -> int:
+        """Calculate share quantity for a given level.
+
+        fixed mode:   base_quantity * multiplier^(level-1)  → direct share count
+        percent mode: (capital * base_quantity% * multiplier^(level-1)) / price → shares
+        """
+        multiplied = self.base_quantity * (self.lot_size_multiplier ** (level - 1))
+        if self.qty_mode == "percent" and price > 0:
+            capital = getattr(self.context, 'initial_capital', 10000000)
+            return max(1, int(capital * multiplied / 100 / price))
+        return int(multiplied)
+
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)
         safety_reserve = available_cash * (self.safety_margin_percent / 100)
@@ -400,7 +413,7 @@ class MartingaleBase(BaseStrategy):
         max_level = 0
 
         for level in range(1, self.max_buy_count + 1):
-            qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+            qty = self._resolve_level_qty(level, price)
             level_cost = qty * price
             cumulative_cost += level_cost
 
@@ -416,7 +429,7 @@ class MartingaleBase(BaseStrategy):
             price = getattr(self, 'last_price', 0)
 
         if price <= 0:
-            return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+            return self._resolve_level_qty(level, price)
 
         if self.cycle_max_level is None or level == 1:
             self.cycle_max_level = self._calculate_max_affordable_level(price)
@@ -426,7 +439,7 @@ class MartingaleBase(BaseStrategy):
         effective_max_level = min(self.cycle_max_level, self.max_buy_count)
 
         if level >= effective_max_level and effective_max_level > 0:
-            standard_qty = int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+            standard_qty = self._resolve_level_qty(level, price)
 
             # Check if all-in mode is enabled for final level
             if self.last_level_allin:
@@ -444,7 +457,7 @@ class MartingaleBase(BaseStrategy):
                 self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} shares")
                 return standard_qty
 
-        return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+        return self._resolve_level_qty(level, price)
 
     def get_state(self) -> Dict[str, Any]:
         cur_price = getattr(self, 'last_price', 0)

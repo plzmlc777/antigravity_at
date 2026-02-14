@@ -533,3 +533,5 @@ export const updateStrategyRequest = (id, data) =>
     api.put(`/strategy-lab/requests/${id}`, data).then(r => r.data);
 export const deleteStrategyRequest = (id) =>
     api.delete(`/strategy-lab/requests/${id}`).then(r => r.data);
+export const activateStrategy = (requestId) =>
+    api.post(`/strategy-lab/requests/${requestId}/activate`).then(r => r.data);

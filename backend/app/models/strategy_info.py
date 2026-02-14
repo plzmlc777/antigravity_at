@@ -13,5 +13,6 @@ class StrategyInfo(Base):
     code = Column(Text, nullable=True)
     tags = Column(JSON, nullable=True) # List of strings
     parameter_schema = Column(JSONB, nullable=True) # UI parameter configuration
+    status = Column(String, default='active', nullable=False, server_default='active')
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

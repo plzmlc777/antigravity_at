@@ -581,10 +581,11 @@ class Strategy(BaseModel):
     id: str
     name: str
     description: str
-    code: str
-    tags: List[str]
+    code: Optional[str] = None
+    tags: Optional[List[str]] = None
     detailed_description: Optional[str] = None
-    parameter_schema: Optional[Dict[str, Any]] = None  # UI parameter configuration
+    parameter_schema: Optional[Dict[str, Any]] = None
+    status: Optional[str] = "active"
 
     class Config:
         from_attributes = True
@@ -592,16 +593,19 @@ class Strategy(BaseModel):
 # Hardcoded strategies removed in favor of DB persistence.
 
 @router.get("/list", response_model=List[Strategy])
-async def list_strategies(db: Session = Depends(get_db)):
+async def list_strategies(status: Optional[str] = "active", db: Session = Depends(get_db)):
     from ..core.strategy_registry import StrategyRegistry
-    strats = db.query(StrategyInfo).all()
+    query = db.query(StrategyInfo)
+    if status:
+        query = query.filter(StrategyInfo.status == status)
+    strats = query.all()
     result = []
     for s in strats:
         data = Strategy.from_orm(s)
-        if not data.parameter_schema:
-            class_schema = StrategyRegistry.get_parameter_schema(s.id)
-            if class_schema:
-                data.parameter_schema = class_schema
+        # Always prefer class schema (Single Source of Truth) over DB schema
+        class_schema = StrategyRegistry.get_parameter_schema(s.id)
+        if class_schema:
+            data.parameter_schema = class_schema
         result.append(data)
     return result
 

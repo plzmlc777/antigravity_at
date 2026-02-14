@@ -4,6 +4,7 @@ from ..strategies.base import BaseStrategy
 from ..strategies.time_momentum import TimeMomentumStrategy
 from ..strategies.dip_martingale import DipMartingaleStrategy
 from ..strategies.rsi_martingale import RsiMartingaleStrategy
+from ..strategies.us_market_follow import USMarketFollowStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class StrategyRegistry:
         "time_momentum": TimeMomentumStrategy,
         "dip_martingale": DipMartingaleStrategy,
         "rsi_martingale": RsiMartingaleStrategy,
+        "us_market_follow": USMarketFollowStrategy,
     }
 
     @classmethod

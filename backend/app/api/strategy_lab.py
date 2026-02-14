@@ -174,3 +174,50 @@ async def delete_strategy_request(
     db.delete(obj)
     db.commit()
     return {"status": "deleted", "id": request_id}
+
+
+@router.post("/requests/{request_id}/activate")
+async def activate_strategy(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Activate a tested strategy — makes it visible in Profiles page."""
+    from ..models.strategy_info import StrategyInfo
+
+    request = db.query(StrategyRequest).filter(
+        StrategyRequest.id == request_id,
+        StrategyRequest.user_id == current_user.id
+    ).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Strategy request not found")
+
+    if request.status != "implemented":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot activate: status is '{request.status}', must be 'implemented'"
+        )
+    if not request.strategy_id:
+        raise HTTPException(status_code=400, detail="No linked strategy_id")
+
+    strategy = db.query(StrategyInfo).filter(
+        StrategyInfo.id == request.strategy_id
+    ).first()
+    if not strategy:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Strategy '{request.strategy_id}' not found in strategy_info"
+        )
+
+    strategy.status = "active"
+    request.status = "active"
+    request.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(request)
+
+    return {
+        "status": "activated",
+        "request_id": request_id,
+        "strategy_id": request.strategy_id,
+        "message": f"Strategy '{strategy.name}' is now active and visible in Profiles"
+    }
