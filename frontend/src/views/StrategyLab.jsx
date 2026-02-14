@@ -1,34 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility } from '../api/client';
+import { getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility, updateStrategyRequest } from '../api/client';
 import DynamicParameterForm from '../components/DynamicParameterForm';
+import VisualBacktestChart from '../components/VisualBacktestChart';
+import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
+import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import {
-    FlaskConical, Trash2, Edit3, X, AlertCircle, CheckCircle, Clock, Zap,
-    TrendingUp, BarChart3, Layers, Play, Wrench, Bot, Send, Globe, Lock
+    FlaskConical, Trash2, Edit3, X, AlertCircle, CheckCircle, Zap,
+    Play, Bot, Send, Globe, Lock, Check, Pencil, BarChart3, ChevronDown, ChevronUp
 } from 'lucide-react';
 import StrategyLabChat from '../components/StrategyLabChat';
 
 // ============================================================
 // Constants
 // ============================================================
-const ENTRY_TYPES = [
-    { value: 'price', label: 'Price Based', icon: TrendingUp, desc: 'Price movement triggers' },
-    { value: 'time', label: 'Time Based', icon: Clock, desc: 'Specific time-based entry' },
-    { value: 'indicator', label: 'Indicator Based', icon: BarChart3, desc: 'Technical indicators' },
-    { value: 'composite', label: 'Composite', icon: Layers, desc: 'Multiple conditions' },
-];
-
-const INDICATORS = [
-    { id: 'ma', label: 'Moving Average' },
-    { id: 'rsi', label: 'RSI' },
-    { id: 'macd', label: 'MACD' },
-    { id: 'bollinger', label: 'Bollinger Bands' },
-    { id: 'volume', label: 'Volume' },
-    { id: 'vwap', label: 'VWAP' },
-    { id: 'stochastic', label: 'Stochastic' },
-    { id: 'other', label: 'Other' },
-];
-
 const STATUS_CONFIG = {
     draft: { label: 'Draft', color: 'bg-gray-500/20 text-gray-400', icon: Edit3 },
     submitted: { label: 'Submitted', color: 'bg-yellow-500/20 text-yellow-400', icon: Send },
@@ -50,16 +35,54 @@ const StatusBadge = ({ status }) => {
 };
 
 // ============================================================
-// Detail View (read-only, AI-only modification)
+// Detail View
 // ============================================================
-const DetailView = ({ request, onActivate, onModifyWithAI, strategyVisibility, onToggleVisibility }) => (
+const DetailView = ({ request, onActivate, onRename, strategyVisibility, onToggleVisibility }) => {
+    const [editing, setEditing] = useState(false);
+    const [editName, setEditName] = useState(request.name);
+    const inputRef = React.useRef(null);
+
+    useEffect(() => { setEditName(request.name); setEditing(false); }, [request.id]);
+    useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+    const handleSave = async () => {
+        const trimmed = editName.trim();
+        if (!trimmed || trimmed === request.name) { setEditing(false); return; }
+        await onRename(request.id, trimmed);
+        setEditing(false);
+    };
+
+    return (
     <div className="space-y-4">
         <div className="flex items-center justify-between">
-            <div>
-                <h2 className="text-lg font-bold text-white">{request.name}</h2>
-                <p className="text-xs text-gray-500">{request.description}</p>
+            <div className="flex-1 min-w-0">
+                {editing ? (
+                    <div className="flex items-center gap-2">
+                        <input
+                            ref={inputRef}
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
+                            className="flex-1 px-2 py-1 bg-white/5 border border-purple-500/50 rounded-lg text-lg font-bold text-white focus:outline-none focus:border-purple-500"
+                        />
+                        <button onClick={handleSave} className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 transition-colors" title="저장">
+                            <Check size={16} />
+                        </button>
+                        <button onClick={() => { setEditName(request.name); setEditing(false); }} className="p-1.5 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-400 transition-colors" title="취소">
+                            <X size={14} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-white truncate">{request.name}</h2>
+                        <button onClick={() => setEditing(true)} className="p-1 hover:bg-white/5 rounded text-gray-600 hover:text-gray-300 transition-colors" title="이름 수정">
+                            <Pencil size={12} />
+                        </button>
+                    </div>
+                )}
+                <p className="text-xs text-gray-500 mt-0.5">{request.description}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-3 flex-shrink-0">
                 <StatusBadge status={request.status} />
                 {request.strategy_id && strategyVisibility !== null && (
                     <button
@@ -75,74 +98,13 @@ const DetailView = ({ request, onActivate, onModifyWithAI, strategyVisibility, o
                         {strategyVisibility ? 'Public' : 'Private'}
                     </button>
                 )}
-                {request.strategy_id && onModifyWithAI && (
-                    <button
-                        onClick={() => onModifyWithAI(request.strategy_id, request.name)}
-                        className="flex items-center gap-1 px-2 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg text-xs font-medium transition-colors"
-                        title="AI로 전략 수정"
-                    >
-                        <Wrench size={12} /> AI 수정
-                    </button>
-                )}
             </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        {request.strategy_id && (
             <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Entry Type</span>
-                <p className="text-sm text-white mt-1">{ENTRY_TYPES.find(e => e.value === request.entry_type)?.label || request.entry_type}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Entry Mode</span>
-                <p className="text-sm text-white mt-1">{request.entry_mode === 'single' ? 'Single Entry' : 'Multi-Level'}</p>
-            </div>
-        </div>
-
-        <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-            <span className="text-[10px] text-gray-500 uppercase">Entry Condition</span>
-            <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{request.entry_condition}</p>
-        </div>
-
-        {request.indicators?.length > 0 && (
-            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Indicators</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                    {request.indicators.map(ind => (
-                        <span key={ind} className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">
-                            {INDICATORS.find(i => i.id === ind)?.label || ind}
-                        </span>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {request.additional_entry && (
-            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Additional Entry</span>
-                <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{request.additional_entry}</p>
-            </div>
-        )}
-
-        {request.exit_condition && (
-            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Special Exit Condition</span>
-                <p className="text-sm text-gray-300 mt-1 whitespace-pre-wrap">{request.exit_condition}</p>
-            </div>
-        )}
-
-        {request.custom_parameters?.length > 0 && (
-            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
-                <span className="text-[10px] text-gray-500 uppercase">Custom Parameters</span>
-                <div className="mt-1 space-y-1">
-                    {request.custom_parameters.map((p, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                            <code className="text-blue-400">{p.name}</code>
-                            <span className="text-gray-600">({p.type})</span>
-                            <span className="text-gray-500">= {p.default}</span>
-                            {p.description && <span className="text-gray-600">- {p.description}</span>}
-                        </div>
-                    ))}
-                </div>
+                <span className="text-[10px] text-gray-500 uppercase">Strategy ID</span>
+                <p className="text-sm text-white mt-1 font-mono">{request.strategy_id}</p>
             </div>
         )}
 
@@ -164,7 +126,59 @@ const DetailView = ({ request, onActivate, onModifyWithAI, strategyVisibility, o
             </div>
         )}
     </div>
-);
+    );
+};
+
+// ============================================================
+// BacktestVisualAnalysis (candlestick chart + stats + stability)
+// ============================================================
+const BacktestVisualAnalysis = ({ result }) => {
+    // Transform trades: ISO time → Unix seconds
+    const chartTrades = useMemo(() => {
+        if (!result?.trades?.length) return [];
+        return result.trades.map(t => {
+            let timeNum = t.time;
+            if (typeof t.time === 'string') {
+                timeNum = Math.floor(new Date(t.time.replace(' ', 'T')).getTime() / 1000);
+            }
+            return { ...t, time: timeNum };
+        }).sort((a, b) => a.time - b.time);
+    }, [result?.trades]);
+
+    const hasChart = result?.ohlcv_data?.length > 0;
+    const hasTrades = chartTrades.length > 0;
+    const hasStability = (result?.bucket_stats?.length > 0) || (result?.decile_stats?.length > 0);
+
+    return (
+        <div className="space-y-3">
+            {/* Candlestick chart with trade markers */}
+            {hasChart && (
+                <div className="rounded-lg bg-white/[0.02] border border-white/5 overflow-hidden">
+                    <VisualBacktestChart
+                        data={result.ohlcv_data}
+                        trades={hasTrades ? chartTrades : []}
+                        priceScaleOptions={{ autoScale: true }}
+                    />
+                </div>
+            )}
+
+            {/* Performance stats grid */}
+            <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                <PerformanceStatsGrid stats={result} />
+            </div>
+
+            {/* Stability analysis chart */}
+            {hasStability && (
+                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                    <MonthlyAnalysisChart
+                        bucketStats={result.bucket_stats}
+                        decileStats={result.decile_stats}
+                    />
+                </div>
+            )}
+        </div>
+    );
+};
 
 // ============================================================
 // BacktestPanel (for implemented strategies)
@@ -173,6 +187,7 @@ const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
     const [strategy, setStrategy] = useState(null);
     const [params, setParams] = useState({});
     const [config, setConfig] = useState({ symbol: '005930', interval: '1h', days: 90 });
+    const [showVisual, setShowVisual] = useState(false);
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
     const [activating, setActivating] = useState(false);
@@ -313,25 +328,43 @@ const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
             )}
 
             {result && (
-                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5 space-y-3">
-                    <h4 className="text-xs font-medium text-gray-400">Backtest Results</h4>
-                    <div className="grid grid-cols-4 gap-3">
-                        {[
-                            { label: 'Return', value: `${(result.total_return || 0).toFixed(2)}%`,
-                              color: (result.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
-                            { label: 'Win Rate', value: `${(result.win_rate || 0).toFixed(1)}%`, color: 'text-white' },
-                            { label: 'Trades', value: result.total_trades || 0, color: 'text-white' },
-                            { label: 'Max DD', value: `${(result.max_drawdown || 0).toFixed(2)}%`, color: 'text-orange-400' },
-                        ].map(item => (
-                            <div key={item.label}>
-                                <span className="text-[10px] text-gray-500 block">{item.label}</span>
-                                <span className={`text-sm font-medium ${item.color}`}>{item.value}</span>
-                            </div>
-                        ))}
+                <div className="space-y-3">
+                    {/* Summary metrics */}
+                    <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-medium text-gray-400">Backtest Results</h4>
+                            {(result.ohlcv_data?.length > 0 || result.trades?.length > 0) && (
+                                <button
+                                    onClick={() => setShowVisual(v => !v)}
+                                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded transition-colors"
+                                >
+                                    <BarChart3 size={12} />
+                                    Visual Analysis
+                                    {showVisual ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                            {[
+                                { label: 'Return', value: `${(result.total_return || 0).toFixed(2)}%`,
+                                  color: (result.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
+                                { label: 'Win Rate', value: `${(result.win_rate || 0).toFixed(1)}%`, color: 'text-white' },
+                                { label: 'Trades', value: result.total_trades || 0, color: 'text-white' },
+                                { label: 'Max DD', value: `${(result.max_drawdown || 0).toFixed(2)}%`, color: 'text-orange-400' },
+                            ].map(item => (
+                                <div key={item.label}>
+                                    <span className="text-[10px] text-gray-500 block">{item.label}</span>
+                                    <span className={`text-sm font-medium ${item.color}`}>{item.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-emerald-400/70 mt-1">
+                            Click "Activate Strategy" to make it available in Profiles.
+                        </p>
                     </div>
-                    <p className="text-xs text-emerald-400/70 mt-1">
-                        Click "Activate Strategy" to make it available in Profiles.
-                    </p>
+
+                    {/* Visual Analysis (collapsible) */}
+                    {showVisual && <BacktestVisualAnalysis result={result} />}
                 </div>
             )}
         </div>
@@ -346,9 +379,6 @@ const StrategyLab = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedRequest, setSelectedRequest] = useState(null);
-
-    // AI Chat prefill
-    const [chatPrefill, setChatPrefill] = useState(null);
 
     // Strategy visibility cache: { strategy_id: boolean }
     const [visibilityMap, setVisibilityMap] = useState({});
@@ -408,6 +438,15 @@ const StrategyLab = () => {
             setVisibilityMap(prev => ({ ...prev, [strategyId]: isPublic }));
         } catch (err) {
             setError(err.response?.data?.detail || 'Failed to update visibility');
+        }
+    };
+
+    const handleRename = async (id, newName) => {
+        try {
+            await updateStrategyRequest(id, { name: newName });
+            await loadRequests();
+        } catch (err) {
+            setError('Failed to rename');
         }
     };
 
@@ -498,9 +537,7 @@ const StrategyLab = () => {
                                 <DetailView
                                     request={selectedRequest}
                                     onActivate={() => { loadRequests(); }}
-                                    onModifyWithAI={(strategyId, name) => {
-                                        setChatPrefill(`${strategyId} 전략을 수정해줘: `);
-                                    }}
+                                    onRename={handleRename}
                                     strategyVisibility={selectedRequest?.strategy_id ? (visibilityMap[selectedRequest.strategy_id] ?? null) : null}
                                     onToggleVisibility={handleToggleVisibility}
                                 />
@@ -514,8 +551,6 @@ const StrategyLab = () => {
                     <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
                         <StrategyLabChat
                             onStrategyCreated={loadRequests}
-                            prefillInput={chatPrefill}
-                            onPrefillConsumed={() => setChatPrefill(null)}
                             selectedStrategy={selectedRequest ? {
                                 strategyId: selectedRequest.strategy_id,
                                 name: selectedRequest.name

@@ -63,6 +63,14 @@ NEVER ask about:
 - Additional entry logic → default to same as L1 or step-based
 - Anything that can be a configurable parameter
 
+**DO NOT re-implement** these features — they are already provided by `BaseStrategy.COMMON_PARAMETER_FIELDS` and `MartingaleBase`:
+- Martingale / 물타기 (multi-level averaging down, pyramid sizing, step-based additional buys)
+- Trailing Stop (trail start %, trail stop %, activation logic)
+- HODL mode, stop-loss, take-profit
+- Position sizing (fixed/percent), max buy count, lot size multiplier
+- These are auto-included via `+ BaseStrategy.COMMON_PARAMETER_FIELDS` in PARAMETER_SCHEMA
+- Only implement the **entry trigger logic** (`_check_entry_trigger`) — everything else is inherited
+
 ### Phase 2: Implementation
 
 #### File 1: Strategy Class
