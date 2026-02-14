@@ -107,10 +107,8 @@ const ParallelSessionsGrid = ({
                                         {pnl >= 0 ? '+' : ''}{pnl.toLocaleString()}
                                     </div>
 
-                                    {/* Strategy-specific: Dip Martingale */}
-                                    {strategyName === 'dip_martingale' && state.strategy_id === 'dip_martingale' && (
-                                        <DipMartingaleMini state={state} price={price} pnl={pnl} dimmed={!isRunning} isPaper={isPaper} tradeStats={tradeStats} />
-                                    )}
+                                    {/* Generic Mini Strategy Info */}
+                                    <GenericMini state={state} price={price} pnl={pnl} dimmed={!isRunning} isPaper={isPaper} tradeStats={tradeStats} />
                                 </>
                             ) : (
                                 <div className="text-[11px] text-gray-600 font-mono">
@@ -125,28 +123,13 @@ const ParallelSessionsGrid = ({
     );
 };
 
-const DipMartingaleMini = ({ state, price, pnl = 0, dimmed = false, isPaper = true, tradeStats = {} }) => {
+/* ───── Generic Mini Strategy Info ───── */
+const GenericMini = ({ state, price, pnl = 0, dimmed = false, isPaper = true, tradeStats = {} }) => {
     const currentLevel = state.current_level || 0;
-    const maxLevels = state.max_buy_count || 4;
-    const paperCycle = state.paper_cycle_id ?? state.cycle_id ?? 0;
-    const realCycle = state.real_cycle_id ?? 0;
-    const cycleNum = isPaper ? paperCycle : realCycle;
+    const maxLevels = state.max_buy_count || 0;
     const totalQty = state.total_quantity || 0;
-    const avgPrice = state.average_price || 0;
-    const refPrice = state.reference_price || 0;
-    const targetDip = Math.abs(state.target_dip || 0.01);
-    const dipPct = Math.abs(state.dip_percent || 0) * 100;
-    const targetDipPct = targetDip * 100;
-    const dipProgress = Math.min(100, (dipPct / targetDipPct) * 100);
-
-    // Trigger price
-    const triggerPrice = refPrice > 0 ? Math.round(refPrice * (1 - targetDip)) : 0;
-
-    // Current cycle unrealized PnL (from session pnl)
-    const curPnl = pnl || 0;
-    const curPnlPct = (avgPrice > 0 && totalQty > 0)
-        ? ((price - avgPrice) / avgPrice * 100)
-        : 0;
+    const isTrailing = state.trailing_active || false;
+    const isHodl = state.is_hodl || false;
 
     // Accumulated stats
     const modeStats = isPaper ? (tradeStats?.paper || {}) : (tradeStats?.real || {});
@@ -155,6 +138,8 @@ const DipMartingaleMini = ({ state, price, pnl = 0, dimmed = false, isPaper = tr
     const accPnlPct = modeStats.realized_pnl_pct || 0;
 
     const dim = dimmed ? 'text-gray-700' : 'text-gray-500';
+    const hasInfo = currentLevel > 0 || totalQty > 0 || isTrailing || isHodl || accCycles > 0;
+    if (!hasInfo) return null;
 
     const formatPnl = (v) => {
         if (!v) return '0';
@@ -169,66 +154,55 @@ const DipMartingaleMini = ({ state, price, pnl = 0, dimmed = false, isPaper = tr
 
     return (
         <div className={`mt-2 pt-2 border-t ${dimmed ? 'border-white/[0.03]' : 'border-white/5'}`}>
-            {/* Row 1: #cycle L{level} dots + qty */}
+            {/* Row 1: Level dots + badges + qty */}
             <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
-                    <span className={`text-[9px] font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
-                        #{accCycles + 1}
-                    </span>
-                    <span className={`text-[9px] ${dim}`}>
-                        L{currentLevel}
-                    </span>
-                    <div className="flex gap-0.5">
-                        {Array.from({ length: maxLevels }, (_, i) => (
-                            <div
-                                key={i}
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                    i < currentLevel
-                                        ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400')
-                                        : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
-                                }`}
-                            />
-                        ))}
-                    </div>
+                    {accCycles > 0 && (
+                        <span className={`text-[9px] font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
+                            #{accCycles + 1}
+                        </span>
+                    )}
+                    {maxLevels > 0 && (
+                        <>
+                            <span className={`text-[9px] ${dim}`}>L{currentLevel}</span>
+                            <div className="flex gap-0.5">
+                                {Array.from({ length: maxLevels }, (_, i) => (
+                                    <div
+                                        key={i}
+                                        className={`h-1.5 w-1.5 rounded-full ${
+                                            i < currentLevel
+                                                ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400')
+                                                : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                    {isTrailing && (
+                        <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-green-500/20 text-green-400'}`}>T</span>
+                    )}
+                    {isHodl && (
+                        <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-red-500/20 text-red-400'}`}>H</span>
+                    )}
                 </div>
                 {totalQty > 0 && (
                     <span className={`text-[9px] ${dim}`}>{totalQty}qty</span>
                 )}
             </div>
 
-            {/* Row 2: Dip progress bar */}
-            <div className="flex items-center gap-2 mb-1.5">
-                <div className={`flex-1 rounded-full h-1.5 ${dimmed ? 'bg-gray-900' : 'bg-gray-800'}`}>
-                    <div
-                        className={`h-1.5 rounded-full transition-all duration-500 ${dimmed ? 'bg-indigo-800' : 'bg-indigo-500'}`}
-                        style={{ width: `${dipProgress}%` }}
-                    />
-                </div>
-                <span className={`text-[9px] w-10 text-right ${dim}`}>
-                    {dipPct.toFixed(1)}%
-                </span>
-            </div>
-
-            {/* Row 3: Trigger price & distance (price unit) */}
-            {triggerPrice > 0 && (
-                <div className={`flex items-center justify-between text-[9px] mb-1.5 ${dim}`}>
-                    <span>Trigger: {triggerPrice.toLocaleString()}</span>
-                    <span className={!dimmed && Math.abs(price - triggerPrice) < price * 0.003 ? 'text-yellow-400' : ''}>
-                        {price >= triggerPrice ? '-' : '+'}{Math.abs(price - triggerPrice).toLocaleString()}
-                    </span>
+            {/* Row 2: Accumulated PnL */}
+            {accCycles > 0 && (
+                <div className={`pt-1.5 border-t ${dimmed ? 'border-white/[0.02]' : 'border-white/[0.04]'}`}>
+                    <div className="flex items-center justify-between text-[9px]">
+                        <span className={dim}>Total {accCycles} {accCycles === 1 ? 'Cycle' : 'Cycles'}</span>
+                        <span className={pnlColor(accPnl)}>
+                            {formatPnl(accPnl)}
+                            {accPnlPct !== 0 && <span className="text-[8px] opacity-70"> ({accPnlPct >= 0 ? '+' : ''}{accPnlPct.toFixed(1)}%)</span>}
+                        </span>
+                    </div>
                 </div>
             )}
-
-            {/* Row 4: Accumulated PnL */}
-            <div className={`pt-1.5 border-t ${dimmed ? 'border-white/[0.02]' : 'border-white/[0.04]'}`}>
-                <div className="flex items-center justify-between text-[9px]">
-                    <span className={dim}>Total {accCycles} {accCycles === 1 ? 'Cycle' : 'Cycles'}</span>
-                    <span className={pnlColor(accPnl)}>
-                        {formatPnl(accPnl)}
-                        {accPnlPct !== 0 && <span className="text-[8px] opacity-70"> ({accPnlPct >= 0 ? '+' : ''}{accPnlPct.toFixed(1)}%)</span>}
-                    </span>
-                </div>
-            </div>
         </div>
     );
 };

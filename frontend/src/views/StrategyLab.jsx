@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import {
-    getStrategyRequests, createStrategyRequest, updateStrategyRequest, deleteStrategyRequest,
-    activateStrategy
-} from '../api/client';
+import { getStrategyRequests, deleteStrategyRequest, activateStrategy } from '../api/client';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import {
-    Plus, FlaskConical, ChevronRight, ChevronLeft, Save, Send, Trash2,
-    Edit3, Eye, X, AlertCircle, CheckCircle, Clock, Zap, TrendingUp,
-    BarChart3, Activity, Layers, Play, MessageCircle
+    FlaskConical, Trash2, Edit3, X, AlertCircle, CheckCircle, Clock, Zap,
+    TrendingUp, BarChart3, Layers, Play, Wrench, Bot, Send
 } from 'lucide-react';
 import StrategyLabChat from '../components/StrategyLabChat';
 
@@ -40,12 +36,6 @@ const STATUS_CONFIG = {
     active: { label: 'Active', color: 'bg-blue-500/20 text-blue-400', icon: Zap },
 };
 
-const EMPTY_FORM = {
-    name: '', description: '', entry_type: 'price', entry_condition: '',
-    indicators: [], entry_mode: 'single', additional_entry: '', exit_condition: '',
-    custom_parameters: [], default_overrides: {}, notes: '', status: 'draft',
-};
-
 // ============================================================
 // StatusBadge
 // ============================================================
@@ -60,266 +50,9 @@ const StatusBadge = ({ status }) => {
 };
 
 // ============================================================
-// RequestCard
+// Detail View (read-only, AI-only modification)
 // ============================================================
-const RequestCard = ({ request, isSelected, onSelect, onDelete }) => (
-    <div
-        onClick={() => onSelect(request)}
-        className={`p-4 rounded-xl border cursor-pointer transition-all ${isSelected
-            ? 'border-blue-500/50 bg-blue-500/5'
-            : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
-        }`}
-    >
-        <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-white text-sm truncate flex-1">{request.name}</h3>
-            <StatusBadge status={request.status} />
-        </div>
-        {request.description && (
-            <p className="text-xs text-gray-500 mb-2 line-clamp-2">{request.description}</p>
-        )}
-        <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400">
-                {ENTRY_TYPES.find(e => e.value === request.entry_type)?.label || request.entry_type}
-            </span>
-            {(request.indicators || []).slice(0, 3).map(ind => (
-                <span key={ind} className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">
-                    {INDICATORS.find(i => i.id === ind)?.label || ind}
-                </span>
-            ))}
-        </div>
-        <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-gray-600">
-                {request.created_at ? new Date(request.created_at).toLocaleDateString('ko-KR') : ''}
-            </span>
-            <button
-                onClick={(e) => { e.stopPropagation(); onDelete(request.id); }}
-                className="p-1 hover:bg-red-500/10 rounded text-gray-600 hover:text-red-400 transition-colors"
-            >
-                <Trash2 size={12} />
-            </button>
-        </div>
-    </div>
-);
-
-// ============================================================
-// Wizard Steps
-// ============================================================
-const StepBasicInfo = ({ form, setField }) => (
-    <div className="space-y-4">
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Strategy Name *</label>
-            <input
-                type="text" value={form.name} onChange={e => setField('name', e.target.value)}
-                placeholder="e.g. Golden Cross Buy"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
-            />
-        </div>
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
-            <input
-                type="text" value={form.description} onChange={e => setField('description', e.target.value)}
-                placeholder="Brief one-line description"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
-            />
-        </div>
-    </div>
-);
-
-const StepEntryCondition = ({ form, setField }) => (
-    <div className="space-y-4">
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Entry Type</label>
-            <div className="grid grid-cols-2 gap-2">
-                {ENTRY_TYPES.map(et => {
-                    const Icon = et.icon;
-                    return (
-                        <button
-                            key={et.value}
-                            onClick={() => setField('entry_type', et.value)}
-                            className={`p-3 rounded-lg border text-left transition-all ${form.entry_type === et.value
-                                ? 'border-blue-500/50 bg-blue-500/10'
-                                : 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                            }`}
-                        >
-                            <div className="flex items-center gap-2 mb-1">
-                                <Icon size={14} className={form.entry_type === et.value ? 'text-blue-400' : 'text-gray-500'} />
-                                <span className="text-sm font-medium text-white">{et.label}</span>
-                            </div>
-                            <span className="text-[10px] text-gray-500">{et.desc}</span>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Entry Condition *</label>
-            <textarea
-                value={form.entry_condition} onChange={e => setField('entry_condition', e.target.value)}
-                placeholder="Describe when to buy. e.g.: Buy when 5-day MA crosses above 20-day MA"
-                rows={4}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 resize-none"
-            />
-        </div>
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Indicators Used</label>
-            <div className="flex flex-wrap gap-2">
-                {INDICATORS.map(ind => {
-                    const selected = (form.indicators || []).includes(ind.id);
-                    return (
-                        <button
-                            key={ind.id}
-                            onClick={() => {
-                                const current = form.indicators || [];
-                                setField('indicators', selected
-                                    ? current.filter(i => i !== ind.id)
-                                    : [...current, ind.id]
-                                );
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selected
-                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-                            }`}
-                        >
-                            {ind.label}
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    </div>
-);
-
-const StepEntryExit = ({ form, setField }) => (
-    <div className="space-y-4">
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Entry Mode</label>
-            <div className="flex gap-3">
-                {[
-                    { value: 'single', label: 'Single Entry', desc: 'One buy, max_buy_count=1' },
-                    { value: 'multi', label: 'Multi-Level', desc: 'Averaging down (martingale)' },
-                ].map(opt => (
-                    <button
-                        key={opt.value}
-                        onClick={() => setField('entry_mode', opt.value)}
-                        className={`flex-1 p-3 rounded-lg border text-left transition-all ${form.entry_mode === opt.value
-                            ? 'border-blue-500/50 bg-blue-500/10'
-                            : 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                        }`}
-                    >
-                        <span className="text-sm font-medium text-white">{opt.label}</span>
-                        <p className="text-[10px] text-gray-500 mt-0.5">{opt.desc}</p>
-                    </button>
-                ))}
-            </div>
-        </div>
-        {form.entry_mode === 'multi' && (
-            <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Additional Entry Condition</label>
-                <textarea
-                    value={form.additional_entry} onChange={e => setField('additional_entry', e.target.value)}
-                    placeholder="e.g.: Buy again when price drops 2% from last entry"
-                    rows={3}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 resize-none"
-                />
-            </div>
-        )}
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Special Exit Condition</label>
-            <textarea
-                value={form.exit_condition} onChange={e => setField('exit_condition', e.target.value)}
-                placeholder="Leave empty for default trailing stop / stop loss. e.g.: Force sell at 15:00"
-                rows={3}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 resize-none"
-            />
-        </div>
-    </div>
-);
-
-const StepParameters = ({ form, setField }) => {
-    const params = form.custom_parameters || [];
-
-    const addParam = () => {
-        setField('custom_parameters', [...params, { name: '', type: 'number', default: '', description: '' }]);
-    };
-    const removeParam = (idx) => {
-        setField('custom_parameters', params.filter((_, i) => i !== idx));
-    };
-    const updateParam = (idx, key, value) => {
-        const updated = params.map((p, i) => i === idx ? { ...p, [key]: value } : p);
-        setField('custom_parameters', updated);
-    };
-
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-300">Custom Parameters</label>
-                <button
-                    onClick={addParam}
-                    className="flex items-center gap-1 px-2 py-1 text-xs text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                >
-                    <Plus size={12} /> Add Parameter
-                </button>
-            </div>
-            {params.length === 0 && (
-                <p className="text-xs text-gray-600 italic">No custom parameters. Common parameters (trailing stop, stop loss, etc.) are included automatically.</p>
-            )}
-            {params.map((p, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-start">
-                    <input
-                        value={p.name} onChange={e => updateParam(idx, 'name', e.target.value)}
-                        placeholder="name" className="col-span-3 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
-                    />
-                    <select
-                        value={p.type} onChange={e => updateParam(idx, 'type', e.target.value)}
-                        className="col-span-2 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-blue-500/50"
-                    >
-                        <option value="number">Number</option>
-                        <option value="select">Select</option>
-                        <option value="time">Time</option>
-                    </select>
-                    <input
-                        value={p.default} onChange={e => updateParam(idx, 'default', e.target.value)}
-                        placeholder="default" className="col-span-2 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
-                    />
-                    <input
-                        value={p.description} onChange={e => updateParam(idx, 'description', e.target.value)}
-                        placeholder="description" className="col-span-4 px-2 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
-                    />
-                    <button onClick={() => removeParam(idx)} className="col-span-1 p-1.5 hover:bg-red-500/10 rounded text-gray-500 hover:text-red-400">
-                        <X size={14} />
-                    </button>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-const StepNotes = ({ form, setField }) => (
-    <div className="space-y-4">
-        <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Notes & References</label>
-            <textarea
-                value={form.notes} onChange={e => setField('notes', e.target.value)}
-                placeholder="Additional details, reference URLs, edge cases, etc."
-                rows={6}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 resize-none"
-            />
-        </div>
-    </div>
-);
-
-const STEPS = [
-    { title: 'Basic Info', component: StepBasicInfo },
-    { title: 'Entry Condition', component: StepEntryCondition },
-    { title: 'Entry & Exit', component: StepEntryExit },
-    { title: 'Parameters', component: StepParameters },
-    { title: 'Notes & Submit', component: StepNotes },
-];
-
-// ============================================================
-// Detail View (read-only)
-// ============================================================
-const DetailView = ({ request, onEdit, onClose, onActivate }) => (
+const DetailView = ({ request, onActivate, onModifyWithAI }) => (
     <div className="space-y-4">
         <div className="flex items-center justify-between">
             <div>
@@ -328,21 +61,22 @@ const DetailView = ({ request, onEdit, onClose, onActivate }) => (
             </div>
             <div className="flex items-center gap-2">
                 <StatusBadge status={request.status} />
-                {(request.status === 'draft' || request.status === 'submitted') && (
-                    <button onClick={onEdit} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white">
-                        <Edit3 size={16} />
+                {request.strategy_id && onModifyWithAI && (
+                    <button
+                        onClick={() => onModifyWithAI(request.strategy_id, request.name)}
+                        className="flex items-center gap-1 px-2 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg text-xs font-medium transition-colors"
+                        title="AI로 전략 수정"
+                    >
+                        <Wrench size={12} /> AI 수정
                     </button>
                 )}
-                <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white">
-                    <X size={16} />
-                </button>
             </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
             <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
                 <span className="text-[10px] text-gray-500 uppercase">Entry Type</span>
-                <p className="text-sm text-white mt-1">{ENTRY_TYPES.find(e => e.value === request.entry_type)?.label}</p>
+                <p className="text-sm text-white mt-1">{ENTRY_TYPES.find(e => e.value === request.entry_type)?.label || request.entry_type}</p>
             </div>
             <div className="p-3 rounded-lg bg-white/[0.02] border border-white/5">
                 <span className="text-[10px] text-gray-500 uppercase">Entry Mode</span>
@@ -408,6 +142,7 @@ const DetailView = ({ request, onEdit, onClose, onActivate }) => (
         {request.status === 'implemented' && request.strategy_id && (
             <div className="mt-6 p-4 rounded-lg bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border border-emerald-500/30">
                 <BacktestPanel
+                    key={`${request.strategy_id}-${request.updated_at}`}
                     strategyId={request.strategy_id}
                     requestId={request.id}
                     onActivate={onActivate}
@@ -435,7 +170,6 @@ const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
                 const res = await axios.get('/api/v1/strategies/list', { params: { status: 'testing' } });
                 const found = res.data.find(s => s.id === strategyId);
                 if (!found) {
-                    // Fallback: try loading from all strategies
                     const allRes = await axios.get('/api/v1/strategies/list', { params: { status: '' } });
                     const fallback = allRes.data.find(s => s.id === strategyId);
                     setStrategy(fallback || null);
@@ -597,16 +331,10 @@ const StrategyLab = () => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    // Modes: 'list' | 'detail' | 'wizard'
-    const [mode, setMode] = useState('list');
     const [selectedRequest, setSelectedRequest] = useState(null);
-    const [editingId, setEditingId] = useState(null); // null = new, string = editing existing
 
-    // Wizard state
-    const [step, setStep] = useState(0);
-    const [form, setForm] = useState({ ...EMPTY_FORM });
-    const [saving, setSaving] = useState(false);
+    // AI Chat prefill
+    const [chatPrefill, setChatPrefill] = useState(null);
 
     // ========================================
     // Load requests
@@ -616,6 +344,11 @@ const StrategyLab = () => {
             setLoading(true);
             const data = await getStrategyRequests();
             setRequests(data);
+            setSelectedRequest(prev => {
+                if (!prev) return prev;
+                const updated = data.find(r => r.id === prev.id);
+                return updated || prev;
+            });
         } catch (err) {
             setError('Failed to load strategy requests');
             console.error(err);
@@ -629,73 +362,22 @@ const StrategyLab = () => {
     // ========================================
     // Handlers
     // ========================================
-    const setField = useCallback((key, value) => {
-        setForm(prev => ({ ...prev, [key]: value }));
-    }, []);
-
-    const startNewWizard = () => {
-        setForm({ ...EMPTY_FORM });
-        setEditingId(null);
-        setStep(0);
-        setMode('wizard');
-    };
-
-    const startEditWizard = (request) => {
-        setForm({
-            name: request.name || '',
-            description: request.description || '',
-            entry_type: request.entry_type || 'price',
-            entry_condition: request.entry_condition || '',
-            indicators: request.indicators || [],
-            entry_mode: request.entry_mode || 'single',
-            additional_entry: request.additional_entry || '',
-            exit_condition: request.exit_condition || '',
-            custom_parameters: request.custom_parameters || [],
-            default_overrides: request.default_overrides || {},
-            notes: request.notes || '',
-            status: request.status || 'draft',
-        });
-        setEditingId(request.id);
-        setStep(0);
-        setMode('wizard');
-    };
-
-    const selectRequest = (req) => {
-        setSelectedRequest(req);
-        setMode('detail');
-    };
-
-    const handleSave = async (targetStatus) => {
-        if (!form.name.trim() || !form.entry_condition.trim()) {
-            setError('Name and Entry Condition are required');
-            return;
-        }
-        setSaving(true);
-        setError(null);
-        try {
-            const payload = { ...form, status: targetStatus };
-            if (editingId) {
-                await updateStrategyRequest(editingId, payload);
-            } else {
-                await createStrategyRequest(payload);
-            }
-            await loadRequests();
-            setMode('list');
+    const handleSelectStrategy = (e) => {
+        const id = e.target.value;
+        if (!id) {
             setSelectedRequest(null);
-        } catch (err) {
-            setError(err.response?.data?.detail || 'Failed to save');
-        } finally {
-            setSaving(false);
+        } else {
+            const req = requests.find(r => r.id === id);
+            setSelectedRequest(req || null);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Delete this strategy request?')) return;
+        if (!confirm('이 전략을 삭제하시겠습니까?')) return;
         try {
             await deleteStrategyRequest(id);
             if (selectedRequest?.id === id) {
                 setSelectedRequest(null);
-                setMode('list');
             }
             await loadRequests();
         } catch (err) {
@@ -706,34 +388,16 @@ const StrategyLab = () => {
     // ========================================
     // Render
     // ========================================
-    const StepComponent = STEPS[step]?.component;
-
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                        <FlaskConical size={20} className="text-purple-400" />
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-white">Strategy Lab</h1>
-                        <p className="text-xs text-gray-500">Design your trading strategy ideas</p>
-                    </div>
+            <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <FlaskConical size={20} className="text-purple-400" />
                 </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setMode('chat')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'chat' ? 'bg-purple-600 text-white' : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'}`}
-                    >
-                        <MessageCircle size={16} /> AI Chat
-                    </button>
-                    <button
-                        onClick={startNewWizard}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-lg text-sm font-medium transition-colors"
-                    >
-                        <Plus size={16} /> Manual
-                    </button>
+                <div>
+                    <h1 className="text-xl font-bold text-white">Strategy Lab</h1>
+                    <p className="text-xs text-gray-500">AI로 트레이딩 전략을 생성하고 관리하세요</p>
                 </div>
             </div>
 
@@ -745,147 +409,78 @@ const StrategyLab = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-12 gap-6">
-                {/* Left: Request List */}
-                <div className="col-span-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-sm font-medium text-gray-400">
-                            My Requests ({requests.length})
-                        </h2>
-                    </div>
+            <div className="grid grid-cols-12 gap-4">
+                {/* Left: Strategy Content */}
+                <div className="col-span-7">
+                    <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 220px)' }}>
+                        {/* Strategy Selector */}
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 flex-shrink-0">
+                            <select
+                                value={selectedRequest?.id || ''}
+                                onChange={handleSelectStrategy}
+                                className="flex-1 px-3 py-2 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                            >
+                                <option value="">+ 새 전략 만들기</option>
+                                {requests.map(req => (
+                                    <option key={req.id} value={req.id}>
+                                        {req.name} ({STATUS_CONFIG[req.status]?.label || req.status})
+                                    </option>
+                                ))}
+                            </select>
+                            {selectedRequest && (
+                                <button
+                                    onClick={() => handleDelete(selectedRequest.id)}
+                                    className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-400 transition-colors"
+                                    title="전략 삭제"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                        </div>
 
-                    {loading ? (
-                        <div className="text-center py-8 text-gray-600 text-sm">Loading...</div>
-                    ) : requests.length === 0 ? (
-                        <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
-                            <FlaskConical size={32} className="mx-auto text-gray-700 mb-2" />
-                            <p className="text-sm text-gray-500">No strategy requests yet</p>
-                            <p className="text-xs text-gray-600 mt-1">Click "New Strategy" to create one</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
-                            {requests.map(req => (
-                                <RequestCard
-                                    key={req.id}
-                                    request={req}
-                                    isSelected={selectedRequest?.id === req.id}
-                                    onSelect={selectRequest}
-                                    onDelete={handleDelete}
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-5">
+                            {loading ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-gray-600 text-sm">Loading...</div>
+                                </div>
+                            ) : !selectedRequest ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center">
+                                        <Bot size={48} className="mx-auto text-purple-500/30 mb-4" />
+                                        <p className="text-sm text-gray-400 mb-2">AI Strategy Builder로 새 전략을 만들어보세요</p>
+                                        <p className="text-xs text-gray-600">
+                                            오른쪽 채팅창에서 전략 아이디어를 설명하면
+                                            <br />AI가 자동으로 전략 코드를 생성합니다
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <DetailView
+                                    request={selectedRequest}
+                                    onActivate={() => { loadRequests(); }}
+                                    onModifyWithAI={(strategyId, name) => {
+                                        setChatPrefill(`${strategyId} 전략을 수정해줘: `);
+                                    }}
                                 />
-                            ))}
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Right: Detail or Wizard */}
-                <div className="col-span-8">
-                    {mode === 'list' && (
-                        <div className="flex items-center justify-center h-64 border border-dashed border-white/10 rounded-xl">
-                            <div className="text-center">
-                                <Eye size={32} className="mx-auto text-gray-700 mb-2" />
-                                <p className="text-sm text-gray-500">Select a request to view details</p>
-                                <p className="text-xs text-gray-600">or create a new strategy</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {mode === 'detail' && selectedRequest && (
-                        <div className="p-6 bg-white/[0.02] border border-white/10 rounded-xl">
-                            <DetailView
-                                request={selectedRequest}
-                                onEdit={() => startEditWizard(selectedRequest)}
-                                onClose={() => { setMode('list'); setSelectedRequest(null); }}
-                                onActivate={() => { loadRequests(); setMode('list'); setSelectedRequest(null); }}
-                            />
-                        </div>
-                    )}
-
-                    {mode === 'chat' && (
-                        <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
-                            <StrategyLabChat onClose={() => setMode('list')} />
-                        </div>
-                    )}
-
-                    {mode === 'wizard' && (
-                        <div className="p-6 bg-white/[0.02] border border-white/10 rounded-xl space-y-6">
-                            {/* Wizard Header */}
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-white">
-                                    {editingId ? 'Edit Strategy Request' : 'New Strategy Request'}
-                                </h2>
-                                <button
-                                    onClick={() => setMode('list')}
-                                    className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white"
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
-
-                            {/* Progress */}
-                            <div className="flex items-center gap-1">
-                                {STEPS.map((s, i) => (
-                                    <React.Fragment key={i}>
-                                        <button
-                                            onClick={() => setStep(i)}
-                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${i === step
-                                                ? 'bg-purple-500/20 text-purple-300'
-                                                : i < step
-                                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                                    : 'bg-white/5 text-gray-500'
-                                            }`}
-                                        >
-                                            {i + 1}. {s.title}
-                                        </button>
-                                        {i < STEPS.length - 1 && <div className="flex-1 h-px bg-white/5" />}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-
-                            {/* Step Content */}
-                            <div className="min-h-[300px]">
-                                {StepComponent && <StepComponent form={form} setField={setField} />}
-                            </div>
-
-                            {/* Navigation */}
-                            <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                <button
-                                    onClick={() => setStep(Math.max(0, step - 1))}
-                                    disabled={step === 0}
-                                    className="flex items-center gap-1 px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <ChevronLeft size={16} /> Back
-                                </button>
-
-                                <div className="flex items-center gap-2">
-                                    {step === STEPS.length - 1 ? (
-                                        <>
-                                            <button
-                                                onClick={() => handleSave('draft')}
-                                                disabled={saving}
-                                                className="flex items-center gap-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                <Save size={14} /> {saving ? 'Saving...' : 'Save Draft'}
-                                            </button>
-                                            <button
-                                                onClick={() => handleSave('submitted')}
-                                                disabled={saving}
-                                                className="flex items-center gap-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                <Send size={14} /> {saving ? 'Saving...' : 'Submit'}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <button
-                                            onClick={() => setStep(Math.min(STEPS.length - 1, step + 1))}
-                                            className="flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
-                                        >
-                                            Next <ChevronRight size={16} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                {/* Right: AI Chat (always visible) */}
+                <div className="col-span-5">
+                    <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
+                        <StrategyLabChat
+                            onStrategyCreated={loadRequests}
+                            prefillInput={chatPrefill}
+                            onPrefillConsumed={() => setChatPrefill(null)}
+                            selectedStrategy={selectedRequest ? {
+                                strategyId: selectedRequest.strategy_id,
+                                name: selectedRequest.name
+                            } : null}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,156 +1,195 @@
-"""
-US Market Follow Strategy (미장 연계 일일 매매)
-
-Entry: Buy when US market (S&P 500 / NASDAQ) changed >= N% on previous close.
-Exit:  Trailing stop or cycle time limit (inherited from MartingaleBase).
-Mode:  Single entry (max_levels=1 recommended).
-
-Strategy Request ID: 8eb64b61-b5af-4e22-84f7-e67790c18ed9
-"""
 from typing import Dict, Any
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
+from app.core.us_market_data import us_market
 
 
-class USMarketFollowStrategy(MartingaleBase):
+class UsMarketFollowStrategy(MartingaleBase):
     """
-    Buys Korean stocks based on previous US market performance.
-    - Check US market close-to-close change at Korean market open.
-    - If change >= threshold → buy.
-    - One entry per day (trigger resets daily).
-    - Exit via trailing stop or cycle_max_hours.
+    US Market Follow Strategy
+
+    미국 증시 변동률을 기반으로 한국 주식 매매:
+    - 매수 조건: 전일 미국 증시가 N% 이상 변동 시 한국 장 시작에 매수
+    - 매도 조건: 목표 수익률 달성 또는 최대 보유 시간 경과 시 매도
+    - trailing stop, stop loss는 MartingaleBase 기본 기능 활용
     """
 
     PARAMETER_SCHEMA = {
         "fields": [
-            {"name": "us_index", "type": "combobox", "label": "US Index / Ticker",
-             "default": "^GSPC",
-             "options": [
-                 {"value": "^GSPC", "label": "^GSPC (S&P 500)"},
-                 {"value": "^IXIC", "label": "^IXIC (NASDAQ)"},
-                 {"value": "^DJI", "label": "^DJI (Dow Jones)"},
-                 {"value": "^SOX", "label": "^SOX (Semiconductor)"},
-             ],
-             "placeholder": "e.g. ^GSPC, AAPL, NVDA",
-             "description": "US index or stock ticker (yfinance). Presets: ^GSPC, ^IXIC, ^DJI, ^SOX. Or type any ticker.",
-             "show_in_table": True},
-            {"name": "us_threshold", "type": "number", "label": "US Change Threshold (%)",
-             "default": 0.5, "min": -10, "max": 10, "step": 0.1,
-             "description": "Minimum US market change % to trigger buy (e.g., 0.5 = buy when US up 0.5%+)",
-             "show_in_table": True, "defaultOptRange": "0.3, 0.5, 1.0, 1.5, 2.0"},
-            {"name": "us_direction", "type": "select", "label": "Follow Direction",
-             "default": "rise",
-             "options": ["rise", "fall"],
-             "description": "rise = buy when US goes up; fall = buy when US goes down",
-             "show_in_table": True},
+            {
+                "name": "us_index",
+                "type": "combobox",
+                "label": "US Index",
+                "default": "^GSPC",
+                "options": [
+                    {"value": "^GSPC", "label": "S&P 500"},
+                    {"value": "^IXIC", "label": "NASDAQ"},
+                    {"value": "^DJI", "label": "DOW"},
+                    {"value": "^SOX", "label": "Philadelphia Semi"},
+                ],
+                "description": "기준이 되는 미국 지수 (Yahoo Finance 심볼 직접 입력 가능)",
+                "show_in_table": True,
+            },
+            {
+                "name": "trigger_direction",
+                "type": "select",
+                "label": "Trigger Direction",
+                "default": "above",
+                "options": [
+                    {"value": "above", "label": "상승 (Above)"},
+                    {"value": "below", "label": "하락 (Below)"},
+                ],
+                "description": "above=미국 상승 시 매수, below=미국 하락 시 매수",
+                "show_in_table": True,
+            },
+            {
+                "name": "us_change_threshold",
+                "type": "number",
+                "label": "US Change Threshold (%)",
+                "default": 1.0,
+                "min": 0.1,
+                "max": 10.0,
+                "step": 0.1,
+                "description": "미국 증시 변동률 임계값 (n1)",
+                "show_in_table": True,
+                "defaultOptRange": "0.5, 1.0, 1.5, 2.0",
+            },
+            {
+                "name": "entry_start_time",
+                "type": "time",
+                "label": "Entry Start Time",
+                "default": "09:00",
+                "description": "매수 시작 시간 (한국 시간)",
+                "show_in_table": True,
+            },
         ] + customize_fields(BaseStrategy.COMMON_PARAMETER_FIELDS, {
             "max_buy_count": {"default": 1},
+            "last_level_allin": {"default": "on"},
+            "trailing_start_percent": {"default": 2.0, "defaultOptRange": "1.0, 2.0, 3.0, 5.0"},
+            "trailing_stop_percent": {"default": 1.0, "defaultOptRange": "0.5, 1.0, 1.5, 2.0"},
+            "max_loss_percent": {"default": 3.0, "defaultOptRange": "2.0, 3.0, 5.0"},
+            "cycle_max_hours": {"default": 6, "defaultOptRange": "2, 4, 6, 8"},
         })
     }
 
     def _initialize_trigger(self):
-        """Initialize US market data."""
+        """Initialize strategy parameters from config."""
         self.us_index = self.config.get("us_index", "^GSPC")
-        self.us_threshold = float(self.config.get("us_threshold", 0.5))
-        self.us_direction = self.config.get("us_direction", "rise")
+        self.trigger_direction = self.config.get("trigger_direction", "above")
+        self.us_change_threshold = float(self.config.get("us_change_threshold", 1.0))
 
-        # Daily tracking
-        self._last_checked_date = None
-        self._today_us_change = None
-        self._today_triggered = False
+        # Parse entry start time
+        entry_start_str = self.config.get("entry_start_time", "09:00")
 
-        # Backtest: preload US market history
+        from datetime import datetime
+        try:
+            self.entry_start_time = datetime.strptime(entry_start_str, "%H:%M").time()
+        except ValueError:
+            self.entry_start_time = datetime.strptime("09:00", "%H:%M").time()
+
+        # Daily state
+        self._daily_date = None
+        self._checked_today = False
+        self._us_change_today = None
+        self._trigger_met = False
+
+        # For backtest: preload US change map
         self._us_change_map = None
 
-    def _load_us_change_map(self):
-        """Lazy-load US market change map for backtesting."""
-        if self._us_change_map is not None:
-            return
+    def preload_history(self, candles: list):
+        """Preload US market change map for backtest."""
+        # Load 1 year of US market data for backtest lookups
+        self._us_change_map = us_market.get_change_map(self.us_index, days=365)
 
-        try:
-            from ..core.us_market_data import us_market
-            self._us_change_map = us_market.get_change_map(self.us_index, days=730)
-            self.context.log(f"[{self._log_prefix}] Loaded US market history: {len(self._us_change_map)} trading days")
-        except Exception as e:
-            self.context.log(f"[{self._log_prefix}] Failed to load US market data: {e}")
-            self._us_change_map = {}
-
-    def _get_us_change_for_today(self) -> float:
-        """Get US market change relevant for today's Korean trading session."""
+    def _get_us_change(self) -> float:
+        """Get US market change for trading decision."""
         current_time = self.context.get_time()
-        current_date = str(current_time.date())
-
-        # Already checked today
-        if self._last_checked_date == current_date and self._today_us_change is not None:
-            return self._today_us_change
-
-        self._last_checked_date = current_date
-
-        # Load change map if needed
-        self._load_us_change_map()
 
         if self._us_change_map:
-            # Backtest or cached: lookup by date
-            from ..core.us_market_data import us_market
-            self._today_us_change = us_market.get_change_for_date(current_date, self._us_change_map)
+            # Backtest mode: lookup from preloaded map
+            return us_market.get_change_for_date(
+                current_time.strftime("%Y-%m-%d"),
+                self._us_change_map
+            )
         else:
-            # Live fallback: get latest change
-            try:
-                from ..core.us_market_data import us_market
-                change = us_market.get_change(self.us_index)
-                self._today_us_change = change if change is not None else 0.0
-            except Exception:
-                self._today_us_change = 0.0
-
-        return self._today_us_change
+            # Live mode: get real-time data
+            return us_market.get_change(self.us_index)
 
     def _on_candle(self, data: Dict[str, Any]):
-        """Reset trigger on new day."""
-        current_date = str(self.context.get_time().date())
-        if self._last_checked_date != current_date:
-            self._today_triggered = False
-            self._today_us_change = None
+        """Daily reset and US change capture."""
+        current_time = self.context.get_time()
+        current_date = current_time.date()
+
+        # Daily reset
+        if self._daily_date != current_date:
+            self._daily_date = current_date
+            self._checked_today = False
+            self._us_change_today = None
+            self._trigger_met = False
 
     def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
-        """L1: Buy if US market change meets threshold."""
-        if self._today_triggered:
+        """
+        Check if US market change meets threshold at market open.
+        Entry allowed after entry_start_time (exit controlled by cycle_max_hours).
+        """
+        if self._checked_today:
             return False
 
-        us_change = self._get_us_change_for_today()
+        current_time = self.context.get_time()
+        current_time_only = current_time.time()
 
-        if self.us_direction == "rise":
-            triggered = us_change >= self.us_threshold
-        else:  # "fall"
-            triggered = us_change <= -self.us_threshold
+        # Check if past entry start time
+        if current_time_only < self.entry_start_time:
+            return False
 
-        if triggered:
-            self._today_triggered = True
-            direction_str = "UP" if self.us_direction == "rise" else "DOWN"
+        # Get US market change (captures once per day)
+        if self._us_change_today is None:
+            self._us_change_today = self._get_us_change()
+            self.context.log(f"[UsMarketFollow] US {self.us_index} change: {self._us_change_today:.2f}%")
+
+        # Mark as checked
+        self._checked_today = True
+
+        # Check if threshold is met based on direction
+        us_change = self._us_change_today
+        threshold = self.us_change_threshold
+
+        if self.trigger_direction == "above":
+            self._trigger_met = us_change >= threshold
+        elif self.trigger_direction == "below":
+            self._trigger_met = us_change <= -threshold
+
+        if self._trigger_met:
             self.context.log(
-                f"[{self._log_prefix}] BUY TRIGGER! US({self.us_index}) {direction_str} {us_change:+.2f}% "
-                f">= threshold {self.us_threshold}%"
+                f"[UsMarketFollow] Trigger met! US change {us_change:.2f}% "
+                f"(threshold: {threshold}%, direction: {self.trigger_direction})"
             )
-            return True
 
-        return False
+        return self._trigger_met
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
-        """L2+: Same logic (for multi-level if desired)."""
-        return self._check_entry_trigger(data)
+        """No additional entries for this strategy (single entry per day)."""
+        return False
 
     @property
     def _log_prefix(self) -> str:
-        return "USFollow"
+        return "UsMarketFollow"
 
     @property
     def _strategy_id(self) -> str:
         return "us_market_follow"
 
     def get_state(self) -> Dict[str, Any]:
+        """Return current strategy state for UI display."""
         state = super().get_state()
+
+        # Add US market specific state
         state["us_index"] = self.us_index
-        state["us_threshold"] = self.us_threshold
-        state["us_direction"] = self.us_direction
-        state["today_us_change"] = self._today_us_change
-        state["today_triggered"] = self._today_triggered
+        state["us_change_today"] = self._us_change_today
+        state["us_change_threshold"] = self.us_change_threshold
+        state["trigger_direction"] = self.trigger_direction
+        state["trigger_met"] = self._trigger_met
+        state["checked_today"] = self._checked_today
+        state["entry_start_time"] = self.config.get("entry_start_time", "09:00")
+
         return state

@@ -75,7 +75,9 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
                 // Use centralized INTERVAL_OPTIONS for interval field
                 const selectOptions = key === 'interval'
                     ? INTERVAL_OPTIONS
-                    : (field.options || []).map(opt => ({ value: opt, label: opt }));
+                    : (field.options || []).map(opt =>
+                        typeof opt === 'string' ? { value: opt, label: opt } : opt
+                    );
                 return (
                     <select
                         id={key}

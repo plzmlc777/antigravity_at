@@ -649,6 +649,20 @@ class Strategy(BaseModel):
 @router.get("/list", response_model=List[Strategy])
 async def list_strategies(status: Optional[str] = "active", db: Session = Depends(get_db)):
     from ..core.strategy_registry import StrategyRegistry
+
+    # Auto-sync: ensure all discovered strategies exist in strategy_info
+    registered = StrategyRegistry.list_strategies()
+    existing_ids = {row[0] for row in db.query(StrategyInfo.id).all()}
+    for sid in registered:
+        if sid not in existing_ids:
+            cls = StrategyRegistry.get_strategy_class(sid)
+            if cls:
+                doc = (cls.__doc__ or '').strip().split('\n')[0]
+                name = cls.__name__.replace('Strategy', '').replace('_', ' ')
+                db.add(StrategyInfo(id=sid, name=name, description=doc, status='active'))
+                logger.info(f"Auto-synced strategy_info: {sid}")
+    db.commit()
+
     query = db.query(StrategyInfo)
     if status:
         query = query.filter(StrategyInfo.status == status)

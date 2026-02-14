@@ -2,12 +2,19 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, X, RotateCcw } from 'lucide-react';
 import { strategyLabChat } from '../api/client';
 
-const StrategyLabChat = ({ onClose }) => {
+const getGreeting = (strategy) => {
+    if (!strategy) {
+        return '안녕하세요! AI Strategy Builder입니다.\n\n만들고 싶은 전략의 핵심 매매 로직만 설명해주세요.\n방향, 지수, 임계값 등은 모두 UI 파라미터로 자동 생성됩니다.\n\n요청 예시:\n- "미국 증시 변동률 기반으로 한국 주식 매매하는 전략 만들어줘"\n- "RSI 지표 기반으로 과매도 구간에서 매수하는 전략"\n- "장 시작 후 일정 시간 내 가격 변동률이 크면 진입하는 전략"\n- "특정 시간대에 캔들이 일정% 이상 하락하면 분할 매수하는 전략"';
+    }
+    if (strategy.strategyId) {
+        return `「${strategy.name}」 전략이 선택되었습니다.\n\n이 전략을 어떻게 수정할까요?\n\n수정 예시:\n- "진입 조건의 임계값을 변경해줘"\n- "trailing stop 로직을 개선해줘"\n- "새로운 파라미터를 추가해줘"\n- "매도 조건을 변경해줘"`;
+    }
+    return `「${strategy.name}」 요청이 선택되었습니다.\n\n이 요청을 기반으로 전략을 구현해드릴까요?\n전략의 매매 로직을 자세히 설명해주세요.`;
+};
+
+const StrategyLabChat = ({ onClose, onStrategyCreated, prefillInput, onPrefillConsumed, selectedStrategy }) => {
     const [messages, setMessages] = useState([
-        {
-            role: 'assistant',
-            content: '안녕하세요! Strategy Builder입니다.\n\n어떤 트레이딩 전략을 만들고 싶으신가요?\n예시:\n- "RSI가 30 이하로 내려갈 때 매수하는 전략"\n- "거래량이 평균의 3배 이상일 때 진입"\n- "볼린저 밴드 하단 터치 시 매수"'
-        }
+        { role: 'assistant', content: getGreeting(null) }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -15,6 +22,7 @@ const StrategyLabChat = ({ onClose }) => {
     const [error, setError] = useState(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const prevStrategyRef = useRef(undefined);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,6 +31,32 @@ const StrategyLabChat = ({ onClose }) => {
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
+
+    // Reset chat when strategy selection changes
+    useEffect(() => {
+        const prevId = prevStrategyRef.current;
+        const currId = selectedStrategy?.strategyId || null;
+        prevStrategyRef.current = currId;
+
+        // Skip initial render
+        if (prevId === undefined) return;
+
+        // Only reset if selection actually changed
+        if (prevId !== currId) {
+            setMessages([{ role: 'assistant', content: getGreeting(selectedStrategy) }]);
+            setSessionId(null);
+            setError(null);
+            setInput('');
+        }
+    }, [selectedStrategy]);
+
+    useEffect(() => {
+        if (prefillInput) {
+            setInput(prefillInput);
+            onPrefillConsumed?.();
+            setTimeout(() => inputRef.current?.focus(), 50);
+        }
+    }, [prefillInput]);
 
     const sendMessage = async () => {
         const text = input.trim();
@@ -50,6 +84,10 @@ const StrategyLabChat = ({ onClose }) => {
                     content: data.response,
                     duration: data.duration_ms
                 }]);
+                // Refresh My Requests when new strategy was created
+                if (data.new_strategies?.length > 0) {
+                    onStrategyCreated?.();
+                }
             }
         } catch (err) {
             const msg = err.response?.data?.detail || err.message || 'Unknown error';
@@ -72,10 +110,7 @@ const StrategyLabChat = ({ onClose }) => {
     };
 
     const resetChat = () => {
-        setMessages([{
-            role: 'assistant',
-            content: '새 대화를 시작합니다. 어떤 전략을 만들까요?'
-        }]);
+        setMessages([{ role: 'assistant', content: getGreeting(selectedStrategy) }]);
         setSessionId(null);
         setError(null);
     };
