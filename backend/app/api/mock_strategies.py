@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..models.strategy_info import StrategyInfo
 from ..core.user_context import UserAccountContext, get_user_context
+from .auth import get_current_user, get_optional_user
+from ..models.user import User
 import random
 import time
 import itertools
@@ -640,6 +642,8 @@ class Strategy(BaseModel):
     detailed_description: Optional[str] = None
     parameter_schema: Optional[Dict[str, Any]] = None
     status: Optional[str] = "active"
+    owner_id: Optional[int] = None
+    is_public: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -647,8 +651,13 @@ class Strategy(BaseModel):
 # Hardcoded strategies removed in favor of DB persistence.
 
 @router.get("/list", response_model=List[Strategy])
-async def list_strategies(status: Optional[str] = "active", db: Session = Depends(get_db)):
+async def list_strategies(
+    status: Optional[str] = "active",
+    db: Session = Depends(get_db),
+    current_user=Depends(get_optional_user),
+):
     from ..core.strategy_registry import StrategyRegistry
+    from sqlalchemy import or_
 
     # Auto-sync: ensure all discovered strategies exist in strategy_info
     registered = StrategyRegistry.list_strategies()
@@ -659,13 +668,27 @@ async def list_strategies(status: Optional[str] = "active", db: Session = Depend
             if cls:
                 doc = (cls.__doc__ or '').strip().split('\n')[0]
                 name = cls.__name__.replace('Strategy', '').replace('_', ' ')
-                db.add(StrategyInfo(id=sid, name=name, description=doc, status='active'))
+                db.add(StrategyInfo(id=sid, name=name, description=doc, status='active', is_public=True))
                 logger.info(f"Auto-synced strategy_info: {sid}")
     db.commit()
 
     query = db.query(StrategyInfo)
     if status:
         query = query.filter(StrategyInfo.status == status)
+
+    # Ownership filter: show public + own + ownerless (legacy)
+    if current_user:
+        query = query.filter(or_(
+            StrategyInfo.is_public == True,
+            StrategyInfo.owner_id == current_user.id,
+            StrategyInfo.owner_id.is_(None),
+        ))
+    else:
+        query = query.filter(or_(
+            StrategyInfo.is_public == True,
+            StrategyInfo.owner_id.is_(None),
+        ))
+
     strats = query.all()
     result = []
     for s in strats:
@@ -676,6 +699,28 @@ async def list_strategies(status: Optional[str] = "active", db: Session = Depend
             data.parameter_schema = class_schema
         result.append(data)
     return result
+
+
+class VisibilityUpdate(BaseModel):
+    is_public: bool
+
+
+@router.patch("/{strategy_id}/visibility")
+async def toggle_strategy_visibility(
+    strategy_id: str,
+    body: VisibilityUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Toggle public/private visibility. Only owner can change."""
+    strategy = db.query(StrategyInfo).filter(StrategyInfo.id == strategy_id).first()
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    if strategy.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can change visibility")
+    strategy.is_public = body.is_public
+    db.commit()
+    return {"status": "ok", "strategy_id": strategy_id, "is_public": body.is_public}
 
 @router.post("/generate")
 async def generate_strategy_code(prompt: Dict[str, str]):

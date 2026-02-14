@@ -286,11 +286,16 @@ def _auto_register_strategy(strategy_id: str, user_id: int, db: Session):
             description=doc,
             parameter_schema=schema,
             status='active',
+            owner_id=user_id,
+            is_public=False,
         ))
-        logger.info(f"[AutoRegister] Created strategy_info: {strategy_id}")
+        logger.info(f"[AutoRegister] Created strategy_info: {strategy_id} (owner={user_id}, private)")
     else:
         existing_info.parameter_schema = schema
         existing_info.description = doc
+        # Set owner if not already set
+        if existing_info.owner_id is None:
+            existing_info.owner_id = user_id
         logger.info(f"[AutoRegister] Updated strategy_info schema: {strategy_id}")
 
     # 3. Ensure strategy_requests record exists for this user

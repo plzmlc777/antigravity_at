@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { getStrategyRequests, deleteStrategyRequest, activateStrategy } from '../api/client';
+import { getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility } from '../api/client';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import {
     FlaskConical, Trash2, Edit3, X, AlertCircle, CheckCircle, Clock, Zap,
-    TrendingUp, BarChart3, Layers, Play, Wrench, Bot, Send
+    TrendingUp, BarChart3, Layers, Play, Wrench, Bot, Send, Globe, Lock
 } from 'lucide-react';
 import StrategyLabChat from '../components/StrategyLabChat';
 
@@ -52,7 +52,7 @@ const StatusBadge = ({ status }) => {
 // ============================================================
 // Detail View (read-only, AI-only modification)
 // ============================================================
-const DetailView = ({ request, onActivate, onModifyWithAI }) => (
+const DetailView = ({ request, onActivate, onModifyWithAI, strategyVisibility, onToggleVisibility }) => (
     <div className="space-y-4">
         <div className="flex items-center justify-between">
             <div>
@@ -61,6 +61,20 @@ const DetailView = ({ request, onActivate, onModifyWithAI }) => (
             </div>
             <div className="flex items-center gap-2">
                 <StatusBadge status={request.status} />
+                {request.strategy_id && strategyVisibility !== null && (
+                    <button
+                        onClick={() => onToggleVisibility(request.strategy_id, !strategyVisibility)}
+                        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            strategyVisibility
+                                ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400'
+                                : 'bg-gray-500/10 hover:bg-gray-500/20 text-gray-400'
+                        }`}
+                        title={strategyVisibility ? 'Public (다른 사용자 사용 가능)' : 'Private (본인만 사용 가능)'}
+                    >
+                        {strategyVisibility ? <Globe size={12} /> : <Lock size={12} />}
+                        {strategyVisibility ? 'Public' : 'Private'}
+                    </button>
+                )}
                 {request.strategy_id && onModifyWithAI && (
                     <button
                         onClick={() => onModifyWithAI(request.strategy_id, request.name)}
@@ -336,6 +350,9 @@ const StrategyLab = () => {
     // AI Chat prefill
     const [chatPrefill, setChatPrefill] = useState(null);
 
+    // Strategy visibility cache: { strategy_id: boolean }
+    const [visibilityMap, setVisibilityMap] = useState({});
+
     // ========================================
     // Load requests
     // ========================================
@@ -369,6 +386,28 @@ const StrategyLab = () => {
         } else {
             const req = requests.find(r => r.id === id);
             setSelectedRequest(req || null);
+        }
+    };
+
+    // Load visibility from strategy_info when strategy is selected
+    useEffect(() => {
+        const sid = selectedRequest?.strategy_id;
+        if (!sid || visibilityMap[sid] !== undefined) return;
+        axios.get('/api/v1/strategies/list', { params: { status: '' } })
+            .then(res => {
+                const map = {};
+                res.data.forEach(s => { map[s.id] = !!s.is_public; });
+                setVisibilityMap(prev => ({ ...prev, ...map }));
+            })
+            .catch(() => {});
+    }, [selectedRequest?.strategy_id]);
+
+    const handleToggleVisibility = async (strategyId, isPublic) => {
+        try {
+            await updateStrategyVisibility(strategyId, isPublic);
+            setVisibilityMap(prev => ({ ...prev, [strategyId]: isPublic }));
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Failed to update visibility');
         }
     };
 
@@ -462,6 +501,8 @@ const StrategyLab = () => {
                                     onModifyWithAI={(strategyId, name) => {
                                         setChatPrefill(`${strategyId} 전략을 수정해줘: `);
                                     }}
+                                    strategyVisibility={selectedRequest?.strategy_id ? (visibilityMap[selectedRequest.strategy_id] ?? null) : null}
+                                    onToggleVisibility={handleToggleVisibility}
                                 />
                             )}
                         </div>

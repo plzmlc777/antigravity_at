@@ -58,6 +58,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
     return user
 
+# Optional auth: returns user if token present, None otherwise
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/v1/auth/token", auto_error=False)
+
+async def get_optional_user(token: str = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)):
+    if not token:
+        return None
+    try:
+        payload = security.jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        user = db.query(User).filter(User.email == email).first()
+        return user
+    except Exception:
+        return None
+
 async def get_current_active_admin(current_user: User = Depends(get_current_user)):
     if not current_user.is_admin:
         raise HTTPException(

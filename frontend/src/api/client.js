@@ -537,3 +537,8 @@ export const activateStrategy = (requestId) =>
     api.post(`/strategy-lab/requests/${requestId}/activate`).then(r => r.data);
 export const strategyLabChat = (message, sessionId = null) =>
     api.post('/strategy-lab/chat', { message, session_id: sessionId }, { timeout: 310000 }).then(r => r.data);
+
+export const updateStrategyVisibility = async (strategyId, isPublic) => {
+    const { data } = await api.patch(`/strategies/${strategyId}/visibility`, { is_public: isPublic });
+    return data;
+};
