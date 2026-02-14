@@ -71,6 +71,9 @@ export const useOptimization = ({
     // Cancellation state
     const [isCancelling, setIsCancelling] = useState(false);
 
+    // Execution mode: "standard" (sequential) or "fast" (parallel ProcessPool)
+    const [executionMode, setExecutionMode] = useState("standard");
+
     // ========================================
     // Dynamic helpers (bound to current strategy)
     // ========================================
@@ -358,7 +361,8 @@ export const useOptimization = ({
                 strategy_id: selectedStrategy.id,
                 save_to_tab_id: saveTabId,  // Auto-save to DB on completion
                 profile_id: selectedProfileId,  // For task recovery across browsers
-                tab_key: String(startTab)  // Per-tab tracking
+                tab_key: String(startTab),  // Per-tab tracking
+                execution_mode: executionMode  // "standard" or "fast" (parallel)
             };
 
             // Log optimization request details
@@ -685,7 +689,8 @@ export const useOptimization = ({
                 initial_capital: currentConfig?.initial_capital || 10000000,
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
-                save_to_tab_id: saveTabId  // Server-side auto-save on completion
+                save_to_tab_id: saveTabId,  // Server-side auto-save on completion
+                execution_mode: executionMode  // "standard" or "fast" (parallel)
             };
 
             // 1. Start Optimization (Async)
@@ -878,8 +883,10 @@ export const useOptimization = ({
         isCancelling,
         isHeavyOptRunning,
         optStatusMessage,
+        executionMode,
 
         // Handlers
+        setExecutionMode,
         runOptimization,
         cancelOptimization,
         startHeavyOptimization,

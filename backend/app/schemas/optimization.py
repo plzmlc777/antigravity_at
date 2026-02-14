@@ -15,6 +15,7 @@ class OptimizationRequest(BaseModel):
     # Server-side auto-save: tab UUID for persisting results to DB on completion
     save_to_tab_id: Optional[str] = None
     save_account_id: Optional[int] = None
+    execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
 
 class OptimizationResultItem(BaseModel):
     rank: int
@@ -83,6 +84,7 @@ class HeavyOptimizationRequest(BaseModel):
     save_account_id: Optional[int] = None
     profile_id: Optional[str] = None  # Profile UUID for task recovery across browsers
     tab_key: Optional[str] = None  # Tab identifier (e.g. "0", "-3") for per-tab tracking
+    execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
 
 
 class HeavyOptimizationStatus(BaseModel):

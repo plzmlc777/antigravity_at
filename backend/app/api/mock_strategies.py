@@ -12,7 +12,7 @@ import itertools
 import functools
 import csv
 import os
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from ..schemas.optimization import (
     OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus,
     HeavyOptimizationRequest, HeavyOptimizationStatus,
@@ -174,6 +174,64 @@ OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
 HEAVY_OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}  # For large-scale optimizations
 
 import uuid
+import multiprocessing
+
+
+def _get_worker_count():
+    """Determine worker count for parallel optimization.
+    Uses cpu_count - 1 (reserve 1 core for live trading), clamped to [2, 8].
+    """
+    cpu = os.cpu_count() or 4
+    return max(2, min(8, cpu - 1))
+
+
+def _process_optimization_result(config, res):
+    """Process a single backtest result into OptimizationResultItem.
+    Returns (OptimizationResultItem, error_msg_or_None).
+    """
+    if "error" in res:
+        return None, str(res['error'])
+
+    ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
+    wr = float(str(res['win_rate']).replace('%', ''))
+    trades = int(res.get('total_trades', 0))
+    score = ret * (wr / 100.0)
+
+    recent_10_wr = res.get("recent_10_win_rate", 0)
+    if isinstance(recent_10_wr, str):
+        recent_10_wr = float(recent_10_wr.replace('%', '')) if recent_10_wr != '-' else 0.0
+
+    from ..core.stats_serializer import serialize_backtest_stats
+    stats_obj = serialize_backtest_stats(res)
+    stats_dict = stats_obj.model_dump()
+
+    item = OptimizationResultItem(
+        rank=0,
+        symbol=config.get('symbol', ''),
+        config=config,
+        total_return=ret,
+        win_rate=wr,
+        recent_10_win_rate=recent_10_wr,
+        total_trades=trades,
+        score=round(score, 2),
+        max_drawdown=str(stats_obj.max_drawdown) if stats_obj.max_drawdown else "-",
+        profit_factor=str(stats_obj.profit_factor) if stats_obj.profit_factor else "-",
+        avg_pnl=str(stats_obj.avg_pnl) if stats_obj.avg_pnl else "-",
+        sharpe_ratio=str(stats_obj.sharpe_ratio) if stats_obj.sharpe_ratio else "-",
+        stability_score=str(stats_obj.stability_score) if stats_obj.stability_score else "-",
+        acceleration_score=str(stats_obj.acceleration_score) if stats_obj.acceleration_score else "-",
+        activity_rate=str(stats_obj.activity_rate) if stats_obj.activity_rate else "-",
+        total_days=stats_obj.total_days,
+        avg_holding_time=str(stats_obj.avg_holding_time) if stats_obj.avg_holding_time else "-",
+        max_holding_time=str(stats_obj.max_holding_time) if stats_obj.max_holding_time else "-",
+        min_holding_time=str(stats_obj.min_holding_time) if stats_obj.min_holding_time else "-",
+        max_profit=str(stats_obj.max_profit) if stats_obj.max_profit else "-",
+        max_loss=str(stats_obj.max_loss) if stats_obj.max_loss else "-",
+        stats=stats_dict,
+        metrics={}
+    )
+    return item, None
+
 
 # Helper for Parallel Execution
 # Must be top-level for pickling
@@ -265,105 +323,99 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
 
     return config, result
 
-def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None):
+def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None, execution_mode: str = "standard"):
     """
-    Background wrapper that runs the sync process pool and updates Global Status.
+    Background wrapper that runs optimization and updates Global Status.
+    Supports 'standard' (sequential) and 'fast' (parallel ProcessPool) modes.
     """
     try:
         results = []
         failures = []
-        
+
         # Update Status to Running
         OPTIMIZATION_TASKS[task_id]["status"] = "running"
         OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
-        
-        # TEMPORARY: Sequential execution to fix ProcessPoolExecutor module caching issue
-        logger.info(f"[TEMP] Running {total_combos} combinations sequentially (no multiprocessing)")
 
-        for i, args in enumerate(run_args):
-            # Throttle: yield CPU to live trading engine every iteration
-            if i % 5 == 0:
-                time.sleep(0.01)
-            try:
-                config, res = _run_sync_in_process(*args)
-
-                if "error" in res:
-                    err_msg = str(res['error'])
-                    if len(failures) < 10:
-                         failures.append(f"Config failed: {err_msg}")
-                else:
-                    # Update Status Message
-                    if 'perf_log' in res:
-                         sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
-                         OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
-
-                    # Calculate Score
-                    ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
-                    wr = float(str(res['win_rate']).replace('%', ''))
-                    trades = int(res.get('total_trades', 0))
-
-                    score = ret * (wr / 100.0)
-
-                    # Extract recent_10_win_rate as float
-                    recent_10_wr = res.get("recent_10_win_rate", 0)
-                    if isinstance(recent_10_wr, str):
-                        recent_10_wr = float(recent_10_wr.replace('%', '')) if recent_10_wr != '-' else 0.0
-
-                    # Use centralized serializer for consistent stats
-                    from ..core.stats_serializer import serialize_backtest_stats
-                    stats_obj = serialize_backtest_stats(res)
-                    stats_dict = stats_obj.model_dump()
-
-                    results.append(OptimizationResultItem(
-                        rank=0,
-                        symbol=config.get('symbol', ''),
-                        config=config,
-                        total_return=ret,
-                        win_rate=wr,
-                        recent_10_win_rate=recent_10_wr,
-                        total_trades=trades,
-                        score=round(score, 2),
-                        # Top-level fields for backward compatibility (string format)
-                        max_drawdown=str(stats_obj.max_drawdown) if stats_obj.max_drawdown else "-",
-                        profit_factor=str(stats_obj.profit_factor) if stats_obj.profit_factor else "-",
-                        avg_pnl=str(stats_obj.avg_pnl) if stats_obj.avg_pnl else "-",
-                        sharpe_ratio=str(stats_obj.sharpe_ratio) if stats_obj.sharpe_ratio else "-",
-                        stability_score=str(stats_obj.stability_score) if stats_obj.stability_score else "-",
-                        acceleration_score=str(stats_obj.acceleration_score) if stats_obj.acceleration_score else "-",
-                        activity_rate=str(stats_obj.activity_rate) if stats_obj.activity_rate else "-",
-                        total_days=stats_obj.total_days,
-                        avg_holding_time=str(stats_obj.avg_holding_time) if stats_obj.avg_holding_time else "-",
-                        max_holding_time=str(stats_obj.max_holding_time) if stats_obj.max_holding_time else "-",
-                        min_holding_time=str(stats_obj.min_holding_time) if stats_obj.min_holding_time else "-",
-                        max_profit=str(stats_obj.max_profit) if stats_obj.max_profit else "-",
-                        max_loss=str(stats_obj.max_loss) if stats_obj.max_loss else "-",
-                        # Single source of truth (frontend normalizeStats checks stats first)
-                        stats=stats_dict,
-                        metrics={}  # Empty - deprecated
-                    ))
-            except Exception as e:
-                logger.error(f"Result Error: {e}")
-                failures.append(str(e))
-
-            # Update Progress
-            OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
-
-            # Update partial results every 10 items (for live preview)
-            if len(results) > 0 and (i + 1) % 10 == 0:
-                # Sort current results and take top 20 for preview
+        def _update_partial_results(completed_count):
+            """Update partial results preview every 10 completions."""
+            if len(results) > 0 and completed_count % 10 == 0:
                 sorted_partial = sorted(results, key=lambda x: x.score, reverse=True)[:20]
-                # Assign temporary ranks
-                partial_with_ranks = []
-                for idx, item in enumerate(sorted_partial):
-                    partial_with_ranks.append(item.model_copy(update={"rank": idx + 1}))
+                partial_with_ranks = [item.model_copy(update={"rank": idx + 1}) for idx, item in enumerate(sorted_partial)]
                 OPTIMIZATION_TASKS[task_id]["partial_results"] = partial_with_ranks
 
-            # Check for Cancellation
-            if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                logger.info(f"Task {task_id} cancellation requested.")
-                OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                break
+        if execution_mode == "fast":
+            # ===== PARALLEL EXECUTION (ProcessPoolExecutor with spawn) =====
+            worker_count = _get_worker_count()
+            logger.info(f"[PARALLEL] Running {total_combos} combinations with {worker_count} workers (spawn)")
+            OPTIMIZATION_TASKS[task_id]["message"] = f"Starting parallel execution ({worker_count} workers)..."
+
+            ctx = multiprocessing.get_context('spawn')
+            completed_count = 0
+
+            with ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx) as executor:
+                future_to_idx = {}
+                for i, args in enumerate(run_args):
+                    future = executor.submit(_run_sync_in_process, *args)
+                    future_to_idx[future] = i
+
+                for future in as_completed(future_to_idx):
+                    if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                        logger.info(f"Task {task_id} cancellation requested (parallel).")
+                        for f in future_to_idx:
+                            f.cancel()
+                        OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                        OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                        break
+
+                    completed_count += 1
+                    try:
+                        config, res = future.result()
+                        item, err = _process_optimization_result(config, res)
+                        if item:
+                            if 'perf_log' in res:
+                                sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
+                                OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({completed_count}/{total_combos}){sym_tag}... {res['perf_log']}"
+                            results.append(item)
+                        elif err and len(failures) < 10:
+                            failures.append(f"Config failed: {err}")
+                    except Exception as e:
+                        logger.error(f"Future error: {e}")
+                        if len(failures) < 10:
+                            failures.append(str(e))
+
+                    OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
+                    _update_partial_results(completed_count)
+
+        else:
+            # ===== SEQUENTIAL EXECUTION (standard) =====
+            logger.info(f"[SEQUENTIAL] Running {total_combos} combinations sequentially")
+
+            for i, args in enumerate(run_args):
+                if i % 5 == 0:
+                    time.sleep(0.01)
+                try:
+                    config, res = _run_sync_in_process(*args)
+                    item, err = _process_optimization_result(config, res)
+                    if item:
+                        if 'perf_log' in res:
+                            sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
+                            OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
+                        results.append(item)
+                    elif err and len(failures) < 10:
+                        failures.append(f"Config failed: {err}")
+                except Exception as e:
+                    logger.error(f"Result Error: {e}")
+                    if len(failures) < 10:
+                        failures.append(str(e))
+
+                OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+                _update_partial_results(i + 1)
+
+                if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                    logger.info(f"Task {task_id} cancellation requested.")
+                    OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                    OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                    break
         
         # Finished - Sort by score and assign ranks
         results.sort(key=lambda x: x.score, reverse=True)
@@ -449,6 +501,8 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
         
         OPTIMIZATION_TASKS[task_id]["status"] = final_status
         OPTIMIZATION_TASKS[task_id]["result"] = response
+        elapsed_str = f"{execution_time:.1f}s" if execution_time < 60 else f"{int(execution_time // 60)}m {int(execution_time % 60)}s"
+        OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {len(results)} results, {len(failures)} failures (Elapsed: {elapsed_str})"
 
         # Server-side auto-save to DB (independent of frontend polling)
         if save_to_tab_id and final_status == "completed":
@@ -773,7 +827,8 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx:
         start_time,
         total_combinations,
         save_tab_id,
-        save_acct_id
+        save_acct_id,
+        request.execution_mode
     )
 
     # Return Immediate Response
@@ -846,10 +901,11 @@ async def download_optimization_csv(task_id: str):
 # HEAVY OPTIMIZATION (Large-scale, 10K-100K+ combinations)
 # ============================================================================
 
-def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None):
+def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None, execution_mode: str = "standard"):
     """
     Background task for heavy optimization.
     Streams results directly to CSV to avoid memory issues.
+    Supports 'standard' (sequential) and 'fast' (parallel ProcessPool) modes.
     """
     import heapq
 
@@ -861,7 +917,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
         HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "running"
         HEAVY_OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
 
-        # Top 10 results (min-heap by score, keep top 10)
+        # Top 50 results (min-heap by score)
         top_results = []
         processed = 0
         failures = 0
@@ -876,134 +932,158 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
         ]
         config_keys = None
 
+        def _process_heavy_result(config, res, writer, csvfile, seq_idx):
+            """Process a single heavy optimization result: write CSV + update heap."""
+            nonlocal config_keys, processed, failures, top_results
+
+            if "error" in res:
+                failures += 1
+                return writer
+
+            symbol = config.get('symbol', '')
+            total_return = float(str(res.get('total_return', '0')).replace('%', '').replace(',', ''))
+            win_rate = float(str(res.get('win_rate', '0')).replace('%', ''))
+            total_trades = int(res.get('total_trades', 0))
+            score = total_return * (win_rate / 100.0)
+
+            recent_10_wr = res.get("recent_10_win_rate", 0)
+            if isinstance(recent_10_wr, str):
+                recent_10_wr = float(recent_10_wr.replace('%', '')) if recent_10_wr != '-' else 0.0
+
+            row = {
+                'rank': 0, 'symbol': symbol, 'score': round(score, 2),
+                'total_return': total_return, 'win_rate': win_rate,
+                'recent_10_win_rate': recent_10_wr, 'total_trades': total_trades,
+                'max_drawdown': str(res.get('max_drawdown', '-')),
+                'profit_factor': str(res.get('profit_factor', '-')),
+                'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
+                'avg_pnl': str(res.get('avg_pnl', '-')),
+                'stability_score': str(res.get('stability_score', '-')),
+                'acceleration_score': str(res.get('acceleration_score', '-')),
+                'activity_rate': str(res.get('activity_rate', '-')),
+                'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                'max_holding_time': str(res.get('max_holding_time', '-')),
+                'min_holding_time': str(res.get('min_holding_time', '-')),
+                'max_profit': str(res.get('max_profit', '-')),
+                'max_loss': str(res.get('max_loss', '-')),
+                'total_days': int(res.get('total_days', 0)),
+            }
+
+            if writer is None:
+                config_keys = [k for k in config.keys() if k not in ['symbol', 'strategy_id']]
+                all_columns = csv_columns + [f"config_{k}" for k in config_keys]
+                writer = csv.DictWriter(csvfile, fieldnames=all_columns)
+                writer.writeheader()
+
+            for k in config_keys:
+                row[f"config_{k}"] = config.get(k, "")
+
+            writer.writerow(row)
+            csvfile.flush()
+
+            result_entry = {
+                'score': score, 'symbol': symbol,
+                'total_return': total_return, 'win_rate': win_rate,
+                'recent_10_win_rate': recent_10_wr, 'total_trades': total_trades,
+                'max_drawdown': str(res.get('max_drawdown', '-')),
+                'profit_factor': str(res.get('profit_factor', '-')),
+                'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
+                'avg_pnl': str(res.get('avg_pnl', '-')),
+                'stability_score': str(res.get('stability_score', '-')),
+                'acceleration_score': str(res.get('acceleration_score', '-')),
+                'activity_rate': str(res.get('activity_rate', '-')),
+                'avg_holding_time': str(res.get('avg_holding_time', '-')),
+                'max_holding_time': str(res.get('max_holding_time', '-')),
+                'min_holding_time': str(res.get('min_holding_time', '-')),
+                'max_profit': str(res.get('max_profit', '-')),
+                'max_loss': str(res.get('max_loss', '-')),
+                'total_days': int(res.get('total_days', 0)),
+                'config': {k: config.get(k) for k in config_keys} if config_keys else {}
+            }
+
+            if len(top_results) < 50:
+                heapq.heappush(top_results, (score, seq_idx, result_entry))
+            elif score > top_results[0][0]:
+                heapq.heapreplace(top_results, (score, seq_idx, result_entry))
+
+            processed += 1
+            return writer
+
+        def _update_heavy_progress(completed_count):
+            elapsed = time.time() - start_time
+            avg_time = elapsed / completed_count if completed_count > 0 else 0
+            remaining = avg_time * (total_combos - completed_count)
+
+            HEAVY_OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
+            HEAVY_OPTIMIZATION_TASKS[task_id]["elapsed_seconds"] = elapsed
+            HEAVY_OPTIMIZATION_TASKS[task_id]["estimated_remaining_seconds"] = remaining
+
+            mode_tag = " [parallel]" if execution_mode == "fast" else ""
+            HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({completed_count}/{total_combos}){mode_tag}..."
+
+            if completed_count % 10 == 0:
+                sorted_top = sorted([t[2] for t in top_results], key=lambda x: x['score'], reverse=True)
+                HEAVY_OPTIMIZATION_TASKS[task_id]["top_results"] = sorted_top
+
         # Open CSV file for streaming write
         with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
             writer = None
 
-            for i, args in enumerate(run_args):
-                # Check for cancellation
-                if HEAVY_OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                    logger.info(f"Heavy optimization {task_id} cancellation requested at {i}/{total_combos}")
-                    HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                    HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {i}/{total_combos}"
-                    break
+            if execution_mode == "fast":
+                # ===== PARALLEL EXECUTION =====
+                worker_count = _get_worker_count()
+                logger.info(f"[HEAVY PARALLEL] Running {total_combos} with {worker_count} workers (spawn)")
+                HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Starting parallel execution ({worker_count} workers)..."
 
-                # Throttle: yield CPU to live trading engine every 5 iterations
-                if i % 5 == 0:
-                    time.sleep(0.01)
+                ctx = multiprocessing.get_context('spawn')
+                completed_count = 0
 
-                try:
-                    config, res = _run_sync_in_process(*args)
+                with ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx) as executor:
+                    future_to_idx = {}
+                    for i, args in enumerate(run_args):
+                        future = executor.submit(_run_sync_in_process, *args)
+                        future_to_idx[future] = i
 
-                    if "error" in res:
+                    for future in as_completed(future_to_idx):
+                        if HEAVY_OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                            for f in future_to_idx:
+                                f.cancel()
+                            HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                            HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {completed_count}/{total_combos}"
+                            break
+
+                        completed_count += 1
+                        idx = future_to_idx[future]
+
+                        try:
+                            config, res = future.result()
+                            writer = _process_heavy_result(config, res, writer, csvfile, idx)
+                        except Exception as e:
+                            failures += 1
+                            logger.warning(f"Heavy opt future {idx} failed: {e}")
+
+                        _update_heavy_progress(completed_count)
+
+            else:
+                # ===== SEQUENTIAL EXECUTION =====
+                for i, args in enumerate(run_args):
+                    if HEAVY_OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                        logger.info(f"Heavy optimization {task_id} cancellation requested at {i}/{total_combos}")
+                        HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                        HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {i}/{total_combos}"
+                        break
+
+                    if i % 5 == 0:
+                        time.sleep(0.01)
+
+                    try:
+                        config, res = _run_sync_in_process(*args)
+                        writer = _process_heavy_result(config, res, writer, csvfile, i)
+                    except Exception as e:
                         failures += 1
-                        continue
+                        logger.warning(f"Heavy opt iteration {i} failed: {e}")
 
-                    # Extract metrics - SAME as regular optimization (directly from res)
-                    symbol = config.get('symbol', '')
-
-                    # Parse total_return and win_rate (same as regular optimization)
-                    total_return = float(str(res.get('total_return', '0')).replace('%', '').replace(',', ''))
-                    win_rate = float(str(res.get('win_rate', '0')).replace('%', ''))
-                    total_trades = int(res.get('total_trades', 0))
-
-                    # Calculate score (same formula as regular optimization)
-                    score = total_return * (win_rate / 100.0)
-
-                    # Extract recent_10_win_rate
-                    recent_10_wr = res.get("recent_10_win_rate", 0)
-                    if isinstance(recent_10_wr, str):
-                        recent_10_wr = float(recent_10_wr.replace('%', '')) if recent_10_wr != '-' else 0.0
-
-                    # Build row data (same fields as regular optimization CSV)
-                    row = {
-                        'rank': 0,  # Will be updated later
-                        'symbol': symbol,
-                        'score': round(score, 2),
-                        'total_return': total_return,
-                        'win_rate': win_rate,
-                        'recent_10_win_rate': recent_10_wr,
-                        'total_trades': total_trades,
-                        'max_drawdown': str(res.get('max_drawdown', '-')),
-                        'profit_factor': str(res.get('profit_factor', '-')),
-                        'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
-                        'avg_pnl': str(res.get('avg_pnl', '-')),
-                        'stability_score': str(res.get('stability_score', '-')),
-                        'acceleration_score': str(res.get('acceleration_score', '-')),
-                        'activity_rate': str(res.get('activity_rate', '-')),
-                        'avg_holding_time': str(res.get('avg_holding_time', '-')),
-                        'max_holding_time': str(res.get('max_holding_time', '-')),
-                        'min_holding_time': str(res.get('min_holding_time', '-')),
-                        'max_profit': str(res.get('max_profit', '-')),
-                        'max_loss': str(res.get('max_loss', '-')),
-                        'total_days': int(res.get('total_days', 0)),
-                    }
-
-                    # Initialize CSV writer with config keys from first result
-                    if writer is None:
-                        config_keys = [k for k in config.keys() if k not in ['symbol', 'strategy_id']]
-                        all_columns = csv_columns + [f"config_{k}" for k in config_keys]
-                        writer = csv.DictWriter(csvfile, fieldnames=all_columns)
-                        writer.writeheader()
-
-                    # Add config values to row
-                    for k in config_keys:
-                        row[f"config_{k}"] = config.get(k, "")
-
-                    # Write row to CSV
-                    writer.writerow(row)
-                    csvfile.flush()  # Ensure data is written
-
-                    # Update top 10 (min-heap)
-                    # Include all metrics (same as regular optimization for consistency)
-                    result_entry = {
-                        'score': score,
-                        'symbol': symbol,
-                        'total_return': total_return,
-                        'win_rate': win_rate,
-                        'recent_10_win_rate': recent_10_wr,
-                        'total_trades': total_trades,
-                        'max_drawdown': str(res.get('max_drawdown', '-')),
-                        'profit_factor': str(res.get('profit_factor', '-')),
-                        'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
-                        'avg_pnl': str(res.get('avg_pnl', '-')),
-                        'stability_score': str(res.get('stability_score', '-')),
-                        'acceleration_score': str(res.get('acceleration_score', '-')),
-                        'activity_rate': str(res.get('activity_rate', '-')),
-                        'avg_holding_time': str(res.get('avg_holding_time', '-')),
-                        'max_holding_time': str(res.get('max_holding_time', '-')),
-                        'min_holding_time': str(res.get('min_holding_time', '-')),
-                        'max_profit': str(res.get('max_profit', '-')),
-                        'max_loss': str(res.get('max_loss', '-')),
-                        'total_days': int(res.get('total_days', 0)),
-                        'config': {k: config.get(k) for k in config_keys} if config_keys else {}
-                    }
-
-                    if len(top_results) < 50:
-                        heapq.heappush(top_results, (score, i, result_entry))
-                    elif score > top_results[0][0]:
-                        heapq.heapreplace(top_results, (score, i, result_entry))
-
-                    processed += 1
-
-                except Exception as e:
-                    failures += 1
-                    logger.warning(f"Heavy opt iteration {i} failed: {e}")
-
-                # Update progress
-                elapsed = time.time() - start_time
-                avg_time_per_combo = elapsed / (i + 1)
-                remaining = avg_time_per_combo * (total_combos - i - 1)
-
-                HEAVY_OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
-                HEAVY_OPTIMIZATION_TASKS[task_id]["elapsed_seconds"] = elapsed
-                HEAVY_OPTIMIZATION_TASKS[task_id]["estimated_remaining_seconds"] = remaining
-                HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos})..."
-
-                # Update top results every 10 iterations (for real-time partial display)
-                if (i + 1) % 10 == 0:
-                    sorted_top = sorted([t[2] for t in top_results], key=lambda x: x['score'], reverse=True)
-                    HEAVY_OPTIMIZATION_TASKS[task_id]["top_results"] = sorted_top
+                    _update_heavy_progress(i + 1)
 
         # Finalize
         elapsed = time.time() - start_time
@@ -1013,7 +1093,8 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
 
         if HEAVY_OPTIMIZATION_TASKS[task_id]["status"] != "cancelled":
             HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "completed"
-            HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {processed} results, {failures} failures"
+            elapsed_str = f"{elapsed:.1f}s" if elapsed < 60 else f"{int(elapsed // 60)}m {int(elapsed % 60)}s"
+            HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {processed} results, {failures} failures (Elapsed: {elapsed_str})"
 
         HEAVY_OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
         HEAVY_OPTIMIZATION_TASKS[task_id]["file_size_bytes"] = file_size
@@ -1179,7 +1260,8 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
         start_time,
         total_combinations,
         save_tab_id,
-        save_acct_id
+        save_acct_id,
+        request.execution_mode
     )
 
     return {

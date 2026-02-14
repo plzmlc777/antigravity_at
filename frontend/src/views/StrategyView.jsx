@@ -434,6 +434,7 @@ const StrategyView = () => {
         isOptimizing, sortConfig, heavyOptTaskId, heavyOptStatus,
         pendingOptResult, setPendingOptResult, completedOptTaskId,
         currentOptTaskId, isCancelling, isHeavyOptRunning, optStatusMessage,
+        executionMode, setExecutionMode,
         runOptimization, cancelOptimization, startHeavyOptimization,
         handleCancelHeavyOpt, handleSort, exportOptResultsToCSV,
         downloadFullOptResultsCSV, applyOptParams, savePendingOptResult,
@@ -2906,6 +2907,31 @@ const StrategyView = () => {
 
 
 
+
+                                                {/* Execution Mode Toggle */}
+                                                {(activeTab >= 0 || activeTab === -3) && (
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <div className="flex rounded-lg overflow-hidden border border-white/10">
+                                                            <button
+                                                                onClick={() => setExecutionMode("standard")}
+                                                                disabled={isHeavyOptRunning}
+                                                                className={`px-3 py-1 text-xs font-medium transition-all ${executionMode === "standard" ? 'bg-purple-700 text-white' : 'bg-black/30 text-gray-400 hover:text-gray-200'} disabled:opacity-50`}
+                                                            >
+                                                                Standard
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setExecutionMode("fast")}
+                                                                disabled={isHeavyOptRunning}
+                                                                className={`px-3 py-1 text-xs font-medium transition-all ${executionMode === "fast" ? 'bg-orange-600 text-white' : 'bg-black/30 text-gray-400 hover:text-gray-200'} disabled:opacity-50`}
+                                                            >
+                                                                Fast
+                                                            </button>
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-500">
+                                                            {executionMode === "fast" ? "Parallel (multi-core)" : "Sequential (stable)"}
+                                                        </span>
+                                                    </div>
+                                                )}
 
                                                 {/* Action */}
                                                 <div className="flex gap-2">
