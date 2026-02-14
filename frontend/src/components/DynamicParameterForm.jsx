@@ -22,6 +22,49 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
         );
     }
 
+    // Check visible_when conditions: { "field_name": { "gt": N, "eq": "value" } }
+    // All conditions must match (AND logic). Supports: gt, gte, lt, lte, eq, ne
+    const isFieldVisible = (field) => {
+        const conditions = field.visible_when;
+        if (!conditions) return true;
+
+        // Resolve current value for a field (check values first, then find default from schema)
+        const getVal = (fieldName) => {
+            if (values[fieldName] !== undefined) return values[fieldName];
+            const schemaField = schema.fields.find(f => (f.key || f.name) === fieldName);
+            return schemaField?.default;
+        };
+
+        return Object.entries(conditions).every(([fieldName, ops]) => {
+            const val = getVal(fieldName);
+            const numVal = typeof val === 'string' ? parseFloat(val) : val;
+            return Object.entries(ops).every(([op, target]) => {
+                switch (op) {
+                    case 'gt':  return numVal > target;
+                    case 'gte': return numVal >= target;
+                    case 'lt':  return numVal < target;
+                    case 'lte': return numVal <= target;
+                    case 'eq':  return val == target;  // loose equality for string/number compat
+                    case 'ne':  return val != target;
+                    default:    return true;
+                }
+            });
+        });
+    };
+
+    // Reset hidden fields to their schema defaults when visibility changes.
+    // This ensures toggling e.g. "Martingale: off" resets all dependent params.
+    React.useEffect(() => {
+        if (!schema?.fields || !onChange) return;
+        schema.fields.forEach((field) => {
+            const key = field.key || field.name;
+            if (field.default !== undefined && !isFieldVisible(field)
+                && values[key] !== undefined && values[key] != field.default) {
+                onChange(key, field.default);
+            }
+        });
+    });
+
     const renderField = (field) => {
         const key = field.key || field.name;
         const value = values[key] ?? field.default ?? '';
@@ -169,6 +212,9 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
                 schema.fields.forEach((field) => {
                     const key = field.key || field.name;
                     const group = field.group || null;
+
+                    // Skip hidden fields based on visible_when conditions
+                    if (!isFieldVisible(field)) return;
 
                     // Detect group transition
                     if (group !== currentGroup) {

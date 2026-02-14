@@ -27,6 +27,11 @@ class MartingaleBase(BaseStrategy):
         self.base_quantity = self.config.get("base_quantity", 1)
         self.qty_mode = self.config.get("qty_mode", "fixed")
 
+        # Martingale toggle: off = force single entry (max_buy_count=1)
+        use_mart = self.config.get("use_martingale", "on")
+        if use_mart == "off" or use_mart is False:
+            self.max_buy_count = 1
+
         self.trailing_start_percent = self.config.get("trailing_start_percent", 0.01)
         self.trailing_stop_percent = self.config.get("trailing_stop_percent", 0.003)
         self.max_loss_percent = self.config.get("max_loss_percent", 0.10)
@@ -48,6 +53,11 @@ class MartingaleBase(BaseStrategy):
         # Require lower price: L2+ entry only when price < last entry price
         rlp_val = self.config.get("require_lower_price", "off")
         self.require_lower_price = rlp_val == "on" or rlp_val is True
+
+        # Additional buy mode: trigger (strategy signal) or step (auto-buy on N% drop)
+        self.additional_buy_mode = self.config.get("additional_buy_mode", "trigger")
+        self.additional_buy_step = self.config.get("additional_buy_step", 2.0)
+        self.additional_buy_step_ref = self.config.get("additional_buy_step_ref", "last_entry")
 
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
@@ -288,7 +298,25 @@ class MartingaleBase(BaseStrategy):
                         if current_price >= last_entry_price:
                             return
 
-                    if self._check_additional_trigger(data):
+                    # Determine entry signal based on additional_buy_mode
+                    should_enter = False
+                    if self.additional_buy_mode == "step" and self.entries:
+                        # Step mode: auto-buy when price drops N% from reference price
+                        ref_price = self._get_step_reference_price()
+                        if ref_price > 0:
+                            drop_pct = (ref_price - current_price) / ref_price * 100
+                            # initial_entry: require cumulative steps (L2=1×step, L3=2×step, ...)
+                            # to prevent all levels triggering at once from a fixed anchor
+                            if self.additional_buy_step_ref == "initial_entry":
+                                required_drop = self.additional_buy_step * self.current_level
+                            else:
+                                required_drop = self.additional_buy_step
+                            should_enter = drop_pct >= required_drop
+                    else:
+                        # Trigger mode: use strategy's signal (default behavior)
+                        should_enter = self._check_additional_trigger(data)
+
+                    if should_enter:
                         # Guard: skip if already waiting for pending order
                         if self._pending_entry:
                             return
@@ -347,6 +375,17 @@ class MartingaleBase(BaseStrategy):
         self.total_quantity = new_total_qty
         self.current_level = level
         self.entries.append({"level": level, "price": price, "quantity": quantity, "time": str(self.context.get_time())})
+
+    def _get_step_reference_price(self) -> float:
+        """Get reference price for step-down additional buy mode."""
+        if not self.entries:
+            return 0
+        if self.additional_buy_step_ref == "avg_price":
+            return self.average_price
+        elif self.additional_buy_step_ref == "initial_entry":
+            return self.entries[0]["price"]
+        else:  # "last_entry" (default)
+            return self.entries[-1]["price"]
 
     def _liquidate(self, price: float):
         # Guard: skip if already waiting for pending exit order
