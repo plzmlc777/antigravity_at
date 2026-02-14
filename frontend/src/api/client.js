@@ -535,3 +535,5 @@ export const deleteStrategyRequest = (id) =>
     api.delete(`/strategy-lab/requests/${id}`).then(r => r.data);
 export const activateStrategy = (requestId) =>
     api.post(`/strategy-lab/requests/${requestId}/activate`).then(r => r.data);
+export const strategyLabChat = (message, sessionId = null) =>
+    api.post('/strategy-lab/chat', { message, session_id: sessionId }, { timeout: 310000 }).then(r => r.data);

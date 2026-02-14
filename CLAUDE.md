@@ -243,12 +243,19 @@ Environment variables are loaded from multiple sources (priority order):
 - `/api/v1/live/ws/watch/{symbol}` - Real-time symbol quotes
 
 ### Strategy Development
-When adding new strategies:
-1. Inherit from `BaseStrategy` in `backend/app/strategies/base.py`
-2. Implement `initialize()` and `on_data()` methods
-3. Register in `StrategyRegistry` in `backend/app/core/strategy_registry.py`
-4. Add parameter schema for frontend auto-generation
-5. Test in mock mode before using real money
+
+**새 전략 생성 시 커스텀 에이전트 사용:**
+- `strategy-builder` 에이전트가 `.claude/agents/strategy-builder.md`에 정의됨
+- 대화를 통해 전략 설계 → 코드 생성 → 등록 → 검증까지 자동화
+- 에이전트가 BaseStrategy/MartingaleBase 패턴, PARAMETER_SCHEMA 규칙, StrategyRegistry 등록 절차를 모두 숙지
+
+**수동 생성 시 체크리스트:**
+1. `backend/app/strategies/<id>.py` 생성 (BaseStrategy 또는 MartingaleBase 상속)
+2. `PARAMETER_SCHEMA` 정의 (UI 자동 생성용)
+3. `backend/app/core/strategy_registry.py`에 등록
+4. `backend/migrate_add_<id>.py` 마이그레이션 스크립트로 strategy_info DB 삽입
+5. `py_compile`로 문법 검증
+6. 백테스트 → 모의투자 → 실거래 순서로 테스트
 
 ### Session Lifecycle
 - `RUNNING` - Active live trading

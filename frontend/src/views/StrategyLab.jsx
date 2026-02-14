@@ -8,8 +8,9 @@ import DynamicParameterForm from '../components/DynamicParameterForm';
 import {
     Plus, FlaskConical, ChevronRight, ChevronLeft, Save, Send, Trash2,
     Edit3, Eye, X, AlertCircle, CheckCircle, Clock, Zap, TrendingUp,
-    BarChart3, Activity, Layers, Play
+    BarChart3, Activity, Layers, Play, MessageCircle
 } from 'lucide-react';
+import StrategyLabChat from '../components/StrategyLabChat';
 
 // ============================================================
 // Constants
@@ -720,12 +721,20 @@ const StrategyLab = () => {
                         <p className="text-xs text-gray-500">Design your trading strategy ideas</p>
                     </div>
                 </div>
-                <button
-                    onClick={startNewWizard}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                    <Plus size={16} /> New Strategy
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setMode('chat')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'chat' ? 'bg-purple-600 text-white' : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'}`}
+                    >
+                        <MessageCircle size={16} /> AI Chat
+                    </button>
+                    <button
+                        onClick={startNewWizard}
+                        className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <Plus size={16} /> Manual
+                    </button>
+                </div>
             </div>
 
             {/* Error */}
@@ -788,6 +797,12 @@ const StrategyLab = () => {
                                 onClose={() => { setMode('list'); setSelectedRequest(null); }}
                                 onActivate={() => { loadRequests(); setMode('list'); setSelectedRequest(null); }}
                             />
+                        </div>
+                    )}
+
+                    {mode === 'chat' && (
+                        <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
+                            <StrategyLabChat onClose={() => setMode('list')} />
                         </div>
                     )}
 

@@ -3,11 +3,16 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
+import asyncio
+import json
+import logging
 
 from ..db.session import get_db
 from ..models.strategy_request import StrategyRequest
 from ..models.user import User
 from .auth import get_current_user
+
+logger = logging.getLogger("strategy_lab")
 
 router = APIRouter()
 
@@ -221,3 +226,106 @@ async def activate_strategy(
         "strategy_id": request.strategy_id,
         "message": f"Strategy '{strategy.name}' is now active and visible in Profiles"
     }
+
+
+# ============================================================
+# AI Chat (Claude Code CLI Subprocess)
+# ============================================================
+class ChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None  # Claude Code conversation ID for multi-turn
+
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: Optional[str] = None
+    error: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def strategy_lab_chat(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Chat with Claude Code to design trading strategies.
+    Uses claude CLI as a subprocess with the strategy-builder agent.
+    """
+    import shutil
+
+    claude_path = shutil.which("claude")
+    if not claude_path:
+        raise HTTPException(
+            status_code=503,
+            detail="Claude CLI not found. Install Claude Code first."
+        )
+
+    # Build command
+    cmd = [
+        claude_path,
+        "-p", request.message,
+        "--output-format", "json",
+        "--agent", "strategy-builder",
+        "--permission-mode", "bypassPermissions",
+    ]
+
+    # Resume existing conversation for multi-turn
+    if request.session_id:
+        cmd.extend(["--resume", request.session_id])
+
+    logger.info(f"[StrategyLabChat] user={current_user.id}, session={request.session_id or 'new'}, msg_len={len(request.message)}")
+
+    import os
+    env = os.environ.copy()
+    # Remove PM2 IPC env vars that interfere with Claude CLI (also a Node.js process)
+    for key in ["NODE_CHANNEL_FD", "NODE_CHANNEL_SERIALIZATION_MODE", "NODE_APP_INSTANCE"]:
+        env.pop(key, None)
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd="/home/hcpark/antigravity",
+            env=env,
+            start_new_session=True,
+        )
+
+        # Timeout: 300 seconds max (Claude CLI can be slow on first load)
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+        except asyncio.TimeoutError:
+            proc.kill()
+            # Capture partial output for debugging
+            logger.error(f"[StrategyLabChat] TIMEOUT. stderr might have clues.")
+            return ChatResponse(
+                response="",
+                error="Response timed out (5min). Try a simpler question."
+            )
+
+        if proc.returncode != 0:
+            err_msg = stderr.decode().strip() if stderr else "Unknown error"
+            logger.error(f"[StrategyLabChat] CLI error: {err_msg}")
+            return ChatResponse(response="", error=f"Claude CLI error: {err_msg[:200]}")
+
+        # Parse JSON output
+        raw = stdout.decode().strip()
+        if not raw:
+            return ChatResponse(response="", error="Empty response from Claude CLI")
+
+        data = json.loads(raw)
+
+        return ChatResponse(
+            response=data.get("result", ""),
+            session_id=data.get("session_id"),
+            duration_ms=data.get("duration_ms"),
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"[StrategyLabChat] JSON parse error: {e}")
+        return ChatResponse(response="", error="Failed to parse Claude response")
+    except Exception as e:
+        logger.error(f"[StrategyLabChat] Unexpected error: {e}")
+        return ChatResponse(response="", error=str(e)[:200])
