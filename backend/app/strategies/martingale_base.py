@@ -257,8 +257,8 @@ class MartingaleBase(BaseStrategy):
                     self._liquidate(current_price)
                     return
 
-            # 3d. Check Max Loss Stop-Loss
-            if current_return <= -(self.max_loss_percent / 100):
+            # 3d. Check Max Loss Stop-Loss (0 = disabled)
+            if self.max_loss_percent > 0 and current_return <= -(self.max_loss_percent / 100):
                 self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. Sell @ {current_price:,.0f}")
                 self._liquidate(current_price)
                 return

@@ -519,3 +519,17 @@ export const deleteProfile = async (profileId, hardDelete = false) => {
     });
     return data;
 };
+
+// ==========================================
+// Strategy Lab API
+// ==========================================
+export const getStrategyRequests = (status) =>
+    api.get('/strategy-lab/requests', { params: status ? { status } : {} }).then(r => r.data);
+export const createStrategyRequest = (req) =>
+    api.post('/strategy-lab/requests', req).then(r => r.data);
+export const getStrategyRequest = (id) =>
+    api.get(`/strategy-lab/requests/${id}`).then(r => r.data);
+export const updateStrategyRequest = (id, data) =>
+    api.put(`/strategy-lab/requests/${id}`, data).then(r => r.data);
+export const deleteStrategyRequest = (id) =>
+    api.delete(`/strategy-lab/requests/${id}`).then(r => r.data);

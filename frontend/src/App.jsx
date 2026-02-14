@@ -4,6 +4,7 @@ import ManualTrading from './views/ManualTrading';
 import LiveTradingView from './views/LiveTradingView';
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
+import StrategyLab from './views/StrategyLab';
 import Settings from './views/Settings';
 import AdminView from './views/AdminView';
 import StatusCard from './components/StatusCard';
@@ -93,7 +94,8 @@ function AppContent() {
                             <NavLink to="/">Dashboard</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
-                            <NavLink to="/strategies">Strategies</NavLink>
+                            <NavLink to="/strategies">Profiles</NavLink>
+                            <NavLink to="/strategy-lab">Strategy Lab</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -112,7 +114,7 @@ function AppContent() {
             </nav>
 
             {/* Account Status Panel - hidden on /live and /strategies pages */}
-            {location.pathname !== '/live' && location.pathname !== '/strategies' && <AccountStatusPanel />}
+            {location.pathname !== '/live' && location.pathname !== '/strategies' && location.pathname !== '/strategy-lab' && <AccountStatusPanel />}
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8">
@@ -121,6 +123,7 @@ function AppContent() {
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
+                    <Route path="/strategy-lab" element={<RequireAuth><StrategyLab /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>
