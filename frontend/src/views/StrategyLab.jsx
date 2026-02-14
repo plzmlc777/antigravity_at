@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility, updateStrategyRequest } from '../api/client';
+import { api, getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility, updateStrategyRequest } from '../api/client';
 import DynamicParameterForm from '../components/DynamicParameterForm';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
@@ -10,6 +10,7 @@ import {
     Play, Bot, Send, Globe, Lock, Check, Pencil, BarChart3, ChevronDown, ChevronUp
 } from 'lucide-react';
 import StrategyLabChat from '../components/StrategyLabChat';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ============================================================
 // Constants
@@ -40,6 +41,8 @@ const StatusBadge = ({ status }) => {
 const DetailView = ({ request, onActivate, onRename, strategyVisibility, onToggleVisibility }) => {
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState(request.name);
+    const [showVisibilityConfirm, setShowVisibilityConfirm] = useState(false);
+    const [pendingVisibility, setPendingVisibility] = useState(null);
     const inputRef = React.useRef(null);
 
     useEffect(() => { setEditName(request.name); setEditing(false); }, [request.id]);
@@ -50,6 +53,11 @@ const DetailView = ({ request, onActivate, onRename, strategyVisibility, onToggl
         if (!trimmed || trimmed === request.name) { setEditing(false); return; }
         await onRename(request.id, trimmed);
         setEditing(false);
+    };
+
+    const handleVisibilityClick = (strategyId, newIsPublic) => {
+        setPendingVisibility({ strategyId, isPublic: newIsPublic });
+        setShowVisibilityConfirm(true);
     };
 
     return (
@@ -86,7 +94,7 @@ const DetailView = ({ request, onActivate, onRename, strategyVisibility, onToggl
                 <StatusBadge status={request.status} />
                 {request.strategy_id && strategyVisibility !== null && (
                     <button
-                        onClick={() => onToggleVisibility(request.strategy_id, !strategyVisibility)}
+                        onClick={() => handleVisibilityClick(request.strategy_id, !strategyVisibility)}
                         className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                             strategyVisibility
                                 ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400'
@@ -125,6 +133,22 @@ const DetailView = ({ request, onActivate, onRename, strategyVisibility, onToggl
                 />
             </div>
         )}
+
+        <ConfirmModal
+            isOpen={showVisibilityConfirm}
+            onClose={() => setShowVisibilityConfirm(false)}
+            onConfirm={() => {
+                if (pendingVisibility) {
+                    onToggleVisibility(pendingVisibility.strategyId, pendingVisibility.isPublic);
+                }
+            }}
+            title={pendingVisibility?.isPublic ? '전략 공개' : '전략 비공개'}
+            message={pendingVisibility?.isPublic
+                ? '이 전략을 공개하시겠습니까?\n다른 사용자도 이 전략을 사용할 수 있게 됩니다.'
+                : '이 전략을 비공개로 변경하시겠습니까?\n본인만 이 전략을 사용할 수 있게 됩니다.'}
+            confirmText="변경"
+            cancelText="취소"
+        />
     </div>
     );
 };
@@ -423,7 +447,7 @@ const StrategyLab = () => {
     useEffect(() => {
         const sid = selectedRequest?.strategy_id;
         if (!sid || visibilityMap[sid] !== undefined) return;
-        axios.get('/api/v1/strategies/list', { params: { status: '' } })
+        api.get('/strategies/list', { params: { status: '' } })
             .then(res => {
                 const map = {};
                 res.data.forEach(s => { map[s.id] = !!s.is_public; });

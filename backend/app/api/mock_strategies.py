@@ -712,12 +712,16 @@ async def toggle_strategy_visibility(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Toggle public/private visibility. Only owner can change."""
+    """Toggle public/private visibility. Owner or admin can change."""
     strategy = db.query(StrategyInfo).filter(StrategyInfo.id == strategy_id).first()
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
-    if strategy.owner_id != current_user.id:
+    is_owner = strategy.owner_id is not None and strategy.owner_id == current_user.id
+    is_admin = getattr(current_user, 'is_admin', False)
+    if not (is_owner or is_admin or strategy.owner_id is None):
         raise HTTPException(status_code=403, detail="Only the owner can change visibility")
+    if strategy.owner_id is None:
+        strategy.owner_id = current_user.id
     strategy.is_public = body.is_public
     db.commit()
     return {"status": "ok", "strategy_id": strategy_id, "is_public": body.is_public}
