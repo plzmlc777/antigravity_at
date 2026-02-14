@@ -130,6 +130,12 @@ body {
 [data-theme="normal"] .disabled\:bg-gray-700:disabled { background-color: #e2e8f0; }
 [data-theme="normal"] .disabled\:bg-gray-600:disabled { background-color: #e2e8f0; }
 
+/* Gradient overrides (from-*/to-* use --tw-gradient-from/to, not background-color) */
+[data-theme="normal"] .from-gray-900 { --tw-gradient-from: #ffffff; }
+[data-theme="normal"] .from-gray-800 { --tw-gradient-from: #f8fafc; }
+[data-theme="normal"] .to-gray-950 { --tw-gradient-to: #f1f5f9; }
+[data-theme="normal"] .to-gray-900 { --tw-gradient-to: #ffffff; }
+
 /* --- Text --- */
 [data-theme="normal"] .text-white { color: #1e293b; }
 [data-theme="normal"] .text-gray-200 { color: #1e293b; }
