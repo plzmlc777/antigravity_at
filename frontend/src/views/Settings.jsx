@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useMarketData } from '../context/MarketDataContext';
+import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
 
 // Trading Environment options (matches backend TradingEnvironment enum)
@@ -18,6 +19,7 @@ const Settings = () => {
     const [loading, setLoading] = useState(true);
     const { token, user } = useAuth();
     const { refresh: refreshMarketData } = useMarketData();
+    const { theme, setTheme, themes } = useTheme();
 
     // Toast State
     const [toast, setToast] = useState(null);
@@ -1261,6 +1263,59 @@ const Settings = () => {
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* UI Theme Section */}
+            <div className="mt-12 p-6 bg-white/5 border border-white/10 rounded-xl">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-indigo-500/20 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-semibold">UI 테마</h2>
+                        <p className="text-xs text-gray-400">브라우저 환경에 맞는 테마를 선택하세요</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Object.entries(themes).map(([key, { label, description }]) => (
+                        <button
+                            key={key}
+                            onClick={() => setTheme(key)}
+                            className={`p-4 rounded-xl border-2 text-left transition-all ${
+                                theme === key
+                                    ? 'border-indigo-500 bg-indigo-500/10'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3 mb-2">
+                                {/* Theme preview swatch */}
+                                <div className={`w-8 h-8 rounded-lg border ${
+                                    key === 'dark-bg'
+                                        ? 'bg-[#0a0a0f] border-gray-700'
+                                        : 'bg-[#f1f5f9] border-gray-300'
+                                }`}>
+                                    <div className={`w-full h-full rounded-lg flex items-center justify-center text-[10px] font-bold ${
+                                        key === 'dark-bg' ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>
+                                        {key === 'dark-bg' ? 'D' : 'N'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-sm font-semibold">{label}</div>
+                                    <div className="text-xs text-gray-400">{description}</div>
+                                </div>
+                            </div>
+                            {theme === key && (
+                                <div className="text-[10px] text-indigo-400 font-medium mt-1">
+                                    현재 적용 중
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
             </div>
 
         </div>

@@ -2,16 +2,262 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================
+   Theme System - CSS Variables
+   ========================================== */
+
 @layer base {
-    :root {
+    :root,
+    [data-theme="dark-bg"] {
         --background: 222.2 84% 4.9%;
         --foreground: 210 40% 98%;
+
+        /* Semantic theme variables */
+        --t-bg-base: #0a0a0f;
+        --t-bg-card: #0f111a;
+        --t-bg-surface: rgba(255, 255, 255, 0.05);
+        --t-bg-surface-hover: rgba(255, 255, 255, 0.08);
+        --t-bg-input: rgba(255, 255, 255, 0.05);
+        --t-bg-nav: rgba(0, 0, 0, 0.2);
+        --t-bg-overlay: rgba(0, 0, 0, 0.6);
+        --t-text-primary: #ffffff;
+        --t-text-secondary: #e5e7eb;
+        --t-text-tertiary: #d1d5db;
+        --t-text-muted: #9ca3af;
+        --t-text-faint: #6b7280;
+        --t-text-placeholder: #4b5563;
+        --t-border: rgba(255, 255, 255, 0.1);
+        --t-border-subtle: rgba(255, 255, 255, 0.05);
+        --t-shadow: rgba(0, 0, 0, 0.3);
+        color-scheme: dark;
+    }
+
+    [data-theme="normal"] {
+        --background: 210 40% 96.1%;
+        --foreground: 222.2 47.4% 11.2%;
+
+        /* Semantic theme variables */
+        --t-bg-base: #f1f5f9;
+        --t-bg-card: #ffffff;
+        --t-bg-surface: rgba(0, 0, 0, 0.03);
+        --t-bg-surface-hover: rgba(0, 0, 0, 0.06);
+        --t-bg-input: #ffffff;
+        --t-bg-nav: rgba(255, 255, 255, 0.85);
+        --t-bg-overlay: rgba(0, 0, 0, 0.4);
+        --t-text-primary: #0f172a;
+        --t-text-secondary: #1e293b;
+        --t-text-tertiary: #334155;
+        --t-text-muted: #64748b;
+        --t-text-faint: #94a3b8;
+        --t-text-placeholder: #94a3b8;
+        --t-border: #e2e8f0;
+        --t-border-subtle: #f1f5f9;
+        --t-shadow: rgba(0, 0, 0, 0.08);
+        color-scheme: light;
     }
 }
 
 body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+}
+
+/* ==========================================
+   Normal Theme - Global Overrides
+   Transforms dark-theme Tailwind classes
+   to light-theme equivalents via CSS.
+   ========================================== */
+
+/* --- Backgrounds --- */
+/* Main backgrounds */
+[data-theme="normal"] .bg-\[\#0a0a0f\] { background-color: #f1f5f9; }
+[data-theme="normal"] .bg-\[\#0f111a\] { background-color: #ffffff; }
+[data-theme="normal"] .bg-\[\#0f1115\] { background-color: #f8fafc; }
+
+/* Card/panel/modal backgrounds */
+[data-theme="normal"] .bg-\[\#1a1a2e\] { background-color: #ffffff; }
+[data-theme="normal"] .bg-\[\#1a1c24\] { background-color: #ffffff; }
+[data-theme="normal"] .bg-\[\#1a1c23\] { background-color: #ffffff; }
+[data-theme="normal"] .bg-\[\#1a1d24\] { background-color: #f8fafc; }
+[data-theme="normal"] .bg-\[\#1a1a1f\] { background-color: #fafafa; }
+[data-theme="normal"] .bg-\[\#1e1e24\] { background-color: #f8fafc; }
+[data-theme="normal"] .bg-\[\#1e2029\] { background-color: #ffffff; }
+[data-theme="normal"] .bg-\[\#15181e\] { background-color: #f1f5f9; }
+[data-theme="normal"] .bg-\[\#111827\] { background-color: #f8fafc; }
+[data-theme="normal"] .bg-\[\#2d3748\] { background-color: #e2e8f0; }
+
+/* Opacity backgrounds */
+[data-theme="normal"] .bg-black\/20 { background-color: rgba(255, 255, 255, 0.85); }
+[data-theme="normal"] .bg-black\/30 { background-color: rgba(255, 255, 255, 0.9); }
+[data-theme="normal"] .bg-black\/40 { background-color: rgba(0, 0, 0, 0.12); }
+[data-theme="normal"] .bg-black\/50 { background-color: rgba(0, 0, 0, 0.3); }
+[data-theme="normal"] .bg-black\/60 { background-color: rgba(0, 0, 0, 0.4); }
+[data-theme="normal"] .bg-black\/70 { background-color: rgba(0, 0, 0, 0.4); }
+[data-theme="normal"] .bg-black\/80 { background-color: rgba(0, 0, 0, 0.5); }
+
+[data-theme="normal"] .bg-white\/5 { background-color: rgba(0, 0, 0, 0.03); }
+[data-theme="normal"] .bg-white\/\[0\.02\] { background-color: rgba(0, 0, 0, 0.02); }
+[data-theme="normal"] .bg-white\/\[0\.03\] { background-color: rgba(0, 0, 0, 0.03); }
+[data-theme="normal"] .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06); }
+[data-theme="normal"] .bg-white\/20 { background-color: rgba(0, 0, 0, 0.08); }
+
+/* Gray backgrounds */
+[data-theme="normal"] .bg-gray-900 { background-color: #ffffff; }
+[data-theme="normal"] .bg-gray-800 { background-color: #f8fafc; }
+[data-theme="normal"] .bg-gray-800\/30 { background-color: rgba(241, 245, 249, 0.3); }
+[data-theme="normal"] .bg-gray-700 { background-color: #f1f5f9; }
+[data-theme="normal"] .bg-gray-800\/50 { background-color: rgba(241, 245, 249, 0.5); }
+[data-theme="normal"] .bg-gray-700\/50 { background-color: rgba(241, 245, 249, 0.5); }
+[data-theme="normal"] .bg-gray-600 { background-color: #e2e8f0; }
+[data-theme="normal"] .bg-gray-600\/30 { background-color: rgba(226, 232, 240, 0.3); }
+
+/* Hex with opacity */
+[data-theme="normal"] .bg-\[\#1a1d24\]\/50 { background-color: rgba(241, 245, 249, 0.5); }
+
+/* Select option backgrounds */
+[data-theme="normal"] .bg-\[\#1a1a2e\] option,
+[data-theme="normal"] option.bg-\[\#1a1a2e\] { background-color: #ffffff; }
+
+/* Hover backgrounds */
+[data-theme="normal"] .hover\:bg-white\/5:hover { background-color: rgba(0, 0, 0, 0.05); }
+[data-theme="normal"] .hover\:bg-white\/10:hover { background-color: rgba(0, 0, 0, 0.08); }
+[data-theme="normal"] .hover\:bg-white\/20:hover { background-color: rgba(0, 0, 0, 0.1); }
+[data-theme="normal"] .hover\:bg-black\/30:hover { background-color: rgba(0, 0, 0, 0.06); }
+[data-theme="normal"] .hover\:bg-gray-700:hover { background-color: #f1f5f9; }
+[data-theme="normal"] .hover\:bg-gray-800:hover { background-color: #f8fafc; }
+
+/* Disabled backgrounds */
+[data-theme="normal"] .disabled\:bg-gray-700:disabled { background-color: #e2e8f0; }
+[data-theme="normal"] .disabled\:bg-gray-600:disabled { background-color: #e2e8f0; }
+
+/* --- Text --- */
+[data-theme="normal"] .text-white { color: #1e293b; }
+[data-theme="normal"] .text-gray-200 { color: #1e293b; }
+[data-theme="normal"] .text-gray-300 { color: #334155; }
+[data-theme="normal"] .text-gray-400 { color: #475569; }
+[data-theme="normal"] .text-gray-500 { color: #64748b; }
+[data-theme="normal"] .text-gray-600 { color: #94a3b8; }
+
+/* Preserve white text on solid colored backgrounds (buttons, badges) */
+[data-theme="normal"] :is(
+    .bg-blue-600, .bg-blue-500, .bg-blue-700,
+    .bg-red-600, .bg-red-500, .bg-red-700,
+    .bg-green-600, .bg-green-500, .bg-green-700,
+    .bg-purple-600, .bg-purple-500, .bg-purple-700,
+    .bg-indigo-600, .bg-indigo-500,
+    .bg-amber-600, .bg-amber-500,
+    .bg-emerald-600, .bg-emerald-500,
+    .bg-yellow-600, .bg-yellow-500,
+    .bg-cyan-500, .bg-cyan-600,
+    .bg-orange-600
+) .text-white,
+[data-theme="normal"] :is(
+    .bg-blue-600, .bg-blue-500, .bg-blue-700,
+    .bg-red-600, .bg-red-500, .bg-red-700,
+    .bg-green-600, .bg-green-500, .bg-green-700,
+    .bg-purple-600, .bg-purple-500, .bg-purple-700,
+    .bg-indigo-600, .bg-indigo-500,
+    .bg-amber-600, .bg-amber-500,
+    .bg-emerald-600, .bg-emerald-500,
+    .bg-yellow-600, .bg-yellow-500,
+    .bg-cyan-500, .bg-cyan-600,
+    .bg-orange-600
+).text-white {
+    color: #ffffff;
+}
+
+/* Hover text */
+[data-theme="normal"] .hover\:text-white:hover { color: #0f172a; }
+[data-theme="normal"] .hover\:text-gray-300:hover { color: #334155; }
+
+/* Preserve hover text white on colored buttons */
+[data-theme="normal"] :is(
+    .bg-blue-600, .bg-blue-500, .hover\:bg-blue-600, .hover\:bg-blue-500,
+    .bg-red-600, .bg-red-500, .hover\:bg-red-600, .hover\:bg-red-500,
+    .bg-green-600, .bg-green-500,
+    .bg-purple-600, .bg-purple-500, .hover\:bg-purple-500
+) .hover\:text-white:hover,
+[data-theme="normal"] :is(
+    .bg-blue-600, .bg-blue-500,
+    .bg-red-600, .bg-red-500,
+    .bg-green-600, .bg-green-500,
+    .bg-purple-600, .bg-purple-500
+).hover\:text-white:hover {
+    color: #ffffff;
+}
+
+/* Placeholder text */
+[data-theme="normal"] .placeholder-gray-600::placeholder { color: #94a3b8; }
+[data-theme="normal"] .placeholder-gray-500::placeholder { color: #94a3b8; }
+[data-theme="normal"] .placeholder\:text-gray-600::placeholder { color: #94a3b8; }
+
+/* --- Borders --- */
+[data-theme="normal"] .border-white\/10 { border-color: #e2e8f0; }
+[data-theme="normal"] .border-white\/5 { border-color: #f1f5f9; }
+[data-theme="normal"] .border-white\/20 { border-color: #cbd5e1; }
+[data-theme="normal"] .border-gray-500 { border-color: #cbd5e1; }
+[data-theme="normal"] .border-gray-500\/50 { border-color: rgba(203, 213, 225, 0.5); }
+[data-theme="normal"] .border-gray-500\/30 { border-color: rgba(203, 213, 225, 0.3); }
+[data-theme="normal"] .border-gray-600 { border-color: #e2e8f0; }
+[data-theme="normal"] .border-gray-600\/30 { border-color: rgba(226, 232, 240, 0.3); }
+[data-theme="normal"] .border-gray-700 { border-color: #e2e8f0; }
+[data-theme="normal"] .border-gray-700\/50 { border-color: rgba(226, 232, 240, 0.5); }
+[data-theme="normal"] .border-gray-800 { border-color: #f1f5f9; }
+
+/* Hover borders */
+[data-theme="normal"] .hover\:border-white\/20:hover { border-color: #cbd5e1; }
+[data-theme="normal"] .hover\:border-gray-600:hover { border-color: #cbd5e1; }
+
+/* Focus borders (keep accent colors, just adjust gray ones) */
+[data-theme="normal"] .focus\:border-white\/30:focus { border-color: #94a3b8; }
+
+/* --- Divide --- */
+[data-theme="normal"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: #f1f5f9; }
+[data-theme="normal"] .divide-white\/10 > :not([hidden]) ~ :not([hidden]) { border-color: #e2e8f0; }
+[data-theme="normal"] .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #f1f5f9; }
+
+/* --- Ring --- */
+[data-theme="normal"] .ring-white\/10 { --tw-ring-color: rgba(0, 0, 0, 0.1); }
+[data-theme="normal"] .ring-white\/5 { --tw-ring-color: rgba(0, 0, 0, 0.05); }
+
+/* --- Shadow --- */
+[data-theme="normal"] .shadow-lg {
+    --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+/* --- Glass effect for normal theme --- */
+[data-theme="normal"] .glass {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* --- Card hover for normal theme --- */
+[data-theme="normal"] .card-hover:hover {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Gradient text (Antigravity logo) - keep as-is --- */
+
+/* --- Selection --- */
+[data-theme="normal"] ::selection {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+/* --- Scrollbar for normal theme --- */
+[data-theme="normal"] ::-webkit-scrollbar {
+    width: 8px;
+}
+[data-theme="normal"] ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+[data-theme="normal"] ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+[data-theme="normal"] ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* ==========================================
@@ -159,6 +405,14 @@ body {
         box-shadow: 0 0 25px rgba(59, 130, 246, 0.6),
             0 0 40px rgba(59, 130, 246, 0.3);
     }
+}
+
+/* Normal theme: reduce glow intensity */
+[data-theme="normal"] .glow-green,
+[data-theme="normal"] .glow-blue,
+[data-theme="normal"] .glow-red,
+[data-theme="normal"] .glow-amber {
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
 }
 
 /* ==========================================

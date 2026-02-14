@@ -12,6 +12,7 @@ import AccountStatusPanel from './components/AccountStatusPanel';
 import { useState, useEffect } from 'react';
 import { getSystemStatus, getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import { MarketDataProvider } from './context/MarketDataContext';
 import { WatchlistProvider } from './context/WatchlistContext';
@@ -135,6 +136,7 @@ function AppContent() {
 function App() {
     return (
         <Router>
+            <ThemeProvider>
             <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<Login />} />
@@ -151,6 +153,7 @@ function App() {
                     } />
                 </Routes>
             </AuthProvider>
+            </ThemeProvider>
         </Router>
     );
 }
