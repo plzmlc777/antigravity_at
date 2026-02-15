@@ -272,22 +272,36 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         print(f"Warning: Failed to dispose engine in worker: {e}")
 
     # Force reload modules to ensure latest code is used (worker process caching issue)
+    # IMPORTANT: Reload order matters! base → martingale_base → strategies → registry
+    # If base is reloaded without martingale_base, issubclass() checks break because
+    # strategy classes inherit OLD BaseStrategy via unreloaded MartingaleBase.
     import sys
     import importlib
-    modules_to_reload = [
-        'app.strategies.base',
-        'app.strategies.dip_martingale',
-        'app.strategies.time_momentum',
-        'app.core.strategy_registry',
-        'app.core.waterfall_engine',
-        'app.services.market_data'
-    ]
-    for mod_name in modules_to_reload:
+
+    # 1. Reload base classes in dependency order
+    for base_mod in ['app.strategies.base', 'app.strategies.martingale_base']:
+        if base_mod in sys.modules:
+            try:
+                importlib.reload(sys.modules[base_mod])
+            except Exception:
+                pass
+
+    # 2. Reload ALL strategy modules (auto-discover, handles AI-generated strategies too)
+    strategy_mods = [m for m in list(sys.modules.keys())
+                     if m.startswith('app.strategies.') and m not in ('app.strategies.base', 'app.strategies.martingale_base')]
+    for mod_name in strategy_mods:
+        try:
+            importlib.reload(sys.modules[mod_name])
+        except Exception:
+            pass
+
+    # 3. Reload infrastructure modules
+    for mod_name in ['app.core.strategy_registry', 'app.core.waterfall_engine', 'app.services.market_data']:
         if mod_name in sys.modules:
             try:
                 importlib.reload(sys.modules[mod_name])
             except Exception:
-                pass  # Continue if reload fails
+                pass
 
     import asyncio
 
