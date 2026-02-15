@@ -238,7 +238,6 @@ class MartingaleBase(BaseStrategy):
         if self.reference_price is None:
             self.reference_price = current_price
             self.context.log(f"[{self._log_prefix}] Cycle started for {symbol}. Ref: {self.reference_price:,.0f}")
-            return
 
         # 3. Position Management (If holding)
         if self.current_level > 0 and self.total_quantity > 0:

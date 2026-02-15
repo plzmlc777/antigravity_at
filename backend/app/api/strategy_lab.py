@@ -234,6 +234,7 @@ async def activate_strategy(
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None  # Claude Code conversation ID for multi-turn
+    strategy_id: Optional[str] = None  # Currently selected strategy (for modification context)
 
 
 class ChatResponse(BaseModel):
@@ -343,10 +344,20 @@ async def strategy_lab_chat(
     # Snapshot strategy files BEFORE CLI execution
     files_before = _scan_strategy_files()
 
+    # Build prompt with strategy context
+    prompt = request.message
+    if request.strategy_id:
+        prompt = (
+            f"[CONTEXT: Currently selected strategy is `{request.strategy_id}`. "
+            f"Target file: `backend/app/strategies/{request.strategy_id}.py`. "
+            f"You MUST only modify this file. Do NOT modify any other strategy files.]\n\n"
+            f"{request.message}"
+        )
+
     # Build command
     cmd = [
         claude_path,
-        "-p", request.message,
+        "-p", prompt,
         "--output-format", "json",
         "--agent", "strategy-builder",
         "--permission-mode", "bypassPermissions",
@@ -375,15 +386,15 @@ async def strategy_lab_chat(
             start_new_session=True,
         )
 
-        # Timeout: 300 seconds max (Claude CLI can be slow on first load)
+        # Timeout: 600 seconds max (strategy modification with Read+Edit+Compile can be slow)
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
         except asyncio.TimeoutError:
             proc.kill()
             logger.error(f"[StrategyLabChat] TIMEOUT. stderr might have clues.")
             return ChatResponse(
                 response="",
-                error="Response timed out (5min). Try a simpler question."
+                error="Response timed out (10min). Try a simpler question."
             )
 
         if proc.returncode != 0:

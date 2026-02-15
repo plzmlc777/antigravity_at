@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { INTERVAL_OPTIONS } from '../constants/intervals';
 
 /**
  * DynamicParameterForm - Schema-driven parameter form generator
  *
  * Renders form inputs based on parameter_schema from the database.
- * Supports field types: select, number, time, text, checkbox
+ * Supports field types: select, number, time, text, checkbox, multiselect, combobox
  *
  * Props:
  * - schema: { fields: [...] } from strategy.parameter_schema
@@ -21,6 +21,9 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
             </div>
         );
     }
+
+    // Active multiselect dropdown key
+    const [openMultiselect, setOpenMultiselect] = useState(null);
 
     // Check visible_when conditions: { "field_name": { "gt": N, "eq": "value" } }
     // All conditions must match (AND logic). Supports: gt, gte, lt, lte, eq, ne
@@ -160,6 +163,61 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
                         disabled={disabled}
                         className="w-4 h-4 rounded border-gray-600 text-cyan-600 focus:ring-cyan-500 bg-gray-700"
                     />
+                );
+
+            case 'multiselect':
+                const msOptions = (field.options || []).map(opt =>
+                    typeof opt === 'string' ? { value: opt, label: opt } : opt
+                );
+                const selected = typeof value === 'string' ? value.split(',').filter(Boolean) : (Array.isArray(value) ? value : []);
+                const isOpen = openMultiselect === key;
+                return (
+                    <div className="relative">
+                        <div
+                            onClick={() => !disabled && setOpenMultiselect(isOpen ? null : key)}
+                            className={`w-full bg-black/40 border rounded px-3 py-2 text-sm text-white cursor-pointer min-h-[38px] flex items-center justify-between ${
+                                isOpen ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-white/20'
+                            } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <span className="truncate">
+                                {selected.length > 0
+                                    ? selected.map(v => msOptions.find(o => o.value === v)?.label || v).join(', ')
+                                    : <span className="text-gray-500">Select options...</span>
+                                }
+                            </span>
+                            <span className="text-gray-400 text-xs ml-2">▼</span>
+                        </div>
+                        {isOpen && (
+                            <div className="absolute z-50 mt-1 w-full bg-[#1a1c23] border border-white/20 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                {msOptions.map(opt => {
+                                    const isSelected = selected.includes(opt.value);
+                                    return (
+                                        <div
+                                            key={opt.value}
+                                            onClick={() => {
+                                                const newSelected = isSelected
+                                                    ? selected.filter(v => v !== opt.value)
+                                                    : [...selected, opt.value];
+                                                onChange(key, newSelected.join(','));
+                                            }}
+                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-white/10 flex items-center justify-between ${
+                                                isSelected ? 'bg-cyan-900/40 text-cyan-300' : 'text-gray-300'
+                                            }`}
+                                        >
+                                            <span>{opt.label}</span>
+                                            {isSelected && <span>✓</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {isOpen && (
+                            <div
+                                className="fixed inset-0 z-40"
+                                onClick={(e) => { e.stopPropagation(); setOpenMultiselect(null); }}
+                            />
+                        )}
+                    </div>
                 );
 
             case 'text':

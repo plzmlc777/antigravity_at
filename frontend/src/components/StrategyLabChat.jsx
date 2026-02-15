@@ -68,7 +68,7 @@ const StrategyLabChat = ({ onClose, onStrategyCreated, prefillInput, onPrefillCo
         setIsLoading(true);
 
         try {
-            const data = await strategyLabChat(text, sessionId);
+            const data = await strategyLabChat(text, sessionId, selectedStrategy?.strategyId || null);
 
             if (data.error) {
                 setError(data.error);
@@ -84,9 +84,9 @@ const StrategyLabChat = ({ onClose, onStrategyCreated, prefillInput, onPrefillCo
                     content: data.response,
                     duration: data.duration_ms
                 }]);
-                // Refresh My Requests when new strategy was created
+                // Refresh My Requests when new strategy was created & auto-select
                 if (data.new_strategies?.length > 0) {
-                    onStrategyCreated?.();
+                    onStrategyCreated?.(data.new_strategies[0]);
                 }
             }
         } catch (err) {

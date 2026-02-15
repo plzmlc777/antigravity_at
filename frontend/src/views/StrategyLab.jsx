@@ -410,11 +410,18 @@ const StrategyLab = () => {
     // ========================================
     // Load requests
     // ========================================
-    const loadRequests = useCallback(async () => {
+    const loadRequests = useCallback(async (autoSelectStrategyId) => {
         try {
             setLoading(true);
             const data = await getStrategyRequests();
             setRequests(data);
+            if (autoSelectStrategyId) {
+                const newReq = data.find(r => r.strategy_id === autoSelectStrategyId);
+                if (newReq) {
+                    setSelectedRequest(newReq);
+                    return;
+                }
+            }
             setSelectedRequest(prev => {
                 if (!prev) return prev;
                 const updated = data.find(r => r.id === prev.id);
