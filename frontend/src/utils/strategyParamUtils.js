@@ -46,13 +46,11 @@ export const buildDynamicDefaultConfig = (strategy, currentSymbol, defaultConfig
         return defaultConfig;
     }
 
+    // Start from defaultConfig to inherit from_date, to_date, etc.
     const dynamicDefault = {
-        initial_capital: 10000000,
-        from_date: "",
+        ...defaultConfig,
         interval: "30m",
         symbol: currentSymbol,
-        betting_strategy: "fixed",
-        uuid: null,
         is_active: true,
         tabName: "Rank 1"
     };
