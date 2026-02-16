@@ -323,7 +323,9 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     actual_interval = config['interval']
 
     # Delegate to _run_unified_backtest (Single Source of Truth)
-    # execution_mode="exclusive" preserves original run_integrated() path
+    # Use execution_mode="single" to ensure EXACT same code path as individual backtest
+    # (Previously "exclusive" which routed to run_integrated() - functionally similar
+    #  but not identical code path, causing potential result discrepancies)
     result = loop.run_until_complete(_run_unified_backtest(
         strategy_id=strategy_id,
         configs=[config],
@@ -332,7 +334,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         days=days,
         from_date=from_date,
         initial_capital=initial_capital,
-        execution_mode="exclusive",
+        execution_mode="single",
         to_date=to_date,
         optimize_mode=True
     ))
