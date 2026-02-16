@@ -418,7 +418,8 @@ const StrategyView = () => {
         handleStockCompareBacktest, handleExportCompareResults
     } = useSymbolComparison({
         symbolCompareConfig, configList, selectedStrategy,
-        savedSymbols, setIsSymbolCompareDirty, addLog
+        savedSymbols, setIsSymbolCompareDirty, addLog,
+        saveProfile, selectedProfileId
     });
 
     const {
@@ -968,13 +969,25 @@ const StrategyView = () => {
             // to_date: fixed end boundary for reproducible results (default: yesterday)
             const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
+            // Ensure dates are explicitly stored in config (not just display fallbacks)
+            const resolvedFromDate = activeConfig?.from_date || "";
+            const resolvedToDate = activeConfig?.to_date || defaultToDate;
+            if (!configOverride) {
+                if (!activeConfig.to_date && resolvedToDate) {
+                    handleConfigChange('to_date', resolvedToDate);
+                }
+                if (!activeConfig.from_date && resolvedFromDate) {
+                    handleConfigChange('from_date', resolvedFromDate);
+                }
+            }
+
             const payload = {
                 symbol: activeConfig.symbol || currentSymbol, // Use config's symbol if available, else global
-                from_date: activeConfig?.from_date || "",
+                from_date: resolvedFromDate,
                 days: activeConfig?.days || 365, // Default to 365 days
                 initial_capital: activeConfig?.initial_capital || 10000000,
                 interval: activeConfig?.interval || "1m",
-                to_date: activeConfig?.to_date || defaultToDate,
+                to_date: resolvedToDate,
                 config: cleanConfig
             };
 
@@ -984,9 +997,15 @@ const StrategyView = () => {
             setBacktestResult(backtestData);
             setBacktestStatus({ status: 'success', message: 'Backtest Completed' });
 
-            // Persistence
+            // Persistence: save result + auto-save profile (dates & config synced with results)
             if (activeConfig.uuid) {
                 saveStrategyResult(activeConfig.uuid, 'backtest', backtestData).catch(err => console.error("Failed to save backtest result", err));
+            }
+            if (selectedProfileId) {
+                saveProfile().then(() => {
+                    setIsDirty(false);
+                    setIsSymbolCompareDirty(false);
+                }).catch(err => console.warn("Auto-save profile after backtest failed:", err));
             }
 
         } catch (e) {
@@ -1868,6 +1887,14 @@ const StrategyView = () => {
                                                                 saveStrategyResult(integratedUUID, 'backtest', integratedData)
                                                                     .then(() => console.log('[Integrated] Result saved successfully'))
                                                                     .catch(err => console.error("Failed to save Integrated Result", err));
+
+                                                                // Auto-save profile to persist dates alongside results
+                                                                if (selectedProfileId) {
+                                                                    saveProfile().then(() => {
+                                                                        setIsDirty(false);
+                                                                        setIsSymbolCompareDirty(false);
+                                                                    }).catch(err => console.warn("Auto-save profile after integrated backtest failed:", err));
+                                                                }
 
                                                             } catch (e) {
                                                                 console.error("Integrated Backtest Failed", e);

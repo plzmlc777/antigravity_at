@@ -75,10 +75,13 @@ export const generateDefaultConfig = () => {
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const defaultFromDate = oneYearAgo.toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000);
+    const defaultToDate = yesterday.toISOString().split('T')[0];
 
     const config = {
         initial_capital: 10000000,
         from_date: defaultFromDate,
+        to_date: defaultToDate,
         interval: "1m",
         symbol: "005930",
         betting_strategy: "fixed",

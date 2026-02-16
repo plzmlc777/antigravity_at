@@ -7,7 +7,8 @@ import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
  */
 export const useSymbolComparison = ({
     symbolCompareConfig, configList, selectedStrategy,
-    savedSymbols, setIsSymbolCompareDirty, addLog
+    savedSymbols, setIsSymbolCompareDirty, addLog,
+    saveProfile = null, selectedProfileId = null
 }) => {
     const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
     const [stockCompareResults, setStockCompareResults] = useState([]);
@@ -114,6 +115,11 @@ export const useSymbolComparison = ({
 
             addLog(`Stock comparison completed: ${results.length} symbols tested`, 'success');
             setIsSymbolCompareDirty(true);
+
+            // Auto-save profile to persist dates alongside results
+            if (saveProfile && selectedProfileId) {
+                saveProfile().catch(err => console.warn("Auto-save profile after comparison failed:", err));
+            }
         } catch (e) {
             console.error("Symbol Comparison Failed", e);
             addLog(`Stock comparison failed: ${e.message}`, 'error');
@@ -121,7 +127,7 @@ export const useSymbolComparison = ({
             setIsStockComparing(false);
             setStockCompareProgress({ current: 0, total: 0, phase: 'data' });
         }
-    }, [selectedCompareSymbols, symbolCompareConfig, configList, selectedStrategy, savedSymbols, setIsSymbolCompareDirty, addLog]);
+    }, [selectedCompareSymbols, symbolCompareConfig, configList, selectedStrategy, savedSymbols, setIsSymbolCompareDirty, addLog, saveProfile, selectedProfileId]);
 
     const handleExportCompareResults = useCallback(() => {
         if (stockCompareResults.length === 0) {
