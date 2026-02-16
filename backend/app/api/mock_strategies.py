@@ -181,10 +181,10 @@ import multiprocessing
 
 def _get_worker_count():
     """Determine worker count for parallel optimization.
-    Uses cpu_count - 1 (reserve 1 core for live trading), clamped to [2, 8].
+    Uses cpu_count - 2 (reserve 2 cores for system/live trading), clamped to [2, 6].
     """
     cpu = os.cpu_count() or 4
-    return max(2, min(8, cpu - 1))
+    return max(2, min(6, cpu - 2))
 
 
 def _process_optimization_result(config, res):
@@ -264,6 +264,12 @@ def _run_backtest_wrapper(args):
         return config, {"error": str(e)}
 
 def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None):
+    # Lower process priority so system/SSH processes remain responsive
+    try:
+        os.nice(10)
+    except (OSError, AttributeError):
+        pass  # Windows or permission error
+
     # Force close inherited DB connections to prevent SSL/OperationalError in worker process
     try:
         from ..db.session import engine
