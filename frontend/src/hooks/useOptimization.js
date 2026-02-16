@@ -183,13 +183,14 @@ export const useOptimization = ({
 
     // Download FULL optimization results from backend (all combinations, not just top 200)
     const downloadFullOptResultsCSV = async () => {
-        if (!completedOptTaskId) {
+        const taskId = completedOptTaskId || currentConfig?.lastOptTaskId;
+        if (!taskId) {
             addLog('No optimization task available for download', 'error');
             return;
         }
 
         try {
-            const csvBlob = await downloadOptimizationCSV(completedOptTaskId);
+            const csvBlob = await downloadOptimizationCSV(taskId);
 
             const blob = new Blob([csvBlob], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -457,6 +458,20 @@ export const useOptimization = ({
                             const formattedResults = formatHeavyOptResults(data.top_results);
                             updateTabHeavyOpt(forTab, { results: formattedResults });
                             if (isCurrentTab) setOptResults(formattedResults);
+                        }
+                        // Persist task_id to config for recalculate after refresh
+                        const tabIdx = parseInt(forTab, 10);
+                        if (isNaN(tabIdx) || tabIdx < 0) {
+                            // Symbol Compare tab (-3)
+                            setSymbolCompareConfig(prev => prev ? { ...prev, lastOptTaskId: taskId } : prev);
+                        } else {
+                            setConfigList(prev => {
+                                const next = [...prev];
+                                if (next[tabIdx]) {
+                                    next[tabIdx] = { ...next[tabIdx], lastOptTaskId: taskId };
+                                }
+                                return next;
+                            });
                         }
                     } else if (data.status === 'cancelled') {
                         addLog('Optimization cancelled.', 'warning');
@@ -764,6 +779,19 @@ export const useOptimization = ({
                                 });
                                 setOptResults(formattedResults);
                                 setCompletedOptTaskId(taskId); // For full CSV download
+
+                                // Persist task_id to config for recalculate after refresh
+                                if (isCrossOpt) {
+                                    setSymbolCompareConfig(prev => prev ? { ...prev, lastOptTaskId: taskId } : prev);
+                                } else if (activeTab >= 0) {
+                                    setConfigList(prev => {
+                                        const next = [...prev];
+                                        if (next[activeTab]) {
+                                            next[activeTab] = { ...next[activeTab], lastOptTaskId: taskId };
+                                        }
+                                        return next;
+                                    });
+                                }
 
                                 // Save optimization results
                                 if (statusData.status === 'completed') {

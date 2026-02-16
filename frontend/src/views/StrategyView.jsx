@@ -458,6 +458,7 @@ const StrategyView = () => {
         activeTab, configList, setConfigList,
         symbolCompareConfig, setSymbolCompareConfig,
         completedOptTaskId, heavyOptTaskId,
+        currentConfig,
         optResults, setOptResults,
         selectedStrategy, savedSymbols, addLog
     });
@@ -3174,7 +3175,7 @@ const StrategyView = () => {
                                                                     </svg>
                                                                     Export Top 200
                                                                 </button>
-                                                                {completedOptTaskId && (
+                                                                {(completedOptTaskId || currentConfig?.lastOptTaskId) && (
                                                                     <button
                                                                         onClick={downloadFullOptResultsCSV}
                                                                         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
@@ -3187,7 +3188,7 @@ const StrategyView = () => {
                                                                     </button>
                                                                 )}
                                                                 {/* Score Weight Recalculation Toggle */}
-                                                                {(completedOptTaskId || heavyOptTaskId) && !isOptimizing && (
+                                                                {(completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId) && !isOptimizing && (
                                                                     <button
                                                                         onClick={() => setShowWeightPanel(!showWeightPanel)}
                                                                         className={`px-4 py-2 ${showWeightPanel ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'} text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2`}
@@ -3203,7 +3204,7 @@ const StrategyView = () => {
                                                         </div>
 
                                                         {/* Score Weight Adjustment Panel */}
-                                                        {showWeightPanel && (completedOptTaskId || heavyOptTaskId) && !isOptimizing && (
+                                                        {showWeightPanel && (completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId) && !isOptimizing && (
                                                             <div className="p-4 border-b border-white/10 bg-gradient-to-r from-orange-900/20 to-yellow-900/20">
                                                                 <div className="flex items-center justify-between mb-3">
                                                                     <span className="text-sm font-medium text-white">Score Weight Settings</span>

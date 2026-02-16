@@ -11,6 +11,7 @@ export const useScoreWeights = ({
     activeTab, configList, setConfigList,
     symbolCompareConfig, setSymbolCompareConfig,
     completedOptTaskId, heavyOptTaskId,
+    currentConfig,
     optResults, setOptResults,
     selectedStrategy, savedSymbols, addLog
 }) => {
@@ -48,9 +49,10 @@ export const useScoreWeights = ({
     }, [activeTab, persistScoreWeights]);
 
     const recalculateScores = useCallback(async () => {
-        const taskId = completedOptTaskId || heavyOptTaskId;
+        // Try in-memory task IDs first, then fall back to profile-persisted task ID
+        const taskId = completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId;
         if (!taskId) {
-            addLog('No optimization task to recalculate', 'error');
+            addLog('No optimization task to recalculate (run optimization first)', 'error');
             return;
         }
 
@@ -87,7 +89,7 @@ export const useScoreWeights = ({
         } finally {
             setIsRecalculating(false);
         }
-    }, [completedOptTaskId, heavyOptTaskId, scoreWeights, selectedStrategy, savedSymbols, setOptResults, addLog]);
+    }, [completedOptTaskId, heavyOptTaskId, currentConfig?.lastOptTaskId, scoreWeights, selectedStrategy, savedSymbols, setOptResults, addLog]);
 
     // Initialize scoreWeightsMap from loaded profile data
     const initScoreWeightsFromProfile = useCallback((configs, symCompareConfig) => {
