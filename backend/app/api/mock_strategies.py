@@ -177,6 +177,43 @@ HEAVY_OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}  # For large-scale opti
 
 import uuid
 import multiprocessing
+import atexit
+import signal
+
+# Track active ProcessPoolExecutors for cleanup on exit
+_active_executors: list = []
+
+def _cleanup_executors():
+    """Kill all worker processes on main process exit (PM2 restart, etc.)."""
+    for executor in list(_active_executors):
+        try:
+            # Access internal worker PIDs and kill them directly
+            if hasattr(executor, '_processes'):
+                for pid in list(executor._processes.keys()):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                        logger.info(f"Killed worker process {pid}")
+                    except (ProcessLookupError, PermissionError):
+                        pass
+            executor.shutdown(wait=False, cancel_futures=True)
+        except Exception as e:
+            logger.warning(f"Error during executor cleanup: {e}")
+    _active_executors.clear()
+
+atexit.register(_cleanup_executors)
+
+def _signal_handler(signum, frame):
+    """Handle SIGTERM (PM2 stop/restart) by cleaning up worker processes."""
+    logger.info(f"Received signal {signum}, cleaning up worker processes...")
+    _cleanup_executors()
+    # Re-raise to allow normal shutdown
+    raise SystemExit(0)
+
+# Register SIGTERM handler (PM2 sends SIGTERM on restart)
+try:
+    signal.signal(signal.SIGTERM, _signal_handler)
+except (OSError, ValueError):
+    pass  # May fail in non-main thread
 
 
 def _get_worker_count():
@@ -376,7 +413,9 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
             ctx = multiprocessing.get_context('spawn')
             completed_count = 0
 
-            with ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx) as executor:
+            executor = ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx)
+            _active_executors.append(executor)
+            try:
                 future_to_idx = {}
                 for i, args in enumerate(run_args):
                     future = executor.submit(_run_sync_in_process, *args)
@@ -409,6 +448,10 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
 
                     OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
                     _update_partial_results(completed_count)
+            finally:
+                executor.shutdown(wait=True)
+                if executor in _active_executors:
+                    _active_executors.remove(executor)
 
         else:
             # ===== SEQUENTIAL EXECUTION (standard) =====
@@ -1123,7 +1166,9 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                 ctx = multiprocessing.get_context('spawn')
                 completed_count = 0
 
-                with ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx) as executor:
+                executor = ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx)
+                _active_executors.append(executor)
+                try:
                     future_to_idx = {}
                     for i, args in enumerate(run_args):
                         future = executor.submit(_run_sync_in_process, *args)
@@ -1148,6 +1193,10 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                             logger.warning(f"Heavy opt future {idx} failed: {e}")
 
                         _update_heavy_progress(completed_count)
+                finally:
+                    executor.shutdown(wait=True)
+                    if executor in _active_executors:
+                        _active_executors.remove(executor)
 
             else:
                 # ===== SEQUENTIAL EXECUTION =====
