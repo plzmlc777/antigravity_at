@@ -17,8 +17,9 @@ export const useDataFetching = ({
             const data = await getMarketDataStatus(symbol, { interval: "1m" });
             setDataStatus(data);
 
-            // Auto-set Start Date to Data Start (clamped to 1 year back)
-            if (data.start_date) {
+            // Auto-set Start Date ONLY when from_date is empty (not user-set)
+            // If the user/profile already has a from_date, respect it.
+            if (data.start_date && !currentConfig?.from_date) {
                 const parts = data.start_date.split('.');
                 if (parts.length === 3) {
                     const yyyy = `20${parts[0]}`;
@@ -30,12 +31,10 @@ export const useDataFetching = ({
                     if (new Date(newDate) < minDate) {
                         newDate = minDate.toISOString().split('T')[0];
                     }
-                    if (currentConfig?.from_date !== newDate) {
-                        if (activeTab >= 0 && activeTab < configList.length) {
-                            const newList = [...configList];
-                            newList[activeTab] = { ...newList[activeTab], from_date: newDate };
-                            setConfigList(newList);
-                        }
+                    if (activeTab >= 0 && activeTab < configList.length) {
+                        const newList = [...configList];
+                        newList[activeTab] = { ...newList[activeTab], from_date: newDate };
+                        setConfigList(newList);
                     }
                 }
             }
