@@ -24,7 +24,6 @@ import { useDataFetching } from '../hooks/useDataFetching';
 import { useSymbolComparison } from '../hooks/useSymbolComparison';
 import { useOptimization } from '../hooks/useOptimization';
 import { useScoreWeights } from '../hooks/useScoreWeights';
-import { useAiAnalysis } from '../hooks/useAiAnalysis';
 
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
@@ -462,13 +461,6 @@ const StrategyView = () => {
         optResults, setOptResults,
         selectedStrategy, savedSymbols, addLog
     });
-
-    const {
-        aiAnalysisLoading, aiAnalysisResult, setAiAnalysisResult,
-        showAiAnalysisModal, setShowAiAnalysisModal,
-        aiModels, selectedAiModel, setSelectedAiModel,
-        fetchAiModels, runAiAnalysis
-    } = useAiAnalysis({ heavyOptStatus, heavyOptTaskId, addLog });
 
     // Reset related state when profile changes (Symbol Compare, Integrated, Backtest results)
     const prevProfileIdRef = useRef(selectedProfileId);
@@ -3062,43 +3054,6 @@ const StrategyView = () => {
                                                                         </svg>
                                                                         Download CSV
                                                                     </button>
-                                                                    <div className="flex items-center">
-                                                                        <button
-                                                                            onClick={() => runAiAnalysis()}
-                                                                            disabled={aiAnalysisLoading}
-                                                                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-l-lg font-bold flex items-center gap-2"
-                                                                        >
-                                                                            {aiAnalysisLoading ? (
-                                                                                <>
-                                                                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                                                    </svg>
-                                                                                    Analyzing...
-                                                                                </>
-                                                                            ) : (
-                                                                                <>
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                                                                    </svg>
-                                                                                    AI Analyze
-                                                                                </>
-                                                                            )}
-                                                                        </button>
-                                                                        <select
-                                                                            value={selectedAiModel}
-                                                                            onChange={(e) => setSelectedAiModel(e.target.value)}
-                                                                            disabled={aiAnalysisLoading}
-                                                                            className="h-full px-2 py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded-r-lg border-l border-purple-400/30 cursor-pointer focus:outline-none"
-                                                                            title="Select AI Model"
-                                                                        >
-                                                                            {aiModels.map(model => (
-                                                                                <option key={model.id} value={model.id}>
-                                                                                    {model.name}
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
-                                                                    </div>
                                                                     <span className="text-xs text-gray-400">
                                                                         {heavyOptStatus.file_size_bytes ? `${(heavyOptStatus.file_size_bytes / 1024 / 1024).toFixed(2)} MB` : ''}
                                                                     </span>
@@ -3563,109 +3518,6 @@ const StrategyView = () => {
                 strategy={selectedStrategy}
             />
 
-            {/* AI Analysis Result Modal */}
-            {showAiAnalysisModal && aiAnalysisResult && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-[90vw] max-w-4xl max-h-[85vh] overflow-hidden shadow-2xl">
-                        {/* Modal Header */}
-                        <div className="bg-gradient-to-r from-purple-600/20 to-indigo-600/20 border-b border-white/10 px-6 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-500/20 rounded-lg">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-bold text-white">AI Optimization Analysis</h2>
-                                    <p className="text-sm text-gray-400">
-                                        {aiAnalysisResult.total_rows?.toLocaleString()} combinations analyzed
-                                        {aiAnalysisResult.symbols_count && ` across ${aiAnalysisResult.symbols_count} symbols`}
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowAiAnalysisModal(false)}
-                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Modal Content */}
-                        <div className="p-6 overflow-y-auto max-h-[calc(85vh-100px)]">
-                            {aiAnalysisResult.error ? (
-                                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                                    <p className="text-red-400 font-bold mb-2">Analysis Failed</p>
-                                    <p className="text-red-300 text-sm">{aiAnalysisResult.error}</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-6">
-                                    {/* Statistics Summary */}
-                                    {aiAnalysisResult.statistics?.overall && (
-                                        <div className="bg-white/5 rounded-lg p-4">
-                                            <h3 className="text-lg font-bold text-white mb-3">Statistics Summary</h3>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-400">Return Range</span>
-                                                    <p className="text-white font-mono">
-                                                        {aiAnalysisResult.statistics.overall.return?.min}% ~ {aiAnalysisResult.statistics.overall.return?.max}%
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Avg Return</span>
-                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.return?.avg}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Avg Win Rate</span>
-                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.win_rate?.avg}%</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-400">Avg Stability</span>
-                                                    <p className="text-white font-mono">{aiAnalysisResult.statistics.overall.stability_avg}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* AI Response */}
-                                    {aiAnalysisResult.ai_response?.content && (
-                                        <div className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border border-purple-500/20 rounded-lg p-4">
-                                            <h3 className="text-lg font-bold text-purple-300 mb-3 flex items-center gap-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                                </svg>
-                                                AI Analysis
-                                            </h3>
-                                            <div className="prose prose-invert prose-sm max-w-none">
-                                                <pre className="whitespace-pre-wrap text-gray-300 font-sans text-sm leading-relaxed bg-black/30 rounded-lg p-4 overflow-x-auto">
-                                                    {aiAnalysisResult.ai_response.content}
-                                                </pre>
-                                            </div>
-                                            {aiAnalysisResult.ai_response.usage && (
-                                                <p className="text-xs text-gray-500 mt-3">
-                                                    Tokens used: {aiAnalysisResult.ai_response.usage.input_tokens?.toLocaleString()} input, {aiAnalysisResult.ai_response.usage.output_tokens?.toLocaleString()} output
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="border-t border-white/10 px-6 py-4 flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowAiAnalysisModal(false)}
-                                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div >
     );
 };
