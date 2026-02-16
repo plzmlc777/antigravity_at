@@ -3102,6 +3102,147 @@ const StrategyView = () => {
                                                     </div>
                                                 )}
 
+                                                {/* Score Weight / Download panel - visible even after refresh if lastOptTaskId exists */}
+                                                {!isOptimizing && !optResults?.length && (completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId) && (
+                                                    <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
+                                                        <div className="p-4 flex items-center justify-between">
+                                                            <span className="text-sm text-gray-400">Previous optimization results available on server</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={downloadFullOptResultsCSV}
+                                                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                                    title="Download ALL optimization results (full dataset)"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                    </svg>
+                                                                    Download Full CSV
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setShowWeightPanel(!showWeightPanel)}
+                                                                    className={`px-4 py-2 ${showWeightPanel ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'} text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2`}
+                                                                    title="Adjust score weights and recalculate top 50 from full results"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                                    </svg>
+                                                                    {showWeightPanel ? 'Hide Weights' : 'Score Weights'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Score Weight Adjustment Panel (shared - works with or without results) */}
+                                                {showWeightPanel && (completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId) && !isOptimizing && (
+                                                    <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4 p-4 bg-gradient-to-r from-orange-900/20 to-yellow-900/20">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <span className="text-sm font-medium text-white">Score Weight Settings</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-gray-400">Presets:</span>
+                                                                <button
+                                                                    onClick={() => applyWeightPreset('balanced')}
+                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.balanced) ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                >
+                                                                    균형
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => applyWeightPreset('return_focused')}
+                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.return_focused) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                >
+                                                                    수익 중심
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => applyWeightPreset('stability_focused')}
+                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.stability_focused) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                >
+                                                                    안정 중심
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mb-2">
+                                                            <span className="text-xs text-gray-500 mb-1 block">주요 지표</span>
+                                                            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                                                                {[
+                                                                    { key: 'return_weight', label: 'Return', color: 'green' },
+                                                                    { key: 'sharpe_weight', label: 'Sharpe', color: 'blue' },
+                                                                    { key: 'stability_weight', label: 'Stability', color: 'purple' },
+                                                                    { key: 'mdd_weight', label: 'MDD (패널티)', color: 'red' },
+                                                                    { key: 'avg_pnl_weight', label: 'AvgPnL', color: 'indigo' }
+                                                                ].map(({ key, label, color }) => (
+                                                                    <div key={key} className="flex flex-col items-center bg-black/20 rounded p-2">
+                                                                        <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
+                                                                        <input
+                                                                            type="range"
+                                                                            min="0"
+                                                                            max="3"
+                                                                            step="0.1"
+                                                                            value={scoreWeights[key]}
+                                                                            onChange={(e) => handleWeightChange(key, e.target.value)}
+                                                                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                                                        />
+                                                                        <span className="text-xs text-gray-300 mt-1">{scoreWeights[key].toFixed(1)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div className="mb-3">
+                                                            <span className="text-xs text-gray-500 mb-1 block">선택 지표 (기본값 0 = 미적용)</span>
+                                                            <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                                                                {[
+                                                                    { key: 'win_rate_weight', label: 'WinRate', color: 'cyan' },
+                                                                    { key: 'recent_10_weight', label: 'Recent10', color: 'lime' },
+                                                                    { key: 'profit_factor_weight', label: 'ProfitFactor', color: 'emerald' },
+                                                                    { key: 'accel_weight', label: 'Accel', color: 'yellow' },
+                                                                    { key: 'trades_weight', label: 'Cycles', color: 'orange' },
+                                                                    { key: 'activity_weight', label: 'Activity', color: 'pink' }
+                                                                ].map(({ key, label, color }) => (
+                                                                    <div key={key} className="flex flex-col items-center opacity-80 bg-black/10 rounded p-1">
+                                                                        <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
+                                                                        <input
+                                                                            type="range"
+                                                                            min="0"
+                                                                            max="3"
+                                                                            step="0.1"
+                                                                            value={scoreWeights[key]}
+                                                                            onChange={(e) => handleWeightChange(key, e.target.value)}
+                                                                            className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                                                        />
+                                                                        <span className="text-xs text-gray-400 mt-0.5">{scoreWeights[key].toFixed(1)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs text-gray-400">
+                                                                Formula: (Return<sup>w</sup> × Sharpe<sup>w</sup> × Stability<sup>w</sup>) / MDD<sup>w</sup> | Weight 0 = Exclude
+                                                            </p>
+                                                            <button
+                                                                onClick={recalculateScores}
+                                                                disabled={isRecalculating}
+                                                                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                                            >
+                                                                {isRecalculating ? (
+                                                                    <>
+                                                                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                                                        </svg>
+                                                                        Recalculating...
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                        </svg>
+                                                                        Recalculate Top 50
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {optResults && optResults.length > 0 && (
                                                     <div className="bg-black/40 rounded-lg overflow-hidden border border-white/10 mt-4">
                                                         {/* Export & Save Buttons */}
@@ -3115,7 +3256,7 @@ const StrategyView = () => {
                                                                 )}
                                                                 {pendingOptResult && (
                                                                     <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full animate-pulse">
-                                                                        ⚠️ Unsaved
+                                                                        Unsaved
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -3157,118 +3298,6 @@ const StrategyView = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-
-                                                        {/* Score Weight Adjustment Panel */}
-                                                        {showWeightPanel && (completedOptTaskId || heavyOptTaskId || currentConfig?.lastOptTaskId) && !isOptimizing && (
-                                                            <div className="p-4 border-b border-white/10 bg-gradient-to-r from-orange-900/20 to-yellow-900/20">
-                                                                <div className="flex items-center justify-between mb-3">
-                                                                    <span className="text-sm font-medium text-white">Score Weight Settings</span>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="text-xs text-gray-400">Presets:</span>
-                                                                        <button
-                                                                            onClick={() => applyWeightPreset('balanced')}
-                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.balanced) ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                        >
-                                                                            균형
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => applyWeightPreset('return_focused')}
-                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.return_focused) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                        >
-                                                                            수익 중심
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => applyWeightPreset('stability_focused')}
-                                                                            className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.stability_focused) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                        >
-                                                                            안정 중심
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                {/* Primary Weights (Important) */}
-                                                                <div className="mb-2">
-                                                                    <span className="text-xs text-gray-500 mb-1 block">주요 지표</span>
-                                                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-                                                                        {[
-                                                                            { key: 'return_weight', label: 'Return', color: 'green' },
-                                                                            { key: 'sharpe_weight', label: 'Sharpe', color: 'blue' },
-                                                                            { key: 'stability_weight', label: 'Stability', color: 'purple' },
-                                                                            { key: 'mdd_weight', label: 'MDD (패널티)', color: 'red' },
-                                                                            { key: 'avg_pnl_weight', label: 'AvgPnL', color: 'indigo' }
-                                                                        ].map(({ key, label, color }) => (
-                                                                            <div key={key} className="flex flex-col items-center bg-black/20 rounded p-2">
-                                                                                <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
-                                                                                <input
-                                                                                    type="range"
-                                                                                    min="0"
-                                                                                    max="3"
-                                                                                    step="0.1"
-                                                                                    value={scoreWeights[key]}
-                                                                                    onChange={(e) => handleWeightChange(key, e.target.value)}
-                                                                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                                                                />
-                                                                                <span className="text-xs text-gray-300 mt-1">{scoreWeights[key].toFixed(1)}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                                {/* Secondary Weights (Optional - All Result Metrics) */}
-                                                                <div className="mb-3">
-                                                                    <span className="text-xs text-gray-500 mb-1 block">선택 지표 (기본값 0 = 미적용)</span>
-                                                                    <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                                                                        {[
-                                                                            { key: 'win_rate_weight', label: 'WinRate', color: 'cyan' },
-                                                                            { key: 'recent_10_weight', label: 'Recent10', color: 'lime' },
-                                                                            { key: 'profit_factor_weight', label: 'ProfitFactor', color: 'emerald' },
-                                                                            { key: 'accel_weight', label: 'Accel', color: 'yellow' },
-                                                                            { key: 'trades_weight', label: 'Cycles', color: 'orange' },
-                                                                            { key: 'activity_weight', label: 'Activity', color: 'pink' }
-                                                                        ].map(({ key, label, color }) => (
-                                                                            <div key={key} className="flex flex-col items-center opacity-80 bg-black/10 rounded p-1">
-                                                                                <label className={`text-xs text-${color}-400 mb-1`}>{label}</label>
-                                                                                <input
-                                                                                    type="range"
-                                                                                    min="0"
-                                                                                    max="3"
-                                                                                    step="0.1"
-                                                                                    value={scoreWeights[key]}
-                                                                                    onChange={(e) => handleWeightChange(key, e.target.value)}
-                                                                                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-                                                                                />
-                                                                                <span className="text-xs text-gray-400 mt-0.5">{scoreWeights[key].toFixed(1)}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center justify-between">
-                                                                    <p className="text-xs text-gray-400">
-                                                                        Formula: (Return<sup>w</sup> × Sharpe<sup>w</sup> × Stability<sup>w</sup>) / MDD<sup>w</sup> | Weight 0 = Exclude
-                                                                    </p>
-                                                                    <button
-                                                                        onClick={recalculateScores}
-                                                                        disabled={isRecalculating}
-                                                                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                                                    >
-                                                                        {isRecalculating ? (
-                                                                            <>
-                                                                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                                                                </svg>
-                                                                                Recalculating...
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                                                </svg>
-                                                                                Recalculate Top 50
-                                                                            </>
-                                                                        )}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        )}
 
                                                         <DualScrollContainer>
                                                             <table className="w-full text-left border-collapse whitespace-nowrap">
