@@ -388,188 +388,245 @@ def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, st
     """
     Background wrapper that runs optimization and updates Global Status.
     Supports 'standard' (sequential) and 'fast' (parallel ProcessPool) modes.
+
+    Memory-optimized: streams results to CSV as they arrive and keeps only
+    top 200 in memory via a min-heap (instead of accumulating all results).
     """
+    import heapq
+
+    TOP_N = 200  # Keep top N results in memory for partial_results + final response
+
     try:
-        results = []
         failures = []
+        total_result_count = 0  # Track total results written to CSV
+
+        # Min-heap of (score, seq_idx, OptimizationResultItem) — top N by score
+        top_heap = []
 
         # Update Status to Running
         OPTIMIZATION_TASKS[task_id]["status"] = "running"
         OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
 
+        # CSV setup
+        csv_filename = f"optimization_{task_id}.csv"
+        csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
+        csv_columns = [
+            'rank', 'symbol', 'score', 'total_return', 'win_rate', 'recent_10_win_rate', 'total_trades',
+            'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
+            'stability_score', 'acceleration_score', 'activity_rate',
+            'avg_holding_time', 'max_holding_time', 'min_holding_time',
+            'max_profit', 'max_loss', 'total_days'
+        ]
+        config_keys = None
+        csv_writer = None
+
+        def _write_result_to_csv(csvfile, item, seq_idx):
+            """Stream a single result to CSV file. Initializes writer on first call."""
+            nonlocal csv_writer, config_keys
+            if csv_writer is None:
+                config_keys = list(item.config.keys())
+                all_columns = csv_columns + [f"config_{k}" for k in config_keys]
+                csv_writer = csv.DictWriter(csvfile, fieldnames=all_columns)
+                csv_writer.writeheader()
+
+            row = {
+                'rank': 0,  # Placeholder — final ranks assigned after sort in CSV re-write
+                'symbol': item.symbol or '',
+                'score': item.score,
+                'total_return': item.total_return,
+                'win_rate': item.win_rate,
+                'recent_10_win_rate': item.recent_10_win_rate or 0,
+                'total_trades': item.total_trades,
+                'max_drawdown': item.max_drawdown,
+                'profit_factor': item.profit_factor,
+                'sharpe_ratio': item.sharpe_ratio,
+                'avg_pnl': item.avg_pnl,
+                'stability_score': item.stability_score,
+                'acceleration_score': item.acceleration_score,
+                'activity_rate': item.activity_rate,
+                'avg_holding_time': item.avg_holding_time,
+                'max_holding_time': item.max_holding_time,
+                'min_holding_time': item.min_holding_time,
+                'max_profit': item.max_profit,
+                'max_loss': item.max_loss,
+                'total_days': item.total_days,
+            }
+            for k in config_keys:
+                row[f"config_{k}"] = item.config.get(k, "")
+            csv_writer.writerow(row)
+            csvfile.flush()
+
+        def _update_heap(item, seq_idx):
+            """Maintain top N results in a min-heap."""
+            if len(top_heap) < TOP_N:
+                heapq.heappush(top_heap, (item.score, seq_idx, item))
+            elif item.score > top_heap[0][0]:
+                heapq.heapreplace(top_heap, (item.score, seq_idx, item))
+
         def _update_partial_results(completed_count):
-            """Update partial results preview every 10 completions."""
-            if len(results) > 0 and completed_count % 10 == 0:
-                sorted_partial = sorted(results, key=lambda x: x.score, reverse=True)[:20]
-                partial_with_ranks = [item.model_copy(update={"rank": idx + 1}) for idx, item in enumerate(sorted_partial)]
-                OPTIMIZATION_TASKS[task_id]["partial_results"] = partial_with_ranks
+            """Update partial results preview every 10 completions using heap."""
+            if len(top_heap) > 0 and completed_count % 10 == 0:
+                sorted_top = sorted(top_heap, key=lambda x: x[0], reverse=True)
+                partial = [entry[2].model_copy(update={"rank": idx + 1}) for idx, entry in enumerate(sorted_top[:20])]
+                OPTIMIZATION_TASKS[task_id]["partial_results"] = partial
 
-        if execution_mode == "fast":
-            # ===== PARALLEL EXECUTION (ProcessPoolExecutor with spawn) =====
-            worker_count = _get_worker_count()
-            logger.info(f"[PARALLEL] Running {total_combos} combinations with {worker_count} workers (spawn)")
-            OPTIMIZATION_TASKS[task_id]["message"] = f"Starting parallel execution ({worker_count} workers)..."
+        # Open CSV file for streaming write
+        with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
 
-            ctx = multiprocessing.get_context('spawn')
-            completed_count = 0
+            if execution_mode == "fast":
+                # ===== PARALLEL EXECUTION (ProcessPoolExecutor with spawn) =====
+                worker_count = _get_worker_count()
+                batch_size = worker_count * 2  # Submit in batches to limit memory
+                logger.info(f"[PARALLEL] Running {total_combos} combinations with {worker_count} workers (spawn, batch={batch_size})")
+                OPTIMIZATION_TASKS[task_id]["message"] = f"Starting parallel execution ({worker_count} workers)..."
 
-            executor = ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx)
-            _active_executors.append(executor)
-            try:
-                future_to_idx = {}
+                ctx = multiprocessing.get_context('spawn')
+                completed_count = 0
+
+                executor = ProcessPoolExecutor(
+                    max_workers=worker_count, mp_context=ctx,
+                    max_tasks_per_child=1  # Restart workers after each task to prevent memory leak
+                )
+                _active_executors.append(executor)
+                try:
+                    # Submit futures in batches to avoid holding all futures in memory
+                    args_iter = iter(enumerate(run_args))
+                    active_futures = {}
+                    finished = False
+
+                    def _submit_batch():
+                        """Submit up to batch_size new futures."""
+                        nonlocal finished
+                        submitted = 0
+                        while len(active_futures) < batch_size and not finished:
+                            try:
+                                i, args = next(args_iter)
+                                future = executor.submit(_run_sync_in_process, *args)
+                                active_futures[future] = i
+                                submitted += 1
+                            except StopIteration:
+                                finished = True
+                                break
+                        return submitted
+
+                    # Initial batch
+                    _submit_batch()
+
+                    while active_futures:
+                        if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                            logger.info(f"Task {task_id} cancellation requested (parallel).")
+                            for f in active_futures:
+                                f.cancel()
+                            OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                            OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                            break
+
+                        # Wait for next completed future
+                        done_futures = set()
+                        for future in as_completed(active_futures):
+                            done_futures.add(future)
+                            completed_count += 1
+                            idx = active_futures[future]
+
+                            try:
+                                config, res = future.result()
+                                item, err = _process_optimization_result(config, res)
+                                if item:
+                                    if 'perf_log' in res:
+                                        sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
+                                        OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({completed_count}/{total_combos}){sym_tag}... {res['perf_log']}"
+                                    _write_result_to_csv(csvfile, item, idx)
+                                    _update_heap(item, idx)
+                                    total_result_count += 1
+                                elif err and len(failures) < 10:
+                                    failures.append(f"Config failed: {err}")
+                            except Exception as e:
+                                logger.error(f"Future error: {e}")
+                                if len(failures) < 10:
+                                    failures.append(str(e))
+
+                            OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
+                            _update_partial_results(completed_count)
+
+                            # Submit more work as futures complete
+                            _submit_batch()
+                            break  # Process one at a time to submit new work promptly
+
+                        # Remove completed futures from tracking
+                        for f in done_futures:
+                            del active_futures[f]
+
+                finally:
+                    executor.shutdown(wait=True)
+                    if executor in _active_executors:
+                        _active_executors.remove(executor)
+
+            else:
+                # ===== SEQUENTIAL EXECUTION (standard) =====
+                logger.info(f"[SEQUENTIAL] Running {total_combos} combinations sequentially")
+
                 for i, args in enumerate(run_args):
-                    future = executor.submit(_run_sync_in_process, *args)
-                    future_to_idx[future] = i
-
-                for future in as_completed(future_to_idx):
-                    if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                        logger.info(f"Task {task_id} cancellation requested (parallel).")
-                        for f in future_to_idx:
-                            f.cancel()
-                        OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                        OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                        break
-
-                    completed_count += 1
+                    if i % 5 == 0:
+                        time.sleep(0.01)
                     try:
-                        config, res = future.result()
+                        config, res = _run_sync_in_process(*args)
                         item, err = _process_optimization_result(config, res)
                         if item:
                             if 'perf_log' in res:
                                 sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
-                                OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({completed_count}/{total_combos}){sym_tag}... {res['perf_log']}"
-                            results.append(item)
+                                OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
+                            _write_result_to_csv(csvfile, item, i)
+                            _update_heap(item, i)
+                            total_result_count += 1
                         elif err and len(failures) < 10:
                             failures.append(f"Config failed: {err}")
                     except Exception as e:
-                        logger.error(f"Future error: {e}")
+                        logger.error(f"Result Error: {e}")
                         if len(failures) < 10:
                             failures.append(str(e))
 
-                    OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
-                    _update_partial_results(completed_count)
-            finally:
-                executor.shutdown(wait=True)
-                if executor in _active_executors:
-                    _active_executors.remove(executor)
+                    OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
+                    _update_partial_results(i + 1)
 
-        else:
-            # ===== SEQUENTIAL EXECUTION (standard) =====
-            logger.info(f"[SEQUENTIAL] Running {total_combos} combinations sequentially")
+                    if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
+                        logger.info(f"Task {task_id} cancellation requested.")
+                        OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
+                        OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
+                        break
 
-            for i, args in enumerate(run_args):
-                if i % 5 == 0:
-                    time.sleep(0.01)
-                try:
-                    config, res = _run_sync_in_process(*args)
-                    item, err = _process_optimization_result(config, res)
-                    if item:
-                        if 'perf_log' in res:
-                            sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
-                            OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
-                        results.append(item)
-                    elif err and len(failures) < 10:
-                        failures.append(f"Config failed: {err}")
-                except Exception as e:
-                    logger.error(f"Result Error: {e}")
-                    if len(failures) < 10:
-                        failures.append(str(e))
+        # CSV streaming complete
+        OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
+        logger.info(f"[CSV] Streamed {total_result_count} results to {csv_filepath}")
 
-                OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
-                _update_partial_results(i + 1)
-
-                if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                    logger.info(f"Task {task_id} cancellation requested.")
-                    OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                    OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                    break
-        
-        # Finished - Sort by score and assign ranks
-        results.sort(key=lambda x: x.score, reverse=True)
-
-        # Use model_copy to properly update rank (Pydantic v2 safe)
-        ranked_results = []
-        for i, item in enumerate(results):
-            ranked_item = item.model_copy(update={"rank": i + 1})
-            ranked_results.append(ranked_item)
-        results = ranked_results
-
-        # Write ALL results to CSV file
-        csv_filename = f"optimization_{task_id}.csv"
-        csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
-        try:
-            with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
-                if results:
-                    # Define CSV columns (symbol included for cross-optimization)
-                    csv_columns = [
-                        'rank', 'symbol', 'score', 'total_return', 'win_rate', 'recent_10_win_rate', 'total_trades',
-                        'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
-                        'stability_score', 'acceleration_score', 'activity_rate',
-                        'avg_holding_time', 'max_holding_time', 'min_holding_time',
-                        'max_profit', 'max_loss', 'total_days'
-                    ]
-                    # Add config keys from first result
-                    config_keys = list(results[0].config.keys())
-                    all_columns = csv_columns + [f"config_{k}" for k in config_keys]
-
-                    writer = csv.DictWriter(csvfile, fieldnames=all_columns)
-                    writer.writeheader()
-
-                    for item in results:
-                        row = {
-                            'rank': item.rank,
-                            'symbol': item.symbol or '',
-                            'score': item.score,
-                            'total_return': item.total_return,
-                            'win_rate': item.win_rate,
-                            'recent_10_win_rate': item.recent_10_win_rate or 0,
-                            'total_trades': item.total_trades,
-                            'max_drawdown': item.max_drawdown,
-                            'profit_factor': item.profit_factor,
-                            'sharpe_ratio': item.sharpe_ratio,
-                            'avg_pnl': item.avg_pnl,
-                            'stability_score': item.stability_score,
-                            'acceleration_score': item.acceleration_score,
-                            'activity_rate': item.activity_rate,
-                            'avg_holding_time': item.avg_holding_time,
-                            'max_holding_time': item.max_holding_time,
-                            'min_holding_time': item.min_holding_time,
-                            'max_profit': item.max_profit,
-                            'max_loss': item.max_loss,
-                            'total_days': item.total_days,
-                        }
-                        # Add config values
-                        for k in config_keys:
-                            row[f"config_{k}"] = item.config.get(k, "")
-                        writer.writerow(row)
-
-            OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
-            logger.info(f"[CSV] Saved {len(results)} results to {csv_filepath}")
-        except Exception as csv_err:
-            logger.error(f"[CSV] Failed to save CSV: {csv_err}")
+        # Build final response from top N heap results (sorted, ranked)
+        sorted_top = sorted(top_heap, key=lambda x: x[0], reverse=True)
+        ranked_results = [
+            entry[2].model_copy(update={"rank": idx + 1})
+            for idx, entry in enumerate(sorted_top)
+        ]
 
         execution_time = time.time() - start_time
-        
+
         # Determine final status
         final_status = "completed"
         if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
              final_status = "cancelled"
-        
+
         response = OptimizationResponse(
             strategy_id=strategy_id,
-            best_config=results[0].config if results else {},
-            results=results[:200],
+            best_config=ranked_results[0].config if ranked_results else {},
+            results=ranked_results[:200],
             failures=failures,
             total_combinations=total_combos,
             elapsed_time=execution_time,
             task_id=task_id,
             status=final_status
         )
-        
+
         OPTIMIZATION_TASKS[task_id]["status"] = final_status
         OPTIMIZATION_TASKS[task_id]["result"] = response
         elapsed_str = f"{execution_time:.1f}s" if execution_time < 60 else f"{int(execution_time // 60)}m {int(execution_time % 60)}s"
-        OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {len(results)} results, {len(failures)} failures (Elapsed: {elapsed_str})"
+        OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {total_result_count} results, {len(failures)} failures (Elapsed: {elapsed_str})"
 
         # Server-side auto-save to DB (independent of frontend polling)
         if save_to_tab_id and final_status == "completed":
@@ -1166,33 +1223,59 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                 ctx = multiprocessing.get_context('spawn')
                 completed_count = 0
 
-                executor = ProcessPoolExecutor(max_workers=worker_count, mp_context=ctx)
+                executor = ProcessPoolExecutor(
+                    max_workers=worker_count, mp_context=ctx,
+                    max_tasks_per_child=1  # Restart workers after each task to prevent memory leak
+                )
                 _active_executors.append(executor)
                 try:
-                    future_to_idx = {}
-                    for i, args in enumerate(run_args):
-                        future = executor.submit(_run_sync_in_process, *args)
-                        future_to_idx[future] = i
+                    # Batch submission to avoid holding all futures in memory
+                    batch_size = worker_count * 2
+                    args_iter = iter(enumerate(run_args))
+                    active_futures = {}
+                    iter_finished = False
 
-                    for future in as_completed(future_to_idx):
+                    def _submit_heavy_batch():
+                        nonlocal iter_finished
+                        while len(active_futures) < batch_size and not iter_finished:
+                            try:
+                                i, args = next(args_iter)
+                                future = executor.submit(_run_sync_in_process, *args)
+                                active_futures[future] = i
+                            except StopIteration:
+                                iter_finished = True
+                                break
+
+                    _submit_heavy_batch()
+
+                    while active_futures:
                         if HEAVY_OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                            for f in future_to_idx:
+                            for f in active_futures:
                                 f.cancel()
                             HEAVY_OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
                             HEAVY_OPTIMIZATION_TASKS[task_id]["message"] = f"Cancelled at {completed_count}/{total_combos}"
                             break
 
-                        completed_count += 1
-                        idx = future_to_idx[future]
+                        done_futures = set()
+                        for future in as_completed(active_futures):
+                            done_futures.add(future)
+                            completed_count += 1
+                            idx = active_futures[future]
 
-                        try:
-                            config, res = future.result()
-                            writer = _process_heavy_result(config, res, writer, csvfile, idx)
-                        except Exception as e:
-                            failures += 1
-                            logger.warning(f"Heavy opt future {idx} failed: {e}")
+                            try:
+                                config, res = future.result()
+                                writer = _process_heavy_result(config, res, writer, csvfile, idx)
+                            except Exception as e:
+                                failures += 1
+                                logger.warning(f"Heavy opt future {idx} failed: {e}")
 
-                        _update_heavy_progress(completed_count)
+                            _update_heavy_progress(completed_count)
+                            _submit_heavy_batch()
+                            break  # Process one at a time to submit new work
+
+                        for f in done_futures:
+                            del active_futures[f]
+
                 finally:
                     executor.shutdown(wait=True)
                     if executor in _active_executors:
