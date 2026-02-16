@@ -3140,24 +3140,39 @@ const StrategyView = () => {
                                                             <span className="text-sm font-medium text-white">Score Weight Settings</span>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-xs text-gray-400">Presets:</span>
-                                                                <button
-                                                                    onClick={() => applyWeightPreset('balanced')}
-                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.balanced) ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                >
-                                                                    균형
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => applyWeightPreset('return_focused')}
-                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.return_focused) ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                >
-                                                                    수익 중심
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => applyWeightPreset('stability_focused')}
-                                                                    className={`px-2 py-1 text-xs rounded ${JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.stability_focused) ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                                                                >
-                                                                    안정 중심
-                                                                </button>
+                                                                {(() => {
+                                                                    const isBalanced = JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.balanced);
+                                                                    const isReturn = JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.return_focused);
+                                                                    const isStability = JSON.stringify(scoreWeights) === JSON.stringify(SCORE_WEIGHT_PRESETS.stability_focused);
+                                                                    const isCustom = !isBalanced && !isReturn && !isStability;
+                                                                    return (
+                                                                        <>
+                                                                            <button
+                                                                                onClick={() => applyWeightPreset('balanced')}
+                                                                                className={`px-2 py-1 text-xs rounded ${isBalanced ? 'bg-blue-600 text-white ring-1 ring-blue-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                            >
+                                                                                {isBalanced && '✓ '}균형
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => applyWeightPreset('return_focused')}
+                                                                                className={`px-2 py-1 text-xs rounded ${isReturn ? 'bg-green-600 text-white ring-1 ring-green-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                            >
+                                                                                {isReturn && '✓ '}수익 중심
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => applyWeightPreset('stability_focused')}
+                                                                                className={`px-2 py-1 text-xs rounded ${isStability ? 'bg-purple-600 text-white ring-1 ring-purple-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                                                            >
+                                                                                {isStability && '✓ '}안정 중심
+                                                                            </button>
+                                                                            {isCustom && (
+                                                                                <span className="px-2 py-1 text-xs rounded bg-yellow-600/30 text-yellow-300 border border-yellow-500/40">
+                                                                                    커스텀
+                                                                                </span>
+                                                                            )}
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         </div>
                                                         <div className="mb-2">
