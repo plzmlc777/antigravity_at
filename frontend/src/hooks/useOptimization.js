@@ -74,6 +74,9 @@ export const useOptimization = ({
     // Execution mode: "standard" (sequential) or "fast" (parallel ProcessPool)
     const [executionMode, setExecutionMode] = useState("standard");
 
+    // Custom alert modal state (replaces window.alert)
+    const [optAlertModal, setOptAlertModal] = useState({ isOpen: false, title: '', message: '', type: 'warning' });
+
     // ========================================
     // Dynamic helpers (bound to current strategy)
     // ========================================
@@ -290,6 +293,18 @@ export const useOptimization = ({
         // Calculate total combinations
         const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
         const totalCombos = symbols.length * totalParams;
+
+        // Guard: block excessively large optimizations
+        const MAX_COMBINATIONS = 100_000;
+        if (totalCombos > MAX_COMBINATIONS) {
+            setOptAlertModal({
+                isOpen: true,
+                title: '최적화 조합 수 초과',
+                message: `조합 수가 ${totalCombos.toLocaleString()}개로 제한(${MAX_COMBINATIONS.toLocaleString()})을 초과합니다.\n\n심볼 수를 줄이거나 파라미터 범위를 좁혀 주세요.\n(${symbols.length} symbols × ${totalParams.toLocaleString()} params = ${totalCombos.toLocaleString()})`,
+                type: 'error'
+            });
+            return;
+        }
 
         const startTab = activeTab;
         updateTabHeavyOpt(startTab, {
@@ -632,6 +647,21 @@ export const useOptimization = ({
             addLog(`Parsed ${key}: [${values.join(', ')}]`, 'info');
         }
 
+        // Guard: block excessively large optimizations
+        const symbolCount = isCrossOpt ? selectedCompareSymbols.length : 1;
+        const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
+        const totalCombos = symbolCount * totalParams;
+        const MAX_COMBINATIONS = 100_000;
+        if (totalCombos > MAX_COMBINATIONS) {
+            setOptAlertModal({
+                isOpen: true,
+                title: '최적화 조합 수 초과',
+                message: `조합 수가 ${totalCombos.toLocaleString()}개로 제한(${MAX_COMBINATIONS.toLocaleString()})을 초과합니다.\n\n심볼 수를 줄이거나 파라미터 범위를 좁혀 주세요.\n(${symbolCount} symbols × ${totalParams.toLocaleString()} params = ${totalCombos.toLocaleString()})`,
+                type: 'error'
+            });
+            return;
+        }
+
         setIsOptimizing(true);
         setIsCancelling(false);
         setOptResults([]);
@@ -912,6 +942,8 @@ export const useOptimization = ({
         isHeavyOptRunning,
         optStatusMessage,
         executionMode,
+        optAlertModal,
+        setOptAlertModal,
 
         // Handlers
         setExecutionMode,

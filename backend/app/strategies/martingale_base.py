@@ -63,6 +63,7 @@ class MartingaleBase(BaseStrategy):
         self.cycle_max_level = None
         self.cycle_reference_price = None
         self.cycle_start_time = None
+        self._resolved_base_qty = None  # percent mode: resolved L1 qty
 
         # State variables
         self.current_level = 0
@@ -419,6 +420,7 @@ class MartingaleBase(BaseStrategy):
                 self.cycle_max_level = None
                 self.cycle_reference_price = None
                 self.cycle_start_time = None
+                self._resolved_base_qty = None
                 self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
             # else: async failure, already logged by context
 
@@ -431,13 +433,16 @@ class MartingaleBase(BaseStrategy):
         """Calculate share quantity for a given level.
 
         fixed mode:   base_quantity * multiplier^(level-1)  → direct share count
-        percent mode: (capital * base_quantity% * multiplier^(level-1)) / price → shares
+        percent mode: L1 resolved once from (capital * base_quantity% / price),
+                      then L2+ = resolved_L1 * multiplier^(level-1)
         """
-        multiplied = self.base_quantity * (self.lot_size_multiplier ** (level - 1))
         if self.qty_mode == "percent" and price > 0:
-            capital = getattr(self.context, 'initial_capital', 10000000)
-            return max(1, int(capital * multiplied / 100 / price))
-        return int(multiplied)
+            # Resolve L1 base qty once per cycle, cache it
+            if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
+                capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', 10000000))
+                self._resolved_base_qty = max(1, int(capital * self.base_quantity / 100 / price))
+            return int(self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1)))
+        return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
 
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)

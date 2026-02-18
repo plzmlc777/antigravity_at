@@ -28,6 +28,7 @@ import { useScoreWeights } from '../hooks/useScoreWeights';
 import { isValidScope } from '../types/ConfigScope';
 import NewProfileModal from '../components/NewProfileModal';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
+import AlertModal from '../components/AlertModal';
 import ActiveStrategiesPanel from '../components/ActiveStrategiesPanel';
 import StrategyDetailModal from '../components/StrategyDetailModal';
 import DynamicParameterForm from '../components/DynamicParameterForm';
@@ -435,6 +436,7 @@ const StrategyView = () => {
         pendingOptResult, setPendingOptResult, completedOptTaskId,
         currentOptTaskId, isCancelling, isHeavyOptRunning, optStatusMessage,
         executionMode, setExecutionMode,
+        optAlertModal, setOptAlertModal,
         runOptimization, cancelOptimization, startHeavyOptimization,
         handleCancelHeavyOpt, handleSort, exportOptResultsToCSV,
         downloadFullOptResultsCSV, applyOptParams, savePendingOptResult,
@@ -3553,6 +3555,15 @@ const StrategyView = () => {
                 isDanger={confirmModal.isDanger}
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
+            />
+
+            {/* Optimization Alert Modal */}
+            <AlertModal
+                isOpen={optAlertModal.isOpen}
+                onClose={() => setOptAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={optAlertModal.title}
+                message={optAlertModal.message}
+                type={optAlertModal.type}
             />
 
             {/* Strategy Detail Modal */}
