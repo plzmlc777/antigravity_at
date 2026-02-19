@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, runAIEvaluation, listAIEvaluations, getAIEvaluationDetail, getAIEvalSettings, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runManualAnalysis, listAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
@@ -76,6 +76,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [aiEvalCycles, setAiEvalCycles] = useState(10); // Number of cycles to analyze
     const [aiEvalMode, setAiEvalMode] = useState('real'); // 'paper' | 'real'
     const [aiBacktestDays, setAiBacktestDays] = useState(30); // Backtest period in days
+
+    // AI Analysis (Periodic) State
+    const [showAiAnalysisPanel, setShowAiAnalysisPanel] = useState(false);
+    const [analysisSchedule, setAnalysisSchedule] = useState(null); // Current schedule
+    const [analysisReports, setAnalysisReports] = useState([]); // Report list
+    const [selectedReport, setSelectedReport] = useState(null); // Report detail
+    const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
+    const [scheduleForm, setScheduleForm] = useState({
+        schedule_type: 'daily',
+        schedule_time: '15:40',
+        schedule_day: 1,
+        enabled: true,
+    });
 
     // Multi-Account State (Phase 5) - Use centralized accounts from context
     const { accounts, getActiveAccount } = useLiveTrading();
@@ -2791,6 +2804,411 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 ))}
                             </div>
                         </button>
+
+                        {/* AI Periodic Analysis Section */}
+                        {sessionId && (
+                            <div className="mt-4">
+                                {!showAiAnalysisPanel ? (
+                                    <button
+                                        className="w-full py-4 border-2 border-dashed border-cyan-700/50 hover:border-cyan-500/70 hover:bg-cyan-500/5 rounded-xl text-gray-400 hover:text-cyan-400 font-bold transition-all flex flex-col items-center gap-2"
+                                        onClick={async () => {
+                                            setShowAiAnalysisPanel(true);
+                                            try {
+                                                const [schedules, reportsData] = await Promise.all([
+                                                    listAnalysisSchedules(),
+                                                    listAnalysisReports(sessionId, 20)
+                                                ]);
+                                                if (schedules && schedules.length > 0) {
+                                                    setAnalysisSchedule(schedules[0]);
+                                                    setScheduleForm({
+                                                        schedule_type: schedules[0].schedule_type || 'daily',
+                                                        schedule_time: schedules[0].schedule_time || '15:40',
+                                                        schedule_day: schedules[0].schedule_day || 1,
+                                                        enabled: schedules[0].enabled !== false,
+                                                    });
+                                                }
+                                                setAnalysisReports(reportsData?.reports || []);
+                                            } catch (e) { console.error('Failed to load analysis data:', e); }
+                                        }}
+                                    >
+                                        <BarChart3 size={24} />
+                                        <span className="text-sm">AI Periodic Analysis</span>
+                                        <span className="text-xs text-gray-500">Schedule AI-powered trading analysis with news search</span>
+                                    </button>
+                                ) : (
+                                    <div className="bg-gradient-to-br from-cyan-500/5 to-transparent border border-cyan-500/20 rounded-xl overflow-hidden">
+                                        {/* Header */}
+                                        <div className="px-4 py-3 border-b border-cyan-500/20 flex items-center justify-between">
+                                            <h3 className="font-bold text-cyan-400 text-sm flex items-center gap-2">
+                                                <BarChart3 size={14} />
+                                                AI Periodic Analysis
+                                            </h3>
+                                            <button onClick={() => { setShowAiAnalysisPanel(false); setSelectedReport(null); }} className="text-gray-500 hover:text-white">
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+
+                                        <div className="p-4 space-y-4">
+                                            {/* Schedule Configuration */}
+                                            <div className="bg-white/5 rounded-lg p-3 space-y-3">
+                                                <div className="text-xs font-bold text-gray-300 uppercase tracking-wider">Schedule Settings</div>
+
+                                                {/* Type Selection */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-12">Type</span>
+                                                    <div className="flex gap-1">
+                                                        {['daily', 'weekly', 'monthly'].map(t => (
+                                                            <button
+                                                                key={t}
+                                                                onClick={() => setScheduleForm(f => ({ ...f, schedule_type: t }))}
+                                                                className={`px-3 py-1 rounded text-xs font-medium transition-all ${
+                                                                    scheduleForm.schedule_type === t
+                                                                        ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                                                                        : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
+                                                                }`}
+                                                            >
+                                                                {t === 'daily' ? 'Daily' : t === 'weekly' ? 'Weekly' : 'Monthly'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Time Selection */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-12">Time</span>
+                                                    <select
+                                                        value={scheduleForm.schedule_time}
+                                                        onChange={e => setScheduleForm(f => ({ ...f, schedule_time: e.target.value }))}
+                                                        className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white"
+                                                    >
+                                                        {Array.from({ length: 24 }, (_, h) => [`${String(h).padStart(2,'0')}:00`, `${String(h).padStart(2,'0')}:30`]).flat().map(t => (
+                                                            <option key={t} value={t}>{t} KST</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {/* Day Selection (weekly/monthly) */}
+                                                {scheduleForm.schedule_type === 'weekly' && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-400 w-12">Day</span>
+                                                        <div className="flex gap-1">
+                                                            {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d, i) => (
+                                                                <button
+                                                                    key={d}
+                                                                    onClick={() => setScheduleForm(f => ({ ...f, schedule_day: i + 1 }))}
+                                                                    className={`px-2 py-1 rounded text-[10px] font-medium transition-all ${
+                                                                        scheduleForm.schedule_day === i + 1
+                                                                            ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                                                                            : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
+                                                                    }`}
+                                                                >
+                                                                    {d}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {scheduleForm.schedule_type === 'monthly' && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-400 w-12">Date</span>
+                                                        <select
+                                                            value={scheduleForm.schedule_day}
+                                                            onChange={e => setScheduleForm(f => ({ ...f, schedule_day: parseInt(e.target.value) }))}
+                                                            className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white"
+                                                        >
+                                                            {Array.from({ length: 28 }, (_, i) => (
+                                                                <option key={i + 1} value={i + 1}>{i + 1}th</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions Row */}
+                                                <div className="flex items-center gap-2 pt-1">
+                                                    {/* Enable/Disable Toggle */}
+                                                    <button
+                                                        onClick={() => setScheduleForm(f => ({ ...f, enabled: !f.enabled }))}
+                                                        className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                                                            scheduleForm.enabled
+                                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                                                : 'bg-white/5 text-gray-500 border border-white/10'
+                                                        }`}
+                                                    >
+                                                        {scheduleForm.enabled ? 'Enabled' : 'Disabled'}
+                                                    </button>
+
+                                                    {/* Save Schedule */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            try {
+                                                                if (analysisSchedule) {
+                                                                    const res = await updateAnalysisSchedule(analysisSchedule.id, scheduleForm);
+                                                                    setAnalysisSchedule({ ...analysisSchedule, ...scheduleForm, next_run_at: res.next_run_at });
+                                                                } else {
+                                                                    const res = await createAnalysisSchedule({ ...scheduleForm, target_sessions: ['all_running'] });
+                                                                    setAnalysisSchedule(res);
+                                                                }
+                                                            } catch (e) { console.error('Failed to save schedule:', e); }
+                                                        }}
+                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition-all"
+                                                    >
+                                                        Save
+                                                    </button>
+
+                                                    {/* Delete Schedule */}
+                                                    {analysisSchedule && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await deleteAnalysisSchedule(analysisSchedule.id);
+                                                                    setAnalysisSchedule(null);
+                                                                    setScheduleForm({ schedule_type: 'daily', schedule_time: '15:40', schedule_day: 1, enabled: true });
+                                                                } catch (e) { console.error('Failed to delete schedule:', e); }
+                                                            }}
+                                                            className="px-2 py-1.5 rounded text-xs text-red-400 hover:bg-red-500/10 transition-all"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    )}
+
+                                                    <div className="flex-1" />
+
+                                                    {/* Manual Run */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsAnalysisRunning(true);
+                                                            try {
+                                                                await runManualAnalysis(sessionId);
+                                                                // Refresh reports after a delay
+                                                                setTimeout(async () => {
+                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
+                                                                    setAnalysisReports(reportsData?.reports || []);
+                                                                    setIsAnalysisRunning(false);
+                                                                }, 5000);
+                                                            } catch (e) {
+                                                                console.error('Manual analysis failed:', e);
+                                                                setIsAnalysisRunning(false);
+                                                            }
+                                                        }}
+                                                        disabled={isAnalysisRunning}
+                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
+                                                        {isAnalysisRunning ? 'Running...' : 'Run Now'}
+                                                    </button>
+                                                </div>
+
+                                                {/* Next Run Info */}
+                                                {analysisSchedule?.next_run_at && (
+                                                    <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                                                        <Clock size={10} />
+                                                        Next run: {new Date(analysisSchedule.next_run_at + (analysisSchedule.next_run_at.endsWith('Z') ? '' : 'Z')).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Report Detail View */}
+                                            {selectedReport && (
+                                                <div className="bg-white/5 rounded-lg p-3 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-white">
+                                                                <ChevronLeft size={14} />
+                                                            </button>
+                                                            <span className="text-xs font-bold text-gray-300">Report Detail</span>
+                                                        </div>
+                                                        <span className={`text-2xl font-black ${
+                                                            selectedReport.grade === 'A' ? 'text-emerald-400' :
+                                                            selectedReport.grade === 'B' ? 'text-blue-400' :
+                                                            selectedReport.grade === 'C' ? 'text-yellow-400' :
+                                                            selectedReport.grade === 'D' ? 'text-orange-400' : 'text-red-400'
+                                                        }`}>{selectedReport.grade || '-'}</span>
+                                                    </div>
+
+                                                    {/* Summary */}
+                                                    {selectedReport.ai_analysis?.summary && (
+                                                        <div className="text-xs text-gray-300 leading-relaxed bg-white/5 rounded p-2">
+                                                            {selectedReport.ai_analysis.summary}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Action & Risk */}
+                                                    <div className="flex items-center gap-2">
+                                                        {selectedReport.action && (
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                selectedReport.action === '유지' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                                selectedReport.action === '조정' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                'bg-red-500/20 text-red-400'
+                                                            }`}>{selectedReport.action}</span>
+                                                        )}
+                                                        {selectedReport.risk_level && (
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                selectedReport.risk_level === 'low' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                                selectedReport.risk_level === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                'bg-red-500/20 text-red-400'
+                                                            }`}>Risk: {selectedReport.risk_level}</span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Performance Analysis */}
+                                                    {selectedReport.ai_analysis?.performance_analysis && (
+                                                        <div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Performance Analysis</div>
+                                                            <div className="text-xs text-gray-300 leading-relaxed">{selectedReport.ai_analysis.performance_analysis}</div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* News Impact */}
+                                                    {selectedReport.ai_analysis?.news_impact && (
+                                                        <div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">News Impact</div>
+                                                            <div className="text-xs text-gray-300 leading-relaxed">{selectedReport.ai_analysis.news_impact}</div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* News Articles */}
+                                                    {selectedReport.news_data && selectedReport.news_data.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Related News</div>
+                                                            <div className="space-y-1">
+                                                                {selectedReport.news_data.map((article, i) => (
+                                                                    <div key={i} className="text-[10px] text-gray-400 flex items-start gap-1">
+                                                                        <span className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                                            article.relevance === 'high' ? 'bg-cyan-400' :
+                                                                            article.relevance === 'medium' ? 'bg-yellow-400' : 'bg-gray-500'
+                                                                        }`} />
+                                                                        <span>{article.title} <span className="text-gray-600">({article.source})</span></span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Recommendations */}
+                                                    {selectedReport.recommendations && selectedReport.recommendations.length > 0 && (
+                                                        <div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Recommendations</div>
+                                                            <div className="space-y-1">
+                                                                {selectedReport.recommendations.map((rec, i) => (
+                                                                    <div key={i} className="text-xs text-cyan-300 flex items-start gap-1">
+                                                                        <span className="text-cyan-500">{i + 1}.</span>
+                                                                        <span>{rec}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Backtest Comparison */}
+                                                    {selectedReport.trade_summary && selectedReport.backtest_comparison && (
+                                                        <div>
+                                                            <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">Performance Comparison</div>
+                                                            <div className="grid grid-cols-3 gap-1 text-[10px]">
+                                                                <div className="text-gray-500">Metric</div>
+                                                                <div className="text-gray-500 text-center">Live</div>
+                                                                <div className="text-gray-500 text-center">Diff</div>
+
+                                                                <div className="text-gray-400">Return</div>
+                                                                <div className="text-center text-white">{selectedReport.trade_summary.total_return?.toFixed(2)}%</div>
+                                                                <div className={`text-center ${(selectedReport.backtest_comparison.return_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                    {selectedReport.backtest_comparison.return_diff != null ? `${selectedReport.backtest_comparison.return_diff >= 0 ? '+' : ''}${selectedReport.backtest_comparison.return_diff.toFixed(2)}` : '-'}
+                                                                </div>
+
+                                                                <div className="text-gray-400">Win Rate</div>
+                                                                <div className="text-center text-white">{selectedReport.trade_summary.win_rate?.toFixed(1)}%</div>
+                                                                <div className={`text-center ${(selectedReport.backtest_comparison.win_rate_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                    {selectedReport.backtest_comparison.win_rate_diff != null ? `${selectedReport.backtest_comparison.win_rate_diff >= 0 ? '+' : ''}${selectedReport.backtest_comparison.win_rate_diff.toFixed(1)}` : '-'}
+                                                                </div>
+
+                                                                <div className="text-gray-400">Sharpe</div>
+                                                                <div className="text-center text-white">{selectedReport.trade_summary.sharpe_ratio?.toFixed(2)}</div>
+                                                                <div className={`text-center ${(selectedReport.backtest_comparison.sharpe_diff || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                                    {selectedReport.backtest_comparison.sharpe_diff != null ? `${selectedReport.backtest_comparison.sharpe_diff >= 0 ? '+' : ''}${selectedReport.backtest_comparison.sharpe_diff.toFixed(2)}` : '-'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Report History List */}
+                                            {!selectedReport && (
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="text-xs font-bold text-gray-300 uppercase tracking-wider">Analysis History</div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                const reportsData = await listAnalysisReports(sessionId, 20);
+                                                                setAnalysisReports(reportsData?.reports || []);
+                                                            }}
+                                                            className="text-gray-500 hover:text-cyan-400 transition-colors"
+                                                        >
+                                                            <RefreshCw size={12} />
+                                                        </button>
+                                                    </div>
+                                                    {analysisReports.length === 0 ? (
+                                                        <div className="text-xs text-gray-500 text-center py-4">
+                                                            No analysis reports yet. Click "Run Now" or set up a schedule.
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-1 max-h-64 overflow-y-auto">
+                                                            {analysisReports.map(report => (
+                                                                <div
+                                                                    key={report.id}
+                                                                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 cursor-pointer transition-all border border-transparent hover:border-cyan-500/20"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            const detail = await getAnalysisReportDetail(report.id);
+                                                                            setSelectedReport(detail);
+                                                                        } catch (e) { console.error('Failed to load report:', e); }
+                                                                    }}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className={`text-lg font-bold ${
+                                                                            report.grade === 'A' ? 'text-emerald-400' :
+                                                                            report.grade === 'B' ? 'text-blue-400' :
+                                                                            report.grade === 'C' ? 'text-yellow-400' :
+                                                                            report.grade === 'D' ? 'text-orange-400' :
+                                                                            report.grade ? 'text-red-400' : 'text-gray-600'
+                                                                        }`}>{report.grade || '-'}</span>
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                                            report.report_type === 'manual'
+                                                                                ? 'bg-cyan-500/20 text-cyan-400'
+                                                                                : 'bg-purple-500/20 text-purple-400'
+                                                                        }`}>
+                                                                            {report.report_type === 'manual' ? 'M' : 'S'}
+                                                                        </span>
+                                                                        <div className="text-xs text-gray-400">
+                                                                            {report.action && <span className="mr-2">{report.action}</span>}
+                                                                            {report.risk_level && <span className={`${
+                                                                                report.risk_level === 'high' ? 'text-red-400' :
+                                                                                report.risk_level === 'medium' ? 'text-yellow-400' :
+                                                                                'text-emerald-400'
+                                                                            }`}>{report.risk_level}</span>}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {report.status === 'running' && (
+                                                                            <RefreshCw size={10} className="text-cyan-400 animate-spin" />
+                                                                        )}
+                                                                        {report.status === 'failed' && (
+                                                                            <AlertTriangle size={10} className="text-red-400" />
+                                                                        )}
+                                                                        <div className="text-[10px] text-gray-500">
+                                                                            {report.created_at ? new Date(report.created_at + (report.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : ''}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* AI Evaluation Section */}
                         {sessionId && (

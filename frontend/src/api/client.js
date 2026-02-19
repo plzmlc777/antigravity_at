@@ -320,6 +320,42 @@ export const updateAIEvalSettings = async (sessionId, settings) => {
     return data;
 };
 
+// AI Analysis Schedule & Reports API
+export const createAnalysisSchedule = async (data) => {
+    const { data: res } = await api.post('/live/analysis-schedules', data);
+    return res;
+};
+
+export const listAnalysisSchedules = async () => {
+    const { data: res } = await api.get('/live/analysis-schedules');
+    return res;
+};
+
+export const updateAnalysisSchedule = async (id, data) => {
+    const { data: res } = await api.put(`/live/analysis-schedules/${id}`, data);
+    return res;
+};
+
+export const deleteAnalysisSchedule = async (id) => {
+    const { data: res } = await api.delete(`/live/analysis-schedules/${id}`);
+    return res;
+};
+
+export const runManualAnalysis = async (sessionId) => {
+    const { data: res } = await api.post(`/live/${sessionId}/ai-analysis`, {}, { timeout: 120000 });
+    return res;
+};
+
+export const listAnalysisReports = async (sessionId, limit = 10) => {
+    const { data: res } = await api.get(`/live/${sessionId}/ai-analysis-reports?limit=${limit}`);
+    return res;
+};
+
+export const getAnalysisReportDetail = async (reportId) => {
+    const { data: res } = await api.get(`/live/ai-analysis-reports/${reportId}`);
+    return res;
+};
+
 export const getHistorySessions = async () => {
     const { data } = await api.get('/live/history/sessions');
     return data;

@@ -7,6 +7,7 @@ from .db.base import Base
 from .db.session import engine
 from .core.bot_manager import bot_manager
 from .core.condition_watcher import condition_watcher
+from .core.analysis_scheduler import analysis_scheduler
 from .models.bot import TradingBotModel # Register Model
 from .models.ohlcv import OHLCV # Register Model
 from .models.system import SystemMetadata # Register Model
@@ -31,7 +32,8 @@ async def lifespan(app: FastAPI):
     from .core.live_manager import live_manager
     await live_manager.initialize() # Restore Live Sessions
     await condition_watcher.start()
-    
+    await analysis_scheduler.start()
+
     yield
     
     # Shutdown Logic
@@ -41,6 +43,7 @@ async def lifespan(app: FastAPI):
     await live_manager.stop_all_websockets()
     await HttpClientManager.get_instance().stop() # Close Global Client
     # await bot_manager.stop_all() # Ensure bots are stopped
+    await analysis_scheduler.stop()
     await condition_watcher.stop() # Stop watcher
 
 from .core.config import settings as app_settings
@@ -109,3 +112,5 @@ from .api import ai_analysis
 app.include_router(ai_analysis.router, prefix="/api/v1/ai", tags=["ai-analysis"])
 from .api import strategy_lab
 app.include_router(strategy_lab.router, prefix="/api/v1/strategy-lab", tags=["strategy-lab"])
+from .api import analysis_schedule
+app.include_router(analysis_schedule.router, prefix="/api/v1/live", tags=["analysis-schedule"])
