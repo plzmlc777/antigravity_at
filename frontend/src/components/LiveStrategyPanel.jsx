@@ -2964,7 +2964,29 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                                                     <div className="flex-1" />
 
-                                                    {/* Manual Run - Current Session */}
+                                                    {/* Manual Run - All Sessions (default) */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsAnalysisRunning(true);
+                                                            try {
+                                                                await runAnalysisAllSessions();
+                                                                setTimeout(async () => {
+                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
+                                                                    setAnalysisReports(reportsData?.reports || []);
+                                                                    setIsAnalysisRunning(false);
+                                                                }, 10000);
+                                                            } catch (e) {
+                                                                console.error('Analysis all failed:', e);
+                                                                setIsAnalysisRunning(false);
+                                                            }
+                                                        }}
+                                                        disabled={isAnalysisRunning}
+                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-500 transition-all disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
+                                                        {isAnalysisRunning ? 'Running...' : 'Run All'}
+                                                    </button>
+                                                    {/* Manual Run - Current Session Only */}
                                                     <button
                                                         onClick={async () => {
                                                             setIsAnalysisRunning(true);
@@ -2981,32 +3003,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                             }
                                                         }}
                                                         disabled={isAnalysisRunning}
-                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all disabled:opacity-50 flex items-center gap-1"
+                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-1"
                                                     >
-                                                        {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                                                        {isAnalysisRunning ? 'Running...' : 'This'}
-                                                    </button>
-                                                    {/* Manual Run - All Sessions */}
-                                                    <button
-                                                        onClick={async () => {
-                                                            setIsAnalysisRunning(true);
-                                                            try {
-                                                                const res = await runAnalysisAllSessions();
-                                                                setTimeout(async () => {
-                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
-                                                                    setAnalysisReports(reportsData?.reports || []);
-                                                                    setIsAnalysisRunning(false);
-                                                                }, 10000);
-                                                            } catch (e) {
-                                                                console.error('Analysis all failed:', e);
-                                                                setIsAnalysisRunning(false);
-                                                            }
-                                                        }}
-                                                        disabled={isAnalysisRunning}
-                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-500 transition-all disabled:opacity-50 flex items-center gap-1"
-                                                    >
-                                                        {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                                                        All
+                                                        This
                                                     </button>
                                                 </div>
 
