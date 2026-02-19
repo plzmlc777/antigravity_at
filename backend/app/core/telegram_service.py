@@ -14,7 +14,7 @@ TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 class TelegramNotificationService:
     """Service for sending Telegram notifications."""
 
-    def __init__(self, db: Session, user_id: Optional[int] = None):
+    def __init__(self, db: Session, user_id: Optional[int] = None, account_id: Optional[int] = None):
         self.db = db
         self.user_id = user_id
         self.bot_token: Optional[str] = None
@@ -25,18 +25,24 @@ class TelegramNotificationService:
         self.notify_errors = True
 
         if user_id:
-            self._load_settings_from_db(user_id)
+            self._load_settings_from_db(user_id, account_id)
 
-    def _load_settings_from_db(self, user_id: int):
-        """Load Telegram settings from user's active account."""
+    def _load_settings_from_db(self, user_id: int, account_id: Optional[int] = None):
+        """Load Telegram settings from a specific account, or fallback to active account."""
         from ..models.account import ExchangeAccount
         from ..core import security
 
         try:
-            account = self.db.query(ExchangeAccount).filter(
-                ExchangeAccount.user_id == user_id,
-                ExchangeAccount.is_active == True
-            ).first()
+            if account_id:
+                account = self.db.query(ExchangeAccount).filter(
+                    ExchangeAccount.id == account_id,
+                    ExchangeAccount.user_id == user_id
+                ).first()
+            else:
+                account = self.db.query(ExchangeAccount).filter(
+                    ExchangeAccount.user_id == user_id,
+                    ExchangeAccount.is_active == True
+                ).first()
 
             if account:
                 self.enabled = account.telegram_enabled or False
@@ -348,6 +354,7 @@ async def send_telegram_notification(
     db: Session,
     user_id: int,
     notification_type: str,
+    account_id: Optional[int] = None,
     **kwargs
 ) -> bool:
     """
@@ -357,12 +364,13 @@ async def send_telegram_notification(
         db: Database session
         user_id: User ID
         notification_type: 'trade', 'ai_eval', 'error', 'session_start', 'session_stop'
+        account_id: Specific account to load Telegram settings from
         **kwargs: Arguments for the specific notification type
 
     Returns:
         True if sent successfully
     """
-    service = TelegramNotificationService(db, user_id)
+    service = TelegramNotificationService(db, user_id, account_id=account_id)
 
     if not service.is_configured():
         return False

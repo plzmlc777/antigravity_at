@@ -18,13 +18,14 @@ class LiveContext:
     Context for Live Trading Strategies.
     Mimics BacktestContext interface but executes against Real Adapter & DB.
     """
-    def __init__(self, session_id: str, adapter: ExchangeInterface, initial_capital: float = 0.0, is_paper: bool = True, user_id: int = None, strategy_name: str = None):
+    def __init__(self, session_id: str, adapter: ExchangeInterface, initial_capital: float = 0.0, is_paper: bool = True, user_id: int = None, strategy_name: str = None, account_id: int = None):
         self.session_id = session_id
         self.adapter = adapter
         self.initial_capital = initial_capital
         self._is_paper = is_paper
         self._user_id = user_id  # For telegram notifications
         self._strategy_name = strategy_name  # For telegram notifications
+        self._account_id = account_id  # For telegram notifications (per-account settings)
 
         # State
         self.cash = initial_capital
@@ -569,6 +570,7 @@ class LiveContext:
                                     db=db,
                                     user_id=self._user_id,
                                     notification_type="trade",
+                                    account_id=self._account_id,
                                     symbol=p.symbol,
                                     side=p.signal_type,
                                     quantity=p.filled_quantity,

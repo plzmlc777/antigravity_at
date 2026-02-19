@@ -106,7 +106,8 @@ class LiveTradingEngine:
                 initial_capital=initial_cap,
                 is_paper=self.is_paper,
                 user_id=user_id,
-                strategy_name=strategy_name
+                strategy_name=strategy_name,
+                account_id=self._account_id
             )
 
             # Wire exclusive mode gate (blocks buy if another session holds the lock)

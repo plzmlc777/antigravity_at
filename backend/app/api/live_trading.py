@@ -1775,6 +1775,7 @@ async def run_ai_evaluation(
                 db=db,
                 user_id=ctx.user.id,
                 notification_type="ai_eval",
+                account_id=session.account_id,
                 symbol=session.symbol,
                 strategy_name=session.strategy_name,
                 grade=comparison.get("overall_grade", "N/A"),

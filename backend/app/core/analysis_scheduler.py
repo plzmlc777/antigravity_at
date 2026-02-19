@@ -363,7 +363,7 @@ class AnalysisScheduler:
 
             # Step 6: Send Telegram notification
             try:
-                telegram = TelegramNotificationService(db, user_id=user_id)
+                telegram = TelegramNotificationService(db, user_id=user_id, account_id=session_info.get("account_id"))
                 await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper, report_type="scheduled", symbol_name=sym_name)
 
                 db.execute(text("""
@@ -798,7 +798,7 @@ class AnalysisScheduler:
 
             # Step 6: Telegram
             try:
-                telegram = TelegramNotificationService(db, user_id=user_id)
+                telegram = TelegramNotificationService(db, user_id=user_id, account_id=session_info.get("account_id"))
                 await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper, report_type="manual", symbol_name=sym_name)
                 db.execute(text("UPDATE ai_analysis_reports SET telegram_sent = TRUE WHERE id = :rid"), {"rid": report_id})
                 db.commit()
