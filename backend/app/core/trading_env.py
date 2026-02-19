@@ -85,3 +85,25 @@ def env_from_string(value: str) -> TradingEnvironment:
         return TradingEnvironment(value)
     except ValueError:
         return TradingEnvironment.REAL
+
+
+# ── Exchange-specific URL resolution ──
+
+EXCHANGE_URLS: dict[str, dict[str, Optional[str]]] = {
+    "Kiwoom": {
+        "real": "https://api.kiwoom.com",
+        "virtual": "https://mockapi.kiwoom.com",
+        "paper": None,
+    },
+    "KIS": {
+        "real": "https://openapi.koreainvestment.com:9443",
+        "virtual": "https://openapivts.koreainvestment.com:29443",
+        "paper": None,
+    },
+}
+
+
+def get_api_url_for_exchange(exchange_name: str, env: TradingEnvironment) -> Optional[str]:
+    """Get API URL for a given exchange and environment."""
+    urls = EXCHANGE_URLS.get(exchange_name, EXCHANGE_URLS.get("Kiwoom", {}))
+    return urls.get(env.value)

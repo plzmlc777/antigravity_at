@@ -48,6 +48,17 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
 
         # Health Check State
         self.last_tick_time: Optional[datetime] = None
+
+    @property
+    def ws_open(self) -> bool:
+        """Check if WebSocket is connected (compatible with websockets 12+)."""
+        if not self.websocket:
+            return False
+        # websockets 12+: ClientConnection has .close_code (None = open)
+        # websockets <12: WebSocketClientProtocol has .open
+        if hasattr(self.websocket, 'open'):
+            return self.websocket.open
+        return self.websocket.close_code is None
         self._health_check_task: Optional[asyncio.Task] = None
 
         logger.info(f"WS: Created instance for {self._api_url} (app_key={app_key[:8] if app_key else 'None'}...)")
@@ -139,7 +150,7 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
             app_key: Optional app_key override (uses __init__ value if not provided)
             secret_key: Optional secret_key override (uses __init__ value if not provided)
         """
-        if self.is_running and self.websocket and self.websocket.open:
+        if self.is_running and self.websocket and self.ws_open:
             logger.info("WS: Already connected and running.")
             # Update credentials even if already connected (for token refresh)
             if app_key and secret_key:
@@ -254,7 +265,7 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         msg_count = 0
 
         try:
-            while self.websocket and self.websocket.open:
+            while self.websocket and self.ws_open:
                 try:
                     message = await asyncio.wait_for(self.websocket.recv(), timeout=30.0)
                     msg_count += 1
@@ -494,11 +505,11 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         new_syms = [s for s in symbols if s not in self.monitored_symbols]
         self.monitored_symbols.extend(new_syms) 
         
-        if self.websocket and self.websocket.open:
+        if self.websocket and self.ws_open:
             await self._send_reg(symbols, ["0B"]) 
             
     async def _send_reg(self, items: List[str], types: List[str]):
-        if not self.websocket or not self.websocket.open:
+        if not self.websocket or not self.ws_open:
             logger.warning(f"WS: Skip REG (WS not open): {items} {types}")
             return
 
@@ -541,7 +552,7 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                         await self._force_reconnect()
                 else:
                     # No tick ever received during market hours - might be stale from startup
-                    if self.websocket and self.websocket.open:
+                    if self.websocket and self.ws_open:
                         logger.warning("WS Health: Market open but no tick received yet. Re-registering symbols...")
                         await self._send_reg(self.monitored_symbols, ["0B"])
 
@@ -559,7 +570,7 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
     async def _force_reconnect(self):
         """Force close and reconnect the WebSocket"""
         try:
-            if self.websocket and self.websocket.open:
+            if self.websocket and self.ws_open:
                 logger.info("WS: Force closing connection for reconnect...")
                 await self.websocket.close()
             # Reset tick time so we don't immediately trigger another reconnect

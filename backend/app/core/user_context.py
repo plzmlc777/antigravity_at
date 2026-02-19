@@ -229,9 +229,9 @@ class UserAccountContext:
         Get exchange adapter for this user's active account.
         Uses cached credentials when available.
         """
-        from ..adapters.kiwoom_real import KiwoomRealAdapter
+        from ..adapters.factory import create_adapter
         from ..core.account_cache import AccountCache
-        from ..core.trading_env import TradingEnvironment, get_api_url, env_from_string
+        from ..core.trading_env import TradingEnvironment, get_api_url_for_exchange, env_from_string
 
         cache = AccountCache.get_instance()
 
@@ -239,43 +239,49 @@ class UserAccountContext:
         cached_config = cache.get_active_account_config(self.user_id)
 
         if cached_config:
+            exchange_name = cached_config.get('exchange_name', 'Kiwoom')
             env = env_from_string(cached_config.get('environment', 'real'))
-            api_url = get_api_url(env)
+            api_url = get_api_url_for_exchange(exchange_name, env)
             is_virtual = env == TradingEnvironment.VIRTUAL
 
-            return KiwoomRealAdapter(
+            return create_adapter(
+                exchange_name=exchange_name,
                 app_key=cached_config['app_key'],
                 secret_key=cached_config['secret_key'],
                 account_no=cached_config['account_no'],
                 account_name=cached_config['account_name'],
                 api_url=api_url,
-                is_virtual=is_virtual
+                is_virtual=is_virtual,
             )
 
         # Use credentials from this context
         creds = self.get_credentials()
 
         if creds and self.account:
+            exchange_name = self.account.exchange_name or "Kiwoom"
             # Cache the config for future use
             config = {
+                'exchange_name': exchange_name,
                 'app_key': creds.app_key,
                 'secret_key': creds.secret_key,
                 'account_no': creds.account_no,
                 'account_name': creds.account_name,
-                'environment': creds.environment
+                'environment': creds.environment,
             }
             cache.set_active_account_config(self.user_id, config)
 
-            return KiwoomRealAdapter(
+            return create_adapter(
+                exchange_name=exchange_name,
                 app_key=creds.app_key,
                 secret_key=creds.secret_key,
                 account_no=creds.account_no,
                 account_name=creds.account_name,
                 api_url=self.account.api_url,
-                is_virtual=self.account.is_virtual
+                is_virtual=self.account.is_virtual,
             )
 
         # Fallback to .env defaults
+        from ..adapters.kiwoom_real import KiwoomRealAdapter
         return KiwoomRealAdapter()
 
     def require_account(self) -> ExchangeAccount:

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
-from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..adapters.factory import create_adapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
-from ..core.trading_env import TradingEnvironment, get_api_url, env_from_string
+from ..core.trading_env import TradingEnvironment, get_api_url_for_exchange, env_from_string
 from ..db.session import get_db
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -28,17 +28,19 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
     cached_config = cache.get_active_account_config(user_id)
 
     if cached_config:
+        exchange_name = cached_config.get('exchange_name', 'Kiwoom')
         env = env_from_string(cached_config.get('environment', 'real'))
-        api_url = get_api_url(env)
+        api_url = get_api_url_for_exchange(exchange_name, env)
         is_virtual = env == TradingEnvironment.VIRTUAL
 
-        return KiwoomRealAdapter(
+        return create_adapter(
+            exchange_name=exchange_name,
             app_key=cached_config['app_key'],
             secret_key=cached_config['secret_key'],
             account_no=cached_config['account_no'],
             account_name=cached_config['account_name'],
             api_url=api_url,
-            is_virtual=is_virtual
+            is_virtual=is_virtual,
         )
 
     # Fetch active account for this user from DB
@@ -52,28 +54,32 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
             decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
             decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
 
+            exchange_name = active_account.exchange_name or "Kiwoom"
             config = {
+                'exchange_name': exchange_name,
                 'app_key': decrypted_app,
                 'secret_key': decrypted_secret,
                 'account_no': active_account.account_number,
                 'account_name': active_account.account_name,
-                'environment': active_account.environment or TradingEnvironment.REAL.value
+                'environment': active_account.environment or TradingEnvironment.REAL.value,
             }
             cache.set_active_account_config(user_id, config)
 
-            return KiwoomRealAdapter(
+            return create_adapter(
+                exchange_name=exchange_name,
                 app_key=decrypted_app,
                 secret_key=decrypted_secret,
                 account_no=active_account.account_number,
                 account_name=active_account.account_name,
                 api_url=active_account.api_url,
-                is_virtual=active_account.is_virtual
+                is_virtual=active_account.is_virtual,
             )
         except Exception as e:
             print(f"Error decrypting keys: {e}")
             pass
 
     # Fallback to .env
+    from ..adapters.kiwoom_real import KiwoomRealAdapter
     return KiwoomRealAdapter()
 
 

@@ -612,7 +612,8 @@ const Settings = () => {
                                 onChange={e => setFormData({ ...formData, exchange_name: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
                             >
-                                <option value="Kiwoom">Kiwoom (Korea)</option>
+                                <option value="Kiwoom">키움증권 (Kiwoom)</option>
+                                <option value="KIS">한국투자증권 (KIS)</option>
                                 <option value="Upbit">Upbit</option>
                                 <option value="Binance">Binance</option>
                             </select>
@@ -663,19 +664,34 @@ const Settings = () => {
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">Account Number (Optional)</label>
+                            <label className="block text-xs text-gray-400 mb-1">
+                                Account Number {formData.exchange_name === 'KIS' ? '(필수 - 예: 12345678-01)' : '(Optional)'}
+                            </label>
                             <input
                                 type="text"
+                                placeholder={formData.exchange_name === 'KIS' ? '12345678-01' : ''}
                                 value={formData.account_number}
                                 onChange={e => setFormData({ ...formData, account_number: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
+                                required={formData.exchange_name === 'KIS'}
                             />
                         </div>
                         <div className="md:col-span-2 p-3 bg-black/20 rounded-lg border border-white/5">
                             <div className="text-xs text-gray-400 space-y-1">
-                                <p><strong className="text-green-400">실거래:</strong> Kiwoom 실서버 (api.kiwoom.com) - 실제 자금 거래</p>
-                                <p><strong className="text-purple-400">모의투자:</strong> Kiwoom 모의서버 (mockapi.kiwoom.com) - 가상 자금 거래</p>
-                                <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
+                                {formData.exchange_name === 'KIS' ? (
+                                    <>
+                                        <p><strong className="text-green-400">실거래:</strong> KIS 실서버 (openapi.koreainvestment.com) - 실제 자금 거래</p>
+                                        <p><strong className="text-purple-400">모의투자:</strong> KIS 모의서버 (openapivts.koreainvestment.com) - 가상 자금 거래</p>
+                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
+                                        <p className="text-blue-400 mt-1">계좌번호 형식: CANO(8자리)-상품코드(2자리) 예: 12345678-01</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p><strong className="text-green-400">실거래:</strong> Kiwoom 실서버 (api.kiwoom.com) - 실제 자금 거래</p>
+                                        <p><strong className="text-purple-400">모의투자:</strong> Kiwoom 모의서버 (mockapi.kiwoom.com) - 가상 자금 거래</p>
+                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="md:col-span-2 mt-2">

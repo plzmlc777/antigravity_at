@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
 from ..models.new_orders import StockOrder, OrderSide, OrderType
-from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..core.exchange_interface import ExchangeInterface
 from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class LiveContext:
     Context for Live Trading Strategies.
     Mimics BacktestContext interface but executes against Real Adapter & DB.
     """
-    def __init__(self, session_id: str, adapter: KiwoomRealAdapter, initial_capital: float = 0.0, is_paper: bool = True, user_id: int = None, strategy_name: str = None):
+    def __init__(self, session_id: str, adapter: ExchangeInterface, initial_capital: float = 0.0, is_paper: bool = True, user_id: int = None, strategy_name: str = None):
         self.session_id = session_id
         self.adapter = adapter
         self.initial_capital = initial_capital

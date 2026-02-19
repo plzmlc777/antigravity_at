@@ -9,7 +9,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from ..core.live_engine import LiveTradingEngine
-from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..adapters.kiwoom_real import KiwoomRealAdapter  # For default adapter
+from ..adapters.factory import create_adapter
+from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
@@ -44,7 +46,7 @@ class LiveManager:
 
         # ── Phase 1: Multi-Account Adapter Pool ──
         # Each account has its own adapter with separate credentials and token
-        self._adapters: Dict[int, KiwoomRealAdapter] = {}  # account_id -> adapter
+        self._adapters: Dict[int, ExchangeInterface] = {}  # account_id -> adapter
         self._primary_account_id: Optional[int] = None  # For backward compatibility
 
         # Create a default adapter for initialization (will be replaced when account is selected)
@@ -52,18 +54,18 @@ class LiveManager:
         self._setup_adapter_listeners(self._default_adapter)
 
     @property
-    def adapter(self) -> KiwoomRealAdapter:
+    def adapter(self) -> ExchangeInterface:
         """Backward compatibility: returns the primary account's adapter or default."""
         if self._primary_account_id and self._primary_account_id in self._adapters:
             return self._adapters[self._primary_account_id]
         return self._default_adapter
 
     @adapter.setter
-    def adapter(self, value: KiwoomRealAdapter):
+    def adapter(self, value: ExchangeInterface):
         """Backward compatibility: sets the default adapter."""
         self._default_adapter = value
 
-    def _setup_adapter_listeners(self, adapter: KiwoomRealAdapter = None):
+    def _setup_adapter_listeners(self, adapter: ExchangeInterface = None):
         """Setup listeners on the specified adapter instance."""
         target = adapter or self.adapter
         # Register Global Tick Listener
@@ -79,7 +81,7 @@ class LiveManager:
 
     # ── Phase 1: Multi-Account Adapter Management ──
 
-    async def get_or_create_adapter(self, account_id: int) -> KiwoomRealAdapter:
+    async def get_or_create_adapter(self, account_id: int) -> ExchangeInterface:
         """
         Get existing adapter for account or create a new one.
         Each account has its own adapter with separate credentials and token.
@@ -98,8 +100,8 @@ class LiveManager:
             logger.error(f"Failed to create adapter for account_id={account_id}")
             raise ValueError(f"Cannot create adapter for account {account_id}")
 
-    async def _create_adapter_for_account(self, account_id: int) -> Optional[KiwoomRealAdapter]:
-        """Create a new KiwoomRealAdapter with credentials from DB."""
+    async def _create_adapter_for_account(self, account_id: int) -> Optional[ExchangeInterface]:
+        """Create an exchange adapter with credentials from DB."""
         from ..models.account import ExchangeAccount
         from ..core import security
 
@@ -117,7 +119,8 @@ class LiveManager:
                 decrypted_app = security.decrypt_key(account.encrypted_access_key)
                 decrypted_secret = security.decrypt_key(account.encrypted_secret_key)
 
-                adapter = KiwoomRealAdapter(
+                adapter = create_adapter(
+                    exchange_name=account.exchange_name,
                     app_key=decrypted_app,
                     secret_key=decrypted_secret,
                     account_no=account.account_number,
@@ -126,7 +129,7 @@ class LiveManager:
                     is_virtual=account.is_virtual
                 )
                 logger.info(f"Adapter created for account '{account.account_name}' "
-                           f"(virtual={account.is_virtual})")
+                           f"(exchange={account.exchange_name}, virtual={account.is_virtual})")
                 return adapter
             except Exception as e:
                 logger.error(f"Failed to decrypt account keys for {account_id}: {e}")
@@ -134,7 +137,7 @@ class LiveManager:
         finally:
             db.close()
 
-    def get_adapter_for_account(self, account_id: int) -> Optional[KiwoomRealAdapter]:
+    def get_adapter_for_account(self, account_id: int) -> Optional[ExchangeInterface]:
         """Get existing adapter for account (sync version, returns None if not exists)."""
         return self._adapters.get(account_id)
 
@@ -1108,7 +1111,7 @@ class LiveManager:
             if adapter._ws_client:
                 ws = adapter._ws_client
                 ws.is_running = False
-                if ws.websocket and not ws.websocket.closed:
+                if ws.websocket and ws.ws_open:
                     try:
                         await ws.websocket.close()
                         stopped_count += 1

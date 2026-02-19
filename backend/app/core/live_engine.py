@@ -7,7 +7,7 @@ from datetime import datetime
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
-from ..adapters.kiwoom_real import KiwoomRealAdapter
+from ..core.exchange_interface import ExchangeInterface
 from ..db.session import SessionLocal
 from ..models.ohlcv import OHLCV
 from ..core.strategy_registry import strategy_registry
@@ -23,7 +23,7 @@ class LiveTradingEngine:
     3. Triggers Strategy (Candle Close).
     4. Processes Orders.
     """
-    def __init__(self, session_id: str, adapter: KiwoomRealAdapter):
+    def __init__(self, session_id: str, adapter: ExchangeInterface):
         self.session_id = session_id
         # self.strategy_class = strategy_class # Now dynamic
         # self.strategy_config = strategy_config # Now dynamic
