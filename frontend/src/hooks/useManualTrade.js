@@ -6,10 +6,10 @@ import {
     cancelOrder,
     getPrice,
     getConditionalOrders, // New
-    cancelConditionalOrder // New
+    cancelConditionalOrder, // New
 } from '../api/client';
 
-export const useManualTrade = (defaultSymbol) => {
+export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
     // ... (Existing State) ...
     const [symbol, setSymbol] = useState(defaultSymbol || '');
     useEffect(() => {
@@ -92,7 +92,8 @@ export const useManualTrade = (defaultSymbol) => {
                 amount: mode === 'amount' ? parseFloat(value) : null,
                 percent: (mode === 'percent_cash' || mode === 'percent_holding') ? parseFloat(value) / 100 : null,
                 stop_loss: stopLoss.enabled ? stopLoss.percent : undefined,
-                take_profit: takeProfit.enabled ? takeProfit.percent : undefined
+                take_profit: takeProfit.enabled ? takeProfit.percent : undefined,
+                account_id: selectedAccountId || undefined
             };
 
             const data = await placeManualOrder(payload, { signal: controller.signal });

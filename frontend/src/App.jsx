@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import Dashboard from './views/Dashboard';
 import ManualTrading from './views/ManualTrading';
 import LiveTradingView from './views/LiveTradingView';
 import Login from './views/Login';
@@ -8,9 +7,8 @@ import StrategyLab from './views/StrategyLab';
 import Settings from './views/Settings';
 import AdminView from './views/AdminView';
 import StatusCard from './components/StatusCard';
-import AccountStatusPanel from './components/AccountStatusPanel';
 import { useState, useEffect } from 'react';
-import { getSystemStatus, getSystemVersion } from './api/client';
+import { getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -54,7 +52,7 @@ const RequireAdmin = ({ children }) => {
     if (loading) return null;
 
     if (!token) return <Navigate to="/login" replace />;
-    if (!user?.is_admin) return <Navigate to="/" replace />;
+    if (!user?.is_admin) return <Navigate to="/strategies" replace />;
 
     return children;
 };
@@ -92,7 +90,6 @@ function AppContent() {
                             My Auto Trading
                         </div>
                         <div className="flex gap-2">
-                            <NavLink to="/">Dashboard</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Profiles</NavLink>
@@ -114,13 +111,10 @@ function AppContent() {
                 </div>
             </nav>
 
-            {/* Account Status Panel - hidden on /live and /strategies pages */}
-            {location.pathname !== '/live' && location.pathname !== '/strategies' && location.pathname !== '/strategy-lab' && <AccountStatusPanel />}
-
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8">
                 <Routes>
-                    <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                    <Route path="/" element={<Navigate to="/strategies" replace />} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />

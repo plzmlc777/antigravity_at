@@ -1,13 +1,29 @@
+import { useState, useEffect } from 'react';
 import ManualTrade from '../components/ManualTrade';
 import SymbolSelector from '../components/SymbolSelector';
 import TradingInfoPanel from '../components/TradingInfoPanel';
 import ApiLogPanel from '../components/ApiLogPanel';
 import Card from '../components/common/Card';
 import { useWatchlist } from '../context/WatchlistContext';
+import { getAccounts } from '../api/client';
 
 const ManualTrading = () => {
     // Use shared watchlist context (synced with DB)
     const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
+
+    // Account selection (lifted from useManualTrade for sharing with TradingInfoPanel)
+    const [accounts, setAccounts] = useState([]);
+    const [selectedAccountId, setSelectedAccountId] = useState(null);
+
+    useEffect(() => {
+        getAccounts().then(list => {
+            const enabled = (list || []).filter(a => !a.is_disabled);
+            setAccounts(enabled);
+            const active = enabled.find(a => a.is_active);
+            if (active) setSelectedAccountId(active.id);
+            else if (enabled.length > 0) setSelectedAccountId(enabled[0].id);
+        }).catch(() => {});
+    }, []);
 
     return (
         <div className="space-y-6">
@@ -24,6 +40,7 @@ const ManualTrading = () => {
                 <TradingInfoPanel
                     currentSymbol={currentSymbol}
                     setSavedSymbols={setSavedSymbols}
+                    accountId={selectedAccountId}
                 />
             </Card>
 
@@ -34,7 +51,12 @@ const ManualTrading = () => {
                             Execute buy and sell orders manually using Limit or Market prices.
                         </p>
                         <div className="max-w-xl">
-                            <ManualTrade defaultSymbol={currentSymbol} />
+                            <ManualTrade
+                                defaultSymbol={currentSymbol}
+                                accounts={accounts}
+                                selectedAccountId={selectedAccountId}
+                                setSelectedAccountId={setSelectedAccountId}
+                            />
                         </div>
                     </Card>
                 </div>

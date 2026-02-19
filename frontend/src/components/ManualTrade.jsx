@@ -4,7 +4,7 @@ import OutstandingOrders from './OutstandingOrders';
 import WatchList from './WatchList';
 import { useManualTrade } from '../hooks/useManualTrade';
 
-const ManualTrade = ({ defaultSymbol }) => {
+const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelectedAccountId }) => {
     const {
         symbol, setSymbol,
         price, setPrice,
@@ -34,7 +34,7 @@ const ManualTrade = ({ defaultSymbol }) => {
 
         // Watch List Exports
         watchOrders, fetchWatchOrders, handleCancelWatchOrder, isLoadingWatchOrders
-    } = useManualTrade(defaultSymbol);
+    } = useManualTrade(defaultSymbol, { selectedAccountId });
 
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [activeTab, setActiveTab] = useState('instant'); // 'instant', 'watch', 'watchlist', 'outstanding'
@@ -81,6 +81,24 @@ const ManualTrade = ({ defaultSymbol }) => {
             {activeTab === 'instant' ? (
                 /* Instant Order Form */
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Account Selector */}
+                    {accounts.length > 0 && (
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Account</label>
+                            <select
+                                value={selectedAccountId || ''}
+                                onChange={(e) => setSelectedAccountId(Number(e.target.value))}
+                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                            >
+                                {accounts.map(acc => (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.account_name || acc.exchange_name} ({acc.exchange_name}){acc.environment !== 'real' ? ` [${acc.environment}]` : ''}{acc.is_active ? ' *' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm text-gray-400 mb-1 flex justify-between">

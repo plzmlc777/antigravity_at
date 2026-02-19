@@ -106,6 +106,7 @@ class ManualOrderRequest(BaseModel):
     percent: float | None = None  # 0.0 to 1.0
     stop_loss: float | None = None # Percent (e.g. 3.0 for 3%)
     take_profit: float | None = None # Percent (e.g. 5.0 for 5%)
+    account_id: int | None = None  # Optional: specific account to use
 
 class CancelOrderRequest(BaseModel):
     order_no: str
@@ -262,14 +263,50 @@ async def cancel_order(req: CancelOrderRequest, adapter: ExchangeInterface = Dep
     return result
 
 
+def create_adapter_from_account(account: "ExchangeAccount") -> ExchangeInterface:
+    """Create exchange adapter from a specific account (with credential decryption)."""
+    from ..core import security
+    from ..core.trading_env import env_from_string, get_api_url_for_exchange
+
+    app_key = security.decrypt_key(account.encrypted_access_key)
+    secret_key = security.decrypt_key(account.encrypted_secret_key)
+    exchange_name = account.exchange_name or "Kiwoom"
+    env = env_from_string(account.environment or "real")
+    api_url = get_api_url_for_exchange(exchange_name, env)
+
+    return create_adapter(
+        exchange_name=exchange_name,
+        app_key=app_key,
+        secret_key=secret_key,
+        account_no=account.account_number,
+        account_name=account.account_name,
+        api_url=api_url,
+        is_virtual=account.is_virtual,
+    )
+
+
 @router.post("/order/manual")
 async def manual_order(
     order: ManualOrderRequest,
     db: Session = Depends(get_db),
     ctx: UserAccountContext = Depends(get_user_context)
 ):
-    adapter = ctx.get_exchange_adapter()
-    account_id = ctx.account_id
+    # Determine adapter and account_id based on request
+    if order.account_id:
+        from ..models.account import ExchangeAccount
+        account = db.query(ExchangeAccount).filter(
+            ExchangeAccount.id == order.account_id,
+            ExchangeAccount.user_id == ctx.user_id
+        ).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        if account.is_disabled:
+            raise HTTPException(status_code=400, detail="Account is disabled")
+        adapter = create_adapter_from_account(account)
+        account_id = account.id
+    else:
+        adapter = ctx.get_exchange_adapter()
+        account_id = ctx.account_id
 
     quantity = 0
     calculated_price = order.price
