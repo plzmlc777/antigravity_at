@@ -12,6 +12,6 @@
         "monit": "./tools/node/lib/node_modules/pm2/bin/pm2 monit",
         "status": "./tools/node/lib/node_modules/pm2/bin/pm2 list"
     },
-    "author": "Antigravity",
+    "author": "My Auto Trading",
     "license": "ISC"
 }

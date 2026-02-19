@@ -61,7 +61,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     v = app_settings.PROJECT_VERSION
-    return {"message": f"AntiGravity Auto-Trading Backend v{v} Running", "version": v, "status": "running"}
+    return {"message": f"My Auto Trading Backend v{v} Running", "version": v, "status": "running"}
 
 @app.get("/health")
 async def health_check():

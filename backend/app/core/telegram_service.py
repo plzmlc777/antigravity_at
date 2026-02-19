@@ -394,7 +394,7 @@ async def test_telegram_connection(bot_token: str, chat_id: str) -> Dict[str, An
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, json={
                 "chat_id": chat_id,
-                "text": "✅ Antigravity 알림 연결 테스트 성공!\n\n이제 거래 알림을 받을 수 있습니다.",
+                "text": "✅ My Auto Trading 알림 연결 테스트 성공!\n\n이제 거래 알림을 받을 수 있습니다.",
                 "parse_mode": "HTML"
             })
 
