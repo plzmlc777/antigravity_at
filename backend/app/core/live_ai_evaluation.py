@@ -44,20 +44,17 @@ class LiveAIEvaluationService:
             logger.warning("Google AI API key not set. AI evaluation will be disabled.")
 
     def _load_api_key_from_db(self, user_id: int):
-        """Load Google API key from user's active account."""
-        from ..models.account import ExchangeAccount
+        """Load Google API key from user record."""
+        from ..models.user import User
         from ..core import security
 
         try:
-            account = self.db.query(ExchangeAccount).filter(
-                ExchangeAccount.user_id == user_id,
-                ExchangeAccount.is_active == True
-            ).first()
+            user = self.db.query(User).filter(User.id == user_id).first()
 
-            if account and account.encrypted_google_api_key:
-                self.api_key = security.decrypt_key(account.encrypted_google_api_key)
-                if account.ai_model:
-                    self.model = account.ai_model
+            if user and user.encrypted_google_api_key:
+                self.api_key = security.decrypt_key(user.encrypted_google_api_key)
+                if user.ai_model:
+                    self.model = user.ai_model
                 logger.info(f"Loaded Google API key from database for user {user_id}")
         except Exception as e:
             logger.error(f"Failed to load API key from database: {e}")

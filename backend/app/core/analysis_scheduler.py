@@ -33,16 +33,12 @@ class AnalysisScheduler:
         self._task = None
 
     def _get_symbol_name(self, db: Session, symbol: str, account_id=None) -> str:
-        """Look up stock name from exchange_accounts.saved_symbols."""
+        """Look up stock name from users.saved_symbols."""
         try:
-            if account_id:
-                row = db.execute(text(
-                    "SELECT saved_symbols FROM exchange_accounts WHERE id = :aid"
-                ), {"aid": account_id}).fetchone()
-            else:
-                row = db.execute(text(
-                    "SELECT saved_symbols FROM exchange_accounts WHERE saved_symbols IS NOT NULL AND saved_symbols != '[]' LIMIT 1"
-                )).fetchone()
+            # Try user's saved_symbols first (primary source after migration)
+            row = db.execute(text(
+                "SELECT saved_symbols FROM users WHERE saved_symbols IS NOT NULL AND saved_symbols != '[]' LIMIT 1"
+            )).fetchone()
             if row and row[0]:
                 symbols = row[0] if isinstance(row[0], list) else json.loads(row[0])
                 for s in symbols:

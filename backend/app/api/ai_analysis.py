@@ -32,34 +32,33 @@ CSV_OUTPUT_DIR = "/tmp"
 
 
 def get_user_ai_config(db: Session, user_id: int) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Get decrypted AI API keys and model for the user's active account.
+    """Get decrypted AI API keys and model for the user.
 
     Returns:
         tuple: (anthropic_api_key, google_api_key, model) - can be None if not configured
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == user_id,
-        ExchangeAccount.is_active == True
-    ).first()
+    from ..models.user import User
 
-    if not account:
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user:
         return None, None, None
 
     anthropic_key = None
-    if account.encrypted_ai_api_key:
+    if user.encrypted_ai_api_key:
         try:
-            anthropic_key = security.decrypt_key(account.encrypted_ai_api_key)
+            anthropic_key = security.decrypt_key(user.encrypted_ai_api_key)
         except Exception as e:
             logger.error(f"Failed to decrypt AI key: {e}")
 
     google_key = None
-    if account.encrypted_google_api_key:
+    if user.encrypted_google_api_key:
         try:
-            google_key = security.decrypt_key(account.encrypted_google_api_key)
+            google_key = security.decrypt_key(user.encrypted_google_api_key)
         except Exception as e:
             logger.error(f"Failed to decrypt Google key: {e}")
 
-    return anthropic_key, google_key, account.ai_model
+    return anthropic_key, google_key, user.ai_model
 
 
 class AnalysisRequest(BaseModel):

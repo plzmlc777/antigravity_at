@@ -273,7 +273,7 @@ def update_account(
 
 
 class AccountPreferencesOut(BaseModel):
-    """계좌별 환경설정"""
+    """사용자 환경설정"""
     last_selected_strategy_id: Optional[str] = None
     last_selected_profile_id: Optional[str] = None
     last_symbol: Optional[str] = None
@@ -301,23 +301,16 @@ def get_account_preferences(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get current active account's preferences (last selected strategy, saved symbols, etc.)
-    계좌 중심으로 환경설정 조회
+    Get user preferences (last selected strategy, saved symbols, etc.)
+    사용자 계정 기준으로 환경설정 조회
     """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
+    user = db.merge(current_user)
 
     return AccountPreferencesOut(
-        last_selected_strategy_id=account.last_selected_strategy_id,
-        last_selected_profile_id=account.last_selected_profile_id,
-        last_symbol=account.last_symbol,
-        saved_symbols=account.saved_symbols
+        last_selected_strategy_id=user.last_selected_strategy_id,
+        last_selected_profile_id=user.last_selected_profile_id,
+        last_symbol=user.last_symbol,
+        saved_symbols=user.saved_symbols
     )
 
 
@@ -328,20 +321,10 @@ def update_last_selected_strategy(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update last selected strategy for current active account
-    계좌별로 마지막 선택 전략 저장
+    Update last selected strategy for user.
     """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Update last selected strategy
-    account.last_selected_strategy_id = request.strategy_id
+    user = db.merge(current_user)
+    user.last_selected_strategy_id = request.strategy_id
     db.commit()
 
     return {"status": "success", "last_selected_strategy_id": request.strategy_id}
@@ -354,20 +337,10 @@ def update_last_selected_profile(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update last selected profile for current active account
-    계좌별로 마지막 선택 프로필 저장
+    Update last selected profile for user.
     """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Update last selected profile
-    account.last_selected_profile_id = request.profile_id
+    user = db.merge(current_user)
+    user.last_selected_profile_id = request.profile_id
     db.commit()
 
     return {"status": "success", "last_selected_profile_id": request.profile_id}
@@ -380,30 +353,21 @@ def update_watchlist(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update watchlist (last_symbol, saved_symbols) for current active account
-    계좌별로 워치리스트 저장
+    Update watchlist (last_symbol, saved_symbols) for user.
     """
-    # Get active account
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+    user = db.merge(current_user)
 
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Update fields if provided
     if request.last_symbol is not None:
-        account.last_symbol = request.last_symbol
+        user.last_symbol = request.last_symbol
     if request.saved_symbols is not None:
-        account.saved_symbols = request.saved_symbols
+        user.saved_symbols = request.saved_symbols
 
     db.commit()
 
     return {
         "status": "success",
-        "last_symbol": account.last_symbol,
-        "saved_symbols": account.saved_symbols
+        "last_symbol": user.last_symbol,
+        "saved_symbols": user.saved_symbols
     }
 
 
@@ -483,23 +447,17 @@ def get_ai_key_status(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Check if the current active account has an AI API key configured.
+    Check if the user has AI API keys configured.
     Returns key preview (first 10 + last 3 chars) for confirmation.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+    user = db.merge(current_user)
 
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    has_key = bool(account.encrypted_ai_api_key)
+    has_key = bool(user.encrypted_ai_api_key)
     key_preview = None
 
     if has_key:
         try:
-            decrypted = security.decrypt_key(account.encrypted_ai_api_key)
+            decrypted = security.decrypt_key(user.encrypted_ai_api_key)
             if len(decrypted) > 15:
                 key_preview = f"{decrypted[:10]}...{decrypted[-3:]}"
             else:
@@ -507,13 +465,12 @@ def get_ai_key_status(
         except Exception:
             key_preview = "***"
 
-    # Check Google API key
-    has_google_key = bool(account.encrypted_google_api_key)
+    has_google_key = bool(user.encrypted_google_api_key)
     google_key_preview = None
 
     if has_google_key:
         try:
-            decrypted = security.decrypt_key(account.encrypted_google_api_key)
+            decrypted = security.decrypt_key(user.encrypted_google_api_key)
             if len(decrypted) > 15:
                 google_key_preview = f"{decrypted[:10]}...{decrypted[-3:]}"
             else:
@@ -526,7 +483,7 @@ def get_ai_key_status(
         key_preview=key_preview,
         has_google_key=has_google_key,
         google_key_preview=google_key_preview,
-        ai_model=account.ai_model or DEFAULT_AI_MODEL
+        ai_model=user.ai_model or DEFAULT_AI_MODEL
     )
 
 
@@ -537,18 +494,11 @@ def set_ai_key(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Set or update AI API key for the current active account.
+    Set or update AI API key for the user.
     Key is encrypted before storage.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+    user = db.merge(current_user)
 
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Validate key format (basic check for Anthropic key)
     key = request.ai_api_key.strip()
     if not key:
         raise HTTPException(status_code=400, detail="AI API key cannot be empty")
@@ -559,9 +509,8 @@ def set_ai_key(
             detail="Invalid Anthropic API key format. Key should start with 'sk-ant-'"
         )
 
-    # Encrypt and store
     encrypted_key = security.encrypt_key(key)
-    account.encrypted_ai_api_key = encrypted_key
+    user.encrypted_ai_api_key = encrypted_key
     db.commit()
 
     return {
@@ -577,17 +526,10 @@ def delete_ai_key(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Remove AI API key from the current active account.
+    Remove AI API key from the user.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    account.encrypted_ai_api_key = None
+    user = db.merge(current_user)
+    user.encrypted_ai_api_key = None
     db.commit()
 
     return {
@@ -603,16 +545,10 @@ def set_google_key(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Set or update Google API key for the current active account.
+    Set or update Google API key for the user.
     Key is encrypted before storage.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
+    user = db.merge(current_user)
 
     key = request.google_api_key.strip()
     if not key:
@@ -620,7 +556,7 @@ def set_google_key(
 
     # Encrypt and store
     encrypted_key = security.encrypt_key(key)
-    account.encrypted_google_api_key = encrypted_key
+    user.encrypted_google_api_key = encrypted_key
     db.commit()
 
     return {
@@ -636,17 +572,10 @@ def delete_google_key(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Remove Google API key from the current active account.
+    Remove Google API key from the user.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    account.encrypted_google_api_key = None
+    user = db.merge(current_user)
+    user.encrypted_google_api_key = None
     db.commit()
 
     return {
@@ -767,17 +696,13 @@ async def get_ai_models(
     Get list of available AI models.
     Fetches Google models dynamically if Google API key is configured.
     """
-    # Get user's Google API key to fetch models
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+    user = db.merge(current_user)
 
     google_models = GOOGLE_MODELS_FALLBACK
 
-    if account and account.encrypted_google_api_key:
+    if user.encrypted_google_api_key:
         try:
-            google_key = security.decrypt_key(account.encrypted_google_api_key)
+            google_key = security.decrypt_key(user.encrypted_google_api_key)
             google_models = await fetch_google_models(google_key)
         except Exception as e:
             logger.error(f"Failed to decrypt Google key for model fetch: {e}")
@@ -797,18 +722,10 @@ def set_ai_model(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Set default AI model for the current active account.
+    Set default AI model for the user.
     """
-    account = db.query(ExchangeAccount).filter(
-        ExchangeAccount.user_id == current_user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+    user = db.merge(current_user)
 
-    if not account:
-        raise HTTPException(status_code=404, detail="No active account found")
-
-    # Basic validation - allow any gemini-* or claude-* model
-    # (since Google models are fetched dynamically)
     model = request.ai_model
     if not (model.startswith("claude-") or model.startswith("gemini-")):
         raise HTTPException(
@@ -816,7 +733,7 @@ def set_ai_model(
             detail="Invalid model. Model must start with 'claude-' or 'gemini-'"
         )
 
-    account.ai_model = request.ai_model
+    user.ai_model = request.ai_model
     db.commit()
 
     return {
