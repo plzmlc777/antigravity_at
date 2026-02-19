@@ -48,6 +48,9 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
 
         # Health Check State
         self.last_tick_time: Optional[datetime] = None
+        self._health_check_task: Optional[asyncio.Task] = None
+
+        logger.info(f"WS: Created instance for {self._api_url} (app_key={app_key[:8] if app_key else 'None'}...)")
 
     @property
     def ws_open(self) -> bool:
@@ -59,9 +62,6 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
         if hasattr(self.websocket, 'open'):
             return self.websocket.open
         return self.websocket.close_code is None
-        self._health_check_task: Optional[asyncio.Task] = None
-
-        logger.info(f"WS: Created instance for {self._api_url} (app_key={app_key[:8] if app_key else 'None'}...)")
 
     def _build_ws_uri(self, api_url: str) -> str:
         """Build WebSocket URI from HTTP API URL"""
