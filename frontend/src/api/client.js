@@ -346,6 +346,11 @@ export const runManualAnalysis = async (sessionId) => {
     return res;
 };
 
+export const runAnalysisAllSessions = async () => {
+    const { data: res } = await api.post('/live/ai-analysis-all', {}, { timeout: 180000 });
+    return res;
+};
+
 export const listAnalysisReports = async (sessionId, limit = 10) => {
     const { data: res } = await api.get(`/live/${sessionId}/ai-analysis-reports?limit=${limit}`);
     return res;

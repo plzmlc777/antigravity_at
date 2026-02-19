@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runManualAnalysis, listAnalysisReports, getAnalysisReportDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runManualAnalysis, runAnalysisAllSessions, listAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
@@ -2964,13 +2964,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                                                     <div className="flex-1" />
 
-                                                    {/* Manual Run */}
+                                                    {/* Manual Run - Current Session */}
                                                     <button
                                                         onClick={async () => {
                                                             setIsAnalysisRunning(true);
                                                             try {
                                                                 await runManualAnalysis(sessionId);
-                                                                // Refresh reports after a delay
                                                                 setTimeout(async () => {
                                                                     const reportsData = await listAnalysisReports(sessionId, 20);
                                                                     setAnalysisReports(reportsData?.reports || []);
@@ -2985,7 +2984,29 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all disabled:opacity-50 flex items-center gap-1"
                                                     >
                                                         {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
-                                                        {isAnalysisRunning ? 'Running...' : 'Run Now'}
+                                                        {isAnalysisRunning ? 'Running...' : 'This'}
+                                                    </button>
+                                                    {/* Manual Run - All Sessions */}
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsAnalysisRunning(true);
+                                                            try {
+                                                                const res = await runAnalysisAllSessions();
+                                                                setTimeout(async () => {
+                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
+                                                                    setAnalysisReports(reportsData?.reports || []);
+                                                                    setIsAnalysisRunning(false);
+                                                                }, 10000);
+                                                            } catch (e) {
+                                                                console.error('Analysis all failed:', e);
+                                                                setIsAnalysisRunning(false);
+                                                            }
+                                                        }}
+                                                        disabled={isAnalysisRunning}
+                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-500 transition-all disabled:opacity-50 flex items-center gap-1"
+                                                    >
+                                                        {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
+                                                        All
                                                     </button>
                                                 </div>
 

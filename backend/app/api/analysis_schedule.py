@@ -255,6 +255,43 @@ async def run_manual_analysis(
     }
 
 
+@router.post("/ai-analysis-all")
+async def run_analysis_all_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Trigger AI analysis for ALL running sessions. Runs in background."""
+    from ..core.analysis_scheduler import analysis_scheduler
+
+    # Find all running sessions
+    rows = db.execute(text("""
+        SELECT id, symbol, strategy_name FROM live_bot_sessions WHERE status = 'RUNNING'
+    """)).fetchall()
+
+    if not rows:
+        raise HTTPException(404, "No running sessions found")
+
+    session_ids = [r[0] for r in rows]
+    session_names = [f"{r[1]}({r[2]})" for r in rows]
+
+    # Run analysis for each session in background
+    async def _run_all():
+        for sid in session_ids:
+            try:
+                await analysis_scheduler.run_manual_analysis(sid, current_user.id)
+            except Exception as e:
+                logger.error(f"Analysis failed for session {sid}: {e}")
+
+    asyncio.create_task(_run_all())
+
+    return {
+        "status": "started",
+        "message": f"AI analysis started for {len(session_ids)} sessions",
+        "sessions": session_names,
+        "session_count": len(session_ids),
+    }
+
+
 # --- Report Retrieval ---
 
 @router.get("/{session_id}/ai-analysis-reports")
