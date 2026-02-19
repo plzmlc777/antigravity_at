@@ -127,7 +127,7 @@ const HIDDEN_KEYS = new Set([
 const KEY_LABELS = {
     target_dip: 'Target Dip', dip_percent: 'Dip%', current_rsi: 'RSI',
     trigger_level: 'RSI Trigger', trigger_armed: 'Trigger Armed',
-    target_profit: 'Target Profit', direction: 'Direction',
+    target_profit_pct: 'Target Profit', target_price: 'Target Price', direction: 'Direction',
     target_percent: 'Target%', change_percent: 'Change%',
     start_time: 'Start', stop_time: 'Stop', delay_minutes: 'Delay(min)',
     is_delay_passed: 'Delay Passed', has_bought: 'Position', checked_today: 'Checked',
@@ -142,6 +142,7 @@ const formatStateValue = (key, val) => {
     if (val === false) return 'No';
     if (val == null) return '--';
     if (typeof val === 'number') {
+        if (key.endsWith('_pct')) return `${val}%`;
         if (key.includes('percent') || key.includes('pct')) return `${(val * 100).toFixed(2)}%`;
         if (key.includes('price') || val > 1000) return Math.round(val).toLocaleString();
         if (Number.isInteger(val)) return val.toString();

@@ -2452,7 +2452,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             priceLines={(() => {
                                 const lines = [];
                                 const avgPrice = strategyState?.average_price || 0;
-                                const targetProfit = strategyState?.target_profit || 0;
+                                const targetPrice = strategyState?.target_price || 0;
                                 if (avgPrice > 0) {
                                     lines.push({
                                         price: avgPrice,
@@ -2461,10 +2461,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         lineWidth: 1,
                                         lineStyle: 2, // dashed
                                     });
-                                    if (targetProfit > 0) {
-                                        const trailingStartPrice = Math.round(avgPrice * (1 + targetProfit));
+                                    if (targetPrice > 0) {
                                         lines.push({
-                                            price: trailingStartPrice,
+                                            price: targetPrice,
                                             color: '#22c55e', // green
                                             title: '트레일시작',
                                             lineWidth: 1,
