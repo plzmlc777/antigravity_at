@@ -9,8 +9,10 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
+import urllib.parse
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 
@@ -29,6 +31,88 @@ class AnalysisScheduler:
     def __init__(self):
         self.is_running = False
         self._task = None
+
+    def _get_symbol_name(self, db: Session, symbol: str, account_id=None) -> str:
+        """Look up stock name from exchange_accounts.saved_symbols."""
+        try:
+            if account_id:
+                row = db.execute(text(
+                    "SELECT saved_symbols FROM exchange_accounts WHERE id = :aid"
+                ), {"aid": account_id}).fetchone()
+            else:
+                row = db.execute(text(
+                    "SELECT saved_symbols FROM exchange_accounts WHERE saved_symbols IS NOT NULL AND saved_symbols != '[]' LIMIT 1"
+                )).fetchone()
+            if row and row[0]:
+                symbols = row[0] if isinstance(row[0], list) else json.loads(row[0])
+                for s in symbols:
+                    if s.get("code") == symbol:
+                        return s.get("name", "")
+        except Exception:
+            pass
+        return ""
+
+    async def _fetch_naver_news(self, symbol_name: str, max_articles: int = 10) -> List[Dict]:
+        """Fetch recent news from Naver Search API for a stock."""
+        from .config import settings
+
+        client_id = settings.NAVER_CLIENT_ID
+        client_secret = settings.NAVER_CLIENT_SECRET
+        if not client_id or not client_secret:
+            logger.debug("Naver API keys not configured, skipping news fetch")
+            return []
+
+        articles = []
+        queries = [
+            f"{symbol_name} 주가",
+            f"{symbol_name} 실적 전망",
+        ]
+
+        try:
+            from .http_client import HttpClientManager
+            http = HttpClientManager.get_instance()
+            client = http.client
+
+            for query in queries:
+                encoded = urllib.parse.quote(query)
+                url = f"https://openapi.naver.com/v1/search/news.json?query={encoded}&display=5&sort=date"
+                headers = {
+                    "X-Naver-Client-Id": client_id,
+                    "X-Naver-Client-Secret": client_secret,
+                }
+
+                resp = await client.get(url, headers=headers, timeout=10)
+                if resp.status_code != 200:
+                    logger.warning(f"Naver API error {resp.status_code} for query '{query}'")
+                    continue
+
+                data = resp.json()
+                for item in data.get("items", []):
+                    # Strip HTML tags from title and description
+                    title = re.sub(r'<[^>]+>', '', item.get("title", ""))
+                    desc = re.sub(r'<[^>]+>', '', item.get("description", ""))
+                    articles.append({
+                        "title": title,
+                        "description": desc,
+                        "link": item.get("link", ""),
+                        "pubDate": item.get("pubDate", ""),
+                        "source": "네이버뉴스",
+                    })
+
+                if len(articles) >= max_articles:
+                    break
+
+        except Exception as e:
+            logger.warning(f"Naver news fetch failed: {e}")
+
+        # Deduplicate by title
+        seen = set()
+        unique = []
+        for a in articles:
+            if a["title"] not in seen:
+                seen.add(a["title"])
+                unique.append(a)
+        return unique[:max_articles]
 
     async def start(self):
         if self.is_running:
@@ -207,32 +291,42 @@ class AnalysisScheduler:
             eval_service = LiveAIEvaluationService(db, user_id=user_id)
 
             live_stats = eval_service.collect_live_stats(session_id, symbol, n_cycles=10, is_paper=is_paper)
+            no_trade_data = False
             if "error" in live_stats:
-                raise Exception(f"Live stats error: {live_stats['error']}")
+                logger.warning(f"No trade data for session {session_id}: {live_stats['error']}")
+                no_trade_data = True
+                live_stats = {"cycles_analyzed": 0, "note": f"거래 데이터 없음: {live_stats['error']}"}
 
             backtest_stats = await eval_service.run_backtest_for_comparison(
                 symbol, strategy_name, strategy_config, days=30
             )
-            comparison = eval_service.compute_comparison(live_stats, backtest_stats)
+            comparison = eval_service.compute_comparison(live_stats, backtest_stats) if not no_trade_data else {"note": "거래 데이터 없어 비교 불가"}
 
-            # Step 2: Build context for Claude agent
+            # Step 2: Fetch Naver news
+            sym_name = self._get_symbol_name(db, symbol, session_info.get("account_id"))
+            naver_news = await self._fetch_naver_news(sym_name or symbol)
+
+            # Step 3: Build context for Claude agent
             context_data = {
                 "session_info": {
                     "session_id": session_id,
                     "symbol": symbol,
                     "strategy_name": strategy_name,
                     "is_paper": is_paper,
+                    "no_trade_data": no_trade_data,
                 },
                 "strategy_config": strategy_config,
                 "trade_summary": live_stats,
                 "backtest_comparison": comparison,
                 "backtest_stats": backtest_stats,
+                "naver_news": naver_news,
             }
 
-            # Step 3: Call Claude CLI agent
-            ai_result = await self._call_claude_agent(context_data, symbol, strategy_name)
+            # Step 4: Call Claude CLI agent
+            ai_result = await self._call_claude_agent(context_data, symbol, strategy_name, sym_name)
+            model_used = ai_result.pop("_model_used", "claude-sonnet")
 
-            # Step 4: Parse and save results
+            # Step 5: Parse and save results
             grade = ai_result.get("grade")
             recommendations = ai_result.get("recommendations", [])
             news_data = ai_result.get("news_articles", [])
@@ -259,7 +353,7 @@ class AnalysisScheduler:
                 "trade_summary": json.dumps(live_stats),
                 "comparison": json.dumps(comparison),
                 "ai_analysis": ai_analysis_text,
-                "ai_model": "claude-sonnet",
+                "ai_model": model_used,
                 "news_data": json.dumps(news_data),
                 "grade": grade,
                 "key_findings": json.dumps({"summary": ai_result.get("summary"), "performance_analysis": ai_result.get("performance_analysis")}),
@@ -271,10 +365,10 @@ class AnalysisScheduler:
             })
             db.commit()
 
-            # Step 5: Send Telegram notification
+            # Step 6: Send Telegram notification
             try:
                 telegram = TelegramNotificationService(db, user_id=user_id)
-                await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper)
+                await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper, report_type="scheduled", symbol_name=sym_name)
 
                 db.execute(text("""
                     UPDATE ai_analysis_reports SET telegram_sent = TRUE WHERE id = :rid
@@ -294,8 +388,11 @@ class AnalysisScheduler:
             """), {"err": str(e)[:500], "now": datetime.utcnow(), "rid": report_id})
             db.commit()
 
-    async def _call_claude_agent(self, context_data: Dict, symbol: str, strategy_name: str) -> Dict:
-        """Call Claude CLI with trading-analyst agent."""
+    # Model priority: try best model first, fallback on rate limit
+    MODEL_PRIORITY = ["opus", "sonnet"]
+
+    async def _call_claude_agent(self, context_data: Dict, symbol: str, strategy_name: str, symbol_name: str = "") -> Dict:
+        """Call Claude CLI with trading-analyst agent. Falls back to lower model on rate limit."""
         claude_path = shutil.which("claude")
         if not claude_path:
             raise Exception("Claude CLI not found")
@@ -311,56 +408,88 @@ class AnalysisScheduler:
             tmp_file.close()
 
             # Build prompt
+            stock_label = f"{symbol}({symbol_name})" if symbol_name else symbol
+            has_news = bool(context_data.get("naver_news"))
+            news_instruction = (
+                "The context file includes pre-fetched Naver news articles in the 'naver_news' field. "
+                "Use these articles for your news_impact analysis and include them in news_articles. "
+                "You may also search for additional news if needed."
+            ) if has_news else (
+                "Search for recent news about this stock and include in your analysis."
+            )
             prompt = (
                 f"Read the context file at {tmp_file.name} and analyze the trading session.\n"
-                f"Stock: {symbol} ({strategy_name})\n"
-                f"Search for recent news about this stock and include in your analysis.\n"
+                f"Stock: {stock_label} ({strategy_name})\n"
+                f"{news_instruction}\n"
                 f"Respond with valid JSON only."
             )
-
-            cmd = [
-                claude_path,
-                "-p", prompt,
-                "--output-format", "json",
-                "--agent", "trading-analyst",
-                "--permission-mode", "bypassPermissions",
-            ]
 
             # Clean PM2 env vars
             env = os.environ.copy()
             for key in ["NODE_CHANNEL_FD", "NODE_CHANNEL_SERIALIZATION_MODE", "NODE_APP_INSTANCE"]:
                 env.pop(key, None)
 
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd="/home/hcpark/antigravity",
-                env=env,
-                start_new_session=True,
-            )
+            last_error = None
+            for model in self.MODEL_PRIORITY:
+                cmd = [
+                    claude_path,
+                    "-p", prompt,
+                    "--output-format", "json",
+                    "--agent", "trading-analyst",
+                    "--model", model,
+                    "--permission-mode", "bypassPermissions",
+                ]
 
-            try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
-            except asyncio.TimeoutError:
-                proc.kill()
-                raise Exception("Claude CLI timed out (600s)")
+                logger.info(f"Calling Claude CLI with model={model} for {symbol}")
 
-            if proc.returncode != 0:
-                err_msg = stderr.decode().strip() if stderr else "Unknown error"
-                raise Exception(f"Claude CLI error: {err_msg[:300]}")
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd="/home/hcpark/antigravity",
+                    env=env,
+                    start_new_session=True,
+                )
 
-            raw = stdout.decode().strip()
-            if not raw:
-                raise Exception("Empty response from Claude CLI")
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    last_error = f"Claude CLI timed out (600s) with model={model}"
+                    logger.warning(last_error)
+                    continue
 
-            # Parse Claude CLI JSON output (has result field)
-            cli_output = json.loads(raw)
-            result_text = cli_output.get("result", "")
+                err_msg = stderr.decode().strip() if stderr else ""
 
-            # Try to parse the result text as JSON
-            return self._extract_json_from_response(result_text)
+                if proc.returncode != 0:
+                    # Check for rate limit / overloaded errors → try next model
+                    if any(kw in err_msg.lower() for kw in ["rate limit", "overloaded", "529", "quota"]):
+                        logger.warning(f"Model {model} rate limited, falling back to next model")
+                        last_error = f"Model {model} rate limited: {err_msg[:200]}"
+                        continue
+                    last_error = f"Claude CLI error (model={model}): {err_msg[:300]}"
+                    logger.warning(last_error)
+                    continue
+
+                raw = stdout.decode().strip()
+                if not raw:
+                    last_error = f"Empty response from Claude CLI (model={model})"
+                    logger.warning(last_error)
+                    continue
+
+                # Parse Claude CLI JSON output (has result field)
+                cli_output = json.loads(raw)
+                result_text = cli_output.get("result", "")
+                logger.info(f"Analysis completed with model={model} for {symbol}")
+
+                # Try to parse the result text as JSON
+                result = self._extract_json_from_response(result_text)
+                result["_model_used"] = f"claude-{model}"
+                return result
+
+            # All models failed
+            raise Exception(last_error or "All models failed")
 
         finally:
             if tmp_file and os.path.exists(tmp_file.name):
@@ -368,51 +497,121 @@ class AnalysisScheduler:
 
     def _extract_json_from_response(self, text: str) -> Dict:
         """Extract JSON from Claude response, handling markdown code blocks."""
+        import re
+
+        result = None
+
         # Try direct JSON parse
         try:
-            return json.loads(text)
+            result = json.loads(text)
         except json.JSONDecodeError:
             pass
 
-        # Try extracting from markdown code block
+        if result is None:
+            # Strip markdown code fences (greedy: match outermost ```)
+            stripped = text.strip()
+            if stripped.startswith("```"):
+                stripped = re.sub(r'^```(?:json)?\s*\n?', '', stripped)
+                stripped = re.sub(r'\n?```\s*$', '', stripped)
+                try:
+                    result = json.loads(stripped.strip())
+                except json.JSONDecodeError:
+                    pass
+
+        if result is None:
+            # Try all markdown code blocks (greedy match)
+            for match in re.finditer(r'```(?:json)?\s*\n([\s\S]+?)\n```', text):
+                try:
+                    result = json.loads(match.group(1).strip())
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+        if result is None:
+            # Try finding JSON object between first { and last }
+            brace_start = text.find('{')
+            brace_end = text.rfind('}')
+            if brace_start >= 0 and brace_end > brace_start:
+                try:
+                    result = json.loads(text[brace_start:brace_end + 1])
+                except json.JSONDecodeError:
+                    pass
+
+        if result is None:
+            # Return a minimal valid response
+            logger.warning(f"Could not parse JSON from Claude response, using raw text")
+            return {
+                "summary": text[:500],
+                "grade": "N/A",
+                "recommendations": [],
+                "action": "유지",
+                "risk_level": "medium",
+                "news_articles": [],
+            }
+
+        # Fix nested JSON: sometimes Claude wraps the entire response inside the
+        # summary field as a markdown code block (e.g. summary: "```json\n{...}\n```")
+        result = self._fix_nested_json(result)
+        return result
+
+    def _fix_nested_json(self, result: Dict) -> Dict:
+        """Fix cases where Claude nests the real JSON inside the summary field."""
         import re
-        json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
-        if json_match:
+
+        # Check if grade is missing but summary contains nested JSON
+        if result.get("grade") and result.get("grade") != "N/A":
+            return result  # Already has a valid grade, no fix needed
+
+        summary = result.get("summary", "")
+        if not isinstance(summary, str) or "```" not in summary:
+            return result  # No nested JSON pattern
+
+        # Try to extract JSON from the summary field
+        inner = None
+
+        # Pattern 1: ```json\n{...}\n```
+        match = re.search(r'```(?:json)?\s*\n([\s\S]+?)\n```', summary)
+        if match:
             try:
-                return json.loads(json_match.group(1))
+                inner = json.loads(match.group(1).strip())
             except json.JSONDecodeError:
                 pass
 
-        # Try finding JSON object in text
-        brace_start = text.find('{')
-        brace_end = text.rfind('}')
-        if brace_start >= 0 and brace_end > brace_start:
-            try:
-                return json.loads(text[brace_start:brace_end + 1])
-            except json.JSONDecodeError:
-                pass
+        # Pattern 2: Just find { ... } in summary
+        if inner is None:
+            brace_start = summary.find('{')
+            brace_end = summary.rfind('}')
+            if brace_start >= 0 and brace_end > brace_start:
+                try:
+                    inner = json.loads(summary[brace_start:brace_end + 1])
+                except json.JSONDecodeError:
+                    pass
 
-        # Return a minimal valid response
-        logger.warning(f"Could not parse JSON from Claude response, using raw text")
-        return {
-            "summary": text[:500],
-            "grade": "N/A",
-            "recommendations": [],
-            "action": "유지",
-            "risk_level": "medium",
-            "news_articles": [],
-        }
+        if inner and isinstance(inner, dict) and inner.get("grade"):
+            logger.info(f"Fixed nested JSON: extracted grade={inner.get('grade')} from summary field")
+            # Merge inner fields into result (inner takes priority for key fields)
+            for key in ["summary", "grade", "performance_analysis", "news_impact",
+                        "news_articles", "recommendations", "action", "risk_level",
+                        "parameter_suggestions"]:
+                if key in inner:
+                    result[key] = inner[key]
+
+        return result
 
     async def _send_telegram_report(
         self, telegram: 'TelegramNotificationService',
         symbol: str, strategy_name: str,
-        ai_result: Dict, is_paper: bool
+        ai_result: Dict, is_paper: bool,
+        report_type: str = "scheduled",
+        symbol_name: str = ""
     ):
         """Format and send analysis report via Telegram."""
         if not telegram.enabled:
             return
 
         mode_label = "모의" if is_paper else "실거래"
+        type_label = "수동 분석" if report_type == "manual" else "정기 분석"
+        symbol_display = f"{symbol}({symbol_name})" if symbol_name else symbol
         grade = ai_result.get("grade", "N/A")
         grade_emoji = {"A": "\U0001f3c6", "B": "\u2705", "C": "\u26a0\ufe0f", "D": "\U0001f7e0", "F": "\u274c"}.get(grade, "\u2753")
         action = ai_result.get("action", "")
@@ -420,9 +619,9 @@ class AnalysisScheduler:
         risk = ai_result.get("risk_level", "")
         risk_emoji = {"low": "\U0001f7e2", "medium": "\U0001f7e1", "high": "\U0001f534"}.get(risk, "\u26aa")
 
-        header = f"""\U0001f4ca <b>AI \uc815\uae30 \ubd84\uc11d \ub9ac\ud3ec\ud2b8</b>
+        header = f"""\U0001f4ca <b>AI {type_label} \ub9ac\ud3ec\ud2b8</b>
 
-\U0001f4c8 <b>{symbol}</b> | {strategy_name}
+\U0001f4c8 <b>{symbol_display}</b> | {strategy_name}
 \u251c \ubaa8\ub4dc: {mode_label}
 \u2514 \ubd84\uc11d \uc2dc\uac04: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC
 
@@ -530,30 +729,40 @@ class AnalysisScheduler:
             # Step 1: Collect data
             eval_service = LiveAIEvaluationService(db, user_id=user_id)
             live_stats = eval_service.collect_live_stats(session_id, symbol, n_cycles=10, is_paper=is_paper)
+            no_trade_data = False
             if "error" in live_stats:
-                raise Exception(f"Live stats error: {live_stats['error']}")
+                logger.warning(f"No trade data for session {session_id}: {live_stats['error']}")
+                no_trade_data = True
+                live_stats = {"cycles_analyzed": 0, "note": f"거래 데이터 없음: {live_stats['error']}"}
 
             backtest_stats = await eval_service.run_backtest_for_comparison(
                 symbol, strategy_name, strategy_config, days=30
             )
-            comparison = eval_service.compute_comparison(live_stats, backtest_stats)
+            comparison = eval_service.compute_comparison(live_stats, backtest_stats) if not no_trade_data else {"note": "거래 데이터 없어 비교 불가"}
 
-            # Step 2: Build context for Claude agent
+            # Step 2: Fetch Naver news
+            sym_name = self._get_symbol_name(db, symbol, session_info.get("account_id"))
+            naver_news = await self._fetch_naver_news(sym_name or symbol)
+
+            # Step 3: Build context for Claude agent
             context_data = {
                 "session_info": {
                     "session_id": session_id, "symbol": symbol,
                     "strategy_name": strategy_name, "is_paper": is_paper,
+                    "no_trade_data": no_trade_data,
                 },
                 "strategy_config": strategy_config,
                 "trade_summary": live_stats,
                 "backtest_comparison": comparison,
                 "backtest_stats": backtest_stats,
+                "naver_news": naver_news,
             }
 
-            # Step 3: Call Claude CLI agent
-            ai_result = await self._call_claude_agent(context_data, symbol, strategy_name)
+            # Step 4: Call Claude CLI agent
+            ai_result = await self._call_claude_agent(context_data, symbol, strategy_name, sym_name)
+            model_used = ai_result.pop("_model_used", "claude-sonnet")
 
-            # Step 4: Save results
+            # Step 5: Save results
             grade = ai_result.get("grade")
             recommendations = ai_result.get("recommendations", [])
             news_data = ai_result.get("news_articles", [])
@@ -579,7 +788,7 @@ class AnalysisScheduler:
                 "trade_summary": json.dumps(live_stats),
                 "comparison": json.dumps(comparison),
                 "ai_analysis": json.dumps(ai_result, ensure_ascii=False),
-                "ai_model": "claude-sonnet",
+                "ai_model": model_used,
                 "news_data": json.dumps(news_data),
                 "grade": grade,
                 "key_findings": json.dumps({"summary": ai_result.get("summary"), "performance_analysis": ai_result.get("performance_analysis")}),
@@ -591,10 +800,10 @@ class AnalysisScheduler:
             })
             db.commit()
 
-            # Step 5: Telegram
+            # Step 6: Telegram
             try:
                 telegram = TelegramNotificationService(db, user_id=user_id)
-                await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper)
+                await self._send_telegram_report(telegram, symbol, strategy_name, ai_result, is_paper, report_type="manual", symbol_name=sym_name)
                 db.execute(text("UPDATE ai_analysis_reports SET telegram_sent = TRUE WHERE id = :rid"), {"rid": report_id})
                 db.commit()
             except Exception as e:

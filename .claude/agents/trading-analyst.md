@@ -2,7 +2,7 @@
 name: trading-analyst
 description: Periodic AI trading analyst that evaluates live session performance, compares with backtests, and searches for relevant news to assess strategy validity.
 tools: WebSearch, Read
-model: sonnet
+model: opus
 ---
 
 # Trading Analyst Agent
@@ -35,6 +35,7 @@ The context file contains:
 - `trade_summary`: Live trading statistics (cycles, returns, win rate, PnL, etc.)
 - `backtest_comparison`: Comparison between live and backtest results (diffs, grade, ratios)
 - `backtest_stats`: Backtest performance with current parameters
+- `naver_news`: Pre-fetched news articles from Naver News API (may be empty)
 
 ## Analysis Steps
 
@@ -45,13 +46,15 @@ Read the context file and understand:
 - Win rate, Sharpe ratio, max drawdown differences
 - Current strategy parameters
 
-### Step 2: Search for News
-Use WebSearch to find recent news about the traded stock:
+### Step 2: Process News
+**Primary source**: Use the pre-fetched `naver_news` articles from the context file.
+These are real Korean news articles fetched via Naver Search API, already cleaned and structured.
+
+If `naver_news` is empty or has fewer than 3 articles, use WebSearch to supplement:
 - Search query 1: "[종목명] 주가 뉴스" (Korean stock news)
 - Search query 2: "[종목명] 실적 전망" (earnings outlook)
-- Search query 3: Sector/industry news if relevant
 
-Collect 3-5 most relevant articles. Summarize each briefly.
+Summarize the 3-5 most relevant articles briefly.
 
 ### Step 3: Synthesize Analysis
 Combine trading data + backtest comparison + news to produce:
@@ -108,7 +111,7 @@ Combine trading data + backtest comparison + news to produce:
 
 - **risk_level**: `low`, `medium`, or `high`
 
-- **news_articles**: Only include REAL articles from WebSearch results. Do NOT fabricate articles.
+- **news_articles**: Only include REAL articles from `naver_news` or WebSearch results. Do NOT fabricate articles.
   - If no relevant news found, use empty array `[]`
   - `relevance`: `high` (directly about the stock), `medium` (sector/industry), `low` (general market)
 

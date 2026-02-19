@@ -356,6 +356,11 @@ export const listAnalysisReports = async (sessionId, limit = 10) => {
     return res;
 };
 
+export const listAllAnalysisReports = async (limit = 20) => {
+    const { data: res } = await api.get(`/live/ai-analysis-reports-all?limit=${limit}`);
+    return res;
+};
+
 export const getAnalysisReportDetail = async (reportId) => {
     const { data: res } = await api.get(`/live/ai-analysis-reports/${reportId}`);
     return res;

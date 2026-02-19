@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runManualAnalysis, runAnalysisAllSessions, listAnalysisReports, getAnalysisReportDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
@@ -74,6 +74,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [analysisReports, setAnalysisReports] = useState([]); // Report list
     const [selectedReport, setSelectedReport] = useState(null); // Report detail
     const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
+    const [analysisProgress, setAnalysisProgress] = useState([]); // [{symbol, status, grade}]
     const [scheduleForm, setScheduleForm] = useState({
         schedule_type: 'daily',
         schedule_time: '15:40',
@@ -2803,11 +2804,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     <button
                                         className="w-full py-4 border-2 border-dashed border-cyan-700/50 hover:border-cyan-500/70 hover:bg-cyan-500/5 rounded-xl text-gray-400 hover:text-cyan-400 font-bold transition-all flex flex-col items-center gap-2"
                                         onClick={async () => {
-                                            setShowAiAnalysisPanel(true);
                                             try {
                                                 const [schedules, reportsData] = await Promise.all([
                                                     listAnalysisSchedules(),
-                                                    listAnalysisReports(sessionId, 20)
+                                                    listAllAnalysisReports(20)
                                                 ]);
                                                 if (schedules && schedules.length > 0) {
                                                     setAnalysisSchedule(schedules[0]);
@@ -2820,6 +2820,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 }
                                                 setAnalysisReports(reportsData?.reports || []);
                                             } catch (e) { console.error('Failed to load analysis data:', e); }
+                                            setShowAiAnalysisPanel(true);
                                         }}
                                     >
                                         <BarChart3 size={24} />
@@ -2858,6 +2859,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                         : 'bg-white/5 text-gray-500 border border-white/10 hover:bg-white/10'
                                                                 }`}
                                                             >
+                                                                {scheduleForm.schedule_type === t && <Check size={10} className="inline mr-1" />}
                                                                 {t === 'daily' ? 'Daily' : t === 'weekly' ? 'Weekly' : 'Monthly'}
                                                             </button>
                                                         ))}
@@ -2964,20 +2966,95 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                                                     <div className="flex-1" />
 
-                                                    {/* Manual Run - All Sessions (default) */}
+                                                    {/* Manual Run - All Sessions */}
                                                     <button
                                                         onClick={async () => {
                                                             setIsAnalysisRunning(true);
+                                                            setAnalysisProgress([]); // Clear old progress immediately
                                                             try {
-                                                                await runAnalysisAllSessions();
+                                                                // Record start time to filter current batch reports
+                                                                const runStartedAt = new Date().toISOString();
+
+                                                                const res = await runAnalysisAllSessions();
+                                                                const sessions = res?.sessions || [];
+                                                                const totalSessions = res?.session_count || sessions.length || 4;
+                                                                // Build progress: parse "symbol(strategy)" format
+                                                                const progress = sessions.map(s => {
+                                                                    const match = s.match(/^(\d+)\(/);
+                                                                    return { symbol: match ? match[1] : s, status: 'pending', grade: null };
+                                                                });
+                                                                setAnalysisProgress(progress);
+
+                                                                // Filter reports to only include current batch (created after run started)
+                                                                const filterCurrentBatch = (reports) => {
+                                                                    const startTime = new Date(runStartedAt).getTime() - 5000; // 5s buffer
+                                                                    return reports.filter(r => {
+                                                                        const t = new Date(r.created_at + (r.created_at?.endsWith('Z') ? '' : 'Z')).getTime();
+                                                                        return t >= startTime;
+                                                                    });
+                                                                };
+
+                                                                // Poll helper to update progress from reports
+                                                                const updateProgress = (reports, prog) => {
+                                                                    return prog.map(p => {
+                                                                        const report = reports.find(r => r.symbol === p.symbol && r.status !== 'failed');
+                                                                        if (!report) {
+                                                                            const failed = reports.find(r => r.symbol === p.symbol && r.status === 'failed');
+                                                                            if (failed) return { ...p, status: 'failed', grade: null };
+                                                                            return p;
+                                                                        }
+                                                                        return { ...p, status: report.status, grade: report.grade };
+                                                                    });
+                                                                };
+
+                                                                // Poll function (reusable for initial + interval)
+                                                                const doPoll = async () => {
+                                                                    const reportsData = await listAllAnalysisReports(totalSessions * 3);
+                                                                    const currentBatch = filterCurrentBatch(reportsData?.reports || []);
+                                                                    setAnalysisProgress(prev => updateProgress(currentBatch, prev));
+                                                                    return { reportsData, currentBatch };
+                                                                };
+
+                                                                // Poll for completion (first poll after 5s, then every 8s)
+                                                                let polls = 0;
+                                                                const maxPolls = 50;
+                                                                const firstPollDelay = 5000;
+                                                                const pollIntervalMs = 8000;
+
+                                                                const startPolling = () => {
+                                                                    return setInterval(async () => {
+                                                                        polls++;
+                                                                        try {
+                                                                            const { reportsData, currentBatch } = await doPoll();
+                                                                            const stillRunning = currentBatch.some(r => r.status === 'running');
+                                                                            const doneCount = currentBatch.filter(r => r.status === 'completed' || r.status === 'failed').length;
+                                                                            const allDone = doneCount >= totalSessions;
+                                                                            if ((!stillRunning && allDone) || polls >= maxPolls) {
+                                                                                clearInterval(pollInterval);
+                                                                                // Final fetch to update Analysis History
+                                                                                try {
+                                                                                    const finalData = await listAllAnalysisReports(totalSessions * 3);
+                                                                                    setAnalysisReports(finalData?.reports || []);
+                                                                                } catch {}
+                                                                                setIsAnalysisRunning(false);
+                                                                            }
+                                                                        } catch {
+                                                                            clearInterval(pollInterval);
+                                                                            setIsAnalysisRunning(false);
+                                                                        }
+                                                                    }, pollIntervalMs);
+                                                                };
+
+                                                                // Initial poll after short delay, then start regular polling
+                                                                let pollInterval;
                                                                 setTimeout(async () => {
-                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
-                                                                    setAnalysisReports(reportsData?.reports || []);
-                                                                    setIsAnalysisRunning(false);
-                                                                }, 10000);
+                                                                    try { await doPoll(); } catch {}
+                                                                    pollInterval = startPolling();
+                                                                }, firstPollDelay);
                                                             } catch (e) {
                                                                 console.error('Analysis all failed:', e);
                                                                 setIsAnalysisRunning(false);
+                                                                setAnalysisProgress([]);
                                                             }
                                                         }}
                                                         disabled={isAnalysisRunning}
@@ -2986,28 +3063,72 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         {isAnalysisRunning ? <RefreshCw size={12} className="animate-spin" /> : <Play size={12} />}
                                                         {isAnalysisRunning ? 'Running...' : 'Run All'}
                                                     </button>
-                                                    {/* Manual Run - Current Session Only */}
-                                                    <button
-                                                        onClick={async () => {
-                                                            setIsAnalysisRunning(true);
-                                                            try {
-                                                                await runManualAnalysis(sessionId);
-                                                                setTimeout(async () => {
-                                                                    const reportsData = await listAnalysisReports(sessionId, 20);
-                                                                    setAnalysisReports(reportsData?.reports || []);
-                                                                    setIsAnalysisRunning(false);
-                                                                }, 5000);
-                                                            } catch (e) {
-                                                                console.error('Manual analysis failed:', e);
-                                                                setIsAnalysisRunning(false);
-                                                            }
-                                                        }}
-                                                        disabled={isAnalysisRunning}
-                                                        className="px-3 py-1.5 rounded text-xs font-bold bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50 flex items-center gap-1"
-                                                    >
-                                                        This
-                                                    </button>
                                                 </div>
+
+                                                {/* Progress Circles */}
+                                                {analysisProgress.length > 0 && isAnalysisRunning && (
+                                                    <div className="flex items-center gap-3 py-2 px-1">
+                                                        {analysisProgress.map((p, i) => (
+                                                            <div key={p.symbol} className="flex flex-col items-center gap-1">
+                                                                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-500 ${
+                                                                    p.status === 'completed' ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400' :
+                                                                    p.status === 'running' ? 'border-cyan-400 bg-cyan-400/10 text-cyan-400' :
+                                                                    p.status === 'failed' ? 'border-red-400 bg-red-400/10 text-red-400' :
+                                                                    'border-white/10 bg-white/5 text-gray-500'
+                                                                }`}>
+                                                                    {p.status === 'running' && (
+                                                                        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 animate-spin" />
+                                                                    )}
+                                                                    {p.status === 'completed' ? (
+                                                                        <span className={`text-sm font-bold ${
+                                                                            p.grade === 'A' ? 'text-emerald-400' :
+                                                                            p.grade === 'B' ? 'text-blue-400' :
+                                                                            p.grade === 'C' ? 'text-yellow-400' :
+                                                                            p.grade === 'D' ? 'text-orange-400' :
+                                                                            p.grade === 'F' ? 'text-red-400' : 'text-gray-400'
+                                                                        }`}>{p.grade || 'OK'}</span>
+                                                                    ) : p.status === 'failed' ? (
+                                                                        <AlertTriangle size={14} />
+                                                                    ) : p.status === 'running' ? (
+                                                                        <span className="text-[10px]">...</span>
+                                                                    ) : (
+                                                                        <span className="text-[10px]">{i + 1}</span>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-[9px] text-gray-500 font-mono">{p.symbol}</span>
+                                                            </div>
+                                                        ))}
+                                                        <div className="text-[10px] text-gray-500 ml-1">
+                                                            {analysisProgress.filter(p => p.status === 'completed').length}/{analysisProgress.length}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Completed Progress Summary */}
+                                                {analysisProgress.length > 0 && !isAnalysisRunning && (
+                                                    <div className="flex items-center gap-3 py-2 px-1">
+                                                        {analysisProgress.map((p) => (
+                                                            <div key={p.symbol} className="flex flex-col items-center gap-1">
+                                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                                                                    p.status === 'completed' ? 'border-emerald-400 bg-emerald-400/10' :
+                                                                    p.status === 'failed' ? 'border-red-400 bg-red-400/10' :
+                                                                    'border-white/10 bg-white/5'
+                                                                }`}>
+                                                                    <span className={`text-sm font-bold ${
+                                                                        p.grade === 'A' ? 'text-emerald-400' :
+                                                                        p.grade === 'B' ? 'text-blue-400' :
+                                                                        p.grade === 'C' ? 'text-yellow-400' :
+                                                                        p.grade === 'D' ? 'text-orange-400' :
+                                                                        p.grade === 'F' ? 'text-red-400' :
+                                                                        p.status === 'failed' ? 'text-red-400' : 'text-gray-400'
+                                                                    }`}>{p.grade || (p.status === 'failed' ? '!' : '-')}</span>
+                                                                </div>
+                                                                <span className="text-[9px] text-gray-500 font-mono">{p.symbol}</span>
+                                                            </div>
+                                                        ))}
+                                                        <div className="text-[10px] text-emerald-400 ml-1">Done</div>
+                                                    </div>
+                                                )}
 
                                                 {/* Next Run Info */}
                                                 {analysisSchedule?.next_run_at && (
@@ -3142,14 +3263,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 </div>
                                             )}
 
-                                            {/* Report History List */}
-                                            {!selectedReport && (
+                                            {/* Report History List - hidden during analysis run */}
+                                            {!selectedReport && !isAnalysisRunning && (
                                                 <div>
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="text-xs font-bold text-gray-300 uppercase tracking-wider">Analysis History</div>
                                                         <button
                                                             onClick={async () => {
-                                                                const reportsData = await listAnalysisReports(sessionId, 20);
+                                                                const reportsData = await listAllAnalysisReports(20);
                                                                 setAnalysisReports(reportsData?.reports || []);
                                                             }}
                                                             className="text-gray-500 hover:text-cyan-400 transition-colors"
@@ -3162,55 +3283,87 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                             No analysis reports yet. Click "Run Now" or set up a schedule.
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-1 max-h-64 overflow-y-auto">
-                                                            {analysisReports.map(report => (
-                                                                <div
-                                                                    key={report.id}
-                                                                    className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/5 hover:bg-cyan-500/10 cursor-pointer transition-all border border-transparent hover:border-cyan-500/20"
-                                                                    onClick={async () => {
-                                                                        try {
-                                                                            const detail = await getAnalysisReportDetail(report.id);
-                                                                            setSelectedReport(detail);
-                                                                        } catch (e) { console.error('Failed to load report:', e); }
-                                                                    }}
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className={`text-lg font-bold ${
-                                                                            report.grade === 'A' ? 'text-emerald-400' :
-                                                                            report.grade === 'B' ? 'text-blue-400' :
-                                                                            report.grade === 'C' ? 'text-yellow-400' :
-                                                                            report.grade === 'D' ? 'text-orange-400' :
-                                                                            report.grade ? 'text-red-400' : 'text-gray-600'
-                                                                        }`}>{report.grade || '-'}</span>
-                                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                                                            report.report_type === 'manual'
-                                                                                ? 'bg-cyan-500/20 text-cyan-400'
-                                                                                : 'bg-purple-500/20 text-purple-400'
-                                                                        }`}>
-                                                                            {report.report_type === 'manual' ? 'M' : 'S'}
-                                                                        </span>
-                                                                        <div className="text-xs text-gray-400">
-                                                                            {report.action && <span className="mr-2">{report.action}</span>}
-                                                                            {report.risk_level && <span className={`${
-                                                                                report.risk_level === 'high' ? 'text-red-400' :
-                                                                                report.risk_level === 'medium' ? 'text-yellow-400' :
-                                                                                'text-emerald-400'
-                                                                            }`}>{report.risk_level}</span>}
+                                                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                                                            {/* Group reports by batch (within 5min window = same batch) */}
+                                                            {(() => {
+                                                                const batches = [];
+                                                                const sorted = [...analysisReports].sort((a, b) =>
+                                                                    new Date(b.created_at || 0) - new Date(a.created_at || 0)
+                                                                );
+                                                                sorted.forEach(report => {
+                                                                    const t = new Date(report.created_at + (report.created_at?.endsWith('Z') ? '' : 'Z')).getTime();
+                                                                    const lastBatch = batches[batches.length - 1];
+                                                                    if (lastBatch && Math.abs(t - lastBatch.time) < 5 * 60 * 1000) {
+                                                                        lastBatch.reports.push(report);
+                                                                    } else {
+                                                                        batches.push({ time: t, reports: [report] });
+                                                                    }
+                                                                });
+                                                                return batches.map((batch, bi) => {
+                                                                    const batchDate = new Date(batch.time);
+                                                                    const dateStr = batchDate.toLocaleString('ko-KR', {
+                                                                        timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit',
+                                                                        hour: '2-digit', minute: '2-digit', hour12: false
+                                                                    });
+                                                                    const hasRunning = batch.reports.some(r => r.status === 'running');
+                                                                    const hasFailed = batch.reports.some(r => r.status === 'failed');
+                                                                    const type = batch.reports[0]?.report_type;
+                                                                    return (
+                                                                        <div key={bi} className="rounded-lg bg-white/5 border border-white/5 hover:border-cyan-500/20 transition-all">
+                                                                            {/* Batch header */}
+                                                                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/5">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-[10px] text-gray-500">{dateStr}</span>
+                                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                                                        type === 'manual' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-purple-500/20 text-purple-400'
+                                                                                    }`}>{type === 'manual' ? 'Manual' : 'Scheduled'}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    {hasRunning && <RefreshCw size={10} className="text-cyan-400 animate-spin" />}
+                                                                                    {hasFailed && <AlertTriangle size={10} className="text-red-400" />}
+                                                                                    <span className="text-[10px] text-gray-600">{batch.reports.length} symbols</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            {/* Symbol grade chips */}
+                                                                            <div className="flex flex-wrap gap-1.5 px-3 py-2">
+                                                                                {batch.reports.map(report => {
+                                                                                    const gradeColor = report.grade === 'A' ? 'text-emerald-400 border-emerald-500/30' :
+                                                                                        report.grade === 'B' ? 'text-blue-400 border-blue-500/30' :
+                                                                                        report.grade === 'C' ? 'text-yellow-400 border-yellow-500/30' :
+                                                                                        report.grade === 'D' ? 'text-orange-400 border-orange-500/30' :
+                                                                                        report.grade === 'F' ? 'text-red-400 border-red-500/30' :
+                                                                                        'text-gray-500 border-gray-600/30';
+                                                                                    const gradeBg = report.grade === 'A' ? 'bg-emerald-500/10' :
+                                                                                        report.grade === 'B' ? 'bg-blue-500/10' :
+                                                                                        report.grade === 'C' ? 'bg-yellow-500/10' :
+                                                                                        report.grade === 'D' ? 'bg-orange-500/10' :
+                                                                                        report.grade === 'F' ? 'bg-red-500/10' :
+                                                                                        'bg-white/5';
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={report.id}
+                                                                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${gradeBg} ${gradeColor} hover:brightness-125 cursor-pointer transition-all`}
+                                                                                            onClick={async () => {
+                                                                                                try {
+                                                                                                    const detail = await getAnalysisReportDetail(report.id);
+                                                                                                    setSelectedReport(detail);
+                                                                                                } catch (e) { console.error('Failed to load report:', e); }
+                                                                                            }}
+                                                                                        >
+                                                                                            {report.status === 'running' ? (
+                                                                                                <RefreshCw size={10} className="text-cyan-400 animate-spin" />
+                                                                                            ) : (
+                                                                                                <span className="text-sm font-bold">{report.grade || '-'}</span>
+                                                                                            )}
+                                                                                            <span className="text-[10px] font-mono opacity-80">{report.symbol || '?'}</span>
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        {report.status === 'running' && (
-                                                                            <RefreshCw size={10} className="text-cyan-400 animate-spin" />
-                                                                        )}
-                                                                        {report.status === 'failed' && (
-                                                                            <AlertTriangle size={10} className="text-red-400" />
-                                                                        )}
-                                                                        <div className="text-[10px] text-gray-500">
-                                                                            {report.created_at ? new Date(report.created_at + (report.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : ''}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                    );
+                                                                });
+                                                            })()}
                                                         </div>
                                                     )}
                                                 </div>

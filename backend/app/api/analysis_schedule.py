@@ -294,6 +294,46 @@ async def run_analysis_all_sessions(
 
 # --- Report Retrieval ---
 
+@router.get("/ai-analysis-reports-all")
+async def list_all_reports(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List latest analysis reports across ALL sessions."""
+    rows = db.execute(text("""
+        SELECT id, schedule_id, report_type, status, grade, action, risk_level,
+               telegram_sent, error_message, created_at, completed_at, symbol, strategy_name, session_id
+        FROM ai_analysis_reports
+        WHERE user_id = :uid
+        ORDER BY created_at DESC
+        LIMIT :lim
+    """), {"uid": current_user.id, "lim": limit}).fetchall()
+
+    return {
+        "total": len(rows),
+        "reports": [
+            {
+                "id": r[0],
+                "schedule_id": r[1],
+                "report_type": r[2],
+                "status": r[3],
+                "grade": r[4],
+                "action": r[5],
+                "risk_level": r[6],
+                "telegram_sent": r[7],
+                "error_message": r[8],
+                "created_at": r[9].isoformat() if r[9] else None,
+                "completed_at": r[10].isoformat() if r[10] else None,
+                "symbol": r[11],
+                "strategy_name": r[12],
+                "session_id": r[13],
+            }
+            for r in rows
+        ]
+    }
+
+
 @router.get("/{session_id}/ai-analysis-reports")
 async def list_reports(
     session_id: str,
