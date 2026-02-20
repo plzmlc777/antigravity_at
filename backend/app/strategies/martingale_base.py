@@ -367,22 +367,23 @@ class MartingaleBase(BaseStrategy):
 
             if self._check_entry_trigger(data):
                 qty = self._calculate_quantity(1, current_price)
-                self._pending_entry = True  # Lock until callback
+                if qty > 0:
+                    self._pending_entry = True  # Lock until callback
 
-                # Callback invoked after order is FILLED or FAILED (async-safe)
-                def on_l1_filled(order_id, filled_qty, filled_price, metadata):
-                    self._pending_entry = False  # Unlock
-                    if filled_qty > 0:  # Success
-                        self._add_position(filled_price, filled_qty, 1)
-                        self.peak_price = filled_price
-                        self.cycle_start_time = self.context.get_time()
-                        self.context.log(f"[{self._log_prefix}] L1 Initial Entry FILLED @ {filled_price:,.0f}")
-                    # else: async failure, already logged by context
+                    # Callback invoked after order is FILLED or FAILED (async-safe)
+                    def on_l1_filled(order_id, filled_qty, filled_price, metadata):
+                        self._pending_entry = False  # Unlock
+                        if filled_qty > 0:  # Success
+                            self._add_position(filled_price, filled_qty, 1)
+                            self.peak_price = filled_price
+                            self.cycle_start_time = self.context.get_time()
+                            self.context.log(f"[{self._log_prefix}] L1 Initial Entry FILLED @ {filled_price:,.0f}")
+                        # else: async failure, already logged by context
 
-                result = self.context.buy(symbol, qty, metadata={"level": 1}, on_filled=on_l1_filled)
-                if result.get("status") == "failed":
-                    self._pending_entry = False  # Unlock on immediate failure
-                    self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
+                    result = self.context.buy(symbol, qty, metadata={"level": 1}, on_filled=on_l1_filled)
+                    if result.get("status") == "failed":
+                        self._pending_entry = False  # Unlock on immediate failure
+                        self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
     def _get_leverage(self) -> int:
         """
@@ -463,10 +464,10 @@ class MartingaleBase(BaseStrategy):
             self._pending_exit = False  # Unlock on immediate failure
             self.context.log(f"[{self._log_prefix}] SELL FAILED: {result.get('reason', 'Unknown')}")
 
-    def _resolve_level_qty(self, level: int, price: float) -> int:
-        """Calculate share quantity for a given level.
+    def _resolve_level_qty(self, level: int, price: float) -> float:
+        """Calculate quantity for a given level (supports fractional qty for crypto).
 
-        fixed mode:   base_quantity * multiplier^(level-1)  → direct share count
+        fixed mode:   base_quantity * multiplier^(level-1)  → direct quantity
         percent mode: L1 resolved once from (capital * base_quantity% / price),
                       then L2+ = resolved_L1 * multiplier^(level-1)
         """
@@ -474,9 +475,9 @@ class MartingaleBase(BaseStrategy):
             # Resolve L1 base qty once per cycle, cache it
             if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
                 capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', 10000000))
-                self._resolved_base_qty = max(1, int(capital * self.base_quantity / 100 / price))
-            return int(self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1)))
-        return int(self.base_quantity * (self.lot_size_multiplier ** (level - 1)))
+                self._resolved_base_qty = capital * self.base_quantity / 100 / price
+            return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
+        return float(self.base_quantity) * (self.lot_size_multiplier ** (level - 1))
 
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)
@@ -501,7 +502,7 @@ class MartingaleBase(BaseStrategy):
 
         return max_level
 
-    def _calculate_quantity(self, level: int, price: float = None) -> int:
+    def _calculate_quantity(self, level: int, price: float = None) -> float:
         if price is None:
             price = getattr(self, 'last_price', 0)
 
@@ -525,13 +526,13 @@ class MartingaleBase(BaseStrategy):
                 usable_capital = available_cash - safety_reserve
 
                 remaining_capital = usable_capital
-                max_qty = int(remaining_capital / price) if price > 0 else 0
+                max_qty = remaining_capital / price if price > 0 else 0
                 final_qty = max(max_qty, standard_qty)
 
-                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): Investing remaining capital → {final_qty} shares")
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): Investing remaining capital → {final_qty} qty")
                 return final_qty
             else:
-                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} shares")
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} qty")
                 return standard_qty
 
         return self._resolve_level_qty(level, price)

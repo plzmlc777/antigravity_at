@@ -547,8 +547,15 @@ export const useProfileConfig = ({
                     Object.assign(defaultRank, overrides);
                     console.log(`[useProfileConfig] Applied ${exchangeName} parameter defaults:`, overrides);
                 }
-                // Apply exchange-specific days to rank config
+                // Apply exchange-specific days, capital, from_date, symbol to rank config
                 defaultRank.days = exchangeDays;
+                defaultRank.initial_capital = exchangeCapital;
+                const fromDate = new Date();
+                fromDate.setDate(fromDate.getDate() - exchangeDays);
+                defaultRank.from_date = fromDate.toISOString().split('T')[0];
+                if (initialSymbols.length > 0) {
+                    defaultRank.symbol = initialSymbols[0].code;
+                }
             }
 
             // 명시적 accountId 파라미터 우선, 없으면 profileMeta에서 가져오기

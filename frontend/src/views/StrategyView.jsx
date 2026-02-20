@@ -1308,8 +1308,8 @@ const StrategyView = () => {
                                         <option value="" className="bg-slate-900 text-gray-400">계좌 없음</option>
                                         {accounts.filter(a => {
                                             if (a.is_disabled) return false;
-                                            // 프로필에 연결된 계좌가 있으면 같은 거래소만 표시
-                                            if (activeAccount?.exchange_name) {
+                                            // 프로필에 명시적으로 계좌가 연결된 경우만 같은 거래소 필터
+                                            if (profileMeta.account_id && activeAccount?.exchange_name) {
                                                 return a.exchange_name === activeAccount.exchange_name;
                                             }
                                             return true;
