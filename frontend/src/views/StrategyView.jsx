@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine, ComposedChart, LabelList } from 'recharts';
 import Card from '../components/common/Card';
 import SymbolSelector from '../components/SymbolSelector';
+import CryptoSymbolSelector from '../components/CryptoSymbolSelector';
 import SymbolChip from '../components/SymbolChip';
 import IntegratedAnalysis from '../components/IntegratedAnalysis';
 import VisualBacktestChart from '../components/VisualBacktestChart';
@@ -155,9 +156,11 @@ const StrategyView = () => {
         accounts, effectiveAccountId,
     } = useStrategies();
 
-    // Active account name (for export filenames)
-    const activeAccount = accounts.find(a => !a.is_disabled);
+    // Active account info (for export filenames + exchange detection)
+    const activeAccount = accounts.find(a => a.id === effectiveAccountId) || accounts.find(a => !a.is_disabled);
     const activeAccountName = activeAccount?.account_name || null;
+    const activeExchangeName = activeAccount?.exchange_name || 'Kiwoom';
+    const isCryptoExchange = activeExchangeName?.startsWith('Binance');
 
     // Symbol State - Use shared watchlist context (synced with DB)
     const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
@@ -2121,14 +2124,25 @@ const StrategyView = () => {
                                                 />
                                             </div>
                                             <div className="bg-black/20 p-4 rounded-lg border border-white/5 space-y-4">
-                                                {/* SymbolSelector - shared for both Rank and Symbol Compare */}
-                                                <SymbolSelector
-                                                    currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)} // No single selection for Symbol Compare
-                                                    setCurrentSymbol={isProfileLocked ? () => {} : (activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol))}
-                                                    savedSymbols={savedSymbols}
-                                                    setSavedSymbols={setSavedSymbols}
-                                                    hideSymbolList={activeTab === -3} // Hide symbol list for Symbol Compare (uses multi-select below)
-                                                />
+                                                {/* SymbolSelector - exchange-aware (Korean stock vs Crypto) */}
+                                                {isCryptoExchange ? (
+                                                    <CryptoSymbolSelector
+                                                        currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)}
+                                                        setCurrentSymbol={isProfileLocked ? () => {} : (activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol))}
+                                                        savedSymbols={savedSymbols}
+                                                        setSavedSymbols={setSavedSymbols}
+                                                        hideSymbolList={activeTab === -3}
+                                                        exchangeName={activeExchangeName}
+                                                    />
+                                                ) : (
+                                                    <SymbolSelector
+                                                        currentSymbol={activeTab === -3 ? '' : (currentConfig?.symbol || currentSymbol)}
+                                                        setCurrentSymbol={isProfileLocked ? () => {} : (activeTab === -3 ? () => {} : (newSymbol) => handleConfigChange('symbol', newSymbol))}
+                                                        savedSymbols={savedSymbols}
+                                                        setSavedSymbols={setSavedSymbols}
+                                                        hideSymbolList={activeTab === -3}
+                                                    />
+                                                )}
 
                                                 {/* Multi-Select UI - Only for Symbol Compare */}
                                                 {activeTab === -3 && savedSymbols && savedSymbols.length > 0 && (

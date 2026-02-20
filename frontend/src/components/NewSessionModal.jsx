@@ -257,11 +257,15 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer"
                         >
                             <option value="">계좌를 선택하세요</option>
-                            {accounts.map(acc => (
-                                <option key={acc.id} value={acc.id}>
-                                    {acc.account_name} ({acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼'})
-                                                                    </option>
-                            ))}
+                            {accounts.map(acc => {
+                                const envLabel = acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼';
+                                const exchangeLabel = acc.exchange_name && acc.exchange_name !== 'Kiwoom' ? ` [${acc.exchange_name}]` : '';
+                                return (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.account_name} ({envLabel}){exchangeLabel}
+                                    </option>
+                                );
+                            })}
                         </select>
                         {selectedAccount && (
                             <p className="text-xs text-gray-500 mt-1.5">

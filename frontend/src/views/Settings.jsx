@@ -625,22 +625,28 @@ const Settings = () => {
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">Access Key / App Key</label>
+                            <label className="block text-xs text-gray-400 mb-1">
+                                {formData.exchange_name?.startsWith('Binance') ? 'API Key' : 'Access Key / App Key'}
+                            </label>
                             <input
                                 type="password"
                                 value={formData.access_key}
                                 onChange={e => setFormData({ ...formData, access_key: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
+                                placeholder={formData.exchange_name?.startsWith('Binance') ? 'Binance API Key' : ''}
                                 required
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-xs text-gray-400 mb-1">Secret Key / App Secret</label>
+                            <label className="block text-xs text-gray-400 mb-1">
+                                {formData.exchange_name?.startsWith('Binance') ? 'Secret Key' : 'Secret Key / App Secret'}
+                            </label>
                             <input
                                 type="password"
                                 value={formData.secret_key}
                                 onChange={e => setFormData({ ...formData, secret_key: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm"
+                                placeholder={formData.exchange_name?.startsWith('Binance') ? 'Binance Secret Key' : ''}
                                 required
                             />
                         </div>
@@ -723,12 +729,14 @@ const Settings = () => {
                         {/* Account Header */}
                         <div className="flex items-center justify-between p-4">
                             <div className="flex items-center gap-4">
-                                <div className={`h-10 w-10 flex items-center justify-center rounded-lg ${
+                                <div className={`h-10 w-10 flex items-center justify-center rounded-lg text-sm font-bold ${
                                     acc.is_disabled
                                         ? 'bg-gray-700/50 text-gray-500'
-                                        : 'bg-blue-500/20 text-blue-400'
+                                        : acc.exchange_name?.startsWith('Binance')
+                                            ? 'bg-yellow-500/20 text-yellow-400'
+                                            : 'bg-blue-500/20 text-blue-400'
                                 }`}>
-                                    {acc.exchange_name[0]}
+                                    {acc.exchange_name?.startsWith('Binance') ? 'B' : acc.exchange_name?.[0] || '?'}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">

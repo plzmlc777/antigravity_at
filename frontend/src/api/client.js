@@ -588,3 +588,24 @@ export const updateStrategyVisibility = async (strategyId, isPublic) => {
     const { data } = await api.patch(`/strategies/${strategyId}/visibility`, { is_public: isPublic });
     return data;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Binance Public Data API
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const getBinanceSymbols = async (market = 'spot', quote = 'USDT', search = '') => {
+    const params = { market, quote, limit: 200 };
+    if (search) params.search = search;
+    const { data } = await api.get('/binance/symbols', { params });
+    return data;
+};
+
+export const getBinancePrice = async (symbol, market = 'spot') => {
+    const { data } = await api.get(`/binance/price/${symbol}`, { params: { market } });
+    return data;
+};
+
+export const getBinanceSymbolInfo = async (symbol, market = 'spot') => {
+    const { data } = await api.get(`/binance/info/${symbol}`, { params: { market } });
+    return data;
+};
