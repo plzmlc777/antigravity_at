@@ -9,6 +9,7 @@ from ..db.session import SessionLocal
 from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..core.exchange_interface import ExchangeInterface
+from ..core.futures_interface import FuturesInterface
 from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
@@ -273,6 +274,29 @@ class LiveContext:
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         return self._execute_order(symbol, OrderSide.SELL, quantity, price, metadata, on_filled)
 
+    def short(self, symbol: str, quantity: float, price: float = 0, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+        """Open a short position (futures only). Uses place_short_order on FuturesInterface."""
+        if not isinstance(self.adapter, FuturesInterface):
+            self.log("SHORT FAILED: Adapter does not support futures")
+            return {"status": "failed", "reason": "not_futures_adapter"}
+        # Short orders use SELL side internally
+        return self._execute_order(symbol, OrderSide.SELL, quantity, price,
+                                   {**(metadata or {}), "position_side": "SHORT"}, on_filled)
+
+    def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Close entire position (futures only). Delegates to adapter.close_position()."""
+        if not isinstance(self.adapter, FuturesInterface):
+            self.log("CLOSE_POSITION FAILED: Adapter does not support futures")
+            return {"status": "failed", "reason": "not_futures_adapter"}
+        # Queue a close-position signal (handled in process_queue)
+        current_price = self.get_current_price(symbol)
+        qty = abs(self._holdings.get(symbol, 0))
+        if qty == 0:
+            return {"status": "success", "message": "No position to close"}
+        side = OrderSide.SELL if self._holdings.get(symbol, 0) > 0 else OrderSide.BUY
+        return self._execute_order(symbol, side, qty, 0,
+                                   {**(metadata or {}), "close_position": True}, None)
+
     def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         """
         Core Execution Pipeline:
@@ -408,7 +432,9 @@ class LiveContext:
             if bal:
                 # SAFEGUARD: If adapter returns 0 cash (mock/error) but we have initial_capital,
                 # preserve initial_capital for PnL consistency in simulation/test.
-                fetched_cash = bal['cash']['KRW']
+                # Support multi-currency: USDT (Binance) or KRW (Korean exchanges)
+                cash_dict = bal.get('cash', {})
+                fetched_cash = cash_dict.get('USDT') or cash_dict.get('KRW', 0)
                 
                 if fetched_cash == 0 and self.initial_capital > 0 and self.cash == self.initial_capital:
                     logger.warning("Balance Sync returned 0 cash. Preserving initial_capital for simulation.")

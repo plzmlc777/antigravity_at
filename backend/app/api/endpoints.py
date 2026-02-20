@@ -607,19 +607,20 @@ async def cancel_condition(
 
 @router.get("/ohlcv/{symbol}")
 async def get_ohlcv(
-    symbol: str, 
-    interval: str = "1m", 
-    days: int = 365, 
+    symbol: str,
+    interval: str = "1m",
+    days: int = 365,
     limit: int = 100000,
-    date: str = None # Optional: YYYYMMDD
+    date: str = None, # Optional: YYYYMMDD
+    exchange_name: str = "Kiwoom"  # Exchange for market data source
 ):
     """
     Get OHLCV Data.
     If 'date' is provided (YYYYMMDD), fetches data for that specific day.
     Otherwise fetches last 'days' history.
     """
-    from ..services.market_data import MarketDataService
-    service = MarketDataService()
+    from ..services.market_data_factory import get_market_data_service
+    service = get_market_data_service(exchange_name)
     
     if date:
         # Fetch specific date (Intraday History)

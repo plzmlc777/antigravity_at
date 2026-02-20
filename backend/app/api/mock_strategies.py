@@ -84,7 +84,8 @@ async def _run_unified_backtest(
     initial_capital: int,
     execution_mode: str = "single",  # "single", "parallel", "exclusive"
     to_date: str = None,
-    optimize_mode: bool = False  # True = skip chart/visualization data (optimization)
+    optimize_mode: bool = False,  # True = skip chart/visualization data (optimization)
+    exchange_name: str = "Kiwoom"  # Exchange for market data source
 ) -> Dict[str, Any]:
     """
     Unified backtest execution function.
@@ -97,7 +98,7 @@ async def _run_unified_backtest(
     """
     from ..core.waterfall_engine import WaterfallBacktestEngine
     from ..core.strategy_registry import StrategyRegistry
-    from ..services.market_data import MarketDataService
+    from ..services.market_data_factory import get_market_data_service
 
     # 1. Get Strategy Class from Registry
     strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
@@ -116,7 +117,7 @@ async def _run_unified_backtest(
     # Respect explicit execution_mode; only use len(configs)==1 shortcut for "single" mode
     if execution_mode == "single":
         # Single backtest - use run_single_backtest directly
-        data_service = MarketDataService()
+        data_service = get_market_data_service(exchange_name)
         config = configs[0]
         rank_symbol = config.get('symbol', symbol)
 
@@ -149,7 +150,8 @@ async def _run_unified_backtest(
             to_date=to_date,
             interval=interval,
             initial_capital=initial_capital,
-            optimize_mode=optimize_mode
+            optimize_mode=optimize_mode,
+            exchange_name=exchange_name
         )
         result['strategy_id'] = f"Integrated (Parallel Mode: Equal Split)"
         result['execution_mode'] = 'parallel'
@@ -163,7 +165,8 @@ async def _run_unified_backtest(
             to_date=to_date,
             interval=interval,
             initial_capital=initial_capital,
-            optimize_mode=optimize_mode
+            optimize_mode=optimize_mode,
+            exchange_name=exchange_name
         )
         result['strategy_id'] = "Integrated (League Mode: Winner Takes All)"
         result['execution_mode'] = 'exclusive'
@@ -300,7 +303,7 @@ def _run_backtest_wrapper(args):
     except Exception as e:
         return config, {"error": str(e)}
 
-def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None):
+def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None, exchange_name="Kiwoom"):
     # Lower process priority so system/SSH processes remain responsive
     try:
         os.nice(10)
@@ -339,7 +342,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
             pass
 
     # 3. Reload infrastructure modules
-    for mod_name in ['app.core.strategy_registry', 'app.core.waterfall_engine', 'app.services.market_data']:
+    for mod_name in ['app.core.strategy_registry', 'app.core.waterfall_engine', 'app.services.market_data', 'app.services.market_data_factory', 'app.services.binance_market_data']:
         if mod_name in sys.modules:
             try:
                 importlib.reload(sys.modules[mod_name])
@@ -379,7 +382,8 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
         initial_capital=initial_capital,
         execution_mode="single",
         to_date=to_date,
-        optimize_mode=True
+        optimize_mode=True,
+        exchange_name=exchange_name
     ))
 
     return config, result
@@ -693,28 +697,30 @@ class IntegratedBacktestRequest(BaseModel):
     from_date: Optional[str] = None
     initial_capital: int = 10000000
     configs: List[Dict[str, Any]] = [] # Ordered list of configs
+    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/integrated/v2-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
     try:
         from ..core.backtest_engine import BacktestEngine
         from ..core.integrated_backtest_engine import IntegratedBacktestEngine
-        
+
         # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
         from ..strategies.base import BaseStrategy
         class MockStrategy(BaseStrategy):
              def initialize(self): pass
              def on_data(self, data): pass
-        
+
         engine = IntegratedBacktestEngine(MockStrategy, {}) # Use Subclass for Integrated Mode
-        
+
         result = await engine.run_integrated_simulation(
             strategies_config=request.configs,
             symbol=request.symbol,
             interval=request.interval,
             duration_days=request.days,
             from_date=request.from_date,
-            initial_capital=request.initial_capital
+            initial_capital=request.initial_capital,
+            exchange_name=request.exchange_name
         )
         
         return {
@@ -871,6 +877,7 @@ class BacktestRequest(BaseModel):
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: int = 10000000
     config: Dict[str, Any] = {} # Nested config from frontend strategy selector
+    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
@@ -903,7 +910,8 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         from_date=start_date,
         initial_capital=request.initial_capital,
         execution_mode="single",
-        to_date=request.to_date
+        to_date=request.to_date,
+        exchange_name=request.exchange_name
     )
 
     # Return standardized response
@@ -983,7 +991,8 @@ async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx:
                 request.days,
                 request.from_date,
                 request.initial_capital,
-                request.to_date
+                request.to_date,
+                request.exchange_name
             ))
 
     # 4. Async Execution (Fire and Forget)
@@ -1438,7 +1447,8 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
                 request.days,
                 request.from_date,
                 request.initial_capital,
-                request.to_date
+                request.to_date,
+                request.exchange_name
             ))
 
     # Create task
@@ -1834,6 +1844,7 @@ class IntegratedBacktestRequest(BaseModel):
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: float
     execution_mode: str = "exclusive"  # 'exclusive' (waterfall) or 'parallel' (equal split)
+    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/integrated-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
@@ -1886,7 +1897,8 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             from_date=request.from_date,
             initial_capital=int(request.initial_capital),
             execution_mode=request.execution_mode,
-            to_date=request.to_date
+            to_date=request.to_date,
+            exchange_name=request.exchange_name
         )
 
         return result

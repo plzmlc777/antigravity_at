@@ -14,6 +14,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from ..core.exchange_interface import ExchangeInterface
+from ..core.futures_interface import FuturesInterface
 from ..models.live_trading import LiveTradeExecution, ExecutionStatus
 from ..services.error_logger import error_logger
 from ..models.live_trading import ErrorType
@@ -113,7 +114,7 @@ class OrderExecutionService:
                 logger.info(f"[PAPER] {side.upper()} {quantity} {symbol} @ {result['price']}")
             else:
                 # Real trading - call adapter
-                result = await self._call_adapter(symbol, side, price, quantity)
+                result = await self._call_adapter(symbol, side, price, quantity, metadata=metadata)
 
             # 3. Post-execution DB update (if enabled)
             if log_to_db and self.db and execution_id:
@@ -156,9 +157,20 @@ class OrderExecutionService:
         symbol: str,
         side: str,
         price: float,
-        quantity: int
+        quantity: int,
+        metadata: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Call the exchange adapter to place order"""
+        metadata = metadata or {}
+
+        # Futures: close_position uses adapter.close_position() directly
+        if metadata.get("close_position") and isinstance(self.adapter, FuturesInterface):
+            return await self.adapter.close_position(symbol)
+
+        # Futures: short order uses place_short_order()
+        if metadata.get("position_side") == "SHORT" and isinstance(self.adapter, FuturesInterface):
+            return await self.adapter.place_short_order(symbol, price, quantity)
+
         if side.lower() == "buy":
             return await self.adapter.place_buy_order(symbol, price, quantity)
         elif side.lower() == "sell":

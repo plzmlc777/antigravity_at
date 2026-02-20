@@ -100,6 +100,16 @@ EXCHANGE_URLS: dict[str, dict[str, Optional[str]]] = {
         "virtual": "https://openapivts.koreainvestment.com:29443",
         "paper": None,
     },
+    "Binance": {
+        "real": "https://api.binance.com",
+        "virtual": "https://testnet.binance.vision",
+        "paper": None,
+    },
+    "BinanceFutures": {
+        "real": "https://fapi.binance.com",
+        "virtual": "https://testnet.binancefuture.com",
+        "paper": None,
+    },
 }
 
 

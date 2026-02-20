@@ -81,6 +81,11 @@ class LiveBotSession(Base):
     ai_eval_backtest_days = Column(Integer, default=30)  # 비교 백테스트 기간
     ai_eval_mode = Column(String, default="paper")    # 분석 대상 모드 (paper/real)
 
+    # Futures-specific settings
+    leverage = Column(Integer, default=1)              # Futures leverage (1-125x)
+    margin_type = Column(String(10), default="CROSSED") # CROSSED or ISOLATED
+    position_mode = Column(String(10), default="ONE_WAY") # ONE_WAY or HEDGE
+
     # Relations
     executions = relationship("LiveTradeExecution", back_populates="session", cascade="all, delete-orphan")
 
@@ -124,6 +129,9 @@ class LiveTradeExecution(Base):
 
     # 5. Strategy Parameter Snapshot (for performance analysis by config)
     config_snapshot = Column(JSON, nullable=True)  # 거래 실행 시점의 전략 파라미터 스냅샷
+
+    # 6. Futures position side (LONG/SHORT/BOTH)
+    position_side = Column(String(10), default="LONG")
 
     # Relation
     session = relationship("LiveBotSession", back_populates="executions")

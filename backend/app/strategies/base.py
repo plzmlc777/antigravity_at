@@ -44,6 +44,14 @@ class IContext(ABC):
         """Returns current holdings {symbol: quantity}"""
         pass
     
+    def short(self, symbol: str, quantity: float, price: float = 0, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Open a short position (futures only). Default raises NotImplementedError."""
+        raise NotImplementedError("short() requires a futures-enabled context")
+
+    def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Close entire position (futures only). Default raises NotImplementedError."""
+        raise NotImplementedError("close_position() requires a futures-enabled context")
+
     @abstractmethod
     def log(self, message: str):
         pass

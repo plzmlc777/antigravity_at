@@ -139,10 +139,10 @@ class BacktestEngine:
         self.strategy_class = strategy_class
         self.config = config or {}
 
-    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, exchange_name: str = "Kiwoom"):
         # 1. Fetch Data (Async)
-        from ..services.market_data import MarketDataService
-        data_service = MarketDataService()
+        from ..services.market_data_factory import get_market_data_service
+        data_service = get_market_data_service(exchange_name)
         data_feed = await data_service.get_candles(symbol, interval=interval, days=duration_days)
         
         print(f"DEBUG: BacktestEngine.run requested interval={interval} symbol={symbol} days={duration_days}")
@@ -535,10 +535,10 @@ class BacktestEngine:
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd
         return f"-{max_dd * 100:.2f}%"
-    async def run_integrated_simulation(self, strategies_config: List[Dict], symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run_integrated_simulation(self, strategies_config: List[Dict], symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, exchange_name: str = "Kiwoom"):
         # 1. Fetch Data (Multi-Symbol Support)
-        from ..services.market_data import MarketDataService
-        data_service = MarketDataService()
+        from ..services.market_data_factory import get_market_data_service
+        data_service = get_market_data_service(exchange_name)
         
         # Identify all unique symbols needed
         needed_symbols = set()

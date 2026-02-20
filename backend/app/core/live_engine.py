@@ -8,6 +8,7 @@ from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, Erro
 from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
 from ..core.exchange_interface import ExchangeInterface
+from ..core.futures_interface import FuturesInterface
 from ..db.session import SessionLocal
 from ..models.ohlcv import OHLCV
 from ..core.strategy_registry import strategy_registry
@@ -129,7 +130,18 @@ class LiveTradingEngine:
             
             # 4. Sync Initial Balance
             await self.context.async_sync_balance()
-            
+
+            # 4.0 Futures initialization (leverage, margin type)
+            if isinstance(self.adapter, FuturesInterface):
+                leverage = config.get("leverage", 1)
+                margin_type = config.get("margin_type", "CROSSED")
+                try:
+                    await self.adapter.set_leverage(self.symbol, leverage)
+                    await self.adapter.set_margin_type(self.symbol, margin_type)
+                    logger.info(f"Futures init: {self.symbol} leverage={leverage}x, margin={margin_type}")
+                except Exception as e:
+                    logger.warning(f"Futures init warning: {e}")
+
             # 4.1 Capture Initial Capital if not set (Phase 3.5 Extension)
             if initial_cap <= 0:
                 current_equity = self.context.get_total_equity()

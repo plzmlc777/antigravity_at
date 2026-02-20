@@ -50,6 +50,24 @@ def create_adapter(exchange_name: str, app_key: str = None, secret_key: str = No
             api_url=api_url,
             is_virtual=is_virtual,
         )
+    elif exchange in ("binance", "binancespot"):
+        from .binance_spot import BinanceSpotAdapter
+        return BinanceSpotAdapter(
+            api_key=app_key,
+            secret_key=secret_key,
+            account_name=account_name,
+            api_url=api_url or "https://api.binance.com",
+            is_testnet=is_virtual,
+        )
+    elif exchange in ("binancefutures", "binance_futures"):
+        from .binance_futures import BinanceFuturesAdapter
+        return BinanceFuturesAdapter(
+            api_key=app_key,
+            secret_key=secret_key,
+            account_name=account_name,
+            api_url=api_url or "https://fapi.binance.com",
+            is_testnet=is_virtual,
+        )
     else:
         logger.warning(f"Unknown exchange '{exchange_name}', falling back to Kiwoom")
         from .kiwoom_real import KiwoomRealAdapter

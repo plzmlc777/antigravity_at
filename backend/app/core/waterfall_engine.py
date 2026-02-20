@@ -328,13 +328,13 @@ class BacktestContext(IContext):
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
         ))
 
-async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None) -> Dict[str, List]:
+async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None, exchange_name: str = "Kiwoom") -> Dict[str, List]:
     """
     Independent helper to fetch OHLCV data for Visualization (Background Charts).
     Can reuse preloaded_feeds (Simulation Data) if intervals match to save bandwidth.
     """
-    from ..services.market_data import MarketDataService
-    data_service = MarketDataService()
+    from ..services.market_data_factory import get_market_data_service
+    data_service = get_market_data_service(exchange_name)
     
     viz_feeds = {}
     
@@ -466,12 +466,12 @@ class WaterfallBacktestEngine:
 
         return stats
 
-    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
+    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False, exchange_name: str = "Kiwoom"):
         import time
         t_start = time.time()
         # 1. Prepare Symbols and Fetch Data
-        from ..services.market_data import MarketDataService
-        data_service = MarketDataService()
+        from ..services.market_data_factory import get_market_data_service
+        data_service = get_market_data_service(exchange_name)
         
         # Identify Symbols and Intervals
         unique_symbols = set()
@@ -519,7 +519,8 @@ class WaterfallBacktestEngine:
                 interval=interval,
                 duration_days=duration_days,
                 from_date=from_date,
-                preloaded_feeds=feeds # Pass simulation feeds for optimization
+                preloaded_feeds=feeds, # Pass simulation feeds for optimization
+                exchange_name=exchange_name
             )
 
         # Determine Primary Symbol (Rank 1 typically)
@@ -714,7 +715,7 @@ class WaterfallBacktestEngine:
             initial_capital=initial_capital
         )
 
-    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False):
+    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False, exchange_name: str = "Kiwoom"):
         """
         Parallel Execution Mode: Each Rank runs independently with equal capital split.
         All ranks operate simultaneously without affecting each other.
@@ -740,8 +741,8 @@ class WaterfallBacktestEngine:
         combined_logs.append(f"Interval: {interval}, Duration: {duration_days} days, From: {from_date}")
 
         # 1. Fetch Data Once (Shared across all ranks)
-        from ..services.market_data import MarketDataService
-        data_service = MarketDataService()
+        from ..services.market_data_factory import get_market_data_service
+        data_service = get_market_data_service(exchange_name)
 
         unique_symbols = set()
         if global_symbol:
@@ -774,7 +775,8 @@ class WaterfallBacktestEngine:
                 interval=interval,
                 duration_days=duration_days,
                 from_date=from_date,
-                preloaded_feeds=feeds
+                preloaded_feeds=feeds,
+                exchange_name=exchange_name
             )
 
         primary_symbol = strategies_config[0].get('symbol', global_symbol)
