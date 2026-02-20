@@ -289,6 +289,51 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
             logger.error(f"set_margin_type({symbol}, {margin_type}) failed: {e}")
             return {"status": "failed", "message": str(e)}
 
+    async def get_adl_quantile(self, symbol: str) -> int:
+        """
+        Estimate ADL quantile based on position profitability and leverage.
+        Binance doesn't expose ADL quantile directly via REST API,
+        so we estimate based on the formula: score = pnl_ratio * leverage.
+        Returns 1-5 scale (5 = highest risk of auto-deleveraging).
+        """
+        try:
+            position = await self.get_position(symbol)
+            qty = position.get("quantity", 0)
+            if qty == 0:
+                return 0
+
+            entry_price = position.get("entry_price", 0)
+            mark_price = position.get("mark_price", 0)
+            leverage = position.get("leverage", 1)
+
+            if entry_price <= 0 or mark_price <= 0:
+                return 0
+
+            # Calculate profit ratio
+            if qty > 0:  # LONG
+                pnl_ratio = (mark_price - entry_price) / entry_price
+            else:  # SHORT
+                pnl_ratio = (entry_price - mark_price) / entry_price
+
+            # ADL score = profit_ratio * leverage
+            adl_score = pnl_ratio * leverage
+
+            # Map to 1-5 quantile
+            if adl_score >= 0.5:
+                return 5
+            elif adl_score >= 0.3:
+                return 4
+            elif adl_score >= 0.1:
+                return 3
+            elif adl_score >= 0.0:
+                return 2
+            else:
+                return 1  # Losing position (lowest ADL priority)
+
+        except Exception as e:
+            logger.error(f"get_adl_quantile({symbol}) failed: {e}")
+            return 0
+
     # ── Internal Order Logic ──
 
     async def _place_order(self, symbol: str, side: str, price: float, quantity: float) -> Dict[str, Any]:

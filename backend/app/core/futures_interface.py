@@ -59,3 +59,11 @@ class FuturesInterface(ExchangeInterface):
     async def set_margin_type(self, symbol: str, margin_type: str) -> Dict[str, Any]:
         """Set margin type: 'CROSSED' or 'ISOLATED'."""
         pass
+
+    async def get_adl_quantile(self, symbol: str) -> int:
+        """
+        Get ADL (Auto-Deleveraging) quantile for a symbol (1-5 scale).
+        Higher = more likely to be auto-deleveraged.
+        Non-abstract: default returns 0 (unknown/not supported).
+        """
+        return 0

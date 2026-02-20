@@ -48,6 +48,9 @@ class LiveContext:
         # Callback is invoked after order is FILLED with (order_id, filled_qty, filled_price, metadata)
         self._order_callbacks: Dict[str, Callable] = {}
 
+        # Futures data cache (updated by LiveEngine for FuturesInterface adapters)
+        self._futures_data_cache: Dict[str, Dict[str, Any]] = {}
+
         # Initial Balance Sync
         self._sync_balance()
 
@@ -85,6 +88,22 @@ class LiveContext:
             "params": config,
             "snapshot_at": datetime.now().isoformat()
         }
+
+    def get_futures_data(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get cached futures data for a symbol.
+        Updated periodically by LiveEngine for FuturesInterface adapters.
+        Returns empty dict for spot adapters.
+        """
+        return self._futures_data_cache.get(symbol, {})
+
+    def update_futures_data(self, symbol: str, data: Dict[str, Any]):
+        """
+        Update futures data cache. Called by LiveEngine._refresh_futures_data().
+        Data includes: funding_rate, liquidation_price, mark_price, leverage,
+        unrealized_pnl, position_side, position_qty, entry_price, adl_quantile
+        """
+        self._futures_data_cache[symbol] = data
 
     def get_total_equity(self) -> float:
         """

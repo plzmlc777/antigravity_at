@@ -52,6 +52,13 @@ class IContext(ABC):
         """Close entire position (futures only). Default raises NotImplementedError."""
         raise NotImplementedError("close_position() requires a futures-enabled context")
 
+    def get_futures_data(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get cached futures data (funding rate, liquidation price, ADL, etc.).
+        Returns empty dict for spot contexts. Overridden by LiveContext and FuturesBacktestContext.
+        """
+        return {}
+
     @abstractmethod
     def log(self, message: str):
         pass
@@ -172,6 +179,18 @@ class BaseStrategy(ABC):
          "group": "martingale",
          "show_in_table": False,
          "visible_when": {"use_martingale": {"eq": "on"}, "max_buy_count": {"gt": 1}, "additional_buy_mode": {"eq": "step"}}},
+        # ── Futures Parameters ──
+        {"name": "leverage", "type": "number", "label": "Leverage",
+         "default": 1, "min": 1, "max": 125, "step": 1,
+         "description": "Futures leverage multiplier (1=spot/no leverage)",
+         "group": "futures",
+         "show_in_table": False},
+        {"name": "liquidation_floor_pct", "type": "number", "label": "Liq. Floor (%)",
+         "default": 3.0, "min": 0.5, "max": 20, "step": 0.5,
+         "description": "Force exit when price is within N% of liquidation price",
+         "group": "futures",
+         "show_in_table": False,
+         "visible_when": {"leverage": {"gt": 1}}},
     ]
 
     # Subclasses override with their parameter schema dict.

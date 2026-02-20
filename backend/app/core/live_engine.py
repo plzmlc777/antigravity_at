@@ -53,6 +53,10 @@ class LiveTradingEngine:
         self._is_exclusive = False
         self._account_id = None
 
+        # Futures monitoring
+        self._futures_monitor = None
+        self._futures_refresh_task = None
+
     def add_tick_listener(self, listener: Callable[[Dict], None]):
         self.tick_listeners.append(listener)
 
@@ -131,7 +135,7 @@ class LiveTradingEngine:
             # 4. Sync Initial Balance
             await self.context.async_sync_balance()
 
-            # 4.0 Futures initialization (leverage, margin type)
+            # 4.0 Futures initialization (leverage, margin type, monitor)
             if isinstance(self.adapter, FuturesInterface):
                 leverage = config.get("leverage", 1)
                 margin_type = config.get("margin_type", "CROSSED")
@@ -141,6 +145,24 @@ class LiveTradingEngine:
                     logger.info(f"Futures init: {self.symbol} leverage={leverage}x, margin={margin_type}")
                 except Exception as e:
                     logger.warning(f"Futures init warning: {e}")
+
+                # Start FuturesMonitorService for risk monitoring
+                try:
+                    from ..services.futures_monitor import FuturesMonitorService
+                    self._futures_monitor = FuturesMonitorService(
+                        session_id=self.session_id,
+                        symbol=self.symbol,
+                        adapter=self.adapter,
+                        context=self.context,
+                        tick_listeners=self.tick_listeners,
+                        user_id=user_id,
+                        account_id=self._account_id,
+                        strategy_name=strategy_name,
+                    )
+                    await self._futures_monitor.start()
+                    logger.info(f"FuturesMonitor started for {self.symbol}")
+                except Exception as e:
+                    logger.error(f"FuturesMonitor start error: {e}")
 
             # 4.1 Capture Initial Capital if not set (Phase 3.5 Extension)
             if initial_cap <= 0:
@@ -496,6 +518,9 @@ class LiveTradingEngine:
 
     def stop(self):
         self.is_running = False
+        # Stop FuturesMonitor if running
+        if self._futures_monitor:
+            asyncio.ensure_future(self._futures_monitor.stop())
 
     def toggle_mode(self, is_paper: bool):
         self.is_paper = is_paper

@@ -183,9 +183,14 @@ class BacktestEngine:
             except Exception as e:
                 print(f"Date filter error: {e}")
 
-        # 2. Setup Context
-        context = BacktestContext(data_feed, initial_capital=initial_capital)
-        
+        # 2. Setup Context (use FuturesBacktestContext if strategy requires it)
+        if getattr(self.strategy_class, 'REQUIRES_FUTURES', False):
+            from .futures_backtest_context import FuturesBacktestContext
+            leverage = self.config.get('leverage', 1)
+            context = FuturesBacktestContext(data_feed, initial_capital=initial_capital, leverage=leverage)
+        else:
+            context = BacktestContext(data_feed, initial_capital=initial_capital)
+
         # 3. Initialize Strategy
         # Inject Symbol and Initial Capital into config
         self.config['symbol'] = symbol

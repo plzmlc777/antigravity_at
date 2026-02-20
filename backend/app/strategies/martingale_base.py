@@ -59,6 +59,9 @@ class MartingaleBase(BaseStrategy):
         self.additional_buy_step = self.config.get("additional_buy_step", 2.0)
         self.additional_buy_step_ref = self.config.get("additional_buy_step_ref", "last_entry")
 
+        # Futures: liquidation floor (force exit if price within N% of liquidation)
+        self.liquidation_floor_pct = self.config.get("liquidation_floor_pct", 3.0)
+
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
         self.cycle_reference_price = None
@@ -266,16 +269,33 @@ class MartingaleBase(BaseStrategy):
             if position_profit > current_peak_profit:
                 self.peak_price = current_price
 
+            # 3b-0. Futures: Liquidation Floor Check (highest priority exit)
+            leverage = self._get_leverage()
+            if leverage > 1:
+                futures_data = self.context.get_futures_data(symbol)
+                liq_price = futures_data.get("liquidation_price", 0)
+                if liq_price > 0 and self.liquidation_floor_pct > 0:
+                    liq_distance = abs(current_price - liq_price) / current_price if current_price > 0 else 1.0
+                    if liq_distance <= (self.liquidation_floor_pct / 100):
+                        self.context.log(f"[{self._log_prefix}] LIQUIDATION FLOOR! Price {current_price:,.2f} within {liq_distance*100:.2f}% of liquidation {liq_price:,.2f}. FORCE EXIT!")
+                        self._liquidate(current_price)
+                        return
+
             # 3b. Check Trailing Stop Activation (0 = disabled)
-            if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (self.trailing_start_percent / 100):
+            # Leverage adjustment: activation threshold is divided by leverage
+            # because leveraged price moves amplify capital returns
+            effective_trail_start = self.trailing_start_percent / leverage if leverage > 1 else self.trailing_start_percent
+            if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (effective_trail_start / 100):
                 self.trailing_active = True
                 self.peak_price = current_price
-                self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%")
+                lev_note = f" (leverage-adjusted: {effective_trail_start:.4f}%)" if leverage > 1 else ""
+                self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%{lev_note}")
 
             # 3c. Check Trailing Stop Liquidation
             if self.trailing_active:
+                effective_trail_stop = self.trailing_stop_percent / leverage if leverage > 1 else self.trailing_stop_percent
                 drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-                if drop_from_peak >= (self.trailing_stop_percent / 100):
+                if drop_from_peak >= (effective_trail_stop / 100):
                     self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Capital Return: {current_return*100:.2f}%)")
                     self._liquidate(current_price)
                     return
@@ -365,6 +385,21 @@ class MartingaleBase(BaseStrategy):
                     self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
     @property
+    def _get_leverage(self) -> int:
+        """
+        Get effective leverage for this strategy.
+        Sources (priority order):
+        1. Futures data cache (live trading - actual exchange leverage)
+        2. Strategy config parameter
+        3. Default: 1 (spot, no leverage)
+        """
+        # Try futures data cache first (most accurate for live trading)
+        futures_data = self.context.get_futures_data(self.symbol)
+        if futures_data and futures_data.get("leverage", 0) > 0:
+            return futures_data["leverage"]
+        # Fallback to config parameter
+        return self.config.get("leverage", 1)
+
     def _log_prefix(self) -> str:
         """Log prefix for this strategy. Override in subclass if needed."""
         return "Martingale"
