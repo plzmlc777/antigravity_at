@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { runBacktest as apiRunBacktest, fetchMarketDataForSymbol } from '../api/strategies';
 import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
+import { getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
 /**
  * useSymbolComparison - Multi-symbol backtest comparison.
@@ -8,7 +9,8 @@ import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
 export const useSymbolComparison = ({
     symbolCompareConfig, configList, selectedStrategy,
     savedSymbols, setIsSymbolCompareDirty, addLog,
-    saveProfile = null, selectedProfileId = null
+    saveProfile = null, selectedProfileId = null,
+    exchangeName = 'Kiwoom'
 }) => {
     const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
     const [stockCompareResults, setStockCompareResults] = useState([]);
@@ -43,7 +45,7 @@ export const useSymbolComparison = ({
                 const symbol = selectedCompareSymbols[i];
                 setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
                 try {
-                    const fetchRes = await fetchMarketDataForSymbol(symbol, { interval: "1m", days: 365 });
+                    const fetchRes = await fetchMarketDataForSymbol(symbol, { interval: "1m", days: getDefaultDays(exchangeName) });
                     const added = fetchRes?.added || 0;
                     totalDataAdded += added;
                     if (added > 0) {
@@ -71,11 +73,12 @@ export const useSymbolComparison = ({
                     const payload = {
                         symbol: symbol,
                         interval: baseConfig.interval || "1m",
-                        days: baseConfig.days || 365,
+                        days: baseConfig.days || getDefaultDays(exchangeName),
                         from_date: baseConfig.from_date || "",
                         to_date: baseConfig.to_date || defaultToDate,
-                        initial_capital: baseConfig.initial_capital || 10000000,
-                        config: { ...baseConfig, symbol: symbol }
+                        initial_capital: baseConfig.initial_capital || getDefaultCapital(exchangeName),
+                        config: { ...baseConfig, symbol: symbol },
+                        exchange_name: exchangeName
                     };
 
                     const data = await apiRunBacktest(selectedStrategy.id, payload);

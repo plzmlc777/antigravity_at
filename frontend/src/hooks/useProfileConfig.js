@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getProfiles, getProfile, createProfile, updateProfile, deleteProfile, getAccountPreferences, updateLastSelectedProfile } from '../api/client';
 import { STORAGE_KEYS, createConfigHash } from '../constants/strategies';
+import { getParameterDefaults, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // localStorage Draft Utilities
@@ -51,6 +52,14 @@ export const useProfileConfig = ({
     const [symbolCompareSettings, setSymbolCompareSettings] = useState(null);
     const [originalSymbolCompareSettings, setOriginalSymbolCompareSettings] = useState(null);
 
+    // Profile Symbols - Target Asset list (프로필별 종목 목록)
+    const [profileSymbols, setProfileSymbolsState] = useState([]);
+    const [originalProfileSymbols, setOriginalProfileSymbols] = useState([]);
+
+    const setProfileSymbols = useCallback((updater) => {
+        setProfileSymbolsState(prev => typeof updater === 'function' ? updater(prev) : updater);
+    }, []);
+
     // UI State
     const [isLoaded, setIsLoaded] = useState(false);
     const [isProfilesLoading, setIsProfilesLoading] = useState(true);
@@ -65,7 +74,8 @@ export const useProfileConfig = ({
         execution_mode: 'parallel',
         initial_capital: 10000000,
         is_paper: true,
-        rank_weights: null
+        rank_weights: null,
+        account_id: null
     });
     const [originalProfileMeta, setOriginalProfileMeta] = useState(null);
 
@@ -218,8 +228,11 @@ export const useProfileConfig = ({
         // Compare Symbol Compare settings
         const symbolCompareChanged = JSON.stringify(symbolCompareSettings) !== JSON.stringify(originalSymbolCompareSettings);
 
-        return configChanged || metaChanged || symbolCompareChanged;
-    }, [configList, originalConfigList, profileMeta, originalProfileMeta, symbolCompareSettings, originalSymbolCompareSettings]);
+        // Compare Profile Symbols (Target Asset list)
+        const symbolsChanged = JSON.stringify(profileSymbols) !== JSON.stringify(originalProfileSymbols);
+
+        return configChanged || metaChanged || symbolCompareChanged || symbolsChanged;
+    }, [configList, originalConfigList, profileMeta, originalProfileMeta, symbolCompareSettings, originalSymbolCompareSettings, profileSymbols, originalProfileSymbols]);
 
     // ═══════════════════════════════════════════════════════════════════════════
     // localStorage Draft Functions (must be declared before auto-save useEffect)
@@ -228,13 +241,14 @@ export const useProfileConfig = ({
     /**
      * Save draft to localStorage (auto-called on state changes)
      */
-    const saveDraft = useCallback((profileId, configs, meta, symbolCompare) => {
+    const saveDraft = useCallback((profileId, configs, meta, symbolCompare, symbols) => {
         if (!profileId) return;
         try {
             const draft = {
                 configList: configs,
                 profileMeta: meta,
                 symbolCompareSettings: symbolCompare,
+                profileSymbols: symbols,
                 timestamp: Date.now()
             };
             localStorage.setItem(getDraftKey(profileId), JSON.stringify(draft));
@@ -295,13 +309,13 @@ export const useProfileConfig = ({
         if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
 
         draftTimerRef.current = setTimeout(() => {
-            saveDraft(selectedProfileId, configList, profileMeta, symbolCompareSettings);
+            saveDraft(selectedProfileId, configList, profileMeta, symbolCompareSettings, profileSymbols);
         }, 300);
 
         return () => {
             if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
         };
-    }, [isDirty, selectedProfileId, isLoaded, configList, profileMeta, symbolCompareSettings, saveDraft]);
+    }, [isDirty, selectedProfileId, isLoaded, configList, profileMeta, symbolCompareSettings, profileSymbols, saveDraft]);
 
     /**
      * Load all profiles and optionally find last used profile ID
@@ -378,6 +392,8 @@ export const useProfileConfig = ({
             setOriginalConfigList([]);
             setSymbolCompareSettings(null);
             setOriginalSymbolCompareSettings(null);
+            setProfileSymbolsState([]);
+            setOriginalProfileSymbols([]);
             setProfileMeta({
                 name: '',
                 description: '',
@@ -385,7 +401,8 @@ export const useProfileConfig = ({
                 execution_mode: 'parallel',
                 initial_capital: 10000000,
                 is_paper: true,
-                rank_weights: null
+                rank_weights: null,
+                account_id: null
             });
             setOriginalProfileMeta(null);
             setIsLoaded(true);
@@ -419,7 +436,8 @@ export const useProfileConfig = ({
                 execution_mode: profile.execution_mode || 'parallel',
                 initial_capital: profile.initial_capital || 10000000,
                 is_paper: profile.is_paper !== false,
-                rank_weights: profile.rank_weights || null
+                rank_weights: profile.rank_weights || null,
+                account_id: profile.account_id || null
             };
             setProfileMeta(meta);
             setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
@@ -445,6 +463,10 @@ export const useProfileConfig = ({
             }
             setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
 
+            // Load Profile Symbols (Target Asset list)
+            const profileSymbolsFromDB = profile.saved_symbols || [];
+            setOriginalProfileSymbols(JSON.parse(JSON.stringify(profileSymbolsFromDB)));
+
             // Check for localStorage draft and apply if exists
             const draft = loadDraft(profileId);
             if (draft) {
@@ -452,12 +474,14 @@ export const useProfileConfig = ({
                 if (draft.configList) setConfigList(draft.configList);
                 if (draft.profileMeta) setProfileMeta(draft.profileMeta);
                 if (draft.symbolCompareSettings !== undefined) setSymbolCompareSettings(draft.symbolCompareSettings);
+                if (draft.profileSymbols !== undefined) setProfileSymbolsState(draft.profileSymbols);
                 // Original values stay as DB values → isDirty will be true
             } else {
                 setSymbolCompareSettings(compareSettings || null);
+                setProfileSymbolsState(profileSymbolsFromDB);
             }
 
-            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbolCompare:', !!compareSettings, 'hasDraft:', !!draft);
+            console.log('[useProfileConfig] Profile loaded:', profile.name, 'with', configs.length, 'ranks', 'symbols:', profileSymbolsFromDB.length, 'symbolCompare:', !!compareSettings, 'hasDraft:', !!draft);
         } catch (e) {
             console.error('[useProfileConfig] Failed to load profile:', e);
             setError(e);
@@ -483,15 +507,20 @@ export const useProfileConfig = ({
         setSymbolCompareSettings(null);
         setOriginalSymbolCompareSettings(null);
 
-        setProfileMeta({
+        // Clear Profile Symbols for new profile
+        setProfileSymbolsState([]);
+        setOriginalProfileSymbols([]);
+
+        setProfileMeta(prev => ({
             name: '',
             description: '',
             strategy_name: strategyId,
             execution_mode: 'parallel',
             initial_capital: 10000000,
             is_paper: true,
-            rank_weights: null
-        });
+            rank_weights: null,
+            account_id: prev.account_id  // 현재 연결된 계좌 유지
+        }));
         setOriginalProfileMeta(null);
         setIsLoaded(true);
 
@@ -502,12 +531,28 @@ export const useProfileConfig = ({
      * Create and save a new profile with default config (atomic operation)
      * Unlike initNewProfile + saveProfileAs, this avoids React async state issues
      */
-    const createNewProfile = useCallback(async (name, description, strategyId) => {
+    const createNewProfile = useCallback(async (name, description, strategyId, accountId = null, initialSymbols = [], exchangeName = null) => {
         setSaveStatus('saving');
 
         try {
             // Create default rank config directly (not from state)
             const defaultRank = createDefaultRankConfig(0);
+
+            // Apply exchange-specific parameter defaults (e.g., crypto vs stock)
+            const exchangeCapital = getDefaultCapital(exchangeName);
+            const exchangeDays = getDefaultDays(exchangeName);
+            if (exchangeName) {
+                const overrides = getParameterDefaults(exchangeName);
+                if (overrides) {
+                    Object.assign(defaultRank, overrides);
+                    console.log(`[useProfileConfig] Applied ${exchangeName} parameter defaults:`, overrides);
+                }
+                // Apply exchange-specific days to rank config
+                defaultRank.days = exchangeDays;
+            }
+
+            // 명시적 accountId 파라미터 우선, 없으면 profileMeta에서 가져오기
+            const currentAccountId = accountId || profileMeta.account_id || null;
 
             const profileData = {
                 name,
@@ -516,8 +561,10 @@ export const useProfileConfig = ({
                 rank_configs: [defaultRank],
                 execution_mode: 'parallel',
                 rank_weights: null,
-                initial_capital: 10000000,
-                is_paper: true
+                initial_capital: exchangeCapital,
+                is_paper: true,
+                account_id: currentAccountId,
+                saved_symbols: initialSymbols
             };
 
             const result = await createProfile(profileData);
@@ -529,23 +576,27 @@ export const useProfileConfig = ({
                 setSelectedProfile(result.data);
                 setConfigList([defaultRank]);
                 setOriginalConfigList(JSON.parse(JSON.stringify([defaultRank])));
+                setProfileSymbolsState(initialSymbols);
+                setOriginalProfileSymbols(JSON.parse(JSON.stringify(initialSymbols)));
                 setProfileMeta({
                     name,
                     description: description || '',
                     strategy_name: strategyId,
                     execution_mode: 'parallel',
-                    initial_capital: 10000000,
+                    initial_capital: exchangeCapital,
                     is_paper: true,
-                    rank_weights: null
+                    rank_weights: null,
+                    account_id: currentAccountId
                 });
                 setOriginalProfileMeta({
                     name,
                     description: description || '',
                     strategy_name: strategyId,
                     execution_mode: 'parallel',
-                    initial_capital: 10000000,
+                    initial_capital: exchangeCapital,
                     is_paper: true,
-                    rank_weights: null
+                    rank_weights: null,
+                    account_id: currentAccountId
                 });
             }
 
@@ -596,7 +647,9 @@ export const useProfileConfig = ({
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
                 is_paper: profileMeta.is_paper,
-                symbol_compare_settings: effectiveSymbolCompareSettings
+                symbol_compare_settings: effectiveSymbolCompareSettings,
+                saved_symbols: profileSymbols,
+                account_id: profileMeta.account_id
             };
 
             let result;
@@ -630,6 +683,7 @@ export const useProfileConfig = ({
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
             setOriginalProfileMeta(JSON.parse(JSON.stringify(profileMeta)));
             setOriginalSymbolCompareSettings(symbolCompareSettings ? JSON.parse(JSON.stringify(symbolCompareSettings)) : null);
+            setOriginalProfileSymbols(JSON.parse(JSON.stringify(profileSymbols)));
 
             // Clear localStorage draft (no longer needed after DB save)
             clearDraft(selectedProfileId || result?.data?.id);
@@ -650,7 +704,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [selectedProfileId, profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles, clearDraft]);
+    }, [selectedProfileId, profileMeta, configList, symbolCompareSettings, profileSymbols, transformConfigListToRankConfigs, loadProfiles, clearDraft]);
 
     /**
      * Save as new profile (always creates new)
@@ -681,7 +735,9 @@ export const useProfileConfig = ({
                 rank_weights: profileMeta.rank_weights,
                 initial_capital: profileMeta.initial_capital,
                 is_paper: profileMeta.is_paper,
-                symbol_compare_settings: effectiveSymbolCompareSettings
+                symbol_compare_settings: effectiveSymbolCompareSettings,
+                saved_symbols: profileSymbols,
+                account_id: profileMeta.account_id
             };
 
             const result = await createProfile(profileData);
@@ -709,6 +765,7 @@ export const useProfileConfig = ({
             setOriginalConfigList(JSON.parse(JSON.stringify(configList)));
             setOriginalProfileMeta(JSON.parse(JSON.stringify({ ...profileMeta, name: newName, description: newDescription })));
             setOriginalSymbolCompareSettings(effectiveSymbolCompareSettings ? JSON.parse(JSON.stringify(effectiveSymbolCompareSettings)) : null);
+            setOriginalProfileSymbols(JSON.parse(JSON.stringify(profileSymbols)));
 
             // Clear draft for old profile, new profile starts clean
             clearDraft(selectedProfileId);
@@ -727,7 +784,7 @@ export const useProfileConfig = ({
             setError(e);
             throw e;
         }
-    }, [profileMeta, configList, symbolCompareSettings, transformConfigListToRankConfigs, loadProfiles, selectedProfileId, clearDraft]);
+    }, [profileMeta, configList, symbolCompareSettings, profileSymbols, transformConfigListToRankConfigs, loadProfiles, selectedProfileId, clearDraft]);
 
     /**
      * Delete current profile
@@ -867,10 +924,12 @@ export const useProfileConfig = ({
         }
         // Restore Symbol Compare settings
         setSymbolCompareSettings(originalSymbolCompareSettings ? JSON.parse(JSON.stringify(originalSymbolCompareSettings)) : null);
+        // Restore Profile Symbols
+        setProfileSymbolsState(JSON.parse(JSON.stringify(originalProfileSymbols)));
         // Clear localStorage draft
         clearDraft(selectedProfileId);
         console.log('[useProfileConfig] Changes discarded');
-    }, [originalConfigList, originalProfileMeta, originalSymbolCompareSettings, selectedProfileId, clearDraft]);
+    }, [originalConfigList, originalProfileMeta, originalSymbolCompareSettings, originalProfileSymbols, selectedProfileId, clearDraft]);
 
     /**
      * Initialize on mount - load profiles and auto-select last used
@@ -926,12 +985,16 @@ export const useProfileConfig = ({
                         log('Initialized symbolCompareSettings from Rank 0');
                     }
 
+                    // Load Profile Symbols
+                    const profileSymbolsFromDB = profile.saved_symbols || [];
+
                     // Set original state from DB
                     setSelectedProfileId(result.autoSelectedId);
                     setSelectedProfile(profile);
                     setOriginalConfigList(JSON.parse(JSON.stringify(configs)));
                     setOriginalProfileMeta(JSON.parse(JSON.stringify(meta)));
                     setOriginalSymbolCompareSettings(compareSettings ? JSON.parse(JSON.stringify(compareSettings)) : null);
+                    setOriginalProfileSymbols(JSON.parse(JSON.stringify(profileSymbolsFromDB)));
 
                     // Check for localStorage draft and apply if exists
                     const draft = loadDraft(result.autoSelectedId);
@@ -940,10 +1003,12 @@ export const useProfileConfig = ({
                         setConfigList(draft.configList || configs);
                         setProfileMeta(draft.profileMeta || meta);
                         setSymbolCompareSettings(draft.symbolCompareSettings !== undefined ? draft.symbolCompareSettings : (compareSettings || null));
+                        setProfileSymbolsState(draft.profileSymbols !== undefined ? draft.profileSymbols : profileSymbolsFromDB);
                     } else {
                         setConfigList(configs);
                         setProfileMeta(meta);
                         setSymbolCompareSettings(compareSettings || null);
+                        setProfileSymbolsState(profileSymbolsFromDB);
                     }
                     setIsLoaded(true);
 
@@ -1015,6 +1080,10 @@ export const useProfileConfig = ({
         // Symbol Compare Settings (프로필별 저장)
         symbolCompareSettings,
         setSymbolCompareSettings,
+
+        // Profile Symbols - Target Asset list (프로필별 종목)
+        profileSymbols,
+        setProfileSymbols,
 
         // Dirty State
         isDirty,

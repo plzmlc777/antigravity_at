@@ -226,6 +226,9 @@ class StrategyProfile(Base):
     # Strategy Configuration
     strategy_name = Column(String, nullable=False)  # e.g., "dip_martingale"
 
+    # Account Binding (거래소/API 키 자동 결정)
+    account_id = Column(Integer, nullable=True)  # FK to exchange_accounts (nullable: 계좌 없이도 프로필 생성 가능)
+
     # Rank Configurations (JSON array of rank configs)
     # Each rank: {rank: "A", symbol: "005930", params: {...}, weight: 1.0, enabled: true}
     rank_configs = Column(JSON, nullable=False)     # Complete per-rank configuration
@@ -241,6 +244,9 @@ class StrategyProfile(Base):
     # Symbol Compare Settings (종목 비교 설정 - 프로필별 저장)
     # {selectedSymbols: [...], config: {optEnabled, optValues}, results: [...]}
     symbol_compare_settings = Column(JSON, nullable=True)
+
+    # Target Asset list (프로필별 종목 목록 [{code, name}, ...])
+    saved_symbols = Column(JSON, nullable=True)
 
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)

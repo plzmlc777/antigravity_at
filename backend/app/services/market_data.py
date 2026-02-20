@@ -18,8 +18,9 @@ class MarketDataService:
         self.http_manager = HttpClientManager.get_instance()
 
     # Constants for data retention
-    MAX_DAYS = 365  # 1 year maximum (API limit)
-    DEFAULT_DAYS = 365  # 1 year default
+    MAX_DAYS = 365       # 1 year maximum (API limit)
+    DEFAULT_DAYS = 365   # 1 year default
+    FETCH_LIMIT = 200000 # ~390 min/day × 260 trading days ≈ 101,400 (with buffer)
 
     async def get_candles(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000, to_date: str = None) -> List[Dict]:
         """
@@ -513,7 +514,9 @@ class MarketDataService:
             print(f"Error deleting data for {symbol}: {e}")
             raise e
 
-    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000, backfill: bool = False):
+    async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = None, backfill: bool = False):
+        if limit is None:
+            limit = self.FETCH_LIMIT
         """
         Fetch historical data from Kiwoom API and save to DB.
 

@@ -32,8 +32,9 @@ class BinanceMarketDataService:
     Follows the same DB-first pattern as MarketDataService (Kiwoom).
     """
 
-    MAX_DAYS = 730  # 2 years (Binance provides much longer history)
+    MAX_DAYS = 730          # 2 years (Binance provides much longer history)
     DEFAULT_DAYS = 365
+    FETCH_LIMIT = 1200000   # 1440 min/day × 730 days ≈ 1,051,200 (with buffer)
     CANDLES_PER_REQUEST = 1000  # Binance max per request
 
     def __init__(self, is_futures: bool = False):
@@ -157,7 +158,9 @@ class BinanceMarketDataService:
             db.close()
 
     async def fetch_history(self, symbol: str, interval: str = "1m", days: int = 730,
-                            limit: int = 100000, backfill: bool = False):
+                            limit: int = None, backfill: bool = False):
+        if limit is None:
+            limit = self.FETCH_LIMIT
         """
         Fetch historical kline data from Binance REST API and save to DB.
 
@@ -211,8 +214,10 @@ class BinanceMarketDataService:
 
                 if first_ts_ms > start_ms:
                     # Existing data doesn't cover the requested start → need backward fill
+                    # Main loop still does incremental forward from last record (not full re-download)
                     need_backfill = True
-                    logger.info(f"Need backfill: DB starts at {first_record[0]}, requested from {datetime.utcfromtimestamp(start_ms / 1000)}")
+                    start_ms = last_ts_ms
+                    logger.info(f"Need backfill: DB starts at {first_record[0]}, requested from {datetime.utcfromtimestamp(start_ms / 1000)}. Forward from {last_record[0]}")
                 else:
                     # Existing data covers the start → incremental forward from last record
                     start_ms = last_ts_ms

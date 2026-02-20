@@ -594,7 +594,6 @@ const Settings = () => {
                             >
                                 <option value="Kiwoom">키움증권 (Kiwoom)</option>
                                 <option value="KIS">한국투자증권 (KIS)</option>
-                                <option value="Upbit">Upbit</option>
                                 <option value="Binance">Binance Spot</option>
                                 <option value="BinanceFutures">Binance Futures (USDM)</option>
                             </select>

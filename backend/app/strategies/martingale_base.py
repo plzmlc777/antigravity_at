@@ -245,9 +245,9 @@ class MartingaleBase(BaseStrategy):
 
         # 3. Position Management (If holding)
         if self.current_level > 0 and self.total_quantity > 0:
-            initial_capital = getattr(self.context, 'initial_capital', 10000000)
             position_profit = (current_price - self.average_price) * self.total_quantity
-            current_return = position_profit / initial_capital if initial_capital > 0 else 0
+            total_investment = self.average_price * self.total_quantity
+            current_return = position_profit / total_investment if total_investment > 0 else 0
 
             # 3a. Check Cycle Time Limit
             if self.cycle_max_hours > 0 and self.cycle_start_time:
@@ -289,14 +289,14 @@ class MartingaleBase(BaseStrategy):
                 self.trailing_active = True
                 self.peak_price = current_price
                 lev_note = f" (leverage-adjusted: {effective_trail_start:.4f}%)" if leverage > 1 else ""
-                self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Capital Return: {current_return*100:.2f}%{lev_note}")
+                self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Position Return: {current_return*100:.2f}%{lev_note}")
 
             # 3c. Check Trailing Stop Liquidation
             if self.trailing_active:
                 effective_trail_stop = self.trailing_stop_percent / leverage if leverage > 1 else self.trailing_stop_percent
                 drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
                 if drop_from_peak >= (effective_trail_stop / 100):
-                    self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Capital Return: {current_return*100:.2f}%)")
+                    self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
                     self._liquidate(current_price)
                     return
 
@@ -384,7 +384,6 @@ class MartingaleBase(BaseStrategy):
                     self._pending_entry = False  # Unlock on immediate failure
                     self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
 
-    @property
     def _get_leverage(self) -> int:
         """
         Get effective leverage for this strategy.
@@ -541,9 +540,9 @@ class MartingaleBase(BaseStrategy):
         cur_price = getattr(self, 'last_price', 0)
         dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
 
-        initial_capital = getattr(self.context, 'initial_capital', 10000000)
         position_profit = (cur_price - self.average_price) * self.total_quantity if self.average_price > 0 else 0
-        profit_percent = position_profit / initial_capital if initial_capital > 0 else 0
+        total_investment = self.average_price * self.total_quantity if self.average_price > 0 else 0
+        profit_percent = position_profit / total_investment if total_investment > 0 else 0
 
         return {
             "strategy_id": self._strategy_id,

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 from ..db.session import get_db
-from ..services.market_data import MarketDataService
+from ..services.market_data_factory import get_market_data_service
 from ..models.ohlcv import OHLCV
 from .auth import get_current_active_admin
 from datetime import datetime, timedelta
@@ -82,29 +82,27 @@ async def get_symbol_info(symbol: str):
 
 class FetchRequest(BaseModel):
     interval: str = "1m"
-    days: int = 365  # Max 1 year (API limit)
-    backfill: bool = False  # If True, fetch ALL data up to 'days' even if some exists
+    days: int = 365
+    backfill: bool = False
+    exchange_name: str = "Kiwoom"
 
 @router.post("/fetch/{symbol}")
-async def fetch_market_data(symbol: str, req: FetchRequest):
+async def fetch_market_data(symbol: str, req: FetchRequest, background_tasks: BackgroundTasks):
     """
-    Trigger fetching data for the symbol.
-    Req body: { "interval": "1m", "days": 365, "backfill": false } (optional)
+    Trigger fetching data for the symbol (runs in background).
+    Returns immediately; frontend polls /status/{symbol} for progress.
 
-    backfill=True: Fetch full history regardless of existing data (slower, use for initial setup)
-    backfill=False: Incremental update, stop when hitting existing data (default, faster)
+    Req body: { "interval": "1m", "days": 365, "backfill": false, "exchange_name": "Kiwoom" }
+    exchange_name: Selects the correct data service (Kiwoom, Binance, BinanceFutures)
     """
-    service = MarketDataService()
+    service = get_market_data_service(req.exchange_name)
 
-    # Run fetch with backfill option
-    # backfill=True: Fetch full history even if some data exists (slower, for filling gaps)
-    # backfill=False: Stop when hitting existing data (incremental, faster)
-    added_count = await service.fetch_history(symbol, req.interval, req.days, backfill=req.backfill)
+    background_tasks.add_task(service.fetch_history, symbol, req.interval, req.days, backfill=req.backfill)
 
     return {
-        "status": "success",
-        "message": f"Fetched {req.interval} data for {symbol}" + (" (backfill)" if req.backfill else ""),
-        "added": added_count
+        "status": "started",
+        "message": f"Fetching {req.interval} data for {symbol} in background",
+        "added": -1
     }
 
 @router.delete("/reset")

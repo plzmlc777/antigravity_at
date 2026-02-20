@@ -11,6 +11,7 @@ import {
 import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames } from '../utils/strategyParamUtils';
 import { exportOptResultsToCSV as exportOptCSV } from '../utils/strategyExportImport';
+import { getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
 import { DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getCrossOptUUID } from '../constants/strategies';
 import { normalizeStats } from '../config/statsConfig';
 
@@ -28,6 +29,7 @@ export const useOptimization = ({
     symbolCompareConfig, setSymbolCompareConfig,
     setIsDirty, setIsSymbolCompareDirty,
     selectedCompareSymbols, selectedProfileId, currentSymbol,
+    exchangeName = 'Kiwoom',
 }) => {
     // ========================================
     // Optimization State
@@ -81,7 +83,7 @@ export const useOptimization = ({
     // Dynamic helpers (bound to current strategy)
     // ========================================
     const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
-    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
+    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES, getOptRangeDefaults(exchangeName));
     const getStrategyParamNames = () => extractParamNames(selectedStrategy?.parameter_schema);
 
     // ========================================
@@ -98,11 +100,18 @@ export const useOptimization = ({
     // Opt Enable / Value Change Handlers
     // ========================================
     const handleOptEnableChange = (key, checked) => {
+        const defaults = getDynamicOptValues();
+
         // Symbol Compare tab: store opt settings in symbolCompareConfig
         if (activeTab === -3) {
             setSymbolCompareConfig(prev => {
                 const base = prev || configList[0] || getDynamicDefaultConfig();
-                return { ...base, optEnabled: { ...(base.optEnabled || {}), [key]: checked } };
+                const updatedOptValues = { ...(base.optValues || {}) };
+                // Auto-fill default opt range when enabling a parameter
+                if (checked && !updatedOptValues[key] && defaults[key]) {
+                    updatedOptValues[key] = defaults[key];
+                }
+                return { ...base, optEnabled: { ...(base.optEnabled || {}), [key]: checked }, optValues: updatedOptValues };
             });
             return;
         }
@@ -111,9 +120,15 @@ export const useOptimization = ({
         setConfigList(prev => {
             const next = [...prev];
             const currentCfg = next[activeTab];
+            const updatedOptValues = { ...(currentCfg.optValues || {}) };
+            // Auto-fill default opt range when enabling a parameter
+            if (checked && !updatedOptValues[key] && defaults[key]) {
+                updatedOptValues[key] = defaults[key];
+            }
             next[activeTab] = {
                 ...currentCfg,
-                optEnabled: { ...(currentCfg.optEnabled || {}), [key]: checked }
+                optEnabled: { ...(currentCfg.optEnabled || {}), [key]: checked },
+                optValues: updatedOptValues
             };
             return next;
         });
@@ -124,7 +139,7 @@ export const useOptimization = ({
         if (activeTab === -3) {
             setSymbolCompareConfig(prev => {
                 const base = prev || configList[0] || getDynamicDefaultConfig();
-                return { ...base, optValues: { ...(base.optValues || getDynamicOptValues()), [key]: value } };
+                return { ...base, optValues: { ...getDynamicOptValues(), ...(base.optValues || {}), [key]: value } };
             });
             return;
         }
@@ -135,7 +150,7 @@ export const useOptimization = ({
             const currentCfg = next[activeTab];
             next[activeTab] = {
                 ...currentCfg,
-                optValues: { ...(currentCfg.optValues || getDynamicOptValues()), [key]: value }
+                optValues: { ...getDynamicOptValues(), ...(currentCfg.optValues || {}), [key]: value }
             };
             return next;
         });
@@ -269,7 +284,7 @@ export const useOptimization = ({
         // Get config based on tab type
         const activeConfig = isSymbolCompareTab ? symbolCompareConfig : currentConfig;
         const activeOptEnabled = activeConfig?.optEnabled || {};
-        const activeOptValues = activeConfig?.optValues || getDynamicOptValues();
+        const activeOptValues = { ...getDynamicOptValues(), ...(activeConfig?.optValues || {}) };
         // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
         const validParamNames = new Set(getStrategyParamNames());
         const varyingKeys = Object.keys(activeOptEnabled).filter(k => activeOptEnabled[k] && validParamNames.has(k));
@@ -319,7 +334,7 @@ export const useOptimization = ({
         }
 
         try {
-            // Pre-fetch data for all symbols
+            // Pre-fetch latest data for all symbols (incremental update only)
             const DATA_FETCH_DELAY_MS = 500;
             addLog(`Updating data for ${symbols.length} symbol(s) before optimization...`, 'info');
             for (let i = 0; i < symbols.length; i++) {
@@ -330,7 +345,8 @@ export const useOptimization = ({
                 try {
                     await fetchMarketDataForSymbol(sym, {
                         interval: activeConfig?.interval || "1m",
-                        days: activeConfig?.days || 365
+                        days: activeConfig?.days || getDefaultDays(exchangeName),
+                        exchange_name: exchangeName
                     });
                 } catch (err) {
                     console.warn(`Failed to update data for ${sym}`, err);
@@ -368,17 +384,18 @@ export const useOptimization = ({
             const payload = {
                 symbols: symbols,
                 interval: activeConfig?.interval || "1m",
-                days: activeConfig?.days || 365,
+                days: activeConfig?.days || getDefaultDays(exchangeName),
                 from_date: activeConfig?.from_date || null,
                 to_date: activeConfig?.to_date || defaultToDate,
-                initial_capital: activeConfig?.initial_capital || 10000000,
+                initial_capital: activeConfig?.initial_capital || getDefaultCapital(exchangeName),
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
                 strategy_id: selectedStrategy.id,
                 save_to_tab_id: saveTabId,  // Auto-save to DB on completion
                 profile_id: selectedProfileId,  // For task recovery across browsers
                 tab_key: String(startTab),  // Per-tab tracking
-                execution_mode: executionMode  // "standard" or "fast" (parallel)
+                execution_mode: executionMode,  // "standard" or "fast" (parallel)
+                exchange_name: exchangeName  // 프로필 계좌 기반 거래소
             };
 
             // Log optimization request details
@@ -618,7 +635,7 @@ export const useOptimization = ({
 
         // Validation: Check for empty optimization inputs
         const currentOptEnabled = currentConfig.optEnabled || {};
-        const currentOptValues = currentConfig.optValues || getDynamicOptValues();
+        const currentOptValues = { ...getDynamicOptValues(), ...(currentConfig.optValues || {}) };
 
         // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
         const validParamNames = new Set(getStrategyParamNames());
@@ -671,7 +688,7 @@ export const useOptimization = ({
         setIsDirty(true); // Mark as dirty when running optimization
 
         try {
-            // Cross-optimization: pre-fetch data for all selected symbols
+            // Cross-optimization: pre-fetch latest data for all selected symbols
             if (isCrossOpt) {
                 const DATA_FETCH_DELAY_MS = 500;
                 addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
@@ -680,7 +697,7 @@ export const useOptimization = ({
                     const sym = selectedCompareSymbols[i];
                     setOptStatusMessage(`Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`);
                     try {
-                        await fetchMarketDataForSymbol(sym, { interval: "1m", days: 365 });
+                        await fetchMarketDataForSymbol(sym, { interval: "1m", days: getDefaultDays(exchangeName), exchange_name: exchangeName });
                     } catch (err) {
                         console.warn(`Failed to update data for ${sym}`, err);
                         addLog(`${sym}: data update failed`, 'warning');
@@ -728,14 +745,15 @@ export const useOptimization = ({
                 symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
                 symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
                 interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
-                days: currentConfig?.days || 365, // Must match Backtest payload
+                days: currentConfig?.days || getDefaultDays(exchangeName),
                 from_date: currentConfig?.from_date || "",
                 to_date: currentConfig?.to_date || defaultToDate,
-                initial_capital: currentConfig?.initial_capital || 10000000,
+                initial_capital: currentConfig?.initial_capital || getDefaultCapital(exchangeName),
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
                 save_to_tab_id: saveTabId,  // Server-side auto-save on completion
-                execution_mode: executionMode  // "standard" or "fast" (parallel)
+                execution_mode: executionMode,  // "standard" or "fast" (parallel)
+                exchange_name: exchangeName  // 프로필 계좌 기반 거래소
             };
 
             // 1. Start Optimization (Async)

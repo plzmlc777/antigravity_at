@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Plus, Rocket, ChevronRight, Target, FileText } from 'lucide-react';
+import { X, Plus, Rocket, ChevronRight, Target, FileText, Building2 } from 'lucide-react';
 
 /**
  * NewProfileModal - Create a new strategy profile
  *
  * Step 1: Select strategy
- * Step 2: Enter profile name and description
- * Step 3: Initialize with default Rank 1 config
+ * Step 2: Enter profile name, description, and select account
  */
-const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [] }) => {
+const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [], accounts = [] }) => {
     const [step, setStep] = useState(1);
     const [selectedStrategyId, setSelectedStrategyId] = useState('');
+    const [selectedAccountId, setSelectedAccountId] = useState(null);
     const [profileName, setProfileName] = useState('');
     const [profileDescription, setProfileDescription] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -25,10 +25,14 @@ const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [] })
             setProfileName('');
             setProfileDescription('');
             setError(null);
+            // Default to first non-disabled account
+            const defaultAccount = accounts.find(a => !a.is_disabled);
+            setSelectedAccountId(defaultAccount?.id || null);
         }
-    }, [isOpen]);
+    }, [isOpen, accounts]);
 
     const selectedStrategy = strategies.find(s => s.id === selectedStrategyId);
+    const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
     const handleNext = () => {
         if (step === 1 && selectedStrategyId) {
@@ -52,13 +56,12 @@ const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [] })
         setError(null);
 
         try {
-            // Create profile with default Rank 1 config
-            // The actual rank config will be initialized by the parent component
             onProfileCreated({
                 strategyId: selectedStrategyId,
                 strategyName: selectedStrategy?.name || selectedStrategyId,
                 name: profileName.trim(),
-                description: profileDescription.trim()
+                description: profileDescription.trim(),
+                accountId: selectedAccountId
             });
 
             onClose();
@@ -200,9 +203,37 @@ const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [] })
                                     value={profileDescription}
                                     onChange={(e) => setProfileDescription(e.target.value)}
                                     placeholder="이 프로필에 대한 메모..."
-                                    rows={3}
+                                    rows={2}
                                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-600 outline-none focus:border-emerald-500/50 resize-none"
                                 />
+                            </div>
+
+                            {/* Account Selection */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                                    <Building2 size={14} />
+                                    거래 계좌 <span className="text-red-400">*</span>
+                                </label>
+                                <select
+                                    value={selectedAccountId || ''}
+                                    onChange={(e) => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-emerald-500/50 appearance-none cursor-pointer"
+                                >
+                                    <option value="">계좌를 선택하세요</option>
+                                    {accounts.filter(a => !a.is_disabled).map(acc => {
+                                        const envLabel = acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼';
+                                        return (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.account_name} ({acc.exchange_name} / {envLabel})
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                {selectedAccount && (
+                                    <p className="text-xs text-gray-500 mt-1.5">
+                                        거래소: {selectedAccount.exchange_name} — 백테스트/라이브에서 이 계좌의 거래소를 사용합니다
+                                    </p>
+                                )}
                             </div>
 
                             {error && (
@@ -243,7 +274,7 @@ const NewProfileModal = ({ isOpen, onClose, onProfileCreated, strategies = [] })
                             </button>
                             <button
                                 onClick={handleCreate}
-                                disabled={isCreating || !profileName.trim()}
+                                disabled={isCreating || !profileName.trim() || !selectedAccountId}
                                 className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {isCreating ? (

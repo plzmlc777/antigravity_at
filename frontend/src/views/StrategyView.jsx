@@ -26,6 +26,7 @@ import { useOptimization } from '../hooks/useOptimization';
 import { useScoreWeights } from '../hooks/useScoreWeights';
 
 import { isValidScope } from '../types/ConfigScope';
+import { getMaxDays, getMaxDaysLabel, getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
 import NewProfileModal from '../components/NewProfileModal';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import AlertModal from '../components/AlertModal';
@@ -40,7 +41,7 @@ import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
-import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check, Lock } from 'lucide-react';
+import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check, Lock, Building2 } from 'lucide-react';
 import { INTERVAL_OPTIONS, getIntervalLabel, INTERVAL_VALUES, DEFAULT_OPT_INTERVALS } from '../constants/intervals';
 import { generateUUID, PARAM_DEFINITIONS, DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getIntegratedUUID, getCrossOptUUID, SCORE_WEIGHT_PRESETS, STORAGE_KEYS, createConfigHash } from '../constants/strategies';
 
@@ -156,14 +157,11 @@ const StrategyView = () => {
         accounts, effectiveAccountId,
     } = useStrategies();
 
-    // Active account info (for export filenames + exchange detection)
-    const activeAccount = accounts.find(a => a.id === effectiveAccountId) || accounts.find(a => !a.is_disabled);
-    const activeAccountName = activeAccount?.account_name || null;
-    const activeExchangeName = activeAccount?.exchange_name || 'Kiwoom';
-    const isCryptoExchange = activeExchangeName?.startsWith('Binance');
+    // Active account info - 기본값 (profileMeta 로드 후 아래에서 재계산)
+    const defaultAccount = accounts.find(a => a.id === effectiveAccountId) || accounts.find(a => !a.is_disabled);
 
-    // Symbol State - Use shared watchlist context (synced with DB)
-    const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
+    // Symbol State - currentSymbol은 글로벌, savedSymbols는 프로필 레벨
+    const { currentSymbol, setCurrentSymbol } = useWatchlist();
 
     const [backtestResult, setBacktestResult] = useState(null);
     const [executionLogs, setExecutionLogs] = useState([]);
@@ -219,6 +217,9 @@ const StrategyView = () => {
         // Symbol Compare Settings (from profile - 프로필별 저장)
         symbolCompareSettings: symbolCompareConfig,
         setSymbolCompareSettings: setSymbolCompareConfig,
+        // Profile Symbols - Target Asset list (프로필별 종목)
+        profileSymbols,
+        setProfileSymbols,
         isDirty: isProfileDirty,
         // Config List (from profile's rank_configs)
         configList,
@@ -246,6 +247,24 @@ const StrategyView = () => {
         onLog: addLog,
         accountId: effectiveAccountId // 실계좌 우선 자동 선택된 계좌 ID
     });
+
+    // Profile-level symbols alias (하위 컴포넌트/훅 변경 불필요)
+    const savedSymbols = profileSymbols;
+    const setSavedSymbols = setProfileSymbols;
+
+    // Profile-Account 초기값 설정
+    // 프로필에 account_id가 없을 때만 effectiveAccountId로 초기화
+    useEffect(() => {
+        if (effectiveAccountId && !profileMeta.account_id) {
+            setProfileMeta(prev => ({ ...prev, account_id: effectiveAccountId }));
+        }
+    }, [effectiveAccountId, profileMeta.account_id]);
+
+    // Active account info (profileMeta.account_id 우선, effectiveAccountId 폴백)
+    const activeAccount = accounts.find(a => a.id === (profileMeta.account_id || effectiveAccountId)) || defaultAccount;
+    const activeAccountName = activeAccount?.account_name || null;
+    const activeExchangeName = activeAccount?.exchange_name || 'Kiwoom';
+    const isCryptoExchange = activeExchangeName?.startsWith('Binance');
 
     // Profile Lock Detection (extracted to useProfileLock hook)
     const { isProfileLocked } = useProfileLock({ selectedProfileId, profileName: profileMeta.name });
@@ -356,7 +375,7 @@ const StrategyView = () => {
     // Dynamic Config Helpers
     // ==========================================
     const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
-    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES);
+    const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES, getOptRangeDefaults(activeExchangeName));
 
     const getSymbolCompareConfig = () => {
         const rank1 = configList[0];
@@ -422,7 +441,8 @@ const StrategyView = () => {
     } = useSymbolComparison({
         symbolCompareConfig, configList, selectedStrategy,
         savedSymbols, setIsSymbolCompareDirty, addLog,
-        saveProfile, selectedProfileId
+        saveProfile, selectedProfileId,
+        exchangeName: activeExchangeName
     });
 
     const {
@@ -430,7 +450,7 @@ const StrategyView = () => {
         checkDataStatus, handleFetchData, handleUpdateAllData
     } = useDataFetching({
         currentConfig, currentSymbol, configList, setConfigList,
-        activeTab, isConfigLoaded, addLog
+        activeTab, isConfigLoaded, addLog, exchangeName: activeExchangeName
     });
 
     const {
@@ -451,6 +471,7 @@ const StrategyView = () => {
         symbolCompareConfig, setSymbolCompareConfig,
         setIsDirty, setIsSymbolCompareDirty,
         selectedCompareSymbols, selectedProfileId, currentSymbol,
+        exchangeName: activeExchangeName,
     });
 
     const {
@@ -668,31 +689,15 @@ const StrategyView = () => {
             return;
         }
 
-        // Validate from_date: Use DB data start date if available, otherwise 1 year back
+        // Validate from_date: Use exchange MAX_DAYS as the limit
         if (key === 'from_date' && value) {
             // Compare dates only (strip time component to avoid timezone issues)
             const selectedStr = value; // "YYYY-MM-DD"
             const today = new Date();
 
-            // Use DB data start date if available, otherwise default to 1 year
-            let minAllowedDate;
-            let limitDesc;
-            if (dataStatus?.start_date) {
-                // Parse "YY.MM.DD" format
-                const parts = dataStatus.start_date.split('.');
-                if (parts.length === 3) {
-                    const year = parseInt(parts[0]) + 2000;
-                    const month = parseInt(parts[1]) - 1;
-                    const day = parseInt(parts[2]);
-                    minAllowedDate = new Date(year, month, day);
-                    limitDesc = `available data (${dataStatus.start_date})`;
-                }
-            }
-            if (!minAllowedDate) {
-                minAllowedDate = new Date(today);
-                minAllowedDate.setDate(minAllowedDate.getDate() - 365); // 1 year default
-                limitDesc = "1 year (365 days)";
-            }
+            const minAllowedDate = new Date(today);
+            minAllowedDate.setDate(minAllowedDate.getDate() - getMaxDays(activeExchangeName));
+            const limitDesc = getMaxDaysLabel(activeExchangeName);
 
             const minDateStr = minAllowedDate.toISOString().split('T')[0];
             if (selectedStr < minDateStr) {
@@ -982,11 +987,12 @@ const StrategyView = () => {
             const payload = {
                 symbol: activeConfig.symbol || currentSymbol, // Use config's symbol if available, else global
                 from_date: resolvedFromDate,
-                days: activeConfig?.days || 365, // Default to 365 days
-                initial_capital: activeConfig?.initial_capital || 10000000,
+                days: activeConfig?.days || getDefaultDays(activeExchangeName),
+                initial_capital: activeConfig?.initial_capital || getDefaultCapital(activeExchangeName),
                 interval: activeConfig?.interval || "1m",
                 to_date: resolvedToDate,
-                config: cleanConfig
+                config: cleanConfig,
+                exchange_name: activeExchangeName // 프로필 계좌 기반 거래소 자동 결정
             };
 
             setBacktestStatus({ status: 'running', message: `Running Backtest on ${activeConfig.symbol || currentSymbol}...` });
@@ -1274,7 +1280,7 @@ const StrategyView = () => {
                             </div>
                         </div>
 
-                        {/* Profile Info & Strategy */}
+                        {/* Profile Info & Strategy + Account */}
                         {selectedProfile && selectedStrategy && (
                             <div className="hidden md:flex items-center gap-3 text-sm text-gray-400 border-l border-white/10 pl-4 flex-1">
                                 <div className="flex items-center gap-2">
@@ -1287,7 +1293,34 @@ const StrategyView = () => {
                                     </span>
                                 )}
                                 <span className="text-gray-600">|</span>
-                                <span className="flex-1 truncate text-gray-500">{profileMeta.description || '설명 없음'}</span>
+                                {/* Account Selector */}
+                                <div className="flex items-center gap-1.5">
+                                    <Building2 size={13} className="text-gray-500" />
+                                    <select
+                                        value={profileMeta.account_id || ''}
+                                        onChange={(e) => {
+                                            const newAccountId = e.target.value ? parseInt(e.target.value) : null;
+                                            setProfileMeta(prev => ({ ...prev, account_id: newAccountId }));
+                                        }}
+                                        className="bg-transparent border border-white/10 rounded px-2 py-0.5 text-xs text-white outline-none focus:border-emerald-500/50 cursor-pointer appearance-none max-w-[160px]"
+                                        title="연결된 거래 계좌"
+                                    >
+                                        <option value="" className="bg-slate-900 text-gray-400">계좌 없음</option>
+                                        {accounts.filter(a => {
+                                            if (a.is_disabled) return false;
+                                            // 프로필에 연결된 계좌가 있으면 같은 거래소만 표시
+                                            if (activeAccount?.exchange_name) {
+                                                return a.exchange_name === activeAccount.exchange_name;
+                                            }
+                                            return true;
+                                        }).map(acc => (
+                                            <option key={acc.id} value={acc.id} className="bg-slate-900 text-white">
+                                                {acc.account_name} ({acc.exchange_name})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <span className="flex-1 truncate text-gray-500">{profileMeta.description || ''}</span>
                                 <button
                                     onClick={() => setIsDetailModalOpen(true)}
                                     className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-all group relative"
@@ -1385,9 +1418,15 @@ const StrategyView = () => {
                         const strat = strategies.find(s => s.id === data.strategyId);
                         setSelectedStrategy(strat);
 
-                        // 2. Create new profile with default config (atomic operation)
-                        // This avoids React async state issues by not relying on setState
-                        const result = await createNewProfile(data.name, data.description, data.strategyId);
+                        // 2. Determine default symbols based on account's exchange
+                        const account = accounts.find(a => a.id === data.accountId);
+                        const exchangeName = account?.exchange_name || 'Kiwoom';
+                        const defaultSymbols = exchangeName.startsWith('Binance')
+                            ? [{ code: 'BTCUSDT', name: 'Bitcoin' }, { code: 'ETHUSDT', name: 'Ethereum' }]
+                            : [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
+
+                        // 3. Create new profile with default config + account + symbols + exchange defaults (atomic operation)
+                        const result = await createNewProfile(data.name, data.description, data.strategyId, data.accountId, defaultSymbols, exchangeName);
                         console.log('[NewProfile] Created:', result);
 
                         addLog(`✅ 프로필 생성됨: ${data.name}`, 'success');
@@ -1398,6 +1437,7 @@ const StrategyView = () => {
                     }
                 }}
                 strategies={strategies}
+                accounts={accounts}
             />
 
             {/* Save As Modal */}
@@ -1713,7 +1753,7 @@ const StrategyView = () => {
                                                             </div>
                                                             <div className="text-left">
                                                                 <label className="text-xs text-gray-400 mb-1 block">
-                                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : '(Max 1yr)'} {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
+                                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : `(Max ${getMaxDaysLabel(activeExchangeName)})`} {isIntegrated && <span className="text-blue-400">(Inherited from Rank 1)</span>}
                                                                 </label>
                                                                 <DateDropdown
                                                                     value={displayConfig?.from_date || ""}
@@ -1722,16 +1762,11 @@ const StrategyView = () => {
                                                                         handleConfigChange('from_date', dateStr);
                                                                     }}
                                                                     disabled={isIntegrated}
-                                                                    minDate={dataStatus?.start_date ? (() => {
-                                                                        const parts = dataStatus.start_date.split('.');
-                                                                        if (parts.length === 3) {
-                                                                            const year = parseInt(parts[0]) + 2000;
-                                                                            const month = parseInt(parts[1]) - 1;
-                                                                            const day = parseInt(parts[2]);
-                                                                            return new Date(year, month, day);
-                                                                        }
-                                                                        return undefined;
-                                                                    })() : undefined}
+                                                                    minDate={(() => {
+                                                                        const d = new Date();
+                                                                        d.setDate(d.getDate() - getMaxDays(activeExchangeName));
+                                                                        return d;
+                                                                    })()}
                                                                 />
                                                             </div>
                                                             <div className="text-left">
@@ -1871,7 +1906,8 @@ const StrategyView = () => {
                                                                     from_date: leaderConfig?.from_date || "",
                                                                     to_date: leaderConfig?.to_date || defaultToDate,
                                                                     initial_capital: totalCapital,
-                                                                    execution_mode: profileMeta.execution_mode // 'exclusive' or 'parallel'
+                                                                    execution_mode: profileMeta.execution_mode, // 'exclusive' or 'parallel'
+                                                                    exchange_name: activeExchangeName // 프로필 계좌 기반 거래소 자동 결정
                                                                 });
 
                                                                 // Update Result State and Store for Visualization
@@ -2360,11 +2396,16 @@ const StrategyView = () => {
 
                                                 <div className="relative">
                                                     <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
-                                                        Start Date (Max 1yr)
+                                                        Start Date (Max {getMaxDaysLabel(activeExchangeName)})
                                                     </label>
                                                     <DateDropdown
                                                         value={currentConfig?.from_date || ""}
                                                         onChange={(dateStr) => handleConfigChange('from_date', dateStr)}
+                                                        minDate={(() => {
+                                                            const d = new Date();
+                                                            d.setDate(d.getDate() - getMaxDays(activeExchangeName));
+                                                            return d;
+                                                        })()}
                                                     />
                                                 </div>
 
@@ -2613,22 +2654,16 @@ const StrategyView = () => {
 
                                             <div className="relative">
                                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">
-                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : '(Max 1yr)'}
+                                                    Start Date {dataStatus?.start_date ? `(${dataStatus.start_date}~)` : `(Max ${getMaxDaysLabel(activeExchangeName)})`}
                                                 </label>
                                                 <DateDropdown
                                                     value={currentConfig?.from_date || ""}
                                                     onChange={(dateStr) => handleConfigChange('from_date', dateStr)}
-                                                    minDate={dataStatus?.start_date ? (() => {
-                                                        // Parse "YY.MM.DD" format to Date
-                                                        const parts = dataStatus.start_date.split('.');
-                                                        if (parts.length === 3) {
-                                                            const year = parseInt(parts[0]) + 2000;
-                                                            const month = parseInt(parts[1]) - 1;
-                                                            const day = parseInt(parts[2]);
-                                                            return new Date(year, month, day);
-                                                        }
-                                                        return undefined;
-                                                    })() : undefined}
+                                                    minDate={(() => {
+                                                        const d = new Date();
+                                                        d.setDate(d.getDate() - getMaxDays(activeExchangeName));
+                                                        return d;
+                                                    })()}
                                                 />
                                             </div>
 
@@ -2848,7 +2883,10 @@ const StrategyView = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                     {(() => {
                                                         const currentOptEnabled = currentConfig.optEnabled || {};
-                                                        const currentOptValues = currentConfig.optValues || getDynamicOptValues();
+                                                        const defaults = getDynamicOptValues();
+                                                        const savedOptValues = currentConfig.optValues || {};
+                                                        // Merge: saved values take priority, fallback to dynamic defaults per key
+                                                        const currentOptValues = { ...defaults, ...savedOptValues };
 
                                                         return convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map((param) => (
                                                             <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>

@@ -67,12 +67,14 @@ export const buildDynamicDefaultConfig = (strategy, currentSymbol, defaultConfig
 
 /**
  * Build dynamic optimization default ranges from strategy schema.
+ * Applies exchange-specific overrides when provided.
  *
  * @param {Object|null} strategy - Strategy object with parameter_schema
  * @param {Object} defaultOptValues - Fallback values (from constants/strategies.js)
+ * @param {Object|null} exchangeOptOverrides - Exchange-specific opt range overrides (from getOptRangeDefaults)
  * @returns {Object} Map of paramKey -> defaultOptRange string
  */
-export const buildDynamicOptValues = (strategy, defaultOptValues) => {
+export const buildDynamicOptValues = (strategy, defaultOptValues, exchangeOptOverrides = null) => {
     if (!strategy || !strategy.parameter_schema) {
         return defaultOptValues;
     }
@@ -89,6 +91,11 @@ export const buildDynamicOptValues = (strategy, defaultOptValues) => {
             dynamicOptValues[key] = field.defaultOptRange;
         }
     });
+
+    // Apply exchange-specific overrides (e.g., Binance crypto ranges)
+    if (exchangeOptOverrides) {
+        Object.assign(dynamicOptValues, exchangeOptOverrides);
+    }
 
     return dynamicOptValues;
 };

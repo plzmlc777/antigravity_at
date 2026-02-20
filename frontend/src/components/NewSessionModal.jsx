@@ -61,6 +61,13 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
             const response = await axios.get(`/api/v1/live/profiles/${profileId}`);
             setSelectedProfileId(profileId);
             setSelectedProfile(response.data);
+            // 프로필에 연결된 계좌가 있으면 자동 선택
+            if (response.data.account_id) {
+                const matchingAccount = accounts.find(a => a.id === response.data.account_id);
+                if (matchingAccount && !matchingAccount.is_disabled) {
+                    setSelectedAccountId(response.data.account_id);
+                }
+            }
         } catch (err) {
             console.error('Failed to load profile:', err);
             setError('프로필을 불러올 수 없습니다.');
@@ -168,6 +175,13 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
     };
 
     const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+    // 프로필에 연결된 계좌의 거래소 → 같은 거래소만 선택 가능
+    const profileExchangeName = selectedProfile?.account_id
+        ? accounts.find(a => a.id === selectedProfile.account_id)?.exchange_name
+        : null;
+    const filteredAccounts = accounts.filter(a =>
+        !profileExchangeName || a.exchange_name === profileExchangeName
+    );
 
     if (!isOpen) return null;
 
@@ -257,7 +271,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-emerald-500/50 transition-all appearance-none cursor-pointer"
                         >
                             <option value="">계좌를 선택하세요</option>
-                            {accounts.map(acc => {
+                            {filteredAccounts.map(acc => {
                                 const envLabel = acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼';
                                 const exchangeLabel = acc.exchange_name && acc.exchange_name !== 'Kiwoom' ? ` [${acc.exchange_name}]` : '';
                                 return (

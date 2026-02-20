@@ -71,6 +71,38 @@ def build_backtest_config(
     return config
 
 
+def reconcile_days_with_dates(days: int, from_date: str, to_date: str) -> int:
+    """
+    Ensure `days` covers at least the from_date → to_date range.
+
+    Problem: `days` controls the DB query window (start = to_date - days).
+    If days < (to_date - from_date), data loading is shorter than the user's
+    intended date range, and the from_date filter becomes a no-op.
+
+    Fix: Auto-expand days when the explicit date range is larger.
+    """
+    if from_date and to_date:
+        try:
+            fd = datetime.strptime(str(from_date)[:10], "%Y-%m-%d")
+            td = datetime.strptime(str(to_date)[:10], "%Y-%m-%d")
+            range_days = (td - fd).days + 1
+            if range_days > days:
+                logger.info(f"[reconcile_days] days {days} → {range_days} (from_date={from_date}, to_date={to_date})")
+                return range_days
+        except (ValueError, TypeError):
+            pass
+    elif from_date:
+        try:
+            fd = datetime.strptime(str(from_date)[:10], "%Y-%m-%d")
+            range_days = (datetime.utcnow() - fd).days + 1
+            if range_days > days:
+                logger.info(f"[reconcile_days] days {days} → {range_days} (from_date={from_date}, no to_date)")
+                return range_days
+        except (ValueError, TypeError):
+            pass
+    return days
+
+
 # ============================================================================
 # UNIFIED BACKTEST CORE - Single Source of Truth for ALL backtest operations
 # ============================================================================
@@ -115,6 +147,9 @@ async def _run_unified_backtest(
 
     # 3. Execute based on mode
     # Respect explicit execution_mode; only use len(configs)==1 shortcut for "single" mode
+    # Reconcile days with from_date/to_date to prevent date range truncation
+    days = reconcile_days_with_dates(days, from_date, to_date)
+
     if execution_mode == "single":
         # Single backtest - use run_single_backtest directly
         data_service = get_market_data_service(exchange_name)
