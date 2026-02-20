@@ -28,7 +28,7 @@ class TelegramNotificationService:
             self._load_settings_from_db(user_id, account_id)
 
     def _load_settings_from_db(self, user_id: int, account_id: Optional[int] = None):
-        """Load Telegram settings from a specific account, or fallback to active account."""
+        """Load Telegram settings from a specific account, or fallback to first non-disabled account."""
         from ..models.account import ExchangeAccount
         from ..core import security
 
@@ -41,8 +41,8 @@ class TelegramNotificationService:
             else:
                 account = self.db.query(ExchangeAccount).filter(
                     ExchangeAccount.user_id == user_id,
-                    ExchangeAccount.is_active == True
-                ).first()
+                    ExchangeAccount.is_disabled == False
+                ).order_by(ExchangeAccount.id).first()
 
             if account:
                 self.enabled = account.telegram_enabled or False

@@ -15,7 +15,6 @@ import { buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames, coerceConfigTypes } from '../utils/strategyParamUtils';
 import { useWatchlist } from '../context/WatchlistContext';
 import { useStrategies } from '../context/StrategiesContext';
-import { useMarketData } from '../context/MarketDataContext';
 import { useProfileConfig } from '../hooks/useProfileConfig';
 import { useProfileLock } from '../hooks/useProfileLock';
 import { useCopyPaste } from '../hooks/useCopyPaste';
@@ -156,8 +155,9 @@ const StrategyView = () => {
         accounts, effectiveAccountId,
     } = useStrategies();
 
-    // MarketData Context (for systemStatus - used in export/import)
-    const { systemStatus } = useMarketData();
+    // Active account name (for export filenames)
+    const activeAccount = accounts.find(a => !a.is_disabled);
+    const activeAccountName = activeAccount?.account_name || null;
 
     // Symbol State - Use shared watchlist context (synced with DB)
     const { currentSymbol, setCurrentSymbol, savedSymbols, setSavedSymbols } = useWatchlist();
@@ -406,7 +406,7 @@ const StrategyView = () => {
         configList, setConfigList, activeTab,
         symbolCompareConfig, setSymbolCompareConfig,
         setIsDirty, setIsSymbolCompareDirty,
-        savedSymbols, setSavedSymbols, systemStatus,
+        savedSymbols, setSavedSymbols, activeAccountName,
         selectedStrategy, getStrategyParamNames, addLog
     });
 

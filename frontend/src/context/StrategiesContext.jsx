@@ -14,7 +14,6 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { getAccountPreferences, updateLastSelectedStrategy } from '../api/client';
 import { STORAGE_KEYS } from '../constants/strategies';
 import { useLiveTrading } from './LiveTradingContext';
-import { useMarketData } from './MarketDataContext';
 
 const StrategiesContext = createContext(null);
 
@@ -32,10 +31,9 @@ export const StrategiesProvider = ({ children }) => {
     } = useLiveTrading();
 
     // ==========================================
-    // MarketData Context (for active account ID)
+    // Active account ID is no longer used (is_active removed).
+    // effectiveAccountId is auto-selected below based on priority.
     // ==========================================
-    const { systemStatus } = useMarketData();
-    const activeAccountId = systemStatus?.account_id || null;
 
     // ==========================================
     // Selected Strategy (persisted to DB + localStorage)
@@ -102,13 +100,9 @@ export const StrategiesProvider = ({ children }) => {
 
     // ==========================================
     // Auto-select effective account ID from accounts
+    // Priority: real > virtual/paper > any non-disabled
     // ==========================================
     useEffect(() => {
-        if (activeAccountId) {
-            setEffectiveAccountId(activeAccountId);
-            return;
-        }
-
         if (accounts.length === 0) return;
 
         // Real account priority (environment === 'real')
@@ -132,7 +126,7 @@ export const StrategiesProvider = ({ children }) => {
         if (anyAccount) {
             setEffectiveAccountId(anyAccount.id);
         }
-    }, [accounts, activeAccountId]);
+    }, [accounts]);
 
     // ==========================================
     // Persist selected strategy to DB + localStorage

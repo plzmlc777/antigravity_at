@@ -92,7 +92,7 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
                             >
                                 {accounts.map(acc => (
                                     <option key={acc.id} value={acc.id}>
-                                        {acc.account_name || acc.exchange_name} ({acc.exchange_name}){acc.environment !== 'real' ? ` [${acc.environment}]` : ''}{acc.is_active ? ' *' : ''}
+                                        {acc.account_name || acc.exchange_name} ({acc.exchange_name}){acc.environment !== 'real' ? ` [${acc.environment}]` : ''}
                                     </option>
                                 ))}
                             </select>

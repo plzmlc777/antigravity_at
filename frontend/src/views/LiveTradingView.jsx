@@ -24,7 +24,8 @@ const LiveTradingView = () => {
         getStrategyById,
     } = useLiveTrading();
 
-    // Local state for modal
+    // Local state for rank selection and modal
+    const [currentRankIndex, setCurrentRankIndex] = useState(0);
     const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
 
     // Refs
@@ -49,6 +50,7 @@ const LiveTradingView = () => {
     // Handle session group selection
     const handleSelectSessionGroup = (group) => {
         setActiveSessionGroup(group);
+        setCurrentRankIndex(0); // Reset rank to first when switching sessions
         // Update selectedStrategy from session group
         if (group?.strategyName) {
             const matchingStrategy = getStrategyById(group.strategyName);
@@ -110,12 +112,12 @@ const LiveTradingView = () => {
                     {/* Live Strategy Panel - only show when session is selected */}
                     {activeSessionGroup ? (
                         <LiveStrategyPanel
-                            strategyConfig={activeSessionGroup.configList?.[0] || {}}
+                            strategyConfig={activeSessionGroup.configList?.[currentRankIndex] || activeSessionGroup.configList?.[0] || {}}
                             strategyName={activeSessionGroup.strategyName}
                             configList={activeSessionGroup.configList || []}
                             savedSymbols={savedSymbols}
-                            currentRankIndex={0}
-                            onRankChange={() => {}}
+                            currentRankIndex={currentRankIndex}
+                            onRankChange={setCurrentRankIndex}
                             executionMode={executionMode}
                             onExecutionModeChange={setExecutionMode}
                             parameterSchema={selectedStrategy?.parameter_schema}

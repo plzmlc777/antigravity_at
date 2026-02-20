@@ -19,9 +19,7 @@ const ManualTrading = () => {
         getAccounts().then(list => {
             const enabled = (list || []).filter(a => !a.is_disabled);
             setAccounts(enabled);
-            const active = enabled.find(a => a.is_active);
-            if (active) setSelectedAccountId(active.id);
-            else if (enabled.length > 0) setSelectedAccountId(enabled[0].id);
+            if (enabled.length > 0) setSelectedAccountId(enabled[0].id);
         }).catch(() => {});
     }, []);
 

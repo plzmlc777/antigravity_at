@@ -332,15 +332,15 @@ async def get_user_context(
     # Get current user (handles authentication)
     user = await get_current_user_from_token(token, db)
 
-    # Get active account for this user
-    active_account = db.query(ExchangeAccount).filter(
+    # Get default account for this user (first non-disabled)
+    default_account = db.query(ExchangeAccount).filter(
         ExchangeAccount.user_id == user.id,
-        ExchangeAccount.is_active == True
-    ).first()
+        ExchangeAccount.is_disabled == False
+    ).order_by(ExchangeAccount.id).first()
 
     return UserAccountContext(
         user=user,
-        account=active_account,
+        account=default_account,
         _db=db
     )
 
@@ -356,15 +356,17 @@ def create_get_user_context_dependency():
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
     ) -> UserAccountContext:
-        """Get user context using existing auth dependency"""
-        active_account = db.query(ExchangeAccount).filter(
+        """Get user context using existing auth dependency.
+        Selects the first non-disabled account as default (no more is_active flag).
+        """
+        default_account = db.query(ExchangeAccount).filter(
             ExchangeAccount.user_id == current_user.id,
-            ExchangeAccount.is_active == True
-        ).first()
+            ExchangeAccount.is_disabled == False
+        ).order_by(ExchangeAccount.id).first()
 
         return UserAccountContext(
             user=current_user,
-            account=active_account,
+            account=default_account,
             _db=db
         )
 
@@ -380,21 +382,25 @@ get_user_context = create_get_user_context_dependency()
 # Helper Functions for Backward Compatibility
 # ==========================================
 
-def get_active_account_for_user(db: Session, user_id: int) -> Optional[ExchangeAccount]:
+def get_default_account_for_user(db: Session, user_id: int) -> Optional[ExchangeAccount]:
     """
-    Helper to get active account for a user.
+    Helper to get default account for a user (first non-disabled account).
     Use UserAccountContext dependency when possible instead.
     """
     return db.query(ExchangeAccount).filter(
         ExchangeAccount.user_id == user_id,
-        ExchangeAccount.is_active == True
-    ).first()
+        ExchangeAccount.is_disabled == False
+    ).order_by(ExchangeAccount.id).first()
+
+
+# Backward compatibility alias
+get_active_account_for_user = get_default_account_for_user
 
 
 def get_account_id_for_user(db: Session, user_id: int) -> Optional[int]:
     """
-    Helper to get active account ID for a user.
+    Helper to get default account ID for a user.
     Use ctx.account_id when possible instead.
     """
-    account = get_active_account_for_user(db, user_id)
+    account = get_default_account_for_user(db, user_id)
     return account.id if account else None

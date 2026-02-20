@@ -934,7 +934,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     const checkStatus = async () => {
         try {
-            const allSessions = await getLiveStatus();
+            const allSessions = await getLiveStatus({ allAccounts: true });
 
             // Filter to only sessions belonging to the selected group
             const groupSessionIds = new Set(
@@ -1558,8 +1558,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 {accounts.filter(acc => !acc.is_disabled).map(acc => (
                                     <option key={acc.id} value={acc.id}>
                                         {acc.account_name} ({acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼'})
-                                        {acc.is_active ? ' ★' : ''}
-                                    </option>
+                                                                            </option>
                                 ))}
                             </select>
                             <p className="text-gray-500 text-[9px] mt-1.5">
@@ -2014,8 +2013,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     {accounts.filter(acc => !acc.is_disabled).map(acc => (
                                         <option key={acc.id} value={acc.id}>
                                             {acc.account_name} ({acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼'})
-                                            {acc.is_active ? ' ★' : ''}
-                                        </option>
+                                                                                    </option>
                                     ))}
                                 </select>
                                 <p className="text-gray-500 text-[9px] mt-1.5">
@@ -2400,11 +2398,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                         <BarChart3 size={14} className="text-gray-400" />
-                        Real-time Ticks {selectedSessionInfo
-                            ? `(${selectedSessionInfo.symbolName})`
-                            : strategyConfig.symbol
-                                ? `(${savedSymbols.find(s => s.code === strategyConfig.symbol)?.name || strategyConfig.symbol})`
-                                : ''}
+                        Real-time Ticks {strategyConfig.symbol
+                            ? `(${savedSymbols.find(s => s.code === strategyConfig.symbol)?.name || strategyConfig.symbol})`
+                            : ''}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     </h3>
                     {/* WebSocket Connection Status Indicator */}

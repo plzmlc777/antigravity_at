@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { useMarketData } from '../context/MarketDataContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
 
@@ -18,7 +17,6 @@ const Settings = () => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
     const { token, user } = useAuth();
-    const { refresh: refreshMarketData } = useMarketData();
     const { theme, setTheme, themes } = useTheme();
 
     // Toast State
@@ -74,13 +72,9 @@ const Settings = () => {
             const response = await axios.get('/api/v1/accounts/', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Sort: active first, then enabled (by id), then disabled at bottom
+            // Sort: enabled accounts first (by id), then disabled at bottom
             const sortedAccounts = [...response.data].sort((a, b) => {
-                // Disabled accounts go to bottom
                 if (a.is_disabled !== b.is_disabled) return a.is_disabled ? 1 : -1;
-                // Active account goes to top
-                if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-                // Otherwise sort by id
                 return a.id - b.id;
             });
             setAccounts(sortedAccounts);
@@ -402,20 +396,6 @@ const Settings = () => {
         });
     };
 
-    const handleActivate = async (id) => {
-        try {
-            await axios.put(`/api/v1/accounts/${id}/activate`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            await fetchAccounts();
-            refreshMarketData();
-            showToast('계좌가 활성화되었습니다', 'success');
-        } catch (error) {
-            console.error(error);
-            showToast('계좌 활성화 실패', 'error');
-        }
-    };
-
     const openEditModal = (acc) => {
         setEditData({
             account_name: acc.account_name,
@@ -430,7 +410,7 @@ const Settings = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             await fetchAccounts();
-            refreshMarketData();
+
             setEditModal(null);
             showToast('계좌 정보가 수정되었습니다', 'success');
         } catch (error) {
@@ -718,9 +698,7 @@ const Settings = () => {
                         className={`border rounded-xl transition-all ${
                             acc.is_disabled
                                 ? 'bg-gray-800/30 border-gray-700/50 opacity-60'
-                                : acc.is_active
-                                    ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
-                                    : 'bg-white/5 border-white/10 hover:border-white/20'
+                                : 'bg-white/5 border-white/10 hover:border-white/20'
                         }`}
                     >
                         {/* Account Header */}
@@ -729,9 +707,7 @@ const Settings = () => {
                                 <div className={`h-10 w-10 flex items-center justify-center rounded-lg ${
                                     acc.is_disabled
                                         ? 'bg-gray-700/50 text-gray-500'
-                                        : acc.is_active
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-blue-500/20 text-blue-400'
+                                        : 'bg-blue-500/20 text-blue-400'
                                 }`}>
                                     {acc.exchange_name[0]}
                                 </div>
@@ -746,11 +722,6 @@ const Settings = () => {
                                             </span>
                                         )}
                                         {renderEnvBadge(acc)}
-                                        {acc.is_active && (
-                                            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold tracking-wider uppercase border border-blue-500/20">
-                                                Active
-                                            </span>
-                                        )}
                                         {/* Telegram indicator */}
                                         {telegramState.settings.has_bot_token && telegramState.settings.enabled && (
                                             <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold tracking-wider uppercase border border-cyan-500/20">
@@ -764,14 +735,6 @@ const Settings = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {!acc.is_active && !acc.is_disabled && (
-                                    <button
-                                        onClick={() => handleActivate(acc.id)}
-                                        className="px-3 py-1.5 rounded text-xs font-medium bg-white/5 hover:bg-white/10 text-gray-300 transition-colors"
-                                    >
-                                        Activate
-                                    </button>
-                                )}
                                 {/* Telegram Settings Toggle */}
                                 {!acc.is_disabled && (
                                     <button

@@ -35,7 +35,6 @@ class ExchangeAccount(Base):
     telegram_notify_errors = Column(Boolean, default=True)  # 오류 알림
 
     # Status
-    is_active = Column(Boolean, default=False)
     is_disabled = Column(Boolean, default=False)  # 사용 안함 상태
 
     # Trading Environment (Single Source of Truth)

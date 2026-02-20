@@ -68,11 +68,10 @@ export const LiveTradingProvider = ({ children }) => {
         setAccountsLoading(true);
         try {
             const data = await getAccounts();
-            // Sort by active status
+            // Sort: enabled first, then by id
             const sorted = [...(data || [])].sort((a, b) => {
-                if (a.is_active && !b.is_active) return -1;
-                if (!a.is_active && b.is_active) return 1;
-                return 0;
+                if (a.is_disabled !== b.is_disabled) return a.is_disabled ? 1 : -1;
+                return a.id - b.id;
             });
             setAccounts(sorted);
             accountsLoadedRef.current = true;
@@ -131,7 +130,7 @@ export const LiveTradingProvider = ({ children }) => {
     // Helper: Get active account
     // ==========================================
     const getActiveAccount = useCallback(() => {
-        return accounts.find(a => a.is_active);
+        return accounts.find(a => !a.is_disabled);
     }, [accounts]);
 
     // ==========================================

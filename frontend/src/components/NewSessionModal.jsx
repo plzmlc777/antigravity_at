@@ -71,15 +71,13 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
         try {
             const accountsList = await getAccounts();
             const sorted = [...accountsList].sort((a, b) => {
-                if (a.is_active !== b.is_active) return b.is_active ? 1 : -1;
                 if (a.is_disabled !== b.is_disabled) return a.is_disabled ? 1 : -1;
                 return a.id - b.id;
             }).filter(acc => !acc.is_disabled);
             setAccounts(sorted);
-            // Default to active account
-            const activeAccount = sorted.find(acc => acc.is_active);
-            if (activeAccount) {
-                setSelectedAccountId(activeAccount.id);
+            // Default to first non-disabled account
+            if (sorted.length > 0) {
+                setSelectedAccountId(sorted[0].id);
             }
         } catch (err) {
             console.error('Failed to fetch accounts:', err);
@@ -262,8 +260,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                             {accounts.map(acc => (
                                 <option key={acc.id} value={acc.id}>
                                     {acc.account_name} ({acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼'})
-                                    {acc.is_active ? ' ★' : ''}
-                                </option>
+                                                                    </option>
                             ))}
                         </select>
                         {selectedAccount && (

@@ -565,12 +565,10 @@ class MarketDataService:
         account_api_url = None
 
         with SessionLocal() as session:
-            # Get any active account for API credentials (market data is the same for all)
-            # Priority: most recently activated account (by id desc)
+            # Get any available account for API credentials (market data is the same for all)
             account = session.query(ExchangeAccount).filter(
-                ExchangeAccount.is_active == True,
                 ExchangeAccount.is_disabled == False
-            ).order_by(ExchangeAccount.id.desc()).first()
+            ).order_by(ExchangeAccount.id).first()
             if account:
                 app_key = security.decrypt_key(account.encrypted_access_key)
                 secret_key = security.decrypt_key(account.encrypted_secret_key)

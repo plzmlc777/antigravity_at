@@ -11,8 +11,6 @@ import { useState, useEffect } from 'react';
 import { getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-
-import { MarketDataProvider } from './context/MarketDataContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { LiveTradingProvider } from './context/LiveTradingContext';
 import { StrategiesProvider } from './context/StrategiesContext';
@@ -135,15 +133,13 @@ function App() {
                 <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/*" element={
-                        <MarketDataProvider>
-                            <WatchlistProvider>
-                                <LiveTradingProvider>
-                                    <StrategiesProvider>
-                                        <AppContent />
-                                    </StrategiesProvider>
-                                </LiveTradingProvider>
-                            </WatchlistProvider>
-                        </MarketDataProvider>
+                        <WatchlistProvider>
+                            <LiveTradingProvider>
+                                <StrategiesProvider>
+                                    <AppContent />
+                                </StrategiesProvider>
+                            </LiveTradingProvider>
+                        </WatchlistProvider>
                     } />
                 </Routes>
             </AuthProvider>

@@ -162,11 +162,11 @@ class LiveManager:
             if account_id:
                 target_account_id = account_id
             else:
-                # Fallback: first active account (legacy behavior)
-                active_account = db.query(ExchangeAccount).filter(
-                    ExchangeAccount.is_active == True
-                ).first()
-                target_account_id = active_account.id if active_account else None
+                # Fallback: first non-disabled account
+                default_account = db.query(ExchangeAccount).filter(
+                    ExchangeAccount.is_disabled == False
+                ).order_by(ExchangeAccount.id).first()
+                target_account_id = default_account.id if default_account else None
 
             if not target_account_id:
                 logger.warning("LiveManager: No active account found in DB. Using default adapter.")

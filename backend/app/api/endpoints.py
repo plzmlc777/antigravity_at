@@ -43,25 +43,25 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
             is_virtual=is_virtual,
         )
 
-    # Fetch active account for this user from DB
-    active_account = db.query(ExchangeAccount).filter(
+    # Fetch default account for this user from DB (first non-disabled)
+    default_account = db.query(ExchangeAccount).filter(
         ExchangeAccount.user_id == user_id,
-        ExchangeAccount.is_active == True
-    ).first()
+        ExchangeAccount.is_disabled == False
+    ).order_by(ExchangeAccount.id).first()
 
-    if active_account:
+    if default_account:
         try:
-            decrypted_app = security.decrypt_key(active_account.encrypted_access_key)
-            decrypted_secret = security.decrypt_key(active_account.encrypted_secret_key)
+            decrypted_app = security.decrypt_key(default_account.encrypted_access_key)
+            decrypted_secret = security.decrypt_key(default_account.encrypted_secret_key)
 
-            exchange_name = active_account.exchange_name or "Kiwoom"
+            exchange_name = default_account.exchange_name or "Kiwoom"
             config = {
                 'exchange_name': exchange_name,
                 'app_key': decrypted_app,
                 'secret_key': decrypted_secret,
-                'account_no': active_account.account_number,
-                'account_name': active_account.account_name,
-                'environment': active_account.environment or TradingEnvironment.REAL.value,
+                'account_no': default_account.account_number,
+                'account_name': default_account.account_name,
+                'environment': default_account.environment or TradingEnvironment.REAL.value,
             }
             cache.set_active_account_config(user_id, config)
 
@@ -69,10 +69,10 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
                 exchange_name=exchange_name,
                 app_key=decrypted_app,
                 secret_key=decrypted_secret,
-                account_no=active_account.account_number,
-                account_name=active_account.account_name,
-                api_url=active_account.api_url,
-                is_virtual=active_account.is_virtual,
+                account_no=default_account.account_number,
+                account_name=default_account.account_name,
+                api_url=default_account.api_url,
+                is_virtual=default_account.is_virtual,
             )
         except Exception as e:
             print(f"Error decrypting keys: {e}")

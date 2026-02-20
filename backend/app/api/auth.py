@@ -106,10 +106,10 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Ses
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
-    # Check if user has an active account
+    # Check if user has any non-disabled account
     active_account = db.query(ExchangeAccount).filter(
         ExchangeAccount.user_id == user.id,
-        ExchangeAccount.is_active == True
+        ExchangeAccount.is_disabled == False
     ).first()
 
     # Generate new session_id and invalidate previous session

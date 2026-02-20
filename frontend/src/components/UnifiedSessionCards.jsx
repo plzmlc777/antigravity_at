@@ -40,6 +40,8 @@ const UnifiedSessionCards = ({
         let totalCycles = 0;
         let totalPnl = 0;
         let totalWins = 0;
+        let totalR10Wins = 0;
+        let totalR10Total = 0;
         let allCyclePnls = [];
 
         ranks.forEach(({ session }) => {
@@ -52,7 +54,9 @@ const UnifiedSessionCards = ({
                 if (!s || !s.cycles) return;
                 totalCycles += s.cycles;
                 totalPnl += s.realized_pnl || 0;
-                totalWins += Math.round((s.win_rate || 0) * s.cycles / 100);
+                totalWins += s.wins ?? Math.round((s.win_rate || 0) * s.cycles / 100);
+                totalR10Wins += s.recent_10_wins || 0;
+                totalR10Total += s.recent_10_total || 0;
                 // Reconstruct cycle PnLs for max/min/avg
                 if (s.max_pnl) allCyclePnls.push(s.max_pnl);
                 if (s.min_pnl) allCyclePnls.push(s.min_pnl);
@@ -64,7 +68,7 @@ const UnifiedSessionCards = ({
         const minPnl = allCyclePnls.length > 0 ? Math.min(...allCyclePnls) : 0;
         const avgPnl = totalCycles > 0 ? totalPnl / totalCycles : 0;
 
-        return { totalCycles, totalPnl, winRate, maxPnl, minPnl, avgPnl };
+        return { totalCycles, totalPnl, totalWins, winRate, maxPnl, minPnl, avgPnl };
     })();
 
     const formatPnlCompact = (v) => {
@@ -101,6 +105,9 @@ const UnifiedSessionCards = ({
                                     totalStats.winRate >= 40 ? 'text-yellow-400' : 'text-red-400'
                                 }`}>
                                     Win {totalStats.winRate.toFixed(0)}%
+                                    {totalStats.totalCycles > 0 && (
+                                        <span className="text-[9px] text-gray-400 font-normal ml-1">({totalStats.totalWins}/{totalStats.totalCycles})</span>
+                                    )}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4">
@@ -135,7 +142,6 @@ const UnifiedSessionCards = ({
 
                     // Use strategyState for selected rank (more up-to-date from WebSocket)
                     const activeState = (isSelected && strategyState) ? strategyState : state;
-                    const effectiveStrategyId = activeState.strategy_id || strategyName;
 
                     return (
                         <div
@@ -197,16 +203,23 @@ const UnifiedSessionCards = ({
                                 </div>
                             </div>
 
-                            {/* Strategy state card - generic for all strategies */}
+                            {/* Compact Summary + Full Strategy Detail for ALL ranks */}
                             {(hasData || hasAccumulatedData) && (
-                                <GenericStrategyCard
-                                    state={activeState}
-                                    config={cfg}
-                                    price={price}
-                                    isPaper={isPaper}
-                                    tradeStats={tradeStats}
-                                    dimmed={!isRunning}
-                                />
+                                <>
+                                    <CompactSummary
+                                        state={activeState}
+                                        tradeStats={tradeStats}
+                                        dimmed={!isRunning}
+                                    />
+                                    <GenericStrategyCard
+                                        state={activeState}
+                                        config={cfg}
+                                        price={price}
+                                        isPaper={isPaper}
+                                        tradeStats={tradeStats}
+                                        dimmed={!isRunning}
+                                    />
+                                </>
                             )}
 
                             {!hasData && !hasAccumulatedData && (
@@ -222,7 +235,108 @@ const UnifiedSessionCards = ({
     );
 };
 
-/* ───── Generic Strategy Card Body (works for any strategy) ───── */
+/* ───── Compact Summary (shown for ALL ranks) ───── */
+const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
+    const currentLevel = state.current_level || 0;
+    const maxLevels = state.max_buy_count || 0;
+    const totalQty = state.total_quantity || 0;
+    const avgPrice = state.average_price || 0;
+    const profitPct = (state.profit_percent || 0) * 100;
+    const isTrailing = state.trailing_active || false;
+    const isHodl = state.is_hodl || false;
+    const pendingEntry = state.pending_entry || false;
+    const pendingExit = state.pending_exit || false;
+
+    const dim = dimmed ? 'text-gray-700' : 'text-gray-500';
+
+    // Accumulated stats
+    const paperStats = tradeStats?.paper || {};
+    const realStats = tradeStats?.real || {};
+    const totalCycles = (paperStats.cycles || 0) + (realStats.cycles || 0);
+    const totalPnl = (paperStats.realized_pnl || 0) + (realStats.realized_pnl || 0);
+    const totalPnlPct = (paperStats.realized_pnl_pct || 0) + (realStats.realized_pnl_pct || 0);
+
+    const formatPnl = (v) => {
+        if (!v) return '0';
+        const abs = Math.abs(v);
+        const str = abs >= 1000000 ? `${(abs / 1000000).toFixed(1)}M`
+            : abs >= 1000 ? `${(abs / 1000).toFixed(0)}K`
+            : abs.toLocaleString();
+        return (v >= 0 ? '+' : '-') + str;
+    };
+    const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
+
+    const hasLevelInfo = maxLevels > 0;
+    const hasSummary = hasLevelInfo || totalQty > 0 || isTrailing || isHodl || pendingEntry || pendingExit || totalCycles > 0;
+    if (!hasSummary) return null;
+
+    return (
+        <div className="px-4 py-2 flex items-center justify-between flex-wrap gap-y-1">
+            {/* Left: Level + Badges + Qty + Avg */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {hasLevelInfo && (
+                    <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
+                            L{currentLevel}/{maxLevels}
+                        </span>
+                        {maxLevels <= 10 && (
+                            <div className="flex gap-0.5">
+                                {Array.from({ length: maxLevels }, (_, i) => (
+                                    <div key={i} className={`h-1.5 w-1.5 rounded-full ${
+                                        i < currentLevel
+                                            ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400')
+                                            : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
+                                    }`} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {(pendingEntry || pendingExit) && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
+                        {pendingEntry ? 'BUY...' : 'SELL...'}
+                    </span>
+                )}
+                {isTrailing && (
+                    <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-green-500/20 text-green-400'}`}>T</span>
+                )}
+                {isHodl && (
+                    <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-red-500/20 text-red-400'}`}>H</span>
+                )}
+                {totalQty > 0 && (
+                    <span className={`text-[11px] font-mono ${dim}`}>{totalQty}qty</span>
+                )}
+                {avgPrice > 0 && (
+                    <span className={`text-[11px] font-mono ${dim}`}>Avg:{Math.round(avgPrice).toLocaleString()}</span>
+                )}
+                {avgPrice > 0 && (
+                    <span className={`text-[11px] font-mono font-semibold ${dimmed ? 'text-gray-700' : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                        {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                    </span>
+                )}
+            </div>
+            {/* Right: Accumulated Stats */}
+            <div className="flex items-center gap-2">
+                {totalCycles > 0 && (
+                    <>
+                        <span className={`text-[10px] font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
+                            #{totalCycles + 1}
+                        </span>
+                        <span className={`text-[10px] ${dim}`}>
+                            {totalCycles}C
+                        </span>
+                        <span className={`text-[11px] font-mono ${pnlColor(totalPnl)}`}>
+                            {formatPnl(totalPnl)}
+                            {totalPnlPct !== 0 && <span className="text-[9px] opacity-70"> ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(1)}%)</span>}
+                        </span>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+/* ───── Generic Strategy Card Body (full detail, only for selected rank) ───── */
 const HIDDEN_KEYS = new Set([
     'symbol', 'strategy_id', 'is_paper', 'status', 'current_price',
     'reference_price', 'entries', 'pending_entry', 'pending_exit',
@@ -258,16 +372,6 @@ const formatStateValue = (key, val) => {
 };
 
 const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tradeStats = {}, dimmed = false }) => {
-    const currentLevel = state.current_level || 0;
-    const maxLevels = state.max_buy_count || 0;
-    const totalQty = state.total_quantity || 0;
-    const avgPrice = state.average_price || 0;
-    const profitPct = (state.profit_percent || 0) * 100;
-    const isTrailing = state.trailing_active || false;
-    const isHodl = state.is_hodl || false;
-    const pendingEntry = state.pending_entry || false;
-    const pendingExit = state.pending_exit || false;
-
     const dim = dimmed ? 'text-gray-700' : 'text-gray-500';
     const dimBorder = dimmed ? 'border-white/[0.02]' : 'border-white/[0.05]';
 
@@ -284,10 +388,19 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
     const totalPnlPct = (paperStats.realized_pnl_pct || 0) + (realStats.realized_pnl_pct || 0);
     const paperCycles = paperStats.cycles || 0;
     const realCycles = realStats.cycles || 0;
-    const winRate = totalCycles > 0
-        ? ((paperStats.win_rate || 0) * paperCycles + (realStats.win_rate || 0) * realCycles) / totalCycles : 0;
-    const recent10 = totalCycles > 0
-        ? ((paperStats.recent_10_win_rate || 0) * paperCycles + (realStats.recent_10_win_rate || 0) * realCycles) / totalCycles : 0;
+    // Use raw wins count if available, otherwise compute from win_rate
+    const paperWins = paperStats.wins ?? Math.round((paperStats.win_rate || 0) * paperCycles / 100);
+    const realWins = realStats.wins ?? Math.round((realStats.win_rate || 0) * realCycles / 100);
+    const totalWins = paperWins + realWins;
+    const winRate = totalCycles > 0 ? (totalWins / totalCycles) * 100 : 0;
+    const recent10Wins = (paperStats.recent_10_wins ?? 0) + (realStats.recent_10_wins ?? 0);
+    const recent10Total = (paperStats.recent_10_total ?? 0) + (realStats.recent_10_total ?? 0);
+    const recent10 = recent10Total > 0 ? (recent10Wins / recent10Total) * 100 : 0;
+    // Fallback R10 from win_rate if raw counts not available
+    const recent10Fallback = recent10Total === 0 && totalCycles > 0;
+    const recent10Display = recent10Fallback
+        ? ((paperStats.recent_10_win_rate || 0) * paperCycles + (realStats.recent_10_win_rate || 0) * realCycles) / totalCycles
+        : recent10;
     const maxPnl = Math.max(paperStats.max_pnl || 0, realStats.max_pnl || 0);
     const minPnl = Math.min(paperStats.min_pnl || 0, realStats.min_pnl || 0);
     const avgPnl = totalCycles > 0 ? totalPnl / totalCycles : 0;
@@ -302,61 +415,16 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
     };
     const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
 
-    return (
-        <div className="px-4 pb-3 pt-1">
-            {/* Row 1: Level/Status + Qty + Avg Price + Profit */}
-            <div className={`flex items-center justify-between py-2 border-b ${dimBorder}`}>
-                <div className="flex items-center gap-3">
-                    {maxLevels > 0 && (
-                        <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
-                                L{currentLevel}/{maxLevels}
-                            </span>
-                            {maxLevels <= 10 && (
-                                <div className="flex gap-1">
-                                    {Array.from({ length: maxLevels }, (_, i) => (
-                                        <div key={i} className={`h-2 w-2 rounded-full transition-all ${
-                                            i < currentLevel
-                                                ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.4)]')
-                                                : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
-                                        }`} />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {(pendingEntry || pendingExit) && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
-                            {pendingEntry ? 'BUY...' : 'SELL...'}
-                        </span>
-                    )}
-                    {isTrailing && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-green-500/20 text-green-400'}`}>
-                            TRAILING
-                        </span>
-                    )}
-                    {isHodl && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-red-500/20 text-red-400'}`}>
-                            HODL
-                        </span>
-                    )}
-                    {totalQty > 0 && (
-                        <span className={`text-xs font-mono ${dim}`}>{totalQty} qty</span>
-                    )}
-                    {avgPrice > 0 && (
-                        <span className={`text-xs font-mono ${dim}`}>Avg: {Math.round(avgPrice).toLocaleString()}</span>
-                    )}
-                </div>
-                {avgPrice > 0 && (
-                    <span className={`text-xs font-mono font-semibold ${dimmed ? 'text-gray-700' : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                        {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
-                    </span>
-                )}
-            </div>
+    const hasDisplayEntries = displayEntries.length > 0;
+    const hasStats = totalCycles > 0;
 
-            {/* Row 2: Dynamic state key-value grid */}
-            {displayEntries.length > 0 && (
-                <div className={`grid grid-cols-2 gap-x-4 gap-y-1 py-2 border-b ${dimBorder}`}>
+    if (!hasDisplayEntries && !hasStats) return null;
+
+    return (
+        <div className={`px-4 pb-3 border-t ${dimBorder}`}>
+            {/* Row 1: Dynamic state key-value grid */}
+            {hasDisplayEntries && (
+                <div className={`grid grid-cols-2 gap-x-4 gap-y-1 py-2 ${hasStats ? `border-b ${dimBorder}` : ''}`}>
                     {displayEntries.map(([key, val]) => (
                         <div key={key} className="flex items-center justify-between">
                             <span className={`text-[10px] ${dim}`}>{formatLabel(key)}</span>
@@ -368,24 +436,8 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
                 </div>
             )}
 
-            {/* Row 3: Accumulated Stats */}
-            <div className={`flex items-center justify-between py-2 ${totalCycles > 0 ? `border-b ${dimBorder}` : ''}`}>
-                <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
-                        #{totalCycles + 1}
-                    </span>
-                    <span className={`text-xs ${dim}`}>
-                        Total {totalCycles} {totalCycles === 1 ? 'Cycle' : 'Cycles'}
-                    </span>
-                </div>
-                <span className={`text-xs font-mono ${pnlColor(totalPnl)}`}>
-                    {formatPnl(totalPnl)}
-                    {totalPnlPct !== 0 && <span className="text-[10px] opacity-70"> ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(1)}%)</span>}
-                </span>
-            </div>
-
-            {/* Row 4: Detailed Stats */}
-            {totalCycles > 0 && (
+            {/* Row 2: Detailed Stats */}
+            {hasStats && (
                 <div className="py-2">
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -394,12 +446,18 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
                                 <span className={`text-xs font-mono font-semibold ${
                                     dimmed ? 'text-gray-600' : winRate >= 60 ? 'text-green-400' : winRate >= 40 ? 'text-yellow-400' : 'text-red-400'
                                 }`}>{winRate.toFixed(0)}%</span>
+                                {totalCycles > 0 && (
+                                    <span className={`text-[9px] font-mono ${dim}`}>({totalWins}/{totalCycles})</span>
+                                )}
                             </div>
                             <div className="flex items-center gap-1">
                                 <span className={`text-[10px] ${dim}`}>R10</span>
                                 <span className={`text-xs font-mono font-semibold ${
-                                    dimmed ? 'text-gray-600' : recent10 >= 60 ? 'text-green-400' : recent10 >= 40 ? 'text-yellow-400' : 'text-red-400'
-                                }`}>{recent10.toFixed(0)}%</span>
+                                    dimmed ? 'text-gray-600' : recent10Display >= 60 ? 'text-green-400' : recent10Display >= 40 ? 'text-yellow-400' : 'text-red-400'
+                                }`}>{recent10Display.toFixed(0)}%</span>
+                                {recent10Total > 0 && (
+                                    <span className={`text-[9px] font-mono ${dim}`}>({recent10Wins}/{recent10Total})</span>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-mono">

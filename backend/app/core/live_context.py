@@ -155,6 +155,7 @@ class LiveContext:
     def get_trade_stats(self) -> Dict[str, Any]:
         """
         Compute accumulated trade stats separated by Paper/Real.
+        Tracks per-cycle PnL for win_rate, max_pnl, min_pnl, recent_10_win_rate.
         """
         db = SessionLocal()
         try:
@@ -168,11 +169,11 @@ class LiveContext:
                 "real": {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
             }
 
-            # Track average cost per mode for realized PnL
-            total_bought_cost = {"paper": 0.0, "real": 0.0}
-            total_bought_qty = {"paper": 0.0, "real": 0.0}
-            total_sold_value = {"paper": 0.0, "real": 0.0}
-            total_sold_qty = {"paper": 0.0, "real": 0.0}
+            # Track running buy cost/qty per mode for per-cycle PnL
+            running_buy_cost = {"paper": 0.0, "real": 0.0}
+            running_buy_qty = {"paper": 0.0, "real": 0.0}
+            # Per-cycle PnL list for win_rate, max, min
+            cycle_pnls = {"paper": [], "real": []}
 
             for ex in executions:
                 is_paper = ex.is_paper if ex.is_paper is not None else True
@@ -184,25 +185,65 @@ class LiveContext:
 
                 if ex.signal_type == "BUY":
                     s["buys"] += 1
-                    total_bought_cost[key] += val
-                    total_bought_qty[key] += qty
+                    running_buy_cost[key] += val
+                    running_buy_qty[key] += qty
                 elif ex.signal_type == "SELL":
                     s["sells"] += 1
-                    total_sold_value[key] += val
-                    total_sold_qty[key] += qty
                     s["cycles"] += 1
+                    # Calculate this cycle's PnL
+                    if running_buy_qty[key] > 0:
+                        avg_cost = running_buy_cost[key] / running_buy_qty[key]
+                        cycle_pnl = val - (qty * avg_cost)
+                        cycle_pnls[key].append(round(cycle_pnl, 2))
+                        # Reduce running buy position by sold qty
+                        remaining_qty = running_buy_qty[key] - qty
+                        if remaining_qty <= 0:
+                            running_buy_cost[key] = 0.0
+                            running_buy_qty[key] = 0.0
+                        else:
+                            running_buy_cost[key] = avg_cost * remaining_qty
+                            running_buy_qty[key] = remaining_qty
+                    else:
+                        cycle_pnls[key].append(0.0)
 
-            # Realized PnL: only for sold quantity using average buy cost
+            # Compute stats per mode
             for key in ["paper", "real"]:
-                if total_bought_qty[key] > 0 and total_sold_qty[key] > 0:
-                    avg_cost = total_bought_cost[key] / total_bought_qty[key]
-                    realized = total_sold_value[key] - (total_sold_qty[key] * avg_cost)
-                    sold_cost = total_sold_qty[key] * avg_cost
-                    stats[key]["realized_pnl"] = round(realized, 2)
-                    stats[key]["realized_pnl_pct"] = round((realized / sold_cost) * 100, 2) if sold_cost > 0 else 0.0
+                pnls = cycle_pnls[key]
+                total_pnl = sum(pnls)
+                stats[key]["realized_pnl"] = round(total_pnl, 2)
+
+                if pnls:
+                    wins = sum(1 for p in pnls if p > 0)
+                    stats[key]["win_rate"] = round((wins / len(pnls)) * 100, 2)
+                    stats[key]["wins"] = wins
+                    stats[key]["max_pnl"] = round(max(pnls), 2)
+                    stats[key]["min_pnl"] = round(min(pnls), 2)
+                    # Recent 10 win rate
+                    recent = pnls[-10:]
+                    recent_wins = sum(1 for p in recent if p > 0)
+                    stats[key]["recent_10_win_rate"] = round((recent_wins / len(recent)) * 100, 2)
+                    stats[key]["recent_10_wins"] = recent_wins
+                    stats[key]["recent_10_total"] = len(recent)
+                    # PnL percentage (based on total buy cost used for sold cycles)
+                    total_sold_cost = sum(
+                        (ex.executed_price or 0) * (ex.filled_quantity or 0)
+                        for ex in executions
+                        if ex.signal_type == "BUY"
+                        and ((ex.is_paper if ex.is_paper is not None else True) == (key == "paper"))
+                    )
+                    if total_sold_cost > 0:
+                        stats[key]["realized_pnl_pct"] = round((total_pnl / total_sold_cost) * 100, 2)
+                    else:
+                        stats[key]["realized_pnl_pct"] = 0.0
                 else:
-                    stats[key]["realized_pnl"] = 0.0
                     stats[key]["realized_pnl_pct"] = 0.0
+                    stats[key]["win_rate"] = 0.0
+                    stats[key]["wins"] = 0
+                    stats[key]["max_pnl"] = 0.0
+                    stats[key]["min_pnl"] = 0.0
+                    stats[key]["recent_10_win_rate"] = 0.0
+                    stats[key]["recent_10_wins"] = 0
+                    stats[key]["recent_10_total"] = 0
 
             return stats
         except Exception as e:

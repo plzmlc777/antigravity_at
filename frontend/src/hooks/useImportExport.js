@@ -12,7 +12,7 @@ export const useImportExport = ({
     configList, setConfigList, activeTab,
     symbolCompareConfig, setSymbolCompareConfig,
     setIsDirty, setIsSymbolCompareDirty,
-    savedSymbols, setSavedSymbols, systemStatus,
+    savedSymbols, setSavedSymbols, activeAccountName,
     selectedStrategy, getStrategyParamNames, addLog
 }) => {
     const [assetImportExportFeedback, setAssetImportExportFeedback] = useState(null);
@@ -25,13 +25,13 @@ export const useImportExport = ({
             addLog('⚠️ No symbols to export', 'warn');
             return;
         }
-        const filename = exportAssetsToJSON({ savedSymbols, accountName: systemStatus?.account_name });
+        const filename = exportAssetsToJSON({ savedSymbols, accountName: activeAccountName });
         if (filename) {
             setAssetImportExportFeedback('exported');
             setTimeout(() => setAssetImportExportFeedback(null), 2000);
             addLog(`📤 Exported ${savedSymbols.length} symbols`, 'info');
         }
-    }, [savedSymbols, systemStatus, addLog]);
+    }, [savedSymbols, activeAccountName, addLog]);
 
     const handleImportAssets = useCallback(async (e) => {
         const file = e.target.files?.[0];
@@ -114,7 +114,7 @@ export const useImportExport = ({
         const filename = exportParamsToJSON({
             config: currentCfg,
             sourceLabel,
-            accountName: systemStatus?.account_name,
+            accountName: activeAccountName,
             strategyId: selectedStrategy?.id,
             paramNames: getStrategyParamNames()
         });
@@ -124,7 +124,7 @@ export const useImportExport = ({
             setTimeout(() => setParamImportExportFeedback(null), 2000);
             addLog(`📤 Exported parameters from ${sourceLabel}`, 'info');
         }
-    }, [activeTab, configList, symbolCompareConfig, systemStatus, selectedStrategy, getStrategyParamNames, addLog]);
+    }, [activeTab, configList, symbolCompareConfig, activeAccountName, selectedStrategy, getStrategyParamNames, addLog]);
 
     const handleImportParams = useCallback(async (e) => {
         const file = e.target.files?.[0];
