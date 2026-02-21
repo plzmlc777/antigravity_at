@@ -48,3 +48,8 @@ class Settings(BaseSettings):
         }
 
 settings = Settings()
+
+# ── 거래소 기본값 (폴백용 상수) ──
+DEFAULT_EXCHANGE = "Kiwoom"
+DEFAULT_INITIAL_CAPITAL = 10000000  # 키움 기준 1,000만 원
+DEFAULT_DAYS = 365                 # 키움 API 제한 1년

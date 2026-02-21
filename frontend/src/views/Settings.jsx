@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
+import { DEFAULT_EXCHANGE } from '../constants/exchanges';
 
 // Trading Environment options (matches backend TradingEnvironment enum)
 const ENVIRONMENTS = [
@@ -32,7 +33,7 @@ const Settings = () => {
     // Form State
     const [isAdding, setIsAdding] = useState(false);
     const [formData, setFormData] = useState({
-        exchange_name: 'Kiwoom',
+        exchange_name: DEFAULT_EXCHANGE,
         account_name: '',
         access_key: '',
         secret_key: '',
@@ -363,7 +364,7 @@ const Settings = () => {
             });
             setIsAdding(false);
             setFormData({
-                exchange_name: 'Kiwoom',
+                exchange_name: DEFAULT_EXCHANGE,
                 account_name: '',
                 access_key: '',
                 secret_key: '',

@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getMarketDataStatus, fetchMarketDataForSymbol } from '../api/strategies';
-import { getMaxDays } from '../constants/exchanges';
+import { DEFAULT_EXCHANGE, getMaxDays } from '../constants/exchanges';
 
 /**
  * useDataFetching - Market data status checking and fetching.
  */
 export const useDataFetching = ({
     currentConfig, currentSymbol, configList, setConfigList,
-    activeTab, isConfigLoaded, addLog, exchangeName = 'Kiwoom'
+    activeTab, isConfigLoaded, addLog, exchangeName = DEFAULT_EXCHANGE
 }) => {
     const [dataStatus, setDataStatus] = useState({ is_fresh: false, count: 0, start_date: null });
     const [isFetchingData, setIsFetchingData] = useState(false);

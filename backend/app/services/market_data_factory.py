@@ -4,12 +4,13 @@ Market Data Service Factory
 - Supports: Kiwoom, KIS, Binance, BinanceFutures
 """
 
+from ..core.config import DEFAULT_EXCHANGE
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_market_data_service(exchange_name: str = "Kiwoom"):
+def get_market_data_service(exchange_name: str = DEFAULT_EXCHANGE):
     """
     Factory function to get the appropriate MarketDataService.
 

@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 from .base import BaseStrategy, IContext
 from ..core.qty_rules import adjust_qty
+from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -475,7 +476,7 @@ class MartingaleBase(BaseStrategy):
         if self.qty_mode == "percent" and price > 0:
             # Resolve L1 base qty once per cycle, cache it
             if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
-                capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', 10000000))
+                capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL))
                 self._resolved_base_qty = capital * self.base_quantity / 100 / price
             return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
         return float(self.base_quantity) * (self.lot_size_multiplier ** (level - 1))
@@ -505,7 +506,7 @@ class MartingaleBase(BaseStrategy):
 
     def _adjust_qty_for_exchange(self, qty: float, price: float) -> float:
         """거래소별 수량 보정 (중앙집중화된 qty_rules 사용)."""
-        exchange_name = self.config.get('exchange_name', 'Kiwoom')
+        exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
         return adjust_qty(qty, exchange_name=exchange_name, price=price)
 
     def _calculate_quantity(self, level: int, price: float = None) -> float:

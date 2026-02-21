@@ -1,3 +1,4 @@
+from ..core.config import DEFAULT_EXCHANGE, DEFAULT_DAYS
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -82,9 +83,9 @@ async def get_symbol_info(symbol: str):
 
 class FetchRequest(BaseModel):
     interval: str = "1m"
-    days: int = 365
+    days: int = DEFAULT_DAYS
     backfill: bool = False
-    exchange_name: str = "Kiwoom"
+    exchange_name: str = DEFAULT_EXCHANGE
 
 @router.post("/fetch/{symbol}")
 async def fetch_market_data(symbol: str, req: FetchRequest, background_tasks: BackgroundTasks):

@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, JSON, Text
 from sqlalchemy.orm import relationship
 from ..db.base import Base
+from ..core.config import DEFAULT_EXCHANGE
 from ..core.trading_env import (
     TradingEnvironment,
     get_env_config,
@@ -72,7 +73,7 @@ class ExchangeAccount(Base):
     def api_url(self) -> Optional[str]:
         """Derive API URL from exchange_name and environment"""
         from ..core.trading_env import get_api_url_for_exchange
-        return get_api_url_for_exchange(self.exchange_name or "Kiwoom", self.env_type)
+        return get_api_url_for_exchange(self.exchange_name or DEFAULT_EXCHANGE, self.env_type)
 
     @property
     def ws_url(self) -> Optional[str]:

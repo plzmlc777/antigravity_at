@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
 from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
+from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 
 # --- SINGLE SOURCE OF TRUTH: Performance Stat Keys ---
 # All stat keys that should appear in rank_stats_list and aggregated results.
@@ -33,7 +34,7 @@ PERFORMANCE_STAT_KEYS = [
 ]
 
 class BacktestContext(IContext):
-    def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = 10000000, primary_symbol: str = None):
+    def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = DEFAULT_INITIAL_CAPITAL, primary_symbol: str = None):
         """
         Refactored Context for Multi-Symbol Support.
         :param feeds: Dictionary { "SYMBOL": [candle1, candle2, ...] }
@@ -328,7 +329,7 @@ class BacktestContext(IContext):
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
         ))
 
-async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None, exchange_name: str = "Kiwoom") -> Dict[str, List]:
+async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None, exchange_name: str = DEFAULT_EXCHANGE) -> Dict[str, List]:
     """
     Independent helper to fetch OHLCV data for Visualization (Background Charts).
     Can reuse preloaded_feeds (Simulation Data) if intervals match to save bandwidth.
@@ -372,7 +373,7 @@ async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol
     return viz_feeds
 
 class WaterfallBacktestEngine:
-    def __init__(self, strategy_class, config: Dict = None, exchange_name: str = "Kiwoom"):
+    def __init__(self, strategy_class, config: Dict = None, exchange_name: str = DEFAULT_EXCHANGE):
         self.strategy_class = strategy_class
         # This primary config might be Rank 1 or empty if using list
         self.config = config or {}
@@ -468,7 +469,7 @@ class WaterfallBacktestEngine:
 
         return stats
 
-    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False, exchange_name: str = "Kiwoom"):
+    async def run_integrated(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = DEFAULT_INITIAL_CAPITAL, optimize_mode: bool = False, exchange_name: str = DEFAULT_EXCHANGE):
         import time
         t_start = time.time()
         # 1. Prepare Symbols and Fetch Data
@@ -704,7 +705,7 @@ class WaterfallBacktestEngine:
         return stats
 
     # Legacy 'run' for backward compatibility if needed, maps to run_integrated
-    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000):
+    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = DEFAULT_INITIAL_CAPITAL):
         # Wrap single run into integrated format
         cfg = self.config.copy()
         cfg['symbol'] = symbol
@@ -717,7 +718,7 @@ class WaterfallBacktestEngine:
             initial_capital=initial_capital
         )
 
-    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = 10000000, optimize_mode: bool = False, exchange_name: str = "Kiwoom"):
+    async def run_parallel(self, strategies_config: List[Dict], global_symbol: str = "TEST", duration_days: int = 1, from_date: str = None, to_date: str = None, interval: str = "1m", initial_capital: int = DEFAULT_INITIAL_CAPITAL, optimize_mode: bool = False, exchange_name: str = DEFAULT_EXCHANGE):
         """
         Parallel Execution Mode: Each Rank runs independently with equal capital split.
         All ranks operate simultaneously without affecting each other.
@@ -1147,7 +1148,7 @@ class WaterfallBacktestEngine:
             "decile_stats": []
         }
 
-    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = 10000000, optimize_mode: bool = False, equity_curve: List[Dict] = None) -> Dict[str, Any]:
+    def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = DEFAULT_INITIAL_CAPITAL, optimize_mode: bool = False, equity_curve: List[Dict] = None) -> Dict[str, Any]:
         if not trades:
             return {
                 "total_trades": 0,

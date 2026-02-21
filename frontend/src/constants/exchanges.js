@@ -4,6 +4,9 @@
  * 거래소별 설정값 관리. 새 거래소 추가 시 여기만 수정.
  */
 
+// ── 기본 거래소 (폴백 기본값) ──
+export const DEFAULT_EXCHANGE = 'Kiwoom';
+
 // ── 거래소별 기본 설정 ──
 
 // 최대 데이터 조회 기간 (일)
@@ -88,8 +91,8 @@ export const EXCHANGE_QTY_CONFIG = {
 
 // ── Fallback 기본값 (Kiwoom/미등록 거래소) ──
 const DEFAULT_MAX_DAYS = 365;
-const DEFAULT_INITIAL_CAPITAL = 10000000;
-const DEFAULT_DAYS = 365;
+export const DEFAULT_INITIAL_CAPITAL = 10000000;
+export const DEFAULT_DAYS = 365;
 
 // ── Helper Functions ──
 
@@ -120,7 +123,7 @@ export const getOptRangeDefaults = (exchangeName) => {
 
 /** 거래소별 수량 규칙 조회 */
 export const getQtyConfig = (exchangeName) => {
-    return EXCHANGE_QTY_CONFIG[exchangeName] || EXCHANGE_QTY_CONFIG.Kiwoom;
+    return EXCHANGE_QTY_CONFIG[exchangeName] || EXCHANGE_QTY_CONFIG[DEFAULT_EXCHANGE];
 };
 
 /** MAX_DAYS를 사람이 읽을 수 있는 문자열로 변환 */

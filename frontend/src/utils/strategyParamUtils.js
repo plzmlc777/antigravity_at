@@ -5,6 +5,8 @@
  * default config generation. Zero DOM or React dependencies.
  */
 
+import { getParameterDefaults, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
+
 /**
  * Parse comma-separated optimization value strings into typed arrays.
  * Handles time strings ("09:00"), intervals ("1m", "5m"), and numbers.
@@ -36,7 +38,7 @@ export const parseValues = (valStr) => {
  * @param {Object} defaultConfig - Fallback config (from constants/strategies.js)
  * @returns {Object} Config object with defaults from schema
  */
-export const buildDynamicDefaultConfig = (strategy, currentSymbol, defaultConfig) => {
+export const buildDynamicDefaultConfig = (strategy, currentSymbol, defaultConfig, exchangeName = null) => {
     if (!strategy || !strategy.parameter_schema) {
         return defaultConfig;
     }
@@ -61,6 +63,20 @@ export const buildDynamicDefaultConfig = (strategy, currentSymbol, defaultConfig
             dynamicDefault[key] = field.default;
         }
     });
+
+    // Apply exchange-specific overrides (capital, days, parameter defaults)
+    if (exchangeName) {
+        dynamicDefault.initial_capital = getDefaultCapital(exchangeName);
+        const exchangeDays = getDefaultDays(exchangeName);
+        dynamicDefault.days = exchangeDays;
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - exchangeDays);
+        dynamicDefault.from_date = fromDate.toISOString().split('T')[0];
+        const overrides = getParameterDefaults(exchangeName);
+        if (overrides) {
+            Object.assign(dynamicDefault, overrides);
+        }
+    }
 
     return dynamicDefault;
 };

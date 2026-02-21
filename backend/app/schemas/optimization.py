@@ -1,14 +1,15 @@
 from pydantic import BaseModel, Field
+from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, DEFAULT_DAYS
 from typing import Dict, List, Union, Any, Optional
 
 class OptimizationRequest(BaseModel):
     symbol: str
     symbols: Optional[List[str]] = None  # Multi-symbol cross-optimization
     interval: str = "1m"
-    days: int = 365  # Default 1 year, max 730 (2 years)
+    days: int = DEFAULT_DAYS  # Default 1 year, max 730 (2 years)
     from_date: Optional[str] = None
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
-    initial_capital: float = 10000000
+    initial_capital: float = DEFAULT_INITIAL_CAPITAL
     # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {} # Default/Fixed values
@@ -16,7 +17,7 @@ class OptimizationRequest(BaseModel):
     save_to_tab_id: Optional[str] = None
     save_account_id: Optional[int] = None
     execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
-    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 class OptimizationResultItem(BaseModel):
     rank: int
@@ -73,10 +74,10 @@ class HeavyOptimizationRequest(BaseModel):
     """Request for large-scale optimization (10K-100K+ combinations)"""
     symbols: List[str]  # Multiple symbols required
     interval: str = "1m"
-    days: int = 365
+    days: int = DEFAULT_DAYS
     from_date: Optional[str] = None
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
-    initial_capital: float = 10000000
+    initial_capital: float = DEFAULT_INITIAL_CAPITAL
     parameter_ranges: Dict[str, List[Union[str, int, float]]]
     base_config: Dict[str, Any] = {}
     strategy_id: str = "DipMartingaleStrategy"
@@ -86,7 +87,7 @@ class HeavyOptimizationRequest(BaseModel):
     profile_id: Optional[str] = None  # Profile UUID for task recovery across browsers
     tab_key: Optional[str] = None  # Tab identifier (e.g. "0", "-3") for per-tab tracking
     execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
-    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 
 class HeavyOptimizationStatus(BaseModel):

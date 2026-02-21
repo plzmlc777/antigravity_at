@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getProfiles, getProfile, createProfile, updateProfile, deleteProfile, getAccountPreferences, updateLastSelectedProfile } from '../api/client';
 import { STORAGE_KEYS, createConfigHash } from '../constants/strategies';
-import { getParameterDefaults, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
+import { DEFAULT_INITIAL_CAPITAL, getParameterDefaults, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // localStorage Draft Utilities
@@ -28,6 +28,7 @@ export const useProfileConfig = ({
     generateUUID = () => crypto.randomUUID(),
     onLog = null, // Optional callback for logging: (message, level) => void
     accountId = null, // Active account ID for backward compatibility
+    exchangeName = null, // Active exchange name for dynamic defaults
 }) => {
     // Ref to hold the latest onLog callback
     const onLogRef = useRef(onLog);
@@ -72,7 +73,7 @@ export const useProfileConfig = ({
         description: '',
         strategy_name: '',
         execution_mode: 'parallel',
-        initial_capital: 10000000,
+        initial_capital: DEFAULT_INITIAL_CAPITAL,
         is_paper: true,
         rank_weights: null,
         account_id: null
@@ -82,12 +83,14 @@ export const useProfileConfig = ({
     const isMountedRef = useRef(true);
     const selectedStrategyRef = useRef(selectedStrategy);
     const defaultConfigRef = useRef(defaultConfig);
+    const exchangeNameRef = useRef(exchangeName);
 
     // Update refs
     useEffect(() => {
         selectedStrategyRef.current = selectedStrategy;
         defaultConfigRef.current = defaultConfig;
-    }, [selectedStrategy, defaultConfig]);
+        exchangeNameRef.current = exchangeName;
+    }, [selectedStrategy, defaultConfig, exchangeName]);
 
     // Backward compatible scope object (for useStrategyConfig compatibility)
     const scope = useMemo(() => ({
@@ -109,6 +112,21 @@ export const useProfileConfig = ({
                     dynamicDefault[key] = field.default;
                 }
             });
+        }
+
+        // Apply exchange-specific overrides
+        const exName = exchangeNameRef.current;
+        if (exName) {
+            dynamicDefault.initial_capital = getDefaultCapital(exName);
+            const exchangeDays = getDefaultDays(exName);
+            dynamicDefault.days = exchangeDays;
+            const fromDate = new Date();
+            fromDate.setDate(fromDate.getDate() - exchangeDays);
+            dynamicDefault.from_date = fromDate.toISOString().split('T')[0];
+            const overrides = getParameterDefaults(exName);
+            if (overrides) {
+                Object.assign(dynamicDefault, overrides);
+            }
         }
 
         return dynamicDefault;
@@ -399,7 +417,7 @@ export const useProfileConfig = ({
                 description: '',
                 strategy_name: selectedStrategyRef.current?.id || '',
                 execution_mode: 'parallel',
-                initial_capital: 10000000,
+                initial_capital: DEFAULT_INITIAL_CAPITAL,
                 is_paper: true,
                 rank_weights: null,
                 account_id: null
@@ -434,7 +452,7 @@ export const useProfileConfig = ({
                 description: profile.description || '',
                 strategy_name: profile.strategy_name || '',
                 execution_mode: profile.execution_mode || 'parallel',
-                initial_capital: profile.initial_capital || 10000000,
+                initial_capital: profile.initial_capital || DEFAULT_INITIAL_CAPITAL,
                 is_paper: profile.is_paper !== false,
                 rank_weights: profile.rank_weights || null,
                 account_id: profile.account_id || null
@@ -520,7 +538,7 @@ export const useProfileConfig = ({
             description: '',
             strategy_name: strategyId,
             execution_mode: 'parallel',
-            initial_capital: 10000000,
+            initial_capital: DEFAULT_INITIAL_CAPITAL,
             is_paper: true,
             rank_weights: null,
             account_id: prev.account_id  // 현재 연결된 계좌 유지
@@ -971,7 +989,7 @@ export const useProfileConfig = ({
                         description: profile.description || '',
                         strategy_name: profile.strategy_name || '',
                         execution_mode: profile.execution_mode || 'parallel',
-                        initial_capital: profile.initial_capital || 10000000,
+                        initial_capital: profile.initial_capital || DEFAULT_INITIAL_CAPITAL,
                         is_paper: profile.is_paper !== false,
                         rank_weights: profile.rank_weights || null,
                         account_id: profile.account_id || null

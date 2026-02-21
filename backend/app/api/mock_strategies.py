@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, DEFAULT_DAYS
 from fastapi.responses import FileResponse
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -117,7 +118,7 @@ async def _run_unified_backtest(
     execution_mode: str = "single",  # "single", "parallel", "exclusive"
     to_date: str = None,
     optimize_mode: bool = False,  # True = skip chart/visualization data (optimization)
-    exchange_name: str = "Kiwoom"  # Exchange for market data source
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source
 ) -> Dict[str, Any]:
     """
     Unified backtest execution function.
@@ -338,7 +339,7 @@ def _run_backtest_wrapper(args):
     except Exception as e:
         return config, {"error": str(e)}
 
-def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None, exchange_name="Kiwoom"):
+def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None, exchange_name=DEFAULT_EXCHANGE):
     # Lower process priority so system/SSH processes remain responsive
     try:
         os.nice(10)
@@ -728,11 +729,11 @@ async def debug_probe():
 class IntegratedBacktestRequest(BaseModel):
     symbol: str = "TEST"
     interval: str = "1m"
-    days: int = 365
+    days: int = DEFAULT_DAYS
     from_date: Optional[str] = None
-    initial_capital: int = 10000000
+    initial_capital: int = DEFAULT_INITIAL_CAPITAL
     configs: List[Dict[str, Any]] = [] # Ordered list of configs
-    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/integrated/v2-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
@@ -906,13 +907,13 @@ async def generate_strategy_code(prompt: Dict[str, str]):
 class BacktestRequest(BaseModel):
     symbol: str = "TEST"
     interval: str = "1m"
-    days: int = 365
+    days: int = DEFAULT_DAYS
     from_date: Optional[str] = None # Or start_date
     start_date: Optional[str] = None # Aliases
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
-    initial_capital: int = 10000000
+    initial_capital: int = DEFAULT_INITIAL_CAPITAL
     config: Dict[str, Any] = {} # Nested config from frontend strategy selector
-    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/{strategy_id}/backtest")
 async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
@@ -1879,7 +1880,7 @@ class IntegratedBacktestRequest(BaseModel):
     to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
     initial_capital: float
     execution_mode: str = "exclusive"  # 'exclusive' (waterfall) or 'parallel' (equal split)
-    exchange_name: str = "Kiwoom"  # Exchange for market data source (Kiwoom, Binance, etc.)
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 @router.post("/integrated-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):

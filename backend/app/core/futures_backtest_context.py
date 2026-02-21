@@ -5,6 +5,7 @@ Supports short positions, close_position, and simulated futures data (funding ra
 
 from typing import Dict, Any, List, Callable
 from .backtest_engine import BacktestContext
+from .config import DEFAULT_INITIAL_CAPITAL
 
 
 class FuturesBacktestContext(BacktestContext):
@@ -16,7 +17,7 @@ class FuturesBacktestContext(BacktestContext):
     Funding rate can be set externally for simulation.
     """
 
-    def __init__(self, data_feed: List[Dict], initial_capital: float = 10000000,
+    def __init__(self, data_feed: List[Dict], initial_capital: float = DEFAULT_INITIAL_CAPITAL,
                  leverage: int = 1, simulated_funding_rate: float = 0.0001):
         super().__init__(data_feed, initial_capital)
 

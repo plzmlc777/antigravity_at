@@ -11,7 +11,7 @@ import {
 import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
          getStrategyParamNames as extractParamNames } from '../utils/strategyParamUtils';
 import { exportOptResultsToCSV as exportOptCSV } from '../utils/strategyExportImport';
-import { getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
+import { DEFAULT_EXCHANGE, getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
 import { DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getCrossOptUUID } from '../constants/strategies';
 import { normalizeStats } from '../config/statsConfig';
 
@@ -29,7 +29,7 @@ export const useOptimization = ({
     symbolCompareConfig, setSymbolCompareConfig,
     setIsDirty, setIsSymbolCompareDirty,
     selectedCompareSymbols, selectedProfileId, currentSymbol,
-    exchangeName = 'Kiwoom',
+    exchangeName = DEFAULT_EXCHANGE,
 }) => {
     // ========================================
     // Optimization State
@@ -82,7 +82,7 @@ export const useOptimization = ({
     // ========================================
     // Dynamic helpers (bound to current strategy)
     // ========================================
-    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
+    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG, exchangeName);
     const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES, getOptRangeDefaults(exchangeName));
     const getStrategyParamNames = () => extractParamNames(selectedStrategy?.parameter_schema);
 

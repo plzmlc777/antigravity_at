@@ -68,6 +68,8 @@ export const PARAM_DEFINITIONS = [
     }
 ];
 
+import { DEFAULT_INITIAL_CAPITAL } from './exchanges';
+
 // ==========================================
 // Default Config Generation
 // ==========================================
@@ -79,7 +81,7 @@ export const generateDefaultConfig = () => {
     const defaultToDate = yesterday.toISOString().split('T')[0];
 
     const config = {
-        initial_capital: 10000000,
+        initial_capital: DEFAULT_INITIAL_CAPITAL,
         from_date: defaultFromDate,
         to_date: defaultToDate,
         interval: "1m",

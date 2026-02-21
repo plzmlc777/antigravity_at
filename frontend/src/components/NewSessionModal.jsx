@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, Plus, Building2, FolderOpen, Info, Target, Layers } from 'lucide-react';
 import { getAccounts, startLiveBot } from '../api/client';
+import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL } from '../constants/exchanges';
 
 /**
  * NewSessionModal - Phase 5: Add New Live Session from Profile (Simplified)
@@ -115,7 +116,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
 
             // Create sessions for all active ranks in the profile (in STOPPED state)
             const startedSessions = [];
-            const totalCapital = selectedProfile.initial_capital || 10000000;
+            const totalCapital = selectedProfile.initial_capital || DEFAULT_INITIAL_CAPITAL;
             const executionMode = selectedProfile.execution_mode || 'parallel';
             const capitalPerRank = executionMode === 'parallel'
                 ? Math.floor(totalCapital / rankConfigs.length)
@@ -273,7 +274,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                             <option value="">계좌를 선택하세요</option>
                             {filteredAccounts.map(acc => {
                                 const envLabel = acc.environment === 'real' ? '실거래' : acc.environment === 'virtual' ? '모의' : '페이퍼';
-                                const exchangeLabel = acc.exchange_name && acc.exchange_name !== 'Kiwoom' ? ` [${acc.exchange_name}]` : '';
+                                const exchangeLabel = acc.exchange_name && acc.exchange_name !== DEFAULT_EXCHANGE ? ` [${acc.exchange_name}]` : '';
                                 return (
                                     <option key={acc.id} value={acc.id}>
                                         {acc.account_name} ({envLabel}){exchangeLabel}

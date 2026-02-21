@@ -3,6 +3,7 @@ import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
+import { DEFAULT_INITIAL_CAPITAL } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -21,7 +22,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [error, setError] = useState(null);
     const [availableBalance, setAvailableBalance] = useState(null);
     // Initialize from strategyConfig, fallback to 10M default
-    const [inputCapital, setInputCapital] = useState(strategyConfig?.initial_capital || 10000000);
+    const [inputCapital, setInputCapital] = useState(strategyConfig?.initial_capital || DEFAULT_INITIAL_CAPITAL);
 
     const [tickData, setTickData] = useState([]); // Running list of recent ticks for UI (optional)
     const [isStopModalOpen, setIsStopModalOpen] = useState(false);

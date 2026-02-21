@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..core.live_manager import live_manager
 from ..db.session import get_db
 from ..core.user_context import UserAccountContext, get_user_context
+from ..core.config import DEFAULT_INITIAL_CAPITAL
 
 router = APIRouter()
 
@@ -12,7 +13,7 @@ class LiveBotStartRequest(BaseModel):
     symbol: str
     strategy_name: str = "time_momentum"
     strategy_config: Dict[str, Any] = {}
-    initial_capital: float = 10000000
+    initial_capital: float = DEFAULT_INITIAL_CAPITAL
     is_paper: bool = True
     account_id: Optional[int] = None  # Phase 5: Explicit account selection
     group_id: Optional[str] = None    # Phase 5: Session grouping for multi-rank parallel/exclusive
@@ -2002,7 +2003,7 @@ class StrategyProfileCreate(PydanticBaseModel):
     rank_configs: List[Dict[str, Any]]  # Array of rank configurations
     execution_mode: str = "parallel"
     rank_weights: Optional[Dict[str, float]] = None
-    initial_capital: float = 10000000
+    initial_capital: float = DEFAULT_INITIAL_CAPITAL
     is_paper: bool = True
     symbol_compare_settings: Optional[Dict[str, Any]] = None  # Symbol Compare 설정
     saved_symbols: Optional[List[Dict[str, Any]]] = None  # Target Asset 목록

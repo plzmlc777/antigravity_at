@@ -33,6 +33,7 @@ Usage:
             token = await ctx.ensure_token()
 """
 
+from .config import DEFAULT_EXCHANGE
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 from fastapi import Depends, HTTPException, status
@@ -239,7 +240,7 @@ class UserAccountContext:
         cached_config = cache.get_active_account_config(self.user_id)
 
         if cached_config:
-            exchange_name = cached_config.get('exchange_name', 'Kiwoom')
+            exchange_name = cached_config.get('exchange_name', DEFAULT_EXCHANGE)
             env = env_from_string(cached_config.get('environment', 'real'))
             api_url = get_api_url_for_exchange(exchange_name, env)
             is_virtual = env == TradingEnvironment.VIRTUAL
@@ -258,7 +259,7 @@ class UserAccountContext:
         creds = self.get_credentials()
 
         if creds and self.account:
-            exchange_name = self.account.exchange_name or "Kiwoom"
+            exchange_name = self.account.exchange_name or DEFAULT_EXCHANGE
             # Cache the config for future use
             config = {
                 'exchange_name': exchange_name,

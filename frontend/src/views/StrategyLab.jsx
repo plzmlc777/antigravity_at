@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { api, getStrategyRequests, deleteStrategyRequest, activateStrategy, updateStrategyVisibility, updateStrategyRequest } from '../api/client';
 import DynamicParameterForm from '../components/DynamicParameterForm';
+import { DEFAULT_INITIAL_CAPITAL } from '../constants/exchanges';
 import VisualBacktestChart from '../components/VisualBacktestChart';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
@@ -255,7 +256,7 @@ const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
                 symbol: config.symbol,
                 interval: config.interval,
                 days: config.days,
-                initial_capital: 10000000,
+                initial_capital: DEFAULT_INITIAL_CAPITAL,
                 config: params
             });
             setResult(res.data);

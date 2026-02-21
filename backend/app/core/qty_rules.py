@@ -5,6 +5,7 @@ Centralized Quantity Rules - Single Source of Truth
 백테스트와 실거래 모두 동일한 보정 로직 적용.
 """
 
+from .config import DEFAULT_EXCHANGE
 import math
 import logging
 
@@ -33,7 +34,7 @@ EXCHANGE_QTY_RULES = {
     },
 }
 
-_DEFAULT_RULES = EXCHANGE_QTY_RULES["Kiwoom"]
+_DEFAULT_RULES = EXCHANGE_QTY_RULES[DEFAULT_EXCHANGE]
 
 
 def _count_decimals(value: float) -> int:
@@ -49,7 +50,7 @@ def _count_decimals(value: float) -> int:
 
 def adjust_qty(
     quantity: float,
-    exchange_name: str = "Kiwoom",
+    exchange_name: str = DEFAULT_EXCHANGE,
     price: float = 0,
     symbol_filters: dict = None,
 ) -> float:

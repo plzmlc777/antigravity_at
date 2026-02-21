@@ -1,3 +1,5 @@
+import { DEFAULT_INITIAL_CAPITAL } from './exchanges';
+
 /**
  * Live Trading Constants
  *
@@ -85,7 +87,7 @@ export const EXECUTION_MODE = {
 // Default Values
 // ==========================================
 export const DEFAULTS = {
-    INITIAL_CAPITAL: 10000000,
+    INITIAL_CAPITAL: DEFAULT_INITIAL_CAPITAL,
     IS_PAPER_MODE: true,
     AUTO_START: false,
     EXECUTION_MODE: EXECUTION_MODE.EXCLUSIVE,

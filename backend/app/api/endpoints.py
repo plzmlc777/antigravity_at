@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from ..adapters.factory import create_adapter
 from ..core.exchange_interface import ExchangeInterface
-from ..core.config import settings
+from ..core.config import settings, DEFAULT_EXCHANGE, DEFAULT_DAYS
 from ..core.trading_env import TradingEnvironment, get_api_url_for_exchange, env_from_string
 from ..db.session import get_db
 from sqlalchemy.orm import Session
@@ -28,7 +28,7 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
     cached_config = cache.get_active_account_config(user_id)
 
     if cached_config:
-        exchange_name = cached_config.get('exchange_name', 'Kiwoom')
+        exchange_name = cached_config.get('exchange_name', DEFAULT_EXCHANGE)
         env = env_from_string(cached_config.get('environment', 'real'))
         api_url = get_api_url_for_exchange(exchange_name, env)
         is_virtual = env == TradingEnvironment.VIRTUAL
@@ -54,7 +54,7 @@ def get_exchange_adapter_for_user(db: Session, user_id: int) -> ExchangeInterfac
             decrypted_app = security.decrypt_key(default_account.encrypted_access_key)
             decrypted_secret = security.decrypt_key(default_account.encrypted_secret_key)
 
-            exchange_name = default_account.exchange_name or "Kiwoom"
+            exchange_name = default_account.exchange_name or DEFAULT_EXCHANGE
             config = {
                 'exchange_name': exchange_name,
                 'app_key': decrypted_app,
@@ -270,7 +270,7 @@ def create_adapter_from_account(account: "ExchangeAccount") -> ExchangeInterface
 
     app_key = security.decrypt_key(account.encrypted_access_key)
     secret_key = security.decrypt_key(account.encrypted_secret_key)
-    exchange_name = account.exchange_name or "Kiwoom"
+    exchange_name = account.exchange_name or DEFAULT_EXCHANGE
     env = env_from_string(account.environment or "real")
     api_url = get_api_url_for_exchange(exchange_name, env)
 
@@ -609,10 +609,10 @@ async def cancel_condition(
 async def get_ohlcv(
     symbol: str,
     interval: str = "1m",
-    days: int = 365,
+    days: int = DEFAULT_DAYS,
     limit: int = 100000,
     date: str = None, # Optional: YYYYMMDD
-    exchange_name: str = "Kiwoom"  # Exchange for market data source
+    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source
 ):
     """
     Get OHLCV Data.
@@ -689,7 +689,7 @@ async def get_trade_history_integrated(
     # Check "from_date" in Rank 1 config to determine range, or default to 1-2 year?
     # Backtest engine usually fetches based on config['from_date'] or duration.
     # We'll fetch a reasonable default info (e.g., 365 days) or parse from config.
-    fetch_days = 365
+    fetch_days = DEFAULT_DAYS
     from_date = None
     
     if strategies_config and len(strategies_config) > 0:
@@ -822,7 +822,7 @@ class TradeHistoryContextRequest(BaseModel):
     configs: List[IntegratedConfigItem]
     symbol: str
     interval: str = "30m"
-    days: int = 365
+    days: int = DEFAULT_DAYS
     from_date: Optional[str] = None
     limit: int = 1000
     is_paper: Optional[bool] = None  # None=all, True=paper only, False=real only

@@ -26,7 +26,7 @@ import { useOptimization } from '../hooks/useOptimization';
 import { useScoreWeights } from '../hooks/useScoreWeights';
 
 import { isValidScope } from '../types/ConfigScope';
-import { getMaxDays, getMaxDaysLabel, getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
+import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getMaxDays, getMaxDaysLabel, getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
 import NewProfileModal from '../components/NewProfileModal';
 import ConfirmModal from '../components/ConfirmModal'; // Custom Modal
 import AlertModal from '../components/AlertModal';
@@ -159,6 +159,8 @@ const StrategyView = () => {
 
     // Active account info - 기본값 (profileMeta 로드 후 아래에서 재계산)
     const defaultAccount = accounts.find(a => a.id === effectiveAccountId) || accounts.find(a => !a.is_disabled);
+    // Preliminary exchange name (profileMeta 로드 전, effectiveAccountId 기반)
+    const preliminaryExchangeName = defaultAccount?.exchange_name || DEFAULT_EXCHANGE;
 
     // Symbol State - currentSymbol은 글로벌, savedSymbols는 프로필 레벨
     const { currentSymbol, setCurrentSymbol } = useWatchlist();
@@ -245,7 +247,8 @@ const StrategyView = () => {
         defaultConfig: DEFAULT_CONFIG,
         generateUUID,
         onLog: addLog,
-        accountId: effectiveAccountId // 실계좌 우선 자동 선택된 계좌 ID
+        accountId: effectiveAccountId, // 실계좌 우선 자동 선택된 계좌 ID
+        exchangeName: preliminaryExchangeName, // 거래소별 기본값 적용 (profileMeta 로드 후 activeExchangeName으로 갱신)
     });
 
     // Profile-level symbols alias (하위 컴포넌트/훅 변경 불필요)
@@ -264,7 +267,7 @@ const StrategyView = () => {
     // Active account info (profileMeta.account_id 우선, effectiveAccountId 폴백)
     const activeAccount = accounts.find(a => a.id === (profileMeta.account_id || effectiveAccountId)) || defaultAccount;
     const activeAccountName = activeAccount?.account_name || null;
-    const activeExchangeName = activeAccount?.exchange_name || 'Kiwoom';
+    const activeExchangeName = activeAccount?.exchange_name || DEFAULT_EXCHANGE;
     const isCryptoExchange = activeExchangeName?.startsWith('Binance');
 
     // Profile Lock Detection (extracted to useProfileLock hook)
@@ -375,7 +378,7 @@ const StrategyView = () => {
     // ==========================================
     // Dynamic Config Helpers
     // ==========================================
-    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG);
+    const getDynamicDefaultConfig = () => buildDynamicDefaultConfig(selectedStrategy, currentSymbol, DEFAULT_CONFIG, activeExchangeName);
     const getDynamicOptValues = () => buildDynamicOptValues(selectedStrategy, DEFAULT_OPT_VALUES, getOptRangeDefaults(activeExchangeName));
 
     const getSymbolCompareConfig = () => {
@@ -1421,7 +1424,7 @@ const StrategyView = () => {
 
                         // 2. Determine default symbols based on account's exchange
                         const account = accounts.find(a => a.id === data.accountId);
-                        const exchangeName = account?.exchange_name || 'Kiwoom';
+                        const exchangeName = account?.exchange_name || DEFAULT_EXCHANGE;
                         const defaultSymbols = exchangeName.startsWith('Binance')
                             ? [{ code: 'BTCUSDT', name: 'Bitcoin' }, { code: 'ETHUSDT', name: 'Ethereum' }]
                             : [{ code: '005930', name: '삼성전자' }, { code: '000660', name: 'SK하이닉스' }];
@@ -1726,7 +1729,7 @@ const StrategyView = () => {
 
                                                     // Calculate display capital for parallel mode
                                                     const activeConfigCount = configList.filter(c => c.is_active).length;
-                                                    const rank1Capital = displayConfig?.initial_capital || 10000000;
+                                                    const rank1Capital = displayConfig?.initial_capital || DEFAULT_INITIAL_CAPITAL;
                                                     const displayCapital = (isIntegrated && profileMeta.execution_mode === 'parallel')
                                                         ? rank1Capital * activeConfigCount
                                                         : rank1Capital;
@@ -1893,7 +1896,7 @@ const StrategyView = () => {
                                                                 }
 
                                                                 // Calculate total capital based on execution mode
-                                                                const rank1Capital = leaderConfig?.initial_capital || 10000000;
+                                                                const rank1Capital = leaderConfig?.initial_capital || DEFAULT_INITIAL_CAPITAL;
                                                                 const totalCapital = profileMeta.execution_mode === 'parallel'
                                                                     ? rank1Capital * activeConfigs.length  // Parallel: Rank1 capital × number of active ranks
                                                                     : rank1Capital;                         // Exclusive: Just Rank1 capital
@@ -2386,7 +2389,7 @@ const StrategyView = () => {
                                                     <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
                                                     <input
                                                         type="text"
-                                                        value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                        value={(currentConfig?.initial_capital || DEFAULT_INITIAL_CAPITAL).toLocaleString()}
                                                         onChange={(e) => {
                                                             const val = parseInt(e.target.value.replace(/,/g, ''), 10);
                                                             if (!isNaN(val)) handleConfigChange('initial_capital', val);
@@ -2644,7 +2647,7 @@ const StrategyView = () => {
                                                 <label className="text-[10px] text-gray-500 absolute -top-1.5 left-2 bg-[#1e2029] px-1">Initial Capital</label>
                                                 <input
                                                     type="text"
-                                                    value={(currentConfig?.initial_capital || 10000000).toLocaleString()}
+                                                    value={(currentConfig?.initial_capital || DEFAULT_INITIAL_CAPITAL).toLocaleString()}
                                                     onChange={(e) => {
                                                         const val = parseInt(e.target.value.replace(/,/g, ''), 10);
                                                         if (!isNaN(val)) handleConfigChange('initial_capital', val);

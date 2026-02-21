@@ -3,9 +3,10 @@ from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from .data_schemas import make_equity_point, EQUITY_VALUE_KEY
+from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 
 class BacktestContext(IContext):
-    def __init__(self, data_feed: List[Dict], initial_capital: int = 10000000):
+    def __init__(self, data_feed: List[Dict], initial_capital: int = DEFAULT_INITIAL_CAPITAL):
         self.data_feed = data_feed
         self.current_index = 0
         self.cash = initial_capital
@@ -139,7 +140,7 @@ class BacktestEngine:
         self.strategy_class = strategy_class
         self.config = config or {}
 
-    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, exchange_name: str = "Kiwoom"):
+    async def run(self, symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = DEFAULT_INITIAL_CAPITAL, exchange_name: str = DEFAULT_EXCHANGE):
         # 1. Fetch Data (Async)
         from ..services.market_data_factory import get_market_data_service
         data_service = get_market_data_service(exchange_name)
@@ -540,7 +541,7 @@ class BacktestEngine:
             dd = (peak - val) / peak
             if dd > max_dd: max_dd = dd
         return f"-{max_dd * 100:.2f}%"
-    async def run_integrated_simulation(self, strategies_config: List[Dict], symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = 10000000, exchange_name: str = "Kiwoom"):
+    async def run_integrated_simulation(self, strategies_config: List[Dict], symbol: str = "TEST", duration_days: int = 1, from_date: str = None, interval: str = "1m", initial_capital: int = DEFAULT_INITIAL_CAPITAL, exchange_name: str = DEFAULT_EXCHANGE):
         # 1. Fetch Data (Multi-Symbol Support)
         from ..services.market_data_factory import get_market_data_service
         data_service = get_market_data_service(exchange_name)

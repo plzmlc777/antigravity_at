@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { runBacktest as apiRunBacktest, fetchMarketDataForSymbol } from '../api/strategies';
 import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
-import { getDefaultCapital, getDefaultDays } from '../constants/exchanges';
+import { DEFAULT_EXCHANGE, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
 /**
  * useSymbolComparison - Multi-symbol backtest comparison.
@@ -10,7 +10,7 @@ export const useSymbolComparison = ({
     symbolCompareConfig, configList, selectedStrategy,
     savedSymbols, setIsSymbolCompareDirty, addLog,
     saveProfile = null, selectedProfileId = null,
-    exchangeName = 'Kiwoom'
+    exchangeName = DEFAULT_EXCHANGE
 }) => {
     const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
     const [stockCompareResults, setStockCompareResults] = useState([]);
@@ -45,7 +45,7 @@ export const useSymbolComparison = ({
                 const symbol = selectedCompareSymbols[i];
                 setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
                 try {
-                    const fetchRes = await fetchMarketDataForSymbol(symbol, { interval: "1m", days: getDefaultDays(exchangeName) });
+                    const fetchRes = await fetchMarketDataForSymbol(symbol, { interval: "1m", days: getDefaultDays(exchangeName), exchange_name: exchangeName });
                     const added = fetchRes?.added || 0;
                     totalDataAdded += added;
                     if (added > 0) {

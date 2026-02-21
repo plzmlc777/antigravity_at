@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from ..core.token_manager import KiwoomTokenManager
 from ..core.http_client import HttpClientManager
 import logging
+from ..core.config import DEFAULT_DAYS as CONFIG_DEFAULT_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,8 @@ class MarketDataService:
         self.http_manager = HttpClientManager.get_instance()
 
     # Constants for data retention
-    MAX_DAYS = 365       # 1 year maximum (API limit)
-    DEFAULT_DAYS = 365   # 1 year default
+    MAX_DAYS = CONFIG_DEFAULT_DAYS       # 1 year maximum (API limit)
+    DEFAULT_DAYS = CONFIG_DEFAULT_DAYS   # 1 year default
     FETCH_LIMIT = 200000 # ~390 min/day × 260 trading days ≈ 101,400 (with buffer)
 
     async def get_candles(self, symbol: str, interval: str = "1m", days: int = 730, limit: int = 100000, to_date: str = None) -> List[Dict]:

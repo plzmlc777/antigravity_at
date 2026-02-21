@@ -1,4 +1,5 @@
 
+from .config import DEFAULT_EXCHANGE
 import asyncio
 import logging
 import traceback
@@ -104,7 +105,7 @@ class LiveTradingEngine:
                 account = db.query(ExchangeAccount).filter_by(id=session.account_id).first()
                 if account:
                     user_id = account.user_id
-                    self.strategy_config['exchange_name'] = account.exchange_name or 'Kiwoom'
+                    self.strategy_config['exchange_name'] = account.exchange_name or DEFAULT_EXCHANGE
 
             # 2. Context
             self.context = LiveContext(

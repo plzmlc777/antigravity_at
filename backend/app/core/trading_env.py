@@ -6,6 +6,7 @@ Trading Environment Configuration
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
+from .config import DEFAULT_EXCHANGE
 
 
 class TradingEnvironment(str, Enum):
@@ -115,5 +116,5 @@ EXCHANGE_URLS: dict[str, dict[str, Optional[str]]] = {
 
 def get_api_url_for_exchange(exchange_name: str, env: TradingEnvironment) -> Optional[str]:
     """Get API URL for a given exchange and environment."""
-    urls = EXCHANGE_URLS.get(exchange_name, EXCHANGE_URLS.get("Kiwoom", {}))
+    urls = EXCHANGE_URLS.get(exchange_name, EXCHANGE_URLS.get(DEFAULT_EXCHANGE, {}))
     return urls.get(env.value)

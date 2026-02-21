@@ -14,6 +14,7 @@ import httpx
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from .config import DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +291,7 @@ class LiveAIEvaluationService:
             logger.info(f"Loaded {len(raw_feed)} candles for backtest")
 
             # Build config for backtest
-            initial_capital = strategy_config.get("initial_capital", 10000000)
+            initial_capital = strategy_config.get("initial_capital", DEFAULT_INITIAL_CAPITAL)
 
             # Handle both formats: {params: {...}} or direct params at top level
             params = strategy_config.get("params", {})

@@ -4,6 +4,7 @@ from datetime import datetime
 import enum
 from ..db.base import Base
 import uuid
+from ..core.config import DEFAULT_INITIAL_CAPITAL
 
 # Enums
 class SessionStatus(str, enum.Enum):
@@ -238,7 +239,7 @@ class StrategyProfile(Base):
     rank_weights = Column(JSON, nullable=True)           # Optional: {"A": 1.0, "B": 0.8, ...}
 
     # Investment Settings
-    initial_capital = Column(Float, default=10000000)
+    initial_capital = Column(Float, default=DEFAULT_INITIAL_CAPITAL)
     is_paper = Column(Boolean, default=True)
 
     # Symbol Compare Settings (종목 비교 설정 - 프로필별 저장)
