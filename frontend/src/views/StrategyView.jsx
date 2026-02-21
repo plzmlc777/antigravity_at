@@ -451,7 +451,7 @@ const StrategyView = () => {
 
     const {
         dataStatus, isFetchingData, fetchMessage, setFetchMessage,
-        checkDataStatus, handleFetchData, handleUpdateAllData
+        isDataUpdated, checkDataStatus, handleFetchData, handleUpdateAllData
     } = useDataFetching({
         currentConfig, currentSymbol, configList, setConfigList,
         activeTab, isConfigLoaded, addLog, exchangeName: activeExchangeName
@@ -2637,6 +2637,11 @@ const StrategyView = () => {
                                                         Full
                                                     </button>
                                                     */}
+                                                    {!isDataUpdated && (
+                                                        <span className="text-amber-400/80 text-[10px] whitespace-nowrap animate-pulse">
+                                                            Update first to run backtest/optimization
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -2710,7 +2715,8 @@ const StrategyView = () => {
                                             </button>
                                             <button
                                                 onClick={() => runBacktest(selectedStrategy?.id)}
-                                                disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1}
+                                                disabled={isLoading || !selectedStrategy || !dataStatus.count || activeTab === -1 || !isDataUpdated}
+                                                title={!isDataUpdated ? 'Update 버튼을 먼저 클릭하여 데이터를 최신화하세요' : ''}
                                                 className={`bg-blue-600 hover:bg-blue-500 text-white px-4 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700 ${activeTab === -1 ? 'opacity-80 cursor-not-allowed' : ''}`}
                                             >
                                                 {isLoading ? (
@@ -3017,7 +3023,8 @@ const StrategyView = () => {
                                                     {(activeTab >= 0 || activeTab === -3) && (
                                                         <button
                                                             onClick={startHeavyOptimization}
-                                                            disabled={isHeavyOptRunning || (activeTab === -3 && selectedCompareSymbols.length === 0)}
+                                                            disabled={isHeavyOptRunning || !isDataUpdated || (activeTab === -3 && selectedCompareSymbols.length === 0)}
+                                                            title={!isDataUpdated ? 'Update 버튼을 먼저 클릭하여 데이터를 최신화하세요' : ''}
                                                             className={`flex-1 bg-gradient-to-r from-purple-900 to-blue-900 hover:from-purple-800 hover:to-blue-800 py-3 rounded-lg font-bold text-white shadow-lg shadow-purple-900/40 transition-all flex justify-center items-center gap-2 ${isHeavyOptRunning ? 'cursor-not-allowed opacity-80' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
                                                         >
                                                             {isHeavyOptRunning ? (

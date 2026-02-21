@@ -89,6 +89,14 @@ export const EXCHANGE_QTY_CONFIG = {
     }
 };
 
+// 거래소별 기축통화 (잔고 키, UI 라벨용)
+export const EXCHANGE_QUOTE_CURRENCY = {
+    Kiwoom: 'KRW',
+    KIS: 'KRW',
+    Binance: 'USDT',
+    BinanceFutures: 'USDT',
+};
+
 // ── Fallback 기본값 (Kiwoom/미등록 거래소) ──
 const DEFAULT_MAX_DAYS = 365;
 export const DEFAULT_INITIAL_CAPITAL = 10000000;
@@ -124,6 +132,11 @@ export const getOptRangeDefaults = (exchangeName) => {
 /** 거래소별 수량 규칙 조회 */
 export const getQtyConfig = (exchangeName) => {
     return EXCHANGE_QTY_CONFIG[exchangeName] || EXCHANGE_QTY_CONFIG[DEFAULT_EXCHANGE];
+};
+
+/** 거래소별 기축통화 조회 */
+export const getQuoteCurrency = (exchangeName) => {
+    return EXCHANGE_QUOTE_CURRENCY[exchangeName] || 'KRW';
 };
 
 /** MAX_DAYS를 사람이 읽을 수 있는 문자열로 변환 */

@@ -12,6 +12,7 @@ export const useDataFetching = ({
     const [dataStatus, setDataStatus] = useState({ is_fresh: false, count: 0, start_date: null });
     const [isFetchingData, setIsFetchingData] = useState(false);
     const [fetchMessage, setFetchMessage] = useState(null);
+    const [isDataUpdated, setIsDataUpdated] = useState(false); // Gate: Update 클릭 완료 후에만 backtest/optimization 허용
     const pollRef = useRef(null);
 
     const stopPolling = useCallback(() => {
@@ -64,6 +65,7 @@ export const useDataFetching = ({
             checkDataStatus(symbolToCheck);
         }
         setFetchMessage(null);
+        setIsDataUpdated(false); // 심볼/탭 변경 시 리셋 → Update 다시 필요
     }, [currentConfig?.symbol, currentSymbol, isConfigLoaded, activeTab]);
 
     // Cleanup polling on unmount
@@ -109,6 +111,7 @@ export const useDataFetching = ({
                             const totalAdded = status.count - countBefore;
                             setFetchMessage(totalAdded > 0 ? `Updated (+${totalAdded.toLocaleString()})` : `Up to date (+0)`);
                             setIsFetchingData(false);
+                            setIsDataUpdated(true);
                         }
                     } catch { /* ignore polling errors */ }
                 }, 3000);
@@ -119,6 +122,7 @@ export const useDataFetching = ({
                 await checkDataStatus(symbolToFetch);
                 setFetchMessage(resultMsg);
                 setIsFetchingData(false);
+                setIsDataUpdated(true);
             }
         } catch (e) {
             setFetchMessage("Failed");
@@ -164,6 +168,6 @@ export const useDataFetching = ({
 
     return {
         dataStatus, isFetchingData, fetchMessage, setFetchMessage,
-        checkDataStatus, handleFetchData, handleUpdateAllData
+        isDataUpdated, checkDataStatus, handleFetchData, handleUpdateAllData
     };
 };

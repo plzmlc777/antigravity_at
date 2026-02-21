@@ -3,7 +3,7 @@ import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
-import { DEFAULT_INITIAL_CAPITAL } from '../constants/exchanges';
+import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
 import AlertModal from './AlertModal';
 import VisualBacktestChart from './VisualBacktestChart';
@@ -84,7 +84,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     });
 
     // Multi-Account State (Phase 5) - Use centralized accounts from context
-    const { accounts, getActiveAccount } = useLiveTrading();
+    const { accounts, getActiveAccount, getAccountById } = useLiveTrading();
     const [selectedAccountId, setSelectedAccountId] = useState(null); // Selected account for session
     const [isPaperMode, setIsPaperMode] = useState(DEFAULTS.IS_PAPER_MODE); // Paper mode by default for safety
     const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
@@ -93,6 +93,23 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [originalSessionSettings, setOriginalSessionSettings] = useState(null); // { capital, isPaper, accountId }
     const [isApplying, setIsApplying] = useState(false);
     const [applyStatus, setApplyStatus] = useState(null); // 'success' | 'error' | null
+
+    // Session Exchange Name → Quote Currency → Currency Formatter
+    const sessionAccountId = activeSessionGroup?.sessions?.[0]?.account_id;
+    const sessionExchangeName = useMemo(() => {
+        if (!sessionAccountId) return DEFAULT_EXCHANGE;
+        const account = getAccountById(sessionAccountId);
+        return account?.exchange_name || DEFAULT_EXCHANGE;
+    }, [sessionAccountId, getAccountById]);
+
+    const quoteCurrency = useMemo(() => getQuoteCurrency(sessionExchangeName), [sessionExchangeName]);
+
+    const formatCurrency = useMemo(() => {
+        if (quoteCurrency === 'KRW') {
+            return (val) => new Intl.NumberFormat('ko-KR').format(val);
+        }
+        return (val) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+    }, [quoteCurrency]);
 
     // Session Account Balance State (for displaying connected account's balance)
     const [sessionBalance, setSessionBalance] = useState(null); // { cash, holdings, totalAssets, totalInvested }
@@ -233,7 +250,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 const balanceData = await getBalanceForAccount(accountId);
 
                 // Calculate totals
-                const cash = balanceData?.cash?.KRW || 0;
+                const cash = balanceData?.cash?.[quoteCurrency] || 0;
                 const holdings = balanceData?.holdings || {};
 
                 let totalInvested = 0;
@@ -276,7 +293,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         setIsBalanceLoading(true);
         try {
             const balanceData = await getBalanceForAccount(accountId);
-            const cash = balanceData?.cash?.KRW || 0;
+            const cash = balanceData?.cash?.[quoteCurrency] || 0;
             const holdings = balanceData?.holdings || {};
 
             let totalInvested = 0;
@@ -632,7 +649,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             const symbol = cycle.symbol;
 
             // Step 1: Trigger incremental 1m data fetch → save to DB
-            await fetchMarketData(symbol, { interval: '1m', days: 365, backfill: false });
+            await fetchMarketData(symbol, { interval: '1m', days: getDefaultDays(sessionExchangeName), backfill: false, exchange_name: sessionExchangeName });
 
             // Step 2: Determine date range for chart (entry - 1 day buffer to exit + 1 day buffer)
             const entryDate = new Date(cycle.entry_time);
@@ -831,7 +848,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 try {
                     const bal = await getBalance();
                     if (bal && bal.cash) {
-                        setAvailableBalance(bal.cash.KRW);
+                        setAvailableBalance(bal.cash?.[quoteCurrency] || 0);
                     }
                 } catch (e) {
                     console.error("Failed to fetch balance", e);
@@ -1526,7 +1543,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         {/* Capital Input */}
                         <div className="flex-1 w-full">
                             <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                Trading Capital (KRW)
+                                {`Trading Capital (${quoteCurrency})`}
                             </label>
                             <div className="relative group">
                                 <input
@@ -1682,7 +1699,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 <div>
                                     <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Total Assets</div>
                                     <div className="text-lg font-bold text-white">
-                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.totalAssets)}
+                                        {formatCurrency(sessionBalance.totalAssets)}
                                     </div>
                                 </div>
                             </div>
@@ -1694,7 +1711,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 <div>
                                     <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Invested</div>
                                     <div className="text-lg font-bold text-white">
-                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.totalInvested)}
+                                        {formatCurrency(sessionBalance.totalInvested)}
                                     </div>
                                 </div>
                             </div>
@@ -1704,9 +1721,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     <DollarSign size={20} />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">Cash (KRW)</div>
+                                    <div className="text-xs text-gray-400 font-medium uppercase tracking-wider">{`Cash (${quoteCurrency})`}</div>
                                     <div className="text-lg font-bold text-white">
-                                        {new Intl.NumberFormat('ko-KR').format(sessionBalance.cash)}
+                                        {formatCurrency(sessionBalance.cash)}
                                     </div>
                                 </div>
                             </div>
@@ -1973,7 +1990,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             {/* Capital Input - Only editable when NOT running */}
                             <div className="flex-1 w-full">
                                 <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                    Trading Capital (KRW)
+                                    {`Trading Capital (${quoteCurrency})`}
                                 </label>
                                 <div className="relative group">
                                     <input
@@ -1991,7 +2008,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white font-mono text-xl outline-none focus:border-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         placeholder="Enter amount..."
                                     />
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">KRW</div>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold pointer-events-none">{quoteCurrency}</div>
                                 </div>
                                 {availableBalance !== null && inputCapital > availableBalance && status === 'IDLE' && (
                                     <p className="text-yellow-500/80 text-[10px] mt-2 flex items-center gap-1 animate-pulse">
