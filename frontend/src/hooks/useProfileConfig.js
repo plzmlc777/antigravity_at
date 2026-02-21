@@ -472,7 +472,11 @@ export const useProfileConfig = ({
             if (draft) {
                 console.log('[useProfileConfig] Found draft for profile, applying...');
                 if (draft.configList) setConfigList(draft.configList);
-                if (draft.profileMeta) setProfileMeta(draft.profileMeta);
+                if (draft.profileMeta) {
+                    // account_id는 항상 DB 값 우선 (드래프트에 잘못된 값이 있을 수 있음)
+                    draft.profileMeta.account_id = meta.account_id;
+                    setProfileMeta(draft.profileMeta);
+                }
                 if (draft.symbolCompareSettings !== undefined) setSymbolCompareSettings(draft.symbolCompareSettings);
                 if (draft.profileSymbols !== undefined) setProfileSymbolsState(draft.profileSymbols);
                 // Original values stay as DB values → isDirty will be true
@@ -969,7 +973,8 @@ export const useProfileConfig = ({
                         execution_mode: profile.execution_mode || 'parallel',
                         initial_capital: profile.initial_capital || 10000000,
                         is_paper: profile.is_paper !== false,
-                        rank_weights: profile.rank_weights || null
+                        rank_weights: profile.rank_weights || null,
+                        account_id: profile.account_id || null
                     };
 
                     // Set Symbol Compare settings
@@ -1008,7 +1013,10 @@ export const useProfileConfig = ({
                     if (draft) {
                         log('Found draft for auto-loaded profile, applying...');
                         setConfigList(draft.configList || configs);
-                        setProfileMeta(draft.profileMeta || meta);
+                        // account_id는 항상 DB 값 우선 (드래프트에 잘못된 값이 있을 수 있음)
+                        const draftMeta = draft.profileMeta || meta;
+                        draftMeta.account_id = meta.account_id;
+                        setProfileMeta(draftMeta);
                         setSymbolCompareSettings(draft.symbolCompareSettings !== undefined ? draft.symbolCompareSettings : (compareSettings || null));
                         setProfileSymbolsState(draft.profileSymbols !== undefined ? draft.profileSymbols : profileSymbolsFromDB);
                     } else {

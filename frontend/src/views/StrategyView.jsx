@@ -253,12 +253,13 @@ const StrategyView = () => {
     const setSavedSymbols = setProfileSymbols;
 
     // Profile-Account 초기값 설정
-    // 프로필에 account_id가 없을 때만 effectiveAccountId로 초기화
+    // 프로필 로딩 완료 후, account_id가 없을 때만 effectiveAccountId로 초기화
+    // isConfigLoaded 게이트: 로딩 중 null 상태에서 Kiwoom으로 덮어쓰는 레이스 컨디션 방지
     useEffect(() => {
-        if (effectiveAccountId && !profileMeta.account_id) {
+        if (isConfigLoaded && effectiveAccountId && !profileMeta.account_id) {
             setProfileMeta(prev => ({ ...prev, account_id: effectiveAccountId }));
         }
-    }, [effectiveAccountId, profileMeta.account_id]);
+    }, [isConfigLoaded, effectiveAccountId, profileMeta.account_id]);
 
     // Active account info (profileMeta.account_id 우선, effectiveAccountId 폴백)
     const activeAccount = accounts.find(a => a.id === (profileMeta.account_id || effectiveAccountId)) || defaultAccount;

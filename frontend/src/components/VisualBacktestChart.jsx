@@ -562,7 +562,8 @@ const VisualBacktestChart = ({
                                         const d = allDataRef.current;
                                         const diff = d[1].time - d[0].time;
                                         const min = Math.floor(diff / 60);
-                                        return min >= 60 ? `${min / 60}h` : `${min}m`;
+                                        if (min >= 1440) return `${Math.round(min / 1440)}d`;
+                                        return min >= 60 ? `${Math.round(min / 60)}h` : `${min}m`;
                                     })()}
                                 </span>
                             )}

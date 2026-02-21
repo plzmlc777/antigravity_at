@@ -43,15 +43,20 @@ const DateDropdown = ({
     }, [value]);
 
     // Generate year options (from minDate year to maxDate year)
+    // 현재 선택된 연도가 범위 밖이어도 항상 포함 (새로고침 시 레이스 컨디션 방어)
     const yearOptions = useMemo(() => {
         const years = [];
-        const minYear = effectiveMinDate.getFullYear();
+        let minYear = effectiveMinDate.getFullYear();
         const maxYear = effectiveMaxDate.getFullYear();
+        // 현재 값의 연도가 minYear보다 이전이면 범위 확장
+        if (parsed.year && parseInt(parsed.year) < minYear) {
+            minYear = parseInt(parsed.year);
+        }
         for (let y = maxYear; y >= minYear; y--) {
             years.push(y.toString());
         }
         return years;
-    }, [effectiveMinDate, effectiveMaxDate]);
+    }, [effectiveMinDate, effectiveMaxDate, parsed.year]);
 
     // Generate month options (1-12)
     const monthOptions = useMemo(() => {
