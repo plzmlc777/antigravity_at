@@ -1830,7 +1830,7 @@ const StrategyView = () => {
                                                         {showChart ? '📉 Hide Analysis' : '📊 Visual Analysis'}
                                                     </button>
                                                     <button
-                                                        onClick={handleUpdateAllData}
+                                                        onClick={() => handleUpdateAllData()}
                                                         disabled={isFetchingData}
                                                         className={`px-6 py-4 rounded-xl font-bold transition-all shadow-lg flex items-center justify-center gap-2 text-white ${fetchMessage && (fetchMessage.includes("All Active") || fetchMessage.includes("Updating"))
                                                             ? "bg-green-600"
@@ -1941,7 +1941,8 @@ const StrategyView = () => {
                                                                 setIsLoading(false);
                                                             }
                                                         }}
-                                                        disabled={isLoading}
+                                                        disabled={isLoading || !isDataUpdated}
+                                                        title={!isDataUpdated ? 'Update All Data 버튼을 먼저 클릭하여 데이터를 최신화하세요' : ''}
                                                         className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
                                                     >
                                                         {isLoading ? (
@@ -1950,7 +1951,11 @@ const StrategyView = () => {
                                                             <><span className="text-2xl">🧪</span> Run Integrated Backtest</>
                                                         )}
                                                     </button>
-                                                    {/* Save Profile 버튼 제거 — 헤더 Save로 통합 */}
+                                                    {!isDataUpdated && (
+                                                        <span className="text-amber-400/80 text-[10px] whitespace-nowrap animate-pulse self-center">
+                                                            Update first
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-3">
                                                     {profileMeta.execution_mode === 'exclusive'
@@ -2423,20 +2428,40 @@ const StrategyView = () => {
                                                     />
                                                 </div>
 
-                                                <div className="flex items-center justify-end">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleUpdateAllData(selectedCompareSymbols)}
+                                                        disabled={isFetchingData || selectedCompareSymbols.length === 0}
+                                                        className={`px-4 py-2.5 rounded-lg font-bold text-white transition-all flex items-center gap-2 ${
+                                                            isFetchingData || selectedCompareSymbols.length === 0
+                                                                ? 'bg-gray-600 cursor-not-allowed'
+                                                                : 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/30'
+                                                        } disabled:opacity-50`}
+                                                    >
+                                                        {isFetchingData && fetchMessage
+                                                            ? fetchMessage
+                                                            : <>📥 Update All Data ({selectedCompareSymbols.length})</>
+                                                        }
+                                                    </button>
+                                                    {!isDataUpdated && selectedCompareSymbols.length > 0 && (
+                                                        <span className="text-amber-400/80 text-[10px] whitespace-nowrap animate-pulse">
+                                                            Update first
+                                                        </span>
+                                                    )}
                                                     <button
                                                         onClick={handleStockCompareBacktest}
-                                                        disabled={isStockComparing || selectedCompareSymbols.length === 0}
+                                                        disabled={isStockComparing || selectedCompareSymbols.length === 0 || !isDataUpdated}
+                                                        title={!isDataUpdated ? 'Update 버튼을 먼저 클릭하여 데이터를 최신화하세요' : ''}
                                                         className={`px-6 py-2.5 rounded-lg font-bold text-white transition-all flex items-center gap-2 ${
-                                                            isStockComparing || selectedCompareSymbols.length === 0
+                                                            isStockComparing || selectedCompareSymbols.length === 0 || !isDataUpdated
                                                                 ? 'bg-gray-600 cursor-not-allowed'
                                                                 : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg'
-                                                        }`}
+                                                        } disabled:opacity-50`}
                                                     >
                                                         {isStockComparing ? (
                                                             <>
                                                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                                {stockCompareProgress.phase === 'data' ? 'Updating' : 'Testing'} ({stockCompareProgress.current}/{stockCompareProgress.total})
+                                                                Testing ({stockCompareProgress.current}/{stockCompareProgress.total})
                                                             </>
                                                         ) : (
                                                             <>

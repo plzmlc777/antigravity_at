@@ -58,7 +58,7 @@ export const useDataFetching = ({
     // Auto-check data status on symbol/config change
     useEffect(() => {
         if (!isConfigLoaded) return;
-        if (activeTab < 0 && activeTab !== -3) return;
+        if (activeTab < 0 && activeTab !== -1 && activeTab !== -3) return;
 
         const symbolToCheck = currentConfig?.symbol || currentSymbol;
         if (symbolToCheck) {
@@ -131,32 +131,38 @@ export const useDataFetching = ({
         }
     }, [currentConfig, currentSymbol, checkDataStatus, exchangeName, dataStatus.count, stopPolling]);
 
-    const handleUpdateAllData = useCallback(async () => {
-        if (configList.length === 0) return;
+    const handleUpdateAllData = useCallback(async (symbolList = null) => {
+        // symbolList: optional array of symbol strings (for Symbol Compare tab)
+        // If not provided, uses configList symbols (for Integrated/Rank tabs)
+        const symbols = symbolList
+            ? symbolList.map(s => ({ symbol: s, label: s }))
+            : configList.map((cfg, i) => ({ symbol: cfg.symbol, label: `Rank ${i + 1} (${cfg.symbol})` }));
+        const validSymbols = symbols.filter(s => s.symbol);
+        if (validSymbols.length === 0) return;
+
         setIsFetchingData(true);
         setFetchMessage("Queueing...");
         try {
             let updatedCount = 0;
 
-            for (let i = 0; i < configList.length; i++) {
-                const cfg = configList[i];
-                if (!cfg.symbol) continue;
-
-                setFetchMessage(`Updating Rank ${i + 1} (${cfg.symbol})...`);
+            for (let i = 0; i < validSymbols.length; i++) {
+                const { symbol, label } = validSymbols[i];
+                setFetchMessage(`Updating ${label}...`);
                 try {
-                    await fetchMarketDataForSymbol(cfg.symbol, {
+                    await fetchMarketDataForSymbol(symbol, {
                         interval: "1m",
                         days: getMaxDays(exchangeName),
                         exchange_name: exchangeName
                     });
                     updatedCount++;
                 } catch (err) {
-                    console.error(`Failed to update Rank ${i + 1}`, err);
+                    console.error(`Failed to update ${label}`, err);
                 }
             }
 
             setFetchMessage(`All ${updatedCount} symbols queued`);
             setTimeout(() => setFetchMessage(null), 3000);
+            setIsDataUpdated(true);
         } catch (e) {
             console.error("Update All Failed", e);
             setFetchMessage("Failed");

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { runBacktest as apiRunBacktest, fetchMarketDataForSymbol } from '../api/strategies';
+import { runBacktest as apiRunBacktest } from '../api/strategies';
 import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
 import { DEFAULT_EXCHANGE, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
@@ -33,35 +33,10 @@ export const useSymbolComparison = ({
         setIsStockComparing(true);
         setStockCompareResults([]);
         const totalSymbols = selectedCompareSymbols.length;
-        setStockCompareProgress({ current: 0, total: totalSymbols, phase: 'data' });
+        setStockCompareProgress({ current: 0, total: totalSymbols, phase: 'backtest' });
         const results = [];
 
         try {
-            // Step 1: Update chart data
-            const DATA_FETCH_DELAY_MS = 500;
-            addLog(`Updating chart data for ${totalSymbols} symbols...`, 'info');
-            let totalDataAdded = 0;
-            for (let i = 0; i < totalSymbols; i++) {
-                const symbol = selectedCompareSymbols[i];
-                setStockCompareProgress({ current: i + 1, total: totalSymbols, phase: 'data' });
-                try {
-                    const fetchRes = await fetchMarketDataForSymbol(symbol, { interval: "1m", days: getDefaultDays(exchangeName), exchange_name: exchangeName });
-                    const added = fetchRes?.added || 0;
-                    totalDataAdded += added;
-                    if (added > 0) {
-                        addLog(`${symbol}: +${added} candles updated`, 'info');
-                    }
-                } catch (err) {
-                    console.warn(`Failed to update data for ${symbol}`, err);
-                    addLog(`${symbol}: data update failed`, 'warning');
-                }
-                if (i < totalSymbols - 1) {
-                    await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
-                }
-            }
-            addLog(`Data update completed: +${totalDataAdded} total candles`, totalDataAdded > 0 ? 'success' : 'info');
-
-            // Step 2: Run backtests
             const BACKTEST_DELAY_MS = 200;
             addLog(`Running backtests for ${totalSymbols} symbols...`, 'info');
             for (let i = 0; i < totalSymbols; i++) {
