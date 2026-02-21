@@ -341,7 +341,7 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
         await self._ensure_time_sync()
         await self._ensure_exchange_info()
 
-        adj_qty = self.adjust_quantity(symbol, quantity)
+        adj_qty = self.adjust_quantity(symbol, quantity, price=price)
         if adj_qty <= 0:
             return {"status": "failed", "message": f"Quantity too small: {quantity} → {adj_qty}"}
 

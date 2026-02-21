@@ -143,7 +143,7 @@ async def _run_unified_backtest(
     logger.info(f"[UNIFIED_BACKTEST] mode={execution_mode}, strategy={strategy_class.__name__}, configs={len(configs)}")
 
     # 2. Initialize Engine
-    engine = WaterfallBacktestEngine(strategy_class, {})
+    engine = WaterfallBacktestEngine(strategy_class, {}, exchange_name=exchange_name)
 
     # 3. Execute based on mode
     # Respect explicit execution_mode; only use len(configs)==1 shortcut for "single" mode

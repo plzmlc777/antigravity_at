@@ -97,13 +97,14 @@ class LiveTradingEngine:
             if not StrategyClass:
                 raise ValueError(f"Strategy '{strategy_name}' not found in registry")
 
-            # 1.1 Get user_id from account for telegram notifications
+            # 1.1 Get user_id and exchange_name from account
             user_id = None
             if session.account_id:
                 from ..models.account import ExchangeAccount
                 account = db.query(ExchangeAccount).filter_by(id=session.account_id).first()
                 if account:
                     user_id = account.user_id
+                    self.strategy_config['exchange_name'] = account.exchange_name or 'Kiwoom'
 
             # 2. Context
             self.context = LiveContext(

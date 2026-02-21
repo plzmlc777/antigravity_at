@@ -160,8 +160,8 @@ class BinanceSpotAdapter(BinanceBaseAdapter, ExchangeInterface):
         await self._ensure_time_sync()
         await self._ensure_exchange_info()
 
-        # Adjust quantity to symbol precision
-        adj_qty = self.adjust_quantity(symbol, quantity)
+        # Adjust quantity to symbol precision (with minNotional check)
+        adj_qty = self.adjust_quantity(symbol, quantity, price=price)
         if adj_qty <= 0:
             return {"status": "failed", "message": f"Quantity too small after adjustment: {quantity} → {adj_qty}"}
 

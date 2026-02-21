@@ -372,10 +372,11 @@ async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol
     return viz_feeds
 
 class WaterfallBacktestEngine:
-    def __init__(self, strategy_class, config: Dict = None):
+    def __init__(self, strategy_class, config: Dict = None, exchange_name: str = "Kiwoom"):
         self.strategy_class = strategy_class
         # This primary config might be Rank 1 or empty if using list
         self.config = config or {}
+        self._exchange_name = exchange_name
 
     async def run_single_backtest(
         self,
@@ -416,6 +417,7 @@ class WaterfallBacktestEngine:
         p_config = config.copy()
         p_config['initial_capital'] = initial_capital
         p_config['symbol'] = symbol
+        p_config['exchange_name'] = self._exchange_name
 
         strat = self.strategy_class(context, p_config)
         if hasattr(strat, 'initialize'):

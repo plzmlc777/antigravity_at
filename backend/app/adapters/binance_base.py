@@ -227,17 +227,12 @@ class BinanceBaseAdapter:
             "minNotional": "5",
         })
 
-    def adjust_quantity(self, symbol: str, quantity: float) -> float:
-        """Round quantity to symbol's stepSize precision."""
-        precision = self.get_symbol_precision(symbol)
-        step_size = float(precision.get("stepSize", "0.00001"))
-        if step_size <= 0:
-            return quantity
-        # Floor to step size
-        adjusted = int(quantity / step_size) * step_size
-        # Round to avoid floating point artifacts
-        decimals = max(0, len(str(step_size).rstrip('0').split('.')[-1])) if '.' in str(step_size) else 0
-        return round(adjusted, decimals)
+    def adjust_quantity(self, symbol: str, quantity: float, price: float = 0) -> float:
+        """Adjust quantity using centralized qty_rules (safety net at API boundary)."""
+        from ..core.qty_rules import adjust_qty
+        filters = self.get_symbol_precision(symbol)
+        exchange_name = "BinanceFutures" if "futures" in self.__class__.__name__.lower() else "Binance"
+        return adjust_qty(quantity, exchange_name=exchange_name, price=price, symbol_filters=filters)
 
     def adjust_price(self, symbol: str, price: float) -> float:
         """Round price to symbol's tickSize precision."""

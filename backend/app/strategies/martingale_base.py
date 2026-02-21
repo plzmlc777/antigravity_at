@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import logging
 from .base import BaseStrategy, IContext
+from ..core.qty_rules import adjust_qty
 
 logger = logging.getLogger(__name__)
 
@@ -502,12 +503,17 @@ class MartingaleBase(BaseStrategy):
 
         return max_level
 
+    def _adjust_qty_for_exchange(self, qty: float, price: float) -> float:
+        """거래소별 수량 보정 (중앙집중화된 qty_rules 사용)."""
+        exchange_name = self.config.get('exchange_name', 'Kiwoom')
+        return adjust_qty(qty, exchange_name=exchange_name, price=price)
+
     def _calculate_quantity(self, level: int, price: float = None) -> float:
         if price is None:
             price = getattr(self, 'last_price', 0)
 
         if price <= 0:
-            return self._resolve_level_qty(level, price)
+            return self._adjust_qty_for_exchange(self._resolve_level_qty(level, price), price)
 
         if self.cycle_max_level is None or level == 1:
             self.cycle_max_level = self._calculate_max_affordable_level(price)
@@ -530,12 +536,12 @@ class MartingaleBase(BaseStrategy):
                 final_qty = max(max_qty, standard_qty)
 
                 self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): Investing remaining capital → {final_qty} qty")
-                return final_qty
+                return self._adjust_qty_for_exchange(final_qty, price)
             else:
                 self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} qty")
-                return standard_qty
+                return self._adjust_qty_for_exchange(standard_qty, price)
 
-        return self._resolve_level_qty(level, price)
+        return self._adjust_qty_for_exchange(self._resolve_level_qty(level, price), price)
 
     def get_state(self) -> Dict[str, Any]:
         cur_price = getattr(self, 'last_price', 0)

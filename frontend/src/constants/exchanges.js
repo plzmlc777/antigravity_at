@@ -63,6 +63,29 @@ export const EXCHANGE_OPT_RANGE_DEFAULTS = {
     }
 };
 
+// 거래소별 수량 규칙 (백엔드 qty_rules.py와 동기화)
+// Binance는 심볼별로 다를 수 있음 (API 동적 로드), 여기는 기본값
+export const EXCHANGE_QTY_CONFIG = {
+    Kiwoom: {
+        qtyType: "int",         // 주식: 정수 단위
+        minQty: 1,              // 최소 1주
+        stepSize: 1,            // 1주 단위
+        minNotional: 0,         // 최소 주문 금액 없음
+    },
+    Binance: {
+        qtyType: "float",       // 크립토: 소수점 허용
+        minQty: 0.00001,        // 심볼별 다름 (기본값)
+        stepSize: 0.00001,      // 심볼별 다름 (기본값)
+        minNotional: 5,         // 최소 주문 금액 5 USDT
+    },
+    BinanceFutures: {
+        qtyType: "float",       // 크립토: 소수점 허용
+        minQty: 0.001,          // 심볼별 다름 (기본값)
+        stepSize: 0.001,        // 심볼별 다름 (기본값)
+        minNotional: 5,         // 최소 주문 금액 5 USDT
+    }
+};
+
 // ── Fallback 기본값 (Kiwoom/미등록 거래소) ──
 const DEFAULT_MAX_DAYS = 365;
 const DEFAULT_INITIAL_CAPITAL = 10000000;
@@ -93,6 +116,11 @@ export const getParameterDefaults = (exchangeName) => {
 /** 거래소별 최적화 범위 오버라이드 조회 */
 export const getOptRangeDefaults = (exchangeName) => {
     return EXCHANGE_OPT_RANGE_DEFAULTS[exchangeName] || null;
+};
+
+/** 거래소별 수량 규칙 조회 */
+export const getQtyConfig = (exchangeName) => {
+    return EXCHANGE_QTY_CONFIG[exchangeName] || EXCHANGE_QTY_CONFIG.Kiwoom;
 };
 
 /** MAX_DAYS를 사람이 읽을 수 있는 문자열로 변환 */
