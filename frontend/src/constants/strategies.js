@@ -129,7 +129,8 @@ export const convertSchemaToParamDefs = (schema) => {
             type: field.type || 'text',
             defaultValue: field.default || field.defaultValue,
             defaultOptRange: field.defaultOptRange || '',
-            placeholder: field.placeholder || ''
+            placeholder: field.placeholder || '',
+            visible_when: field.visible_when || null
         };
 
         if (field.type === 'select' && field.options) {

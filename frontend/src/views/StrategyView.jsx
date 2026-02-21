@@ -2923,7 +2923,29 @@ const StrategyView = () => {
                                                         // Merge: saved values take priority, fallback to dynamic defaults per key
                                                         const currentOptValues = { ...defaults, ...savedOptValues };
 
-                                                        return convertSchemaToParamDefs(selectedStrategy?.parameter_schema).map((param) => (
+                                                        return convertSchemaToParamDefs(selectedStrategy?.parameter_schema).filter((param) => {
+                                                            if (!param.visible_when) return true;
+                                                            try {
+                                                                const conditionFields = Object.keys(param.visible_when);
+                                                                if (conditionFields.some(f => currentOptEnabled[f])) return true;
+                                                                return Object.entries(param.visible_when).every(([fieldName, ops]) => {
+                                                                    const val = currentConfig[fieldName] ?? selectedStrategy?.parameter_schema?.fields?.find(f => (f.key || f.name) === fieldName)?.default;
+                                                                    const numVal = typeof val === 'string' ? parseFloat(val) : val;
+                                                                    if (typeof ops !== 'object' || ops === null) return true;
+                                                                    return Object.entries(ops).every(([op, target]) => {
+                                                                        switch (op) {
+                                                                            case 'gt':  return numVal > target;
+                                                                            case 'gte': return numVal >= target;
+                                                                            case 'lt':  return numVal < target;
+                                                                            case 'lte': return numVal <= target;
+                                                                            case 'eq':  return val == target;
+                                                                            case 'ne':  return val != target;
+                                                                            default:    return true;
+                                                                        }
+                                                                    });
+                                                                });
+                                                            } catch { return true; }
+                                                        }).map((param) => (
                                                             <div key={param.key} className={`p-3 rounded-lg border transition-colors ${currentOptEnabled[param.key] ? 'bg-purple-900/20 border-purple-500/50' : 'bg-black/20 border-white/5'}`}>
                                                                 <div className="flex items-center gap-2 mb-2">
                                                                     <input
