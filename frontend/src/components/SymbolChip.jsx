@@ -75,8 +75,8 @@ const SymbolChip = ({
                 <input
                     type="checkbox"
                     checked={isChecked}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={(e) => {
-                        e.stopPropagation();
                         onCheckChange?.(e.target.checked);
                     }}
                     className="w-4 h-4 rounded accent-emerald-500"

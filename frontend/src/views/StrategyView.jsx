@@ -2221,7 +2221,7 @@ const StrategyView = () => {
                                                                     isChecked={selectedCompareSymbols.includes(item.code)}
                                                                     onCheckChange={(checked) => {
                                                                         if (checked) {
-                                                                            setSelectedCompareSymbols(prev => [...prev, item.code]);
+                                                                            setSelectedCompareSymbols(prev => prev.includes(item.code) ? prev : [...prev, item.code]);
                                                                         } else {
                                                                             setSelectedCompareSymbols(prev => prev.filter(s => s !== item.code));
                                                                         }
