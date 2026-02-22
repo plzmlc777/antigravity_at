@@ -117,12 +117,6 @@ class BaseStrategy(ABC):
          "description": "Force close cycle after N hours (0=unlimited)",
          "group": "common",
          "show_in_table": False, "defaultOptRange": "0, 4, 8, 24, 48"},
-        {"name": "tick_execution", "type": "select", "label": "Exit Speed",
-         "default": "tick",
-         "options": ["candle", "tick"],
-         "description": "candle=check exits on candle close, tick=check exits on every price update (live only)",
-         "group": "common",
-         "show_in_table": False},
         # ── Position Sizing (Martingale) ──
         {"name": "qty_mode", "type": "select", "label": "Qty Mode",
          "default": "fixed",
