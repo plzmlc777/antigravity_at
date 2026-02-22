@@ -242,6 +242,7 @@ const StrategyView = () => {
         deletePreset,
         renamePreset,
         selectPreset,
+        updatePreset,
     } = useProfileConfig({
         selectedStrategy,
         defaultConfig: DEFAULT_CONFIG,
@@ -2316,6 +2317,23 @@ const StrategyView = () => {
                                                                 setIsDirty(true);
                                                             } else {
                                                                 renamePreset(activeTab, presetId, newName);
+                                                            }
+                                                        }}
+                                                        onUpdatePreset={() => {
+                                                            if (activeTab === -3) {
+                                                                const schema = selectedStrategy?.parameter_schema;
+                                                                const paramKeys = schema?.fields?.map(f => f.key || f.name) || [];
+                                                                const params = {};
+                                                                paramKeys.forEach(key => { if (currentConfig[key] !== undefined) params[key] = currentConfig[key]; });
+                                                                const presets = (currentConfig?.parameter_presets || []).map(p =>
+                                                                    p.id === currentConfig?.selected_preset_id
+                                                                        ? { ...p, params, config_hash: createConfigHash(params), updated_at: new Date().toISOString() }
+                                                                        : p
+                                                                );
+                                                                setSymbolCompareConfig({ ...currentConfig, parameter_presets: presets });
+                                                                setIsDirty(true);
+                                                            } else {
+                                                                updatePreset(activeTab, currentConfig?.selected_preset_id, selectedStrategy?.parameter_schema);
                                                             }
                                                         }}
                                                         onRevertParams={(params) => {

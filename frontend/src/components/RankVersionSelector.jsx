@@ -16,6 +16,7 @@ const RankVersionSelector = ({
     onAddPreset,            // (description) => void
     onDeletePreset,         // (presetId) => void
     onRenamePreset,         // (presetId, newName) => void
+    onUpdatePreset,         // () => void — overwrite selected preset with current params
     onRevertParams,         // (params) => void — revert to selected preset's params
 }) => {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -23,6 +24,8 @@ const RankVersionSelector = ({
     const [saveError, setSaveError] = useState(null);
     const [showRenameDialog, setShowRenameDialog] = useState(false);
     const [renameValue, setRenameValue] = useState('');
+    const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Find current preset
     const currentPreset = useMemo(() => {
@@ -120,6 +123,16 @@ const RankVersionSelector = ({
             {!disabled && (isModified || isCustom) && (
                 <>
                     {isModified && <span className="text-xs text-yellow-400 font-medium">(수정됨)</span>}
+                    {isModified && currentPreset && onUpdatePreset && (
+                        <button
+                            onClick={() => setShowOverwriteConfirm(true)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs rounded transition-colors"
+                            title="현재 파라미터를 선택된 프리셋에 덮어쓰기"
+                        >
+                            <Save className="w-3 h-3" />
+                            저장
+                        </button>
+                    )}
                     <button
                         onClick={() => setShowSaveDialog(true)}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs rounded transition-colors"
@@ -159,11 +172,7 @@ const RankVersionSelector = ({
                     )}
                     {onDeletePreset && (
                         <button
-                            onClick={() => {
-                                if (window.confirm(`프리셋 "${currentPreset.name}" 삭제?`)) {
-                                    onDeletePreset(currentPreset.id);
-                                }
-                            }}
+                            onClick={() => setShowDeleteConfirm(true)}
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded transition-colors hover:bg-red-600/20 text-gray-500 hover:text-red-400"
                             title="현재 프리셋 삭제"
                         >
@@ -282,6 +291,62 @@ const RankVersionSelector = ({
                                     setShowRenameDialog(false);
                                     setRenameValue('');
                                 }}
+                                className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 rounded transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Overwrite Confirm Dialog */}
+            {showOverwriteConfirm && currentPreset && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 w-80 shadow-xl">
+                        <h3 className="text-sm font-bold text-white mb-3">프리셋 덮어쓰기</h3>
+                        <p className="text-xs text-gray-300 mb-4">
+                            프리셋 <span className="text-emerald-400 font-mono">{currentPreset.name}</span>에 현재 파라미터를 덮어쓰시겠습니까?
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    onUpdatePreset();
+                                    setShowOverwriteConfirm(false);
+                                }}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 rounded transition-colors"
+                            >
+                                덮어쓰기
+                            </button>
+                            <button
+                                onClick={() => setShowOverwriteConfirm(false)}
+                                className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 rounded transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Delete Confirm Dialog */}
+            {showDeleteConfirm && currentPreset && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 w-80 shadow-xl">
+                        <h3 className="text-sm font-bold text-white mb-3">프리셋 삭제</h3>
+                        <p className="text-xs text-gray-300 mb-4">
+                            프리셋 <span className="text-red-400 font-mono">{currentPreset.name}</span>을(를) 삭제하시겠습니까?
+                        </p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    onDeletePreset(currentPreset.id);
+                                    setShowDeleteConfirm(false);
+                                }}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 rounded transition-colors"
+                            >
+                                삭제
+                            </button>
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
                                 className="px-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs py-1.5 rounded transition-colors"
                             >
                                 닫기

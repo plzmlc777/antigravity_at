@@ -921,6 +921,34 @@ export const useProfileConfig = ({
     }, []);
 
     /**
+     * Update (overwrite) an existing preset with current parameters
+     */
+    const updatePreset = useCallback((rankIndex, presetId, parameterSchema) => {
+        setConfigList(prev => {
+            const updated = [...prev];
+            const cfg = { ...updated[rankIndex] };
+            const presets = [...(cfg.parameter_presets || [])];
+            const idx = presets.findIndex(p => p.id === presetId);
+            if (idx === -1) return prev;
+
+            const paramKeys = parameterSchema?.fields?.map(f => f.key || f.name) || [];
+            const params = {};
+            paramKeys.forEach(key => { if (cfg[key] !== undefined) params[key] = cfg[key]; });
+
+            presets[idx] = {
+                ...presets[idx],
+                params,
+                config_hash: createConfigHash(params),
+                updated_at: new Date().toISOString()
+            };
+
+            cfg.parameter_presets = presets;
+            updated[rankIndex] = cfg;
+            return updated;
+        });
+    }, []);
+
+    /**
      * Select a preset and apply its parameters to the rank
      */
     const selectPreset = useCallback((rankIndex, presetId, parameterSchema) => {
@@ -1104,7 +1132,7 @@ export const useProfileConfig = ({
         deleteCurrentProfile,
         discardChanges,
         clearDraft, // Clear localStorage draft for a profile
-        addPreset, deletePreset, renamePreset, selectPreset, // Parameter preset management
+        addPreset, deletePreset, renamePreset, selectPreset, updatePreset, // Parameter preset management
 
         // Profile Metadata
         profileMeta,
