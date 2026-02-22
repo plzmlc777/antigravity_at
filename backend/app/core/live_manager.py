@@ -751,6 +751,28 @@ class LiveManager:
         finally:
             db.close()
 
+    async def toggle_tick_execution(self, session_id: str, mode: str):
+        """
+        Hot-swap tick execution mode ('tick' or 'candle') without stopping the session.
+        Updates both the running engine and persists to DB strategy_config.
+        """
+        # 1. Update running engine
+        if session_id in self.engines:
+            self.engines[session_id].toggle_tick_execution(mode)
+
+        # 2. Update DB (strategy_config JSON)
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if sess and sess.strategy_config:
+                config = dict(sess.strategy_config)
+                config["tick_execution"] = mode
+                sess.strategy_config = config
+                db.commit()
+                logger.info(f"Session {session_id}: tick_execution set to '{mode}' (DB Updated)")
+        finally:
+            db.close()
+
     async def liquidate_session(self, session_id: str, auto_stop: bool = True):
         """
         Force Close Position: Market sell all holdings, then stop the session.
@@ -843,6 +865,7 @@ class LiveManager:
                 "is_running": eng.is_running,
                 "orders_enabled": eng.orders_enabled,
                 "is_paper": getattr(eng, 'is_paper', True),
+                "tick_execution": "tick" if getattr(eng, '_tick_execution_enabled', False) else "candle",
                 "current_price": current_price,
                 "pnl": pnl,
                 "trades_count": len(eng.context.trades),

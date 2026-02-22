@@ -275,6 +275,11 @@ export const toggleLiveMode = async (sessionId, isPaper) => {
     return data;
 };
 
+export const toggleTickExecution = async (sessionId, mode) => {
+    const { data } = await api.post(`/live/toggle-tick-execution/${sessionId}`, { mode });
+    return data;
+};
+
 export const liquidateLiveBot = async (sessionId, { autoStop = true } = {}) => {
     const { data } = await api.post(`/live/liquidate/${sessionId}`, null, {
         params: { auto_stop: autoStop }

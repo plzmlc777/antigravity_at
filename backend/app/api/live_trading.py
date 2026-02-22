@@ -96,12 +96,24 @@ async def start_live_bot(
         raise HTTPException(status_code=400, detail=str(e))
 
 async def verify_session_ownership(session_id: str, account_id: int, db: Session) -> bool:
-    """Verify that the session belongs to the user's account"""
+    """Verify that the session belongs to the user's account (single account check)"""
     from ..models.live_trading import LiveBotSession
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     if session.account_id != account_id:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+    return True
+
+async def verify_session_ownership_by_user(session_id: str, user_id: int, db: Session) -> bool:
+    """Verify that the session belongs to any of the user's accounts"""
+    from ..models.live_trading import LiveBotSession
+    from ..models.account import ExchangeAccount
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    user_account_ids = [a.id for a in db.query(ExchangeAccount.id).filter(ExchangeAccount.user_id == user_id).all()]
+    if session.account_id not in user_account_ids:
         raise HTTPException(status_code=403, detail="Session does not belong to your account")
     return True
 
@@ -337,6 +349,9 @@ async def delete_session(
 class ToggleOrdersRequest(BaseModel):
     enabled: bool
 
+class ToggleTickExecutionRequest(BaseModel):
+    mode: str  # "tick" or "candle"
+
 
 class UpdateSessionSettingsRequest(BaseModel):
     initial_capital: Optional[float] = None
@@ -441,9 +456,7 @@ async def toggle_orders(
     ctx: UserAccountContext = Depends(get_user_context),
     db: Session = Depends(get_db)
 ):
-    if not ctx.has_active_account:
-        raise HTTPException(status_code=400, detail="No active account")
-    await verify_session_ownership(session_id, ctx.account_id, db)
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
     try:
         await live_manager.toggle_orders(session_id, req.enabled)
         return {"status": "success", "orders_enabled": req.enabled}
@@ -459,15 +472,29 @@ async def toggle_mode(
 ):
     """
     Toggle between Paper and Real mode.
-    Note: We reuse ToggleOrdersRequest (Boolean enabled) where enabled=True means Paper Mode?
-    Actually, let's be explicit. enabled=True means is_paper=True.
+    enabled=True means is_paper=True.
     """
-    if not ctx.has_active_account:
-        raise HTTPException(status_code=400, detail="No active account")
-    await verify_session_ownership(session_id, ctx.account_id, db)
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
     try:
         await live_manager.toggle_mode(session_id, req.enabled)
         return {"status": "success", "is_paper": req.enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/toggle-tick-execution/{session_id}")
+async def toggle_tick_execution(
+    session_id: str,
+    req: ToggleTickExecutionRequest,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """Hot-swap tick execution mode (tick/candle) without stopping the session."""
+    if req.mode not in ("tick", "candle"):
+        raise HTTPException(status_code=400, detail="mode must be 'tick' or 'candle'")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
+    try:
+        await live_manager.toggle_tick_execution(session_id, req.mode)
+        return {"status": "success", "tick_execution": req.mode}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

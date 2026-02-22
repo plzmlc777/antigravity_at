@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
@@ -88,6 +88,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [selectedAccountId, setSelectedAccountId] = useState(null); // Selected account for session
     const [isPaperMode, setIsPaperMode] = useState(DEFAULTS.IS_PAPER_MODE); // Paper mode by default for safety
     const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
+    const [tickExecConfirm, setTickExecConfirm] = useState({ isOpen: false, nextMode: 'candle' }); // Tick execution mode switch confirmation
 
     // Apply Changes State (track original session values for dirty detection)
     const [originalSessionSettings, setOriginalSessionSettings] = useState(null); // { capital, isPaper, accountId }
@@ -1270,7 +1271,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             const currentMode = liveData?.is_paper !== false; // Default to paper if undefined
             const nextIsPaper = !currentMode;
 
-            await toggleLiveMode(sessionId, nextIsPaper);
+            // Apply to all sessions in the group
+            const groupSessions = activeSessionGroup?.sessions || [];
+            if (groupSessions.length > 1) {
+                for (const s of groupSessions) {
+                    await toggleLiveMode(s.session_id, nextIsPaper);
+                }
+            } else {
+                await toggleLiveMode(sessionId, nextIsPaper);
+            }
             setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
             addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} by User`);
         } catch (err) {
@@ -1303,9 +1312,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         const currentEnabled = liveData?.orders_enabled !== false;
         const newEnabled = !currentEnabled;
         try {
-            if (executionMode === 'parallel' && Object.keys(parallelSessions).length > 0) {
-                for (const sid of Object.values(parallelSessions)) {
-                    await toggleLiveOrders(sid, newEnabled);
+            // Apply to all sessions in the group
+            const groupSessions = activeSessionGroup?.sessions || [];
+            if (groupSessions.length > 1) {
+                for (const s of groupSessions) {
+                    await toggleLiveOrders(s.session_id, newEnabled);
                 }
             } else if (sessionId) {
                 await toggleLiveOrders(sessionId, newEnabled);
@@ -1315,6 +1326,33 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         } catch (err) {
             setError(err.message);
             addLog("Error", `Toggle orders failed: ${err.message}`);
+        }
+    };
+
+    const handleToggleTickExecution = () => {
+        const currentMode = liveData?.tick_execution || 'tick';
+        const nextMode = currentMode === 'tick' ? 'candle' : 'tick';
+        setTickExecConfirm({ isOpen: true, nextMode });
+    };
+
+    const confirmToggleTickExecution = async () => {
+        const nextMode = tickExecConfirm.nextMode;
+        setTickExecConfirm({ isOpen: false, nextMode: 'candle' });
+        try {
+            // Apply to all sessions in the group
+            const groupSessions = activeSessionGroup?.sessions || [];
+            if (groupSessions.length > 1) {
+                for (const s of groupSessions) {
+                    await toggleTickExecution(s.session_id, nextMode);
+                }
+            } else if (sessionId) {
+                await toggleTickExecution(sessionId, nextMode);
+            }
+            setLiveData(prev => ({ ...prev, tick_execution: nextMode }));
+            addLog("System", `Exit speed switched to ${nextMode === 'tick' ? 'TICK (real-time)' : 'CANDLE (on close)'}`);
+        } catch (err) {
+            setError(err.message);
+            addLog("Error", `Toggle tick execution failed: ${err.message}`);
         }
     };
 
@@ -1831,6 +1869,21 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     : "This will immediately market-sell all holdings in the current session. Orders will continue running. This action cannot be undone."}
                 confirmText="Force Close"
                 isDanger={true}
+            />
+
+            {/* Tick Execution Mode Switch Confirmation Modal */}
+            <ConfirmModal
+                isOpen={tickExecConfirm.isOpen}
+                onClose={() => setTickExecConfirm({ isOpen: false, nextMode: 'candle' })}
+                onConfirm={confirmToggleTickExecution}
+                title={tickExecConfirm.nextMode === 'tick'
+                    ? "⚡ TICK 모드로 전환"
+                    : "📊 CANDLE 모드로 전환"}
+                message={tickExecConfirm.nextMode === 'tick'
+                    ? "매 틱(실시간 가격 업데이트)마다 Exit 조건을 체크합니다.\n\n• Trailing Stop, Max Loss 등을 실시간으로 감지\n• 급등락 시 최대 반응 속도\n• 최소 수익 보장에 유리\n\nTICK 모드로 전환하시겠습니까?"
+                    : "캔들 완성 시에만 Exit 조건을 체크합니다.\n\n• 캔들 주기(예: 1분)마다만 체크\n• 급등락 시 최대 1캔들 지연 가능\n• 노이즈에 덜 민감\n\nCANDLE 모드로 전환하시겠습니까?"}
+                confirmText={tickExecConfirm.nextMode === 'tick' ? "TICK 모드 활성화" : "CANDLE 모드 전환"}
+                isDanger={false}
             />
 
             {/* Delete Session Modal (Option B: actions in panel) - supports group deletion */}
@@ -2352,7 +2405,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             </div>
                         )}
 
-                        {/* Force Close & Pause Orders - Independent row */}
+                        {/* Force Close & Pause Orders */}
                         {status === 'RUNNING' && (
                             <div className="grid grid-cols-2 gap-2 mt-4">
                                 <button
@@ -2377,6 +2430,27 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     FORCE CLOSE
                                 </button>
                             </div>
+                        )}
+
+                        {/* Exit Speed Toggle */}
+                        {status === 'RUNNING' && (
+                            <button
+                                className={`w-full h-10 mt-2 flex items-center justify-center gap-2 text-xs font-bold tracking-wide rounded-lg border transition-all ${
+                                    (liveData?.tick_execution || 'tick') === 'tick'
+                                        ? 'bg-cyan-900/40 border-cyan-500/50 text-cyan-300 hover:bg-cyan-800/60'
+                                        : 'bg-gray-700/40 border-gray-500/50 text-gray-300 hover:bg-gray-600/60'
+                                }`}
+                                onClick={handleToggleTickExecution}
+                                title={(liveData?.tick_execution || 'tick') === 'tick'
+                                    ? 'Exit checks on every tick (real-time). Click to switch to candle mode.'
+                                    : 'Exit checks on candle close only. Click to switch to tick mode.'}
+                            >
+                                {(liveData?.tick_execution || 'tick') === 'tick' ? (
+                                    <><Zap size={14} /> EXIT: TICK MODE (real-time)</>
+                                ) : (
+                                    <><BarChart3 size={14} /> EXIT: CANDLE MODE (on close)</>
+                                )}
+                            </button>
                         )}
                     </div>
                 </div>

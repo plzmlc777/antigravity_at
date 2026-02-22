@@ -554,6 +554,16 @@ class LiveTradingEngine:
             self.context.is_paper = is_paper
         logger.info(f"Session {self.session_id}: Mode toggled to {'PAPER' if is_paper else 'REAL'}")
 
+    def toggle_tick_execution(self, mode: str):
+        """Hot-swap tick execution mode ('tick' or 'candle') without stopping the session."""
+        if mode not in ("tick", "candle"):
+            raise ValueError(f"Invalid tick_execution mode: {mode}")
+        old_mode = "tick" if self._tick_execution_enabled else "candle"
+        self._tick_execution_enabled = (mode == "tick")
+        if self.strategy_instance and hasattr(self.strategy_instance, 'tick_execution'):
+            self.strategy_instance.tick_execution = mode
+        logger.info(f"Session {self.session_id}: Tick execution {old_mode} -> {mode}")
+
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
         logger.info(f"Session {self.session_id}: Orders {'Enabled' if enabled else 'Disabled'}")
