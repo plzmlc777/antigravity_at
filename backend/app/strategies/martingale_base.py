@@ -64,8 +64,8 @@ class MartingaleBase(BaseStrategy):
         # Futures: liquidation floor (force exit if price within N% of liquidation)
         self.liquidation_floor_pct = self.config.get("liquidation_floor_pct", 3.0)
 
-        # Tick execution: "candle" (default) or "tick" (check exits every tick, live only)
-        self.tick_execution = self.config.get("tick_execution", "candle")
+        # Tick execution: "tick" (default) or "candle" (check exits every tick, live only)
+        self.tick_execution = self.config.get("tick_execution", "tick")
 
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
