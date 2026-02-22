@@ -64,6 +64,9 @@ class MartingaleBase(BaseStrategy):
         # Futures: liquidation floor (force exit if price within N% of liquidation)
         self.liquidation_floor_pct = self.config.get("liquidation_floor_pct", 3.0)
 
+        # Tick execution: "candle" (default) or "tick" (check exits every tick, live only)
+        self.tick_execution = self.config.get("tick_execution", "candle")
+
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
         self.cycle_reference_price = None
@@ -210,6 +213,77 @@ class MartingaleBase(BaseStrategy):
         """Check if L2+ additional entry condition is met. Return True to buy."""
         pass
 
+    def _check_exits(self, current_price: float) -> bool:
+        """Check price-based exit conditions. Returns True if position was liquidated.
+        Shared between on_data() (candle close) and on_tick() (every tick)."""
+        if self.current_level <= 0 or self.total_quantity <= 0:
+            return False
+
+        position_profit = (current_price - self.average_price) * self.total_quantity
+        total_investment = self.average_price * self.total_quantity
+        current_return = position_profit / total_investment if total_investment > 0 else 0
+
+        # Cycle time limit
+        if self.cycle_max_hours > 0 and self.cycle_start_time:
+            current_time = self.context.get_time()
+            elapsed_hours = (current_time - self.cycle_start_time).total_seconds() / 3600
+            if elapsed_hours >= self.cycle_max_hours:
+                self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
+                self._liquidate(current_price)
+                return True
+
+        # Update peak price for trailing stop
+        current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
+        if position_profit > current_peak_profit:
+            self.peak_price = current_price
+
+        # Futures: Liquidation Floor Check
+        leverage = self._get_leverage()
+        if leverage > 1:
+            futures_data = self.context.get_futures_data(self.symbol)
+            liq_price = futures_data.get("liquidation_price", 0)
+            if liq_price > 0 and self.liquidation_floor_pct > 0:
+                liq_distance = abs(current_price - liq_price) / current_price if current_price > 0 else 1.0
+                if liq_distance <= (self.liquidation_floor_pct / 100):
+                    self.context.log(f"[{self._log_prefix}] LIQUIDATION FLOOR! Price {current_price:,.2f} within {liq_distance*100:.2f}% of liquidation {liq_price:,.2f}. FORCE EXIT!")
+                    self._liquidate(current_price)
+                    return True
+
+        # Trailing Stop Activation
+        effective_trail_start = self.trailing_start_percent / leverage if leverage > 1 else self.trailing_start_percent
+        if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (effective_trail_start / 100):
+            self.trailing_active = True
+            self.peak_price = current_price
+            lev_note = f" (leverage-adjusted: {effective_trail_start:.4f}%)" if leverage > 1 else ""
+            self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Position Return: {current_return*100:.2f}%{lev_note}")
+
+        # Trailing Stop Trigger
+        if self.trailing_active:
+            effective_trail_stop = self.trailing_stop_percent / leverage if leverage > 1 else self.trailing_stop_percent
+            drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
+            if drop_from_peak >= (effective_trail_stop / 100):
+                self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
+                self._liquidate(current_price)
+                return True
+
+        # Max Loss Stop-Loss
+        if self.max_loss_percent > 0 and current_return <= -(self.max_loss_percent / 100):
+            self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. Sell @ {current_price:,.0f}")
+            self._liquidate(current_price)
+            return True
+
+        return False
+
+    def on_tick(self, price: float, timestamp=None) -> bool:
+        """Called on every tick when tick_execution='tick'. Checks exit conditions only.
+        Entry logic remains candle-based (requires indicator data from completed candles)."""
+        if self.tick_execution != "tick":
+            return False
+        if self.current_level <= 0 or self.total_quantity <= 0:
+            return False
+        self.last_price = price
+        return self._check_exits(price)
+
     def _check_exit_trigger(self, data: Dict[str, Any]) -> bool:
         """Check if indicator-based exit condition is met. Return True to sell.
         Override in subclass for custom exit logic (e.g., RSI > 70, MACD dead cross).
@@ -247,65 +321,18 @@ class MartingaleBase(BaseStrategy):
 
         # 3. Position Management (If holding)
         if self.current_level > 0 and self.total_quantity > 0:
+            # 3a-2. Check Indicator-Based Exit (needs candle data → only on candle close)
             position_profit = (current_price - self.average_price) * self.total_quantity
             total_investment = self.average_price * self.total_quantity
             current_return = position_profit / total_investment if total_investment > 0 else 0
 
-            # 3a. Check Cycle Time Limit
-            if self.cycle_max_hours > 0 and self.cycle_start_time:
-                current_time = self.context.get_time()
-                elapsed_hours = (current_time - self.cycle_start_time).total_seconds() / 3600
-                if elapsed_hours >= self.cycle_max_hours:
-                    self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
-                    self._liquidate(current_price)
-                    return
-
-            # 3a-2. Check Indicator-Based Exit (custom hook)
             if self._check_exit_trigger(data):
                 self.context.log(f"[{self._log_prefix}] EXIT TRIGGER! Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
                 self._liquidate(current_price)
                 return
 
-            # Update peak profit for trailing stop
-            current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
-            if position_profit > current_peak_profit:
-                self.peak_price = current_price
-
-            # 3b-0. Futures: Liquidation Floor Check (highest priority exit)
-            leverage = self._get_leverage()
-            if leverage > 1:
-                futures_data = self.context.get_futures_data(symbol)
-                liq_price = futures_data.get("liquidation_price", 0)
-                if liq_price > 0 and self.liquidation_floor_pct > 0:
-                    liq_distance = abs(current_price - liq_price) / current_price if current_price > 0 else 1.0
-                    if liq_distance <= (self.liquidation_floor_pct / 100):
-                        self.context.log(f"[{self._log_prefix}] LIQUIDATION FLOOR! Price {current_price:,.2f} within {liq_distance*100:.2f}% of liquidation {liq_price:,.2f}. FORCE EXIT!")
-                        self._liquidate(current_price)
-                        return
-
-            # 3b. Check Trailing Stop Activation (0 = disabled)
-            # Leverage adjustment: activation threshold is divided by leverage
-            # because leveraged price moves amplify capital returns
-            effective_trail_start = self.trailing_start_percent / leverage if leverage > 1 else self.trailing_start_percent
-            if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (effective_trail_start / 100):
-                self.trailing_active = True
-                self.peak_price = current_price
-                lev_note = f" (leverage-adjusted: {effective_trail_start:.4f}%)" if leverage > 1 else ""
-                self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Position Return: {current_return*100:.2f}%{lev_note}")
-
-            # 3c. Check Trailing Stop Liquidation
-            if self.trailing_active:
-                effective_trail_stop = self.trailing_stop_percent / leverage if leverage > 1 else self.trailing_stop_percent
-                drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-                if drop_from_peak >= (effective_trail_stop / 100):
-                    self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
-                    self._liquidate(current_price)
-                    return
-
-            # 3d. Check Max Loss Stop-Loss (0 = disabled)
-            if self.max_loss_percent > 0 and current_return <= -(self.max_loss_percent / 100):
-                self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. Sell @ {current_price:,.0f}")
-                self._liquidate(current_price)
+            # Price-based exits (shared with on_tick via _check_exits)
+            if self._check_exits(current_price):
                 return
 
             # 3e. Check Additional Entry (L2+)

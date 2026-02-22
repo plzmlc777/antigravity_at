@@ -128,6 +128,14 @@ class LiveTradingEngine:
             self.strategy_instance = StrategyClass(self.context, self.strategy_config)
             self.strategy_instance.initialize()
 
+            # 3.1 Cache tick execution flag
+            self._tick_execution_enabled = (
+                hasattr(self.strategy_instance, 'on_tick')
+                and getattr(self.strategy_instance, 'tick_execution', 'candle') == 'tick'
+            )
+            if self._tick_execution_enabled:
+                logger.info(f"Tick execution ENABLED for session {self.session_id}")
+
             # 3. Aggregator
             interval_str = self.strategy_config.get("interval", "1m")
             interval_minutes = self._parse_interval(interval_str)
@@ -223,8 +231,15 @@ class LiveTradingEngine:
                 except Exception as e:
                     logger.warning(f"Strategy history preload failed: {e}")
 
+            # 6. Set initial config snapshot (for tick-level exits that may trade before first candle)
+            self.context.set_config_snapshot(
+                config=self.strategy_config,
+                strategy_id=self.strategy_config.get("strategy_id", "unknown"),
+                symbol=self.symbol
+            )
+
             logger.info(f"Live Engine Initialized for {self.symbol}")
-            
+
         finally:
             db.close()
 
@@ -350,8 +365,17 @@ class LiveTradingEngine:
         except Exception as e:
             logger.error(f"Error emitting strategy status: {e}")
             
+        # 2.2 Tick-Level Exit Check (when tick_execution='tick')
+        if self._tick_execution_enabled and self.strategy_instance and self.is_running:
+            try:
+                exited = self.strategy_instance.on_tick(price, now)
+                if exited and self.orders_enabled:
+                    await self.context.process_queue()
+            except Exception as e:
+                logger.error(f"Tick exit check error: {e}")
+
         # 3. Aggregate -> Candle
-        # Volume: Ideally we need 'tick volume' (delta). 
+        # Volume: Ideally we need 'tick volume' (delta).
         # Kiwoom 'get_current_price' usually gives 'accumulated volume' or we assume 1 tick volume if unknown.
         closed_candle, snapshot = self.aggregator.add_tick(price, 1, now) # Vol 1 placeholder
         
