@@ -53,6 +53,7 @@ def adjust_qty(
     exchange_name: str = DEFAULT_EXCHANGE,
     price: float = 0,
     symbol_filters: dict = None,
+    available_cash: float = None,
 ) -> float:
     """
     거래소별 수량 보정.
@@ -63,9 +64,10 @@ def adjust_qty(
         price: 현재 가격 (minNotional 체크용)
         symbol_filters: Binance API에서 로드한 심볼별 동적 필터
                        (keys: stepSize, minQty, minNotional)
+        available_cash: 사용 가능한 잔고 (제공 시 자금 초과 방지 후 최소 수량 올림)
 
     Returns:
-        보정된 수량 (최소 미달 시 0 반환)
+        보정된 수량 (자금 부족 시 0 반환)
     """
     if quantity <= 0:
         return 0
@@ -91,16 +93,28 @@ def adjust_qty(
         decimals = _count_decimals(step_size)
         adjusted = round(adjusted, decimals)
 
-    # 3. minQty 체크
+    # 3. minQty 체크 — 미달 시 자금 여유가 있으면 최소 수량으로 올림
     if adjusted < min_qty:
-        logger.debug(f"[qty_rules] {adjusted} < minQty {min_qty} ({exchange_name})")
-        return 0
+        if available_cash is not None and price > 0 and available_cash >= min_qty * price:
+            adjusted = min_qty
+            logger.debug(f"[qty_rules] Bumped to minQty {min_qty} (cash {available_cash:.0f} sufficient)")
+        else:
+            logger.debug(f"[qty_rules] {adjusted} < minQty {min_qty}, insufficient cash ({exchange_name})")
+            return 0
 
-    # 4. minNotional 체크 (qty × price ≥ minNotional)
+    # 4. minNotional 체크 — 미달 시 자금 여유가 있으면 최소 notional 충족 수량으로 올림
     if min_notional > 0 and price > 0:
         notional = adjusted * price
         if notional < min_notional:
-            logger.debug(f"[qty_rules] notional {notional:.2f} < minNotional {min_notional} ({exchange_name})")
-            return 0
+            min_notional_qty = math.ceil(min_notional / price / step_size) * step_size if step_size > 0 else min_notional / price
+            if qty_type != "int":
+                decimals = _count_decimals(step_size)
+                min_notional_qty = round(min_notional_qty, decimals)
+            if available_cash is not None and available_cash >= min_notional_qty * price:
+                adjusted = max(adjusted, min_notional_qty)
+                logger.debug(f"[qty_rules] Bumped to {adjusted} for minNotional {min_notional} (cash sufficient)")
+            else:
+                logger.debug(f"[qty_rules] notional {notional:.2f} < minNotional {min_notional}, insufficient cash ({exchange_name})")
+                return 0
 
     return float(adjusted)

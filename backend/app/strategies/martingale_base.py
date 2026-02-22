@@ -507,7 +507,8 @@ class MartingaleBase(BaseStrategy):
     def _adjust_qty_for_exchange(self, qty: float, price: float) -> float:
         """거래소별 수량 보정 (중앙집중화된 qty_rules 사용)."""
         exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
-        return adjust_qty(qty, exchange_name=exchange_name, price=price)
+        available_cash = getattr(self.context, 'cash', None)
+        return adjust_qty(qty, exchange_name=exchange_name, price=price, available_cash=available_cash)
 
     def _calculate_quantity(self, level: int, price: float = None) -> float:
         if price is None:
