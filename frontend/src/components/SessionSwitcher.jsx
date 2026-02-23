@@ -33,7 +33,7 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, session, sessio
     const isGroup = sessionCount > 1;
 
     const canConfirm = confirmText === '삭제';
-    const symbolName = getSymbolName ? getSymbolName(firstSession.symbol) : firstSession.symbol;
+    const symbolName = firstSession.symbol_name || (getSymbolName ? getSymbolName(firstSession.symbol) : firstSession.symbol);
 
     // Get unique symbols for group display
     const uniqueSymbols = [...new Set(sessionList.map(s => s.symbol))];
@@ -248,6 +248,7 @@ const SessionSwitcher = forwardRef(({
                 groups.get(groupKey).configList.push({
                     ...session.strategy_config,
                     symbol: session.symbol,  // Ensure symbol is included
+                    symbol_name: session.symbol_name || session.symbol,  // Symbol name from backend
                     session_id: session.session_id  // Track which session this config belongs to
                 });
             } else {

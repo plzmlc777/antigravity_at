@@ -663,6 +663,41 @@ async def get_all_sessions(
         LiveBotSession.started_at.desc()
     ).limit(limit).all()
 
+    # Build symbol name map from multiple sources
+    symbol_name_map = {}  # symbol_code -> symbol_name
+
+    # Source 1: User-level saved_symbols
+    from ..models.user import User
+    user = db.query(User).filter(User.id == ctx.user_id).first()
+    if user and user.saved_symbols:
+        for sym in user.saved_symbols:
+            if sym.get("code") and sym.get("name"):
+                symbol_name_map[sym["code"]] = sym["name"]
+
+    # Source 2: Account-level saved_symbols
+    from ..models.account import ExchangeAccount as EA
+    user_accounts = db.query(EA.saved_symbols).filter(
+        EA.user_id == ctx.user_id
+    ).all()
+    for (acct_symbols,) in user_accounts:
+        if acct_symbols:
+            for sym in acct_symbols:
+                if sym.get("code") and sym.get("name") and sym["code"] not in symbol_name_map:
+                    symbol_name_map[sym["code"]] = sym["name"]
+
+    # Source 3: Profile-level saved_symbols (if profile_id available)
+    profile_ids = list({sess.profile_id for sess in sessions if sess.profile_id})
+    if profile_ids:
+        from ..models.live_trading import StrategyProfile
+        profiles = db.query(StrategyProfile.id, StrategyProfile.saved_symbols).filter(
+            StrategyProfile.id.in_(profile_ids)
+        ).all()
+        for p in profiles:
+            if p.saved_symbols:
+                for sym in p.saved_symbols:
+                    if sym.get("code") and sym.get("name") and sym["code"] not in symbol_name_map:
+                        symbol_name_map[sym["code"]] = sym["name"]
+
     # Check which sessions are actually running in memory
     running_ids = set(live_manager.engines.keys())
 
@@ -697,6 +732,7 @@ async def get_all_sessions(
             "profile_name": sess.profile_name,  # Profile name for display
             "profile_id": sess.profile_id,  # Profile ID for lock detection
             "symbol": sess.symbol,
+            "symbol_name": symbol_name_map.get(sess.symbol, sess.symbol),
             "strategy_name": sess.strategy_name,
             "status": effective_status,
             "is_running": is_in_memory,

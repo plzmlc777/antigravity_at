@@ -156,8 +156,7 @@ const ActiveStrategiesPanel = ({
                         <tbody className="divide-y divide-white/5">
                             {configList.map((cfg, idx) => {
                                 if (cfg.is_active === false) return null;
-                                const symbolInfo = savedSymbols.find(s => s.code === cfg.symbol);
-                                const symbolName = symbolInfo ? symbolInfo.name : cfg.symbol;
+                                const symbolName = cfg.symbol_name || savedSymbols.find(s => s.code === cfg.symbol)?.name || cfg.symbol;
                                 const presets = cfg.parameter_presets || [];
                                 const currentPreset = findCurrentPreset(cfg);
 

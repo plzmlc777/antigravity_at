@@ -322,8 +322,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         if (!session) return null;
 
         // Get symbol name
-        const symbolMatch = savedSymbols.find(s => s.code === session.symbol);
-        const symbolName = symbolMatch?.name || session.symbol;
+        const symbolName = session.symbol_name || savedSymbols.find(s => s.code === session.symbol)?.name || session.symbol;
 
         // Get account name
         const account = accounts.find(a => a.id === session.account_id);
@@ -2601,7 +2600,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
                         <BarChart3 size={14} className="text-gray-400" />
                         Real-time Ticks {strategyConfig.symbol
-                            ? `(${savedSymbols.find(s => s.code === strategyConfig.symbol)?.name || strategyConfig.symbol})`
+                            ? `(${strategyConfig.symbol_name || savedSymbols.find(s => s.code === strategyConfig.symbol)?.name || strategyConfig.symbol})`
                             : ''}
                         {status === 'RUNNING' && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
                     </h3>
@@ -2689,8 +2688,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                         >
                                             {configList.map((cfg, idx) => {
                                                 if (!cfg.is_active) return null;
-                                                const symbolMatch = savedSymbols.find(s => s.code === cfg.symbol);
-                                                const name = symbolMatch ? symbolMatch.name : cfg.symbol;
+                                                const name = cfg.symbol_name || savedSymbols.find(s => s.code === cfg.symbol)?.name || cfg.symbol;
                                                 const isRunning = executionMode === 'parallel' && parallelSessions[idx];
                                                 return (
                                                     <option key={idx} value={idx}>
