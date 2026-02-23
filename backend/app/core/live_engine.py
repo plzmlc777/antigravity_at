@@ -542,6 +542,41 @@ class LiveTradingEngine:
             else:
                 logger.info(f"FORCE CLOSE (REAL): No holdings found for {self.symbol}.")
 
+            # Reset strategy internal state so the next cycle starts clean
+            if self.strategy_instance:
+                strat = self.strategy_instance
+                if hasattr(strat, 'current_level'):
+                    old_level = strat.current_level
+                    old_qty = getattr(strat, 'total_quantity', 0)
+                    strat.current_level = 0
+                    strat.total_quantity = 0
+                    strat.average_price = 0
+                    strat.peak_price = 0
+                    strat.trailing_active = False
+                    strat.reference_price = None
+                    strat.entries = []
+                    if hasattr(strat, 'is_hodl'):
+                        strat.is_hodl = False
+                    if hasattr(strat, 'cycle_max_level'):
+                        strat.cycle_max_level = None
+                    if hasattr(strat, 'cycle_reference_price'):
+                        strat.cycle_reference_price = None
+                    if hasattr(strat, 'cycle_start_time'):
+                        strat.cycle_start_time = None
+                    if hasattr(strat, '_resolved_base_qty'):
+                        strat._resolved_base_qty = None
+                    if hasattr(strat, '_pending_exit'):
+                        strat._pending_exit = False
+                    if hasattr(strat, '_pending_entry'):
+                        strat._pending_entry = False
+                    # Increment real cycle ID
+                    if hasattr(strat, 'real_cycle_id'):
+                        strat.real_cycle_id += 1
+                    # Reset capital for fixed betting mode
+                    if getattr(strat, 'betting_strategy', 'fixed') == 'fixed':
+                        self.context.reset_cycle_capital()
+                    logger.info(f"FORCE CLOSE (REAL): Strategy state reset. L{old_level}/{old_qty}qty -> L0/0qty. Cycle ID: {getattr(strat, 'real_cycle_id', '?')}")
+
     def stop(self):
         self.is_running = False
         # Stop FuturesMonitor if running
