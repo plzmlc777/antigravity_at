@@ -150,7 +150,10 @@ const SessionSwitcher = forwardRef(({
 }, ref) => {
     const [sessions, setSessions] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showAll, setShowAll] = useState(true);
+    const [showAll, setShowAll] = useState(() => {
+        const saved = localStorage.getItem('sessionSwitcher_showAll');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
 
     // Use centralized accounts from LiveTradingContext
     const { accounts } = useLiveTrading();
@@ -426,7 +429,11 @@ const SessionSwitcher = forwardRef(({
                     </div>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setShowAll(!showAll)}
+                            onClick={() => {
+                                const next = !showAll;
+                                setShowAll(next);
+                                localStorage.setItem('sessionSwitcher_showAll', JSON.stringify(next));
+                            }}
                             className={`text-xs px-2 py-1 rounded transition-all ${
                                 showAll
                                     ? 'text-indigo-400 bg-indigo-500/10'
