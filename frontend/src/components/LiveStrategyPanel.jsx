@@ -1265,23 +1265,33 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
+    /** Get all session IDs in the active group, with current sessionId as fallback */
+    const getGroupSessionIds = () => {
+        const groupSessions = activeSessionGroup?.sessions || [];
+        const ids = groupSessions.map(s => s.session_id).filter(Boolean);
+        if (ids.length === 0 && sessionId) return [sessionId];
+        return ids;
+    };
+
     const handleToggleMode = async () => {
         if (!sessionId) return;
         try {
             const currentMode = liveData?.is_paper !== false; // Default to paper if undefined
             const nextIsPaper = !currentMode;
 
-            // Apply to all sessions in the group
-            const groupSessions = activeSessionGroup?.sessions || [];
-            if (groupSessions.length > 1) {
-                for (const s of groupSessions) {
-                    await toggleLiveMode(s.session_id, nextIsPaper);
-                }
-            } else {
-                await toggleLiveMode(sessionId, nextIsPaper);
+            // Apply to all sessions in the group (parallel, fault-tolerant)
+            const ids = getGroupSessionIds();
+            const results = await Promise.allSettled(
+                ids.map(sid => toggleLiveMode(sid, nextIsPaper))
+            );
+            const failed = results.filter(r => r.status === 'rejected');
+            if (failed.length > 0 && failed.length < ids.length) {
+                addLog("Warning", `Mode switched for ${ids.length - failed.length}/${ids.length} session(s)`);
+            } else if (failed.length === ids.length) {
+                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
             }
             setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
-            addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} by User`);
+            addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} for ${ids.length} session(s)`);
         } catch (err) {
             setError(err.message);
         }
@@ -1290,15 +1300,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const handleForceClosePosition = async () => {
         try {
             // Force close positions only (no session stop) — sessions keep running
-            const sessionIds = Object.values(parallelSessions);
-            if (sessionIds.length > 0) {
-                for (const sid of sessionIds) {
-                    await liquidateLiveBot(sid, { autoStop: false });
-                }
-                addLog("System", `Force-closed positions for ${sessionIds.length} session(s). Sessions still running.`);
-            } else if (sessionId) {
-                await liquidateLiveBot(sessionId, { autoStop: false });
-                addLog("System", "Force-closed all positions. Session still running.");
+            const ids = getGroupSessionIds();
+            const results = await Promise.allSettled(
+                ids.map(sid => liquidateLiveBot(sid, { autoStop: false }))
+            );
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected');
+            if (failed.length > 0 && succeeded > 0) {
+                addLog("Warning", `Force-closed positions for ${succeeded}/${ids.length} session(s). Sessions still running.`);
+            } else if (failed.length === ids.length) {
+                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
+            } else {
+                addLog("System", `Force-closed positions for ${succeeded} session(s). Sessions still running.`);
             }
             // Notify parent to refresh session list
             if (onSessionAction) onSessionAction('force_close', activeSessionGroup?.sessions?.[0]);
@@ -1312,17 +1325,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         const currentEnabled = liveData?.orders_enabled !== false;
         const newEnabled = !currentEnabled;
         try {
-            // Apply to all sessions in the group
-            const groupSessions = activeSessionGroup?.sessions || [];
-            if (groupSessions.length > 1) {
-                for (const s of groupSessions) {
-                    await toggleLiveOrders(s.session_id, newEnabled);
-                }
-            } else if (sessionId) {
-                await toggleLiveOrders(sessionId, newEnabled);
+            // Apply to all sessions in the group (parallel, fault-tolerant)
+            const ids = getGroupSessionIds();
+            const results = await Promise.allSettled(
+                ids.map(sid => toggleLiveOrders(sid, newEnabled))
+            );
+            const failed = results.filter(r => r.status === 'rejected');
+            if (failed.length > 0 && failed.length < ids.length) {
+                addLog("Warning", `Orders toggled for ${ids.length - failed.length}/${ids.length} session(s)`);
+            } else if (failed.length === ids.length) {
+                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
             }
             setLiveData(prev => ({ ...prev, orders_enabled: newEnabled }));
-            addLog("System", `Orders ${newEnabled ? 'resumed' : 'paused'}.`);
+            addLog("System", `Orders ${newEnabled ? 'resumed' : 'paused'} for ${ids.length} session(s).`);
         } catch (err) {
             setError(err.message);
             addLog("Error", `Toggle orders failed: ${err.message}`);
@@ -1339,17 +1354,19 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         const nextMode = tickExecConfirm.nextMode;
         setTickExecConfirm({ isOpen: false, nextMode: 'candle' });
         try {
-            // Apply to all sessions in the group
-            const groupSessions = activeSessionGroup?.sessions || [];
-            if (groupSessions.length > 1) {
-                for (const s of groupSessions) {
-                    await toggleTickExecution(s.session_id, nextMode);
-                }
-            } else if (sessionId) {
-                await toggleTickExecution(sessionId, nextMode);
+            // Apply to all sessions in the group (parallel, fault-tolerant)
+            const ids = getGroupSessionIds();
+            const results = await Promise.allSettled(
+                ids.map(sid => toggleTickExecution(sid, nextMode))
+            );
+            const failed = results.filter(r => r.status === 'rejected');
+            if (failed.length > 0 && failed.length < ids.length) {
+                addLog("Warning", `Tick execution toggled for ${ids.length - failed.length}/${ids.length} session(s)`);
+            } else if (failed.length === ids.length) {
+                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
             }
             setLiveData(prev => ({ ...prev, tick_execution: nextMode }));
-            addLog("System", `Exit speed switched to ${nextMode === 'tick' ? 'TICK (real-time)' : 'CANDLE (on close)'}`);
+            addLog("System", `Exit speed switched to ${nextMode === 'tick' ? 'TICK (real-time)' : 'CANDLE (on close)'} for ${ids.length} session(s)`);
         } catch (err) {
             setError(err.message);
             addLog("Error", `Toggle tick execution failed: ${err.message}`);
@@ -1836,10 +1853,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     }
                 }}
                 title="Stop Live Trading?"
-                message={executionMode === 'parallel'
-                    ? `Are you sure you want to stop ALL ${Object.keys(parallelSessions).length} parallel sessions? Pending orders might be cancelled.`
+                message={(activeSessionGroup?.sessions?.length || 0) > 1
+                    ? `Are you sure you want to stop ALL ${activeSessionGroup.sessions.length} sessions in this group? Pending orders might be cancelled.`
                     : "Are you sure you want to stop the live trading session? Pending orders might be cancelled."}
-                confirmText={executionMode === 'parallel' ? "Stop All Sessions" : "Stop Session"}
+                confirmText={(activeSessionGroup?.sessions?.length || 0) > 1 ? "Stop All Sessions" : "Stop Session"}
                 isDanger={true}
             />
 
@@ -1885,8 +1902,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     handleForceClosePosition();
                 }}
                 title="Force Close Position"
-                message={executionMode === 'parallel'
-                    ? `This will immediately market-sell ALL holdings across ${Object.keys(parallelSessions).length} sessions. Orders will continue running. This action cannot be undone.`
+                message={(activeSessionGroup?.sessions?.length || 0) > 1
+                    ? `This will immediately market-sell ALL holdings across ${activeSessionGroup.sessions.length} sessions. Orders will continue running. This action cannot be undone.`
                     : "This will immediately market-sell all holdings in the current session. Orders will continue running. This action cannot be undone."}
                 confirmText="Force Close"
                 isDanger={true}

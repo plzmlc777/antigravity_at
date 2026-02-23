@@ -58,6 +58,18 @@ export const LiveTradingProvider = ({ children }) => {
     }, [executionMode]);
 
     // ==========================================
+    // Sync execution mode from active session group's strategy_config
+    // ==========================================
+    useEffect(() => {
+        if (!activeSessionGroup) return;
+        const config = activeSessionGroup.configList?.[0];
+        const mode = config?.execution_mode;
+        if (mode && (mode === 'parallel' || mode === 'exclusive') && mode !== executionMode) {
+            setExecutionMode(mode);
+        }
+    }, [activeSessionGroup]);
+
+    // ==========================================
     // Load accounts (once, with caching)
     // ==========================================
     const loadAccounts = useCallback(async (force = false) => {
