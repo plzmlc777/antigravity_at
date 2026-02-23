@@ -595,6 +595,11 @@ export const activateStrategy = (requestId) =>
 export const strategyLabChat = (message, sessionId = null, strategyId = null) =>
     api.post('/strategy-lab/chat', { message, session_id: sessionId, strategy_id: strategyId }, { timeout: 610000 }).then(r => r.data);
 
+export const stockSearchChat = (message, sessionId = null) =>
+    api.post('/stock-search/chat', { message, session_id: sessionId }, { timeout: 310000 }).then(r => r.data);
+export const getStockSearchTokenStatus = () =>
+    api.get('/stock-search/token-status').then(r => r.data);
+
 export const updateStrategyVisibility = async (strategyId, isPublic) => {
     const { data } = await api.patch(`/strategies/${strategyId}/visibility`, { is_public: isPublic });
     return data;

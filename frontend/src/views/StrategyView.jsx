@@ -39,6 +39,7 @@ import DateDropdown from '../components/DateDropdown';
 import PerformanceStatsGrid from '../components/PerformanceStatsGrid';
 import MonthlyAnalysisChart from '../components/MonthlyAnalysisChart';
 import DualScrollContainer from '../components/DualScrollContainer';
+import StockSearchChat from '../components/StockSearchChat';
 import { STAT_COLUMNS, formatStatValue, getStatColor, shouldShowConditional, computeTotalStats, getVisibleColumns, parseStatValue, getOptValue, getOptVisibleColumns, normalizeStats } from '../config/statsConfig';
 import { EQUITY_DATE_KEY, EQUITY_VALUE_KEY } from '../config/chartConfig';
 import { History as HistoryIcon, HelpCircle, ChevronRight, Settings, Rocket, Crosshair, Sparkles, Terminal, Save, Copy, ClipboardPaste, RefreshCw, Download, Upload, Plus, Trash2, FolderOpen, X, Check, Lock, Building2 } from 'lucide-react';
@@ -402,7 +403,9 @@ const StrategyView = () => {
         ? configList[activeTab]
         : (activeTab === -3
             ? getSymbolCompareConfig()
-            : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig()));
+            : (activeTab === -4
+                ? getDynamicDefaultConfig()
+                : (activeTab === -2 && configList.length > 0 ? configList[0] : getDynamicDefaultConfig())));
 
     const activeSymbol = currentConfig?.symbol || currentSymbol;
     const isSymbolValid = !!activeSymbol && activeSymbol.trim().length > 0;
@@ -1564,6 +1567,24 @@ const StrategyView = () => {
                                     <span className="text-lg">📊</span>
                                     <span>Symbol Compare</span>
                                 </button>
+
+                                {/* Workflow Arrow: Symbol Compare → Symbol Search */}
+                                <div className="flex items-center mx-1 text-white/20 hover:text-white/40 transition-colors">
+                                    <ChevronRight size={16} />
+                                </div>
+
+                                {/* Symbol Search Tab (AI) */}
+                                <button
+                                    onClick={() => handleTabSwitch(-4)}
+                                    className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${activeTab === -4
+                                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-105'
+                                        : 'bg-gradient-to-r from-gray-800 to-gray-900 text-cyan-500 border-cyan-500/30 hover:border-cyan-500 hover:text-cyan-400 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                                        }`}
+                                >
+                                    {activeTab === -4 && <span className="text-green-400 font-bold">✓</span>}
+                                    <Sparkles size={16} />
+                                    <span>Symbol Search</span>
+                                </button>
                             </div>
 
                             {/* Row 2: Rank/Draft Tabs */}
@@ -1675,7 +1696,7 @@ const StrategyView = () => {
                             {/* Active tab indicator line */}
                             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs text-gray-500">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 animate-pulse" />
-                                <span>{activeTab === -1 ? 'Integrated Portfolio' : activeTab === -3 ? 'Symbol Compare' : `Rank ${activeTab + 1}`} selected</span>
+                                <span>{activeTab === -1 ? 'Integrated Portfolio' : activeTab === -3 ? 'Symbol Compare' : activeTab === -4 ? 'Symbol Search' : `Rank ${activeTab + 1}`} selected</span>
                             </div>
                             </div>
 
@@ -2106,7 +2127,7 @@ const StrategyView = () => {
                                 </div>
                             )}
 
-                            {activeTab !== -2 && activeTab !== -1 && (
+                            {activeTab !== -2 && activeTab !== -1 && activeTab !== -4 && (
                                 <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                                     <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
                                         <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
@@ -2632,6 +2653,54 @@ const StrategyView = () => {
                                 </div>
                             )}
 
+
+                            {/* Symbol Search Tab Content (AI Chat + Target Asset) */}
+                            {activeTab === -4 && (
+                                <div className="animate-fade-in-up space-y-4">
+                                    {/* Current Target Asset Panel */}
+                                    <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                                        <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                                            <h3 className="font-bold text-gray-200 text-sm flex items-center gap-2">
+                                                <Crosshair size={14} className="text-gray-400" /> Target Asset
+                                                <span className="text-xs text-gray-500 font-normal">({(savedSymbols || []).length})</span>
+                                            </h3>
+                                        </div>
+                                        <div className="px-4 py-3">
+                                            {savedSymbols && savedSymbols.length > 0 ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {savedSymbols.map(item => (
+                                                        <SymbolChip
+                                                            key={item.code}
+                                                            symbol={item}
+                                                            onDelete={isProfileLocked ? undefined : (code) => {
+                                                                setSavedSymbols(prev => prev.filter(s => s.code !== code));
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-600 italic">종목이 없습니다. AI 검색으로 추가해보세요.</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* AI Chat */}
+                                    <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden"
+                                         style={{ height: 'calc(100vh - 480px)', minHeight: '400px' }}>
+                                        <StockSearchChat
+                                            onStocksFound={(stocks) => {
+                                                const existingCodes = new Set((savedSymbols || []).map(s => s.code));
+                                                const newStocks = stocks.filter(s => !existingCodes.has(s.code));
+                                                if (newStocks.length > 0) {
+                                                    setSavedSymbols(prev => [...prev, ...newStocks]);
+                                                    addLog(`AI 검색으로 ${newStocks.length}개 종목 추가`, 'success');
+                                                }
+                                            }}
+                                            savedSymbols={savedSymbols || []}
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Backtest Settings Card */}
                             {activeTab >= 0 && (
