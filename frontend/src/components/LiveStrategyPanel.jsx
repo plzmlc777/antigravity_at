@@ -1356,7 +1356,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
-    // WebSocket for Real-time Data
+    // WebSocket for Real-time Data (with auto-reconnect)
     useEffect(() => {
         if (status !== 'RUNNING') return;
         if (mode === 'TRADE' && !sessionId) return;
@@ -1369,19 +1369,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/${sessionId}`;
         }
 
-        let ws = new WebSocket(wsUrl);
+        let ws = null;
+        let reconnectTimer = null;
+        let reconnectAttempt = 0;
+        let disposed = false;
 
-        ws.onopen = () => {
-            setWsConnected(true);
-            addLog("System", `WS connected to: ${wsUrl}`);
-        };
-
-        ws.onerror = (error) => {
-            setWsConnected(false);
-            addLog("System", `WS error: ${error.message || 'Connection error'}`);
-        };
-
-        ws.onmessage = (event) => {
+        const handleMessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
 
@@ -1504,14 +1497,42 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             }
         };
 
-        ws.onclose = () => {
-            setWsConnected(false);
-            addLog("System", "Real-time feed disconnected");
+        const connect = () => {
+            if (disposed) return;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                reconnectAttempt = 0;
+                setWsConnected(true);
+                addLog("System", `WS connected to: ${wsUrl}`);
+            };
+
+            ws.onerror = (error) => {
+                setWsConnected(false);
+                addLog("System", `WS error: ${error.message || 'Connection error'}`);
+            };
+
+            ws.onmessage = handleMessage;
+
+            ws.onclose = () => {
+                setWsConnected(false);
+                if (!disposed) {
+                    // Auto-reconnect with exponential backoff (1s, 2s, 4s, 8s, max 15s)
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), 15000);
+                    reconnectAttempt++;
+                    addLog("System", `Real-time feed disconnected. Reconnecting in ${(delay/1000).toFixed(0)}s...`);
+                    reconnectTimer = setTimeout(connect, delay);
+                }
+            };
         };
 
+        connect();
+
         return () => {
+            disposed = true;
             wsHistoryReceived.current = false;
             setWsConnected(false);
+            if (reconnectTimer) clearTimeout(reconnectTimer);
             if (ws) ws.close();
         };
     }, [sessionId, status, mode, strategyConfig.symbol]);
