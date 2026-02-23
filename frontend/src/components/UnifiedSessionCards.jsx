@@ -127,8 +127,7 @@ const UnifiedSessionCards = ({
                 )}
                 {ranks.map(({ idx, cfg, session, isRunning }) => {
                     const isSelected = idx === currentRankIndex;
-                    const symbolMatch = savedSymbols?.find(s => s.code === cfg.symbol);
-                    const symbolName = symbolMatch ? symbolMatch.name : cfg.symbol;
+                    const symbolName = cfg.symbol_name || savedSymbols?.find(s => s.code === cfg.symbol)?.name || cfg.symbol;
                     const hasData = !!session;
                     const state = session?.strategy_state || {};
                     const price = session?.current_price || 0;
