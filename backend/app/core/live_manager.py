@@ -773,18 +773,22 @@ class LiveManager:
         finally:
             db.close()
 
-    async def liquidate_session(self, session_id: str, auto_stop: bool = True):
+    async def liquidate_session(self, session_id: str, auto_stop: bool = True) -> dict:
         """
         Force Close Position: Market sell all holdings, then stop the session.
         auto_stop=True (default): automatically stop session after liquidation.
+        Returns: result dict from engine.liquidate_all()
         """
+        result = {}
         if session_id in self.engines:
-            await self.engines[session_id].liquidate_all()
-            logger.info(f"Session {session_id}: Force-closed all positions.")
+            result = await self.engines[session_id].liquidate_all()
+            logger.info(f"Session {session_id}: Force-closed all positions. Result: {result}")
 
-        if auto_stop:
+        if auto_stop and result.get("action") != "market_closed":
             await self.stop_session(session_id, force=True)
             logger.info(f"Session {session_id}: Auto-stopped after force close.")
+
+        return result
 
     async def get_status(self, session_id: str = None, account_id: int = None, account_ids: List[int] = None) -> List[Dict]:
         """

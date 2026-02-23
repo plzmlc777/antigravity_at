@@ -510,11 +510,12 @@ class LiveTradingEngine:
         finally:
             db.close()
 
-    async def liquidate_all(self):
+    async def liquidate_all(self) -> dict:
         """
         Force Close Position: Market sell all holdings.
         Paper mode: uses strategy internal state (total_quantity).
         Real mode: syncs with exchange API for actual holdings.
+        Returns: dict with result info (symbol, qty, mode, market_closed, etc.)
         """
         logger.warning(f"FORCE CLOSE: Liquidating all holdings for session {self.session_id}")
 
@@ -527,11 +528,23 @@ class LiveTradingEngine:
                     logger.info(f"FORCE CLOSE (PAPER): Selling {qty} shares of {self.symbol} @ {price:,.0f}")
                     self.strategy_instance._liquidate(price)
                     await self.context.process_queue()
+                    return {"symbol": self.symbol, "qty": qty, "mode": "paper", "action": "sold"}
                 else:
                     logger.info(f"FORCE CLOSE (PAPER): No position in strategy state for {self.symbol}.")
+                    return {"symbol": self.symbol, "qty": 0, "mode": "paper", "action": "no_position"}
             else:
                 logger.info(f"FORCE CLOSE (PAPER): No strategy instance or position tracking.")
+                return {"symbol": self.symbol, "qty": 0, "mode": "paper", "action": "no_position"}
         else:
+            # Real mode: check market hours first
+            from ..adapters.kiwoom_websocket import KiwoomWebSocketAdapter
+            if not KiwoomWebSocketAdapter.is_market_open():
+                logger.warning(f"FORCE CLOSE (REAL): Market is closed. Cannot liquidate {self.symbol}.")
+                # Still check holdings to report
+                await self.context.async_sync_balance()
+                qty = self.context.holdings.get(self.symbol, 0)
+                return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "market_closed"}
+
             # Real mode: sync with exchange and sell actual holdings
             await self.context.async_sync_balance()
             qty = self.context.holdings.get(self.symbol, 0)
@@ -539,8 +552,10 @@ class LiveTradingEngine:
                 logger.info(f"FORCE CLOSE (REAL): Selling {qty} shares of {self.symbol} at Market Price")
                 self.context.sell(self.symbol, qty, price=0)
                 await self.context.process_queue()
+                return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "sold"}
             else:
                 logger.info(f"FORCE CLOSE (REAL): No holdings found for {self.symbol}.")
+                return {"symbol": self.symbol, "qty": 0, "mode": "real", "action": "no_position"}
 
             # Reset strategy internal state so the next cycle starts clean
             if self.strategy_instance:

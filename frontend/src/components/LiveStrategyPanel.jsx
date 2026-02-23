@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap } from 'lucide-react';
+import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap, EyeOff, Eye } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
@@ -1101,6 +1101,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         }
     };
 
+    const handleArchiveSession = async () => {
+        const sessions = activeSessionGroup?.sessions;
+        if (!sessions || sessions.length === 0) return;
+
+        try {
+            const result = await archiveSession(sessions[0].session_id);
+            const action = result.is_archived ? '숨김' : '숨김 해제';
+            addLog("System", `세션 그룹 ${action} (${result.affected_sessions}개 세션)`);
+            if (onSessionAction) onSessionAction('archive', sessions[0]);
+        } catch (err) {
+            showAlert(`아카이브 실패: ${err.response?.data?.detail || err.message}`, 'error');
+        }
+    };
+
     // Get symbol name helper for delete modal
     const getSymbolName = (code) => {
         const match = savedSymbols.find(s => s.code === code);
@@ -1304,19 +1318,47 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             const results = await Promise.allSettled(
                 ids.map(sid => liquidateLiveBot(sid, { autoStop: false }))
             );
-            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const succeeded = results.filter(r => r.status === 'fulfilled');
             const failed = results.filter(r => r.status === 'rejected');
-            if (failed.length > 0 && succeeded > 0) {
-                addLog("Warning", `Force-closed positions for ${succeeded}/${ids.length} session(s). Sessions still running.`);
-            } else if (failed.length === ids.length) {
-                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
+
+            if (failed.length > 0) {
+                const errors = failed.map(r => r.reason?.response?.data?.detail || r.reason?.message || 'Unknown');
+
+                // Check for MARKET_CLOSED errors
+                const marketClosedErrors = errors.filter(e => e.startsWith('MARKET_CLOSED|'));
+                if (marketClosedErrors.length > 0) {
+                    const details = marketClosedErrors.map(e => e.split('|')[1]).join('\n');
+                    showAlert(`거래 시간이 아닙니다.\n\n${details}`, 'warning', '장외 시간');
+                    return;
+                }
+
+                if (failed.length === ids.length) {
+                    throw new Error(errors[0]);
+                }
+                showAlert(`${succeeded.length}/${ids.length}개 세션 청산 완료. 일부 실패.`, 'warning', 'Force Close');
             } else {
-                addLog("System", `Force-closed positions for ${succeeded} session(s). Sessions still running.`);
+                // Check results for no_position vs sold
+                const resultData = succeeded.map(r => r.value?.result || r.value || {});
+                const noPositionCount = resultData.filter(r => r.action === 'no_position').length;
+                const soldCount = resultData.filter(r => r.action === 'sold').length;
+
+                if (noPositionCount === ids.length) {
+                    showAlert('청산할 포지션이 없습니다.', 'info', 'Force Close');
+                } else if (soldCount > 0) {
+                    const soldDetails = resultData
+                        .filter(r => r.action === 'sold')
+                        .map(r => `${r.symbol} ${r.qty}주`)
+                        .join(', ');
+                    showAlert(`포지션 청산 완료: ${soldDetails}`, 'success', 'Force Close');
+                } else {
+                    showAlert('Force Close 완료.', 'success', 'Force Close');
+                }
+                addLog("System", `Force-closed positions for ${ids.length} session(s). Sessions still running.`);
             }
             // Notify parent to refresh session list
             if (onSessionAction) onSessionAction('force_close', activeSessionGroup?.sessions?.[0]);
         } catch (err) {
-            setError(err.message);
+            showAlert(`Force Close 실패: ${err.message}`, 'error');
             addLog("Error", `Force close failed: ${err.message}`);
         }
     };
@@ -1831,11 +1873,21 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             if (failed > 0) {
                                 const errors = results
                                     .filter(r => r.status === 'rejected')
-                                    .map(r => r.reason?.response?.data?.detail || r.reason?.message || 'Unknown')
-                                    .join(', ');
-                                addLog("Warning", `Stopped ${succeeded}/${runningIds.length} session(s). Errors: ${errors}`);
+                                    .map(r => r.reason?.response?.data?.detail || r.reason?.message || 'Unknown');
+
+                                // Check if any error is POSITION_HELD
+                                const positionErrors = errors.filter(e => e.startsWith('POSITION_HELD|'));
+                                if (positionErrors.length > 0) {
+                                    const details = positionErrors.map(e => e.split('|')[1]).join('\n');
+                                    setPositionWarningMessage(`포지션을 보유 중이기 때문에 세션을 종료할 수 없습니다.\n\n${details}\n\nForce Close로 포지션을 청산한 후 종료해주세요.`);
+                                    setIsPositionWarningOpen(true);
+                                    return;
+                                }
+
+                                const errorStr = errors.join(', ');
+                                addLog("Warning", `Stopped ${succeeded}/${runningIds.length} session(s). Errors: ${errorStr}`);
                                 if (succeeded === 0) {
-                                    setError(errors);
+                                    setError(errorStr);
                                     return;
                                 }
                             } else {
@@ -2338,7 +2390,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                             <button
                                                 onClick={handleResumeSession}
                                                 disabled={isResuming || hasUnsavedChanges}
-                                                className="h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-base font-bold tracking-wide rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-blue-900/30"
+                                                className="col-span-2 h-14 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white text-base font-bold tracking-wide rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-blue-900/30"
                                             >
                                                 {isResuming ? (
                                                     <>
@@ -2358,12 +2410,32 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 )}
                                             </button>
                                             <button
+                                                onClick={handleArchiveSession}
+                                                className={`h-12 flex items-center justify-center gap-2 text-sm font-bold tracking-wide rounded-xl transition-all border-2 ${
+                                                    activeSessionGroup?.sessions?.[0]?.is_archived
+                                                        ? 'bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border-indigo-500/50'
+                                                        : 'bg-slate-600/20 hover:bg-slate-600/30 text-slate-400 border-slate-500/50'
+                                                }`}
+                                            >
+                                                {activeSessionGroup?.sessions?.[0]?.is_archived ? (
+                                                    <>
+                                                        <Eye size={18} />
+                                                        숨기기 해제
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <EyeOff size={18} />
+                                                        세션 숨기기
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
                                                 onClick={() => setIsDeleteModalOpen(true)}
                                                 disabled={isDeleting}
-                                                className="h-14 flex items-center justify-center gap-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-base font-bold tracking-wide rounded-xl transition-all border-2 border-red-500/50 disabled:opacity-50"
+                                                className="h-12 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-bold tracking-wide rounded-xl transition-all border-2 border-red-500/50 disabled:opacity-50"
                                             >
-                                                <Trash2 size={20} />
-                                                세션 삭제 (DELETE)
+                                                <Trash2 size={18} />
+                                                세션 삭제
                                             </button>
                                         </div>
                                     ) : (

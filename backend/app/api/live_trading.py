@@ -172,9 +172,7 @@ async def stop_live_bot(
     ctx: UserAccountContext = Depends(get_user_context),
     db: Session = Depends(get_db)
 ):
-    if not ctx.has_active_account:
-        raise HTTPException(status_code=400, detail="No active account")
-    await verify_session_ownership(session_id, ctx.account_id, db)
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
     try:
         await live_manager.stop_session(session_id)
         return {"status": "success", "message": f"Session {session_id} Stopped"}
@@ -346,6 +344,56 @@ async def delete_session(
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
 
 
+@router.post("/session/{session_id}/archive")
+async def archive_session(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Toggle archive status for a session (and all sessions in the same group).
+    Archived sessions are hidden from the default list but trade history is preserved.
+    """
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..models.account import ExchangeAccount
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership
+    user_accounts = db.query(ExchangeAccount.id).filter(
+        ExchangeAccount.user_id == ctx.user_id
+    ).all()
+    if session.account_id not in [a.id for a in user_accounts]:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    # Cannot archive running sessions
+    if session.status == SessionStatus.RUNNING:
+        raise HTTPException(status_code=400, detail="Cannot archive a running session. Stop it first.")
+
+    new_archived = not (session.is_archived or False)
+
+    # Archive all sessions in the same group
+    if session.group_id:
+        db.query(LiveBotSession).filter(
+            LiveBotSession.group_id == session.group_id
+        ).update({"is_archived": new_archived})
+        affected = db.query(LiveBotSession).filter(
+            LiveBotSession.group_id == session.group_id
+        ).count()
+    else:
+        session.is_archived = new_archived
+        affected = 1
+
+    db.commit()
+    return {
+        "status": "success",
+        "is_archived": new_archived,
+        "affected_sessions": affected
+    }
+
+
 class ToggleOrdersRequest(BaseModel):
     enabled: bool
 
@@ -510,13 +558,25 @@ async def liquidate_session(
     auto_stop=True (default): also stop the session after liquidation.
     auto_stop=False: only close positions, keep session running.
     """
-    if not ctx.has_active_account:
-        raise HTTPException(status_code=400, detail="No active account")
-    await verify_session_ownership(session_id, ctx.account_id, db)
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
     try:
-        await live_manager.liquidate_session(session_id, auto_stop=auto_stop)
+        result = await live_manager.liquidate_session(session_id, auto_stop=auto_stop)
+
+        if result.get("action") == "market_closed":
+            qty = result.get("qty", 0)
+            symbol = result.get("symbol", "")
+            raise HTTPException(
+                status_code=409,
+                detail=f"MARKET_CLOSED|{symbol} {qty}주 보유 중. 거래 시간(09:00~15:30)에 다시 시도해주세요."
+            )
+
+        if result.get("action") == "no_position":
+            return {"status": "success", "message": f"No position to close for {result.get('symbol', '')}.", "result": result}
+
         msg = "Liquidation order sent and session stopped." if auto_stop else "Liquidation order sent. Session still running."
-        return {"status": "success", "message": msg}
+        return {"status": "success", "message": msg, "result": result}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -550,6 +610,7 @@ async def get_live_status(
 async def get_all_sessions(
     all_accounts: bool = False,
     include_stopped: bool = True,
+    include_archived: bool = False,
     limit: int = 50,
     ctx: UserAccountContext = Depends(get_user_context),
     db: Session = Depends(get_db)
@@ -592,6 +653,9 @@ async def get_all_sessions(
 
     if not include_stopped:
         query = query.filter(LiveBotSession.status != SessionStatus.STOPPED)
+
+    if not include_archived:
+        query = query.filter(LiveBotSession.is_archived != True)
 
     # Order by status priority (RUNNING first), then by started_at desc
     sessions = query.order_by(
@@ -642,6 +706,7 @@ async def get_all_sessions(
             "started_at": sess.started_at.isoformat() if sess.started_at else None,
             "stopped_at": sess.stopped_at.isoformat() if sess.stopped_at else None,
             "error_log": sess.error_log,
+            "is_archived": sess.is_archived or False,
             "strategy_config": sess.strategy_config,  # Full config for UI display
             **engine_info
         })
@@ -1730,12 +1795,11 @@ async def run_ai_evaluation(
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account")
 
-    # Verify session ownership
+    # Verify session ownership (user-level: any of user's accounts)
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.account_id != ctx.account_id:
-        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
     try:
         # Initialize service with user_id to load API key from database
@@ -1858,12 +1922,8 @@ async def list_ai_evaluations(
     if not ctx.has_active_account:
         raise HTTPException(status_code=400, detail="No active account")
 
-    # Verify session ownership
-    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if session.account_id != ctx.account_id:
-        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+    # Verify session ownership (user-level)
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
     evaluations = db.query(LiveAIEvaluation).filter(
         LiveAIEvaluation.session_id == session_id
@@ -1910,10 +1970,9 @@ async def get_ai_evaluation(
     if not evaluation:
         raise HTTPException(status_code=404, detail="Evaluation not found")
 
-    # Verify session ownership
-    session = db.query(LiveBotSession).filter(LiveBotSession.id == evaluation.session_id).first()
-    if session and session.account_id != ctx.account_id:
-        raise HTTPException(status_code=403, detail="Evaluation does not belong to your account")
+    # Verify session ownership (user-level)
+    if evaluation.session_id:
+        await verify_session_ownership_by_user(evaluation.session_id, ctx.user_id, db)
 
     return {
         "id": evaluation.id,
@@ -1965,8 +2024,7 @@ async def get_ai_eval_settings(
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.account_id != ctx.account_id:
-        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
     return {
         "session_id": session_id,
@@ -1996,8 +2054,7 @@ async def update_ai_eval_settings(
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if session.account_id != ctx.account_id:
-        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
     # Update settings
     session.ai_eval_enabled = req.enabled

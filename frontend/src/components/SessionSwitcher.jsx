@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Plus, Activity, Building2, RefreshCw, AlertCircle, StopCircle, PauseCircle, PlayCircle, Clock, FileText, Zap, Check, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Plus, Activity, Building2, RefreshCw, AlertCircle, StopCircle, PauseCircle, PlayCircle, Clock, FileText, Zap, Check, Trash2, AlertTriangle, X, EyeOff } from 'lucide-react';
 import { getAllSessions } from '../api/client';
 import { useLiveTrading } from '../context/LiveTradingContext';
 import { STATUS_CONFIG, DEFAULTS } from '../constants/live';
@@ -161,6 +161,7 @@ const SessionSwitcher = forwardRef(({
             const sessionsData = await getAllSessions({
                 allAccounts: true,
                 includeStopped: showAll,
+                includeArchived: showAll,
                 limit: DEFAULTS.SESSION_LIMIT
             });
             setSessions(Array.isArray(sessionsData) ? sessionsData : []);
@@ -286,6 +287,9 @@ const SessionSwitcher = forwardRef(({
                 return t > latest ? t : latest;
             }, 0);
 
+            // Check if group is archived (any session in group is archived)
+            const isArchived = sessionList.some(s => s.is_archived);
+
             processedGroups.push({
                 ...group,
                 status: groupStatus,
@@ -293,6 +297,7 @@ const SessionSwitcher = forwardRef(({
                 symbols,
                 sessionCount: sessionList.length,
                 latestActivity: new Date(latestActivity),
+                is_archived: isArchived,
             });
         }
 
@@ -454,6 +459,7 @@ const SessionSwitcher = forwardRef(({
                                     className={`
                                         relative flex-shrink-0 flex flex-col gap-1 p-3 rounded-xl min-w-[150px] max-w-[180px]
                                         transition-all duration-200 text-left cursor-pointer
+                                        ${group.is_archived ? 'opacity-50' : ''}
                                         ${isSelected
                                             ? 'bg-indigo-600/40 border-2 border-indigo-400 shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-400/50'
                                             : `${statusConfig.bgColor} border ${statusConfig.borderColor} hover:border-white/40`}
@@ -474,6 +480,13 @@ const SessionSwitcher = forwardRef(({
                                     {isSelected && (
                                         <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center shadow-lg z-10">
                                             <Check size={12} className="text-white" strokeWidth={3} />
+                                        </div>
+                                    )}
+
+                                    {/* Archived Indicator */}
+                                    {group.is_archived && (
+                                        <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-slate-600 rounded-full flex items-center justify-center shadow-lg z-10">
+                                            <EyeOff size={10} className="text-slate-300" />
                                         </div>
                                     )}
 

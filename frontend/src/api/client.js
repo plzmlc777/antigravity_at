@@ -239,10 +239,11 @@ export const getLiveStatus = async (options = {}) => {
 };
 
 export const getAllSessions = async (options = {}) => {
-    const { allAccounts = false, includeStopped = true, limit = 50 } = options;
+    const { allAccounts = false, includeStopped = true, includeArchived = false, limit = 50 } = options;
     const params = {
         all_accounts: allAccounts,
         include_stopped: includeStopped,
+        include_archived: includeArchived,
         limit
     };
     const { data } = await api.get('/live/sessions', { params });
@@ -251,6 +252,11 @@ export const getAllSessions = async (options = {}) => {
 
 export const deleteSession = async (sessionId) => {
     const { data } = await api.delete(`/live/session/${sessionId}`);
+    return data;
+};
+
+export const archiveSession = async (sessionId) => {
+    const { data } = await api.post(`/live/session/${sessionId}/archive`);
     return data;
 };
 
