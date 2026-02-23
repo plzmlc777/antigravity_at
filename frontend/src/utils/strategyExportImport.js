@@ -172,7 +172,11 @@ export const exportAssetsToJSON = ({ savedSymbols, accountName }) => {
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const filename = `target_assets_${accountAlias}_${new Date().toISOString().split('T')[0]}.json`;
+    const defaultName = `target_assets_${accountAlias}_${new Date().toISOString().split('T')[0]}`;
+    const userInput = window.prompt('파일명을 입력하세요 (.json 자동 추가)', defaultName);
+    if (userInput === null) return null;
+    const baseName = userInput.trim() || defaultName;
+    const filename = baseName.endsWith('.json') ? baseName : `${baseName}.json`;
     downloadBlob(blob, filename);
 
     return filename;
@@ -212,7 +216,11 @@ export const exportParamsToJSON = ({ config, sourceLabel, accountName, strategyI
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const filename = `params_${accountAlias}_${strategyId || 'strategy'}_${sourceLabel}_${new Date().toISOString().split('T')[0]}.json`;
+    const defaultName = `params_${accountAlias}_${strategyId || 'strategy'}_${sourceLabel}_${new Date().toISOString().split('T')[0]}`;
+    const userInput = window.prompt('파일명을 입력하세요 (.json 자동 추가)', defaultName);
+    if (userInput === null) return null;
+    const baseName = userInput.trim() || defaultName;
+    const filename = baseName.endsWith('.json') ? baseName : `${baseName}.json`;
     downloadBlob(blob, filename);
 
     return filename;
