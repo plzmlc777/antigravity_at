@@ -2658,7 +2658,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 if (avgPrice > 0) {
                                     lines.push({
                                         price: avgPrice,
-                                        color: '#3b82f6', // blue
+                                        color: '#facc15', // yellow
                                         title: '평균단가',
                                         lineWidth: 1,
                                         lineStyle: 2, // dashed
@@ -2666,7 +2666,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                     if (targetPrice > 0) {
                                         lines.push({
                                             price: targetPrice,
-                                            color: '#22c55e', // green
+                                            color: '#3b82f6', // blue
                                             title: '트레일시작',
                                             lineWidth: 1,
                                             lineStyle: 2, // dashed
