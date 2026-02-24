@@ -1,22 +1,46 @@
-import { useState, useCallback } from 'react';
-import { runBacktest as apiRunBacktest } from '../api/strategies';
+import { useState, useCallback, useMemo } from 'react';
+import { runBacktest as apiRunBacktest, getSymbolInfo } from '../api/strategies';
 import { exportCompareResultsToCSV } from '../utils/strategyExportImport';
 import { DEFAULT_EXCHANGE, getDefaultCapital, getDefaultDays } from '../constants/exchanges';
 
 /**
  * useSymbolComparison - Multi-symbol backtest comparison.
+ *
+ * selectedCompareSymbols is derived from savedSymbols[].compareSelected (single source of truth).
+ * No separate persistence — selection state lives on the symbol object itself.
  */
 export const useSymbolComparison = ({
     symbolCompareConfig, configList, selectedStrategy,
-    savedSymbols, setIsSymbolCompareDirty, addLog,
+    savedSymbols, setSavedSymbols, setIsSymbolCompareDirty, addLog,
     saveProfile = null, selectedProfileId = null,
     exchangeName = DEFAULT_EXCHANGE
 }) => {
-    const [selectedCompareSymbols, setSelectedCompareSymbols] = useState([]);
     const [stockCompareResults, setStockCompareResults] = useState([]);
     const [isStockComparing, setIsStockComparing] = useState(false);
     const [stockCompareProgress, setStockCompareProgress] = useState({ current: 0, total: 0, phase: 'data' });
     const [compareSortConfig, setCompareSortConfig] = useState({ key: 'score', direction: 'desc' });
+
+    // Derived — compareSelected defaults to true (legacy items without field are selected)
+    const selectedCompareSymbols = useMemo(
+        () => (savedSymbols || []).filter(s => s.compareSelected !== false).map(s => s.code),
+        [savedSymbols]
+    );
+
+    const toggleCompareSymbol = useCallback((code) => {
+        setSavedSymbols(prev => prev.map(s =>
+            s.code === code
+                ? { ...s, compareSelected: s.compareSelected === false ? true : false }
+                : s
+        ));
+    }, [setSavedSymbols]);
+
+    const selectAllCompare = useCallback(() => {
+        setSavedSymbols(prev => prev.map(s => ({ ...s, compareSelected: true })));
+    }, [setSavedSymbols]);
+
+    const clearAllCompare = useCallback(() => {
+        setSavedSymbols(prev => prev.map(s => ({ ...s, compareSelected: false })));
+    }, [setSavedSymbols]);
 
     const handleStockCompareBacktest = useCallback(async () => {
         if (selectedCompareSymbols.length === 0) {
@@ -37,6 +61,30 @@ export const useSymbolComparison = ({
         const results = [];
 
         try {
+            // Build name map from savedSymbols, then fetch missing names from API
+            const nameMap = {};
+            const missingNameSymbols = [];
+            for (const symbol of selectedCompareSymbols) {
+                const found = savedSymbols?.find(s => s.code === symbol);
+                if (found?.name) {
+                    nameMap[symbol] = found.name;
+                } else {
+                    missingNameSymbols.push(symbol);
+                }
+            }
+
+            if (missingNameSymbols.length > 0) {
+                addLog(`Fetching names for ${missingNameSymbols.length} symbols...`, 'info');
+                const nameResults = await Promise.allSettled(
+                    missingNameSymbols.map(sym => getSymbolInfo(sym).then(info => ({ sym, name: info?.name || '' })))
+                );
+                for (const r of nameResults) {
+                    if (r.status === 'fulfilled' && r.value.name) {
+                        nameMap[r.value.sym] = r.value.name;
+                    }
+                }
+            }
+
             const BACKTEST_DELAY_MS = 200;
             addLog(`Running backtests for ${totalSymbols} symbols...`, 'info');
             for (let i = 0; i < totalSymbols; i++) {
@@ -62,7 +110,7 @@ export const useSymbolComparison = ({
                     const score = ret * (wr / 100);
 
                     results.push({
-                        symbol, name: savedSymbols?.find(s => s.code === symbol)?.name || '',
+                        symbol, name: nameMap[symbol] || '',
                         total_return: data.total_return, profit_factor: data.profit_factor,
                         win_rate: data.win_rate, recent_10_win_rate: data.recent_10_win_rate,
                         sharpe_ratio: data.sharpe_ratio, total_trades: data.total_trades,
@@ -76,7 +124,7 @@ export const useSymbolComparison = ({
                 } catch (err) {
                     console.error(`Backtest failed for ${symbol}`, err);
                     results.push({
-                        symbol, name: savedSymbols?.find(s => s.code === symbol)?.name || '',
+                        symbol, name: nameMap[symbol] || '',
                         total_return: 'Error', profit_factor: null, win_rate: null,
                         recent_10_win_rate: null, sharpe_ratio: null, total_trades: 0,
                         stability_score: null, acceleration_score: null, activity_rate: null,
@@ -105,7 +153,7 @@ export const useSymbolComparison = ({
             setIsStockComparing(false);
             setStockCompareProgress({ current: 0, total: 0, phase: 'data' });
         }
-    }, [selectedCompareSymbols, symbolCompareConfig, configList, selectedStrategy, savedSymbols, setIsSymbolCompareDirty, addLog, saveProfile, selectedProfileId]);
+    }, [selectedCompareSymbols, symbolCompareConfig, configList, selectedStrategy, savedSymbols, setIsSymbolCompareDirty, addLog, saveProfile, selectedProfileId, exchangeName]);
 
     const handleExportCompareResults = useCallback(() => {
         if (stockCompareResults.length === 0) {
@@ -119,7 +167,8 @@ export const useSymbolComparison = ({
     }, [stockCompareResults, addLog]);
 
     return {
-        selectedCompareSymbols, setSelectedCompareSymbols,
+        selectedCompareSymbols,
+        toggleCompareSymbol, selectAllCompare, clearAllCompare,
         stockCompareResults, setStockCompareResults,
         isStockComparing, stockCompareProgress,
         isSymbolCompareDirty: false, // managed externally

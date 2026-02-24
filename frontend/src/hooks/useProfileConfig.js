@@ -57,8 +57,24 @@ export const useProfileConfig = ({
     const [profileSymbols, setProfileSymbolsState] = useState([]);
     const [originalProfileSymbols, setOriginalProfileSymbols] = useState([]);
 
+    // Auto-save ref to avoid stale closure over selectedProfileId
+    const selectedProfileIdRef = useRef(null);
+    useEffect(() => { selectedProfileIdRef.current = selectedProfileId; }, [selectedProfileId]);
+
     const setProfileSymbols = useCallback((updater) => {
-        setProfileSymbolsState(prev => typeof updater === 'function' ? updater(prev) : updater);
+        setProfileSymbolsState(prev => {
+            const next = typeof updater === 'function' ? updater(prev) : updater;
+            // Auto-save saved_symbols to backend when profile exists
+            const pid = selectedProfileIdRef.current;
+            if (pid && JSON.stringify(next) !== JSON.stringify(prev)) {
+                updateProfile(pid, { saved_symbols: next }).then(() => {
+                    setOriginalProfileSymbols(JSON.parse(JSON.stringify(next)));
+                }).catch(err =>
+                    console.warn('[useProfileConfig] Auto-save symbols failed:', err)
+                );
+            }
+            return next;
+        });
     }, []);
 
     // UI State

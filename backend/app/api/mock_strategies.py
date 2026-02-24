@@ -17,7 +17,7 @@ import csv
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from ..schemas.optimization import (
-    OptimizationRequest, OptimizationResponse, OptimizationResultItem, OptimizationStatus,
+    OptimizationResultItem,
     HeavyOptimizationRequest, HeavyOptimizationStatus,
     ScoreWeights, RecalculateScoreRequest, RecalculateScoreResponse
 )
@@ -211,7 +211,6 @@ async def _run_unified_backtest(
 
 
 # Global Task Registry
-OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}
 HEAVY_OPTIMIZATION_TASKS: Dict[str, Dict[str, Any]] = {}  # For large-scale optimizations
 
 import uuid
@@ -423,301 +422,6 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     ))
 
     return config, result
-
-def _optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None, execution_mode: str = "standard"):
-    """
-    Background wrapper that runs optimization and updates Global Status.
-    Supports 'standard' (sequential) and 'fast' (parallel ProcessPool) modes.
-
-    Memory-optimized: streams results to CSV as they arrive and keeps only
-    top 200 in memory via a min-heap (instead of accumulating all results).
-    """
-    import heapq
-
-    TOP_N = 200  # Keep top N results in memory for partial_results + final response
-
-    try:
-        failures = []
-        total_result_count = 0  # Track total results written to CSV
-
-        # Min-heap of (score, seq_idx, OptimizationResultItem) — top N by score
-        top_heap = []
-
-        # Update Status to Running
-        OPTIMIZATION_TASKS[task_id]["status"] = "running"
-        OPTIMIZATION_TASKS[task_id]["progress_total"] = total_combos
-
-        # CSV setup
-        csv_filename = f"optimization_{task_id}.csv"
-        csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
-        csv_columns = [
-            'rank', 'symbol', 'score', 'total_return', 'win_rate', 'recent_10_win_rate', 'total_trades',
-            'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
-            'stability_score', 'acceleration_score', 'activity_rate',
-            'avg_holding_time', 'max_holding_time', 'min_holding_time',
-            'max_profit', 'max_loss', 'total_days'
-        ]
-        config_keys = None
-        csv_writer = None
-
-        def _write_result_to_csv(csvfile, item, seq_idx):
-            """Stream a single result to CSV file. Initializes writer on first call."""
-            nonlocal csv_writer, config_keys
-            if csv_writer is None:
-                config_keys = list(item.config.keys())
-                all_columns = csv_columns + [f"config_{k}" for k in config_keys]
-                csv_writer = csv.DictWriter(csvfile, fieldnames=all_columns)
-                csv_writer.writeheader()
-
-            row = {
-                'rank': 0,  # Placeholder — final ranks assigned after sort in CSV re-write
-                'symbol': item.symbol or '',
-                'score': item.score,
-                'total_return': item.total_return,
-                'win_rate': item.win_rate,
-                'recent_10_win_rate': item.recent_10_win_rate or 0,
-                'total_trades': item.total_trades,
-                'max_drawdown': item.max_drawdown,
-                'profit_factor': item.profit_factor,
-                'sharpe_ratio': item.sharpe_ratio,
-                'avg_pnl': item.avg_pnl,
-                'stability_score': item.stability_score,
-                'acceleration_score': item.acceleration_score,
-                'activity_rate': item.activity_rate,
-                'avg_holding_time': item.avg_holding_time,
-                'max_holding_time': item.max_holding_time,
-                'min_holding_time': item.min_holding_time,
-                'max_profit': item.max_profit,
-                'max_loss': item.max_loss,
-                'total_days': item.total_days,
-            }
-            for k in config_keys:
-                row[f"config_{k}"] = item.config.get(k, "")
-            csv_writer.writerow(row)
-            csvfile.flush()
-
-        def _update_heap(item, seq_idx):
-            """Maintain top N results in a min-heap."""
-            if len(top_heap) < TOP_N:
-                heapq.heappush(top_heap, (item.score, seq_idx, item))
-            elif item.score > top_heap[0][0]:
-                heapq.heapreplace(top_heap, (item.score, seq_idx, item))
-
-        def _update_partial_results(completed_count):
-            """Update partial results preview every 10 completions using heap."""
-            if len(top_heap) > 0 and completed_count % 10 == 0:
-                sorted_top = sorted(top_heap, key=lambda x: x[0], reverse=True)
-                partial = [entry[2].model_copy(update={"rank": idx + 1}) for idx, entry in enumerate(sorted_top[:20])]
-                OPTIMIZATION_TASKS[task_id]["partial_results"] = partial
-
-        # Open CSV file for streaming write
-        with open(csv_filepath, 'w', newline='', encoding='utf-8') as csvfile:
-
-            if execution_mode == "fast":
-                # ===== PARALLEL EXECUTION (ProcessPoolExecutor with spawn) =====
-                worker_count = _get_worker_count()
-                batch_size = worker_count * 2  # Submit in batches to limit memory
-                logger.info(f"[PARALLEL] Running {total_combos} combinations with {worker_count} workers (spawn, batch={batch_size})")
-                OPTIMIZATION_TASKS[task_id]["message"] = f"Starting parallel execution ({worker_count} workers)..."
-
-                ctx = multiprocessing.get_context('spawn')
-                completed_count = 0
-
-                executor = ProcessPoolExecutor(
-                    max_workers=worker_count, mp_context=ctx,
-                    max_tasks_per_child=1  # Restart workers after each task to prevent memory leak
-                )
-                _active_executors.append(executor)
-                try:
-                    # Submit futures in batches to avoid holding all futures in memory
-                    args_iter = iter(enumerate(run_args))
-                    active_futures = {}
-                    finished = False
-
-                    def _submit_batch():
-                        """Submit up to batch_size new futures."""
-                        nonlocal finished
-                        submitted = 0
-                        while len(active_futures) < batch_size and not finished:
-                            try:
-                                i, args = next(args_iter)
-                                future = executor.submit(_run_sync_in_process, *args)
-                                active_futures[future] = i
-                                submitted += 1
-                            except StopIteration:
-                                finished = True
-                                break
-                        return submitted
-
-                    # Initial batch
-                    _submit_batch()
-
-                    while active_futures:
-                        if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                            logger.info(f"Task {task_id} cancellation requested (parallel).")
-                            for f in active_futures:
-                                f.cancel()
-                            OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                            OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                            break
-
-                        # Wait for next completed future
-                        done_futures = set()
-                        for future in as_completed(active_futures):
-                            done_futures.add(future)
-                            completed_count += 1
-                            idx = active_futures[future]
-
-                            try:
-                                config, res = future.result()
-                                item, err = _process_optimization_result(config, res)
-                                if item:
-                                    if 'perf_log' in res:
-                                        sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
-                                        OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({completed_count}/{total_combos}){sym_tag}... {res['perf_log']}"
-                                    _write_result_to_csv(csvfile, item, idx)
-                                    _update_heap(item, idx)
-                                    total_result_count += 1
-                                elif err and len(failures) < 10:
-                                    failures.append(f"Config failed: {err}")
-                            except Exception as e:
-                                logger.error(f"Future error: {e}")
-                                if len(failures) < 10:
-                                    failures.append(str(e))
-
-                            OPTIMIZATION_TASKS[task_id]["progress_current"] = completed_count
-                            _update_partial_results(completed_count)
-
-                            # Submit more work as futures complete
-                            _submit_batch()
-                            break  # Process one at a time to submit new work promptly
-
-                        # Remove completed futures from tracking
-                        for f in done_futures:
-                            del active_futures[f]
-
-                finally:
-                    executor.shutdown(wait=True)
-                    if executor in _active_executors:
-                        _active_executors.remove(executor)
-
-            else:
-                # ===== SEQUENTIAL EXECUTION (standard) =====
-                logger.info(f"[SEQUENTIAL] Running {total_combos} combinations sequentially")
-
-                for i, args in enumerate(run_args):
-                    if i % 5 == 0:
-                        time.sleep(0.01)
-                    try:
-                        config, res = _run_sync_in_process(*args)
-                        item, err = _process_optimization_result(config, res)
-                        if item:
-                            if 'perf_log' in res:
-                                sym_tag = f" [{config.get('symbol', '')}]" if config.get('symbol') else ""
-                                OPTIMIZATION_TASKS[task_id]["message"] = f"Processing ({i+1}/{total_combos}){sym_tag}... {res['perf_log']}"
-                            _write_result_to_csv(csvfile, item, i)
-                            _update_heap(item, i)
-                            total_result_count += 1
-                        elif err and len(failures) < 10:
-                            failures.append(f"Config failed: {err}")
-                    except Exception as e:
-                        logger.error(f"Result Error: {e}")
-                        if len(failures) < 10:
-                            failures.append(str(e))
-
-                    OPTIMIZATION_TASKS[task_id]["progress_current"] = i + 1
-                    _update_partial_results(i + 1)
-
-                    if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-                        logger.info(f"Task {task_id} cancellation requested.")
-                        OPTIMIZATION_TASKS[task_id]["status"] = "cancelled"
-                        OPTIMIZATION_TASKS[task_id]["message"] = "Cancelled by user"
-                        break
-
-        # CSV streaming complete
-        OPTIMIZATION_TASKS[task_id]["csv_file"] = csv_filename
-        logger.info(f"[CSV] Streamed {total_result_count} results to {csv_filepath}")
-
-        # Build final response from top N heap results (sorted, ranked)
-        sorted_top = sorted(top_heap, key=lambda x: x[0], reverse=True)
-        ranked_results = [
-            entry[2].model_copy(update={"rank": idx + 1})
-            for idx, entry in enumerate(sorted_top)
-        ]
-
-        execution_time = time.time() - start_time
-
-        # Determine final status
-        final_status = "completed"
-        if OPTIMIZATION_TASKS[task_id].get("cancel_requested"):
-             final_status = "cancelled"
-
-        response = OptimizationResponse(
-            strategy_id=strategy_id,
-            best_config=ranked_results[0].config if ranked_results else {},
-            results=ranked_results[:200],
-            failures=failures,
-            total_combinations=total_combos,
-            elapsed_time=execution_time,
-            task_id=task_id,
-            status=final_status
-        )
-
-        OPTIMIZATION_TASKS[task_id]["status"] = final_status
-        OPTIMIZATION_TASKS[task_id]["result"] = response
-        elapsed_str = f"{execution_time:.1f}s" if execution_time < 60 else f"{int(execution_time // 60)}m {int(execution_time % 60)}s"
-        OPTIMIZATION_TASKS[task_id]["message"] = f"Completed: {total_result_count} results, {len(failures)} failures (Elapsed: {elapsed_str})"
-
-        # Server-side auto-save to DB (independent of frontend polling)
-        if save_to_tab_id and final_status == "completed":
-            try:
-                from ..db.session import SessionLocal
-                from ..models.strategy_result import StrategyAnalysisResult
-                db = SessionLocal()
-                try:
-                    result_data = response.model_dump() if hasattr(response, 'model_dump') else response.dict()
-                    db_obj = db.query(StrategyAnalysisResult).filter(
-                        StrategyAnalysisResult.tab_id == save_to_tab_id,
-                        StrategyAnalysisResult.result_type == "optimization",
-                        StrategyAnalysisResult.account_id == save_account_id
-                    ).first()
-                    if db_obj:
-                        db_obj.data = result_data
-                    else:
-                        db_obj = StrategyAnalysisResult(
-                            tab_id=save_to_tab_id,
-                            result_type="optimization",
-                            account_id=save_account_id,
-                            data=result_data
-                        )
-                        db.add(db_obj)
-                    db.commit()
-                    logger.info(f"[Optimization] Auto-saved results to DB (tab_id={save_to_tab_id})")
-                finally:
-                    db.close()
-            except Exception as save_err:
-                logger.error(f"[Optimization] Failed to auto-save to DB: {save_err}")
-
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        msg = f"CRITICAL FAILURE: {e}\n{tb}"
-        
-        # Log to stdout for Docker/Shell capture
-        print(f"\n[OPTIMIZATION ERROR] {msg}\n", flush=True)
-        
-        # Log to simple file
-        try:
-            with open("optimization_crash.log", "a") as f:
-                f.write(f"{time.ctime()}\n{msg}\n")
-        except:
-            pass
-
-        logger.error(f"Background Task Failed: {e}")
-        OPTIMIZATION_TASKS[task_id]["status"] = "failed"
-        OPTIMIZATION_TASKS[task_id]["message"] = str(e)
-
-# Removed old _optimize_sync_wrapper as it is replaced by _optimize_background_task logic
 
 
 router = APIRouter()
@@ -979,159 +683,11 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "rank_stats_list": result.get('rank_stats_list', [])
     }
 
-@router.post("/{strategy_id}/optimize", response_model=OptimizationResponse)
-async def optimize_strategy(strategy_id: str, request: OptimizationRequest, ctx: UserAccountContext = Depends(get_user_context)):
-    start_time = time.time()
-    
-    # 1. Select Strategy Class from Registry
-    from ..core.strategy_registry import StrategyRegistry
-    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
-    
-    if not strategy_class:
-        raise HTTPException(status_code=404, detail=f"Strategy '{strategy_id}' not found for optimization.")
-
-    # 2. Generate Cartesian Product (with optional multi-symbol cross-optimization)
-    symbols = request.symbols if request.symbols else [request.symbol]
-    keys = list(request.parameter_ranges.keys())
-    values = list(request.parameter_ranges.values())
-    param_combinations = list(itertools.product(*values))
-
-    # No limit - user can stop manually via cancel button if needed
-    # Accurate optimization results are more important than speed
-    total_combinations = len(symbols) * len(param_combinations)
-    logger.info(f"[Optimization] Running {total_combinations} combinations ({len(symbols)} symbols x {len(param_combinations)} params) for {strategy_id}, to_date={request.to_date}, days={request.days}, from_date={request.from_date}")
-
-    # 3. Prepare Tasks
-    tasks = []
-    base_config = request.base_config.copy()
-
-    run_args = []
-    for symbol in symbols:
-        for idx, combo in enumerate(param_combinations):
-            # Merge combo into config
-            current_config = base_config.copy()
-            current_config['strategy_id'] = strategy_id  # Required for fresh class lookup after module reload
-            current_config['symbol'] = symbol  # Override symbol for cross-optimization
-            for i, key in enumerate(keys):
-                current_config[key] = combo[i]
-
-            # Debug: Log first few combinations
-            if len(run_args) < 5:
-                logger.info(f"[DEBUG] Combo {len(run_args)}: symbol={symbol}, interval={current_config.get('interval', 'NOT_SET')}")
-
-            run_args.append((
-                strategy_class,
-                current_config,
-                symbol,
-                request.interval,
-                request.days,
-                request.from_date,
-                request.initial_capital,
-                request.to_date,
-                request.exchange_name
-            ))
-
-    # 4. Async Execution (Fire and Forget)
-    task_id = str(uuid.uuid4())
-
-    OPTIMIZATION_TASKS[task_id] = {
-        "status": "initializing",
-        "progress_current": 0,
-        "progress_total": total_combinations,
-        "message": "Initializing...",
-        "result": None,
-        "task_id": task_id
-    }
-
-    # Run in Thread (to allow Thread to manage ProcessPool and updates)
-    import asyncio
-    loop = asyncio.get_running_loop()
-    save_tab_id = request.save_to_tab_id
-    save_acct_id = ctx.account_id if ctx.has_active_account else None
-    loop.run_in_executor(
-        None,
-        _optimize_background_task,
-        task_id,
-        run_args,
-        strategy_id,
-        start_time,
-        total_combinations,
-        save_tab_id,
-        save_acct_id,
-        request.execution_mode
-    )
-
-    # Return Immediate Response
-    return OptimizationResponse(
-        strategy_id=strategy_id,
-        best_config={},
-        results=[],
-        failures=[],
-        total_combinations=total_combinations,
-        elapsed_time=0,
-        task_id=task_id,
-        status="running"
-    )
-
-@router.get("/optimize/status/{task_id}", response_model=OptimizationStatus)
-async def get_optimization_status(task_id: str):
-    from ..schemas.optimization import OptimizationStatus
-    task = OPTIMIZATION_TASKS.get(task_id)
-    if not task:
-        # Fallback for invalid ID
-        return OptimizationStatus(
-            task_id=task_id,
-            status="not_found",
-            progress_current=0,
-            progress_total=0,
-            message="Task not found"
-        )
-
-    # Build response first
-    response = OptimizationStatus(
-        task_id=task_id,
-        status=task["status"],
-        progress_current=task.get("progress_current", 0),
-        progress_total=task.get("progress_total", 0),
-        message=task.get("message", ""),
-        result=task.get("result"),
-        csv_file=task.get("csv_file"),
-        partial_results=task.get("partial_results") if task["status"] == "running" else None
-    )
-
-    # Memory cleanup: Delete completed/failed/cancelled tasks after returning result
-    # Frontend saves to DB, so we don't need to keep it in memory
-    if task["status"] in ("completed", "failed", "cancelled") and task.get("result"):
-        del OPTIMIZATION_TASKS[task_id]
-        logger.info(f"[Memory Cleanup] Deleted optimization task {task_id} from memory after result delivery")
-
-    return response
-
-
-@router.get("/optimize/download/{task_id}")
-async def download_optimization_csv(task_id: str):
-    """
-    Download the full optimization results as a CSV file.
-    The file contains ALL results, not just the top 200.
-    """
-    csv_filename = f"optimization_{task_id}.csv"
-    csv_filepath = os.path.join(CSV_OUTPUT_DIR, csv_filename)
-
-    if not os.path.exists(csv_filepath):
-        raise HTTPException(status_code=404, detail="CSV file not found. Optimization may still be running or task_id is invalid.")
-
-    return FileResponse(
-        path=csv_filepath,
-        filename=csv_filename,
-        media_type="text/csv"
-    )
-
-
 # ============================================================================
 # HEAVY OPTIMIZATION (Large-scale, 10K-100K+ combinations)
 # ============================================================================
 
-def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, save_to_tab_id: str = None, save_account_id: int = None, execution_mode: str = "standard"):
+def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: str, start_time: float, total_combos: int, tab_id: str = None, save_account_id: int = None, execution_mode: str = "standard"):
     """
     Background task for heavy optimization.
     Streams results directly to CSV to avoid memory issues.
@@ -1367,7 +923,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
         logger.info(f"Heavy optimization {task_id} completed: {processed} results in {elapsed:.1f}s")
 
         # Server-side auto-save to DB (same as regular optimization)
-        if save_to_tab_id and HEAVY_OPTIMIZATION_TASKS[task_id]["status"] == "completed":
+        if tab_id and HEAVY_OPTIMIZATION_TASKS[task_id]["status"] == "completed":
             try:
                 from ..db.session import SessionLocal
                 from ..models.strategy_result import StrategyAnalysisResult
@@ -1403,22 +959,21 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                     }
 
                     db_obj = db.query(StrategyAnalysisResult).filter(
-                        StrategyAnalysisResult.tab_id == save_to_tab_id,
+                        StrategyAnalysisResult.tab_id == tab_id,
                         StrategyAnalysisResult.result_type == "optimization",
-                        StrategyAnalysisResult.account_id == save_account_id
                     ).first()
                     if db_obj:
                         db_obj.data = result_data
                     else:
                         db_obj = StrategyAnalysisResult(
-                            tab_id=save_to_tab_id,
+                            tab_id=tab_id,
                             result_type="optimization",
                             account_id=save_account_id,
                             data=result_data
                         )
                         db.add(db_obj)
                     db.commit()
-                    logger.info(f"[Heavy Optimization] Auto-saved {len(sorted_top)} results to DB (tab_id={save_to_tab_id})")
+                    logger.info(f"[Heavy Optimization] Auto-saved {len(sorted_top)} results to DB (tab_id={tab_id})")
                 finally:
                     db.close()
             except Exception as save_err:
@@ -1505,14 +1060,14 @@ async def start_heavy_optimization(strategy_id: str, request: HeavyOptimizationR
         "top_results": [],
         "strategy_id": strategy_id,
         "symbols": symbols,
-        "profile_id": request.profile_id,
+        "tab_id": request.tab_id,
         "tab_key": request.tab_key
     }
 
     # Start background task
     import asyncio
     loop = asyncio.get_running_loop()
-    save_tab_id = request.save_to_tab_id
+    save_tab_id = request.tab_id
     save_acct_id = request.save_account_id or (ctx.account_id if ctx.has_active_account else None)
     loop.run_in_executor(
         None,
@@ -1567,7 +1122,7 @@ async def get_heavy_optimization_status(task_id: str):
         csv_file=task.get("csv_file"),
         file_size_bytes=task.get("file_size_bytes"),
         top_results=task.get("top_results"),
-        profile_id=task.get("profile_id"),
+        tab_id=task.get("tab_id"),
         tab_key=task.get("tab_key")
     )
 
@@ -1612,12 +1167,14 @@ async def download_heavy_optimization_csv(task_id: str):
 
 
 @router.get("/heavy-optimize/list")
-async def list_heavy_optimization_tasks(profile_id: Optional[str] = None):
-    """List heavy optimization tasks, optionally filtered by profile_id."""
+async def list_heavy_optimization_tasks(tab_ids: Optional[str] = None):
+    """List heavy optimization tasks, optionally filtered by tab_ids (comma-separated)."""
     tasks = []
     for task_id, task in HEAVY_OPTIMIZATION_TASKS.items():
-        if profile_id and task.get("profile_id") != profile_id:
-            continue
+        if tab_ids:
+            tab_id_set = set(tab_ids.split(","))
+            if task.get("tab_id") not in tab_id_set:
+                continue
         tasks.append({
             "task_id": task_id,
             "status": task.get("status"),
@@ -1626,7 +1183,7 @@ async def list_heavy_optimization_tasks(profile_id: Optional[str] = None):
             "symbols": task.get("symbols", []),
             "started_at": task.get("started_at"),
             "csv_file": task.get("csv_file"),
-            "profile_id": task.get("profile_id"),
+            "tab_id": task.get("tab_id"),
             "tab_key": task.get("tab_key")
         })
     return {"tasks": tasks}
@@ -1757,15 +1314,11 @@ async def recalculate_scores(request: RecalculateScoreRequest):
     """
     task_id = request.task_id
 
-    # Try to find CSV file from both regular and heavy optimization tasks
+    # Try to find CSV file from heavy optimization tasks
     csv_filename = None
 
-    # Check regular optimization tasks first
-    if task_id in OPTIMIZATION_TASKS:
-        csv_filename = OPTIMIZATION_TASKS[task_id].get("csv_file")
-
     # Check heavy optimization tasks
-    if not csv_filename and task_id in HEAVY_OPTIMIZATION_TASKS:
+    if task_id in HEAVY_OPTIMIZATION_TASKS:
         csv_filename = HEAVY_OPTIMIZATION_TASKS[task_id].get("csv_file")
 
     # Try standard naming convention as fallback

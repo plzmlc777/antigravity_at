@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    startOptimization, getOptimizationStatus, downloadOptimizationCSV,
-    cancelOptimization as apiCancelOptimization,
     startHeavyOptimization as apiStartHeavyOpt, getHeavyOptimizationStatus, cancelHeavyOptimization,
     listHeavyOptimizationTasks,
     fetchMarketDataForSymbol,
@@ -13,13 +11,12 @@ import { parseValues, buildDynamicDefaultConfig, buildDynamicOptValues,
 import { exportOptResultsToCSV as exportOptCSV } from '../utils/strategyExportImport';
 import { DEFAULT_EXCHANGE, getDefaultCapital, getDefaultDays, getOptRangeDefaults } from '../constants/exchanges';
 import { DEFAULT_CONFIG, DEFAULT_OPT_VALUES, convertSchemaToParamDefs, getCrossOptUUID } from '../constants/strategies';
-import { normalizeStats } from '../config/statsConfig';
 
 /**
  * useOptimization - Custom hook that encapsulates ALL optimization logic
  * extracted from StrategyView.jsx.
  *
- * Manages: regular optimization, heavy (large-scale) optimization,
+ * Manages: heavy (large-scale) optimization,
  * optimization polling, result formatting, CSV export/download,
  * and per-tab optEnabled/optValues handling.
  */
@@ -48,6 +45,15 @@ export const useOptimization = ({
     const [heavyOptByTab, setHeavyOptByTab] = useState({});
     const activeTabRef = useRef(activeTab);
     useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+    // Keep savedSymbols ref fresh to avoid stale closures in polling callbacks
+    const savedSymbolsRef = useRef(savedSymbols);
+    useEffect(() => { savedSymbolsRef.current = savedSymbols; }, [savedSymbols]);
+
+    // Resolve symbol name from latest savedSymbols (avoids stale closure)
+    const resolveSymbolName = useCallback((symbolCode) => {
+        return savedSymbolsRef.current?.find(s => s.code === symbolCode)?.name || '';
+    }, []);
 
     // Derive current tab's heavy opt state
     const tabKey = String(activeTab);
@@ -200,48 +206,15 @@ export const useOptimization = ({
     };
 
     // Download FULL optimization results from backend (all combinations, not just top 200)
-    const downloadFullOptResultsCSV = async () => {
-        const taskId = completedOptTaskId || currentConfig?.lastOptTaskId;
+    const downloadFullOptResultsCSV = () => {
+        const taskId = heavyOptTaskId || currentConfig?.lastOptTaskId;
         if (!taskId) {
             addLog('No optimization task available for download', 'error');
             return;
         }
 
-        try {
-            const csvBlob = await downloadOptimizationCSV(taskId);
-
-            const blob = new Blob([csvBlob], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            const filename = `optimization_full_${selectedStrategy?.id}_${currentConfig?.symbol}_${new Date().toISOString().split('T')[0]}.csv`;
-            link.download = filename;
-            link.click();
-            URL.revokeObjectURL(url);
-
-            addLog(`Downloaded full optimization results (all combinations)`, 'success');
-        } catch (error) {
-            const msg = error.response?.status === 404
-                ? 'CSV file not found. It may have been cleaned up.'
-                : error.message;
-            addLog(`Failed to download CSV: ${msg}`, 'error');
-        }
-    };
-
-    // ========================================
-    // Cancel Optimization (Regular)
-    // ========================================
-    const cancelOptimization = async (taskId) => {
-        if (!taskId) return;
-        setIsCancelling(true);
-        try {
-            await apiCancelOptimization(taskId);
-            // UI update handled by polling
-        } catch (e) {
-            console.error("Cancellation failed", e);
-            setOptError("Failed to cancel optimization");
-            setIsCancelling(false);
-        }
+        window.open(getHeavyOptDownloadUrl(taskId), '_blank');
+        addLog('Downloaded full optimization results (all combinations)', 'success');
     };
 
     // ========================================
@@ -391,8 +364,7 @@ export const useOptimization = ({
                 parameter_ranges: parameter_ranges,
                 base_config: base_config,
                 strategy_id: selectedStrategy.id,
-                save_to_tab_id: saveTabId,  // Auto-save to DB on completion
-                profile_id: selectedProfileId,  // For task recovery across browsers
+                tab_id: saveTabId,  // Auto-save to DB on completion
                 tab_key: String(startTab),  // Per-tab tracking
                 execution_mode: executionMode,  // "standard" or "fast" (parallel)
                 exchange_name: exchangeName  // 프로필 계좌 기반 거래소
@@ -432,7 +404,7 @@ export const useOptimization = ({
         return topResults.map((item, index) => ({
             ...item.config,
             symbol: item.symbol || '',
-            symbolName: savedSymbols?.find(s => s.code === item.symbol)?.name || '',
+            symbolName: resolveSymbolName(item.symbol),
             return: item.total_return,
             win_rate: item.win_rate,
             recent_10_win_rate: item.recent_10_win_rate,
@@ -455,7 +427,7 @@ export const useOptimization = ({
             total_days: item.total_days,
             ...(isPartial ? { _isPartial: true } : {})
         }));
-    }, [savedSymbols]);
+    }, [resolveSymbolName]);
 
     // ========================================
     // Heavy Optimization Polling (per-tab aware)
@@ -558,7 +530,11 @@ export const useOptimization = ({
         const anyRunning = Object.values(heavyOptByTab).some(t => t.isRunning);
         if (anyRunning) return;
 
-        listHeavyOptimizationTasks(selectedProfileId)
+        // Collect all tab UUIDs from configList
+        const tabIds = (configList || []).map(c => c.uuid).filter(Boolean);
+        if (tabIds.length === 0) return;
+
+        listHeavyOptimizationTasks(tabIds)
             .then(({ tasks }) => {
                 // Restore all tasks to their respective tabs
                 tasks.forEach(task => {
@@ -612,299 +588,6 @@ export const useOptimization = ({
         }
         // If no heavy opt on this tab, don't touch optResults (may have regular opt results)
     }, [activeTab]);
-
-    // ========================================
-    // Run Optimization (Regular - polling based)
-    // ========================================
-    const runOptimization = async () => {
-        if (!selectedStrategy) {
-            setOptError("Please select a strategy first.");
-            return;
-        }
-        if (activeTab === -1) {
-            setOptError("Optimization not available for Integrated Portfolio yet.");
-            return;
-        }
-
-        // Cross-optimization: validate symbol selection
-        const isCrossOpt = activeTab === -3;
-        if (isCrossOpt && selectedCompareSymbols.length === 0) {
-            setOptError("Please select symbols for cross-optimization.");
-            return;
-        }
-
-        // Validation: Check for empty optimization inputs
-        const currentOptEnabled = currentConfig.optEnabled || {};
-        const currentOptValues = { ...getDynamicOptValues(), ...(currentConfig.optValues || {}) };
-
-        // Filter: only allow keys that are actual strategy parameter names (guard against corrupted data)
-        const validParamNames = new Set(getStrategyParamNames());
-        const varyingKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && validParamNames.has(k));
-
-        // Warn about invalid keys
-        const invalidKeys = Object.keys(currentOptEnabled).filter(k => currentOptEnabled[k] && !validParamNames.has(k));
-        if (invalidKeys.length > 0) {
-            addLog(`\u26A0\uFE0F Ignored invalid optEnabled keys: [${invalidKeys.join(', ')}] (not in strategy schema)`, 'warning');
-        }
-
-        if (varyingKeys.length === 0) {
-            // If no params, run single backtest or warn?
-            // Actually allowed (runs base config 1 time)
-        }
-
-        const parameter_ranges = {};
-        for (const key of varyingKeys) {
-            const values = parseValues(currentOptValues[key]);
-            if (values.length === 0) {
-                setOptError(`Error: Parameter '${key}' is enabled but has no values. Please enter comma-separated values.`);
-                return;
-            }
-            parameter_ranges[key] = values;
-            // Log parsed values for verification
-            addLog(`Parsed ${key}: [${values.join(', ')}]`, 'info');
-        }
-
-        // Guard: block excessively large optimizations
-        const symbolCount = isCrossOpt ? selectedCompareSymbols.length : 1;
-        const totalParams = Object.values(parameter_ranges).reduce((acc, arr) => acc * arr.length, 1);
-        const totalCombos = symbolCount * totalParams;
-        const MAX_COMBINATIONS = 100_000;
-        if (totalCombos > MAX_COMBINATIONS) {
-            setOptAlertModal({
-                isOpen: true,
-                title: '최적화 조합 수 초과',
-                message: `조합 수가 ${totalCombos.toLocaleString()}개로 제한(${MAX_COMBINATIONS.toLocaleString()})을 초과합니다.\n\n심볼 수를 줄이거나 파라미터 범위를 좁혀 주세요.\n(${symbolCount} symbols × ${totalParams.toLocaleString()} params = ${totalCombos.toLocaleString()})`,
-                type: 'error'
-            });
-            return;
-        }
-
-        setIsOptimizing(true);
-        setIsCancelling(false);
-        setOptResults([]);
-        setOptError(null);
-        setOptStatusMessage("");
-        setOptProgress({ current: 0, total: 0 }); // Reset
-        setIsDirty(true); // Mark as dirty when running optimization
-
-        try {
-            // Cross-optimization: pre-fetch latest data for all selected symbols
-            if (isCrossOpt) {
-                const DATA_FETCH_DELAY_MS = 500;
-                addLog(`Updating data for ${selectedCompareSymbols.length} symbols before optimization...`, 'info');
-                setOptStatusMessage(`Updating data (0/${selectedCompareSymbols.length})...`);
-                for (let i = 0; i < selectedCompareSymbols.length; i++) {
-                    const sym = selectedCompareSymbols[i];
-                    setOptStatusMessage(`Updating data (${i + 1}/${selectedCompareSymbols.length}): ${sym}...`);
-                    try {
-                        await fetchMarketDataForSymbol(sym, { interval: "1m", days: getDefaultDays(exchangeName), exchange_name: exchangeName });
-                    } catch (err) {
-                        console.warn(`Failed to update data for ${sym}`, err);
-                        addLog(`${sym}: data update failed`, 'warning');
-                    }
-                    if (i < selectedCompareSymbols.length - 1) {
-                        await new Promise(resolve => setTimeout(resolve, DATA_FETCH_DELAY_MS));
-                    }
-                }
-                addLog('Data update completed. Starting optimization...', 'info');
-                setOptStatusMessage("Starting optimization...");
-            }
-
-            // Sanitize Config for Base - Include ALL schema defaults first
-            const base_config = {};
-
-            // 1. First, populate with schema default values (so ALL params are included)
-            const paramDefs = convertSchemaToParamDefs(selectedStrategy?.parameter_schema);
-            paramDefs.forEach(param => {
-                if (param.defaultValue !== undefined) {
-                    base_config[param.key] = param.defaultValue;
-                }
-            });
-
-            // 2. Overlay with currentConfig values (user-entered values take precedence)
-            Object.keys(currentConfig).forEach(key => {
-                if (currentConfig[key] !== undefined && currentConfig[key] !== '') {
-                    base_config[key] = currentConfig[key];
-                }
-            });
-
-            // 3. Fill any remaining empty values from DEFAULT_CONFIG
-            Object.keys(base_config).forEach(key => {
-                if (base_config[key] === '' && DEFAULT_CONFIG[key] !== undefined) {
-                    base_config[key] = DEFAULT_CONFIG[key];
-                }
-            });
-
-            // Determine tab UUID for server-side auto-save
-            const saveTabId = isCrossOpt
-                ? getCrossOptUUID(selectedProfileId)
-                : currentConfig?.uuid || null;
-
-            const defaultToDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-            const payload = {
-                symbol: isCrossOpt ? selectedCompareSymbols[0] : (currentConfig.symbol || currentSymbol || "SEC"),
-                symbols: isCrossOpt ? selectedCompareSymbols : undefined, // Multi-symbol cross-optimization
-                interval: currentConfig?.interval || "1m", // Sync with Backtest (UI State)
-                days: currentConfig?.days || getDefaultDays(exchangeName),
-                from_date: currentConfig?.from_date || "",
-                to_date: currentConfig?.to_date || defaultToDate,
-                initial_capital: currentConfig?.initial_capital || getDefaultCapital(exchangeName),
-                parameter_ranges: parameter_ranges,
-                base_config: base_config,
-                save_to_tab_id: saveTabId,  // Server-side auto-save on completion
-                execution_mode: executionMode,  // "standard" or "fast" (parallel)
-                exchange_name: exchangeName  // 프로필 계좌 기반 거래소
-            };
-
-            // 1. Start Optimization (Async)
-            const optStartData = await startOptimization(selectedStrategy.id, payload);
-
-            if (optStartData.task_id) {
-                const taskId = optStartData.task_id;
-                const totalCombos = optStartData.total_combinations;
-                setOptProgress({ current: 0, total: totalCombos });
-
-                // 2. Poll for Status
-                let isComplete = false;
-                // Store taskId in ref or use local var for cancel button if we want to extract it
-                // For now, cancel button needs access to current taskId.
-                // We'll rely on a state for currentTaskId or pass it?
-                // Better: set a state `currentOptTaskId`
-                setCurrentOptTaskId(taskId);
-
-                while (!isComplete) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
-
-                    try {
-                        const statusData = await getOptimizationStatus(taskId);
-
-                        setOptProgress({
-                            current: statusData.progress_current,
-                            total: statusData.progress_total
-                        });
-
-                        if (statusData.message) {
-                            setOptStatusMessage(statusData.message);
-                        }
-
-                        // Show partial results during optimization (live preview)
-                        if (statusData.status === 'running' && statusData.partial_results && statusData.partial_results.length > 0) {
-                            const formattedPartial = statusData.partial_results.map((item, index) => {
-                                const stats = normalizeStats(item);
-                                return {
-                                    ...item.config,
-                                    ...stats, // Normalized stats with consistent types
-                                    symbol: item.symbol || item.config?.symbol || '',
-                                    symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                    return: stats.total_return,
-                                    trades: stats.total_trades,
-                                    score: item.score,
-                                    full_config: item.config,
-                                    rank: item.rank > 0 ? item.rank : (index + 1),
-                                    _isPartial: true
-                                };
-                            });
-                            setOptResults(formattedPartial);
-                        }
-
-                        if (statusData.status === 'completed' || statusData.status === 'cancelled') {
-                            // Finished (or Cancelled)
-                            const resultData = statusData.result;
-                            if (resultData && resultData.results && resultData.results.length > 0) {
-                                const formattedResults = resultData.results.map((item, index) => {
-                                    const stats = normalizeStats(item);
-                                    return {
-                                        ...item.config,
-                                        ...stats, // Normalized stats with consistent types
-                                        symbol: item.symbol || item.config?.symbol || '',
-                                        symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
-                                        return: stats.total_return,
-                                        trades: stats.total_trades,
-                                        score: item.score,
-                                        full_config: item.config,
-                                        rank: item.rank > 0 ? item.rank : (index + 1)
-                                    };
-                                });
-                                setOptResults(formattedResults);
-                                setCompletedOptTaskId(taskId); // For full CSV download
-
-                                // Persist task_id to config for recalculate after refresh
-                                if (isCrossOpt) {
-                                    setSymbolCompareConfig(prev => prev ? { ...prev, lastOptTaskId: taskId } : prev);
-                                } else if (activeTab >= 0) {
-                                    setConfigList(prev => {
-                                        const next = [...prev];
-                                        if (next[activeTab]) {
-                                            next[activeTab] = { ...next[activeTab], lastOptTaskId: taskId };
-                                        }
-                                        return next;
-                                    });
-                                }
-
-                                // Save optimization results
-                                if (statusData.status === 'completed') {
-                                    if (isCrossOpt) {
-                                        // Cross-optimization: auto-save to DB immediately (no Apply button flow)
-                                        const crossOptUuid = getCrossOptUUID(selectedProfileId);
-                                        try {
-                                            await saveStrategyResult(crossOptUuid, 'optimization', resultData);
-                                            addLog('Cross-optimization results saved to DB.', 'info');
-                                        } catch (err) {
-                                            console.error("Failed to save cross-opt result", err);
-                                            addLog('Failed to save cross-optimization results', 'error');
-                                        }
-                                    } else if (currentConfig.uuid) {
-                                        // Rank tab: auto-save to DB immediately
-                                        try {
-                                            await saveStrategyResult(currentConfig.uuid, 'optimization', resultData);
-                                            addLog('Optimization results saved to DB.', 'info');
-                                        } catch (err) {
-                                            console.error("Failed to save opt result", err);
-                                            addLog('Failed to save optimization results', 'error');
-                                        }
-                                    }
-                                }
-
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (Partial Results Shown Below)");
-                                }
-                            } else {
-                                if (statusData.status === 'cancelled') {
-                                    setOptError("Optimization Cancelled by User (No Results)");
-                                } else {
-                                    const failureMsg = resultData.failures ? resultData.failures.join('\n') : "";
-                                    setOptError(`Optimization completed but resulted in 0 valid backtests.\n\nBackend Failures:\n${failureMsg}`);
-                                }
-                            }
-                            isComplete = true;
-                        } else if (statusData.status === 'failed') {
-                            setOptError(`Optimization Task Failed: ${statusData.message}`);
-                            isComplete = true;
-                        } else if (statusData.status === 'not_found') {
-                            setOptError("Optimization Task Lost (Server Restarted?)");
-                            isComplete = true;
-                        }
-                    } catch (pollErr) {
-                        console.warn("Polling failed, retrying...", pollErr);
-                        // Continue Polling if network glitch?
-                        // Maybe limit retries, but for now just continue
-                    }
-                }
-            } else {
-                // Fallback for synchronous response (if any)
-                setOptError("Unexpected Sync Response");
-            }
-
-        } catch (error) {
-            const msg = error.response?.data?.detail || error.message || "Unknown Error";
-            setOptError(`Optimization Request Failed: ${msg}`);
-            console.error(error);
-        } finally {
-            setIsOptimizing(false);
-            setIsCancelling(false);
-            setCurrentOptTaskId(null);
-        }
-    };
 
     // ========================================
     // Apply Optimization Parameters to Config
@@ -965,8 +648,6 @@ export const useOptimization = ({
 
         // Handlers
         setExecutionMode,
-        runOptimization,
-        cancelOptimization,
         startHeavyOptimization,
         handleCancelHeavyOpt,
         handleSort,

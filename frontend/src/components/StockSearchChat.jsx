@@ -16,13 +16,22 @@ const GREETING = `안녕하세요! AI 종목 검색 도우미입니다.
 - "2차전지 소재 관련 종목"
 - "AI/인공지능 관련 종목 추천해줘"`;
 
-const StockSearchChat = ({ onStocksFound, savedSymbols = [] }) => {
-    const [messages, setMessages] = useState([
-        { role: 'assistant', content: GREETING }
-    ]);
+const MAX_CHAT_MESSAGES = 50;
+
+const StockSearchChat = ({
+    onStocksFound,
+    savedSymbols = [],
+    initialMessages,
+    initialSessionId,
+    onChatChange
+}) => {
+    const [messages, setMessages] = useState(() => {
+        if (initialMessages && initialMessages.length > 0) return initialMessages;
+        return [{ role: 'assistant', content: GREETING }];
+    });
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [sessionId, setSessionId] = useState(null);
+    const [sessionId, setSessionId] = useState(initialSessionId || null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
 
@@ -31,6 +40,23 @@ const StockSearchChat = ({ onStocksFound, savedSymbols = [] }) => {
 
     // Token status
     const [tokenStatus, setTokenStatus] = useState(null);
+
+    // Notify parent on message/session changes (skip initial mount)
+    const isInitialMount = useRef(true);
+    const onChatChangeRef = useRef(onChatChange);
+    useEffect(() => { onChatChangeRef.current = onChatChange; }, [onChatChange]);
+
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+        // Cap messages at MAX_CHAT_MESSAGES
+        const capped = messages.length > MAX_CHAT_MESSAGES
+            ? [messages[0], ...messages.slice(-(MAX_CHAT_MESSAGES - 1))]
+            : messages;
+        onChatChangeRef.current?.(capped, sessionId);
+    }, [messages, sessionId]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

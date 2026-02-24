@@ -441,14 +441,15 @@ const StrategyView = () => {
     });
 
     const {
-        selectedCompareSymbols, setSelectedCompareSymbols,
+        selectedCompareSymbols,
+        toggleCompareSymbol, selectAllCompare, clearAllCompare,
         stockCompareResults, setStockCompareResults,
         isStockComparing, stockCompareProgress,
         compareSortConfig, setCompareSortConfig,
         handleStockCompareBacktest, handleExportCompareResults
     } = useSymbolComparison({
         symbolCompareConfig, configList, selectedStrategy,
-        savedSymbols, setIsSymbolCompareDirty, addLog,
+        savedSymbols, setSavedSymbols, setIsSymbolCompareDirty, addLog,
         saveProfile, selectedProfileId,
         exchangeName: activeExchangeName
     });
@@ -468,7 +469,7 @@ const StrategyView = () => {
         currentOptTaskId, isCancelling, isHeavyOptRunning, optStatusMessage,
         executionMode, setExecutionMode,
         optAlertModal, setOptAlertModal,
-        runOptimization, cancelOptimization, startHeavyOptimization,
+        startHeavyOptimization,
         handleCancelHeavyOpt, handleSort, exportOptResultsToCSV,
         downloadFullOptResultsCSV, applyOptParams, savePendingOptResult,
         discardPendingOptResult, downloadHeavyOptCSV, clearHeavyOptTask,
@@ -507,8 +508,7 @@ const StrategyView = () => {
             setIntegratedResults(null);
             setShowIntegratedAnalysis(false);
 
-            // Reset Symbol Compare tab state (hook manages its own state)
-            setSelectedCompareSymbols([]);
+            // Reset Symbol Compare tab state (selection lives on savedSymbols, cleared on profile load)
             setStockCompareResults([]);
             setIsSymbolCompareDirty(false);
 
@@ -554,21 +554,10 @@ const StrategyView = () => {
         return () => window.removeEventListener('beforeunload', handler);
     }, [hasPendingChanges]);
 
-    // Sync Symbol Compare state from profile's symbolCompareConfig
+    // Load persisted comparison results from profile
     useEffect(() => {
-        if (symbolCompareConfig) {
-            // Load selectedSymbols from profile
-            if (symbolCompareConfig.selectedSymbols) {
-                setSelectedCompareSymbols(symbolCompareConfig.selectedSymbols);
-            }
-            // Load results from profile
-            if (symbolCompareConfig.results) {
-                setStockCompareResults(symbolCompareConfig.results);
-            }
-            console.log('[StrategyView] Symbol Compare loaded from profile:', {
-                symbols: symbolCompareConfig.selectedSymbols?.length || 0,
-                results: symbolCompareConfig.results?.length || 0
-            });
+        if (symbolCompareConfig?.results) {
+            setStockCompareResults(symbolCompareConfig.results);
         }
     }, [symbolCompareConfig]);
 
@@ -854,7 +843,7 @@ const StrategyView = () => {
                             ...(item.config || {}),
                             ...stats, // Normalized stats with consistent types
                             symbol: item.symbol || item.config?.symbol || '',
-                            symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
+                            symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || item.symbolName || '',
                             return: stats.total_return,
                             trades: stats.total_trades,
                             score: item.score,
@@ -1046,11 +1035,10 @@ const StrategyView = () => {
         }
 
         try {
-            // 1. Merge Symbol Compare local state into symbolCompareConfig before save
+            // 1. Merge Symbol Compare results into symbolCompareConfig before save
             if (symbolCompareConfig) {
                 setSymbolCompareConfig({
                     ...symbolCompareConfig,
-                    selectedSymbols: selectedCompareSymbols,
                     results: stockCompareResults,
                 });
             }
@@ -2218,13 +2206,13 @@ const StrategyView = () => {
                                                             <span className="text-xs text-gray-400 font-medium">Select Symbols for Comparison</span>
                                                             <div className="flex items-center gap-2">
                                                                 <button
-                                                                    onClick={() => setSelectedCompareSymbols(savedSymbols.map(s => s.code))}
+                                                                    onClick={selectAllCompare}
                                                                     className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded transition-colors"
                                                                 >
                                                                     Select All ({savedSymbols.length})
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => setSelectedCompareSymbols([])}
+                                                                    onClick={clearAllCompare}
                                                                     className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded transition-colors"
                                                                 >
                                                                     Clear
@@ -2240,17 +2228,10 @@ const StrategyView = () => {
                                                                     key={item.code}
                                                                     symbol={item}
                                                                     showCheckbox={true}
-                                                                    isChecked={selectedCompareSymbols.includes(item.code)}
-                                                                    onCheckChange={(checked) => {
-                                                                        if (checked) {
-                                                                            setSelectedCompareSymbols(prev => prev.includes(item.code) ? prev : [...prev, item.code]);
-                                                                        } else {
-                                                                            setSelectedCompareSymbols(prev => prev.filter(s => s !== item.code));
-                                                                        }
-                                                                    }}
+                                                                    isChecked={item.compareSelected !== false}
+                                                                    onCheckChange={() => toggleCompareSymbol(item.code)}
                                                                     onDelete={(code) => {
                                                                         setSavedSymbols(prev => prev.filter(s => s.code !== code));
-                                                                        setSelectedCompareSymbols(prev => prev.filter(s => s !== code));
                                                                     }}
                                                                 />
                                                             ))}
@@ -2688,6 +2669,7 @@ const StrategyView = () => {
                                     <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden"
                                          style={{ height: 'calc(100vh - 480px)', minHeight: '400px' }}>
                                         <StockSearchChat
+                                            key={selectedProfileId || 'no-profile'}
                                             onStocksFound={(stocks) => {
                                                 const existingCodes = new Set((savedSymbols || []).map(s => s.code));
                                                 const newStocks = stocks.filter(s => !existingCodes.has(s.code));
@@ -2697,6 +2679,11 @@ const StrategyView = () => {
                                                 }
                                             }}
                                             savedSymbols={savedSymbols || []}
+                                            initialMessages={symbolCompareConfig?.chatHistory}
+                                            initialSessionId={symbolCompareConfig?.chatSessionId}
+                                            onChatChange={(messages, sid) => {
+                                                setSymbolCompareConfig(prev => prev ? { ...prev, chatHistory: messages, chatSessionId: sid } : prev);
+                                            }}
                                         />
                                     </div>
                                 </div>

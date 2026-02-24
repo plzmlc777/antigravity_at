@@ -34,45 +34,6 @@ export const runIntegratedBacktestApi = async (payload) => {
 };
 
 // ==========================================
-// Optimization (Regular)
-// ==========================================
-
-/**
- * Start optimization task
- */
-export const startOptimization = async (strategyId, payload) => {
-    const { data } = await api.post(`/strategies/${strategyId}/optimize`, payload, { timeout: LONG_TIMEOUT });
-    return data;
-};
-
-/**
- * Poll optimization status
- */
-export const getOptimizationStatus = async (taskId) => {
-    const { data } = await api.get(`/strategies/optimize/status/${taskId}`);
-    return data;
-};
-
-/**
- * Download full optimization results as CSV blob
- */
-export const downloadOptimizationCSV = async (taskId) => {
-    const response = await api.get(`/strategies/optimize/download/${taskId}`, {
-        responseType: 'blob',
-        timeout: LONG_TIMEOUT
-    });
-    return response.data; // Returns Blob
-};
-
-/**
- * Cancel a running optimization
- */
-export const cancelOptimization = async (taskId) => {
-    const { data } = await api.post(`/strategies/optimize/cancel/${taskId}`);
-    return data;
-};
-
-// ==========================================
 // Heavy Optimization (Large-scale)
 // ==========================================
 
@@ -101,10 +62,10 @@ export const cancelHeavyOptimization = async (taskId) => {
 };
 
 /**
- * List heavy optimization tasks, optionally filtered by profile_id
+ * List heavy optimization tasks, optionally filtered by tab UUIDs
  */
-export const listHeavyOptimizationTasks = async (profileId) => {
-    const params = profileId ? { profile_id: profileId } : {};
+export const listHeavyOptimizationTasks = async (tabIds) => {
+    const params = tabIds?.length ? { tab_ids: tabIds.join(',') } : {};
     const { data } = await api.get('/strategies/heavy-optimize/list', { params });
     return data;
 };

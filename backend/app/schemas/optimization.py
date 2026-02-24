@@ -1,23 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, DEFAULT_DAYS
 from typing import Dict, List, Union, Any, Optional
-
-class OptimizationRequest(BaseModel):
-    symbol: str
-    symbols: Optional[List[str]] = None  # Multi-symbol cross-optimization
-    interval: str = "1m"
-    days: int = DEFAULT_DAYS  # Default 1 year, max 730 (2 years)
-    from_date: Optional[str] = None
-    to_date: Optional[str] = None  # End date (default: yesterday). Fixes date range for reproducible results.
-    initial_capital: float = DEFAULT_INITIAL_CAPITAL
-    # Parameter Search Space: { "key": [1, 2, 3], "other": ["a", "b"] }
-    parameter_ranges: Dict[str, List[Union[str, int, float]]]
-    base_config: Dict[str, Any] = {} # Default/Fixed values
-    # Server-side auto-save: tab UUID for persisting results to DB on completion
-    save_to_tab_id: Optional[str] = None
-    save_account_id: Optional[int] = None
-    execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
-    exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
 
 class OptimizationResultItem(BaseModel):
     rank: int
@@ -47,27 +30,6 @@ class OptimizationResultItem(BaseModel):
     # Legacy field - kept empty for backward compatibility
     metrics: Dict[str, Any] = {}
 
-class OptimizationResponse(BaseModel):
-    strategy_id: str
-    best_config: Dict[str, Any]
-    results: List[OptimizationResultItem]
-    failures: List[str] = [] # Debugging info
-    total_combinations: int
-    elapsed_time: float
-    # Async Fields
-    task_id: Optional[str] = None
-    status: Optional[str] = "completed" # completed, running, failed
-
-class OptimizationStatus(BaseModel):
-    task_id: str
-    status: str
-    progress_current: int
-    progress_total: int
-    message: str
-    result: Optional[OptimizationResponse] = None
-    csv_file: Optional[str] = None  # CSV filename for full results download
-    partial_results: Optional[List[OptimizationResultItem]] = None  # Top N results so far (during running)
-
 
 # Heavy Optimization (Large-scale, CSV streaming)
 class HeavyOptimizationRequest(BaseModel):
@@ -82,9 +44,8 @@ class HeavyOptimizationRequest(BaseModel):
     base_config: Dict[str, Any] = {}
     strategy_id: str = "DipMartingaleStrategy"
     # Server-side auto-save: tab UUID for persisting results to DB on completion
-    save_to_tab_id: Optional[str] = None
+    tab_id: Optional[str] = None
     save_account_id: Optional[int] = None
-    profile_id: Optional[str] = None  # Profile UUID for task recovery across browsers
     tab_key: Optional[str] = None  # Tab identifier (e.g. "0", "-3") for per-tab tracking
     execution_mode: str = "standard"  # "standard" (sequential) or "fast" (parallel ProcessPool)
     exchange_name: str = DEFAULT_EXCHANGE  # Exchange for market data source (Kiwoom, Binance, etc.)
@@ -104,7 +65,7 @@ class HeavyOptimizationStatus(BaseModel):
     csv_file: Optional[str] = None  # Available when completed
     file_size_bytes: Optional[int] = None
     top_results: Optional[List[Dict[str, Any]]] = None  # Top 10 results so far
-    profile_id: Optional[str] = None  # Profile UUID for task association
+    tab_id: Optional[str] = None  # Tab UUID for task association
     tab_key: Optional[str] = None  # Tab identifier for per-tab tracking
 
 

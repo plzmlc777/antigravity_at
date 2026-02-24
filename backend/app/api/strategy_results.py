@@ -17,22 +17,20 @@ def save_strategy_result(
     db: Session = Depends(get_db),
     ctx: UserAccountContext = Depends(get_user_context)
 ):
-    account_id = ctx.account_id
-
-    # Upsert Logic - filter by account_id as well
+    # tab_id (UUID) is already unique — no account_id filter needed for lookup
     db_obj = db.query(StrategyAnalysisResult).filter(
         StrategyAnalysisResult.tab_id == tab_id,
         StrategyAnalysisResult.result_type == result_type,
-        StrategyAnalysisResult.account_id == account_id
     ).first()
 
     if db_obj:
         db_obj.data = result_in.data
+        db_obj.account_id = ctx.account_id  # Update to current account
     else:
         db_obj = StrategyAnalysisResult(
             tab_id=tab_id,
             result_type=result_type,
-            account_id=account_id,
+            account_id=ctx.account_id,
             data=result_in.data
         )
         db.add(db_obj)
@@ -66,13 +64,11 @@ def get_strategy_results(
     logger = logging.getLogger(__name__)
 
     try:
-        account_id = ctx.account_id
-
-        logger.info(f"[StrategyResults] Fetching results for tab_id: {tab_id}, account_id: {account_id}, include_graphics: {include_graphics}")
+        # tab_id (UUID) is unique — no account_id filter needed
+        logger.info(f"[StrategyResults] Fetching results for tab_id: {tab_id}, include_graphics: {include_graphics}")
 
         results = db.query(StrategyAnalysisResult).filter(
             StrategyAnalysisResult.tab_id == tab_id,
-            StrategyAnalysisResult.account_id == account_id
         ).all()
 
         logger.info(f"[StrategyResults] Found {len(results)} results for tab_id: {tab_id}")
