@@ -504,6 +504,8 @@ class MartingaleBase(BaseStrategy):
             # Resolve L1 base qty once per cycle, cache it
             if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
                 capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL))
+                allocated = getattr(self.context, 'initial_capital', 0)
+                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (allocated: {allocated:,.0f})")
                 self._resolved_base_qty = capital * self.base_quantity / 100 / price
             return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
         return float(self.base_quantity) * (self.lot_size_multiplier ** (level - 1))

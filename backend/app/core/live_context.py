@@ -430,6 +430,22 @@ class LiveContext:
 
             if executions:
                 logger.info(f"Context {self.session_id}: Restored {len(executions)} trades from DB")
+
+                # Recalculate cash from initial_capital and trade history
+                if self.initial_capital > 0:
+                    net_cost = 0
+                    for ex in executions:
+                        price = ex.executed_price or ex.theoretical_price or 0
+                        qty = ex.filled_quantity or ex.requested_quantity or 0
+                        if ex.signal_type == "BUY":
+                            net_cost += price * qty
+                        elif ex.signal_type == "SELL":
+                            net_cost -= price * qty
+                    self.cash = self.initial_capital - net_cost
+                    logger.info(
+                        f"Context {self.session_id}: Cash restored = {self.cash:,.0f} "
+                        f"(allocated={self.initial_capital:,.0f}, net_invested={net_cost:,.0f})"
+                    )
         except Exception as e:
             logger.error(f"Trade restore error: {e}")
             error_logger.log_error(
@@ -450,16 +466,16 @@ class LiveContext:
         try:
             bal = await self.adapter.get_balance()
             if bal:
-                # SAFEGUARD: If adapter returns 0 cash (mock/error) but we have initial_capital,
-                # preserve initial_capital for PnL consistency in simulation/test.
-                # Support multi-currency: USDT (Binance) or KRW (Korean exchanges)
                 cash_dict = bal.get('cash', {})
                 fetched_cash = cash_dict.get('USDT') or cash_dict.get('KRW', 0)
-                
-                if fetched_cash == 0 and self.initial_capital > 0 and self.cash == self.initial_capital:
-                    logger.warning("Balance Sync returned 0 cash. Preserving initial_capital for simulation.")
-                    # Keep self.cash as is
+
+                if self.initial_capital > 0:
+                    # Session has allocated capital (parallel mode) — track cash internally.
+                    # Do NOT overwrite with full account balance.
+                    # self.cash is adjusted on each fill in process_queue().
+                    pass
                 else:
+                    # No capital allocation — sync from exchange (legacy/single-session mode)
                     self.cash = fetched_cash
                 
                 simple_holdings = {}
@@ -761,21 +777,25 @@ class LiveContext:
 
                         # ===== FILLED 후처리: _holdings 동기화 + PnL 계산 =====
                         if p.status == ExecutionStatus.FILLED:
-                            # get_balance()로 정확한 보유수량/현금 동기화
+                            # Holdings: sync from exchange for accurate position tracking
                             try:
                                 sync_balance = await self.adapter.get_balance()
                                 sync_holdings = sync_balance.get("holdings", {})
                                 self._holdings[p.symbol] = sync_holdings.get(p.symbol, {}).get("quantity", 0)
-                                self.cash = sync_balance.get("cash", {}).get("KRW", self.cash)
                             except Exception as sync_err:
-                                logger.warning(f"Post-fill balance sync failed: {sync_err}")
-                                # Manual fallback
+                                logger.warning(f"Post-fill holdings sync failed: {sync_err}")
                                 if p.signal_type == "BUY":
                                     self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
-                                    self.cash -= p.executed_price * p.filled_quantity
                                 else:
                                     self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
-                                    self.cash += p.executed_price * p.filled_quantity
+
+                            # Cash: always use internal tracking (respects allocated capital)
+                            fill_cost = p.executed_price * p.filled_quantity
+                            if p.signal_type == "BUY":
+                                self.cash -= fill_cost
+                            else:
+                                self.cash += fill_cost
+                            self.log(f"Cash updated: {self.cash:,.0f} (allocated: {self.initial_capital:,.0f})")
 
                             # SELL PnL 계산
                             if p.signal_type == "SELL":
