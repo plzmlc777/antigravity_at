@@ -125,9 +125,8 @@ class CRUDStrategyConfig:
 
         # 5. Upsert configs
         for conf in configs:
-            # Check if tab already exists (account + tab_id 조합으로 확인)
+            # tab_id (UUID) is already unique — no account_id filter needed
             db_obj = db.query(StrategyConfig).filter(
-                StrategyConfig.account_id == account_id,
                 StrategyConfig.tab_id == conf.tab_id
             ).first()
 
