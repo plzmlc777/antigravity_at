@@ -644,7 +644,6 @@ class LiveContext:
                         # 5. Send Telegram notification (fire and forget)
                         if self._user_id:
                             try:
-                                import asyncio
                                 from .telegram_service import send_telegram_notification
                                 # Calculate return percentage for SELL orders
                                 return_pct = None
@@ -823,14 +822,13 @@ class LiveContext:
                         # Telegram notification for FILLED
                         if p.status == ExecutionStatus.FILLED and self._user_id:
                             try:
-                                import asyncio as _asyncio
                                 from .telegram_service import send_telegram_notification
                                 return_pct = None
                                 if p.signal_type == "SELL" and p.realized_pnl and p.executed_price and p.filled_quantity:
                                     cost = (p.executed_price * p.filled_quantity) - p.realized_pnl
                                     if cost > 0:
                                         return_pct = (p.realized_pnl / cost) * 100
-                                _asyncio.create_task(send_telegram_notification(
+                                asyncio.create_task(send_telegram_notification(
                                     db=db,
                                     user_id=self._user_id,
                                     notification_type="trade",
