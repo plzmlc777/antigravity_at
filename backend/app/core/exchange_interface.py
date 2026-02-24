@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 class ExchangeInterface(ABC):
     """
@@ -48,4 +48,9 @@ class ExchangeInterface(ABC):
     @abstractmethod
     async def cancel_order(self, order_id: str, symbol: str, quantity: int, origin_order_id: str = "") -> Dict[str, Any]:
         """Cancel an order"""
+        pass
+
+    @abstractmethod
+    async def get_order_executions(self, order_no: str = "", symbol: str = "") -> List[Dict[str, Any]]:
+        """Get order execution (fill) history for a specific order or all today's orders."""
         pass

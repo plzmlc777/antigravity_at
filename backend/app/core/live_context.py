@@ -1,6 +1,7 @@
 
 from typing import Dict, Any, List, Optional, Callable
 from datetime import datetime
+import asyncio
 import logging
 import re
 import traceback
@@ -680,72 +681,120 @@ class LiveContext:
                         self.log(f"SUBMITTED: {p.signal_type} {p.requested_quantity} {p.symbol} (order_no={p.exchange_order_no})")
 
                         # 체결 대기 (시장가 주문은 보통 1초 이내 체결)
-                        import asyncio
                         await asyncio.sleep(1.5)
 
-                        # get_balance()로 실제 보유수량 확인
+                        # ===== ka10076 체결 내역 API로 직접 확인 (3회 폴링) =====
+                        fill_verified = False
                         try:
-                            balance = await self.adapter.get_balance()
-                            actual_holdings = balance.get("holdings", {})
-                            actual_qty = actual_holdings.get(p.symbol, {}).get("quantity", 0)
-                            prev_qty = self._holdings.get(p.symbol, 0)
+                            for attempt in range(3):
+                                executions = await self.adapter.get_order_executions(
+                                    order_no=p.exchange_order_no, symbol=p.symbol
+                                )
+                                if executions:
+                                    ex = executions[0]
+                                    if ex["filled_qty"] > 0:
+                                        p.status = ExecutionStatus.FILLED
+                                        p.order_filled_at = self.get_time()
+                                        p.executed_price = ex["filled_price"] or p.theoretical_price
+                                        p.filled_quantity = ex["filled_qty"]
+                                        p.fees = ex.get("commission", 0) + ex.get("tax", 0)
+                                        fill_verified = True
+                                        self.log(
+                                            f"FILLED (ka10076): {p.signal_type} {p.filled_quantity} {p.symbol} "
+                                            f"@ {p.executed_price:,.0f} "
+                                            f"(commission={ex.get('commission', 0):,.0f}, tax={ex.get('tax', 0):,.0f})"
+                                        )
+                                        break
 
-                            if p.signal_type == "BUY":
-                                filled_qty = actual_qty - prev_qty
-                                if filled_qty > 0:
-                                    # 체결 확인됨
-                                    actual_price = actual_holdings.get(p.symbol, {}).get("avg_price", 0)
-                                    p.status = ExecutionStatus.FILLED
-                                    p.order_filled_at = self.get_time()
-                                    p.executed_price = actual_price or p.theoretical_price
-                                    p.filled_quantity = filled_qty
-                                    self.cash -= p.executed_price * filled_qty
-                                    self._holdings[p.symbol] = actual_qty
-                                    self.log(f"FILLED (verified): BUY {filled_qty} {p.symbol} @ {p.executed_price} (actual_qty={actual_qty})")
+                                    ord_status = ex.get("status", "")
+                                    if "취소" in ord_status or "거부" in ord_status:
+                                        p.status = ExecutionStatus.CANCELLED
+                                        p.error_reason = f"Order cancelled/rejected: {ord_status}"
+                                        fill_verified = True
+                                        self.log(f"CANCELLED (ka10076): {p.symbol} - {ord_status}")
+                                        break
+
+                                if attempt < 2:
+                                    self.log(f"Fill not confirmed yet (attempt {attempt + 1}/3), retrying...")
+                                    await asyncio.sleep(1.0)
+                        except Exception as api_err:
+                            logger.warning(f"ka10076 API error, falling back to balance check: {api_err}")
+
+                        # ===== Fallback: get_balance() 잔고 비교 (ka10076 미확인 시) =====
+                        if not fill_verified:
+                            self.log(f"ka10076 unconfirmed, falling back to balance verification")
+                            try:
+                                balance = await self.adapter.get_balance()
+                                actual_holdings = balance.get("holdings", {})
+                                actual_qty = actual_holdings.get(p.symbol, {}).get("quantity", 0)
+                                prev_qty = self._holdings.get(p.symbol, 0)
+
+                                if p.signal_type == "BUY":
+                                    filled_qty = actual_qty - prev_qty
+                                    if filled_qty > 0:
+                                        actual_price = actual_holdings.get(p.symbol, {}).get("avg_price", 0)
+                                        p.status = ExecutionStatus.FILLED
+                                        p.order_filled_at = self.get_time()
+                                        p.executed_price = actual_price or p.theoretical_price
+                                        p.filled_quantity = filled_qty
+                                        self.log(f"FILLED (balance-fallback): BUY {filled_qty} {p.symbol} @ {p.executed_price}")
+                                    else:
+                                        p.status = ExecutionStatus.FAILED
+                                        p.error_reason = f"Fill unconfirmed: ka10076 empty, balance unchanged (prev={prev_qty}, actual={actual_qty})"
+                                        self.log(f"FILL VERIFY FAILED: BUY {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
+                                else:  # SELL
+                                    qty_decreased = prev_qty - actual_qty
+                                    if qty_decreased > 0:
+                                        p.status = ExecutionStatus.FILLED
+                                        p.order_filled_at = self.get_time()
+                                        p.executed_price = p.theoretical_price
+                                        p.filled_quantity = qty_decreased
+                                        self.log(f"FILLED (balance-fallback): SELL {qty_decreased} {p.symbol} @ {p.executed_price}")
+                                    else:
+                                        p.status = ExecutionStatus.FAILED
+                                        p.error_reason = f"Fill unconfirmed: ka10076 empty, balance unchanged (prev={prev_qty}, actual={actual_qty})"
+                                        self.log(f"FILL VERIFY FAILED: SELL {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
+                            except Exception as verify_err:
+                                logger.error(f"Balance fallback error: {verify_err}")
+                                p.status = ExecutionStatus.FAILED
+                                p.error_reason = f"Verification failed: ka10076 + balance both failed: {verify_err}"
+                                self.log(f"FILL VERIFY ERROR: {p.symbol} - {verify_err}")
+
+                        # ===== FILLED 후처리: _holdings 동기화 + PnL 계산 =====
+                        if p.status == ExecutionStatus.FILLED:
+                            # get_balance()로 정확한 보유수량/현금 동기화
+                            try:
+                                sync_balance = await self.adapter.get_balance()
+                                sync_holdings = sync_balance.get("holdings", {})
+                                self._holdings[p.symbol] = sync_holdings.get(p.symbol, {}).get("quantity", 0)
+                                self.cash = sync_balance.get("cash", {}).get("KRW", self.cash)
+                            except Exception as sync_err:
+                                logger.warning(f"Post-fill balance sync failed: {sync_err}")
+                                # Manual fallback
+                                if p.signal_type == "BUY":
+                                    self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
+                                    self.cash -= p.executed_price * p.filled_quantity
                                 else:
-                                    # 체결 실패 (수량 변동 없음)
-                                    p.status = ExecutionStatus.FAILED
-                                    p.error_reason = f"Balance verification failed: prev={prev_qty}, actual={actual_qty}, expected increase"
-                                    self.log(f"FILL VERIFY FAILED: BUY {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
-                            else:  # SELL
-                                qty_decreased = prev_qty - actual_qty
-                                if qty_decreased > 0:
-                                    # 체결 확인됨
-                                    p.status = ExecutionStatus.FILLED
-                                    p.order_filled_at = self.get_time()
-                                    p.executed_price = p.theoretical_price  # SELL은 avg_price 불가, theoretical 사용
-                                    p.filled_quantity = qty_decreased
-                                    self.cash += p.executed_price * qty_decreased
-                                    self._holdings[p.symbol] = actual_qty
+                                    self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
+                                    self.cash += p.executed_price * p.filled_quantity
 
-                                    # PnL 계산
-                                    try:
-                                        buys = db.query(LiveTradeExecution).filter(
-                                            LiveTradeExecution.session_id == self.session_id,
-                                            LiveTradeExecution.symbol == p.symbol,
-                                            LiveTradeExecution.signal_type == "BUY",
-                                            LiveTradeExecution.status == ExecutionStatus.FILLED,
-                                        ).all()
-                                        total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
-                                        total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
-                                        if total_buy_qty > 0:
-                                            avg_buy_price = total_buy_cost / total_buy_qty
-                                            p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
-                                            self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f})")
-                                    except Exception as pnl_err:
-                                        logger.error(f"PnL calc error: {pnl_err}")
-
-                                    self.log(f"FILLED (verified): SELL {qty_decreased} {p.symbol} @ {p.executed_price} (actual_qty={actual_qty})")
-                                else:
-                                    p.status = ExecutionStatus.FAILED
-                                    p.error_reason = f"Balance verification failed: prev={prev_qty}, actual={actual_qty}, expected decrease"
-                                    self.log(f"FILL VERIFY FAILED: SELL {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
-
-                        except Exception as verify_err:
-                            logger.error(f"Balance verification error: {verify_err}")
-                            p.status = ExecutionStatus.FAILED
-                            p.error_reason = f"Balance verification error: {verify_err}"
-                            self.log(f"FILL VERIFY ERROR: {p.symbol} - {verify_err}")
+                            # SELL PnL 계산
+                            if p.signal_type == "SELL":
+                                try:
+                                    buys = db.query(LiveTradeExecution).filter(
+                                        LiveTradeExecution.session_id == self.session_id,
+                                        LiveTradeExecution.symbol == p.symbol,
+                                        LiveTradeExecution.signal_type == "BUY",
+                                        LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                    ).all()
+                                    total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
+                                    total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                                    if total_buy_qty > 0:
+                                        avg_buy_price = total_buy_cost / total_buy_qty
+                                        p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
+                                        self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f})")
+                                except Exception as pnl_err:
+                                    logger.error(f"PnL calc error: {pnl_err}")
 
                         # Invoke callback based on final status
                         if p.status == ExecutionStatus.FILLED and p.id in self._order_callbacks:
@@ -759,7 +808,7 @@ class LiveContext:
                                 )
                             except Exception as cb_err:
                                 logger.error(f"Order callback error: {cb_err}")
-                        elif p.status == ExecutionStatus.FAILED and p.id in self._order_callbacks:
+                        elif p.status in (ExecutionStatus.FAILED, ExecutionStatus.CANCELLED) and p.id in self._order_callbacks:
                             try:
                                 callback = self._order_callbacks.pop(p.id)
                                 callback(

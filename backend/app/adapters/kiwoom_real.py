@@ -514,6 +514,77 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             )
             return {"status": "failed", "message": str(e)}
 
+    async def get_order_executions(self, order_no: str = "", symbol: str = "") -> list:
+        """
+        Get order execution (fill) history using TR: ka10076 (체결요청)
+        Returns list of execution records for today's orders.
+        """
+        await self._ensure_token()
+
+        url = f"{self.base_url}/api/dostk/acnt"
+        headers = self._get_auth_headers(tr_id="ka10076")
+
+        # qry_tp: "0" all stocks, "1" specific stock
+        qry_tp = "1" if symbol else "0"
+
+        payload = {
+            "stk_cd": symbol or "",
+            "qry_tp": qry_tp,
+            "sell_tp": "0",  # 0: all, 1: sell, 2: buy
+            "ord_no": "",    # empty = most recent first
+            "stex_tp": "0"   # 0: all exchanges
+        }
+
+        try:
+            response = await _rate_limited_post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            executions_data = data.get("cntr", [])
+
+            def clean(v): return str(v).strip() if v else ""
+            def safe_int(v):
+                s = str(v).replace("+", "").replace("-", "").strip() if v else "0"
+                return int(s) if s else 0
+            def safe_float(v):
+                s = str(v).replace("+", "").replace("-", "").strip() if v else "0"
+                return float(s) if s else 0.0
+
+            results = []
+            for item in executions_data:
+                results.append({
+                    "order_no": clean(item.get("ord_no")),
+                    "symbol": clean(item.get("stk_cd")),
+                    "name": clean(item.get("stk_nm")),
+                    "side": clean(item.get("io_tp_nm")),
+                    "order_price": safe_float(item.get("ord_pric")),
+                    "order_qty": safe_int(item.get("ord_qty")),
+                    "filled_price": safe_float(item.get("cntr_pric")),
+                    "filled_qty": safe_int(item.get("cntr_qty")),
+                    "unfilled_qty": safe_int(item.get("oso_qty")),
+                    "commission": safe_float(item.get("tdy_trde_cmsn")),
+                    "tax": safe_float(item.get("tdy_trde_tax")),
+                    "status": clean(item.get("ord_stt")),
+                    "trade_type": clean(item.get("trde_tp")),
+                    "orig_order_no": clean(item.get("orig_ord_no")),
+                    "time": clean(item.get("ord_tm")),
+                })
+
+            # Filter by specific order_no if provided
+            if order_no:
+                results = [r for r in results if r["order_no"] == order_no]
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error fetching order executions (ka10076): {e}")
+            error_logger.log_api_error(
+                message=f"Error fetching order executions: {e}",
+                exception=e,
+                context={"order_no": order_no, "symbol": symbol}
+            )
+            return []
+
     async def get_minute_candles(self, symbol: str, interval_minutes: int = 1) -> list:
         """
         Fetch minute candles using ka10080 (Stock Minute Chart)
