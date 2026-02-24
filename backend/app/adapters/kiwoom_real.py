@@ -389,7 +389,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             
             if data.get("return_code") == 0:
                  return {
-                    "status": "success",
+                    "status": "submitted",  # 주문 접수 완료 (체결 확인 필요)
                     "order_id": data.get("ord_no"),
                     "symbol": symbol,
                     "side": "buy" if tr_id == "kt10000" else "sell",

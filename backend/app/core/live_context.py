@@ -669,6 +669,135 @@ class LiveContext:
                             except Exception as tg_err:
                                 logger.debug(f"Telegram notification skipped: {tg_err}")
 
+                    elif res and res.get("status") == "submitted":
+                        # ===== 실거래 주문 접수 완료 → 체결 확인 필요 =====
+                        # return_code=0 은 "주문 접수"일 뿐, 체결이 아님.
+                        # get_balance()로 실제 보유수량 변동을 확인해야 함.
+                        p.status = ExecutionStatus.SUBMITTED
+                        p.exchange_order_no = res.get("order_id")
+                        p.order_submitted_at = self.get_time()
+                        db.commit()
+                        self.log(f"SUBMITTED: {p.signal_type} {p.requested_quantity} {p.symbol} (order_no={p.exchange_order_no})")
+
+                        # 체결 대기 (시장가 주문은 보통 1초 이내 체결)
+                        import asyncio
+                        await asyncio.sleep(1.5)
+
+                        # get_balance()로 실제 보유수량 확인
+                        try:
+                            balance = await self.adapter.get_balance()
+                            actual_holdings = balance.get("holdings", {})
+                            actual_qty = actual_holdings.get(p.symbol, {}).get("quantity", 0)
+                            prev_qty = self._holdings.get(p.symbol, 0)
+
+                            if p.signal_type == "BUY":
+                                filled_qty = actual_qty - prev_qty
+                                if filled_qty > 0:
+                                    # 체결 확인됨
+                                    actual_price = actual_holdings.get(p.symbol, {}).get("avg_price", 0)
+                                    p.status = ExecutionStatus.FILLED
+                                    p.order_filled_at = self.get_time()
+                                    p.executed_price = actual_price or p.theoretical_price
+                                    p.filled_quantity = filled_qty
+                                    self.cash -= p.executed_price * filled_qty
+                                    self._holdings[p.symbol] = actual_qty
+                                    self.log(f"FILLED (verified): BUY {filled_qty} {p.symbol} @ {p.executed_price} (actual_qty={actual_qty})")
+                                else:
+                                    # 체결 실패 (수량 변동 없음)
+                                    p.status = ExecutionStatus.FAILED
+                                    p.error_reason = f"Balance verification failed: prev={prev_qty}, actual={actual_qty}, expected increase"
+                                    self.log(f"FILL VERIFY FAILED: BUY {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
+                            else:  # SELL
+                                qty_decreased = prev_qty - actual_qty
+                                if qty_decreased > 0:
+                                    # 체결 확인됨
+                                    p.status = ExecutionStatus.FILLED
+                                    p.order_filled_at = self.get_time()
+                                    p.executed_price = p.theoretical_price  # SELL은 avg_price 불가, theoretical 사용
+                                    p.filled_quantity = qty_decreased
+                                    self.cash += p.executed_price * qty_decreased
+                                    self._holdings[p.symbol] = actual_qty
+
+                                    # PnL 계산
+                                    try:
+                                        buys = db.query(LiveTradeExecution).filter(
+                                            LiveTradeExecution.session_id == self.session_id,
+                                            LiveTradeExecution.symbol == p.symbol,
+                                            LiveTradeExecution.signal_type == "BUY",
+                                            LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                        ).all()
+                                        total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
+                                        total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                                        if total_buy_qty > 0:
+                                            avg_buy_price = total_buy_cost / total_buy_qty
+                                            p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
+                                            self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f})")
+                                    except Exception as pnl_err:
+                                        logger.error(f"PnL calc error: {pnl_err}")
+
+                                    self.log(f"FILLED (verified): SELL {qty_decreased} {p.symbol} @ {p.executed_price} (actual_qty={actual_qty})")
+                                else:
+                                    p.status = ExecutionStatus.FAILED
+                                    p.error_reason = f"Balance verification failed: prev={prev_qty}, actual={actual_qty}, expected decrease"
+                                    self.log(f"FILL VERIFY FAILED: SELL {p.symbol} - no quantity change (prev={prev_qty}, actual={actual_qty})")
+
+                        except Exception as verify_err:
+                            logger.error(f"Balance verification error: {verify_err}")
+                            p.status = ExecutionStatus.FAILED
+                            p.error_reason = f"Balance verification error: {verify_err}"
+                            self.log(f"FILL VERIFY ERROR: {p.symbol} - {verify_err}")
+
+                        # Invoke callback based on final status
+                        if p.status == ExecutionStatus.FILLED and p.id in self._order_callbacks:
+                            try:
+                                callback = self._order_callbacks.pop(p.id)
+                                callback(
+                                    order_id=p.id,
+                                    filled_qty=p.filled_quantity,
+                                    filled_price=p.executed_price,
+                                    metadata=p.trade_metadata or {}
+                                )
+                            except Exception as cb_err:
+                                logger.error(f"Order callback error: {cb_err}")
+                        elif p.status == ExecutionStatus.FAILED and p.id in self._order_callbacks:
+                            try:
+                                callback = self._order_callbacks.pop(p.id)
+                                callback(
+                                    order_id=p.id,
+                                    filled_qty=0,
+                                    filled_price=0,
+                                    metadata=p.trade_metadata or {}
+                                )
+                            except Exception as cb_err:
+                                logger.error(f"Order failure callback error: {cb_err}")
+
+                        # Telegram notification for FILLED
+                        if p.status == ExecutionStatus.FILLED and self._user_id:
+                            try:
+                                import asyncio as _asyncio
+                                from .telegram_service import send_telegram_notification
+                                return_pct = None
+                                if p.signal_type == "SELL" and p.realized_pnl and p.executed_price and p.filled_quantity:
+                                    cost = (p.executed_price * p.filled_quantity) - p.realized_pnl
+                                    if cost > 0:
+                                        return_pct = (p.realized_pnl / cost) * 100
+                                _asyncio.create_task(send_telegram_notification(
+                                    db=db,
+                                    user_id=self._user_id,
+                                    notification_type="trade",
+                                    account_id=self._account_id,
+                                    symbol=p.symbol,
+                                    side=p.signal_type,
+                                    quantity=p.filled_quantity,
+                                    price=p.executed_price,
+                                    strategy_name=self._strategy_name or "Unknown",
+                                    is_paper=self._is_paper,
+                                    pnl=p.realized_pnl if p.signal_type == "SELL" else None,
+                                    return_pct=return_pct
+                                ))
+                            except Exception as tg_err:
+                                logger.debug(f"Telegram notification skipped: {tg_err}")
+
                     elif res:
                         p.status = ExecutionStatus.FAILED
                         p.error_reason = res.get("message", "Unknown Error")
