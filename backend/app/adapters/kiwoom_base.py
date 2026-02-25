@@ -42,6 +42,22 @@ class KiwoomBaseAdapter:
         if not self.access_token:
              logger.error(f"Failed to acquire token from TokenManager for {self.base_url}")
 
+    async def _force_refresh_token(self):
+        """Invalidate cached token and fetch a new one from Kiwoom.
+        Called when server rejects token with 8005 error."""
+        mgr = KiwoomTokenManager.get_instance()
+        mgr.invalidate_token(self.base_url, self.app_key)
+        if self.app_key and self.secret_key:
+            self.access_token = await mgr.get_token(
+                self.app_key, self.secret_key, self.base_url
+            )
+            if self.access_token:
+                logger.info(f"Token force-refreshed for {self.base_url}")
+            else:
+                logger.error(f"Token force-refresh failed for {self.base_url}")
+        else:
+            logger.error("Cannot force-refresh: App Key or Secret Key missing")
+
     def _get_auth_headers(self, tr_id: str) -> Dict[str, str]:
         """
         Standard helper to generate headers with Authorization and api-id.

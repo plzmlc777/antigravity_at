@@ -234,7 +234,12 @@ class KiwoomWebSocket(KiwoomBaseAdapter):
                         login_resp = await asyncio.wait_for(websocket.recv(), timeout=10.0)
                         login_data = json.loads(login_resp)
                         if login_data.get("return_code") != 0:
-                            logger.error(f"WS LOGIN Failed: {login_data.get('return_msg')}")
+                            error_msg = login_data.get('return_msg', '')
+                            logger.error(f"WS LOGIN Failed: {error_msg}")
+                            # Token rejected by server — force refresh and retry
+                            if "8005" in str(error_msg) or "인증" in str(error_msg) or "Token" in str(error_msg):
+                                logger.warning("WS: Token invalid. Force-refreshing before reconnect...")
+                                await self._force_refresh_token()
                             continue
                         logger.info("WS LOGIN Success (confirmed before REG)")
                     except asyncio.TimeoutError:

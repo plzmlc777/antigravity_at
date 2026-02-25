@@ -21,12 +21,20 @@ async def _rate_limited_post(url: str, **kwargs) -> httpx.Response:
     client = HttpClientManager.get_instance().get_client()
     return await client.post(url, **kwargs)
 
+def _is_token_error(data: dict) -> bool:
+    """Check if API response indicates a token authentication failure (8005)."""
+    if data.get("return_code") == 0:
+        return False
+    msg = str(data.get("return_msg", ""))
+    return "8005" in msg or "인증" in msg or "Token" in msg
+
+
 class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
     """
     Real Adapter for Kiwoom Open API V5 (REST).
     Implemented based on 'Kiwoom REST API Documentation'.
     """
-    
+
     def __init__(self, app_key: str = None, secret_key: str = None, account_no: str = None, account_name: str = None, api_url: str = None, is_virtual: bool = False):
         # Initialize Base Class
         KiwoomBaseAdapter.__init__(self, app_key or settings.HCP_KIWOOM_APP_KEY, secret_key or settings.HCP_KIWOOM_SECRET_KEY)
@@ -275,6 +283,14 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                 response.raise_for_status()
                 data = response.json()
 
+                if _is_token_error(data):
+                    logger.warning("Token rejected in get_balance (mock). Force-refreshing...")
+                    await self._force_refresh_token()
+                    headers = self._get_auth_headers(tr_id="kt00004")
+                    response = await _rate_limited_post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
+
                 # Parse kt00004 response
                 # 'entr': 예수금, 'prsm_dpst_aset_amt': 추정예탁자산
                 cash_balance = safe_float(data.get("entr", "0"))
@@ -303,6 +319,14 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                 response = await _rate_limited_post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
+
+                if _is_token_error(data):
+                    logger.warning("Token rejected in get_balance (real). Force-refreshing...")
+                    await self._force_refresh_token()
+                    headers = self._get_auth_headers(tr_id="ka01690")
+                    response = await _rate_limited_post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    data = response.json()
 
                 # Parse ka01690 response
                 # 'dbst_bal': Deposit Balance (Cash)
@@ -615,8 +639,21 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
             data = response.json()
             if data.get("return_code") != 0:
-                logger.error(f"API Error get_minute_candles: {data.get('return_msg')}")
-                return []
+                if _is_token_error(data):
+                    logger.warning(f"Token rejected by server in get_minute_candles. Force-refreshing...")
+                    await self._force_refresh_token()
+                    # Retry once with new token
+                    headers = self._get_auth_headers(tr_id="ka10080")
+                    headers["content-type"] = "application/json;charset=UTF-8"
+                    response = await _rate_limited_post(url, headers=headers, json=payload, timeout=10.0)
+                    if response.status_code == 200:
+                        data = response.json()
+                    if data.get("return_code") != 0:
+                        logger.error(f"API Error get_minute_candles (after refresh): {data.get('return_msg')}")
+                        return []
+                else:
+                    logger.error(f"API Error get_minute_candles: {data.get('return_msg')}")
+                    return []
 
             output = data.get("stk_min_pole_chart_qry", [])
             candles = []
@@ -684,7 +721,18 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
             data = response.json()
             if data.get("return_code") != 0:
-                return []
+                if _is_token_error(data):
+                    logger.warning("Token rejected in get_daily_candles. Force-refreshing...")
+                    await self._force_refresh_token()
+                    headers = self._get_auth_headers(tr_id="ka10081")
+                    headers["content-type"] = "application/json;charset=UTF-8"
+                    response = await _rate_limited_post(url, headers=headers, json=payload, timeout=10.0)
+                    if response.status_code == 200:
+                        data = response.json()
+                    if data.get("return_code") != 0:
+                        return []
+                else:
+                    return []
 
             output = data.get("stk_day_pole_chart_qry", [])
 

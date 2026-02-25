@@ -209,6 +209,19 @@ class KiwoomTokenManager:
             logger.error(f"Failed to get Kiwoom Token from {cache_key}: {e}")
             return None
 
+    def invalidate_token(self, base_url: str = None, app_key: str = None):
+        """Invalidate a specific cached token (e.g., on 8005 server-side rejection).
+        Forces next get_token() call to fetch a fresh token from Kiwoom."""
+        url = base_url or self.default_base_url
+        cache_key = self._get_cache_key(url, app_key)
+        if cache_key in self._tokens:
+            del self._tokens[cache_key]
+            self._save_cache()
+            logger.warning(f"TokenManager: Invalidated token for {cache_key}")
+        # Also clear legacy fields
+        self.access_token = None
+        self.token_expiry = None
+
     def clear_all(self):
         """Clear all cached tokens (used on logout/account switch)"""
         self._tokens.clear()
