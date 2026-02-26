@@ -10,26 +10,23 @@ Funding Rate Arbitrage Strategy
 from typing import Dict, Any, Optional
 from datetime import datetime
 from .base import BaseStrategy, IContext
+from .martingale_base import MartingaleBase
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-class FundingRateArbStrategy(BaseStrategy):
+class FundingRateArbStrategy(MartingaleBase):
     """
     Funding Rate Arbitrage - single-direction futures position to collect funding fees.
-    Not based on MartingaleBase since pyramiding is not needed for funding arb.
+    Inherits MartingaleBase for common parameter schema and position management infrastructure.
+    Overrides on_data() with its own funding-rate-based entry/exit logic.
     """
 
     REQUIRES_FUTURES = True
 
     PARAMETER_SCHEMA = {
         "fields": [
-            {"name": "interval", "type": "select", "label": "Check Interval",
-             "default": "5m",
-             "options": ["1m", "3m", "5m", "15m", "30m", "60m"],
-             "description": "How often to check funding rate",
-             "group": "common", "show_in_table": False},
             {"name": "entry_rate_threshold", "type": "number", "label": "Entry Rate (%)",
              "default": 0.03, "min": 0.001, "max": 1.0, "step": 0.001,
              "description": "Enter when |funding_rate| exceeds this % (e.g., 0.03 = 0.03%)",
@@ -42,29 +39,14 @@ class FundingRateArbStrategy(BaseStrategy):
              "default": 50.0, "min": 5, "max": 100, "step": 5,
              "description": "% of capital to use for position",
              "group": "common", "show_in_table": True},
-            {"name": "leverage", "type": "number", "label": "Leverage",
-             "default": 3, "min": 1, "max": 20, "step": 1,
-             "description": "Futures leverage (keep low for funding arb)",
-             "group": "futures", "show_in_table": True},
-            {"name": "max_hold_hours", "type": "number", "label": "Max Hold (hours)",
-             "default": 24, "min": 1, "max": 168, "step": 1,
-             "description": "Max hours to hold position (0=unlimited)",
-             "group": "common", "show_in_table": False},
-            {"name": "max_loss_pct", "type": "number", "label": "Max Loss (%)",
-             "default": 2.0, "min": 0.1, "max": 20, "step": 0.1,
-             "description": "Max loss % of position to trigger exit",
-             "group": "common", "show_in_table": False},
-        ]
+        ] + BaseStrategy.COMMON_PARAMETER_FIELDS
     }
 
-    def initialize(self):
-        self.symbol = self.config.get("symbol", "BTCUSDT")
+    def _initialize_trigger(self):
+        """Initialize funding-rate-specific state."""
         self.entry_rate = self.config.get("entry_rate_threshold", 0.03) / 100  # Convert % to decimal
         self.exit_rate = self.config.get("exit_rate_threshold", 0.005) / 100
         self.position_size_pct = self.config.get("position_size_pct", 50.0) / 100
-        self.leverage = self.config.get("leverage", 3)
-        self.max_hold_hours = self.config.get("max_hold_hours", 24)
-        self.max_loss_pct = self.config.get("max_loss_pct", 2.0) / 100
 
         # State
         self._position_side: Optional[str] = None  # "LONG" or "SHORT" or None
@@ -171,11 +153,26 @@ class FundingRateArbStrategy(BaseStrategy):
             self._entry_time = None
             self._position_qty = 0
 
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+        """Not used — funding_rate_arb uses its own on_data() flow."""
+        return False
+
+    def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """Not used — funding_rate_arb manages positions directly."""
+        return False
+
+    @property
+    def _log_prefix(self) -> str:
+        return "FundingArb"
+
+    @property
+    def _strategy_id(self) -> str:
+        return "funding_rate_arb"
+
     def get_state(self) -> Dict[str, Any]:
-        return {
-            "strategy": "FundingRateArb",
-            "position_side": self._position_side or "NONE",
-            "entry_price": self._entry_price,
-            "position_qty": self._position_qty,
-            "entry_time": self._entry_time.isoformat() if self._entry_time else None,
-        }
+        state = super().get_state()
+        state["position_side"] = self._position_side or "NONE"
+        state["arb_entry_price"] = self._entry_price
+        state["arb_position_qty"] = self._position_qty
+        state["arb_entry_time"] = self._entry_time.isoformat() if self._entry_time else None
+        return state

@@ -9,16 +9,18 @@ Spot-Futures Hedge Strategy (Cash-and-Carry Arbitrage)
 from typing import Dict, Any, Optional
 from datetime import datetime
 from .base import BaseStrategy, IContext
+from .martingale_base import MartingaleBase
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-class SpotFuturesHedgeStrategy(BaseStrategy):
+class SpotFuturesHedgeStrategy(MartingaleBase):
     """
     Cash-and-Carry Arbitrage: Spot Long + Futures Short.
     Earns funding fees while being delta-neutral.
-    Requires HedgeCoordinator for execution.
+    Inherits MartingaleBase for common parameter schema and position management infrastructure.
+    Overrides on_data() with its own hedge-based entry/exit logic.
     """
 
     REQUIRES_FUTURES = True
@@ -26,11 +28,6 @@ class SpotFuturesHedgeStrategy(BaseStrategy):
 
     PARAMETER_SCHEMA = {
         "fields": [
-            {"name": "interval", "type": "select", "label": "Check Interval",
-             "default": "15m",
-             "options": ["5m", "15m", "30m", "60m"],
-             "description": "Funding rate check interval",
-             "group": "common", "show_in_table": False},
             {"name": "entry_rate_threshold", "type": "number", "label": "Entry Rate (%)",
              "default": 0.05, "min": 0.001, "max": 1.0, "step": 0.001,
              "description": "Open hedge when funding rate exceeds this % (positive rate = shorts receive)",
@@ -43,14 +40,6 @@ class SpotFuturesHedgeStrategy(BaseStrategy):
              "default": 50.0, "min": 10, "max": 100, "step": 5,
              "description": "% of capital for each leg of the hedge",
              "group": "common", "show_in_table": True},
-            {"name": "leverage", "type": "number", "label": "Futures Leverage",
-             "default": 2, "min": 1, "max": 10, "step": 1,
-             "description": "Leverage for futures leg (keep low for safety)",
-             "group": "futures", "show_in_table": True},
-            {"name": "max_hold_hours", "type": "number", "label": "Max Hold (hours)",
-             "default": 72, "min": 1, "max": 720, "step": 1,
-             "description": "Max hours to hold hedge (0=unlimited)",
-             "group": "common", "show_in_table": False},
             {"name": "spot_account_id", "type": "number", "label": "Spot Account ID",
              "default": 0, "min": 0, "max": 9999, "step": 1,
              "description": "Exchange account ID for spot leg",
@@ -59,16 +48,14 @@ class SpotFuturesHedgeStrategy(BaseStrategy):
              "default": 0, "min": 0, "max": 9999, "step": 1,
              "description": "Exchange account ID for futures leg",
              "group": "hedge", "show_in_table": False},
-        ]
+        ] + BaseStrategy.COMMON_PARAMETER_FIELDS
     }
 
-    def initialize(self):
-        self.symbol = self.config.get("symbol", "BTCUSDT")
+    def _initialize_trigger(self):
+        """Initialize hedge-specific state."""
         self.entry_rate = self.config.get("entry_rate_threshold", 0.05) / 100
         self.exit_rate = self.config.get("exit_rate_threshold", 0.01) / 100
         self.hedge_size_pct = self.config.get("hedge_size_pct", 50.0) / 100
-        self.leverage = self.config.get("leverage", 2)
-        self.max_hold_hours = self.config.get("max_hold_hours", 72)
 
         # State
         self._is_hedged = False
@@ -145,11 +132,26 @@ class SpotFuturesHedgeStrategy(BaseStrategy):
             self._entry_time = None
             # In live mode, HedgeCoordinator.close_hedge() is called by LiveManager
 
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+        """Not used — spot_futures_hedge uses its own on_data() flow."""
+        return False
+
+    def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """Not used — spot_futures_hedge manages positions directly."""
+        return False
+
+    @property
+    def _log_prefix(self) -> str:
+        return "SpotFuturesHedge"
+
+    @property
+    def _strategy_id(self) -> str:
+        return "spot_futures_hedge"
+
     def get_state(self) -> Dict[str, Any]:
-        return {
-            "strategy": "SpotFuturesHedge",
-            "is_hedged": self._is_hedged,
-            "entry_time": self._entry_time.isoformat() if self._entry_time else None,
-            "entry_funding_rate": self._entry_funding_rate,
-            "total_funding_collected": self._total_funding_collected,
-        }
+        state = super().get_state()
+        state["is_hedged"] = self._is_hedged
+        state["hedge_entry_time"] = self._entry_time.isoformat() if self._entry_time else None
+        state["entry_funding_rate"] = self._entry_funding_rate
+        state["total_funding_collected"] = self._total_funding_collected
+        return state
