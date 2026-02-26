@@ -5,6 +5,7 @@ from ..strategies.base import IContext, BaseStrategy
 from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
 from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
 from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
+from .trading_hours import calc_trading_seconds
 
 # --- SINGLE SOURCE OF TRUTH: Performance Stat Keys ---
 # All stat keys that should appear in rank_stats_list and aggregated results.
@@ -1199,9 +1200,9 @@ class WaterfallBacktestEngine:
                     profit = revenue - cost
                     profit_percent = (sell_price - buy_order['price']) / buy_order['price']
                     
-                    # Calculate Holding Time
+                    # Calculate Holding Time (거래시간 기준)
                     buy_time = datetime.fromisoformat(buy_order['time'])
-                    holding_seconds = (sell_time - buy_time).total_seconds()
+                    holding_seconds = calc_trading_seconds(buy_time, sell_time, self._exchange_name)
                     
                     completed_trades.append({
                         'pnl': profit,

@@ -6,6 +6,7 @@ import logging
 from .base import BaseStrategy, IContext
 from ..core.qty_rules import adjust_qty, EXCHANGE_QTY_RULES
 from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
+from ..core.trading_hours import calc_trading_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -229,10 +230,11 @@ class MartingaleBase(BaseStrategy):
             total_investment = self.average_price * self.total_quantity
             current_return = position_profit / total_investment if total_investment > 0 else 0
 
-        # Cycle time limit
+        # Cycle time limit (거래시간 기준)
         if self.cycle_max_hours > 0 and self.cycle_start_time:
             current_time = self.context.get_time()
-            elapsed_hours = (current_time - self.cycle_start_time).total_seconds() / 3600
+            exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
+            elapsed_hours = calc_trading_seconds(self.cycle_start_time, current_time, exchange_name) / 3600
             if elapsed_hours >= self.cycle_max_hours:
                 self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
                 self._liquidate(current_price)
