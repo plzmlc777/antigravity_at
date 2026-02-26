@@ -607,6 +607,7 @@ const VisualBacktestChart = ({
                             <option value={60}>Zoom: 60</option>
                             <option value={120}>Zoom: 120</option>
                             <option value={300}>Zoom: 300</option>
+                            <option value={1000}>Zoom: 1000</option>
                         </select>
                         <select value={speed} onChange={(e) => { const v = Number(e.target.value); localStorage.setItem('live_tick_speed', v); setSpeed(v); }} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
                             <option value={1000}>Speed: 0.1x</option>
