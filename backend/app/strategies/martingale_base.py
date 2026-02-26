@@ -257,19 +257,17 @@ class MartingaleBase(BaseStrategy):
                     self._liquidate(current_price)
                     return True
 
-        # Trailing Stop Activation
-        effective_trail_start = self.trailing_start_percent / leverage if leverage > 1 else self.trailing_start_percent
-        if self.trailing_start_percent > 0 and not self.trailing_active and current_return >= (effective_trail_start / 100):
+        # Trailing Stop Activation (price-based: compare price change from avg_price)
+        price_return = (current_price - self.average_price) / self.average_price if self.average_price > 0 else 0
+        if self.trailing_start_percent > 0 and not self.trailing_active and price_return >= (self.trailing_start_percent / 100):
             self.trailing_active = True
             self.peak_price = current_price
-            lev_note = f" (leverage-adjusted: {effective_trail_start:.4f}%)" if leverage > 1 else ""
-            self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Position Return: {current_return*100:.2f}%{lev_note}")
+            self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Price Return: {price_return*100:.2f}% (threshold: {self.trailing_start_percent}%)")
 
-        # Trailing Stop Trigger
+        # Trailing Stop Trigger (price-based: drop from peak price)
         if self.trailing_active:
-            effective_trail_stop = self.trailing_stop_percent / leverage if leverage > 1 else self.trailing_stop_percent
             drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-            if drop_from_peak >= (effective_trail_stop / 100):
+            if drop_from_peak >= (self.trailing_stop_percent / 100):
                 self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
                 self._liquidate(current_price)
                 return True

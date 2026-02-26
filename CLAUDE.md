@@ -319,9 +319,9 @@ ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_us
 
 ### 2. DB 백업 (필수)
 
-**배포 전 반드시 백업:**
+**배포 전 반드시 백업 + 오래된 백업 정리 (최근 2개만 유지):**
 ```bash
-ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password pg_dump -U antigravity_user -h localhost antigravity_db > ~/db_backup_$(date +%Y%m%d_%H%M%S).dump'
+ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password pg_dump -U antigravity_user -h localhost antigravity_db > ~/db_backup_$(date +%Y%m%d_%H%M%S).dump && echo "DB backup done" && ls -t ~/db_backup*.dump | tail -n +3 | xargs -r rm -v'
 ```
 
 ### Server Info
