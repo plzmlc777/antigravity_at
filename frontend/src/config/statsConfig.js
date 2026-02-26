@@ -158,12 +158,7 @@ export const formatStatValue = (value, col) => {
             // Smart time formatting for minutes ('m' suffix)
             if (col.suffix === 'm' && typeof value === 'number') {
                 const mins = Math.round(value);
-                if (mins >= 1440) { // >= 1 day
-                    const days = Math.floor(mins / 1440);
-                    const hours = Math.floor((mins % 1440) / 60);
-                    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
-                }
-                if (mins >= 60) { // >= 1 hour
+                if (mins >= 60) {
                     const hours = Math.floor(mins / 60);
                     const remMins = mins % 60;
                     return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;

@@ -2813,12 +2813,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             const formatTime = (mins) => {
                                 if (mins == null) return '-';
                                 const m = Math.round(mins);
-                                if (m >= 1440) { // >= 1 day
-                                    const days = Math.floor(m / 1440);
-                                    const hours = Math.floor((m % 1440) / 60);
-                                    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
-                                }
-                                if (m >= 60) { // >= 1 hour
+                                if (m >= 60) {
                                     const hours = Math.floor(m / 60);
                                     const remMins = m % 60;
                                     return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
