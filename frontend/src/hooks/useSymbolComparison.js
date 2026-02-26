@@ -113,7 +113,7 @@ export const useSymbolComparison = ({
                         symbol, name: nameMap[symbol] || '',
                         total_return: data.total_return, profit_factor: data.profit_factor,
                         win_rate: data.win_rate, recent_10_win_rate: data.recent_10_win_rate,
-                        sharpe_ratio: data.sharpe_ratio, total_trades: data.total_trades,
+                        sharpe_ratio: data.sharpe_ratio, total_cycles: data.total_cycles ?? data.total_trades,
                         stability_score: data.stability_score, acceleration_score: data.acceleration_score,
                         activity_rate: data.activity_rate, avg_pnl: data.avg_pnl,
                         avg_holding_time: data.avg_holding_time, max_holding_time: data.max_holding_time,
@@ -126,7 +126,7 @@ export const useSymbolComparison = ({
                     results.push({
                         symbol, name: nameMap[symbol] || '',
                         total_return: 'Error', profit_factor: null, win_rate: null,
-                        recent_10_win_rate: null, sharpe_ratio: null, total_trades: 0,
+                        recent_10_win_rate: null, sharpe_ratio: null, total_cycles: 0,
                         stability_score: null, acceleration_score: null, activity_rate: null,
                         avg_pnl: null, avg_holding_time: null, max_holding_time: null,
                         min_holding_time: null, max_profit: null, max_loss: null,

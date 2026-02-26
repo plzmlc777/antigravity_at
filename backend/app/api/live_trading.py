@@ -988,7 +988,7 @@ async def get_accumulated_stats(
                     "win_rate": round(win_rate, 1),  # %
                     "recent_10_win_rate": round(recent_win_rate, 1),  # %
                     "sharpe_ratio": round(sharpe_ratio, 2),
-                    "total_trades": cycles,  # = cycle count
+                    "total_cycles": cycles,  # = cycle count
                     "stability_score": None,  # N/A for live (needs equity curve)
                     "acceleration_score": None,  # N/A for live
                     "activity_rate": round(activity_rate, 1),  # %
@@ -1233,7 +1233,7 @@ async def get_parameter_analysis(
                 "key_params": _extract_key_params(data["config_snapshot"]),
                 "full_config": data["config_snapshot"],
                 "cycles": cycles,
-                "total_trades": len(data["buys"]) + len(data["sells"]),
+                "total_cycles": len(data["buys"]) + len(data["sells"]),
                 "win_rate": round(win_rate, 1),
                 "total_pnl": round(total_pnl, 0),
                 "avg_pnl": round(avg_pnl, 0),
@@ -1765,7 +1765,7 @@ async def update_version_performance_stats(version_id: str):
             wins = sum(1 for p in cycle_pnls if p > 0)
             stats = {
                 "cycles": cycles,
-                "total_trades": len(matching_trades),
+                "total_cycles": len(matching_trades),
                 "win_rate": round((wins / cycles) * 100, 1),
                 "total_pnl": round(total_pnl, 0),
                 "avg_pnl": round(total_pnl / cycles, 0),
@@ -1775,7 +1775,7 @@ async def update_version_performance_stats(version_id: str):
         else:
             stats = {
                 "cycles": 0,
-                "total_trades": len(matching_trades),
+                "total_cycles": len(matching_trades),
                 "win_rate": 0,
                 "total_pnl": 0,
                 "avg_pnl": 0,

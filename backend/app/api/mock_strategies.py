@@ -271,7 +271,7 @@ def _process_optimization_result(config, res):
 
     ret = float(str(res['total_return']).replace('%', '').replace(',', ''))
     wr = float(str(res['win_rate']).replace('%', ''))
-    trades = int(res.get('total_trades', 0))
+    trades = int(res.get('total_cycles', 0))
     score = ret * (wr / 100.0)
 
     recent_10_wr = res.get("recent_10_win_rate", 0)
@@ -289,7 +289,7 @@ def _process_optimization_result(config, res):
         total_return=ret,
         win_rate=wr,
         recent_10_win_rate=recent_10_wr,
-        total_trades=trades,
+        total_cycles=trades,
         score=round(score, 2),
         max_drawdown=str(stats_obj.max_drawdown) if stats_obj.max_drawdown else "-",
         profit_factor=str(stats_obj.profit_factor) if stats_obj.profit_factor else "-",
@@ -469,7 +469,7 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
             "win_rate": result['win_rate'],
             "recent_10_win_rate": result.get('recent_10_win_rate', 0),
             "max_drawdown": result['max_drawdown'],
-            "total_trades": result.get('total_trades', 0),
+            "total_cycles": result.get('total_cycles', 0),
             "avg_pnl": result.get('avg_pnl', "0%"),
             "max_profit": result.get('max_profit', "0%"),
             "max_loss": result.get('max_loss', "0%"),
@@ -661,7 +661,7 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
         "win_rate": result.get('win_rate', 0),
         "recent_10_win_rate": result.get('recent_10_win_rate', 0),
         "max_drawdown": result.get('max_drawdown', 0),
-        "total_trades": result.get('total_trades', 0),
+        "total_cycles": result.get('total_cycles', 0),
         "avg_pnl": result.get('avg_pnl', "0%"),
         "max_profit": result.get('max_profit', "0%"),
         "max_loss": result.get('max_loss', "0%"),
@@ -710,7 +710,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
 
         # CSV columns
         csv_columns = [
-            'rank', 'symbol', 'score', 'total_return', 'win_rate', 'recent_10_win_rate', 'total_trades',
+            'rank', 'symbol', 'score', 'total_return', 'win_rate', 'recent_10_win_rate', 'total_cycles',
             'max_drawdown', 'profit_factor', 'sharpe_ratio', 'avg_pnl',
             'stability_score', 'acceleration_score', 'activity_rate',
             'avg_holding_time', 'max_holding_time', 'min_holding_time',
@@ -729,7 +729,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
             symbol = config.get('symbol', '')
             total_return = float(str(res.get('total_return', '0')).replace('%', '').replace(',', ''))
             win_rate = float(str(res.get('win_rate', '0')).replace('%', ''))
-            total_trades = int(res.get('total_trades', 0))
+            total_cycles = int(res.get('total_cycles', 0))
             score = total_return * (win_rate / 100.0)
 
             recent_10_wr = res.get("recent_10_win_rate", 0)
@@ -739,7 +739,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
             row = {
                 'rank': 0, 'symbol': symbol, 'score': round(score, 2),
                 'total_return': total_return, 'win_rate': win_rate,
-                'recent_10_win_rate': recent_10_wr, 'total_trades': total_trades,
+                'recent_10_win_rate': recent_10_wr, 'total_cycles': total_cycles,
                 'max_drawdown': str(res.get('max_drawdown', '-')),
                 'profit_factor': str(res.get('profit_factor', '-')),
                 'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
@@ -770,7 +770,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
             result_entry = {
                 'score': score, 'symbol': symbol,
                 'total_return': total_return, 'win_rate': win_rate,
-                'recent_10_win_rate': recent_10_wr, 'total_trades': total_trades,
+                'recent_10_win_rate': recent_10_wr, 'total_cycles': total_cycles,
                 'max_drawdown': str(res.get('max_drawdown', '-')),
                 'profit_factor': str(res.get('profit_factor', '-')),
                 'sharpe_ratio': str(res.get('sharpe_ratio', '-')),
@@ -946,7 +946,7 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                             # Essential top-level fields for quick access
                             "total_return": stats.total_return,
                             "win_rate": stats.win_rate,
-                            "total_trades": stats.total_trades,
+                            "total_cycles": stats.total_cycles,
                         }
 
                     result_data = {
@@ -958,20 +958,17 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                         "status": "completed"
                     }
 
-                    db_obj = db.query(StrategyAnalysisResult).filter(
-                        StrategyAnalysisResult.tab_id == tab_id,
-                        StrategyAnalysisResult.result_type == "optimization",
-                    ).first()
-                    if db_obj:
-                        db_obj.data = result_data
-                    else:
-                        db_obj = StrategyAnalysisResult(
-                            tab_id=tab_id,
-                            result_type="optimization",
-                            account_id=save_account_id,
-                            data=result_data
-                        )
-                        db.add(db_obj)
+                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    stmt = pg_insert(StrategyAnalysisResult).values(
+                        tab_id=tab_id,
+                        result_type="optimization",
+                        account_id=save_account_id,
+                        data=result_data,
+                    ).on_conflict_do_update(
+                        constraint="strategy_results_pkey",
+                        set_=dict(data=result_data, account_id=save_account_id),
+                    )
+                    db.execute(stmt)
                     db.commit()
                     logger.info(f"[Heavy Optimization] Auto-saved {len(sorted_top)} results to DB (tab_id={tab_id})")
                 finally:
@@ -1220,7 +1217,7 @@ def _calculate_weighted_score(row: dict, weights: ScoreWeights) -> float:
     recent_10 = _parse_numeric(row.get('recent_10_win_rate', 0))  # Recent 10 cycles win rate
     pf = _parse_numeric(row.get('profit_factor', 0))
     accel = _parse_numeric(row.get('acceleration_score', 0))
-    trades = _parse_numeric(row.get('total_trades', 0))  # = Cycle count
+    trades = _parse_numeric(row.get('total_cycles', 0))  # = Cycle count
     activity = _parse_numeric(row.get('activity_rate', 0))
     avg_pnl = _parse_numeric(row.get('avg_pnl', 0))  # Cycle avg PnL (in %)
 
@@ -1379,7 +1376,7 @@ async def recalculate_scores(request: RecalculateScoreRequest):
             total_return=_parse_numeric(row.get('total_return', 0)),
             win_rate=_parse_numeric(row.get('win_rate', 0)),
             recent_10_win_rate=_parse_numeric(row.get('recent_10_win_rate', 0)),
-            total_trades=int(_parse_numeric(row.get('total_trades', 0))),
+            total_cycles=int(_parse_numeric(row.get('total_cycles', 0))),
             score=round(new_score, 4),
             max_drawdown=str(row.get('max_drawdown', '-')),
             profit_factor=str(row.get('profit_factor', '-')),

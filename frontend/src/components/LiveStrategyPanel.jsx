@@ -2744,9 +2744,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             Object.values(accumulatedStats).forEach(symbolStats => {
                                 ['paper', 'real'].forEach(mode => {
                                     const s = symbolStats?.[mode];
-                                    if (!s || !s.cycles && !s.total_trades) return;
+                                    if (!s || !s.cycles && !s.total_cycles) return;
                                     const st = stats[mode];
-                                    const cycleCount = s.total_trades || s.cycles || 0;
+                                    const cycleCount = s.total_cycles || s.cycles || 0;
                                     st.cycles += cycleCount;
                                     st.pnl += s.realized_pnl || 0;
                                     st.wins += Math.round((s.win_rate || 0) * cycleCount / 100);

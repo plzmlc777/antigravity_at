@@ -73,7 +73,7 @@ export const useScoreWeights = ({
                         symbol: item.symbol || item.config?.symbol || '',
                         symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || '',
                         return: stats.total_return,
-                        trades: stats.total_trades,
+                        cycles: stats.total_cycles,
                         score: item.score,
                         full_config: typedCfg,
                         rank: item.rank > 0 ? item.rank : (idx + 1)

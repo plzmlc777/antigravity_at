@@ -59,6 +59,10 @@ class IContext(ABC):
         """
         return {}
 
+    def get_total_equity(self) -> float:
+        """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치. 전략에서 수익률 계산 기준으로 사용."""
+        return 0.0
+
     @abstractmethod
     def log(self, message: str):
         pass

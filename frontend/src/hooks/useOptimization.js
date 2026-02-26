@@ -408,7 +408,7 @@ export const useOptimization = ({
             return: item.total_return,
             win_rate: item.win_rate,
             recent_10_win_rate: item.recent_10_win_rate,
-            trades: item.total_trades,
+            cycles: item.total_cycles,
             score: item.score,
             full_config: item.config,
             rank: index + 1,

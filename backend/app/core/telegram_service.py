@@ -220,7 +220,7 @@ class TelegramNotificationService:
 ─────────────────────────────────
 수익률      | {fmt_val(live_stats.get('total_return'), True):>8} | {fmt_val(backtest_stats.get('total_return'), True):>8} | {fmt_diff(live_stats.get('total_return'), backtest_stats.get('total_return'))}
 승률        | {fmt_val(live_stats.get('win_rate'), True):>8} | {fmt_val(backtest_stats.get('win_rate'), True):>8} | {fmt_diff(live_stats.get('win_rate'), backtest_stats.get('win_rate'))}
-거래수      | {fmt_val(live_stats.get('total_trades')):>8} | {fmt_val(backtest_stats.get('total_trades')):>8} | {fmt_diff(live_stats.get('total_trades'), backtest_stats.get('total_trades'))}
+거래수      | {fmt_val(live_stats.get('total_cycles')):>8} | {fmt_val(backtest_stats.get('total_cycles')):>8} | {fmt_diff(live_stats.get('total_cycles'), backtest_stats.get('total_cycles'))}
 Profit Factor | {fmt_val(live_stats.get('profit_factor')):>8} | {fmt_val(backtest_stats.get('profit_factor')):>8} | {fmt_diff(live_stats.get('profit_factor'), backtest_stats.get('profit_factor'))}
 Sharpe Ratio | {fmt_val(live_stats.get('sharpe_ratio')):>8} | {fmt_val(backtest_stats.get('sharpe_ratio')):>8} | {fmt_diff(live_stats.get('sharpe_ratio'), backtest_stats.get('sharpe_ratio'))}
 MDD         | {fmt_val(live_stats.get('max_drawdown'), True):>8} | {fmt_val(backtest_stats.get('max_drawdown'), True):>8} | {fmt_diff(live_stats.get('max_drawdown'), backtest_stats.get('max_drawdown'))}
@@ -320,7 +320,7 @@ MDD         | {fmt_val(live_stats.get('max_drawdown'), True):>8} | {fmt_val(back
         strategy_name: str,
         total_pnl: float,
         total_return: float,
-        total_trades: int,
+        total_cycles: int,
         is_paper: bool
     ) -> bool:
         """Send session stop notification."""
@@ -340,7 +340,7 @@ MDD         | {fmt_val(live_stats.get('max_drawdown'), True):>8} | {fmt_val(back
 {pnl_emoji} <b>최종 성과</b>
 ├ 손익: {pnl_sign}{total_pnl:,.0f}원
 ├ 수익률: {pnl_sign}{total_return:.2f}%
-└ 총 거래: {total_trades}건
+└ 총 거래: {total_cycles}건
 """
 
         return await self.send_message(message.strip())

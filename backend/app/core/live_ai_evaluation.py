@@ -235,7 +235,7 @@ class LiveAIEvaluationService:
             "total_return": round(total_return, 2),
             "win_rate": round(win_rate, 1),
             "recent_10_win_rate": round(recent_10_win_rate, 1),
-            "total_trades": cycles_analyzed,
+            "total_cycles": cycles_analyzed,
             "profit_factor": round(profit_factor, 2),
             "sharpe_ratio": round(sharpe_ratio, 2),
             "max_drawdown": round(max_drawdown, 2),
@@ -331,13 +331,13 @@ class LiveAIEvaluationService:
                 return {"error": "Backtest returned no result"}
 
             # Stats are at top level of result, not under 'stats' key
-            logger.info(f"Backtest completed. total_trades={result.get('total_trades')}, total_return={result.get('total_return')}")
+            logger.info(f"Backtest completed. total_cycles={result.get('total_cycles')}, total_return={result.get('total_return')}")
 
             return {
                 "total_return": result.get("total_return", 0),
                 "win_rate": result.get("win_rate", 0),
                 "recent_10_win_rate": result.get("recent_10_win_rate"),
-                "total_trades": result.get("total_trades", 0),
+                "total_cycles": result.get("total_cycles", 0),
                 "profit_factor": result.get("profit_factor", 0),
                 "sharpe_ratio": result.get("sharpe_ratio", 0),
                 "max_drawdown": result.get("max_drawdown", 0),

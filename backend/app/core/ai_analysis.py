@@ -86,7 +86,7 @@ class AIAnalysisService:
                     "score": metrics.get('score'),
                     "total_return": metrics.get('total_return'),
                     "win_rate": metrics.get('win_rate'),
-                    "total_trades": metrics.get('total_trades'),
+                    "total_trades": metrics.get('total_cycles'),
                     "max_drawdown": self._parse_percent(metrics.get('max_drawdown')),
                     "profit_factor": metrics.get('profit_factor'),
                     "sharpe_ratio": metrics.get('sharpe_ratio'),
@@ -259,7 +259,7 @@ DipMartingaleStrategy는 가격 하락 시 단계별로 물타기 매수하고, 
 ### 효율성 지표
 - win_rate: 승률 (%)
 - profit_factor: 총이익/총손실
-- total_trades: 총 거래 횟수
+- total_trades: 총 사이클 수
 - activity_rate: 거래 활동일 비율 (%)
 
 ### 안정성 지표 (매우 중요)

@@ -159,7 +159,7 @@ class BacktestEngine:
                 "win_rate": "0%",
                 "max_drawdown": "0%",
                 "activity_rate": "0%",
-                "total_trades": 0,
+                "total_cycles": 0,
                 "score": 0,
                 "avg_pnl": "0%",
                 "max_profit": "0%",
@@ -214,7 +214,7 @@ class BacktestEngine:
                  "win_rate": "0%", 
                  "max_drawdown": "0%", 
                  "activity_rate": "0%",
-                 "total_trades": 0,
+                 "total_cycles": 0,
                  "avg_pnl": "0%",
                  "max_profit": "0%",
                  "max_loss": "0%",
@@ -274,7 +274,7 @@ class BacktestEngine:
     def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None) -> Dict[str, Any]:
         if not trades:
             return {
-                "total_trades": 0,
+                "total_cycles": 0,
                 "win_rate": "0%",
                 "avg_pnl": "0%",
                 "max_profit": "0%",
@@ -337,7 +337,7 @@ class BacktestEngine:
         # Calculate Statistics
         if not completed_trades:
             return {
-                "total_trades": 0,
+                "total_cycles": 0,
                 "win_rate": "0%",
                 "avg_pnl": "0%",
                 "max_profit": "0%",
@@ -386,7 +386,7 @@ class BacktestEngine:
         decile_data = self._calc_deciles(completed_trades, start_ts, end_ts)
 
         return {
-            "total_trades": total_count,
+            "total_cycles": total_count,
             "win_rate": f"{win_rate:.1f}%",
             "avg_pnl": f"{avg_pnl_percent:.2f}%",
             "max_profit": f"{max_profit:.2f}%",
@@ -593,7 +593,7 @@ class BacktestEngine:
                 "total_return": "0%",
                 "win_rate": "0%",
                 "max_drawdown": "0%",
-                "total_trades": 0,
+                "total_cycles": 0,
                 "avg_pnl": "0%",
                 "max_profit": "0%",
                 "max_loss": "0%",

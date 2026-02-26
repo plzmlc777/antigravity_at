@@ -62,12 +62,12 @@ export const STAT_COLUMNS = [
 
     // Row 2: Trading Activity
     {
-        key: 'total_trades',  label: 'Trades',
+        key: 'total_cycles',  label: 'Cycles',
         format: 'int', color: COLOR.white,
-        gridLabel: 'Total Trades',
+        gridLabel: 'Total Cycles',
         showDays: true,    // show "(X days)" in grid
         agg: 'sum',
-        optKey: 'trades',     // optimization data uses 'trades' instead of 'total_trades'
+        optKey: 'cycles',     // optimization data uses 'cycles' instead of 'total_cycles'
     },
     {
         key: 'stability_score', label: 'Stability',
@@ -204,7 +204,7 @@ export const shouldShowConditional = (stats, condition) => {
 export const computeTotalStats = (statsList) => {
     if (!statsList || statsList.length === 0) return {};
 
-    const totalTrades = statsList.reduce((acc, s) => acc + (s.total_trades || 0), 0);
+    const totalCycles = statsList.reduce((acc, s) => acc + (s.total_cycles || 0), 0);
     const result = {};
 
     for (const col of STAT_COLUMNS) {
@@ -218,14 +218,14 @@ export const computeTotalStats = (statsList) => {
                 break;
 
             case 'weighted':
-                result[key] = totalTrades > 0
-                    ? statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.total_trades || 0)), 0) / totalTrades
+                result[key] = totalCycles > 0
+                    ? statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.total_cycles || 0)), 0) / totalCycles
                     : 0;
                 break;
 
             case 'weighted_round':
-                result[key] = totalTrades > 0
-                    ? Math.round(statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.total_trades || 0)), 0) / totalTrades)
+                result[key] = totalCycles > 0
+                    ? Math.round(statsList.reduce((acc, s) => acc + ((s[key] || 0) * (s.total_cycles || 0)), 0) / totalCycles)
                     : 0;
                 break;
 
@@ -332,6 +332,10 @@ export const normalizeStats = (raw) => {
         if (raw[key] !== undefined) return raw[key];
         if (raw.stats?.[key] !== undefined) return raw.stats[key];
         if (raw.metrics?.[key] !== undefined) return raw.metrics[key];
+        // Backward compat: total_trades → total_cycles
+        if (key === 'total_cycles') {
+            return raw['total_trades'] ?? raw.stats?.['total_trades'] ?? raw.metrics?.['total_trades'];
+        }
         return undefined;
     };
 
@@ -372,7 +376,7 @@ export const normalizeStats = (raw) => {
         total_return: toFloat(getValue('total_return')),
         win_rate: toFloat(getValue('win_rate')),
         recent_10_win_rate: toFloatNullable(getValue('recent_10_win_rate')),
-        total_trades: toInt(getValue('total_trades')),
+        total_cycles: toInt(getValue('total_cycles')),
         total_days: toInt(getValue('total_days')),
 
         // Risk Metrics

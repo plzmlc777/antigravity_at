@@ -374,7 +374,7 @@ const BacktestPanel = ({ strategyId, requestId, onActivate }) => {
                                 { label: 'Return', value: `${(result.total_return || 0).toFixed(2)}%`,
                                   color: (result.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400' },
                                 { label: 'Win Rate', value: `${(result.win_rate || 0).toFixed(1)}%`, color: 'text-white' },
-                                { label: 'Trades', value: result.total_trades || 0, color: 'text-white' },
+                                { label: 'Cycles', value: result.total_cycles || 0, color: 'text-white' },
                                 { label: 'Max DD', value: `${(result.max_drawdown || 0).toFixed(2)}%`, color: 'text-orange-400' },
                             ].map(item => (
                                 <div key={item.label}>

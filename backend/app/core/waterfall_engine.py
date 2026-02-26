@@ -19,7 +19,7 @@ PERFORMANCE_STAT_KEYS = [
     "win_rate",           # Cycle win rate (profitable cycles / total cycles)
     "recent_10_win_rate", # Win rate of last 10 cycles (trend indicator)
     "sharpe_ratio",
-    "total_trades",       # = Number of completed cycles
+    "total_cycles",       # = Number of completed cycles
     "stability_score",
     "acceleration_score",
     "activity_rate",
@@ -312,19 +312,20 @@ class BacktestContext(IContext):
         self.cash = self.initial_capital
         self.log(f"[Fixed Mode] Cycle Reset. PnL: {cycle_pnl:,.0f}, Total Realized: {self.realized_pnl:,.0f}, Cash Reset to: {self.cash:,.0f}")
 
-    def update_equity(self):
-        # Include realized_pnl for Fixed betting mode (accumulated P&L from completed cycles)
+    def get_total_equity(self) -> float:
+        """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치."""
         equity = self.cash + self.realized_pnl
-
         if self._use_rank_isolation:
-            # Sum ALL ranks' holdings for total system equity
             for rank_h in self._rank_holdings.values():
                 for symbol, qty in rank_h.items():
                     equity += qty * self.get_current_price(symbol)
         else:
             for symbol, qty in self._holdings.items():
                 equity += qty * self.get_current_price(symbol)
+        return equity
 
+    def update_equity(self):
+        equity = self.get_total_equity()
         self.equity_curve.append(make_equity_point(
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
         ))
@@ -450,7 +451,8 @@ class WaterfallBacktestEngine:
                 last_price = context.get_current_price(sym)
                 if last_price <= 0:
                     last_price = feed[-1]['close'] if feed else 100000
-                context.sell(sym, qty, price=last_price)
+                context.sell(sym, qty, price=last_price,
+                             metadata={"force_liquidated": True})
 
         # 5. Calculate Statistics using unified _generate_stats
         stats = self._generate_stats(context, feed, optimize_mode=optimize_mode)
@@ -937,7 +939,7 @@ class WaterfallBacktestEngine:
             equity_curve=combined_equity_curve
         )
         decile_stats = trade_analysis.get('decile_stats', [])
-        print(f"[DEBUG] Combined stats aggregated from {len(rank_results)} ranks: win_rate={combined_trade_stats.get('win_rate')}, total_trades={combined_trade_stats.get('total_trades')}")
+        print(f"[DEBUG] Combined stats aggregated from {len(rank_results)} ranks: win_rate={combined_trade_stats.get('win_rate')}, total_cycles={combined_trade_stats.get('total_cycles')}")
 
         # Return comprehensive result
         # NOTE: **combined_trade_stats goes FIRST so our specific values can override
@@ -949,7 +951,7 @@ class WaterfallBacktestEngine:
             "max_drawdown": max_dd,
             "activity_rate": activity_rate,
             "total_days": total_days,
-            "total_trades": combined_trade_stats.get('total_trades', sum(r.get('full_stats', {}).get('total_trades', 0) for r in rank_results)),
+            "total_cycles": combined_trade_stats.get('total_cycles', sum(r.get('full_stats', {}).get('total_cycles', 0) for r in rank_results)),
             "chart_data": [] if optimize_mode else combined_equity_curve,
             "equity_curve": combined_equity_curve,
             "ohlcv_data": [] if optimize_mode else resampled_ohlcv,
@@ -1132,7 +1134,7 @@ class WaterfallBacktestEngine:
             "recent_10_win_rate": 0.0,
             "max_drawdown": 0.0,
             "activity_rate": 0.0,
-            "total_trades": 0,
+            "total_cycles": 0,
             "score": 0,
             "avg_pnl": 0.0,
             "max_profit": 0.0,
@@ -1151,7 +1153,7 @@ class WaterfallBacktestEngine:
     def _analyze_trades(self, trades: List[Dict], start_ts: Any = None, end_ts: Any = None, total_days: int = 0, calc_ranks: bool = True, initial_capital: float = DEFAULT_INITIAL_CAPITAL, optimize_mode: bool = False, equity_curve: List[Dict] = None) -> Dict[str, Any]:
         if not trades:
             return {
-                "total_trades": 0,
+                "total_cycles": 0,
                 "win_rate": 0.0,
                 "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
@@ -1174,11 +1176,14 @@ class WaterfallBacktestEngine:
         for t in trades:
             if t['type'] == 'buy':
                 buy_queue.append({
-                    'price': t['price'], 
+                    'price': t['price'],
                     'quantity': t['quantity'],
                     'time': t['time'] # Store time
                 })
             elif t['type'] == 'sell':
+                # Skip force-liquidated sells (backtest end) — not real cycle completions
+                if t.get('metadata', {}).get('force_liquidated'):
+                    continue
                 qty_to_sell = t['quantity']
                 sell_price = t['price']
                 sell_time = datetime.fromisoformat(t['time'])
@@ -1201,6 +1206,7 @@ class WaterfallBacktestEngine:
                     completed_trades.append({
                         'pnl': profit,
                         'pnl_percent': profit_percent,
+                        'cost': cost,  # Investment amount for weighted avg calc
                         'volume': revenue,
                         'holding_seconds': holding_seconds,
                         'time': t['time'], # Store Sell Time for Decile Analysis
@@ -1218,7 +1224,7 @@ class WaterfallBacktestEngine:
         # Calculate Statistics
         if not completed_trades:
             return {
-                "total_trades": 0,
+                "total_cycles": 0,
                 "win_rate": 0.0,
                 "recent_10_win_rate": 0.0,
                 "avg_pnl": 0.0,
@@ -1260,7 +1266,7 @@ class WaterfallBacktestEngine:
 
         # NOTE: All metrics are now cycle-based (from _compute_stats_from_completed)
         return {
-            "total_trades": base_stats.get('total_trades', len(completed_trades)),  # = cycle count
+            "total_cycles": base_stats.get('total_cycles', len(completed_trades)),  # = cycle count
             "win_rate": base_stats.get('win_rate', 0),          # = cycle win rate
             "recent_10_win_rate": base_stats.get('recent_10_win_rate', 0),  # = recent 10 cycles win rate
             "avg_pnl": base_stats.get('avg_pnl', 0),            # = avg PnL per cycle
@@ -1305,35 +1311,49 @@ class WaterfallBacktestEngine:
 
         # --- Build cycle data ---
         # Group trades by cycle_id if available, otherwise treat each trade as a cycle
-        cycle_data = {}  # {cycle_id: {"pnl": float, "pnl_abs": float, "hold_sec": float}}
+        # pnl_pct uses investment-weighted average: total_profit / total_cost * 100
+        cycle_data = {}  # {cycle_id: {"pnl_abs": float, "total_cost": float, "hold_sec": float}}
 
         for t in completed_trades:
             meta = t.get('metadata', {})
             cycle_id = meta.get('cycle_id')
+            trade_cost = t.get('cost', 0) or (t.get('volume', 0) - t.get('pnl', 0))  # fallback
 
             if cycle_id is None:
                 # No cycle_id: treat each trade as its own cycle
-                # Use trade index as pseudo cycle_id
                 pseudo_id = f"trade_{id(t)}"
+                pnl_abs = t.get('pnl', 0)
                 cycle_data[pseudo_id] = {
-                    "pnl_pct": t.get('pnl_percent', 0) * 100,
-                    "pnl_abs": t.get('pnl', 0),
+                    "pnl_pct": (pnl_abs / trade_cost * 100) if trade_cost > 0 else t.get('pnl_percent', 0) * 100,
+                    "pnl_abs": pnl_abs,
                     "hold_sec": t.get('holding_seconds', 0),
                 }
             else:
                 # Has cycle_id: aggregate by cycle
                 if cycle_id not in cycle_data:
-                    cycle_data[cycle_id] = {"pnl_pct": 0.0, "pnl_abs": 0.0, "hold_sec": 0.0}
+                    cycle_data[cycle_id] = {"pnl_abs": 0.0, "total_cost": 0.0, "hold_sec": 0.0}
 
-                # Only sum PnL from CLOSE-level trades (sell trades complete the cycle)
+                # Accumulate cost from ALL FIFO matches in this cycle (for weighted avg)
                 if meta.get('level') == 'CLOSE':
-                    cycle_data[cycle_id]["pnl_pct"] += t.get('pnl_percent', 0) * 100
                     cycle_data[cycle_id]["pnl_abs"] += t.get('pnl', 0)
+                    cycle_data[cycle_id]["total_cost"] += trade_cost
+                    # Store cycle_start_equity from sell metadata for equity-based pnl_pct
+                    if meta.get('cycle_start_equity'):
+                        cycle_data[cycle_id]["cycle_start_equity"] = meta['cycle_start_equity']
 
                 # Cycle duration = max holding_seconds among trades in cycle
                 hold_sec = t.get('holding_seconds', 0)
                 if hold_sec > cycle_data[cycle_id]["hold_sec"]:
                     cycle_data[cycle_id]["hold_sec"] = hold_sec
+
+        # Compute pnl_pct: use cycle_start_equity (equity-based) if available, else investment-based
+        for cid, cd in cycle_data.items():
+            if "total_cost" in cd:
+                cycle_eq = cd.get("cycle_start_equity", 0)
+                if cycle_eq and cycle_eq > 0:
+                    cd["pnl_pct"] = (cd["pnl_abs"] / cycle_eq * 100)
+                else:
+                    cd["pnl_pct"] = (cd["pnl_abs"] / cd["total_cost"] * 100) if cd["total_cost"] > 0 else 0.0
 
         total_cycles = len(cycle_data)
         if total_cycles == 0:
@@ -1393,7 +1413,7 @@ class WaterfallBacktestEngine:
               f"Hold(avg/max/min): {avg_holding_min}/{max_holding_min}/{min_holding_min}m")
 
         return {
-            "total_trades": total_cycles,  # = number of completed cycles
+            "total_cycles": total_cycles,  # = number of completed cycles
             "win_rate": win_rate,
             "recent_10_win_rate": round(recent_10_win_rate, 1),
             "avg_pnl": round(avg_pnl, 2),
@@ -1416,7 +1436,7 @@ class WaterfallBacktestEngine:
         """
         if not rank_results:
             empty = {key: None for key in PERFORMANCE_STAT_KEYS}
-            empty.update({"total_trades": 0, "rank_stats_list": []})
+            empty.update({"total_cycles": 0, "rank_stats_list": []})
             return empty
 
         # Collect stats from each rank's full_stats
@@ -1440,7 +1460,7 @@ class WaterfallBacktestEngine:
         for r in rank_results:
             fs = r.get('full_stats', {})
             # Use completed (FIFO-matched) trade count, not raw buy+sell count
-            trade_count = fs.get('total_trades', 0)
+            trade_count = fs.get('total_cycles', 0)
             if trade_count == 0:
                 trade_count = r.get('trades_count', 0)  # fallback to raw
 
@@ -1502,11 +1522,11 @@ class WaterfallBacktestEngine:
             else:
                 total_gross_loss += abs(rank_pnl)
 
-        total_trades = sum(all_trade_counts) if all_trade_counts else 0
+        total_cycles = sum(all_trade_counts) if all_trade_counts else 0
 
-        if total_trades == 0:
+        if total_cycles == 0:
             empty = {key: None for key in PERFORMANCE_STAT_KEYS}
-            empty.update({"total_trades": 0, "rank_stats_list": []})
+            empty.update({"total_cycles": 0, "rank_stats_list": []})
             return empty
 
         # Weighted averages by trade count
@@ -1544,7 +1564,7 @@ class WaterfallBacktestEngine:
             "avg_holding_time": combined_holding_time,
             "max_holding_time": combined_max_holding_time,
             "min_holding_time": combined_min_holding_time,
-            "total_trades": total_trades,
+            "total_cycles": total_cycles,
             "stability_score": round(combined_stability, 2),
             "acceleration_score": round(combined_acceleration, 2),
             "rank_stats_list": []  # Will be overridden by explicit rank_stats_list
@@ -1573,7 +1593,7 @@ class WaterfallBacktestEngine:
             # Merge decile-based stability into base_stats
             base_stats['stability_score'] = decile_data_rank['stability_score']
             base_stats['acceleration_score'] = decile_data_rank['acceleration_score']
-            base_stats['total_trades'] = len(r_trades)
+            base_stats['total_cycles'] = len(r_trades)
 
             # 2. Total PnL (Value) and Return % (Contribution to Total)
             total_pnl_value = sum(t['pnl'] for t in r_trades)

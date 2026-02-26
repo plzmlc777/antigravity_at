@@ -1,9 +1,10 @@
 from abc import abstractmethod
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import math
 import logging
 from .base import BaseStrategy, IContext
-from ..core.qty_rules import adjust_qty
+from ..core.qty_rules import adjust_qty, EXCHANGE_QTY_RULES
 from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ class MartingaleBase(BaseStrategy):
         self.cycle_reference_price = None
         self.cycle_start_time = None
         self._resolved_base_qty = None  # percent mode: resolved L1 qty
+        self._cycle_start_equity = None  # 사이클 시작 시점 총 자산 (수익률 분모)
 
         # State variables
         self.current_level = 0
@@ -220,8 +222,12 @@ class MartingaleBase(BaseStrategy):
             return False
 
         position_profit = (current_price - self.average_price) * self.total_quantity
-        total_investment = self.average_price * self.total_quantity
-        current_return = position_profit / total_investment if total_investment > 0 else 0
+        # Equity-based return: use cycle start equity as denominator
+        if self._cycle_start_equity and self._cycle_start_equity > 0:
+            current_return = position_profit / self._cycle_start_equity
+        else:
+            total_investment = self.average_price * self.total_quantity
+            current_return = position_profit / total_investment if total_investment > 0 else 0
 
         # Cycle time limit
         if self.cycle_max_hours > 0 and self.cycle_start_time:
@@ -323,8 +329,12 @@ class MartingaleBase(BaseStrategy):
         if self.current_level > 0 and self.total_quantity > 0:
             # 3a-2. Check Indicator-Based Exit (needs candle data → only on candle close)
             position_profit = (current_price - self.average_price) * self.total_quantity
-            total_investment = self.average_price * self.total_quantity
-            current_return = position_profit / total_investment if total_investment > 0 else 0
+            # Equity-based return: use cycle start equity as denominator
+            if self._cycle_start_equity and self._cycle_start_equity > 0:
+                current_return = position_profit / self._cycle_start_equity
+            else:
+                total_investment = self.average_price * self.total_quantity
+                current_return = position_profit / total_investment if total_investment > 0 else 0
 
             if self._check_exit_trigger(data):
                 self.context.log(f"[{self._log_prefix}] EXIT TRIGGER! Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
@@ -337,9 +347,9 @@ class MartingaleBase(BaseStrategy):
 
             # 3e. Check Additional Entry (L2+)
             if self.current_level < self.max_buy_count and not self.trailing_active:
-                # Block further entries after all-in was deployed at the final affordable level
-                if self.last_level_allin and self.cycle_max_level and self.current_level >= self.cycle_max_level:
-                    pass  # All-in already deployed, no more entries
+                # Block further entries beyond the max affordable level for this cycle
+                if self.cycle_max_level and self.current_level >= self.cycle_max_level:
+                    pass  # Capital plan exhausted, no more entries
                 else:
                     # Require lower price: skip trigger check entirely so trigger is not consumed
                     if self.require_lower_price and self.entries:
@@ -395,6 +405,8 @@ class MartingaleBase(BaseStrategy):
                 return
 
             if self._check_entry_trigger(data):
+                # Record total equity BEFORE L1 buy (cycle return denominator)
+                self._cycle_start_equity = self.context.get_total_equity()
                 qty = self._calculate_quantity(1, current_price)
                 if qty > 0:
                     self._pending_entry = True  # Lock until callback
@@ -406,7 +418,7 @@ class MartingaleBase(BaseStrategy):
                             self._add_position(filled_price, filled_qty, 1)
                             self.peak_price = filled_price
                             self.cycle_start_time = self.context.get_time()
-                            self.context.log(f"[{self._log_prefix}] L1 Initial Entry FILLED @ {filled_price:,.0f}")
+                            self.context.log(f"[{self._log_prefix}] L1 Entry FILLED @ {filled_price:,.0f} (cycle_equity: {self._cycle_start_equity:,.0f})")
                         # else: async failure, already logged by context
 
                     result = self.context.buy(symbol, qty, metadata={"level": 1}, on_filled=on_l1_filled)
@@ -485,10 +497,11 @@ class MartingaleBase(BaseStrategy):
                 self.cycle_reference_price = None
                 self.cycle_start_time = None
                 self._resolved_base_qty = None
+                self._cycle_start_equity = None
                 self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
             # else: async failure, already logged by context
 
-        result = self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper}, on_filled=on_sell_filled)
+        result = self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper, "cycle_start_equity": self._cycle_start_equity}, on_filled=on_sell_filled)
         if result.get("status") == "failed":
             self._pending_exit = False  # Unlock on immediate failure
             self.context.log(f"[{self._log_prefix}] SELL FAILED: {result.get('reason', 'Unknown')}")
@@ -496,19 +509,37 @@ class MartingaleBase(BaseStrategy):
     def _resolve_level_qty(self, level: int, price: float) -> float:
         """Calculate quantity for a given level (supports fractional qty for crypto).
 
-        fixed mode:   base_quantity * multiplier^(level-1)  → direct quantity
+        fixed mode:   effective_base * multiplier^(level-1)
+                      effective_base = max(base_quantity, min_notional / price)
+                      → ensures martingale progression works from actual investment level
         percent mode: L1 resolved once from (capital * base_quantity% / price),
                       then L2+ = resolved_L1 * multiplier^(level-1)
         """
         if self.qty_mode == "percent" and price > 0:
             # Resolve L1 base qty once per cycle, cache it
             if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
-                capital = getattr(self.context, 'cash', getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL))
-                allocated = getattr(self.context, 'initial_capital', 0)
-                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (allocated: {allocated:,.0f})")
+                # Use total equity (initial + compound profits) as base for percent calculation
+                equity = self.context.get_total_equity()
+                capital = equity if equity > 0 else getattr(self.context, 'cash', getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL))
+                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (equity-based)")
                 self._resolved_base_qty = capital * self.base_quantity / 100 / price
             return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
-        return float(self.base_quantity) * (self.lot_size_multiplier ** (level - 1))
+
+        # Fixed mode: resolve effective base once per cycle
+        raw_base = float(self.base_quantity)
+        if price > 0 and (not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None):
+            exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
+            rules = EXCHANGE_QTY_RULES.get(exchange_name, {})
+            min_notional = float(rules.get('min_notional', 0))
+            step_size = float(rules.get('step_size', 0.00001))
+            if min_notional > 0 and raw_base * price < min_notional and step_size > 0:
+                # Bump effective base to meet min_notional so multiplier works correctly
+                self._resolved_base_qty = math.ceil(min_notional / price / step_size) * step_size
+            else:
+                self._resolved_base_qty = raw_base
+
+        effective_base = getattr(self, '_resolved_base_qty', None) or raw_base
+        return effective_base * (self.lot_size_multiplier ** (level - 1))
 
     def _calculate_max_affordable_level(self, price: float) -> int:
         available_cash = getattr(self.context, 'cash', 0)
@@ -520,14 +551,22 @@ class MartingaleBase(BaseStrategy):
 
         cumulative_cost = 0
         max_level = 0
+        exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
+        remaining_cash = usable_capital
 
         for level in range(1, self.max_buy_count + 1):
-            qty = self._resolve_level_qty(level, price)
-            level_cost = qty * price
+            raw_qty = self._resolve_level_qty(level, price)
+            # Use adjusted qty with simulated remaining cash for accurate cost
+            adj_qty = adjust_qty(raw_qty, exchange_name=exchange_name,
+                                 price=price, available_cash=remaining_cash)
+            if adj_qty <= 0:
+                break
+            level_cost = adj_qty * price
             cumulative_cost += level_cost
 
             if cumulative_cost <= usable_capital:
                 max_level = level
+                remaining_cash = usable_capital - cumulative_cost
             else:
                 break
 

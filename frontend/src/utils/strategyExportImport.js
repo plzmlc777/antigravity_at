@@ -109,7 +109,7 @@ export const exportCompareResultsToCSV = (results) => {
     const sortedResults = [...results].sort((a, b) => b.score - a.score);
 
     // CSV header
-    const headers = ['Rank', 'Symbol', 'Name', 'Total Return', 'Win Rate', 'Max DD', 'Trades', 'Profit Factor', 'Sharpe', 'Avg PnL', 'Score'];
+    const headers = ['Rank', 'Symbol', 'Name', 'Total Return', 'Win Rate', 'Max DD', 'Cycles', 'Profit Factor', 'Sharpe', 'Avg PnL', 'Score'];
 
     // CSV rows
     const rows = sortedResults.map((result, idx) => [
@@ -119,7 +119,7 @@ export const exportCompareResultsToCSV = (results) => {
         parseStatValue(result.total_return) ?? result.total_return,
         parseStatValue(result.win_rate) ?? result.win_rate,
         parseStatValue(result.max_drawdown) ?? result.max_drawdown,
-        result.total_trades,
+        result.total_cycles,
         parseStatValue(result.profit_factor) ?? result.profit_factor,
         parseStatValue(result.sharpe_ratio) ?? result.sharpe_ratio,
         parseStatValue(result.avg_pnl) ?? result.avg_pnl,

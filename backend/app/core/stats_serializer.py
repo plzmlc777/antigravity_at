@@ -58,7 +58,7 @@ def serialize_backtest_stats(raw: Dict[str, Any]) -> BacktestStats:
         total_return=_to_float(raw.get("total_return")),
         win_rate=_to_float(raw.get("win_rate")),
         recent_10_win_rate=_to_float(raw.get("recent_10_win_rate")) if raw.get("recent_10_win_rate") is not None else None,
-        total_trades=_to_int(raw.get("total_trades"), 0) or 0,
+        total_cycles=_to_int(raw.get("total_cycles"), 0) or 0,
         total_days=_to_int(raw.get("total_days"), 0) or 0,
 
         # Risk Metrics
@@ -114,7 +114,7 @@ def serialize_optimization_result_item(
         "total_return": stats.total_return,
         "win_rate": stats.win_rate,
         "recent_10_win_rate": stats.recent_10_win_rate,
-        "total_trades": stats.total_trades,
+        "total_cycles": stats.total_cycles,
     }
 
 
@@ -127,7 +127,7 @@ def stats_to_legacy_format(stats: BacktestStats) -> Dict[str, Any]:
         "total_return": stats.total_return,
         "win_rate": stats.win_rate,
         "recent_10_win_rate": stats.recent_10_win_rate,
-        "total_trades": stats.total_trades,
+        "total_cycles": stats.total_cycles,
         "total_days": stats.total_days,
         "max_drawdown": str(stats.max_drawdown) if stats.max_drawdown else "-",
         "sharpe_ratio": str(stats.sharpe_ratio) if stats.sharpe_ratio else "-",

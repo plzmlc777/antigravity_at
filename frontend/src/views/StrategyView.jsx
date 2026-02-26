@@ -845,7 +845,7 @@ const StrategyView = () => {
                             symbol: item.symbol || item.config?.symbol || '',
                             symbolName: savedSymbols?.find(s => s.code === (item.symbol || item.config?.symbol))?.name || item.symbolName || '',
                             return: stats.total_return,
-                            trades: stats.total_trades,
+                            cycles: stats.total_cycles,
                             score: item.score,
                             full_config: item.config || {},
                             rank: item.rank > 0 ? item.rank : (index + 1)

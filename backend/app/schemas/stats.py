@@ -15,7 +15,7 @@ class BacktestStats(BaseModel):
     total_return: float = Field(default=0.0, description="Total return percentage")
     win_rate: float = Field(default=0.0, description="Win rate percentage (0-100)")
     recent_10_win_rate: Optional[float] = Field(default=None, description="Win rate of last 10 trades/cycles")
-    total_trades: int = Field(default=0, description="Total number of trades or cycles")
+    total_cycles: int = Field(default=0, description="Total number of trades or cycles")
     total_days: int = Field(default=0, description="Total trading days in backtest period")
 
     # === Risk Metrics ===
@@ -89,7 +89,7 @@ STAT_FIELD_DEFINITIONS = [
     ("win_rate", "Win Rate", "pct", 1, "core"),
     ("recent_10_win_rate", "Recent 10", "pct", 1, "core"),
     ("sharpe_ratio", "Sharpe", "num", 2, "core"),
-    ("total_trades", "Trades", "int", 0, "activity"),
+    ("total_cycles", "Cycles", "int", 0, "activity"),
     ("stability_score", "Stability", "num", 3, "quality"),
     ("acceleration_score", "Accel", "num", 3, "quality"),
     ("activity_rate", "Activity", "pct", 1, "activity"),

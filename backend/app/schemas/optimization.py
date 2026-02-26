@@ -9,7 +9,7 @@ class OptimizationResultItem(BaseModel):
     total_return: float
     win_rate: float
     recent_10_win_rate: Optional[float] = None  # Recent 10 cycles win rate
-    total_trades: int
+    total_cycles: int
     score: float
     # Detailed Metrics (Explicitly added to avoid stripping)
     max_drawdown: Optional[str] = None
@@ -73,7 +73,7 @@ class ScoreWeights(BaseModel):
     """Weights for score calculation formula: (Return^w × Sharpe^w × Stability^w × AvgPnL^w) / MDD^w
 
     Note: All metrics are now cycle-based for martingale strategies.
-    - total_trades = number of completed cycles
+    - total_cycles = number of completed cycles
     - win_rate = profitable cycles / total cycles
     - avg_pnl = average PnL per cycle
     """

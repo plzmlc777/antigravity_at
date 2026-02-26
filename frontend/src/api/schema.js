@@ -187,7 +187,7 @@ export const normalizeOptimizationResultItem = (data) => ({
     config: data.config,
     total_return: data.total_return,
     win_rate: data.win_rate,
-    total_trades: data.total_trades,
+    total_cycles: data.total_cycles ?? data.total_trades,
     score: data.score,
     max_drawdown: data.max_drawdown,
     profit_factor: data.profit_factor,

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from typing import Dict, Any
 
 from ..db.session import get_db
@@ -17,26 +18,18 @@ def save_strategy_result(
     db: Session = Depends(get_db),
     ctx: UserAccountContext = Depends(get_user_context)
 ):
-    # tab_id (UUID) is already unique — no account_id filter needed for lookup
-    db_obj = db.query(StrategyAnalysisResult).filter(
-        StrategyAnalysisResult.tab_id == tab_id,
-        StrategyAnalysisResult.result_type == result_type,
-    ).first()
-
-    if db_obj:
-        db_obj.data = result_in.data
-        db_obj.account_id = ctx.account_id  # Update to current account
-    else:
-        db_obj = StrategyAnalysisResult(
-            tab_id=tab_id,
-            result_type=result_type,
-            account_id=ctx.account_id,
-            data=result_in.data
-        )
-        db.add(db_obj)
-
+    # Atomic upsert — prevents UniqueViolation from concurrent saves
+    stmt = pg_insert(StrategyAnalysisResult).values(
+        tab_id=tab_id,
+        result_type=result_type,
+        account_id=ctx.account_id,
+        data=result_in.data,
+    ).on_conflict_do_update(
+        constraint="strategy_results_pkey",
+        set_=dict(data=result_in.data, account_id=ctx.account_id),
+    )
+    db.execute(stmt)
     db.commit()
-    db.refresh(db_obj)
     return {"status": "ok"}
 
 # Fields to exclude from response (large graphics data)

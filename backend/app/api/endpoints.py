@@ -806,7 +806,7 @@ async def get_trade_history_integrated(
         "multi_ohlcv_data": multi_ohlcv_data,
         "strategies_config": strategies_config,
         "strategy_id": "live_integrated_view",
-        "total_trades": len(trades_data),
+        "total_cycles": len(trades_data),
         "rank1_start_date": rank1_start_date # Used by IntegratedAnalysis to anchor Start Time
     }
 
@@ -912,7 +912,7 @@ async def get_trade_history_context(
         "multi_ohlcv_data": multi_ohlcv_data,
         "strategies_config": strategies_config,
         "strategy_id": "live_integrated_view",
-        "total_trades": len(trades_data),
+        "total_cycles": len(trades_data),
         "rank1_start_date": rank1_start_date
     }
 
@@ -1050,5 +1050,5 @@ async def get_trade_history_list(
         "open_cycles": open_cycles,
         "total_cycles": len(cycles),
         "total_open": len(open_cycles),
-        "total_trades": len(trades),
+        "total_cycles": len(trades),
     }

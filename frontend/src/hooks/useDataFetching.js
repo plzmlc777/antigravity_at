@@ -140,28 +140,81 @@ export const useDataFetching = ({
         const validSymbols = symbols.filter(s => s.symbol);
         if (validSymbols.length === 0) return;
 
+        const total = validSymbols.length;
         setIsFetchingData(true);
-        setFetchMessage("Queueing...");
-        try {
-            let updatedCount = 0;
+        setIsDataUpdated(false);
 
-            for (let i = 0; i < validSymbols.length; i++) {
+        try {
+            // Phase 1: Get initial counts and queue all fetch requests
+            const tracker = {};
+
+            for (let i = 0; i < total; i++) {
                 const { symbol, label } = validSymbols[i];
-                setFetchMessage(`Updating ${label}...`);
+                setFetchMessage(`Queueing ${i + 1}/${total}: ${label}...`);
                 try {
+                    const status = await getMarketDataStatus(symbol, { interval: "1m" });
+                    tracker[symbol] = { last: status.count || 0, stable: 0, done: false };
                     await fetchMarketDataForSymbol(symbol, {
                         interval: "1m",
                         days: getMaxDays(exchangeName),
                         exchange_name: exchangeName
                     });
-                    updatedCount++;
                 } catch (err) {
-                    console.error(`Failed to update ${label}`, err);
+                    console.error(`Failed to queue ${label}`, err);
+                    tracker[symbol] = { last: 0, stable: 0, done: true, failed: true };
                 }
             }
 
-            setFetchMessage(`All ${updatedCount} symbols queued`);
-            setTimeout(() => setFetchMessage(null), 3000);
+            // Phase 2: Poll until all symbols' data stabilizes
+            setFetchMessage(`Downloading 0/${total}...`);
+
+            await new Promise((resolve) => {
+                let polling = false;
+                pollRef.current = setInterval(async () => {
+                    if (polling) return;
+                    polling = true;
+
+                    let doneCount = 0;
+                    for (const { symbol } of validSymbols) {
+                        const t = tracker[symbol];
+                        if (t.done) { doneCount++; continue; }
+
+                        try {
+                            const status = await getMarketDataStatus(symbol, { interval: "1m" });
+                            if (status.count === t.last) {
+                                t.stable++;
+                            } else {
+                                t.stable = 0;
+                                t.last = status.count;
+                            }
+                            if (t.stable >= 4) {
+                                t.done = true;
+                                doneCount++;
+                            }
+                        } catch {
+                            t.stable++;
+                            if (t.stable >= 4) { t.done = true; doneCount++; }
+                        }
+                    }
+
+                    setFetchMessage(`Downloading ${doneCount}/${total}...`);
+
+                    if (doneCount >= total) {
+                        stopPolling();
+                        resolve();
+                    }
+                    polling = false;
+                }, 3000);
+            });
+
+            // Phase 3: Report results
+            const failedSymbols = validSymbols.filter(s => tracker[s.symbol]?.failed);
+            if (failedSymbols.length > 0) {
+                setFetchMessage(`Updated ${total - failedSymbols.length}/${total} (${failedSymbols.map(s => s.symbol).join(', ')} failed)`);
+            } else {
+                setFetchMessage(`All ${total} symbols updated`);
+            }
+            setTimeout(() => setFetchMessage(null), 5000);
             setIsDataUpdated(true);
         } catch (e) {
             console.error("Update All Failed", e);
@@ -170,7 +223,7 @@ export const useDataFetching = ({
         } finally {
             setIsFetchingData(false);
         }
-    }, [configList, exchangeName]);
+    }, [configList, exchangeName, stopPolling]);
 
     return {
         dataStatus, isFetchingData, fetchMessage, setFetchMessage,
