@@ -190,13 +190,13 @@ class ChartPatternStrategy(MartingaleBase):
         if not self._entry_trigger_armed and self._candles_since_entry_signal >= self.cooldown:
             self._entry_trigger_armed = True
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
         """Check if selected entry pattern is detected."""
         if not self._entry_trigger_armed:
-            return False
+            return None
 
         if len(self._candle_history) < self.lookback:
-            return False
+            return None
 
         candles = list(self._candle_history)[-self.lookback:]
         detected_pattern = self._detect_entry_pattern(candles, data['close'])
@@ -207,9 +207,9 @@ class ChartPatternStrategy(MartingaleBase):
             self._candles_since_entry_signal = 0
             self._entry_trigger_armed = False
             self._entry_pattern_detected = True
-            return True
+            return "long"
 
-        return False
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """Additional entries on continued pattern confirmation."""

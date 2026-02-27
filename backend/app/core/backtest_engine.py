@@ -184,8 +184,13 @@ class BacktestEngine:
             except Exception as e:
                 print(f"Date filter error: {e}")
 
-        # 2. Setup Context (use FuturesBacktestContext if strategy requires it)
-        if getattr(self.strategy_class, 'REQUIRES_FUTURES', False):
+        # 2. Setup Context (use FuturesBacktestContext if strategy requires it,
+        #    or if position_side requires short selling capability)
+        needs_futures = getattr(self.strategy_class, 'REQUIRES_FUTURES', False)
+        position_side = self.config.get('position_side', 'long')
+        if not needs_futures and position_side in ('short', 'both'):
+            needs_futures = True
+        if needs_futures:
             from .futures_backtest_context import FuturesBacktestContext
             leverage = self.config.get('leverage', 1)
             context = FuturesBacktestContext(data_feed, initial_capital=initial_capital, leverage=leverage)
@@ -288,51 +293,82 @@ class BacktestEngine:
                 "activity_rate": "0%"
             }
 
-        # FIFO Trade Matching
-        buy_queue = [] # List of {'price': float, 'quantity': int}
-        completed_trades = [] # List of {'pnl': float, 'pnl_percent': float, 'volume': float}
+        # FIFO Trade Matching (LONG: buy→sell, SHORT: short→close_short)
+        buy_queue = []
+        short_queue = []
+        completed_trades = []
 
         for t in trades:
             if t['type'] == 'buy':
                 buy_queue.append({
-                    'price': t['price'], 
+                    'price': t['price'],
                     'quantity': t['quantity'],
-                    'time': t['time'] # Store time
+                    'time': t['time']
+                })
+            elif t['type'] == 'short':
+                short_queue.append({
+                    'price': t['price'],
+                    'quantity': t['quantity'],
+                    'time': t['time']
                 })
             elif t['type'] == 'sell':
                 qty_to_sell = t['quantity']
                 sell_price = t['price']
                 sell_time = datetime.fromisoformat(t['time'])
-                
+
                 while qty_to_sell > 0 and buy_queue:
-                    # Match with oldest buy
                     buy_order = buy_queue[0]
                     matched_qty = min(qty_to_sell, buy_order['quantity'])
-                    
-                    # Calculate PnL for this chunk
+
                     cost = matched_qty * buy_order['price']
                     revenue = matched_qty * sell_price
                     profit = revenue - cost
                     profit_percent = (sell_price - buy_order['price']) / buy_order['price']
-                    
-                    # Calculate Holding Time
+
                     buy_time = datetime.fromisoformat(buy_order['time'])
                     holding_seconds = (sell_time - buy_time).total_seconds()
-                    
+
                     completed_trades.append({
                         'pnl': profit,
                         'pnl_percent': profit_percent,
                         'volume': revenue,
                         'holding_seconds': holding_seconds,
-                        'time': t['time'] # Store Sell Time for Decile Analysis
+                        'time': t['time']
                     })
-                    
-                    # Update remaining quantities
+
                     qty_to_sell -= matched_qty
                     buy_order['quantity'] -= matched_qty
-                    
                     if buy_order['quantity'] == 0:
                         buy_queue.pop(0)
+
+            elif t['type'] == 'close_short':
+                qty_to_close = t['quantity']
+                close_price = t['price']
+                close_time = datetime.fromisoformat(t['time'])
+
+                while qty_to_close > 0 and short_queue:
+                    short_order = short_queue[0]
+                    matched_qty = min(qty_to_close, short_order['quantity'])
+
+                    cost = matched_qty * short_order['price']
+                    profit = (short_order['price'] - close_price) * matched_qty
+                    profit_percent = (short_order['price'] - close_price) / short_order['price']
+
+                    short_time = datetime.fromisoformat(short_order['time'])
+                    holding_seconds = (close_time - short_time).total_seconds()
+
+                    completed_trades.append({
+                        'pnl': profit,
+                        'pnl_percent': profit_percent,
+                        'volume': cost,
+                        'holding_seconds': holding_seconds,
+                        'time': t['time']
+                    })
+
+                    qty_to_close -= matched_qty
+                    short_order['quantity'] -= matched_qty
+                    if short_order['quantity'] == 0:
+                        short_queue.pop(0)
 
         # Calculate Statistics
         if not completed_trades:

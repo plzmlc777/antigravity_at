@@ -519,78 +519,93 @@ class LiveTradingEngine:
         """
         logger.warning(f"FORCE CLOSE: Liquidating all holdings for session {self.session_id}")
 
-        if self.is_paper:
-            # Paper mode: use strategy's internal position tracking
-            if self.strategy_instance and hasattr(self.strategy_instance, 'total_quantity'):
-                qty = self.strategy_instance.total_quantity
-                if qty > 0:
-                    price = self.context.get_current_price(self.symbol)
-                    logger.info(f"FORCE CLOSE (PAPER): Selling {qty} shares of {self.symbol} @ {price:,.0f}")
-                    self.strategy_instance._liquidate(price)
-                    await self.context.process_queue()
-                    return {"symbol": self.symbol, "qty": qty, "mode": "paper", "action": "sold"}
-                else:
-                    logger.info(f"FORCE CLOSE (PAPER): No position in strategy state for {self.symbol}.")
-                    return {"symbol": self.symbol, "qty": 0, "mode": "paper", "action": "no_position"}
+        try:
+            if self.is_paper:
+                return await self._liquidate_paper()
             else:
-                logger.info(f"FORCE CLOSE (PAPER): No strategy instance or position tracking.")
+                return await self._liquidate_real()
+        except Exception as e:
+            import traceback
+            logger.error(f"FORCE CLOSE ERROR for session {self.session_id}: {e}\n{traceback.format_exc()}")
+            raise
+
+    async def _liquidate_paper(self) -> dict:
+        """Paper mode force close: use strategy's internal position tracking."""
+        if self.strategy_instance and hasattr(self.strategy_instance, 'total_quantity'):
+            qty = self.strategy_instance.total_quantity
+            if qty > 0:
+                price = self.context.get_current_price(self.symbol)
+                logger.info(f"FORCE CLOSE (PAPER): Selling {qty} shares of {self.symbol} @ {price:,.0f}")
+                self.strategy_instance._liquidate(price)
+                await self.context.process_queue()
+                self._reset_strategy_state()
+                return {"symbol": self.symbol, "qty": qty, "mode": "paper", "action": "sold"}
+            else:
+                logger.info(f"FORCE CLOSE (PAPER): No position in strategy state for {self.symbol}.")
                 return {"symbol": self.symbol, "qty": 0, "mode": "paper", "action": "no_position"}
         else:
-            # Real mode: check market hours first
-            from ..adapters.kiwoom_websocket import KiwoomWebSocketAdapter
-            if not KiwoomWebSocketAdapter.is_market_open():
-                logger.warning(f"FORCE CLOSE (REAL): Market is closed. Cannot liquidate {self.symbol}.")
-                # Still check holdings to report
-                await self.context.async_sync_balance()
-                qty = self.context.holdings.get(self.symbol, 0)
-                return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "market_closed"}
+            logger.info(f"FORCE CLOSE (PAPER): No strategy instance or position tracking.")
+            return {"symbol": self.symbol, "qty": 0, "mode": "paper", "action": "no_position"}
 
-            # Real mode: sync with exchange and sell actual holdings
+    async def _liquidate_real(self) -> dict:
+        """Real mode force close: sync with exchange API and sell actual holdings."""
+        from ..adapters.kiwoom_websocket import KiwoomWebSocketAdapter
+        if not KiwoomWebSocketAdapter.is_market_open():
+            logger.warning(f"FORCE CLOSE (REAL): Market is closed. Cannot liquidate {self.symbol}.")
             await self.context.async_sync_balance()
             qty = self.context.holdings.get(self.symbol, 0)
-            if qty > 0:
-                logger.info(f"FORCE CLOSE (REAL): Selling {qty} shares of {self.symbol} at Market Price")
-                self.context.sell(self.symbol, qty, price=0)
-                await self.context.process_queue()
-                return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "sold"}
-            else:
-                logger.info(f"FORCE CLOSE (REAL): No holdings found for {self.symbol}.")
-                return {"symbol": self.symbol, "qty": 0, "mode": "real", "action": "no_position"}
+            return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "market_closed"}
 
-            # Reset strategy internal state so the next cycle starts clean
-            if self.strategy_instance:
-                strat = self.strategy_instance
-                if hasattr(strat, 'current_level'):
-                    old_level = strat.current_level
-                    old_qty = getattr(strat, 'total_quantity', 0)
-                    strat.current_level = 0
-                    strat.total_quantity = 0
-                    strat.average_price = 0
-                    strat.peak_price = 0
-                    strat.trailing_active = False
-                    strat.reference_price = None
-                    strat.entries = []
-                    if hasattr(strat, 'is_hodl'):
-                        strat.is_hodl = False
-                    if hasattr(strat, 'cycle_max_level'):
-                        strat.cycle_max_level = None
-                    if hasattr(strat, 'cycle_reference_price'):
-                        strat.cycle_reference_price = None
-                    if hasattr(strat, 'cycle_start_time'):
-                        strat.cycle_start_time = None
-                    if hasattr(strat, '_resolved_base_qty'):
-                        strat._resolved_base_qty = None
-                    if hasattr(strat, '_pending_exit'):
-                        strat._pending_exit = False
-                    if hasattr(strat, '_pending_entry'):
-                        strat._pending_entry = False
-                    # Increment real cycle ID
-                    if hasattr(strat, 'real_cycle_id'):
-                        strat.real_cycle_id += 1
-                    # Reset capital for fixed betting mode
-                    if getattr(strat, 'betting_strategy', 'fixed') == 'fixed':
-                        self.context.reset_cycle_capital()
-                    logger.info(f"FORCE CLOSE (REAL): Strategy state reset. L{old_level}/{old_qty}qty -> L0/0qty. Cycle ID: {getattr(strat, 'real_cycle_id', '?')}")
+        # Sync with exchange and sell actual holdings
+        await self.context.async_sync_balance()
+        qty = self.context.holdings.get(self.symbol, 0)
+        if qty > 0:
+            logger.info(f"FORCE CLOSE (REAL): Selling {qty} shares of {self.symbol} at Market Price")
+            self.context.sell(self.symbol, qty, price=0)
+            await self.context.process_queue()
+            self._reset_strategy_state()
+            return {"symbol": self.symbol, "qty": qty, "mode": "real", "action": "sold"}
+        else:
+            logger.info(f"FORCE CLOSE (REAL): No holdings found for {self.symbol}.")
+            return {"symbol": self.symbol, "qty": 0, "mode": "real", "action": "no_position"}
+
+    def _reset_strategy_state(self):
+        """Reset strategy internal state so the next cycle starts clean."""
+        if not self.strategy_instance:
+            return
+        strat = self.strategy_instance
+        if not hasattr(strat, 'current_level'):
+            return
+        old_level = strat.current_level
+        old_qty = getattr(strat, 'total_quantity', 0)
+        strat.current_level = 0
+        strat.total_quantity = 0
+        strat.average_price = 0
+        strat.peak_price = 0
+        strat.trailing_active = False
+        strat.reference_price = None
+        strat.entries = []
+        if hasattr(strat, 'is_hodl'):
+            strat.is_hodl = False
+        if hasattr(strat, 'cycle_max_level'):
+            strat.cycle_max_level = None
+        if hasattr(strat, 'cycle_reference_price'):
+            strat.cycle_reference_price = None
+        if hasattr(strat, 'cycle_start_time'):
+            strat.cycle_start_time = None
+        if hasattr(strat, '_resolved_base_qty'):
+            strat._resolved_base_qty = None
+        if hasattr(strat, '_pending_exit'):
+            strat._pending_exit = False
+        if hasattr(strat, '_pending_entry'):
+            strat._pending_entry = False
+        # Increment real cycle ID
+        if hasattr(strat, 'real_cycle_id'):
+            strat.real_cycle_id += 1
+        # Reset capital for fixed betting mode
+        if getattr(strat, 'betting_strategy', 'fixed') == 'fixed':
+            self.context.reset_cycle_capital()
+        logger.info(f"FORCE CLOSE: Strategy state reset. L{old_level}/{old_qty}qty -> L0/0qty. Cycle ID: {getattr(strat, 'real_cycle_id', '?')}")
 
     def stop(self):
         self.is_running = False

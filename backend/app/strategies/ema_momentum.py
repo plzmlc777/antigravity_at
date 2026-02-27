@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from collections import deque
 from .base import BaseStrategy
 from .martingale_base import MartingaleBase
@@ -119,27 +119,38 @@ class EmaMomentumStrategy(MartingaleBase):
         self._update_emas(close)
         self._detect_crossover()
 
-        # Re-arm trigger after dead cross (so next golden cross can fire)
-        if self._dead_cross and not self._trigger_armed:
-            self._trigger_armed = True
-            self.context.log(
-                f"[{self._log_prefix}] Trigger RE-ARMED (dead cross). "
-                f"EMA fast={self._ema_fast:.4f}, slow={self._ema_slow:.4f}"
-            )
-
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
-        """L1: Golden cross (fast EMA crosses above slow EMA)."""
-        if not self._golden_cross:
-            return False
+        # Re-arm trigger after crossover (so next opposite cross can fire)
         if not self._trigger_armed:
-            return False
+            if self._dead_cross or self._golden_cross:
+                self._trigger_armed = True
+                cross_type = "dead cross" if self._dead_cross else "golden cross"
+                self.context.log(
+                    f"[{self._log_prefix}] Trigger RE-ARMED ({cross_type}). "
+                    f"EMA fast={self._ema_fast:.4f}, slow={self._ema_slow:.4f}"
+                )
 
-        self._trigger_armed = False
-        self.context.log(
-            f"[{self._log_prefix}] GOLDEN CROSS! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} > "
-            f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
-        )
-        return True
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """L1: Golden cross → long, Dead cross → short (when position_side='both')."""
+        if not self._trigger_armed:
+            return None
+
+        if self._golden_cross:
+            self._trigger_armed = False
+            self.context.log(
+                f"[{self._log_prefix}] GOLDEN CROSS! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} > "
+                f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
+            )
+            return "long"
+
+        if self._dead_cross:
+            self._trigger_armed = False
+            self.context.log(
+                f"[{self._log_prefix}] DEAD CROSS (SHORT)! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} < "
+                f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
+            )
+            return "short"
+
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """L2+ (trigger mode): Golden cross re-occurrence after dead cross reset."""
@@ -156,15 +167,25 @@ class EmaMomentumStrategy(MartingaleBase):
         return True
 
     def _check_exit_trigger(self, data: Dict[str, Any]) -> bool:
-        """Exit on dead cross (fast EMA crosses below slow EMA)."""
-        if not self._dead_cross:
-            return False
-
-        self.context.log(
-            f"[{self._log_prefix}] DEAD CROSS! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} < "
-            f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
-        )
-        return True
+        """Exit on opposite cross: LONG exits on dead cross, SHORT exits on golden cross."""
+        if self.is_short:
+            # SHORT position: exit on golden cross (trend reversal upward)
+            if not self._golden_cross:
+                return False
+            self.context.log(
+                f"[{self._log_prefix}] GOLDEN CROSS → Cover SHORT! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} > "
+                f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
+            )
+            return True
+        else:
+            # LONG position: exit on dead cross
+            if not self._dead_cross:
+                return False
+            self.context.log(
+                f"[{self._log_prefix}] DEAD CROSS → Sell LONG! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} < "
+                f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
+            )
+            return True
 
     @property
     def _log_prefix(self) -> str:

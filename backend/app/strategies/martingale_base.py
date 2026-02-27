@@ -66,6 +66,12 @@ class MartingaleBase(BaseStrategy):
         # Futures: liquidation floor (force exit if price within N% of liquidation)
         self.liquidation_floor_pct = self.config.get("liquidation_floor_pct", 3.0)
 
+        # Position side: "long" (default) or "short" (futures only)
+        self.position_side = self.config.get("position_side", "long")
+        if isinstance(self.position_side, str):
+            self.position_side = self.position_side.lower()
+        self.is_short = (self.position_side == "short")
+
         # Tick execution: "tick" (default) or "candle" (check exits every tick, live only)
         self.tick_execution = self.config.get("tick_execution", "tick")
 
@@ -123,28 +129,55 @@ class MartingaleBase(BaseStrategy):
                 if not executions:
                     return  # No trades yet, fresh session
 
-                # 1. Count completed cycles and find last SELL index
-                last_sell_idx = -1
+                # 1. Count completed cycles and find last CLOSE index
+                last_close_idx = -1
                 paper_cycles = 0
                 real_cycles = 0
 
+                # Determine entry/close signal types based on position side
+                # LONG: entry=BUY, close=SELL. SHORT: entry=SELL (with position_side=short metadata), close=BUY
                 for i, ex in enumerate(executions):
-                    if ex.signal_type == "SELL":
+                    metadata = ex.trade_metadata or {}
+                    is_close = metadata.get("level") == "CLOSE"
+                    # Legacy: SELL without position_side metadata = LONG close
+                    if not is_close and ex.signal_type == "SELL" and metadata.get("position_side") != "short":
+                        is_close = True
+                    if is_close:
                         is_paper = ex.is_paper if ex.is_paper is not None else True
                         if is_paper:
                             paper_cycles += 1
                         else:
                             real_cycles += 1
-                        last_sell_idx = i
+                        last_close_idx = i
 
                 # 2. Restore cycle counters
                 self.paper_cycle_id = paper_cycles
                 self.real_cycle_id = real_cycles
 
-                # 3. Get BUY orders in current open cycle (after last SELL)
+                # 3. Get entry orders in current open cycle (after last CLOSE)
                 open_buys = []
                 for i, ex in enumerate(executions):
-                    if i > last_sell_idx and ex.signal_type == "BUY":
+                    if i <= last_close_idx:
+                        continue
+                    metadata = ex.trade_metadata or {}
+                    is_entry = False
+                    if self.position_side == "both":
+                        # "both" mode: detect direction from metadata
+                        if metadata.get("position_side") == "short" and ex.signal_type == "SELL":
+                            is_entry = True
+                        elif metadata.get("position_side") == "long" and ex.signal_type == "BUY":
+                            is_entry = True
+                        elif ex.signal_type == "BUY" and metadata.get("position_side") != "short":
+                            is_entry = True  # Legacy BUY without metadata = LONG
+                    elif self.is_short:
+                        # SHORT entries: SELL with position_side=short metadata
+                        if ex.signal_type == "SELL" and metadata.get("position_side") == "short":
+                            is_entry = True
+                    else:
+                        # LONG entries: BUY signal
+                        if ex.signal_type == "BUY":
+                            is_entry = True
+                    if is_entry:
                         open_buys.append(ex)
 
                 if not open_buys:
@@ -189,6 +222,11 @@ class MartingaleBase(BaseStrategy):
                     self.peak_price = max(e["price"] for e in entries)
                     self.cycle_start_time = open_buys[0].signal_timestamp
 
+                    # "both" mode: restore is_short from first entry's metadata
+                    if self.position_side == "both" and open_buys:
+                        first_meta = open_buys[0].trade_metadata or {}
+                        self.is_short = (first_meta.get("position_side") == "short")
+
                     self.context.log(
                         f"[{self._log_prefix}] Position RESTORED from DB: "
                         f"L{self.current_level}, {self.total_quantity} qty, "
@@ -202,13 +240,30 @@ class MartingaleBase(BaseStrategy):
             import traceback
             traceback.print_exc()
 
+    def _calc_position_profit(self, current_price: float) -> float:
+        """Direction-aware position profit calculation."""
+        if self.is_short:
+            return (self.average_price - current_price) * self.total_quantity
+        return (current_price - self.average_price) * self.total_quantity
+
+    def _calc_price_return(self, current_price: float) -> float:
+        """Direction-aware price return from average cost."""
+        if self.average_price <= 0:
+            return 0
+        if self.is_short:
+            return (self.average_price - current_price) / self.average_price
+        return (current_price - self.average_price) / self.average_price
+
     def _initialize_trigger(self):
         """Override in subclasses to initialize trigger-specific state."""
         pass
 
     @abstractmethod
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
-        """Check if L1 initial entry condition is met. Return True to buy."""
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """Check if L1 initial entry condition is met.
+        Return direction string: "long", "short", or None (no entry).
+        When position_side is "long" or "short", MartingaleBase filters mismatched directions.
+        When position_side is "both", the returned direction is used directly."""
         pass
 
     @abstractmethod
@@ -218,11 +273,12 @@ class MartingaleBase(BaseStrategy):
 
     def _check_exits(self, current_price: float) -> bool:
         """Check price-based exit conditions. Returns True if position was liquidated.
-        Shared between on_data() (candle close) and on_tick() (every tick)."""
+        Shared between on_data() (candle close) and on_tick() (every tick).
+        Direction-aware: works for both LONG and SHORT positions."""
         if self.current_level <= 0 or self.total_quantity <= 0:
             return False
 
-        position_profit = (current_price - self.average_price) * self.total_quantity
+        position_profit = self._calc_position_profit(current_price)
         # Equity-based return: use cycle start equity as denominator
         if self._cycle_start_equity and self._cycle_start_equity > 0:
             current_return = position_profit / self._cycle_start_equity
@@ -236,14 +292,23 @@ class MartingaleBase(BaseStrategy):
             exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
             elapsed_hours = calc_trading_seconds(self.cycle_start_time, current_time, exchange_name) / 3600
             if elapsed_hours >= self.cycle_max_hours:
-                self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
+                side_label = "SHORT" if self.is_short else "LONG"
+                self.context.log(f"[{self._log_prefix}] CYCLE TIME LIMIT! {elapsed_hours:.1f}h >= {self.cycle_max_hours}h. Close {side_label} @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
                 self._liquidate(current_price)
                 return True
 
-        # Update peak price for trailing stop
-        current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
-        if position_profit > current_peak_profit:
-            self.peak_price = current_price
+        # Update peak price for trailing stop (direction-aware)
+        # LONG: peak_price = highest price seen (profit improves as price rises)
+        # SHORT: peak_price = lowest price seen (profit improves as price drops)
+        if self.is_short:
+            if self.peak_price <= 0 or current_price < self.peak_price:
+                current_peak_profit = self._calc_position_profit(self.peak_price) if self.peak_price > 0 else 0
+                if position_profit > current_peak_profit:
+                    self.peak_price = current_price
+        else:
+            current_peak_profit = (self.peak_price - self.average_price) * self.total_quantity if self.peak_price > 0 else 0
+            if position_profit > current_peak_profit:
+                self.peak_price = current_price
 
         # Futures: Liquidation Floor Check
         leverage = self._get_leverage()
@@ -257,24 +322,33 @@ class MartingaleBase(BaseStrategy):
                     self._liquidate(current_price)
                     return True
 
-        # Trailing Stop Activation (price-based: compare price change from avg_price)
-        price_return = (current_price - self.average_price) / self.average_price if self.average_price > 0 else 0
+        # Trailing Stop Activation (direction-aware via _calc_price_return)
+        price_return = self._calc_price_return(current_price)
         if self.trailing_start_percent > 0 and not self.trailing_active and price_return >= (self.trailing_start_percent / 100):
             self.trailing_active = True
             self.peak_price = current_price
             self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Price Return: {price_return*100:.2f}% (threshold: {self.trailing_start_percent}%)")
 
-        # Trailing Stop Trigger (price-based: drop from peak price)
+        # Trailing Stop Trigger (direction-aware)
+        # LONG: drop from peak (high → low). SHORT: rise from trough (low → high)
         if self.trailing_active:
-            drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
-            if drop_from_peak >= (self.trailing_stop_percent / 100):
-                self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
-                self._liquidate(current_price)
-                return True
+            if self.is_short:
+                rise_from_trough = (current_price - self.peak_price) / self.peak_price if self.peak_price > 0 else 0
+                if rise_from_trough >= (self.trailing_stop_percent / 100):
+                    self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Cover SHORT @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
+                    self._liquidate(current_price)
+                    return True
+            else:
+                drop_from_peak = (self.peak_price - current_price) / self.peak_price if self.peak_price > 0 else 0
+                if drop_from_peak >= (self.trailing_stop_percent / 100):
+                    self.context.log(f"[{self._log_prefix}] Trailing Stop TRIGGERED! Sell @ {current_price:,.0f} (Position Return: {current_return*100:.2f}%)")
+                    self._liquidate(current_price)
+                    return True
 
         # Max Loss Stop-Loss
         if self.max_loss_percent > 0 and current_return <= -(self.max_loss_percent / 100):
-            self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. Sell @ {current_price:,.0f}")
+            side_label = "Cover SHORT" if self.is_short else "Sell"
+            self.context.log(f"[{self._log_prefix}] MAX LOSS TRIGGERED! Loss {current_return*100:.1f}% >= -{self.max_loss_percent}%. {side_label} @ {current_price:,.0f}")
             self._liquidate(current_price)
             return True
 
@@ -328,7 +402,7 @@ class MartingaleBase(BaseStrategy):
         # 3. Position Management (If holding)
         if self.current_level > 0 and self.total_quantity > 0:
             # 3a-2. Check Indicator-Based Exit (needs candle data → only on candle close)
-            position_profit = (current_price - self.average_price) * self.total_quantity
+            position_profit = self._calc_position_profit(current_price)
             # Equity-based return: use cycle start equity as denominator
             if self._cycle_start_equity and self._cycle_start_equity > 0:
                 current_return = position_profit / self._cycle_start_equity
@@ -337,7 +411,8 @@ class MartingaleBase(BaseStrategy):
                 current_return = position_profit / total_investment if total_investment > 0 else 0
 
             if self._check_exit_trigger(data):
-                self.context.log(f"[{self._log_prefix}] EXIT TRIGGER! Sell @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
+                side_label = "Cover SHORT" if self.is_short else "Sell"
+                self.context.log(f"[{self._log_prefix}] EXIT TRIGGER! {side_label} @ {current_price:,.0f} (Return: {current_return*100:.2f}%)")
                 self._liquidate(current_price)
                 return
 
@@ -351,26 +426,32 @@ class MartingaleBase(BaseStrategy):
                 if self.cycle_max_level and self.current_level >= self.cycle_max_level:
                     pass  # Capital plan exhausted, no more entries
                 else:
-                    # Require lower price: skip trigger check entirely so trigger is not consumed
+                    # Require worse price: LONG=lower price, SHORT=higher price
                     if self.require_lower_price and self.entries:
                         last_entry_price = self.entries[-1]["price"]
-                        if current_price >= last_entry_price:
-                            return
+                        if self.is_short:
+                            if current_price <= last_entry_price:
+                                return
+                        else:
+                            if current_price >= last_entry_price:
+                                return
 
                     # Determine entry signal based on additional_buy_mode
                     should_enter = False
                     if self.additional_buy_mode == "step" and self.entries:
-                        # Step mode: auto-buy when price drops N% from reference price
+                        # Step mode: LONG=auto-buy on price drop, SHORT=auto-short on price rise
                         ref_price = self._get_step_reference_price()
                         if ref_price > 0:
-                            drop_pct = (ref_price - current_price) / ref_price * 100
-                            # initial_entry: require cumulative steps (L2=1×step, L3=2×step, ...)
-                            # to prevent all levels triggering at once from a fixed anchor
-                            if self.additional_buy_step_ref == "initial_entry":
-                                required_drop = self.additional_buy_step * self.current_level
+                            if self.is_short:
+                                move_pct = (current_price - ref_price) / ref_price * 100
                             else:
-                                required_drop = self.additional_buy_step
-                            should_enter = drop_pct >= required_drop
+                                move_pct = (ref_price - current_price) / ref_price * 100
+                            # initial_entry: require cumulative steps (L2=1×step, L3=2×step, ...)
+                            if self.additional_buy_step_ref == "initial_entry":
+                                required_move = self.additional_buy_step * self.current_level
+                            else:
+                                required_move = self.additional_buy_step
+                            should_enter = move_pct >= required_move
                     else:
                         # Trigger mode: use strategy's signal (default behavior)
                         should_enter = self._check_additional_trigger(data)
@@ -393,7 +474,12 @@ class MartingaleBase(BaseStrategy):
                                     self.context.log(f"[{self._log_prefix}] L{_level} Entry FILLED @ {filled_price:,.0f}. Avg: {self.average_price:,.0f}")
                                 # else: async failure, already logged by context
 
-                            result = self.context.buy(symbol, qty, metadata={"level": next_level}, on_filled=on_filled_callback)
+                            actual_side = "short" if self.is_short else "long"
+                            entry_metadata = {"level": next_level, "position_side": actual_side}
+                            if self.is_short:
+                                result = self.context.short(symbol, qty, metadata=entry_metadata, on_filled=on_filled_callback)
+                            else:
+                                result = self.context.buy(symbol, qty, metadata=entry_metadata, on_filled=on_filled_callback)
                             if result.get("status") == "failed":
                                 self._pending_entry = False  # Unlock on immediate failure
                                 self.context.log(f"[{self._log_prefix}] L{next_level} Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
@@ -404,8 +490,16 @@ class MartingaleBase(BaseStrategy):
             if self._pending_entry:
                 return
 
-            if self._check_entry_trigger(data):
-                # Record total equity BEFORE L1 buy (cycle return denominator)
+            direction = self._check_entry_trigger(data)
+            if direction:
+                # Filter: when position_side is fixed ("long"/"short"), only allow matching direction
+                if self.position_side != "both" and direction != self.position_side:
+                    return
+
+                # Dynamic direction: set is_short for this cycle
+                self.is_short = (direction == "short")
+
+                # Record total equity BEFORE L1 entry (cycle return denominator)
                 self._cycle_start_equity = self.context.get_total_equity()
                 qty = self._calculate_quantity(1, current_price)
                 if qty > 0:
@@ -421,7 +515,12 @@ class MartingaleBase(BaseStrategy):
                             self.context.log(f"[{self._log_prefix}] L1 Entry FILLED @ {filled_price:,.0f} (cycle_equity: {self._cycle_start_equity:,.0f})")
                         # else: async failure, already logged by context
 
-                    result = self.context.buy(symbol, qty, metadata={"level": 1}, on_filled=on_l1_filled)
+                    actual_side = "short" if self.is_short else "long"
+                    entry_metadata = {"level": 1, "position_side": actual_side}
+                    if self.is_short:
+                        result = self.context.short(symbol, qty, metadata=entry_metadata, on_filled=on_l1_filled)
+                    else:
+                        result = self.context.buy(symbol, qty, metadata=entry_metadata, on_filled=on_l1_filled)
                     if result.get("status") == "failed":
                         self._pending_entry = False  # Unlock on immediate failure
                         self.context.log(f"[{self._log_prefix}] L1 Initial Entry FAILED: {result.get('reason', 'Unknown')} @ {current_price:,.0f}")
@@ -501,10 +600,25 @@ class MartingaleBase(BaseStrategy):
                 self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
             # else: async failure, already logged by context
 
-        result = self.context.sell(self.symbol, self.total_quantity, metadata={"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper, "cycle_start_equity": self._cycle_start_equity}, on_filled=on_sell_filled)
+        actual_side = "short" if self.is_short else "long"
+        close_metadata = {"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper, "cycle_start_equity": self._cycle_start_equity, "position_side": actual_side}
+        if self.is_short:
+            # SHORT position: close via close_position (buy to cover)
+            try:
+                result = self.context.close_position(self.symbol, metadata=close_metadata)
+                # close_position may not support on_filled callback; handle synchronously
+                if result.get("status") != "failed":
+                    on_sell_filled(None, self.total_quantity, price, close_metadata)
+                    return
+            except (NotImplementedError, AttributeError):
+                pass
+            # Fallback: buy to cover
+            result = self.context.buy(self.symbol, self.total_quantity, metadata=close_metadata, on_filled=on_sell_filled)
+        else:
+            result = self.context.sell(self.symbol, self.total_quantity, metadata=close_metadata, on_filled=on_sell_filled)
         if result.get("status") == "failed":
             self._pending_exit = False  # Unlock on immediate failure
-            self.context.log(f"[{self._log_prefix}] SELL FAILED: {result.get('reason', 'Unknown')}")
+            self.context.log(f"[{self._log_prefix}] CLOSE FAILED: {result.get('reason', 'Unknown')}")
 
     def _resolve_level_qty(self, level: int, price: float) -> float:
         """Calculate quantity for a given level (supports fractional qty for crypto).
@@ -617,9 +731,18 @@ class MartingaleBase(BaseStrategy):
         cur_price = getattr(self, 'last_price', 0)
         dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
 
-        position_profit = (cur_price - self.average_price) * self.total_quantity if self.average_price > 0 else 0
+        position_profit = self._calc_position_profit(cur_price) if self.average_price > 0 else 0
         total_investment = self.average_price * self.total_quantity if self.average_price > 0 else 0
         profit_percent = position_profit / total_investment if total_investment > 0 else 0
+
+        # Target price: direction-aware
+        if self.average_price > 0:
+            if self.is_short:
+                target_price = round(self.average_price * (1 - self.trailing_start_percent / 100.0))
+            else:
+                target_price = round(self.average_price * (1 + self.trailing_start_percent / 100.0))
+        else:
+            target_price = 0
 
         return {
             "strategy_id": self._strategy_id,
@@ -636,9 +759,11 @@ class MartingaleBase(BaseStrategy):
             "dip_percent": dip_percent,
             "profit_percent": profit_percent,
             "target_profit_pct": self.trailing_start_percent,
-            "target_price": round(self.average_price * (1 + self.trailing_start_percent / 100.0)) if self.average_price > 0 else 0,
+            "target_price": target_price,
             "entries": self.entries,
             "require_lower_price": self.require_lower_price,
+            "position_side": "short" if self.is_short else "long",
+            "position_side_config": self.position_side,
             "paper_cycle_id": self.paper_cycle_id,
             "real_cycle_id": self.real_cycle_id,
             "cycle_id": self.paper_cycle_id if getattr(self.context, 'is_paper', True) else self.real_cycle_id,

@@ -132,9 +132,9 @@ class SpotFuturesHedgeStrategy(MartingaleBase):
             self._entry_time = None
             # In live mode, HedgeCoordinator.close_hedge() is called by LiveManager
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
         """Not used — spot_futures_hedge uses its own on_data() flow."""
-        return False
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """Not used — spot_futures_hedge manages positions directly."""

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
 from app.core.us_market_data import us_market
@@ -127,20 +127,20 @@ class UsMarketFollowStrategy(MartingaleBase):
             self._us_change_today = None
             self._trigger_met = False
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
         """
         Check if US market change meets threshold at market open.
         Entry allowed after entry_start_time (exit controlled by cycle_max_hours).
         """
         if self._checked_today:
-            return False
+            return None
 
         current_time = self.context.get_time()
         current_time_only = current_time.time()
 
         # Check if past entry start time
         if current_time_only < self.entry_start_time:
-            return False
+            return None
 
         # Get US market change (captures once per day)
         if self._us_change_today is None:
@@ -165,7 +165,7 @@ class UsMarketFollowStrategy(MartingaleBase):
                 f"(threshold: {threshold}%, direction: {self.trigger_direction})"
             )
 
-        return self._trigger_met
+        return "long" if self._trigger_met else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """No additional entries for this strategy (single entry per day)."""

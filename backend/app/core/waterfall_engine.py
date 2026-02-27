@@ -59,6 +59,10 @@ class BacktestContext(IContext):
         self.optimize_mode = False # Performance flag
         self.realized_pnl = 0  # Track realized P&L for Fixed mode
 
+        # Short position tracking (for position_side="short"/"both")
+        self._short_holdings: Dict[str, float] = {}  # {symbol: quantity}
+        self._short_avg_prices: Dict[str, float] = {}  # {symbol: avg_entry_price}
+
         # Exclusive mode: only one rank can hold a position at a time
         self._exclusive_lock_holder = None  # rank number that holds the lock (None = free)
         self._use_rank_isolation = False  # Set to True for exclusive mode multi-rank
@@ -296,6 +300,89 @@ class BacktestContext(IContext):
             self.log("SELL FAILED: Insufficient Holdings")
             return {"status": "failed", "reason": "Insufficient Holdings"}
 
+    def short(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
+              metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+        """Open/add to a short position in backtest mode."""
+        exec_price = price if price > 0 else self.get_current_price(symbol)
+        if exec_price <= 0:
+            self.log(f"SHORT FAILED: Invalid Price for {symbol}")
+            return {"status": "failed", "reason": "Invalid Price"}
+
+        cost = exec_price * quantity
+        if self.cash < cost:
+            self.log(f"SHORT REJECTED: Insufficient capital. Need {cost:,.0f}, have {self.cash:,.0f}")
+            return {"status": "failed", "reason": "Insufficient Capital"}
+
+        self.cash -= cost  # Lock margin (1x leverage)
+
+        # Weighted average entry price
+        existing_qty = self._short_holdings.get(symbol, 0)
+        existing_avg = self._short_avg_prices.get(symbol, 0)
+        if existing_qty > 0:
+            total_cost = existing_avg * existing_qty + exec_price * quantity
+            self._short_avg_prices[symbol] = total_cost / (existing_qty + quantity)
+        else:
+            self._short_avg_prices[symbol] = exec_price
+        self._short_holdings[symbol] = existing_qty + quantity
+
+        trade = {
+            "type": "short",
+            "symbol": symbol,
+            "price": exec_price,
+            "quantity": quantity,
+            "time": self.get_time().isoformat(),
+            "strategy_rank": self.current_rank,
+            "metadata": metadata or {}
+        }
+        self.trades.append(trade)
+        self.log(f"SHORT EXECUTED: {quantity} {symbol} @ {exec_price}")
+
+        if on_filled:
+            try:
+                on_filled(order_id=None, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
+            except Exception:
+                pass
+
+        return trade
+
+    def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Close entire position (both long and short)."""
+        exec_price = self.get_current_price(symbol)
+        result = {"status": "success", "trades": []}
+
+        # Close long position
+        long_qty = self.holdings.get(symbol, 0)
+        if long_qty > 0:
+            trade = self.sell(symbol, long_qty, exec_price, metadata=metadata)
+            result["trades"].append(trade)
+
+        # Close short position
+        short_qty = self._short_holdings.get(symbol, 0)
+        if short_qty > 0:
+            avg_entry = self._short_avg_prices.get(symbol, exec_price)
+            pnl = (avg_entry - exec_price) * short_qty
+            margin_returned = avg_entry * short_qty
+            self.cash += margin_returned + pnl
+
+            trade = {
+                "type": "close_short",
+                "symbol": symbol,
+                "price": exec_price,
+                "quantity": short_qty,
+                "time": self.get_time().isoformat(),
+                "pnl": pnl,
+                "strategy_rank": self.current_rank,
+                "metadata": metadata or {}
+            }
+            self.trades.append(trade)
+            self.log(f"CLOSE SHORT: {short_qty} {symbol} @ {exec_price} (PnL: {pnl:+,.2f})")
+            result["trades"].append(trade)
+
+            del self._short_holdings[symbol]
+            del self._short_avg_prices[symbol]
+
+        return result
+
     def log(self, message: str):
         if self.optimize_mode: return
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
@@ -314,8 +401,9 @@ class BacktestContext(IContext):
         self.log(f"[Fixed Mode] Cycle Reset. PnL: {cycle_pnl:,.0f}, Total Realized: {self.realized_pnl:,.0f}, Cash Reset to: {self.cash:,.0f}")
 
     def get_total_equity(self) -> float:
-        """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치."""
+        """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치 (롱+숏)."""
         equity = self.cash + self.realized_pnl
+        # Long positions
         if self._use_rank_isolation:
             for rank_h in self._rank_holdings.values():
                 for symbol, qty in rank_h.items():
@@ -323,6 +411,13 @@ class BacktestContext(IContext):
         else:
             for symbol, qty in self._holdings.items():
                 equity += qty * self.get_current_price(symbol)
+        # Short positions (locked margin + unrealized PnL)
+        for symbol, qty in self._short_holdings.items():
+            avg_entry = self._short_avg_prices.get(symbol, 0)
+            current_price = self.get_current_price(symbol)
+            margin = avg_entry * qty
+            unrealized_pnl = (avg_entry - current_price) * qty
+            equity += margin + unrealized_pnl
         return equity
 
     def update_equity(self):
@@ -435,25 +530,38 @@ class WaterfallBacktestEngine:
             except Exception as e:
                 pass  # Continue on error
 
-        # 4. Force Liquidation at End (close all open positions)
-        positions = {}
+        # 4. Force Liquidation at End (close all open LONG and SHORT positions)
+        long_positions = {}
+        short_positions = {}
         for t in context.trades:
             sym = t['symbol']
             qty = t['quantity']
-            if sym not in positions:
-                positions[sym] = 0
             if t['type'] == 'buy':
-                positions[sym] += qty
+                long_positions[sym] = long_positions.get(sym, 0) + qty
             elif t['type'] == 'sell':
-                positions[sym] -= qty
+                long_positions[sym] = long_positions.get(sym, 0) - qty
+            elif t['type'] == 'short':
+                short_positions[sym] = short_positions.get(sym, 0) + qty
+            elif t['type'] == 'close_short':
+                short_positions[sym] = short_positions.get(sym, 0) - qty
 
-        for sym, qty in positions.items():
+        last_price_cache = {}
+        def _get_last_price(sym):
+            if sym not in last_price_cache:
+                p = context.get_current_price(sym)
+                if p <= 0:
+                    p = feed[-1]['close'] if feed else 100000
+                last_price_cache[sym] = p
+            return last_price_cache[sym]
+
+        for sym, qty in long_positions.items():
             if qty > 0:
-                last_price = context.get_current_price(sym)
-                if last_price <= 0:
-                    last_price = feed[-1]['close'] if feed else 100000
-                context.sell(sym, qty, price=last_price,
+                context.sell(sym, qty, price=_get_last_price(sym),
                              metadata={"force_liquidated": True})
+
+        for sym, qty in short_positions.items():
+            if qty > 0:
+                context.close_position(sym, metadata={"force_liquidated": True})
 
         # 5. Calculate Statistics using unified _generate_stats
         stats = self._generate_stats(context, feed, optimize_mode=optimize_mode)
@@ -1170,8 +1278,9 @@ class WaterfallBacktestEngine:
                 "activity_rate": 0.0
             }
 
-        # FIFO Trade Matching
-        buy_queue = [] # List of {'price': float, 'quantity': int}
+        # FIFO Trade Matching (LONG: buy→sell, SHORT: short→close_short)
+        buy_queue = [] # List of {'price': float, 'quantity': int, 'time': str}
+        short_queue = [] # List of {'price': float, 'quantity': int, 'time': str}
         completed_trades = [] # List of {'pnl': float, 'pnl_percent': float, 'volume': float}
 
         for t in trades:
@@ -1179,7 +1288,13 @@ class WaterfallBacktestEngine:
                 buy_queue.append({
                     'price': t['price'],
                     'quantity': t['quantity'],
-                    'time': t['time'] # Store time
+                    'time': t['time']
+                })
+            elif t['type'] == 'short':
+                short_queue.append({
+                    'price': t['price'],
+                    'quantity': t['quantity'],
+                    'time': t['time']
                 })
             elif t['type'] == 'sell':
                 # Skip force-liquidated sells (backtest end) — not real cycle completions
@@ -1188,39 +1303,70 @@ class WaterfallBacktestEngine:
                 qty_to_sell = t['quantity']
                 sell_price = t['price']
                 sell_time = datetime.fromisoformat(t['time'])
-                
+
                 while qty_to_sell > 0 and buy_queue:
-                    # Match with oldest buy
                     buy_order = buy_queue[0]
                     matched_qty = min(qty_to_sell, buy_order['quantity'])
-                    
-                    # Calculate PnL for this chunk
+
                     cost = matched_qty * buy_order['price']
                     revenue = matched_qty * sell_price
                     profit = revenue - cost
                     profit_percent = (sell_price - buy_order['price']) / buy_order['price']
-                    
-                    # Calculate Holding Time (거래시간 기준)
+
                     buy_time = datetime.fromisoformat(buy_order['time'])
                     holding_seconds = calc_trading_seconds(buy_time, sell_time, self._exchange_name)
-                    
+
                     completed_trades.append({
                         'pnl': profit,
                         'pnl_percent': profit_percent,
-                        'cost': cost,  # Investment amount for weighted avg calc
+                        'cost': cost,
                         'volume': revenue,
                         'holding_seconds': holding_seconds,
-                        'time': t['time'], # Store Sell Time for Decile Analysis
-                        'strategy_rank': t.get('strategy_rank', 0), # Preserve tag
-                        'metadata': t.get('metadata', {}) # Store sell metadata (for cycle detection)
+                        'time': t['time'],
+                        'strategy_rank': t.get('strategy_rank', 0),
+                        'metadata': t.get('metadata', {})
                     })
-                    
-                    # Update remaining quantities
+
                     qty_to_sell -= matched_qty
                     buy_order['quantity'] -= matched_qty
-                    
                     if buy_order['quantity'] == 0:
                         buy_queue.pop(0)
+
+            elif t['type'] == 'close_short':
+                # Skip force-liquidated closes (backtest end)
+                if t.get('metadata', {}).get('force_liquidated'):
+                    continue
+                qty_to_close = t['quantity']
+                close_price = t['price']
+                close_time = datetime.fromisoformat(t['time'])
+
+                while qty_to_close > 0 and short_queue:
+                    short_order = short_queue[0]
+                    matched_qty = min(qty_to_close, short_order['quantity'])
+
+                    # SHORT PnL: (entry - exit) * qty
+                    cost = matched_qty * short_order['price']
+                    profit = (short_order['price'] - close_price) * matched_qty
+                    profit_percent = (short_order['price'] - close_price) / short_order['price']
+
+                    short_time = datetime.fromisoformat(short_order['time'])
+                    holding_seconds = calc_trading_seconds(short_time, close_time, self._exchange_name)
+
+                    completed_trades.append({
+                        'pnl': profit,
+                        'pnl_percent': profit_percent,
+                        'cost': cost,
+                        'volume': cost,  # Use entry notional as volume for SHORT
+                        'holding_seconds': holding_seconds,
+                        'time': t['time'],
+                        'strategy_rank': t.get('strategy_rank', 0),
+                        'metadata': t.get('metadata', {})
+                    })
+
+                    qty_to_close -= matched_qty
+                    short_order['quantity'] -= matched_qty
+                    if short_order['quantity'] == 0:
+                        short_queue.pop(0)
 
         # Calculate Statistics
         if not completed_trades:

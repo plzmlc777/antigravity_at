@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
 
@@ -107,20 +107,20 @@ class TimeMomentumStrategy(MartingaleBase):
             self._liquidate(current_price)
             self.checked_today = True  # Prevent re-entry after stop_time liquidation
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
         """L1 entry: Snapshot check at start_time + delay_minutes.
 
-        Returns True ONCE per day if price change from daily reference
+        Returns "long" ONCE per day if price change from daily reference
         meets the target_percent threshold in the configured direction.
         """
         if self.checked_today or self.daily_reference_price is None:
-            return False
+            return None
 
         current_time = self.context.get_time()
         trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
 
         if current_time < trigger_time:
-            return False
+            return None
 
         # Snapshot: mark as checked immediately (only one chance per day)
         self.checked_today = True
@@ -140,7 +140,7 @@ class TimeMomentumStrategy(MartingaleBase):
             self.context.log(f"[{self._log_prefix}] Entry condition not met: "
                              f"Change {change*100:.2f}% vs Target {self.target_percent*100:.2f}% ({self.direction})")
 
-        return should_buy
+        return "long" if should_buy else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """L2+ entries: Not used (max_buy_count defaults to 1)."""

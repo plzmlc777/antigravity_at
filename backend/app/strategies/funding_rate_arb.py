@@ -153,9 +153,9 @@ class FundingRateArbStrategy(MartingaleBase):
             self._entry_time = None
             self._position_qty = 0
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
         """Not used — funding_rate_arb uses its own on_data() flow."""
-        return False
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """Not used — funding_rate_arb manages positions directly."""

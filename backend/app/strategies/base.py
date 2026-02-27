@@ -195,6 +195,11 @@ class BaseStrategy(ABC):
          "group": "futures",
          "show_in_table": False,
          "visible_when": {"leverage": {"gt": 1}}},
+        {"name": "position_side", "type": "select", "label": "Position Side",
+         "default": "long", "options": ["long", "short", "both"],
+         "description": "Trade direction: long=buy low sell high, short=sell high buy low, both=strategy decides per trade (futures only)",
+         "group": "futures",
+         "show_in_table": True},
     ]
 
     # Subclasses override with their parameter schema dict.

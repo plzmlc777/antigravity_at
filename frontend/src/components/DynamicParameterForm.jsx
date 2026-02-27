@@ -240,6 +240,8 @@ const DynamicParameterForm = ({ schema, values = {}, onChange, disabled = false 
     const GROUP_LABELS = {
         common: 'Common',
         martingale: 'Position Sizing',
+        long_trigger: 'Long Entry',
+        short_trigger: 'Short Entry',
     };
 
     return (
