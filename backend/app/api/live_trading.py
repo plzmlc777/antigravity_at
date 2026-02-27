@@ -529,6 +529,40 @@ async def toggle_mode(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/toggle-mode-group/{group_id}")
+async def toggle_mode_group(
+    group_id: str,
+    req: ToggleOrdersRequest,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Atomically toggle Paper/Real mode for ALL sessions in a group.
+    enabled=True means is_paper=True (Paper mode).
+    All-or-nothing: either all sessions switch or none do.
+    """
+    # Verify at least one session in the group belongs to this user
+    group_sessions = db.query(LiveBotSession).filter_by(group_id=group_id).all()
+    if not group_sessions:
+        raise HTTPException(status_code=404, detail=f"No sessions found for group {group_id}")
+    for sess in group_sessions:
+        if sess.account_id:
+            account = db.query(ExchangeAccount).filter_by(id=sess.account_id).first()
+            if account and account.user_id != ctx.user_id:
+                raise HTTPException(status_code=403, detail="Not authorized for this session group")
+            break
+    try:
+        result = await live_manager.toggle_mode_group(group_id, req.enabled)
+        return {
+            "status": "success",
+            "is_paper": req.enabled,
+            "count": result["count"],
+            "session_ids": result["session_ids"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/toggle-tick-execution/{session_id}")
 async def toggle_tick_execution(
     session_id: str,

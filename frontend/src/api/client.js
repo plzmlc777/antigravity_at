@@ -281,6 +281,11 @@ export const toggleLiveMode = async (sessionId, isPaper) => {
     return data;
 };
 
+export const toggleLiveModeGroup = async (groupId, isPaper) => {
+    const { data } = await api.post(`/live/toggle-mode-group/${groupId}`, { enabled: isPaper });
+    return data;
+};
+
 export const toggleTickExecution = async (sessionId, mode) => {
     const { data } = await api.post(`/live/toggle-tick-execution/${sessionId}`, { mode });
     return data;

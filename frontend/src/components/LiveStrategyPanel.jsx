@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap, EyeOff, Eye } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleLiveModeGroup, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
@@ -1292,21 +1292,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             const currentMode = liveData?.is_paper !== false; // Default to paper if undefined
             const nextIsPaper = !currentMode;
 
-            // Apply to all sessions in the group (parallel, fault-tolerant)
-            const ids = getGroupSessionIds();
-            const results = await Promise.allSettled(
-                ids.map(sid => toggleLiveMode(sid, nextIsPaper))
-            );
-            const failed = results.filter(r => r.status === 'rejected');
-            if (failed.length > 0 && failed.length < ids.length) {
-                addLog("Warning", `Mode switched for ${ids.length - failed.length}/${ids.length} session(s)`);
-            } else if (failed.length === ids.length) {
-                throw new Error(failed[0].reason?.response?.data?.detail || failed[0].reason?.message || 'All sessions failed');
+            // Use atomic group toggle API (all-or-nothing) when groupId exists
+            const groupId = activeSessionGroup?.groupId;
+            if (groupId) {
+                const result = await toggleLiveModeGroup(groupId, nextIsPaper);
+                setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
+                addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} for ${result.count} session(s) [atomic]`);
+            } else {
+                // Fallback: single session toggle
+                await toggleLiveMode(sessionId, nextIsPaper);
+                setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
+                addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'}`);
             }
-            setLiveData(prev => ({ ...prev, is_paper: nextIsPaper }));
-            addLog("System", `Mode switched to ${nextIsPaper ? 'PAPER' : 'REAL'} for ${ids.length} session(s)`);
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.detail || err.message);
         }
     };
 

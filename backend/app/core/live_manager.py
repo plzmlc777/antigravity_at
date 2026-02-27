@@ -739,7 +739,7 @@ class LiveManager:
         # 1. Update running engine
         if session_id in self.engines:
             self.engines[session_id].toggle_mode(is_paper)
-            
+
         # 2. Update DB
         db = SessionLocal()
         try:
@@ -748,6 +748,38 @@ class LiveManager:
                 sess.is_paper = is_paper
                 db.commit()
                 logger.info(f"Session {session_id}: Mode set to {'PAPER' if is_paper else 'REAL'} (DB Updated)")
+        finally:
+            db.close()
+
+    async def toggle_mode_group(self, group_id: str, is_paper: bool) -> dict:
+        """
+        Atomically toggle Paper/Real mode for ALL sessions in a group.
+        All-or-nothing: if any DB update fails, the entire transaction rolls back.
+        """
+        db = SessionLocal()
+        try:
+            sessions = db.query(LiveBotSession).filter_by(group_id=group_id).all()
+            if not sessions:
+                raise ValueError(f"No sessions found for group_id={group_id}")
+
+            # 1. Update DB atomically (single transaction)
+            session_ids = []
+            for sess in sessions:
+                sess.is_paper = is_paper
+                session_ids.append(sess.id)
+            db.commit()
+
+            # 2. Update running engines (best-effort after DB commit)
+            for sid in session_ids:
+                if sid in self.engines:
+                    self.engines[sid].toggle_mode(is_paper)
+
+            mode_str = 'PAPER' if is_paper else 'REAL'
+            logger.info(f"Group {group_id}: All {len(session_ids)} sessions set to {mode_str}")
+            return {"session_ids": session_ids, "count": len(session_ids)}
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
