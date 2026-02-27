@@ -28,7 +28,23 @@ const ActiveStrategiesPanel = ({
     // Parse schema fields for table columns
     const getFieldKey = (field) => field.key || field.name;
     const fields = parameterSchema?.fields || [];
-    const tableFields = fields.filter(f => f.show_in_table !== false);
+
+    // Filter table fields: show_in_table AND visible_when condition met by at least one active config
+    const activeConfigs = configList ? configList.filter(c => c.is_active !== false) : [];
+    const tableFields = fields.filter(f => {
+        if (f.show_in_table === false) return false;
+        if (!f.visible_when) return true;
+        // Check if at least one active config satisfies visible_when
+        return activeConfigs.some(cfg => {
+            return Object.entries(f.visible_when).every(([key, condition]) => {
+                const val = cfg[key] ?? fields.find(ff => (ff.key || ff.name) === key)?.default;
+                if (typeof condition === 'object' && condition.ne !== undefined) {
+                    return val !== condition.ne;
+                }
+                return val === condition;
+            });
+        });
+    });
 
     // Auto-select first preset for configs without selected_preset_id
     const initializedConfigs = useRef(new Set());
@@ -115,7 +131,11 @@ const ActiveStrategiesPanel = ({
 
     const formatValue = (cfg, field) => {
         const key = getFieldKey(field);
-        const val = cfg[key];
+        let val = cfg[key];
+        // Fall back to field default if not set
+        if (val == null || val === undefined) {
+            val = field.default;
+        }
         if (val == null || val === undefined) return '-';
 
         if (field.type === 'select' || field.type === 'time') {
