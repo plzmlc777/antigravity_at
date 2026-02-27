@@ -185,17 +185,25 @@ const UnifiedSessionCards = ({
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-3">
                                     {hasData && (
                                         <>
                                             <span className={`text-base font-mono font-semibold ${isRunning ? 'text-white' : 'text-gray-500'}`}>
                                                 {price.toLocaleString()}
                                             </span>
-                                            <span className={`text-sm font-mono ${
-                                                !isRunning ? 'text-gray-600' : pnl >= 0 ? 'text-green-400' : 'text-red-400'
-                                            }`}>
-                                                {pnl >= 0 ? '+' : ''}{pnl.toLocaleString()}
-                                            </span>
+                                            {(() => {
+                                                const profitPct = (activeState.profit_percent || 0) * 100;
+                                                const hasPosition = (activeState.current_level || 0) > 0;
+                                                if (!hasPosition) return null;
+                                                return (
+                                                    <span className={`text-sm font-mono font-bold ${
+                                                        !isRunning ? 'text-gray-600'
+                                                        : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'
+                                                    }`}>
+                                                        {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                                                    </span>
+                                                );
+                                            })()}
                                         </>
                                     )}
                                     <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
