@@ -549,8 +549,8 @@ class LiveTradingEngine:
 
     async def _liquidate_real(self) -> dict:
         """Real mode force close: sync with exchange API and sell actual holdings."""
-        from ..adapters.kiwoom_websocket import KiwoomWebSocketAdapter
-        if not KiwoomWebSocketAdapter.is_market_open():
+        from ..adapters.kiwoom_websocket import KiwoomWebSocket
+        if not KiwoomWebSocket.is_market_open():
             logger.warning(f"FORCE CLOSE (REAL): Market is closed. Cannot liquidate {self.symbol}.")
             await self.context.async_sync_balance()
             qty = self.context.holdings.get(self.symbol, 0)
