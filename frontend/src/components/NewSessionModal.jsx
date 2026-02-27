@@ -118,14 +118,29 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
             const startedSessions = [];
             const totalCapital = selectedProfile.initial_capital || DEFAULT_INITIAL_CAPITAL;
             const executionMode = selectedProfile.execution_mode || 'parallel';
-            const capitalPerRank = executionMode === 'parallel'
-                ? Math.floor(totalCapital / rankConfigs.length)
-                : totalCapital;
+            const profileRankWeights = selectedProfile.rank_weights || {};
+
+            // Compute per-rank capital using rank_weights (if available) or equal split
+            const totalWeight = rankConfigs.reduce((sum, _, idx) => sum + (profileRankWeights[idx] || 0), 0);
 
             for (let idx = 0; idx < rankConfigs.length; idx++) {
                 const cfg = rankConfigs[idx];
-                // 프로필 데이터를 그대로 사용 (Strategies 탭에서 설정한 값 그대로)
-                // Live에서는 계좌, 자본금, Paper/Real 모드만 설정
+                // Use rank config's initial_capital if set, otherwise compute from profile total
+                let capitalPerRank;
+                if (executionMode !== 'parallel') {
+                    capitalPerRank = totalCapital;
+                } else if (cfg.initial_capital && cfg.initial_capital > 0) {
+                    // Rank config has its own initial_capital → use it directly
+                    capitalPerRank = cfg.initial_capital;
+                } else if (totalWeight > 0) {
+                    // Split by rank weights
+                    const weight = profileRankWeights[idx] || 0;
+                    capitalPerRank = Math.floor(totalCapital * weight / totalWeight);
+                } else {
+                    // Equal split
+                    capitalPerRank = Math.floor(totalCapital / rankConfigs.length);
+                }
+
                 // Resolve preset name for live session tracking
                 const presetName = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
                 const payload = {

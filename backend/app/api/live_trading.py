@@ -450,6 +450,10 @@ async def update_session_settings(
 
     if req.initial_capital is not None:
         session.initial_capital = req.initial_capital
+        # Sync initial_capital inside strategy_config to avoid DB column vs JSON divergence
+        config = session.strategy_config or {}
+        config["initial_capital"] = req.initial_capital
+        session.strategy_config = config
         updates_made.append(f"capital → {req.initial_capital:,.0f}")
 
     if req.is_paper is not None:

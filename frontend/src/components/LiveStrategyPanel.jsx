@@ -186,8 +186,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         // Update session ID
         setSessionId(selectedSession.session_id);
 
-        // Update capital from session (only when session changes, not on every render)
-        if (selectedSession.initial_capital) {
+        // Update capital from session group (sum of all sessions' capital for parallel mode)
+        const allSessions = activeSessionGroup?.sessions || [];
+        const totalGroupCapital = allSessions.reduce((sum, s) => sum + (s.initial_capital || 0), 0);
+        if (totalGroupCapital > 0) {
+            setInputCapital(totalGroupCapital);
+        } else if (selectedSession.initial_capital) {
             setInputCapital(selectedSession.initial_capital);
         }
 
@@ -207,7 +211,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         // Save original settings for dirty detection (only for non-running sessions)
         if (selectedSession.status !== 'RUNNING') {
             setOriginalSessionSettings({
-                capital: selectedSession.initial_capital || 0,
+                capital: totalGroupCapital || selectedSession.initial_capital || 0,
                 isPaper: sessionIsPaper,
                 accountId: selectedSession.account_id,
                 rankWeights: sessionRankWeights
@@ -378,38 +382,63 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         setApplyStatus(null);
 
         try {
-            const settings = {};
-
-            // Send all changed values including account_id and rankWeights
-            if (parseFloat(inputCapital) !== originalSessionSettings.capital) {
-                settings.initial_capital = parseFloat(inputCapital);
-            }
-            if (isPaperMode !== originalSessionSettings.isPaper) {
-                settings.is_paper = isPaperMode;
-            }
-            if (selectedAccountId !== originalSessionSettings.accountId) {
-                settings.account_id = selectedAccountId;
-            }
-
-            // Check rankWeights change
+            const totalCapital = parseFloat(inputCapital) || 0;
+            const capitalChanged = totalCapital !== originalSessionSettings.capital;
+            const modeChanged = isPaperMode !== originalSessionSettings.isPaper;
+            const accountChanged = selectedAccountId !== originalSessionSettings.accountId;
             const originalWeights = originalSessionSettings.rankWeights || {};
-            if (JSON.stringify(rankWeights) !== JSON.stringify(originalWeights)) {
-                settings.rank_weights = rankWeights;
+            const rankWeightsChanged = JSON.stringify(rankWeights) !== JSON.stringify(originalWeights);
+
+            const sessions = activeSessionGroup?.sessions || [];
+
+            // Parallel mode with multiple sessions: split capital by weights
+            if (sessions.length > 1 && (capitalChanged || rankWeightsChanged)) {
+                const totalWeight = Object.entries(rankWeights)
+                    .filter(([idx]) => configList[idx]?.is_active !== false)
+                    .reduce((sum, [, w]) => sum + w, 0);
+
+                for (let i = 0; i < sessions.length; i++) {
+                    const session = sessions[i];
+                    const weight = rankWeights[i] || 0;
+                    const sessionCapital = totalWeight > 0
+                        ? Math.floor(totalCapital * weight / totalWeight)
+                        : Math.floor(totalCapital / sessions.length);
+
+                    const perSessionSettings = {};
+                    if (capitalChanged || rankWeightsChanged) {
+                        perSessionSettings.initial_capital = sessionCapital;
+                    }
+                    if (modeChanged) perSessionSettings.is_paper = isPaperMode;
+                    if (accountChanged) perSessionSettings.account_id = selectedAccountId;
+                    if (rankWeightsChanged) perSessionSettings.rank_weights = rankWeights;
+
+                    if (Object.keys(perSessionSettings).length > 0) {
+                        await updateSessionSettings(session.session_id, perSessionSettings);
+                    }
+                }
+                addLog("System", `Settings applied to ${sessions.length} sessions (capital: ${totalCapital.toLocaleString()})`);
+            } else {
+                // Single session or no capital/weight change
+                const settings = {};
+                if (capitalChanged) settings.initial_capital = totalCapital;
+                if (modeChanged) settings.is_paper = isPaperMode;
+                if (accountChanged) settings.account_id = selectedAccountId;
+                if (rankWeightsChanged) settings.rank_weights = rankWeights;
+
+                if (Object.keys(settings).length === 0) {
+                    setApplyStatus('success');
+                    setTimeout(() => setApplyStatus(null), 2000);
+                    return;
+                }
+
+                await updateSessionSettings(sessionId, settings);
             }
 
-            // If nothing changed, nothing to save
-            if (Object.keys(settings).length === 0) {
-                setApplyStatus('success');
-                setTimeout(() => setApplyStatus(null), 2000);
-                return;
-            }
-
-            const result = await updateSessionSettings(sessionId, settings);
-            console.log('[LiveStrategyPanel] Settings applied:', result);
+            console.log('[LiveStrategyPanel] Settings applied to all sessions');
 
             // Update original settings to new values
             setOriginalSessionSettings({
-                capital: parseFloat(inputCapital),
+                capital: totalCapital,
                 isPaper: isPaperMode,
                 accountId: selectedAccountId,
                 rankWeights: { ...rankWeights }
