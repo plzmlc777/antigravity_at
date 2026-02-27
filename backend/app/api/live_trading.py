@@ -288,6 +288,7 @@ async def delete_session(
     Only allowed for STOPPED or ERROR sessions (not RUNNING).
     """
     from ..models.live_trading import LiveBotSession, LiveTradeExecution, LiveAIEvaluation, SessionStatus
+    from ..models.analysis_report import AIAnalysisReport
 
     # Find the session
     session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
@@ -319,7 +320,12 @@ async def delete_session(
         )
 
     try:
-        # Delete related AI evaluations first
+        # Delete related AI analysis reports first (FK constraint)
+        deleted_reports = db.query(AIAnalysisReport).filter(
+            AIAnalysisReport.session_id == session_id
+        ).delete()
+
+        # Delete related AI evaluations
         deleted_evals = db.query(LiveAIEvaluation).filter(
             LiveAIEvaluation.session_id == session_id
         ).delete()
@@ -337,7 +343,8 @@ async def delete_session(
             "status": "success",
             "message": f"Session deleted successfully",
             "deleted_trades": deleted_trades,
-            "deleted_ai_evaluations": deleted_evals
+            "deleted_ai_evaluations": deleted_evals,
+            "deleted_ai_reports": deleted_reports
         }
     except Exception as e:
         db.rollback()
