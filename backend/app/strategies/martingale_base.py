@@ -744,6 +744,25 @@ class MartingaleBase(BaseStrategy):
         else:
             target_price = 0
 
+        # Stop loss price: direction-aware
+        avg = self.average_price
+        if avg > 0 and self.max_loss_percent > 0:
+            if self.is_short:
+                stop_loss_price = round(avg * (1 + self.max_loss_percent / 100.0))
+            else:
+                stop_loss_price = round(avg * (1 - self.max_loss_percent / 100.0))
+        else:
+            stop_loss_price = 0
+
+        # Trailing exit price: based on peak_price when trailing is active
+        if self.trailing_active and self.peak_price > 0 and self.trailing_stop_percent > 0:
+            if self.is_short:
+                trailing_exit_price = round(self.peak_price * (1 + self.trailing_stop_percent / 100.0))
+            else:
+                trailing_exit_price = round(self.peak_price * (1 - self.trailing_stop_percent / 100.0))
+        else:
+            trailing_exit_price = 0
+
         return {
             "strategy_id": self._strategy_id,
             "current_level": self.current_level,
@@ -760,6 +779,10 @@ class MartingaleBase(BaseStrategy):
             "profit_percent": profit_percent,
             "target_profit_pct": self.trailing_start_percent,
             "target_price": target_price,
+            "max_loss_pct": self.max_loss_percent,
+            "trailing_stop_pct": self.trailing_stop_percent,
+            "stop_loss_price": stop_loss_price,
+            "trailing_exit_price": trailing_exit_price,
             "entries": self.entries,
             "require_lower_price": self.require_lower_price,
             "position_side": "short" if self.is_short else "long",

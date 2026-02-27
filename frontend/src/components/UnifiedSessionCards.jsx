@@ -234,6 +234,118 @@ const UnifiedSessionCards = ({
     );
 };
 
+/* ───── Position Progress Bar ───── */
+const PositionProgressBar = ({ state, dimmed = false }) => {
+    const currentLevel = state.current_level || 0;
+    const avgPrice = state.average_price || 0;
+    const curPrice = state.current_price || 0;
+    const targetPrice = state.target_price || 0;
+    const stopLossPrice = state.stop_loss_price || 0;
+    const trailingActive = state.trailing_active || false;
+    const peakPrice = state.peak_price || 0;
+    const trailingExitPrice = state.trailing_exit_price || 0;
+    const isShort = state.position_side === 'short';
+
+    if (!avgPrice || currentLevel <= 0 || !curPrice) return null;
+
+    // Determine bar range endpoints
+    const leftPrice = stopLossPrice > 0 ? stopLossPrice : avgPrice * (isShort ? 1.1 : 0.9);
+    let rightPrice = targetPrice > 0 ? targetPrice : avgPrice * (isShort ? 0.9 : 1.1);
+
+    // Extend right boundary when trailing is active to include peak
+    if (trailingActive && peakPrice > 0) {
+        if (isShort) {
+            rightPrice = Math.min(rightPrice, peakPrice * 0.995);
+        } else {
+            rightPrice = Math.max(rightPrice, peakPrice * 1.005);
+        }
+    }
+
+    // For SHORT: leftPrice > rightPrice (higher price = loss), so normalize
+    const rangeMin = Math.min(leftPrice, rightPrice);
+    const rangeMax = Math.max(leftPrice, rightPrice);
+    const range = rangeMax - rangeMin || 1;
+
+    // Calculate positions as percentages (0-100)
+    const clampPct = (price) => Math.max(0, Math.min(100, ((price - rangeMin) / range) * 100));
+
+    const avgPct = clampPct(avgPrice);
+    const curPct = clampPct(curPrice);
+    const peakPct = trailingActive && peakPrice > 0 ? clampPct(peakPrice) : null;
+    const exitPct = trailingActive && trailingExitPrice > 0 ? clampPct(trailingExitPrice) : null;
+    const targetPct = targetPrice > 0 ? clampPct(targetPrice) : null;
+
+    // Determine if current price is in profit zone
+    const inProfit = isShort ? curPrice < avgPrice : curPrice > avgPrice;
+
+    // For SHORT: loss is right of avg, profit is left. For LONG: loss is left, profit is right.
+    // The fill goes from avg to current price position
+    const fillLeft = Math.min(avgPct, curPct);
+    const fillWidth = Math.abs(curPct - avgPct);
+
+    const opacity = dimmed ? 'opacity-30' : '';
+
+    return (
+        <div className={`px-4 pb-2 ${opacity}`}>
+            {/* Labels */}
+            <div className="flex justify-between items-center mb-0.5">
+                <span className="text-[8px] font-mono text-red-400/60">
+                    SL {Math.round(leftPrice).toLocaleString()}
+                </span>
+                {trailingActive && trailingExitPrice > 0 && (
+                    <span className="text-[8px] font-mono text-yellow-400/80">
+                        Exit {Math.round(trailingExitPrice).toLocaleString()}
+                    </span>
+                )}
+                <span className="text-[8px] font-mono text-green-400/60">
+                    TP {Math.round(rightPrice).toLocaleString()}
+                </span>
+            </div>
+            {/* Bar */}
+            <div className="relative w-full h-1.5 rounded-full bg-gray-800/80">
+                {/* Fill: avg → current */}
+                <div
+                    className={`absolute top-0 h-full rounded-full ${inProfit ? 'bg-green-500/50' : 'bg-red-500/50'}`}
+                    style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+                />
+                {/* Avg price marker (thin line) */}
+                <div
+                    className="absolute top-0 h-full w-px bg-white/40"
+                    style={{ left: `${avgPct}%` }}
+                />
+                {/* Target price marker */}
+                {targetPct !== null && (
+                    <div
+                        className="absolute top-0 h-full w-px bg-green-400/40"
+                        style={{ left: `${targetPct}%` }}
+                    />
+                )}
+                {/* Peak price marker (when trailing active) */}
+                {peakPct !== null && (
+                    <div
+                        className="absolute -top-0.5 w-1 h-2.5 rounded-sm bg-green-400/60"
+                        style={{ left: `${peakPct}%`, transform: 'translateX(-50%)' }}
+                    />
+                )}
+                {/* Trailing exit marker */}
+                {exitPct !== null && (
+                    <div
+                        className="absolute top-0 h-full w-0.5 bg-yellow-400/60"
+                        style={{ left: `${exitPct}%` }}
+                    />
+                )}
+                {/* Current price dot */}
+                <div
+                    className={`absolute -top-0.5 w-2 h-2.5 rounded-full border ${
+                        inProfit ? 'bg-green-400 border-green-300' : 'bg-red-400 border-red-300'
+                    } shadow-sm`}
+                    style={{ left: `${curPct}%`, transform: 'translateX(-50%)' }}
+                />
+            </div>
+        </div>
+    );
+};
+
 /* ───── Compact Summary (shown for ALL ranks) ───── */
 const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
     const currentLevel = state.current_level || 0;
@@ -270,67 +382,70 @@ const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
     if (!hasSummary) return null;
 
     return (
-        <div className="px-4 py-2 flex items-center justify-between flex-wrap gap-y-1">
-            {/* Left: Level + Badges + Qty + Avg */}
-            <div className="flex items-center gap-2 flex-wrap">
-                {hasLevelInfo && (
-                    <div className="flex items-center gap-1.5">
-                        <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
-                            L{currentLevel}/{maxLevels}
+        <div>
+            <div className="px-4 py-2 flex items-center justify-between flex-wrap gap-y-1">
+                {/* Left: Level + Badges + Qty + Avg */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {hasLevelInfo && (
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
+                                L{currentLevel}/{maxLevels}
+                            </span>
+                            {maxLevels <= 10 && (
+                                <div className="flex gap-0.5">
+                                    {Array.from({ length: maxLevels }, (_, i) => (
+                                        <div key={i} className={`h-1.5 w-1.5 rounded-full ${
+                                            i < currentLevel
+                                                ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400')
+                                                : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
+                                        }`} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {(pendingEntry || pendingExit) && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
+                            {pendingEntry ? 'BUY...' : 'SELL...'}
                         </span>
-                        {maxLevels <= 10 && (
-                            <div className="flex gap-0.5">
-                                {Array.from({ length: maxLevels }, (_, i) => (
-                                    <div key={i} className={`h-1.5 w-1.5 rounded-full ${
-                                        i < currentLevel
-                                            ? (dimmed ? 'bg-indigo-700' : 'bg-indigo-400')
-                                            : (dimmed ? 'bg-gray-800' : 'bg-gray-700')
-                                    }`} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-                {(pendingEntry || pendingExit) && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 animate-pulse">
-                        {pendingEntry ? 'BUY...' : 'SELL...'}
-                    </span>
-                )}
-                {isTrailing && (
-                    <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-green-500/20 text-green-400'}`}>T</span>
-                )}
-                {isHodl && (
-                    <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-red-500/20 text-red-400'}`}>H</span>
-                )}
-                {totalQty > 0 && (
-                    <span className={`text-[11px] font-mono ${dim}`}>{totalQty}qty</span>
-                )}
-                {avgPrice > 0 && (
-                    <span className={`text-[11px] font-mono ${dim}`}>Avg:{Math.round(avgPrice).toLocaleString()}</span>
-                )}
-                {avgPrice > 0 && (
-                    <span className={`text-[11px] font-mono font-semibold ${dimmed ? 'text-gray-700' : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                        {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
-                    </span>
-                )}
+                    )}
+                    {isTrailing && (
+                        <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-green-500/20 text-green-400'}`}>T</span>
+                    )}
+                    {isHodl && (
+                        <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${dimmed ? 'bg-gray-800 text-gray-600' : 'bg-red-500/20 text-red-400'}`}>H</span>
+                    )}
+                    {totalQty > 0 && (
+                        <span className={`text-[11px] font-mono ${dim}`}>{totalQty}qty</span>
+                    )}
+                    {avgPrice > 0 && (
+                        <span className={`text-[11px] font-mono ${dim}`}>Avg:{Math.round(avgPrice).toLocaleString()}</span>
+                    )}
+                    {avgPrice > 0 && (
+                        <span className={`text-[11px] font-mono font-semibold ${dimmed ? 'text-gray-700' : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                            {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                        </span>
+                    )}
+                </div>
+                {/* Right: Accumulated Stats */}
+                <div className="flex items-center gap-2">
+                    {totalCycles > 0 && (
+                        <>
+                            <span className={`text-[10px] font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
+                                #{totalCycles + 1}
+                            </span>
+                            <span className={`text-[10px] ${dim}`}>
+                                {totalCycles}C
+                            </span>
+                            <span className={`text-[11px] font-mono ${pnlColor(totalPnl)}`}>
+                                {formatPnl(totalPnl)}
+                                {totalPnlPct !== 0 && <span className="text-[9px] opacity-70"> ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(1)}%)</span>}
+                            </span>
+                        </>
+                    )}
+                </div>
             </div>
-            {/* Right: Accumulated Stats */}
-            <div className="flex items-center gap-2">
-                {totalCycles > 0 && (
-                    <>
-                        <span className={`text-[10px] font-bold ${dimmed ? 'text-gray-600' : 'text-indigo-400'}`}>
-                            #{totalCycles + 1}
-                        </span>
-                        <span className={`text-[10px] ${dim}`}>
-                            {totalCycles}C
-                        </span>
-                        <span className={`text-[11px] font-mono ${pnlColor(totalPnl)}`}>
-                            {formatPnl(totalPnl)}
-                            {totalPnlPct !== 0 && <span className="text-[9px] opacity-70"> ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct.toFixed(1)}%)</span>}
-                        </span>
-                    </>
-                )}
-            </div>
+            <PositionProgressBar state={state} dimmed={dimmed} />
         </div>
     );
 };
@@ -341,6 +456,7 @@ const HIDDEN_KEYS = new Set([
     'reference_price', 'entries', 'pending_entry', 'pending_exit',
     'current_level', 'max_buy_count', 'total_quantity', 'average_price',
     'profit_percent', 'trailing_active', 'is_hodl',
+    'max_loss_pct', 'trailing_stop_pct', 'stop_loss_price', 'trailing_exit_price',
 ]);
 
 const KEY_LABELS = {
