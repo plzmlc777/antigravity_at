@@ -94,30 +94,6 @@ export const fetchMarketDataForSymbol = async (symbol, params = {}) => {
 // AI Analysis
 // ==========================================
 
-/**
- * Fetch available AI models
- */
-export const getAiModels = async () => {
-    const { data } = await api.get('/accounts/ai-models');
-    return data;
-};
-
-/**
- * Get AI key status (default model, etc.)
- */
-export const getAiKeyStatus = async () => {
-    const { data } = await api.get('/accounts/ai-key/status');
-    return data;
-};
-
-/**
- * Run AI analysis on optimization CSV
- */
-export const runAiAnalysis = async (payload) => {
-    const { data } = await api.post('/ai/analyze', payload, { timeout: LONG_TIMEOUT });
-    return data;
-};
-
 // ==========================================
 // Strategy Results (Persistence)
 // ==========================================

@@ -2,15 +2,18 @@
 Live Trading AI Evaluation Service
 
 Compares live trading performance with backtest results using current strategy config.
-Provides AI-powered analysis and recommendations.
+Provides AI-powered analysis and recommendations using Claude CLI agent.
 """
 
-import os
+import asyncio
 import json
 import logging
+import os
+import re
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
-import httpx
 
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -18,47 +21,16 @@ from .config import DEFAULT_INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-DEFAULT_MODEL = "gemini-2.0-flash-001"
+# Claude CLI model priority: try best model first, fallback on rate limit
+MODEL_PRIORITY = ["sonnet", "haiku"]
 
 
 class LiveAIEvaluationService:
-    """Service for AI-powered live trading evaluation."""
+    """Service for AI-powered live trading evaluation using Claude CLI agent."""
 
-    def __init__(self, db: Session, user_id: Optional[int] = None, api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, db: Session, user_id: Optional[int] = None, **kwargs):
         self.db = db
         self.user_id = user_id
-
-        # Try to get API key from: 1) explicit param, 2) database, 3) env vars
-        self.api_key = api_key
-        self.model = model or DEFAULT_MODEL
-
-        if not self.api_key and user_id:
-            # Get from database
-            self._load_api_key_from_db(user_id)
-
-        if not self.api_key:
-            # Fallback to env vars
-            self.api_key = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GEMINI_API_KEY")
-
-        if not self.api_key:
-            logger.warning("Google AI API key not set. AI evaluation will be disabled.")
-
-    def _load_api_key_from_db(self, user_id: int):
-        """Load Google API key from user record."""
-        from ..models.user import User
-        from ..core import security
-
-        try:
-            user = self.db.query(User).filter(User.id == user_id).first()
-
-            if user and user.encrypted_google_api_key:
-                self.api_key = security.decrypt_key(user.encrypted_google_api_key)
-                if user.ai_model:
-                    self.model = user.ai_model
-                logger.info(f"Loaded Google API key from database for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to load API key from database: {e}")
 
     def collect_live_stats(
         self,
@@ -430,7 +402,7 @@ class LiveAIEvaluationService:
         except:
             return "N/A"
 
-    def build_evaluation_prompt(
+    def _build_evaluation_context(
         self,
         symbol: str,
         strategy_name: str,
@@ -439,13 +411,12 @@ class LiveAIEvaluationService:
         backtest_stats: Dict[str, Any],
         comparison: Dict[str, Any],
         is_paper: bool = False
-    ) -> str:
-        """Build prompt for AI evaluation."""
+    ) -> Dict[str, Any]:
+        """Build context data dict for Claude CLI evaluation."""
 
         # Handle both formats: {params: {...}} or direct params at top level
         params = strategy_config.get("params", {})
         if not params:
-            # Exclude UI/meta fields that are not actual strategy parameters
             exclude_keys = {
                 "initial_capital", "symbol", "params",
                 "from_date", "interval", "uuid", "tabName", "is_active",
@@ -454,156 +425,171 @@ class LiveAIEvaluationService:
             }
             params = {k: v for k, v in strategy_config.items() if k not in exclude_keys}
 
-        mode_label = "Paper (모의)" if is_paper else "Real (실거래)"
-
-        prompt = f"""# 라이브 트레이딩 성과 평가 요청
-
-## 1. 세션 정보
-- 종목: {symbol}
-- 전략: {strategy_name}
-- 거래 모드: **{mode_label}**
-- 분석 사이클 수: {live_stats.get('cycles_analyzed', 0)}개
-
-## 2. 전략 파라미터
-```json
-{json.dumps(params, indent=2, ensure_ascii=False)}
-```
-
-## 3. 라이브 트레이딩 실적
-| 지표 | 라이브 | 백테스트 | 차이 |
-|------|--------|----------|------|
-| 총 수익률 | {live_stats.get('total_return', 0):.2f}% | {backtest_stats.get('total_return', 0):.2f}% | {comparison.get('return_diff', 'N/A')} |
-| 승률 | {live_stats.get('win_rate', 0):.1f}% | {backtest_stats.get('win_rate', 0):.1f}% | {comparison.get('win_rate_diff', 'N/A')} |
-| Sharpe Ratio | {live_stats.get('sharpe_ratio', 0):.2f} | {backtest_stats.get('sharpe_ratio', 0):.2f} | {comparison.get('sharpe_diff', 'N/A')} |
-| Max Drawdown | {live_stats.get('max_drawdown', 0):.2f}% | {backtest_stats.get('max_drawdown', 0):.2f}% | {comparison.get('drawdown_diff', 'N/A')} |
-| Profit Factor | {live_stats.get('profit_factor', 0):.2f} | {backtest_stats.get('profit_factor', 0):.2f} | {comparison.get('profit_factor_diff', 'N/A')} |
-| 평균 수익률 | {live_stats.get('avg_pnl', 0):.2f}% | {backtest_stats.get('avg_pnl', 0):.2f}% | {comparison.get('avg_pnl_diff', 'N/A')} |
-
-## 4. 추가 라이브 데이터
-- 최근 10 사이클 승률: {live_stats.get('recent_10_win_rate', 'N/A')}%
-- 평균 보유 시간: {live_stats.get('avg_holding_time', 'N/A')}분
-- 최대/최소 수익률: {live_stats.get('max_profit', 'N/A')}% / {live_stats.get('max_loss', 'N/A')}%
-- 실현 손익 (KRW): {live_stats.get('realized_pnl_krw', 0):,.0f}원
-
-## 5. 성과 등급: {comparison.get('overall_grade', 'N/A')}
-
-## 6. 평가 요청
-
-당신은 자동매매 전략 분석 전문가입니다. 위 데이터를 분석하여 다음을 제공하세요:
-
-### A. 성과 분석 (2-3문장)
-- 라이브 성과가 백테스트 대비 어떤지 평가
-- 주요 차이점과 그 원인 추정
-
-### B. 위험 요소 (1-2문장)
-- 현재 파라미터 또는 시장 상황에서의 위험 요소
-
-### C. 개선 제안 (1-2문장)
-- 성과 개선을 위한 구체적인 파라미터 조정 또는 전략 수정 제안
-
-### D. 권고 등급 (한 단어)
-- 유지 / 조정 / 중단 중 하나
-
-**응답은 한국어로, 간결하게 작성해주세요.**
-"""
-        return prompt
-
-    async def call_ai_api(self, prompt: str) -> Dict[str, Any]:
-        """Call Google Gemini API for evaluation."""
-        if not self.api_key:
-            return {"error": "Google AI API key not configured"}
-
-        url = f"{GEMINI_API_URL}/{self.model}:generateContent?key={self.api_key}"
-
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                response = await client.post(
-                    url,
-                    headers={"content-type": "application/json"},
-                    json={
-                        "contents": [{"parts": [{"text": prompt}]}],
-                        "generationConfig": {
-                            "maxOutputTokens": 8192,
-                            "temperature": 0.5
-                        }
-                    }
-                )
-
-                if response.status_code != 200:
-                    logger.error(f"Gemini API error: {response.status_code} - {response.text}")
-                    return {"error": f"Gemini API error: {response.status_code}"}
-
-                result = response.json()
-
-                try:
-                    content = result["candidates"][0]["content"]["parts"][0]["text"]
-                except (KeyError, IndexError) as e:
-                    logger.error(f"Failed to parse Gemini response: {e}")
-                    return {"error": "Failed to parse Gemini response"}
-
-                usage = {}
-                if "usageMetadata" in result:
-                    usage = {
-                        "input_tokens": result["usageMetadata"].get("promptTokenCount", 0),
-                        "output_tokens": result["usageMetadata"].get("candidatesTokenCount", 0)
-                    }
-
-                return {
-                    "content": content,
-                    "model": self.model,
-                    "usage": usage
-                }
-
-        except Exception as e:
-            logger.error(f"AI API call failed: {e}")
-            return {"error": str(e)}
-
-    def extract_key_findings(self, ai_response: str) -> Dict[str, Any]:
-        """Extract structured findings from AI response text."""
-        findings = {
-            "performance_summary": None,
-            "risk_factors": None,
-            "recommendations": None,
-            "action": None,  # 유지/조정/중단
+        return {
+            "session_info": {
+                "symbol": symbol,
+                "strategy_name": strategy_name,
+                "is_paper": is_paper,
+                "mode_label": "Paper (모의)" if is_paper else "Real (실거래)",
+                "cycles_analyzed": live_stats.get("cycles_analyzed", 0),
+            },
+            "strategy_params": params,
+            "live_stats": live_stats,
+            "backtest_stats": backtest_stats,
+            "comparison": comparison,
         }
 
+    async def _call_claude_cli(self, context_data: Dict, symbol: str, strategy_name: str) -> Dict[str, Any]:
+        """Call Claude CLI for AI evaluation. Falls back to lower model on rate limit."""
+        claude_path = shutil.which("claude")
+        if not claude_path:
+            return {"error": "Claude CLI not found"}
+
+        tmp_file = None
         try:
-            lines = ai_response.split('\n')
-            current_section = None
+            tmp_file = tempfile.NamedTemporaryFile(
+                mode='w', suffix='.json', prefix='eval_ctx_',
+                dir='/tmp', delete=False
+            )
+            json.dump(context_data, tmp_file, ensure_ascii=False, indent=2)
+            tmp_file.close()
 
-            for line in lines:
-                line_lower = line.lower().strip()
+            prompt = (
+                f"Read the context file at {tmp_file.name} and evaluate the live trading session.\n"
+                f"Stock: {symbol} ({strategy_name})\n"
+                f"Compare live trading stats with backtest results.\n"
+                f"Respond with valid JSON only containing these fields:\n"
+                f"- summary: 종합 평가 (2-3문장, 한국어)\n"
+                f"- performance_analysis: 성과 분석 (라이브 vs 백테스트 비교)\n"
+                f"- risk_factors: 위험 요소 (1-2문장)\n"
+                f"- recommendations: 개선 제안 배열 (구체적 파라미터 조정 포함)\n"
+                f"- grade: 성과 등급 (A/B/C/D/F)\n"
+                f"- action: 권고 (유지/조정/중단)\n"
+                f"- risk_level: 위험도 (low/medium/high)\n"
+                f"응답은 한국어로, JSON만 출력하세요."
+            )
 
-                if '성과 분석' in line_lower or 'a.' in line_lower[:3]:
-                    current_section = 'performance_summary'
-                elif '위험' in line_lower or 'b.' in line_lower[:3]:
-                    current_section = 'risk_factors'
-                elif '개선' in line_lower or '제안' in line_lower or 'c.' in line_lower[:3]:
-                    current_section = 'recommendations'
-                elif '권고' in line_lower or '등급' in line_lower or 'd.' in line_lower[:3]:
-                    current_section = 'action'
-                elif current_section and line.strip():
-                    # Clean markdown formatting
-                    clean_line = line.strip().lstrip('-').lstrip('*').strip()
-                    if clean_line:
-                        if current_section == 'action':
-                            # Extract action keyword
-                            if '유지' in clean_line:
-                                findings['action'] = '유지'
-                            elif '조정' in clean_line:
-                                findings['action'] = '조정'
-                            elif '중단' in clean_line:
-                                findings['action'] = '중단'
-                        else:
-                            if findings[current_section]:
-                                findings[current_section] += ' ' + clean_line
-                            else:
-                                findings[current_section] = clean_line
+            # Clean PM2 env vars
+            env = os.environ.copy()
+            for key in ["NODE_CHANNEL_FD", "NODE_CHANNEL_SERIALIZATION_MODE", "NODE_APP_INSTANCE"]:
+                env.pop(key, None)
+
+            last_error = None
+            for model in MODEL_PRIORITY:
+                cmd = [
+                    claude_path,
+                    "-p", prompt,
+                    "--output-format", "json",
+                    "--model", model,
+                    "--permission-mode", "bypassPermissions",
+                ]
+
+                logger.info(f"Calling Claude CLI with model={model} for evaluation of {symbol}")
+
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+                    env=env,
+                    start_new_session=True,
+                )
+
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    last_error = f"Claude CLI timed out (300s) with model={model}"
+                    logger.warning(last_error)
+                    continue
+
+                err_msg = stderr.decode().strip() if stderr else ""
+
+                if proc.returncode != 0:
+                    if any(kw in err_msg.lower() for kw in ["rate limit", "overloaded", "529", "quota"]):
+                        logger.warning(f"Model {model} rate limited, falling back to next model")
+                        last_error = f"Model {model} rate limited: {err_msg[:200]}"
+                        continue
+                    last_error = f"Claude CLI error (model={model}): {err_msg[:300]}"
+                    logger.warning(last_error)
+                    continue
+
+                raw = stdout.decode().strip()
+                if not raw:
+                    last_error = f"Empty response from Claude CLI (model={model})"
+                    logger.warning(last_error)
+                    continue
+
+                # Parse Claude CLI JSON output (has result field)
+                cli_output = json.loads(raw)
+                result_text = cli_output.get("result", "")
+                logger.info(f"Evaluation completed with model={model} for {symbol}")
+
+                result = self._extract_json_from_response(result_text)
+                result["_model_used"] = f"claude-{model}"
+                return result
+
+            return {"error": last_error or "All Claude models failed"}
 
         except Exception as e:
-            logger.warning(f"Failed to extract findings: {e}")
+            logger.error(f"Claude CLI call failed: {e}")
+            return {"error": str(e)}
+        finally:
+            if tmp_file and os.path.exists(tmp_file.name):
+                os.unlink(tmp_file.name)
 
-        return findings
+    def _extract_json_from_response(self, text_input: str) -> Dict:
+        """Extract JSON from Claude response, handling markdown code blocks."""
+        result = None
+
+        # Try direct JSON parse
+        try:
+            result = json.loads(text_input)
+        except json.JSONDecodeError:
+            pass
+
+        if result is None:
+            # Strip markdown code fences
+            stripped = text_input.strip()
+            if stripped.startswith("```"):
+                stripped = re.sub(r'^```(?:json)?\s*\n?', '', stripped)
+                stripped = re.sub(r'\n?```\s*$', '', stripped)
+                try:
+                    result = json.loads(stripped.strip())
+                except json.JSONDecodeError:
+                    pass
+
+        if result is None:
+            # Try all markdown code blocks
+            for match in re.finditer(r'```(?:json)?\s*\n([\s\S]+?)\n```', text_input):
+                try:
+                    result = json.loads(match.group(1).strip())
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+        if result is None:
+            # Try finding JSON object between first { and last }
+            brace_start = text_input.find('{')
+            brace_end = text_input.rfind('}')
+            if brace_start >= 0 and brace_end > brace_start:
+                try:
+                    result = json.loads(text_input[brace_start:brace_end + 1])
+                except json.JSONDecodeError:
+                    pass
+
+        if result is None:
+            logger.warning("Could not parse JSON from Claude response, using raw text")
+            return {
+                "summary": text_input[:500],
+                "grade": "N/A",
+                "recommendations": [],
+                "action": "유지",
+                "risk_level": "medium",
+            }
+
+        return result
 
     async def run_full_evaluation(
         self,
@@ -617,7 +603,7 @@ class LiveAIEvaluationService:
         is_paper: bool = False
     ) -> Dict[str, Any]:
         """
-        Run complete AI evaluation workflow.
+        Run complete AI evaluation workflow using Claude CLI agent.
 
         Args:
             is_paper: True to analyze paper trades, False for real trades
@@ -640,21 +626,30 @@ class LiveAIEvaluationService:
         # Step 3: Compute comparison
         comparison = self.compute_comparison(live_stats, backtest_stats)
 
-        # Step 4: Build AI prompt
-        prompt = self.build_evaluation_prompt(
+        # Step 4: Build context data for Claude CLI
+        context_data = self._build_evaluation_context(
             symbol, strategy_name, strategy_config,
             live_stats, backtest_stats, comparison,
             is_paper=is_paper
         )
 
-        # Step 5: Call AI API
-        ai_result = await self.call_ai_api(prompt)
+        # Step 5: Call Claude CLI agent
+        ai_result = await self._call_claude_cli(context_data, symbol, strategy_name)
+        model_used = ai_result.pop("_model_used", "claude-sonnet")
 
-        # Step 6: Extract key findings
-        if "error" not in ai_result:
-            key_findings = self.extract_key_findings(ai_result.get("content", ""))
-        else:
-            key_findings = {}
+        # Step 6: Extract key findings from AI result
+        has_error = "error" in ai_result
+        key_findings = {}
+        if not has_error:
+            key_findings = {
+                "performance_summary": ai_result.get("performance_analysis") or ai_result.get("summary"),
+                "risk_factors": ai_result.get("risk_factors"),
+                "recommendations": ai_result.get("recommendations"),
+                "action": ai_result.get("action"),
+            }
+
+        # Build AI response text for storage
+        ai_response_text = json.dumps(ai_result, ensure_ascii=False) if not has_error else None
 
         return {
             "status": "completed",
@@ -670,13 +665,15 @@ class LiveAIEvaluationService:
             "backtest_stats": backtest_stats,
             "comparison_data": comparison,
             "strategy_config": strategy_config,
-            "ai_model": ai_result.get("model"),
-            "ai_prompt": prompt,
-            "ai_response": ai_result.get("content") if "error" not in ai_result else None,
+            "ai_model": model_used,
+            "ai_prompt": json.dumps(context_data, ensure_ascii=False),
+            "ai_response": ai_response_text,
             "key_findings": key_findings,
-            "recommendations": [key_findings.get("recommendations")] if key_findings.get("recommendations") else [],
-            "evaluation_score": self._grade_to_score(comparison.get("overall_grade", "N/A")),
-            "error_message": ai_result.get("error"),
+            "recommendations": ai_result.get("recommendations", []) if not has_error else [],
+            "evaluation_score": self._grade_to_score(
+                ai_result.get("grade") or comparison.get("overall_grade", "N/A")
+            ),
+            "error_message": ai_result.get("error") if has_error else None,
             "completed_at": datetime.utcnow().isoformat(),
         }
 

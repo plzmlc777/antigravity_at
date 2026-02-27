@@ -1883,7 +1883,7 @@ async def run_ai_evaluation(
     await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
     try:
-        # Initialize service with user_id to load API key from database
+        # Initialize evaluation service (uses Claude CLI agent)
         service = LiveAIEvaluationService(db, user_id=ctx.user.id)
 
         # Run full evaluation

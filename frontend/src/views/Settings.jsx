@@ -50,15 +50,12 @@ const Settings = () => {
     const [passwordChanging, setPasswordChanging] = useState(false);
 
     // AI API Key State
-    const [aiKeyStatus, setAiKeyStatus] = useState({ has_ai_key: false, key_preview: null, has_google_key: false, google_key_preview: null, ai_model: null });
+    const [aiKeyStatus, setAiKeyStatus] = useState({ has_ai_key: false, key_preview: null, ai_model: null });
     const [aiKeyInput, setAiKeyInput] = useState('');
-    const [googleKeyInput, setGoogleKeyInput] = useState('');
     const [aiKeyLoading, setAiKeyLoading] = useState(false);
     const [showAiKeyInput, setShowAiKeyInput] = useState(false);
-    const [showGoogleKeyInput, setShowGoogleKeyInput] = useState(false);
     const [aiModels, setAiModels] = useState([]);
     const [defaultAiModel, setDefaultAiModel] = useState('');
-    const [selectedProvider, setSelectedProvider] = useState('anthropic'); // 'anthropic' or 'google'
 
     // Telegram Notification State (Per Account)
     const [expandedAccountId, setExpandedAccountId] = useState(null);  // Track which account's telegram section is expanded
@@ -123,48 +120,6 @@ const Settings = () => {
             showToast('AI 모델이 변경되었습니다', 'success');
         } catch (error) {
             showToast(error.response?.data?.detail || 'AI 모델 변경 실패', 'error');
-        } finally {
-            setAiKeyLoading(false);
-        }
-    };
-
-    // Save Google Key
-    const handleSaveGoogleKey = async () => {
-        if (!googleKeyInput.trim()) {
-            showToast('API 키를 입력해주세요', 'warning');
-            return;
-        }
-
-        setAiKeyLoading(true);
-        try {
-            const response = await axios.put('/api/v1/accounts/google-key',
-                { google_api_key: googleKeyInput },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            showToast('Google API 키가 저장되었습니다', 'success');
-            setGoogleKeyInput('');
-            setShowGoogleKeyInput(false);
-            fetchAiKeyStatus();
-            fetchAiModels();  // Refresh model list to fetch latest Google models
-        } catch (error) {
-            showToast(error.response?.data?.detail || 'Google API 키 저장 실패', 'error');
-        } finally {
-            setAiKeyLoading(false);
-        }
-    };
-
-    // Delete Google Key
-    const handleDeleteGoogleKey = async () => {
-        setAiKeyLoading(true);
-        try {
-            await axios.delete('/api/v1/accounts/google-key', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            showToast('Google API 키가 삭제되었습니다', 'success');
-            setAiKeyStatus(prev => ({ ...prev, has_google_key: false, google_key_preview: null }));
-            fetchAiModels();  // Refresh model list (will fall back to static Google models)
-        } catch (error) {
-            showToast(error.response?.data?.detail || 'Google API 키 삭제 실패', 'error');
         } finally {
             setAiKeyLoading(false);
         }
@@ -343,18 +298,6 @@ const Settings = () => {
             fetchAiModels();
         }
     }, [token]);
-
-    // Sync selectedProvider based on current model
-    useEffect(() => {
-        const currentModel = aiKeyStatus.ai_model || defaultAiModel;
-        if (currentModel) {
-            if (currentModel.startsWith('gemini')) {
-                setSelectedProvider('google');
-            } else {
-                setSelectedProvider('anthropic');
-            }
-        }
-    }, [aiKeyStatus.ai_model, defaultAiModel]);
 
     const handleAddAccount = async (e) => {
         e.preventDefault();
@@ -1091,105 +1034,6 @@ const Settings = () => {
                     </div>
                 )}
 
-                {/* Google API Key Section */}
-                <div className="mt-6 pt-6 border-t border-white/10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-blue-500/20 rounded-lg">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold">Google API Key (Gemini)</h3>
-                            <p className="text-xs text-gray-400">Gemini 모델 사용 시 필요합니다</p>
-                        </div>
-                    </div>
-
-                    {aiKeyStatus.has_google_key ? (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <div>
-                                    <p className="text-sm text-green-400 font-medium">Google API 키 등록됨</p>
-                                    <p className="text-xs text-gray-400 font-mono">{aiKeyStatus.google_key_preview}</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setShowGoogleKeyInput(true)}
-                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm transition-colors"
-                                >
-                                    키 변경
-                                </button>
-                                <button
-                                    onClick={handleDeleteGoogleKey}
-                                    disabled={aiKeyLoading}
-                                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded text-sm transition-colors"
-                                >
-                                    {aiKeyLoading ? '삭제 중...' : '키 삭제'}
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p className="text-sm text-gray-400">Google API 키가 등록되지 않았습니다. Gemini 모델을 사용하려면 등록하세요.</p>
-                            </div>
-                            <button
-                                onClick={() => setShowGoogleKeyInput(true)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium transition-colors"
-                            >
-                                Google API 키 등록
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Google Key Input Form */}
-                    {showGoogleKeyInput && (
-                        <div className="mt-4 p-4 bg-black/20 rounded-lg space-y-3">
-                            <div>
-                                <label className="block text-xs text-gray-400 mb-1">Google API Key</label>
-                                <input
-                                    type="password"
-                                    value={googleKeyInput}
-                                    onChange={e => setGoogleKeyInput(e.target.value)}
-                                    placeholder="AIza..."
-                                    className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-sm font-mono"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                                        Google AI Studio
-                                    </a>
-                                    에서 API 키를 발급받으세요
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handleSaveGoogleKey}
-                                    disabled={aiKeyLoading}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 rounded text-sm font-medium transition-colors"
-                                >
-                                    {aiKeyLoading ? '저장 중...' : '저장'}
-                                </button>
-                                <button
-                                    onClick={() => { setShowGoogleKeyInput(false); setGoogleKeyInput(''); }}
-                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm transition-colors"
-                                >
-                                    취소
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
                 {/* Model Selection */}
                 {aiModels.length > 0 && (
                     <div className="mt-6 pt-6 border-t border-white/10">
@@ -1202,70 +1046,23 @@ const Settings = () => {
                         </h3>
                         <p className="text-xs text-gray-400 mb-3">AI 분석 시 기본으로 사용할 모델을 선택하세요.</p>
 
-                        {/* Two-level dropdown: Provider → Model */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {/* Provider Dropdown */}
-                            <div>
-                                <label className="block text-xs text-gray-400 mb-1">AI Provider</label>
-                                <select
-                                    value={selectedProvider}
-                                    onChange={(e) => {
-                                        const newProvider = e.target.value;
-                                        setSelectedProvider(newProvider);
-                                        // Auto-select first model of new provider
-                                        const providerModels = aiModels.filter(m => m.provider === newProvider);
-                                        if (providerModels.length > 0) {
-                                            const currentModel = aiKeyStatus.ai_model || defaultAiModel;
-                                            const currentModelProvider = currentModel?.startsWith('gemini') ? 'google' : 'anthropic';
-                                            if (currentModelProvider !== newProvider) {
-                                                handleModelChange(providerModels[0].id);
-                                            }
-                                        }
-                                    }}
-                                    disabled={aiKeyLoading}
-                                    className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors cursor-pointer"
-                                >
-                                    <option value="anthropic" className="bg-[#1a1a2e]">
-                                        Anthropic (Claude) {!aiKeyStatus.has_ai_key ? '- API 키 필요' : ''}
+                        <div>
+                            <select
+                                value={aiKeyStatus.ai_model || defaultAiModel}
+                                onChange={(e) => handleModelChange(e.target.value)}
+                                disabled={aiKeyLoading || !aiKeyStatus.has_ai_key}
+                                className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                {aiModels.map(model => (
+                                    <option
+                                        key={model.id}
+                                        value={model.id}
+                                        className="bg-[#1a1a2e] py-2"
+                                    >
+                                        {model.name} - {model.description}
                                     </option>
-                                    <option value="google" className="bg-[#1a1a2e]">
-                                        Google (Gemini) {!aiKeyStatus.has_google_key ? '- API 키 필요' : ''}
-                                    </option>
-                                </select>
-                            </div>
-
-                            {/* Model Dropdown (filtered by provider) */}
-                            <div>
-                                <label className="block text-xs text-gray-400 mb-1">Model</label>
-                                <select
-                                    value={aiKeyStatus.ai_model || defaultAiModel}
-                                    onChange={(e) => handleModelChange(e.target.value)}
-                                    disabled={aiKeyLoading || (selectedProvider === 'anthropic' && !aiKeyStatus.has_ai_key) || (selectedProvider === 'google' && !aiKeyStatus.has_google_key)}
-                                    className="w-full bg-black/30 border border-white/20 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-purple-500 transition-colors cursor-pointer disabled:opacity-50"
-                                >
-                                    {aiModels.filter(m => m.provider === selectedProvider).map(model => (
-                                        <option
-                                            key={model.id}
-                                            value={model.id}
-                                            className="bg-[#1a1a2e] py-2"
-                                        >
-                                            {model.name} - {model.description}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* API Key Status */}
-                        <div className="mt-3 flex gap-4 text-xs">
-                            <span className={aiKeyStatus.has_ai_key ? 'text-purple-400' : 'text-gray-500'}>
-                                <span className={`inline-block w-2 h-2 rounded-full mr-1 ${aiKeyStatus.has_ai_key ? 'bg-purple-400' : 'bg-gray-600'}`}></span>
-                                Claude {aiKeyStatus.has_ai_key ? '사용 가능' : '키 미등록'}
-                            </span>
-                            <span className={aiKeyStatus.has_google_key ? 'text-blue-400' : 'text-gray-500'}>
-                                <span className={`inline-block w-2 h-2 rounded-full mr-1 ${aiKeyStatus.has_google_key ? 'bg-blue-400' : 'bg-gray-600'}`}></span>
-                                Gemini {aiKeyStatus.has_google_key ? '사용 가능' : '키 미등록'}
-                            </span>
+                                ))}
+                            </select>
                         </div>
                     </div>
                 )}
