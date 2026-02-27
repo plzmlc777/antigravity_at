@@ -234,6 +234,103 @@ const UnifiedSessionCards = ({
     );
 };
 
+/* ───── Trigger Info (compact entry condition display) ───── */
+const TriggerInfo = ({ state, dimmed = false }) => {
+    const dim = dimmed ? 'text-gray-700' : 'text-gray-500';
+    const items = [];
+
+    // RSI Martingale: current_rsi + trigger_level + armed state
+    if (state.current_rsi !== undefined && state.current_rsi !== null) {
+        const rsi = state.current_rsi;
+        const rsiColor = dimmed ? 'text-gray-700'
+            : rsi <= 30 ? 'text-blue-400' : rsi >= 70 ? 'text-red-400' : 'text-yellow-400';
+        items.push(
+            <span key="rsi" className={`font-semibold ${rsiColor}`}>
+                RSI {rsi.toFixed(1)}
+            </span>
+        );
+        if (state.trigger_level) {
+            const armed = state.long_trigger_armed;
+            items.push(
+                <span key="rsi-trig" className={dim}>
+                    L:{state.trigger_level}{armed ? <span className={dimmed ? '' : 'text-green-500'}> &#x2713;</span> : ''}
+                </span>
+            );
+        }
+        if (state.short_trigger_level) {
+            const armed = state.short_trigger_armed;
+            items.push(
+                <span key="rsi-short" className={dim}>
+                    S:{state.short_trigger_level}{armed ? <span className={dimmed ? '' : 'text-green-500'}> &#x2713;</span> : ''}
+                </span>
+            );
+        }
+    }
+
+    // US Market Follow: us_index + change + threshold
+    if (state.us_index !== undefined) {
+        const change = state.us_change_today;
+        const threshold = state.us_change_threshold;
+        const met = state.trigger_met;
+        const changeColor = dimmed ? 'text-gray-700'
+            : change == null ? 'text-gray-500'
+            : change >= 0 ? 'text-red-400' : 'text-blue-400';
+        items.push(
+            <span key="us-idx" className={dim}>{state.us_index}</span>
+        );
+        items.push(
+            <span key="us-chg" className={changeColor}>
+                {change != null ? `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` : 'waiting'}
+            </span>
+        );
+        if (threshold) {
+            items.push(
+                <span key="us-th" className={dim}>
+                    th:{threshold}%{met ? <span className={dimmed ? '' : 'text-green-500'}> &#x2713;</span> : ''}
+                </span>
+            );
+        }
+    }
+
+    // Chart Pattern: entry/exit pattern labels
+    if (state.entry_pattern_label) {
+        items.push(
+            <span key="cp-entry" className={dimmed ? 'text-gray-700' : 'text-cyan-400'}>
+                {state.entry_pattern_label}
+            </span>
+        );
+    }
+    if (state.exit_pattern_label) {
+        items.push(
+            <span key="cp-exit" className={dimmed ? 'text-gray-700' : 'text-orange-400'}>
+                Exit:{state.exit_pattern_label}
+            </span>
+        );
+    }
+
+    // Dip Martingale: target_dip + dip_percent
+    if (state.target_dip !== undefined && state.dip_percent !== undefined) {
+        const dipColor = dimmed ? 'text-gray-700'
+            : Math.abs(state.dip_percent) >= Math.abs(state.target_dip) ? 'text-blue-400' : 'text-gray-400';
+        items.push(
+            <span key="dip" className={dipColor}>
+                Dip {state.dip_percent?.toFixed(1)}%/{state.target_dip}%
+            </span>
+        );
+    }
+
+    if (items.length === 0) return null;
+
+    return (
+        <div className={`px-4 pb-1 flex items-center gap-2 flex-wrap ${dimmed ? 'opacity-30' : ''}`}>
+            <span className={`text-[9px] ${dim}`}>Trigger:</span>
+            {items.map((item, i) => (
+                <span key={i} className="text-[10px] font-mono">{item}</span>
+            ))}
+        </div>
+    );
+};
+
 /* ───── Position Progress Bar ───── */
 const PositionProgressBar = ({ state, dimmed = false }) => {
     const currentLevel = state.current_level || 0;
@@ -288,57 +385,57 @@ const PositionProgressBar = ({ state, dimmed = false }) => {
     return (
         <div className={`px-4 pb-2 ${opacity}`}>
             {/* Labels */}
-            <div className="flex justify-between items-center mb-0.5">
-                <span className="text-[8px] font-mono text-red-400/60">
+            <div className="flex justify-between items-center mb-1">
+                <span className="text-[9px] font-mono text-red-400">
                     SL {Math.round(leftPrice).toLocaleString()}
                 </span>
                 {trailingActive && trailingExitPrice > 0 && (
-                    <span className="text-[8px] font-mono text-yellow-400/80">
+                    <span className="text-[9px] font-mono text-yellow-400">
                         Exit {Math.round(trailingExitPrice).toLocaleString()}
                     </span>
                 )}
-                <span className="text-[8px] font-mono text-green-400/60">
+                <span className="text-[9px] font-mono text-green-400">
                     TP {Math.round(rightPrice).toLocaleString()}
                 </span>
             </div>
             {/* Bar */}
-            <div className="relative w-full h-1.5 rounded-full bg-gray-800/80">
+            <div className="relative w-full h-2.5 rounded-full bg-gray-700/60 border border-gray-600/40">
                 {/* Fill: avg → current */}
                 <div
-                    className={`absolute top-0 h-full rounded-full ${inProfit ? 'bg-green-500/50' : 'bg-red-500/50'}`}
-                    style={{ left: `${fillLeft}%`, width: `${fillWidth}%` }}
+                    className={`absolute top-0 h-full rounded-full ${inProfit ? 'bg-green-500/80' : 'bg-red-500/80'}`}
+                    style={{ left: `${fillLeft}%`, width: `${Math.max(fillWidth, 0.5)}%` }}
                 />
                 {/* Avg price marker (thin line) */}
                 <div
-                    className="absolute top-0 h-full w-px bg-white/40"
+                    className="absolute top-0 h-full w-0.5 bg-white/60"
                     style={{ left: `${avgPct}%` }}
                 />
                 {/* Target price marker */}
                 {targetPct !== null && (
                     <div
-                        className="absolute top-0 h-full w-px bg-green-400/40"
+                        className="absolute top-0 h-full w-0.5 bg-green-400/50"
                         style={{ left: `${targetPct}%` }}
                     />
                 )}
                 {/* Peak price marker (when trailing active) */}
                 {peakPct !== null && (
                     <div
-                        className="absolute -top-0.5 w-1 h-2.5 rounded-sm bg-green-400/60"
+                        className="absolute -top-0.5 w-1.5 h-3.5 rounded-sm bg-green-400/70"
                         style={{ left: `${peakPct}%`, transform: 'translateX(-50%)' }}
                     />
                 )}
                 {/* Trailing exit marker */}
                 {exitPct !== null && (
                     <div
-                        className="absolute top-0 h-full w-0.5 bg-yellow-400/60"
+                        className="absolute top-0 h-full w-1 bg-yellow-400/70"
                         style={{ left: `${exitPct}%` }}
                     />
                 )}
                 {/* Current price dot */}
                 <div
-                    className={`absolute -top-0.5 w-2 h-2.5 rounded-full border ${
+                    className={`absolute -top-1 w-2.5 h-[18px] rounded-full border-2 ${
                         inProfit ? 'bg-green-400 border-green-300' : 'bg-red-400 border-red-300'
-                    } shadow-sm`}
+                    } shadow-md shadow-black/50`}
                     style={{ left: `${curPct}%`, transform: 'translateX(-50%)' }}
                 />
             </div>
@@ -445,6 +542,7 @@ const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
                     )}
                 </div>
             </div>
+            <TriggerInfo state={state} dimmed={dimmed} />
             <PositionProgressBar state={state} dimmed={dimmed} />
         </div>
     );
@@ -457,6 +555,11 @@ const HIDDEN_KEYS = new Set([
     'current_level', 'max_buy_count', 'total_quantity', 'average_price',
     'profit_percent', 'trailing_active', 'is_hodl',
     'max_loss_pct', 'trailing_stop_pct', 'stop_loss_price', 'trailing_exit_price',
+    'current_rsi', 'trigger_level', 'long_trigger_armed', 'short_trigger_armed',
+    'short_trigger_level', 'reset_level', 'short_reset_level',
+    'us_index', 'us_change_today', 'us_change_threshold', 'trigger_met', 'checked_today',
+    'entry_pattern_label', 'exit_pattern_label',
+    'target_dip', 'dip_percent',
 ]);
 
 const KEY_LABELS = {
