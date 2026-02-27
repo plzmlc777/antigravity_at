@@ -389,9 +389,8 @@ class AnalysisScheduler:
 
     async def _call_claude_agent(self, context_data: Dict, symbol: str, strategy_name: str, symbol_name: str = "") -> Dict:
         """Call Claude CLI with trading-analyst agent. Falls back to lower model on rate limit."""
-        claude_path = shutil.which("claude")
-        if not claude_path:
-            raise Exception("Claude CLI not found")
+        from .config import get_claude_cli_path
+        claude_path = get_claude_cli_path()
 
         # Write context to temp file
         tmp_file = None

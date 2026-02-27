@@ -332,10 +332,11 @@ async def strategy_lab_chat(
     Uses claude CLI as a subprocess with the strategy-builder agent.
     Auto-registers newly created strategies into DB.
     """
-    import shutil
+    from ..core.config import get_claude_cli_path
 
-    claude_path = shutil.which("claude")
-    if not claude_path:
+    try:
+        claude_path = get_claude_cli_path()
+    except FileNotFoundError:
         raise HTTPException(
             status_code=503,
             detail="Claude CLI not found. Install Claude Code first."

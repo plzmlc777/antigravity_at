@@ -109,7 +109,6 @@ async def get_token_status(
     current_user: User = Depends(get_current_user),
 ):
     """Check Claude CLI OAuth token expiration status."""
-    import shutil
     cred_path = os.path.expanduser("~/.claude/.credentials.json")
 
     if not os.path.exists(cred_path):
@@ -123,13 +122,18 @@ async def get_token_status(
         now_ms = int(time.time() * 1000)
         remaining_ms = expires_at - now_ms
 
-        claude_path = shutil.which("claude")
+        from ..core.config import get_claude_cli_path
+        try:
+            get_claude_cli_path()
+            cli_installed = True
+        except FileNotFoundError:
+            cli_installed = False
 
         return {
             "status": "expired" if remaining_ms <= 0 else "valid",
             "expires_at": expires_at,
             "remaining_ms": max(remaining_ms, 0),
-            "cli_installed": claude_path is not None,
+            "cli_installed": cli_installed,
         }
     except Exception as e:
         return {"status": "error", "message": str(e)[:100]}
@@ -150,12 +154,13 @@ async def stock_search_chat(
     Uses claude CLI as a subprocess with the stock-searcher agent.
     Pre-fetches stock list from ka10099 and passes as context.
     """
-    import shutil
+    from ..core.config import get_claude_cli_path
 
     start_time = time.time()
 
-    claude_path = shutil.which("claude")
-    if not claude_path:
+    try:
+        claude_path = get_claude_cli_path()
+    except FileNotFoundError:
         raise HTTPException(
             status_code=503,
             detail="Claude CLI not found. Install Claude Code first."

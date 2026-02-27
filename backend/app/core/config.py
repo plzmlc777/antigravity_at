@@ -53,3 +53,25 @@ settings = Settings()
 DEFAULT_EXCHANGE = "Kiwoom"
 DEFAULT_INITIAL_CAPITAL = 10000000  # 키움 기준 1,000만 원
 DEFAULT_DAYS = 365                 # 키움 API 제한 1년
+
+
+def get_claude_cli_path() -> str:
+    """Find Claude CLI binary path with fallback locations.
+
+    shutil.which() depends on PATH, which may not include npm global bin
+    inside PM2/venv environments. This checks common install locations.
+    """
+    import shutil
+    path = shutil.which("claude")
+    if path:
+        return path
+    # Fallback: check common npm global bin locations
+    for candidate in [
+        os.path.expanduser("~/.npm-global/bin/claude"),
+        os.path.expanduser("~/bin/claude"),
+        os.path.expanduser("~/.local/bin/claude"),
+        "/usr/local/bin/claude",
+    ]:
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    raise FileNotFoundError("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code")

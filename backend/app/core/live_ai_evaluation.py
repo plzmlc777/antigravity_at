@@ -441,8 +441,10 @@ class LiveAIEvaluationService:
 
     async def _call_claude_cli(self, context_data: Dict, symbol: str, strategy_name: str) -> Dict[str, Any]:
         """Call Claude CLI for AI evaluation. Falls back to lower model on rate limit."""
-        claude_path = shutil.which("claude")
-        if not claude_path:
+        from .config import get_claude_cli_path
+        try:
+            claude_path = get_claude_cli_path()
+        except FileNotFoundError:
             return {"error": "Claude CLI not found"}
 
         tmp_file = None
