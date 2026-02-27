@@ -157,7 +157,7 @@ async def get_candles(
     - Otherwise, returns the most recent `limit` candles.
     """
     try:
-        service = MarketDataService()
+        service = get_market_data_service()
         if date:
             # Normalized date string for service (YYYYMMDD)
             date_clean = date.replace("-", "").replace(".", "")

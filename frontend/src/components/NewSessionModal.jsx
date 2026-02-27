@@ -146,7 +146,7 @@ const NewSessionModal = ({ isOpen, onClose, onSessionStarted }) => {
                 const payload = {
                     symbol: cfg.symbol,
                     strategy_name: selectedProfile.strategy_name,
-                    strategy_config: { ...cfg, execution_mode: executionMode, selected_preset_name: presetName },
+                    strategy_config: { ...cfg, strategy_id: selectedProfile.strategy_name, execution_mode: executionMode, selected_preset_name: presetName },
                     initial_capital: capitalPerRank,
                     is_paper: true,  // 기본값 Paper (LiveStrategyPanel에서 변경 가능)
                     account_id: selectedAccountId,
