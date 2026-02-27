@@ -73,11 +73,7 @@ const UnifiedSessionCards = ({
 
     const formatPnlCompact = (v) => {
         if (!v) return '0';
-        const abs = Math.abs(v);
-        const str = abs >= 1000000 ? `${(abs / 1000000).toFixed(1)}M`
-            : abs >= 1000 ? `${(abs / 1000).toFixed(0)}K`
-            : abs.toLocaleString();
-        return (v >= 0 ? '+' : '-') + str;
+        return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
     };
 
     return (
@@ -192,15 +188,17 @@ const UnifiedSessionCards = ({
                                                 {price.toLocaleString()}
                                             </span>
                                             {(() => {
-                                                const profitPct = (activeState.profit_percent || 0) * 100;
-                                                const hasPosition = (activeState.current_level || 0) > 0;
-                                                if (!hasPosition) return null;
+                                                const profitPct = activeState.profit_percent || 0;
+                                                const avgP = activeState.average_price || 0;
+                                                const qty = activeState.total_quantity || 0;
+                                                if (!avgP || qty <= 0) return null;
+                                                const pnlAmt = Math.round(profitPct * avgP * qty);
                                                 return (
                                                     <span className={`text-sm font-mono font-bold ${
                                                         !isRunning ? 'text-gray-600'
-                                                        : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'
+                                                        : pnlAmt >= 0 ? 'text-red-400' : 'text-blue-400'
                                                     }`}>
-                                                        {profitPct >= 0 ? '+' : ''}{profitPct.toFixed(2)}%
+                                                        {pnlAmt >= 0 ? '+' : ''}{pnlAmt.toLocaleString()}
                                                     </span>
                                                 );
                                             })()}
@@ -474,11 +472,7 @@ const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
 
     const formatPnl = (v) => {
         if (!v) return '0';
-        const abs = Math.abs(v);
-        const str = abs >= 1000000 ? `${(abs / 1000000).toFixed(1)}M`
-            : abs >= 1000 ? `${(abs / 1000).toFixed(0)}K`
-            : abs.toLocaleString();
-        return (v >= 0 ? '+' : '-') + str;
+        return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
     };
     const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
 
@@ -633,11 +627,7 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
 
     const formatPnl = (v) => {
         if (!v) return '0';
-        const abs = Math.abs(v);
-        const str = abs >= 1000000 ? `${(abs / 1000000).toFixed(1)}M`
-            : abs >= 1000 ? `${(abs / 1000).toFixed(0)}K`
-            : abs.toLocaleString();
-        return (v >= 0 ? '+' : '-') + str;
+        return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
     };
     const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
 
