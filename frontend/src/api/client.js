@@ -630,3 +630,58 @@ export const getBinanceSymbolInfo = async (symbol, market = 'spot') => {
     const { data } = await api.get(`/binance/info/${symbol}`, { params: { market } });
     return data;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI Trading API (Autonomous AI-driven trading)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const getAIProfiles = async (strategyName = '') => {
+    const params = strategyName ? { strategy_name: strategyName } : {};
+    const { data } = await api.get('/ai-trading/profiles', { params });
+    return data;
+};
+
+export const getAIProfile = async (profileId) => {
+    const { data } = await api.get(`/ai-trading/profiles/${profileId}`);
+    return data;
+};
+
+export const createAIProfile = async (profile) => {
+    const { data } = await api.post('/ai-trading/profiles', profile);
+    return data;
+};
+
+export const updateAIProfile = async (profileId, updates) => {
+    const { data } = await api.put(`/ai-trading/profiles/${profileId}`, updates);
+    return data;
+};
+
+export const deleteAIProfile = async (profileId) => {
+    const { data } = await api.delete(`/ai-trading/profiles/${profileId}`);
+    return data;
+};
+
+export const startAITrading = async (profileId) => {
+    const { data } = await api.post(`/ai-trading/profiles/${profileId}/start`, {}, { timeout: 300000 });
+    return data;
+};
+
+export const stopAITrading = async (profileId) => {
+    const { data } = await api.post(`/ai-trading/profiles/${profileId}/stop`);
+    return data;
+};
+
+export const triggerAIDecision = async (profileId) => {
+    const { data } = await api.post(`/ai-trading/profiles/${profileId}/trigger`, {}, { timeout: 300000 });
+    return data;
+};
+
+export const getAIDecisions = async (profileId, limit = 20) => {
+    const { data } = await api.get(`/ai-trading/profiles/${profileId}/decisions`, { params: { limit } });
+    return data;
+};
+
+export const getAIDecisionDetail = async (decisionId) => {
+    const { data } = await api.get(`/ai-trading/decisions/${decisionId}`);
+    return data;
+};

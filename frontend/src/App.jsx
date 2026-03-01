@@ -4,6 +4,7 @@ import LiveTradingView from './views/LiveTradingView';
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
 import StrategyLab from './views/StrategyLab';
+import AITradingView from './views/AITradingView';
 import Settings from './views/Settings';
 import AdminView from './views/AdminView';
 import StatusCard from './components/StatusCard';
@@ -92,6 +93,7 @@ function AppContent() {
                             <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Profiles</NavLink>
                             <NavLink to="/strategy-lab">Strategy Lab</NavLink>
+                            <NavLink to="/ai-trading">AI Trading</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -117,6 +119,7 @@ function AppContent() {
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
                     <Route path="/strategy-lab" element={<RequireAuth><StrategyLab /></RequireAuth>} />
+                    <Route path="/ai-trading" element={<RequireAuth><AITradingView /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>
