@@ -729,6 +729,9 @@ class MartingaleBase(BaseStrategy):
 
     def get_state(self) -> Dict[str, Any]:
         cur_price = getattr(self, 'last_price', 0)
+        # Fallback to context price when last_price is 0 (e.g., after restart with no ticks)
+        if cur_price == 0 and hasattr(self, 'context') and self.context:
+            cur_price = self.context.get_current_price(self.symbol)
         dip_percent = (self.reference_price - cur_price) / self.reference_price if self.reference_price else 0
 
         position_profit = self._calc_position_profit(cur_price) if self.average_price > 0 else 0
