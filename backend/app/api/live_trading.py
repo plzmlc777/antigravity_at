@@ -20,6 +20,8 @@ class LiveBotStartRequest(BaseModel):
     profile_name: Optional[str] = None  # Profile name for display
     profile_id: Optional[str] = None  # Profile ID for lock detection
     auto_start: bool = False  # Phase 5: If False, create session in STOPPED state without starting engine
+    ai_symbol_mode: str = "static"  # "static" | "ai" - AI symbol rotation
+    ai_search_conditions: Optional[str] = None  # Natural language search conditions for AI mode
 
 class StopAllRequest(BaseModel):
     force: bool = False
@@ -259,6 +261,12 @@ async def resume_session(
         cfg = session.strategy_config or {}
         if cfg.get("execution_mode") == "exclusive":
             live_manager.register_exclusive_session(session.account_id, session_id)
+
+        # AI Symbol Selection: trigger initial symbol check on resume
+        if getattr(session, 'ai_symbol_mode', 'static') == 'ai' and getattr(session, 'ai_search_conditions', None):
+            engine = live_manager.engines.get(session_id)
+            if engine:
+                engine._try_ai_symbol_switch()
 
         return {
             "status": "success",
@@ -777,7 +785,7 @@ async def get_all_sessions(
             "profile_name": sess.profile_name,  # Profile name for display
             "profile_id": sess.profile_id,  # Profile ID for lock detection
             "symbol": sess.symbol,
-            "symbol_name": symbol_name_map.get(sess.symbol, sess.symbol),
+            "symbol_name": symbol_name_map.get(sess.symbol) or (sess.strategy_config or {}).get("symbol_name") or sess.symbol,
             "strategy_name": sess.strategy_name,
             "status": effective_status,
             "is_running": is_in_memory,
@@ -789,6 +797,8 @@ async def get_all_sessions(
             "error_log": sess.error_log,
             "is_archived": sess.is_archived or False,
             "strategy_config": sess.strategy_config,  # Full config for UI display
+            "ai_symbol_mode": sess.ai_symbol_mode or "static",
+            "ai_search_conditions": sess.ai_search_conditions or "",
             **engine_info
         })
 
@@ -2155,6 +2165,96 @@ async def update_ai_eval_settings(
             "mode": session.ai_eval_mode,
         }
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI Symbol Selection Settings
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AISymbolSettingsRequest(PydanticBaseModel):
+    ai_symbol_mode: str = "static"  # "static" | "ai"
+    ai_search_conditions: Optional[str] = None
+
+
+@router.get("/{session_id}/ai-symbol-settings")
+async def get_ai_symbol_settings(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """Get AI symbol selection settings for a session."""
+    from ..models.live_trading import LiveBotSession
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
+
+    return {
+        "session_id": session_id,
+        "ai_symbol_mode": session.ai_symbol_mode or "static",
+        "ai_search_conditions": session.ai_search_conditions or "",
+    }
+
+
+@router.put("/{session_id}/ai-symbol-settings")
+async def update_ai_symbol_settings(
+    session_id: str,
+    req: AISymbolSettingsRequest,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """Update AI symbol selection settings for a session."""
+    from ..models.live_trading import LiveBotSession
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await verify_session_ownership_by_user(session_id, ctx.user_id, db)
+
+    session.ai_symbol_mode = req.ai_symbol_mode
+    session.ai_search_conditions = req.ai_search_conditions
+
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "AI symbol settings updated",
+        "settings": {
+            "ai_symbol_mode": session.ai_symbol_mode,
+            "ai_search_conditions": session.ai_search_conditions,
+        }
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI Symbol Selection Progress
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/{session_id}/ai-symbol-progress")
+async def get_ai_symbol_progress(
+    session_id: str,
+    ctx: UserAccountContext = Depends(get_user_context),
+):
+    """Get AI symbol selection pipeline progress for a session."""
+    from ..core.ai_symbol_selection import AISymbolSelectionService
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    service = AISymbolSelectionService.get_instance()
+    progress = service.get_progress(session_id)
+
+    if not progress:
+        return {"session_id": session_id, "active": False, "stage": "idle", "message": ""}
+
+    return {"session_id": session_id, **progress}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

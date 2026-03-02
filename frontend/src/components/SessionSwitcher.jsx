@@ -250,12 +250,11 @@ const SessionSwitcher = forwardRef(({
             if (session.strategy_config) {
                 groups.get(groupKey).configList.push({
                     ...session.strategy_config,
-                    symbol: session.symbol,  // Ensure symbol is included
-                    symbol_name: session.symbol_name || session.symbol,  // Symbol name from backend
-                    session_id: session.session_id  // Track which session this config belongs to
+                    symbol: session.symbol,
+                    symbol_name: session.symbol_name || session.symbol,
+                    session_id: session.session_id,
+                    _session_status: session.status,  // Track session status for dedup
                 });
-            } else {
-                console.warn('[SessionSwitcher] Session missing strategy_config:', session.session_id, session.symbol);
             }
 
             groups.get(groupKey).sessions.push(session);
@@ -266,8 +265,29 @@ const SessionSwitcher = forwardRef(({
         for (const [, group] of groups) {
             const sessionList = group.sessions;
 
+            // Deduplicate configList: prefer RUNNING/PAUSED over STOPPED for same rank
+            // AI symbol rotation creates STOPPED sessions with the same rank in the same group
+            const activeConfigs = group.configList.filter(c => c._session_status === 'RUNNING' || c._session_status === 'PAUSED');
+            if (activeConfigs.length > 0) {
+                // Use only active session configs
+                group.configList = activeConfigs;
+            } else {
+                // All stopped: keep only one config per rank (latest = first in list since sorted by started_at desc)
+                const seenRanks = new Set();
+                group.configList = group.configList.filter(c => {
+                    const rank = c.rank ?? 0;
+                    if (seenRanks.has(rank)) return false;
+                    seenRanks.add(rank);
+                    return true;
+                });
+            }
+
             // Sort configList by rank to ensure consistent display order
             group.configList.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+
+            // Sync sessions array with deduped configList (prevent capital/display issues)
+            const validSessionIds = new Set(group.configList.map(c => c.session_id));
+            group.sessions = group.sessions.filter(s => validSessionIds.has(s.session_id));
 
             // Aggregate status: RUNNING if any running, else PAUSED if any paused, etc.
             const hasRunning = sessionList.some(s => s.status === 'RUNNING');

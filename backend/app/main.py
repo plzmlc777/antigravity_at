@@ -116,6 +116,3 @@ from .api import binance_data
 app.include_router(binance_data.router, prefix="/api/v1/binance", tags=["binance-data"])
 from .api import stock_search
 app.include_router(stock_search.router, prefix="/api/v1/stock-search", tags=["stock-search"])
-from .models.ai_trading import AITradingProfile, AITradingDecision  # Register Models
-from .api import ai_trading
-app.include_router(ai_trading.router, prefix="/api/v1/ai-trading", tags=["ai-trading"])

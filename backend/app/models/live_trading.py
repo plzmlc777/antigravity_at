@@ -82,8 +82,9 @@ class LiveBotSession(Base):
     ai_eval_backtest_days = Column(Integer, default=30)  # 비교 백테스트 기간
     ai_eval_mode = Column(String, default="paper")    # 분석 대상 모드 (paper/real)
 
-    # AI Trading Profile (for autonomous AI-driven sessions)
-    ai_profile_id = Column(String, index=True, nullable=True)
+    # AI Symbol Selection (cycle-end symbol rotation)
+    ai_symbol_mode = Column(String, default="static")     # "static" | "ai"
+    ai_search_conditions = Column(Text, nullable=True)     # 자연어 검색 조건
 
     # Archive (hide from list without deleting trade history)
     is_archived = Column(Boolean, default=False)

@@ -54,6 +54,10 @@ class LiveTradingEngine:
         self._is_exclusive = False
         self._account_id = None
 
+        # AI Symbol Selection
+        self._ai_switch_in_progress = False
+        self._had_position = False  # Track if we ever had a position (for cycle completion detection)
+
         # Futures monitoring
         self._futures_monitor = None
         self._futures_refresh_task = None
@@ -437,6 +441,20 @@ class LiveTradingEngine:
                     except Exception:
                         pass
 
+                # 5.2 AI Symbol Selection: trigger on cycle completion (position >0 → 0)
+                if self.strategy_instance and not self._ai_switch_in_progress:
+                    try:
+                        state = self.strategy_instance.get_state()
+                        qty = state.get("total_quantity", 0)
+                        if qty > 0:
+                            self._had_position = True
+                        elif qty == 0 and self._had_position:
+                            # Position transitioned from >0 to 0 = cycle completed
+                            self._had_position = False
+                            self._try_ai_symbol_switch()
+                    except Exception:
+                        pass
+
             except Exception as e:
                 logger.error(f"Strategy Execution Error: {e}")
                 import traceback
@@ -628,6 +646,95 @@ class LiveTradingEngine:
         if self.strategy_instance and hasattr(self.strategy_instance, 'tick_execution'):
             self.strategy_instance.tick_execution = mode
         logger.info(f"Session {self.session_id}: Tick execution {old_mode} -> {mode}")
+
+    def _try_ai_symbol_switch(self):
+        """Check if AI symbol selection is enabled and trigger the pipeline."""
+        db = SessionLocal()
+        try:
+            session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+            if not session:
+                return
+            if getattr(session, 'ai_symbol_mode', 'static') != 'ai':
+                return
+            search_conditions = getattr(session, 'ai_search_conditions', None)
+            if not search_conditions:
+                return
+
+            # Capture session info before closing DB
+            session_info = {
+                "session_id": self.session_id,
+                "current_symbol": self.symbol,
+                "search_conditions": search_conditions,
+                "strategy_name": session.strategy_name,
+                "strategy_config": dict(session.strategy_config or {}),
+                "initial_capital": session.initial_capital,
+                "account_id": session.account_id,
+                "is_paper": session.is_paper,
+                "group_id": session.group_id,
+            }
+        finally:
+            db.close()
+
+        self._ai_switch_in_progress = True
+
+        if session_info["group_id"]:
+            # Grouped session → register with group coordinator
+            logger.info(f"[AISymbol] Triggering GROUP pipeline for session {self.session_id[:8]} "
+                        f"(group {session_info['group_id'][:8]})")
+            asyncio.create_task(self._run_group_pipeline(session_info))
+        else:
+            # Solo session → existing per-session pipeline
+            logger.info(f"[AISymbol] Triggering SOLO pipeline for session {self.session_id[:8]}")
+            asyncio.create_task(self._run_solo_pipeline(session_info))
+
+    async def _run_group_pipeline(self, session_info: dict):
+        """Register with group pipeline coordinator. Actual execution managed by coordinator."""
+        try:
+            from .ai_symbol_selection import AISymbolSelectionService
+            service = AISymbolSelectionService.get_instance()
+            await service.request_group_evaluation(session_info)
+        except Exception as e:
+            logger.error(f"[AISymbol] Group pipeline error: {e}", exc_info=True)
+        finally:
+            self._ai_switch_in_progress = False
+
+    async def _run_solo_pipeline(self, session_info: dict):
+        """Per-session pipeline for ungrouped sessions."""
+        try:
+            from .ai_symbol_selection import AISymbolSelectionService
+            service = AISymbolSelectionService.get_instance()
+
+            new_symbol = await service.run_pipeline(
+                session_id=session_info["session_id"],
+                current_symbol=session_info["current_symbol"],
+                search_conditions=session_info["search_conditions"],
+                strategy_name=session_info["strategy_name"],
+                strategy_config=session_info["strategy_config"],
+                initial_capital=session_info["initial_capital"],
+                account_id=session_info["account_id"],
+                is_paper=session_info["is_paper"],
+                group_id=None,
+            )
+
+            if new_symbol and new_symbol != self.symbol:
+                logger.info(f"[AISymbol] Switching: {self.symbol} -> {new_symbol}")
+                from .live_manager import live_manager
+                await live_manager.switch_session_symbol(
+                    session_id=self.session_id,
+                    new_symbol=new_symbol,
+                )
+                service._update_progress(
+                    self.session_id, "done",
+                    f"종목 전환 완료: {self.symbol} → {new_symbol}",
+                    new_symbol=new_symbol,
+                )
+                service._clear_progress(self.session_id)
+            else:
+                logger.info(f"[AISymbol] No switch needed for session {self.session_id[:8]}")
+        except Exception as e:
+            logger.error(f"[AISymbol] Pipeline error: {e}", exc_info=True)
+        finally:
+            self._ai_switch_in_progress = False
 
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled

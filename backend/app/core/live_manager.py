@@ -551,7 +551,9 @@ class LiveManager:
                 interval="1m", # Default to 1m for now
                 group_id=group_id,  # 세션 그룹 ID
                 profile_name=profile_name,  # 프로필 이름
-                profile_id=profile_id  # 프로필 ID for lock detection
+                profile_id=profile_id,  # 프로필 ID for lock detection
+                ai_symbol_mode=config.get("ai_symbol_mode", "static"),
+                ai_search_conditions=config.get("ai_search_conditions"),
             )
             db.add(sess)
             db.commit()
@@ -591,6 +593,14 @@ class LiveManager:
                 asyncio.create_task(adapter.start_realtime([symbol]))
 
             logger.info(f"Started Live Session {session_id}")
+
+            # AI Symbol Selection: trigger initial symbol check on start
+            # Skip if this session was just created by switch_session_symbol (avoid infinite loop)
+            if not config.get("_skip_ai_trigger"):
+                ai_mode = config.get("ai_symbol_mode", "static")
+                if ai_mode == "ai" and config.get("ai_search_conditions"):
+                    engine._try_ai_symbol_switch()
+
             return session_id
 
         except Exception as e:
@@ -712,6 +722,87 @@ class LiveManager:
                     self.unregister_exclusive_session(sess.account_id, session_id)
         finally:
             db.close()
+
+    async def switch_session_symbol(self, session_id: str, new_symbol: str, new_symbol_name: str = None):
+        """
+        AI Symbol Switch: In-place symbol update on the same session.
+        Keeps the same session ID, updates DB symbol, and re-initializes the engine.
+        No stop/start cycle - frontend sees no intermediate state change.
+        """
+        # 1. Stop old engine (without changing session status in DB)
+        old_engine = self.engines.pop(session_id, None)
+        old_symbol = None
+        if old_engine:
+            old_engine.is_running = False
+            old_symbol = old_engine.symbol
+
+        # 2. Update DB: change symbol, keep session RUNNING
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if not sess:
+                logger.error(f"[AISymbol] Session {session_id} not found")
+                return
+            if not old_symbol:
+                old_symbol = sess.symbol
+
+            # Check group dedup: prevent switching to a symbol already used by another session
+            if sess.group_id:
+                existing = db.query(LiveBotSession).filter(
+                    LiveBotSession.group_id == sess.group_id,
+                    LiveBotSession.status == "RUNNING",
+                    LiveBotSession.id != session_id,
+                    LiveBotSession.symbol == new_symbol,
+                ).first()
+                if existing:
+                    logger.warning(f"[AISymbol] Symbol {new_symbol} already used by session "
+                                   f"{existing.id[:8]} in group. Skipping switch.")
+                    # Re-attach old engine since we already popped it
+                    if old_engine:
+                        old_engine.is_running = True
+                        self.engines[session_id] = old_engine
+                    return
+
+            sess.symbol = new_symbol
+            # Update symbol in strategy_config too
+            cfg = dict(sess.strategy_config or {})
+            cfg['symbol'] = new_symbol
+            # Resolve symbol name if not provided
+            resolved_name = new_symbol_name
+            if not resolved_name:
+                try:
+                    from ..services.stock_list_service import StockListService
+                    svc = StockListService.get_instance()
+                    cached = getattr(svc, '_cache_data', None) or []
+                    for s in cached:
+                        if s.get("code") == new_symbol:
+                            resolved_name = s.get("name")
+                            break
+                except Exception:
+                    pass
+            if resolved_name:
+                cfg['symbol_name'] = resolved_name
+            sess.strategy_config = cfg
+            db.commit()
+            account_id = sess.account_id
+        finally:
+            db.close()
+
+        # 3. Create new engine with same session ID
+        try:
+            adapter = self._adapters.get(account_id) or self.get_primary_adapter()
+            engine = LiveTradingEngine(session_id, adapter)
+            await engine.initialize()
+            self.engines[session_id] = engine
+            asyncio.create_task(engine.run_loop())
+
+            # Start realtime data for new symbol
+            if hasattr(adapter, "start_realtime"):
+                asyncio.create_task(adapter.start_realtime([new_symbol]))
+
+            logger.info(f"[AISymbol] Symbol Switch: {old_symbol} -> {new_symbol} (session {session_id[:8]})")
+        except Exception as e:
+            logger.error(f"[AISymbol] Failed to restart engine after symbol switch: {e}")
 
     async def toggle_orders(self, session_id: str, enabled: bool):
         """
@@ -927,6 +1018,10 @@ class LiveManager:
         # Restore Real-time using this session's adapter
         if hasattr(adapter, "start_realtime"):
             asyncio.create_task(adapter.start_realtime([sess.symbol]))
+
+        # AI Symbol Selection: trigger initial symbol check on restore
+        if getattr(sess, 'ai_symbol_mode', 'static') == 'ai' and getattr(sess, 'ai_search_conditions', None):
+            engine._try_ai_symbol_switch()
 
     async def validate_before_resume(self, session: LiveBotSession, db: Session) -> Dict[str, Any]:
         """

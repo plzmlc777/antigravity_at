@@ -505,12 +505,15 @@ class RankingDataService:
             return rankings
 
     async def _fetch_all_rankings(self, base_url: str, token: str) -> Dict[str, List]:
-        """Fetch all ranking APIs in parallel."""
+        """Fetch all ranking APIs with concurrency limit to avoid 429."""
         keys = list(RANKING_CONFIGS.keys())
-        tasks = [
-            self._fetch_single_ranking(base_url, token, RANKING_CONFIGS[key])
-            for key in keys
-        ]
+        sem = asyncio.Semaphore(3)  # Max 3 concurrent ranking API calls
+
+        async def _limited(key):
+            async with sem:
+                return await self._fetch_single_ranking(base_url, token, RANKING_CONFIGS[key])
+
+        tasks = [_limited(key) for key in keys]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -568,8 +571,16 @@ class RankingDataService:
         }
 
         client = HttpClientManager.get_instance()
-        resp = await client.post_with_rate_limit(url, headers=headers, json=payload)
-        resp.raise_for_status()
+        max_retries = 3
+        for attempt in range(max_retries):
+            resp = await client.post_with_rate_limit(url, headers=headers, json=payload)
+            if resp.status_code == 429 and attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s backoff
+                logger.warning(f"[Ranking] 429 rate limited on {config['api_id']}, retry {attempt+1}/{max_retries} after {wait}s")
+                await asyncio.sleep(wait)
+                continue
+            resp.raise_for_status()
+            break
         data = resp.json()
 
         items = data.get(config["list_key"], [])
