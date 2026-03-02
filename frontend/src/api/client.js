@@ -352,6 +352,16 @@ export const getAISymbolProgress = async (sessionId) => {
     return data;
 };
 
+export const getAISymbolHistory = async (sessionId, limit = 20) => {
+    const { data } = await api.get(`/live/${sessionId}/ai-symbol-history`, { params: { limit } });
+    return data;
+};
+
+export const getGroupAISymbolHistory = async (groupId, limit = 30) => {
+    const { data } = await api.get(`/live/group/${groupId}/ai-symbol-history`, { params: { limit } });
+    return data;
+};
+
 // AI Analysis Schedule & Reports API
 export const createAnalysisSchedule = async (data) => {
     const { data: res } = await api.post('/live/analysis-schedules', data);

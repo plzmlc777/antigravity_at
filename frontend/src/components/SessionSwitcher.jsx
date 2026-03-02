@@ -254,6 +254,10 @@ const SessionSwitcher = forwardRef(({
                     symbol_name: session.symbol_name || session.symbol,
                     session_id: session.session_id,
                     _session_status: session.status,  // Track session status for dedup
+                    ai_symbol_mode: session.ai_symbol_mode || 'static',
+                    ai_search_conditions: session.ai_search_conditions || '',
+                    original_symbol: session.original_symbol || session.symbol,
+                    original_symbol_name: session.original_symbol_name || session.symbol_name || session.symbol,
                 });
             }
 
@@ -359,12 +363,15 @@ const SessionSwitcher = forwardRef(({
         });
 
         if (selectedGroup) {
-            // Check if sessions data has changed (e.g., status changed)
+            // Check if sessions data has changed (e.g., status, symbol changed)
             const currentSessionIds = activeSessionGroup.sessions?.map(s => s.session_id).sort().join(',');
             const newSessionIds = selectedGroup.sessions?.map(s => s.session_id).sort().join(',');
             const statusChanged = activeSessionGroup.sessions?.[0]?.status !== selectedGroup.sessions?.[0]?.status;
+            const symbolsChanged = activeSessionGroup.sessions?.map(s => s.symbol).join(',') !== selectedGroup.sessions?.map(s => s.symbol).join(',');
+            const configChanged = JSON.stringify(activeSessionGroup.configList?.map(c => ({ s: c.symbol, ai: c.ai_symbol_mode })))
+                !== JSON.stringify(selectedGroup.configList?.map(c => ({ s: c.symbol, ai: c.ai_symbol_mode })));
 
-            if (currentSessionIds !== newSessionIds || statusChanged) {
+            if (currentSessionIds !== newSessionIds || statusChanged || symbolsChanged || configChanged) {
                 onSelectSessionGroup({
                     accountId: selectedGroup.account_id,
                     strategyName: selectedGroup.strategy_name,

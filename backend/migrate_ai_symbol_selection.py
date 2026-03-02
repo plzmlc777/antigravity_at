@@ -34,6 +34,14 @@ def migrate():
         else:
             print("Skipped: ai_search_conditions (already exists)")
 
+        if 'ai_awaiting_cycle' not in existing:
+            conn.execute(text(
+                "ALTER TABLE live_bot_sessions ADD COLUMN ai_awaiting_cycle BOOLEAN DEFAULT FALSE"
+            ))
+            print("Added: ai_awaiting_cycle")
+        else:
+            print("Skipped: ai_awaiting_cycle (already exists)")
+
         conn.commit()
         print("Migration complete.")
 

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
@@ -6,6 +7,8 @@ from ..core.live_manager import live_manager
 from ..db.session import get_db
 from ..core.user_context import UserAccountContext, get_user_context
 from ..core.config import DEFAULT_INITIAL_CAPITAL
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -799,6 +802,8 @@ async def get_all_sessions(
             "strategy_config": sess.strategy_config,  # Full config for UI display
             "ai_symbol_mode": sess.ai_symbol_mode or "static",
             "ai_search_conditions": sess.ai_search_conditions or "",
+            "original_symbol": getattr(sess, 'original_symbol', None) or sess.symbol,
+            "original_symbol_name": getattr(sess, 'original_symbol_name', None),
             **engine_info
         })
 
@@ -2172,7 +2177,7 @@ async def update_ai_eval_settings(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class AISymbolSettingsRequest(PydanticBaseModel):
-    ai_symbol_mode: str = "static"  # "static" | "ai"
+    ai_symbol_mode: str = "static"  # "static" | "ai" | "reset"
     ai_search_conditions: Optional[str] = None
 
 
@@ -2218,19 +2223,46 @@ async def update_ai_symbol_settings(
         raise HTTPException(status_code=404, detail="Session not found")
     await verify_session_ownership_by_user(session_id, ctx.user_id, db)
 
-    session.ai_symbol_mode = req.ai_symbol_mode
-    session.ai_search_conditions = req.ai_search_conditions
+    reset_performed = False
+
+    if req.ai_symbol_mode == 'reset':
+        # Reset: revert symbol to original profile symbol and set mode to static
+        original = getattr(session, 'original_symbol', None)
+        if original and original != session.symbol:
+            old_symbol = session.symbol
+            session.symbol = original
+            cfg = dict(session.strategy_config or {})
+            cfg['symbol'] = original
+            orig_name = getattr(session, 'original_symbol_name', None)
+            if orig_name:
+                cfg['symbol_name'] = orig_name
+            session.strategy_config = cfg
+            reset_performed = True
+            logger.info(f"[AISymbol] Reset: {old_symbol} -> {original} (session {session_id[:8]})")
+        session.ai_symbol_mode = 'static'
+        session.ai_awaiting_cycle = False
+    else:
+        session.ai_symbol_mode = req.ai_symbol_mode
+        # Only update search conditions when AI mode is active; preserve for static mode
+        if req.ai_symbol_mode == 'ai':
+            session.ai_search_conditions = req.ai_search_conditions
+            # Reset awaiting flag so pipeline can trigger on resume
+            session.ai_awaiting_cycle = False
 
     db.commit()
 
-    return {
+    result = {
         "status": "success",
-        "message": "AI symbol settings updated",
+        "message": "Symbol reset to original" if reset_performed else "AI symbol settings updated",
         "settings": {
             "ai_symbol_mode": session.ai_symbol_mode,
             "ai_search_conditions": session.ai_search_conditions,
         }
     }
+    if reset_performed:
+        result["reset_symbol"] = session.symbol
+        result["reset_symbol_name"] = getattr(session, 'original_symbol_name', None)
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2255,6 +2287,78 @@ async def get_ai_symbol_progress(
         return {"session_id": session_id, "active": False, "stage": "idle", "message": ""}
 
     return {"session_id": session_id, **progress}
+
+
+@router.get("/{session_id}/ai-symbol-history")
+async def get_ai_symbol_history(
+    session_id: str,
+    limit: int = 20,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db),
+):
+    """Get AI symbol selection history for a session."""
+    from ..models.live_trading import AISymbolHistory
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    records = db.query(AISymbolHistory).filter(
+        AISymbolHistory.session_id == session_id
+    ).order_by(AISymbolHistory.created_at.desc()).limit(limit).all()
+
+    return [
+        {
+            "id": r.id,
+            "session_id": r.session_id,
+            "group_id": r.group_id,
+            "action": r.action,
+            "old_symbol": r.old_symbol,
+            "old_symbol_name": r.old_symbol_name,
+            "new_symbol": r.new_symbol,
+            "new_symbol_name": r.new_symbol_name,
+            "search_conditions": r.search_conditions,
+            "evaluation_reason": r.evaluation_reason,
+            "backtest_results": r.backtest_results,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in records
+    ]
+
+
+@router.get("/group/{group_id}/ai-symbol-history")
+async def get_group_ai_symbol_history(
+    group_id: str,
+    limit: int = 30,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db),
+):
+    """Get AI symbol selection history for all sessions in a group."""
+    from ..models.live_trading import AISymbolHistory
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    records = db.query(AISymbolHistory).filter(
+        AISymbolHistory.group_id == group_id
+    ).order_by(AISymbolHistory.created_at.desc()).limit(limit).all()
+
+    return [
+        {
+            "id": r.id,
+            "session_id": r.session_id,
+            "group_id": r.group_id,
+            "action": r.action,
+            "old_symbol": r.old_symbol,
+            "old_symbol_name": r.old_symbol_name,
+            "new_symbol": r.new_symbol,
+            "new_symbol_name": r.new_symbol_name,
+            "search_conditions": r.search_conditions,
+            "evaluation_reason": r.evaluation_reason,
+            "backtest_results": r.backtest_results,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in records
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -451,7 +451,7 @@ class LiveTradingEngine:
                         elif qty == 0 and self._had_position:
                             # Position transitioned from >0 to 0 = cycle completed
                             self._had_position = False
-                            self._try_ai_symbol_switch()
+                            self._try_ai_symbol_switch(from_cycle=True)
                     except Exception:
                         pass
 
@@ -647,8 +647,13 @@ class LiveTradingEngine:
             self.strategy_instance.tick_execution = mode
         logger.info(f"Session {self.session_id}: Tick execution {old_mode} -> {mode}")
 
-    def _try_ai_symbol_switch(self):
-        """Check if AI symbol selection is enabled and trigger the pipeline."""
+    def _try_ai_symbol_switch(self, from_cycle=False):
+        """Check if AI symbol selection is enabled and trigger the pipeline.
+
+        Args:
+            from_cycle: True when called from cycle completion (position >0 → 0).
+                        False when called from start/restore/resume triggers.
+        """
         db = SessionLocal()
         try:
             session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
@@ -660,10 +665,25 @@ class LiveTradingEngine:
             if not search_conditions:
                 return
 
+            # Guard: if recently switched, wait for cycle completion before re-evaluating
+            if getattr(session, 'ai_awaiting_cycle', False):
+                if from_cycle:
+                    # Cycle completed after switch → clear flag and proceed with evaluation
+                    session.ai_awaiting_cycle = False
+                    db.commit()
+                    logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                                f"cycle completed after switch, proceeding with evaluation")
+                else:
+                    # Start/restore/resume trigger → skip (wait for cycle)
+                    logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                                f"awaiting cycle completion, skipping trigger")
+                    return
+
             # Capture session info before closing DB
             session_info = {
                 "session_id": self.session_id,
                 "current_symbol": self.symbol,
+                "current_symbol_name": (session.strategy_config or {}).get("symbol_name", self.symbol),
                 "search_conditions": search_conditions,
                 "strategy_name": session.strategy_name,
                 "strategy_config": dict(session.strategy_config or {}),
@@ -714,6 +734,7 @@ class LiveTradingEngine:
                 account_id=session_info["account_id"],
                 is_paper=session_info["is_paper"],
                 group_id=None,
+                current_symbol_name=session_info.get("current_symbol_name"),
             )
 
             if new_symbol and new_symbol != self.symbol:

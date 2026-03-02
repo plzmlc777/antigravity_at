@@ -14,6 +14,10 @@ import { List, ChevronDown } from 'lucide-react';
  * @param {Function} onVersionChange - Preset change callback (idx, newParams, presetInfo) => void
  * @param {Object} parameterSchema - Strategy parameter schema from API
  * @param {string} strategyId - Current strategy ID (e.g., "rsi_martingale")
+ * @param {string} groupStatus - 'RUNNING' | 'PAUSED' | 'STOPPED' | 'IDLE'
+ * @param {Function} onAiModeChange - (idx, mode) => void
+ * @param {string} aiSearchConditions - Shared AI search conditions string
+ * @param {Function} onAiSearchConditionsChange - (value) => void
  */
 const ActiveStrategiesPanel = ({
     configList,
@@ -22,6 +26,10 @@ const ActiveStrategiesPanel = ({
     parameterSchema,
     strategyId,
     disabled = false,  // When true, preset dropdown is read-only (for Live tab)
+    groupStatus,
+    onAiModeChange,
+    aiSearchConditions,
+    onAiSearchConditionsChange,
 }) => {
     const activeCount = configList ? configList.filter(c => c.is_active !== false).length : 0;
 
@@ -145,6 +153,17 @@ const ActiveStrategiesPanel = ({
         return hasPercent ? `${val}%` : String(val);
     };
 
+    // AI mode editing is disabled when group is RUNNING or PAUSED
+    const isAiEditable = groupStatus !== 'RUNNING' && groupStatus !== 'PAUSED';
+
+    // Check if any config has AI mode enabled
+    const hasAnyAiMode = configList?.some(c => c.is_active !== false && c.ai_symbol_mode === 'ai');
+
+    // Check if a config's symbol was changed by AI (different from original)
+    const isSymbolChanged = (cfg) => {
+        return cfg.original_symbol && cfg.original_symbol !== cfg.symbol;
+    };
+
     return (
         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden mb-6">
             <div className="bg-white/5 px-4 py-3 border-b border-white/10 flex justify-between items-center">
@@ -171,6 +190,9 @@ const ActiveStrategiesPanel = ({
                                     </th>
                                 ))}
                                 <th className="px-4 py-3 text-right">Preset</th>
+                                {onAiModeChange && (
+                                    <th className="px-4 py-3 text-center">AI</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -237,6 +259,36 @@ const ActiveStrategiesPanel = ({
                                                 </div>
                                             )}
                                         </td>
+                                        {onAiModeChange && (
+                                            <td className="px-4 py-3 text-center">
+                                                <select
+                                                    value={cfg.ai_symbol_mode || 'static'}
+                                                    onChange={(e) => onAiModeChange(idx, e.target.value)}
+                                                    disabled={!isAiEditable}
+                                                    className={`appearance-none text-xs rounded px-2 py-1.5 pr-6 border focus:outline-none min-w-[80px] ${
+                                                        cfg.ai_symbol_mode === 'ai'
+                                                            ? 'bg-purple-900/40 border-purple-500/50 text-purple-300 font-bold'
+                                                            : cfg.ai_symbol_mode === 'reset'
+                                                                ? 'bg-teal-900/40 border-teal-500/50 text-teal-300 font-bold'
+                                                                : 'bg-gray-800 border-gray-600 text-gray-300'
+                                                    } ${!isAiEditable ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                                >
+                                                    <option value="static">Static</option>
+                                                    <option value="ai">AI</option>
+                                                    <option value="reset">Reset</option>
+                                                </select>
+                                                {isSymbolChanged(cfg) && cfg.ai_symbol_mode !== 'reset' && (
+                                                    <div className="text-[9px] text-amber-400/70 mt-0.5">
+                                                        원래: {cfg.original_symbol}
+                                                    </div>
+                                                )}
+                                                {cfg.ai_symbol_mode === 'reset' && isSymbolChanged(cfg) && (
+                                                    <div className="text-[9px] text-teal-400/70 mt-0.5">
+                                                        → {cfg.original_symbol}
+                                                    </div>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
@@ -244,6 +296,28 @@ const ActiveStrategiesPanel = ({
                     </table>
                 )}
             </div>
+
+            {/* AI Search Conditions (shared, shown when any rank has AI mode) */}
+            {onAiModeChange && hasAnyAiMode && (
+                <div className="px-4 py-3 border-t border-white/10 bg-purple-900/10">
+                    <label className="block text-purple-300 text-[10px] font-bold tracking-wider uppercase mb-2">
+                        AI 종목 검색 조건 (공통)
+                    </label>
+                    <textarea
+                        value={aiSearchConditions || ''}
+                        onChange={(e) => onAiSearchConditionsChange?.(e.target.value)}
+                        disabled={!isAiEditable}
+                        placeholder="예: 최근 거래량이 폭증했는데 가격은 별로 오르지 않은 종목"
+                        className={`w-full bg-black/40 border border-purple-500/20 rounded-lg px-4 py-2.5 text-white text-sm outline-none focus:border-purple-500/50 transition-all resize-none ${
+                            !isAiEditable ? 'opacity-60 cursor-not-allowed' : ''
+                        }`}
+                        rows={2}
+                    />
+                    <p className="text-gray-500 text-[9px] mt-1">
+                        AI 모드 세션의 사이클 완료 시, 조건에 맞는 종목으로 자동 전환합니다
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

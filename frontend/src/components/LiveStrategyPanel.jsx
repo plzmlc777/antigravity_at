@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap, EyeOff, Eye } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleLiveModeGroup, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail, getAISymbolProgress } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleLiveModeGroup, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail, getAISymbolProgress, updateAISymbolSettings, getGroupAISymbolHistory } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
@@ -89,10 +89,21 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [isPaperMode, setIsPaperMode] = useState(DEFAULTS.IS_PAPER_MODE); // Paper mode by default for safety
     const [modeSwitchConfirm, setModeSwitchConfirm] = useState({ isOpen: false, toReal: false, isRunningSession: false }); // Mode switch confirmation
 
-    // AI Symbol Selection
-    const [aiSymbolMode, setAiSymbolMode] = useState('static'); // 'static' | 'ai'
+    // AI Symbol Selection (per-rank mode, shared search conditions)
     const [aiSearchConditions, setAiSearchConditions] = useState('');
-    const [aiProgress, setAiProgress] = useState(null); // AI pipeline progress
+    const [aiModeOverrides, setAiModeOverrides] = useState({}); // { idx: 'static'|'ai'|'reset' } - local overrides for configList
+    const [aiProgressMap, setAiProgressMap] = useState({}); // { session_id: progress }
+    const [aiSymbolHistory, setAiSymbolHistory] = useState([]); // AI symbol selection history records
+
+    // Effective configList with AI mode overrides merged in (must be before useEffects that reference it)
+    const effectiveConfigList = useMemo(() => {
+        if (!configList) return [];
+        return configList.map((cfg, idx) => ({
+            ...cfg,
+            ai_symbol_mode: aiModeOverrides[idx] ?? cfg.ai_symbol_mode ?? 'static',
+        }));
+    }, [configList, aiModeOverrides]);
+
     const [tickExecConfirm, setTickExecConfirm] = useState({ isOpen: false, nextMode: 'candle' }); // Tick execution mode switch confirmation
 
     // Apply Changes State (track original session values for dirty detection)
@@ -245,32 +256,73 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             setStatus('IDLE');
         }
 
-        // Sync AI symbol selection settings from session
-        setAiSymbolMode(selectedSession.ai_symbol_mode || 'static');
+        // Sync AI settings from session (per-rank mode from configList, shared search conditions)
         setAiSearchConditions(selectedSession.ai_search_conditions || '');
+        // Reset AI mode overrides (will use values from configList)
+        setAiModeOverrides({});
 
         console.log('[LiveStrategyPanel] Session selected:', selectedSession.session_id, selectedSession.status);
     }, [activeSessionGroup]);
 
-    // AI Symbol Progress Polling
+    // AI Symbol Progress Polling (per-session: poll all AI-mode sessions)
     useEffect(() => {
-        if (!sessionId || aiSymbolMode !== 'ai' || (status !== 'RUNNING' && status !== 'PAUSED')) {
-            setAiProgress(null);
+        if (status !== 'RUNNING' && status !== 'PAUSED') {
+            setAiProgressMap({});
+            return;
+        }
+
+        // Find all sessions with AI mode enabled
+        const aiSessions = (effectiveConfigList || []).filter(c => c.ai_symbol_mode === 'ai' && c.session_id);
+        if (aiSessions.length === 0) {
+            setAiProgressMap({});
             return;
         }
 
         let cancelled = false;
         const poll = async () => {
-            try {
-                const data = await getAISymbolProgress(sessionId);
-                if (!cancelled) setAiProgress(data?.active ? data : null);
-            } catch { if (!cancelled) setAiProgress(null); }
+            const newMap = {};
+            await Promise.allSettled(
+                aiSessions.map(async (cfg) => {
+                    try {
+                        const data = await getAISymbolProgress(cfg.session_id);
+                        // Include both active progress AND completed "done" state
+                        if (data?.stage && data.stage !== 'idle') {
+                            newMap[cfg.session_id] = data;
+                        }
+                    } catch { /* ignore */ }
+                })
+            );
+            if (!cancelled) setAiProgressMap(newMap);
         };
 
         poll();
-        const interval = setInterval(poll, 2000);
+        const interval = setInterval(poll, 3000);
         return () => { cancelled = true; clearInterval(interval); };
-    }, [sessionId, aiSymbolMode, status]);
+    }, [effectiveConfigList, status]);
+
+    // AI Symbol History Fetch (load when group changes or on completion)
+    const fetchAiHistory = useCallback(async () => {
+        const groupId = activeSessionGroup?.groupId;
+        if (!groupId) return;
+        try {
+            const data = await getGroupAISymbolHistory(groupId, 10);
+            setAiSymbolHistory(data || []);
+        } catch { /* ignore */ }
+    }, [activeSessionGroup?.groupId]);
+
+    useEffect(() => {
+        // Fetch history when group changes
+        fetchAiHistory();
+    }, [fetchAiHistory]);
+
+    useEffect(() => {
+        // Refresh history when a progress item completes (stage=done)
+        const hasDone = Object.values(aiProgressMap).some(p => p.stage === 'done');
+        if (hasDone) {
+            const t = setTimeout(fetchAiHistory, 2000);
+            return () => clearTimeout(t);
+        }
+    }, [aiProgressMap, fetchAiHistory]);
 
     // Fetch balance for the selected session's account
     useEffect(() => {
@@ -1102,16 +1154,39 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         const sessions = activeSessionGroup?.sessions;
         if (!sessions || sessions.length === 0) return;
 
+        // Check if any AI-mode session has empty search conditions
+        const aiSessionsWithoutConditions = sessions.filter(s => {
+            const cfg = effectiveConfigList.find(c => c.session_id === s.session_id);
+            return cfg && cfg.ai_symbol_mode === 'ai' && !aiSearchConditions?.trim();
+        });
+        if (aiSessionsWithoutConditions.length > 0) {
+            showAlert(
+                'AI 종목 검색 조건이 비어있습니다.\nAI 모드 세션의 종목 자동 전환이 작동하지 않습니다.\n검색 조건을 입력한 후 다시 시도해주세요.',
+                'warning',
+                'AI 검색 조건 필요'
+            );
+            return;
+        }
+
         setIsResuming(true);
         try {
-            // Update AI symbol settings for all sessions before resume
-            const { updateAISymbolSettings } = await import('../api/client');
-            await Promise.allSettled(
-                sessions.map(s => updateAISymbolSettings(s.session_id, {
-                    ai_symbol_mode: aiSymbolMode,
-                    ai_search_conditions: aiSymbolMode === 'ai' ? aiSearchConditions : null,
-                }))
-            );
+            // Sync AI symbol settings from effectiveConfigList to server before resume.
+            // effectiveConfigList merges local overrides (aiModeOverrides) with server data (configList),
+            // so it always reflects the user's intended state.
+            const aiUpdatePromises = sessions.map(s => {
+                const cfg = effectiveConfigList.find(c => c.session_id === s.session_id);
+                if (!cfg) return Promise.resolve();
+                const mode = cfg.ai_symbol_mode || 'static';
+                // Never send 'reset' on resume — reset is an immediate action handled separately
+                if (mode === 'reset') return Promise.resolve();
+                const settings = { ai_symbol_mode: mode };
+                // Only update search conditions for AI mode; preserve existing value for static
+                if (mode === 'ai') {
+                    settings.ai_search_conditions = aiSearchConditions || null;
+                }
+                return updateAISymbolSettings(s.session_id, settings);
+            });
+            await Promise.allSettled(aiUpdatePromises);
 
             // Resume all sessions in the group
             const results = await Promise.allSettled(
@@ -1126,6 +1201,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             } else {
                 addLog("System", `Group resumed: ${succeeded} session(s) (${sessions[0].strategy_name})`);
             }
+
+            // Clear local overrides (server now has authoritative state)
+            setAiModeOverrides({});
 
             // Notify parent to refresh session list
             if (onSessionAction) onSessionAction('resume', sessions[0]);
@@ -1264,6 +1342,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                     // Resolve preset name for live session tracking
                     const presetName = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
+                    const cfgAiMode = aiModeOverrides[i] ?? cfg.ai_symbol_mode ?? 'static';
                     const payload = {
                         symbol: cfg.symbol,
                         strategy_name: strategyName || "time_momentum",
@@ -1272,8 +1351,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
                         account_id: selectedAccountId,  // Phase 5: Explicit account selection
                         group_id: groupId,  // Phase 5: Session grouping for multi-rank
-                        ai_symbol_mode: aiSymbolMode,
-                        ai_search_conditions: aiSymbolMode === 'ai' ? aiSearchConditions : null,
+                        ai_symbol_mode: cfgAiMode,
+                        ai_search_conditions: cfgAiMode === 'ai' ? aiSearchConditions : null,
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -1313,6 +1392,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
                     // Resolve preset name for live session tracking
                     const presetNameExcl = cfg.parameter_presets?.find(p => p.id === cfg.selected_preset_id)?.name || null;
+                    const cfgAiModeExcl = aiModeOverrides[i] ?? cfg.ai_symbol_mode ?? 'static';
                     const payload = {
                         symbol: cfg.symbol,
                         strategy_name: strategyName || "time_momentum",
@@ -1321,8 +1401,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         is_paper: isPaperMode,  // Phase 5: Paper/Real mode selection
                         account_id: selectedAccountId,  // Phase 5: Explicit account selection
                         group_id: groupId,  // Phase 5: Session grouping for multi-rank
-                        ai_symbol_mode: aiSymbolMode,
-                        ai_search_conditions: aiSymbolMode === 'ai' ? aiSearchConditions : null,
+                        ai_symbol_mode: cfgAiModeExcl,
+                        ai_search_conditions: cfgAiModeExcl === 'ai' ? aiSearchConditions : null,
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -1357,6 +1437,75 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         const ids = groupSessions.map(s => s.session_id).filter(Boolean);
         if (ids.length === 0 && sessionId) return [sessionId];
         return ids;
+    };
+
+    // AI Symbol Reset confirmation state
+    const [resetConfirm, setResetConfirm] = useState({ isOpen: false, idx: null, cfg: null });
+
+    // Per-rank AI mode change handler (local override, applied at start/resume)
+    const handleAiModeChange = useCallback((idx, mode) => {
+        if (mode === 'reset') {
+            // Show confirmation popup instead of immediately applying
+            const cfg = effectiveConfigList[idx];
+            setResetConfirm({ isOpen: true, idx, cfg });
+            return;
+        }
+        setAiModeOverrides(prev => ({ ...prev, [idx]: mode }));
+    }, [effectiveConfigList]);
+
+    // Auto-save AI search conditions to server (debounced)
+    const saveConditionsTimer = useRef(null);
+    const handleAiSearchConditionsChange = useCallback((value) => {
+        setAiSearchConditions(value);
+
+        // Debounce: save to server after 1s of no typing
+        if (saveConditionsTimer.current) clearTimeout(saveConditionsTimer.current);
+        saveConditionsTimer.current = setTimeout(() => {
+            const sessions = activeSessionGroup?.sessions;
+            if (!sessions) return;
+            // Save to all AI-mode sessions in the group
+            const aiSessions = (effectiveConfigList || []).filter(
+                c => c.ai_symbol_mode === 'ai' && c.session_id
+            );
+            aiSessions.forEach(cfg => {
+                updateAISymbolSettings(cfg.session_id, {
+                    ai_symbol_mode: 'ai',
+                    ai_search_conditions: value || null,
+                }).catch(() => {});
+            });
+        }, 1000);
+    }, [activeSessionGroup?.sessions, effectiveConfigList]);
+
+    // Execute reset after confirmation
+    const handleResetConfirm = async () => {
+        const { idx, cfg } = resetConfirm;
+        setResetConfirm({ isOpen: false, idx: null, cfg: null });
+
+        if (!cfg?.session_id) {
+            showAlert('세션 ID가 없습니다. 세션이 아직 시작되지 않았을 수 있습니다.', 'warning', 'Reset 불가');
+            return;
+        }
+
+        try {
+            await updateAISymbolSettings(cfg.session_id, {
+                ai_symbol_mode: 'reset',
+            });
+
+            // Clear the override for this index (server already set to 'static')
+            setAiModeOverrides(prev => {
+                const next = { ...prev };
+                delete next[idx];
+                return next;
+            });
+
+            addLog("System", `종목 리셋: ${cfg.symbol} → ${cfg.original_symbol} (${cfg.original_symbol_name || cfg.original_symbol})`);
+
+            // Refresh session list to show updated symbol
+            if (onSessionAction) onSessionAction('reset', { session_id: cfg.session_id });
+        } catch (err) {
+            console.error('Reset failed:', err);
+            showAlert(`종목 리셋 실패: ${err.response?.data?.detail || err.message}`, 'error', 'Reset 오류');
+        }
     };
 
     const handleToggleMode = async () => {
@@ -1805,43 +1954,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                             </p>
                         </div>
 
-                        {/* AI Symbol Mode */}
-                        <div className="w-full md:w-40">
-                            <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                종목 변경
-                            </label>
-                            <select
-                                value={aiSymbolMode}
-                                onChange={(e) => setAiSymbolMode(e.target.value)}
-                                className="w-full h-[46px] bg-black/60 border border-white/10 rounded-lg px-3 text-white text-sm font-bold outline-none focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="static">Static</option>
-                                <option value="ai">AI</option>
-                            </select>
-                            <p className="text-gray-500 text-[9px] mt-1.5">
-                                {aiSymbolMode === 'ai' ? 'AI 자동 종목 변경' : '고정 종목'}
-                            </p>
-                        </div>
                     </div>
-
-                    {/* AI Search Conditions (shown only when AI mode) */}
-                    {aiSymbolMode === 'ai' && (
-                        <div className="mt-3">
-                            <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                AI 종목 검색 조건
-                            </label>
-                            <textarea
-                                value={aiSearchConditions}
-                                onChange={(e) => setAiSearchConditions(e.target.value)}
-                                placeholder="예: 최근 거래량이 폭증했는데 가격은 별로 오르지 않은 종목"
-                                className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-purple-500/50 transition-all resize-none"
-                                rows={2}
-                            />
-                            <p className="text-gray-500 text-[9px] mt-1">
-                                사이클 완료 시 AI가 조건에 맞는 종목으로 자동 전환합니다
-                            </p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Empty State Message */}
@@ -1882,11 +1995,15 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             {configList.length > 0 && (
                 <div className="lg:col-span-3">
                     <ActiveStrategiesPanel
-                        configList={configList}
+                        configList={effectiveConfigList}
                         savedSymbols={savedSymbols}
                         parameterSchema={parameterSchema}
                         strategyId={strategyName}
                         disabled={true}
+                        groupStatus={status}
+                        onAiModeChange={handleAiModeChange}
+                        aiSearchConditions={aiSearchConditions}
+                        onAiSearchConditionsChange={handleAiSearchConditionsChange}
                     />
                 </div>
             )}
@@ -2082,6 +2199,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                     : "캔들 완성 시에만 Exit 조건을 체크합니다.\n\n• 캔들 주기(예: 1분)마다만 체크\n• 급등락 시 최대 1캔들 지연 가능\n• 노이즈에 덜 민감\n\nCANDLE 모드로 전환하시겠습니까?"}
                 confirmText={tickExecConfirm.nextMode === 'tick' ? "TICK 모드 활성화" : "CANDLE 모드 전환"}
                 isDanger={false}
+            />
+
+            {/* AI Symbol Reset Confirmation Modal */}
+            <ConfirmModal
+                isOpen={resetConfirm.isOpen}
+                onClose={() => setResetConfirm({ isOpen: false, idx: null, cfg: null })}
+                onConfirm={handleResetConfirm}
+                title="종목 리셋 확인"
+                message={`현재 종목(${resetConfirm.cfg?.symbol || ''})을 원래 프로필 종목(${resetConfirm.cfg?.original_symbol || ''} - ${resetConfirm.cfg?.original_symbol_name || ''})으로 되돌리시겠습니까?\n\n이 작업은 즉시 적용됩니다.`}
+                confirmText="리셋"
+                isDanger={true}
             />
 
             {/* Delete Session Modal (Option B: actions in panel) - supports group deletion */}
@@ -2336,89 +2464,173 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 </p>
                             </div>
 
-                            {/* AI Symbol Mode */}
-                            <div className="w-full md:w-40">
-                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                    종목 변경
-                                </label>
-                                <select
-                                    value={aiSymbolMode}
-                                    onChange={(e) => setAiSymbolMode(e.target.value)}
-                                    disabled={status === 'RUNNING' || status === 'STARTING'}
-                                    className="w-full h-[46px] bg-black/60 border border-white/10 rounded-lg px-3 text-white text-sm font-bold outline-none focus:border-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
-                                >
-                                    <option value="static">Static</option>
-                                    <option value="ai">AI</option>
-                                </select>
-                                <p className="text-gray-500 text-[9px] mt-1.5">
-                                    {aiSymbolMode === 'ai' ? 'AI 자동 종목 변경' : '고정 종목'}
-                                </p>
-                            </div>
                         </div>
 
-                        {/* AI Search Conditions (shown only when AI mode) */}
-                        {aiSymbolMode === 'ai' && (
-                            <div className="mt-3">
-                                <label className="block text-gray-400 text-[10px] font-bold tracking-wider uppercase mb-2">
-                                    AI 종목 검색 조건
-                                </label>
-                                <textarea
-                                    value={aiSearchConditions}
-                                    onChange={(e) => setAiSearchConditions(e.target.value)}
-                                    disabled={status === 'RUNNING' || status === 'STARTING'}
-                                    placeholder="예: 최근 거래량이 폭증했는데 가격은 별로 오르지 않은 종목"
-                                    className="w-full bg-black/60 border border-white/10 rounded-lg px-4 py-3 text-white text-sm outline-none focus:border-purple-500/50 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                    rows={2}
-                                />
-                                <p className="text-gray-500 text-[9px] mt-1">
-                                    사이클 완료 시 AI가 조건에 맞는 종목으로 자동 전환합니다
-                                </p>
+                        {/* AI Symbol Progress Panel (per-session) */}
+                        {Object.keys(aiProgressMap).length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {Object.entries(aiProgressMap).map(([sid, progress]) => {
+                                    const cfgRef = effectiveConfigList.find(c => c.session_id === sid);
+                                    const rankLabel = cfgRef ? (cfgRef.tabName || `Rank ${cfgRef.rank ?? '?'}`) : sid.slice(0, 8);
+                                    const isDone = progress.stage === 'done';
+                                    const isError = progress.stage === 'error';
+                                    const hasSwitched = isDone && progress.new_symbol;
+                                    return (
+                                        <div key={sid} className={`p-3 rounded-lg border ${
+                                            isDone
+                                                ? hasSwitched
+                                                    ? 'bg-green-900/20 border-green-500/30'
+                                                    : 'bg-gray-800/40 border-gray-600/30'
+                                                : isError
+                                                    ? 'bg-red-900/20 border-red-500/30'
+                                                    : 'bg-purple-900/20 border-purple-500/30'
+                                        }`}>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                {isDone ? (
+                                                    <div className={`w-2 h-2 rounded-full ${hasSwitched ? 'bg-green-400' : 'bg-gray-400'}`} />
+                                                ) : isError ? (
+                                                    <div className="w-2 h-2 rounded-full bg-red-400" />
+                                                ) : (
+                                                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                                                )}
+                                                <span className={`text-xs font-bold ${
+                                                    isDone ? (hasSwitched ? 'text-green-300' : 'text-gray-400')
+                                                        : isError ? 'text-red-300' : 'text-purple-300'
+                                                }`}>
+                                                    AI 종목 {isDone ? (hasSwitched ? '전환 완료' : '평가 완료') : isError ? '오류' : '탐색 중'} - {rankLabel}
+                                                </span>
+                                                {progress.stage === 'backtesting' && progress.total > 0 && (
+                                                    <span className="text-purple-400/70 text-[10px] ml-auto">
+                                                        {progress.current}/{progress.total}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-gray-300 text-xs">{progress.message}</p>
+                                            {progress.stage === 'backtesting' && progress.total > 0 && (
+                                                <div className="mt-2">
+                                                    <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+                                                            style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {progress.results?.length > 0 && (
+                                                <div className="mt-2 space-y-0.5 max-h-[80px] overflow-y-auto">
+                                                    {[...progress.results]
+                                                        .sort((a, b) => b.score - a.score)
+                                                        .slice(0, 3)
+                                                        .map((r, i) => (
+                                                            <div key={r.symbol} className="flex items-center text-[10px] gap-2">
+                                                                <span className={`w-4 text-center font-bold ${i === 0 ? 'text-yellow-400' : 'text-gray-500'}`}>
+                                                                    {i + 1}
+                                                                </span>
+                                                                <span className="text-gray-300 w-14">{r.symbol}</span>
+                                                                <span className="text-purple-300 w-12">S:{r.score}</span>
+                                                                <span className="text-blue-300 w-14">WR:{r.win_rate}%</span>
+                                                                <span className="text-gray-400 w-10">C:{r.cycles}</span>
+                                                            </div>
+                                                        ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
-                        {/* AI Symbol Progress Panel */}
-                        {aiSymbolMode === 'ai' && aiProgress && (
-                            <div className="mt-3 p-3 bg-purple-900/20 border border-purple-500/30 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-                                    <span className="text-purple-300 text-xs font-bold">AI 종목 탐색 진행 중</span>
-                                    {aiProgress.stage === 'backtesting' && aiProgress.total > 0 && (
-                                        <span className="text-purple-400/70 text-[10px] ml-auto">
-                                            {aiProgress.current}/{aiProgress.total}
-                                        </span>
-                                    )}
+                        {/* AI Symbol History (recent evaluations from DB) */}
+                        {aiSymbolHistory.length > 0 && effectiveConfigList.some(c => c.ai_symbol_mode === 'ai') && (
+                            <div className="mt-3 bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+                                <div className="px-3 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2">
+                                    <History size={12} className="text-gray-400" />
+                                    <span className="text-gray-400 text-[10px] font-bold tracking-wider uppercase">AI 종목 선택 이력</span>
+                                    <span className="text-gray-600 text-[10px] ml-auto">{aiSymbolHistory.length}건</span>
                                 </div>
-                                <p className="text-gray-300 text-xs">{aiProgress.message}</p>
-                                {/* Backtest progress bar */}
-                                {aiProgress.stage === 'backtesting' && aiProgress.total > 0 && (
-                                    <div className="mt-2">
-                                        <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${(aiProgress.current / aiProgress.total) * 100}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                                {/* Top results preview */}
-                                {aiProgress.results?.length > 0 && (
-                                    <div className="mt-2 space-y-0.5 max-h-[120px] overflow-y-auto">
-                                        {[...aiProgress.results]
-                                            .sort((a, b) => b.score - a.score)
-                                            .slice(0, 5)
-                                            .map((r, i) => (
-                                                <div key={r.symbol} className="flex items-center text-[10px] gap-2">
-                                                    <span className={`w-4 text-center font-bold ${i === 0 ? 'text-yellow-400' : 'text-gray-500'}`}>
-                                                        {i + 1}
-                                                    </span>
-                                                    <span className="text-gray-300 w-14">{r.symbol}</span>
-                                                    <span className="text-purple-300 w-12">S:{r.score}</span>
-                                                    <span className="text-blue-300 w-14">WR:{r.win_rate}%</span>
-                                                    <span className="text-gray-400 w-10">C:{r.cycles}</span>
+                                <div className="max-h-[250px] overflow-y-auto divide-y divide-white/5">
+                                    {aiSymbolHistory.map((h) => {
+                                        const cfgRef = effectiveConfigList.find(c => c.session_id === h.session_id);
+                                        const rankLabel = cfgRef ? (cfgRef.tabName || `R${cfgRef.rank ?? '?'}`) : h.session_id?.slice(0, 6);
+                                        const time = h.created_at ? new Date(h.created_at).toLocaleString('ko-KR', {
+                                            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                        }) : '';
+                                        const oldName = h.old_symbol_name || h.old_symbol;
+                                        const newName = h.new_symbol_name || h.new_symbol;
+                                        return (
+                                            <div key={h.id} className="px-3 py-1.5 text-[10px] hover:bg-white/5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-gray-500 w-[70px] shrink-0">{time}</span>
+                                                    <span className="text-blue-400 w-8 shrink-0 font-medium">{rankLabel}</span>
+                                                    {h.action === 'switched' ? (
+                                                        <>
+                                                            <span className="text-gray-500">{oldName}</span>
+                                                            <span className="text-green-400 font-bold">→</span>
+                                                            <span className="text-green-300 font-medium">{newName}</span>
+                                                        </>
+                                                    ) : h.action === 'kept' ? (
+                                                        <span className="text-gray-400">{oldName} 유지</span>
+                                                    ) : (
+                                                        <span className="text-gray-500">{oldName} (후보없음)</span>
+                                                    )}
+                                                    {h.backtest_results?.length > 0 && (
+                                                        <span className="text-purple-400/60 ml-auto">
+                                                            BT:{h.backtest_results.length}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            ))}
-                                    </div>
-                                )}
+                                                {h.evaluation_reason && (
+                                                    <div className="mt-0.5 ml-[102px] text-[9px] text-gray-500 leading-tight whitespace-pre-line">
+                                                        {h.evaluation_reason}
+                                                    </div>
+                                                )}
+                                                {h.backtest_results?.length > 0 && (
+                                                    <div className="mt-1 ml-[102px]">
+                                                        <div className="text-[8px] text-gray-500 mb-0.5">
+                                                            최근 14일 백테스트 결과
+                                                        </div>
+                                                        <table className="text-[9px] w-full border-collapse">
+                                                            <thead>
+                                                                <tr className="text-gray-500">
+                                                                    <th className="text-left font-normal pr-2 pb-0.5">#</th>
+                                                                    <th className="text-left font-normal pr-2 pb-0.5">종목</th>
+                                                                    <th className="text-right font-normal pr-2 pb-0.5">수익률</th>
+                                                                    <th className="text-right font-normal pr-2 pb-0.5">승률</th>
+                                                                    <th className="text-right font-normal pr-2 pb-0.5">사이클</th>
+                                                                    <th className="text-right font-normal pb-0.5">점수</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {h.backtest_results.slice(0, 5).map((r, ri) => {
+                                                                    const isSelected = h.new_symbol && r.symbol === h.new_symbol;
+                                                                    return (
+                                                                        <tr key={ri} className={isSelected ? 'text-green-300' : 'text-gray-500'}>
+                                                                            <td className="pr-2 py-px">{ri + 1}</td>
+                                                                            <td className="pr-2 py-px font-medium">{r.symbol}</td>
+                                                                            <td className={`text-right pr-2 py-px ${r.return > 0 ? 'text-red-400/80' : r.return < 0 ? 'text-blue-400/80' : ''}`}>
+                                                                                {r.return > 0 ? '+' : ''}{r.return}%
+                                                                            </td>
+                                                                            <td className="text-right pr-2 py-px">{r.win_rate != null ? `${r.win_rate}%` : '-'}</td>
+                                                                            <td className="text-right pr-2 py-px">{r.cycles}</td>
+                                                                            <td className={`text-right py-px font-medium ${isSelected ? 'text-green-300' : 'text-purple-400/70'}`}>
+                                                                                {r.score}
+                                                                            </td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                        {h.backtest_results.length > 5 && (
+                                                            <div className="text-[8px] text-gray-600 mt-0.5">
+                                                                +{h.backtest_results.length - 5}개 더...
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
 

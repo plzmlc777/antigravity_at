@@ -83,8 +83,11 @@ class LiveBotSession(Base):
     ai_eval_mode = Column(String, default="paper")    # 분석 대상 모드 (paper/real)
 
     # AI Symbol Selection (cycle-end symbol rotation)
-    ai_symbol_mode = Column(String, default="static")     # "static" | "ai"
+    ai_symbol_mode = Column(String, default="static")     # "static" | "ai" | "reset"
     ai_search_conditions = Column(Text, nullable=True)     # 자연어 검색 조건
+    ai_awaiting_cycle = Column(Boolean, default=False)     # True = 종목 교체 후 다음 사이클 대기 중
+    original_symbol = Column(String, nullable=True)        # 프로필 원래 종목 코드 (AI 전환 전 복원용)
+    original_symbol_name = Column(String, nullable=True)   # 프로필 원래 종목명
 
     # Archive (hide from list without deleting trade history)
     is_archived = Column(Boolean, default=False)
@@ -314,3 +317,33 @@ class LiveAIEvaluation(Base):
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     completed_at = Column(DateTime, nullable=True)
+
+
+class AISymbolHistory(Base):
+    """
+    AI symbol selection pipeline result history.
+    Persists every evaluation result (switched or kept) for tracking.
+    """
+    __tablename__ = "ai_symbol_history"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    session_id = Column(String, ForeignKey("live_bot_sessions.id"), index=True, nullable=False)
+    group_id = Column(String, index=True, nullable=True)
+
+    # Action: 'switched' (종목 교체), 'kept' (유지), 'no_candidates' (후보 없음)
+    action = Column(String, nullable=False)
+
+    # Symbol info
+    old_symbol = Column(String, nullable=False)
+    old_symbol_name = Column(String, nullable=True)
+    new_symbol = Column(String, nullable=True)
+    new_symbol_name = Column(String, nullable=True)
+
+    # Context
+    search_conditions = Column(Text, nullable=True)
+    evaluation_reason = Column(Text, nullable=True)
+
+    # Backtest results snapshot (top candidates)
+    backtest_results = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

@@ -65,10 +65,50 @@ class AISymbolSelectionService:
             **kwargs,
         }
 
-    def _clear_progress(self, session_id: str):
-        """Mark pipeline as complete."""
+    def _clear_progress(self, session_id: str, delay: float = 10.0):
+        """Mark pipeline as complete. Keep progress visible for `delay` seconds."""
         if session_id in self._progress:
             self._progress[session_id]["active"] = False
+
+            async def _delayed_delete():
+                await asyncio.sleep(delay)
+                self._progress.pop(session_id, None)
+
+            asyncio.ensure_future(_delayed_delete())
+
+    def _save_history(
+        self, session_id: str, group_id: str, action: str,
+        old_symbol: str, old_symbol_name: str = None,
+        new_symbol: str = None, new_symbol_name: str = None,
+        search_conditions: str = None, evaluation_reason: str = None,
+        backtest_results: list = None,
+    ):
+        """Save AI symbol selection result to DB for history tracking."""
+        from ..db.session import SessionLocal
+        from ..models.live_trading import AISymbolHistory
+
+        try:
+            db = SessionLocal()
+            record = AISymbolHistory(
+                session_id=session_id,
+                group_id=group_id,
+                action=action,
+                old_symbol=old_symbol,
+                old_symbol_name=old_symbol_name,
+                new_symbol=new_symbol,
+                new_symbol_name=new_symbol_name,
+                search_conditions=search_conditions,
+                evaluation_reason=evaluation_reason,
+                backtest_results=backtest_results,
+            )
+            db.add(record)
+            db.commit()
+            logger.info(f"[AISymbol] History saved: {session_id[:8]} {action} "
+                        f"{old_symbol} -> {new_symbol or '(kept)'}")
+        except Exception as e:
+            logger.error(f"[AISymbol] Failed to save history: {e}")
+        finally:
+            db.close()
 
     async def run_pipeline(
         self,
@@ -81,11 +121,13 @@ class AISymbolSelectionService:
         account_id: int,
         is_paper: bool,
         group_id: str = None,
+        current_symbol_name: str = None,
     ) -> Optional[str]:
         """
         Full AI symbol selection pipeline.
         Returns new symbol code if switch is recommended, None to keep current.
         """
+        _sym_name = current_symbol_name or strategy_config.get("symbol_name", current_symbol)
         logger.info(f"[AISymbol] Pipeline START for session {session_id}, "
                      f"symbol={current_symbol}, conditions='{search_conditions[:50]}...'")
 
@@ -118,12 +160,18 @@ class AISymbolSelectionService:
 
             # Step 4: Check if current symbol still matches conditions
             self._update_progress(session_id, "evaluating", f"현재 종목({current_symbol}) 적합성 평가 중...")
-            should_switch = await self._check_current_symbol(
+            should_switch, eval_reason = await self._check_current_symbol(
                 current_symbol, search_conditions, stock_data, ranking_data
             )
             if not should_switch:
-                logger.info(f"[AISymbol] Current symbol {current_symbol} still matches conditions. Keeping.")
-                self._update_progress(session_id, "done", f"현재 종목({current_symbol}) 유지 - 조건 부합")
+                reason = f"현재 종목({current_symbol}) 유지: {eval_reason}" if eval_reason else f"현재 종목({current_symbol}) 유지 - 조건 부합"
+                logger.info(f"[AISymbol] Current symbol {current_symbol} keeping. Reason: {eval_reason}")
+                self._update_progress(session_id, "done", reason)
+                self._save_history(session_id, group_id, "kept",
+                                   old_symbol=current_symbol,
+                                   old_symbol_name=_sym_name,
+                                   search_conditions=search_conditions,
+                                   evaluation_reason=reason)
                 self._clear_progress(session_id)
                 return None
 
@@ -134,8 +182,14 @@ class AISymbolSelectionService:
                 excluded_symbols=excluded_symbols,
             )
             if not candidates:
+                reason = "후보 종목 없음 - 현재 종목 유지"
                 logger.warning("[AISymbol] No candidates found. Keeping current symbol.")
-                self._update_progress(session_id, "done", "후보 종목 없음 - 현재 종목 유지")
+                self._update_progress(session_id, "done", reason)
+                self._save_history(session_id, group_id, "no_candidates",
+                                   old_symbol=current_symbol,
+                                   old_symbol_name=_sym_name,
+                                   search_conditions=search_conditions,
+                                   evaluation_reason=reason)
                 self._clear_progress(session_id)
                 return None
 
@@ -150,15 +204,34 @@ class AISymbolSelectionService:
                 session_id=session_id,
             )
             if not best_symbol:
+                bt_results = self._progress.get(session_id, {}).get("results", [])
+                reason = (f"[교체 사유] {eval_reason}\n"
+                          f"[결과] 적합한 후보 없음 - 현재 종목 유지")
                 logger.warning("[AISymbol] No candidate outperformed. Keeping current symbol.")
                 self._update_progress(session_id, "done", "적합한 후보 없음 - 현재 종목 유지")
+                self._save_history(session_id, group_id, "no_candidates",
+                                   old_symbol=current_symbol,
+                                   old_symbol_name=_sym_name,
+                                   search_conditions=search_conditions,
+                                   evaluation_reason=reason,
+                                   backtest_results=bt_results)
                 self._clear_progress(session_id)
                 return None
 
+            bt_results = self._progress.get(session_id, {}).get("results", [])
+            reason = (f"[교체 사유] {eval_reason}\n"
+                      f"[결과] {current_symbol} → {best_symbol}")
             logger.info(f"[AISymbol] Pipeline COMPLETE: {current_symbol} -> {best_symbol}")
-            self._update_progress(session_id, "switching",
-                                  f"종목 전환 중: {current_symbol} → {best_symbol}",
+            self._update_progress(session_id, "done",
+                                  f"종목 전환 완료: {current_symbol} → {best_symbol}",
                                   new_symbol=best_symbol)
+            self._save_history(session_id, group_id, "switched",
+                               old_symbol=current_symbol,
+                               old_symbol_name=_sym_name,
+                               new_symbol=best_symbol,
+                               search_conditions=search_conditions,
+                               evaluation_reason=reason,
+                               backtest_results=bt_results)
             return best_symbol
 
         except Exception as e:
@@ -226,10 +299,11 @@ class AISymbolSelectionService:
         search_conditions: str,
         stock_data: list,
         ranking_data: dict,
-    ) -> bool:
+    ) -> tuple:
         """
         Check if current symbol still matches the user's conditions.
-        Returns True if symbol should be switched (doesn't match).
+        Returns (should_switch: bool, reason: str).
+        should_switch=True means symbol doesn't match conditions and should be replaced.
         """
         # Find current symbol name
         symbol_name = current_symbol
@@ -251,22 +325,22 @@ class AISymbolSelectionService:
             f"({current_symbol} {symbol_name}) still matches the user's conditions: "
             f"'{search_conditions}'. "
             f"Respond with ONLY a JSON object: "
-            f'{{"match": true/false, "reason": "brief explanation"}}'
+            f'{{"match": true/false, "reason": "detailed explanation in Korean why this symbol matches or does not match the conditions, including specific data points like volume change rate, price change rate, etc."}}'
         )
 
         result = await self._call_claude(context_data, prompt)
         if result is None:
-            return False  # On error, keep current symbol
+            return False, "AI 평가 오류 - 현재 종목 유지"
 
         try:
             parsed = json.loads(result) if isinstance(result, str) else result
             match = parsed.get("match", True)
             reason = parsed.get("reason", "")
             logger.info(f"[AISymbol] Evaluate result: match={match}, reason={reason}")
-            return not match  # Return True (should switch) when NOT matching
+            return not match, reason  # (should_switch, reason)
         except (json.JSONDecodeError, AttributeError):
             logger.warning(f"[AISymbol] Failed to parse evaluate response: {result[:200]}")
-            return False
+            return False, f"AI 응답 파싱 실패: {str(result)[:100]}"
 
     async def _find_candidates(
         self,
@@ -369,7 +443,7 @@ class AISymbolSelectionService:
                 wr = float(str(result.get("win_rate", "0")).replace('%', ''))
                 logger.info(f"[AISymbol] Backtest [{i+1}/{len(candidates)}] {symbol}: "
                            f"score={score:.2f}, cycles={trades}, return={ret:.1f}%, WR={wr:.1f}%")
-                results_summary.append((symbol, score, trades, ret))
+                results_summary.append((symbol, score, trades, ret, wr))
 
                 # Update progress with result
                 if session_id:
@@ -645,20 +719,26 @@ class AISymbolSelectionService:
                     self._update_progress(sid, "evaluating",
                                           f"현재 종목({info['current_symbol']}) 적합성 평가 중...")
 
-                    should_switch = await self._check_current_symbol(
+                    should_switch, eval_reason = await self._check_current_symbol(
                         info["current_symbol"], info["search_conditions"],
                         stock_data, ranking_data
                     )
 
                     if should_switch:
+                        info["_eval_reason"] = eval_reason  # Save reason for later use
                         need_switch.append(info)
                         logger.info(f"[AISymbol] Session {sid[:8]} "
-                                    f"({info['current_symbol']}): NEEDS SWITCH")
+                                    f"({info['current_symbol']}): NEEDS SWITCH - {eval_reason}")
                     else:
+                        reason = f"현재 종목({info['current_symbol']}) 유지: {eval_reason}" if eval_reason else f"현재 종목({info['current_symbol']}) 유지 - 조건 부합"
                         logger.info(f"[AISymbol] Session {sid[:8]} "
-                                    f"({info['current_symbol']}): KEEPING")
-                        self._update_progress(sid, "done",
-                                              f"현재 종목({info['current_symbol']}) 유지 - 조건 부합")
+                                    f"({info['current_symbol']}): KEEPING - {eval_reason}")
+                        self._update_progress(sid, "done", reason)
+                        self._save_history(sid, group_id, "kept",
+                                           old_symbol=info["current_symbol"],
+                                           old_symbol_name=info.get("current_symbol_name"),
+                                           search_conditions=info["search_conditions"],
+                                           evaluation_reason=reason)
                         self._clear_progress(sid)
 
                 N = len(need_switch)
@@ -689,8 +769,13 @@ class AISymbolSelectionService:
                 if not candidates:
                     logger.warning(f"[AISymbol] Group {group_id[:8]}: No candidates found")
                     for info in need_switch:
-                        self._update_progress(info["session_id"], "done",
-                                              "후보 종목 없음 - 현재 종목 유지")
+                        reason = "후보 종목 없음 - 현재 종목 유지"
+                        self._update_progress(info["session_id"], "done", reason)
+                        self._save_history(info["session_id"], group_id, "no_candidates",
+                                           old_symbol=info["current_symbol"],
+                                           old_symbol_name=info.get("current_symbol_name"),
+                                           search_conditions=info["search_conditions"],
+                                           evaluation_reason=reason)
                         self._clear_progress(info["session_id"])
                     return
 
@@ -713,6 +798,12 @@ class AISymbolSelectionService:
                 assignments = self._assign_candidates(ranked, need_switch, excluded)
 
                 # 7. Execute switches
+                bt_results = []
+                for s_sym, s_score, s_trades, s_ret, s_wr in ranked[:10]:
+                    bt_results.append({"symbol": s_sym, "score": round(s_score, 1),
+                                       "cycles": s_trades, "return": round(s_ret, 2),
+                                       "win_rate": round(s_wr, 1)})
+
                 from .live_manager import live_manager
                 for sid, new_symbol in assignments.items():
                     info = next(s for s in need_switch if s["session_id"] == sid)
@@ -731,14 +822,33 @@ class AISymbolSelectionService:
                                               new_symbol=new_symbol)
                         await live_manager.switch_session_symbol(
                             sid, new_symbol, new_symbol_name=new_name)
+                        eval_reason = info.get("_eval_reason", "")
+                        reason = (f"[교체 사유] {eval_reason}\n"
+                                  f"[결과] {old_symbol} → {new_symbol} ({new_name})")
                         self._update_progress(sid, "done",
                                               f"종목 전환 완료: {old_symbol} → {new_symbol}",
                                               new_symbol=new_symbol)
+                        self._save_history(sid, group_id, "switched",
+                                           old_symbol=old_symbol,
+                                           old_symbol_name=info.get("current_symbol_name"),
+                                           new_symbol=new_symbol, new_symbol_name=new_name,
+                                           search_conditions=info["search_conditions"],
+                                           evaluation_reason=reason,
+                                           backtest_results=bt_results)
                         logger.info(f"[AISymbol] Group switch: {sid[:8]} "
                                     f"{old_symbol} -> {new_symbol}")
                     else:
+                        eval_reason = info.get("_eval_reason", "")
+                        reason = (f"[교체 사유] {eval_reason}\n"
+                                  f"[결과] 적합한 후보 없음 - 현재 종목({old_symbol}) 유지")
                         self._update_progress(sid, "done",
                                               f"적합한 후보 없음 - 현재 종목({old_symbol}) 유지")
+                        self._save_history(sid, group_id, "no_candidates",
+                                           old_symbol=old_symbol,
+                                           old_symbol_name=info.get("current_symbol_name"),
+                                           search_conditions=info["search_conditions"],
+                                           evaluation_reason=reason,
+                                           backtest_results=bt_results)
 
                     self._clear_progress(sid)
 
@@ -804,7 +914,7 @@ class AISymbolSelectionService:
 
                 logger.info(f"[AISymbol] Group Backtest [{i+1}/{len(candidates)}] {symbol}: "
                             f"score={score:.2f}, cycles={trades}, return={ret:.1f}%, WR={wr:.1f}%")
-                results_summary.append((symbol, score, trades, ret))
+                results_summary.append((symbol, score, trades, ret, wr))
 
                 # Update progress with result for ALL sessions
                 bt_entry = {
@@ -830,7 +940,7 @@ class AISymbolSelectionService:
         if results_summary:
             top5 = results_summary[:5]
             logger.info(f"[AISymbol] Group Top 5: "
-                        f"{[(s, f'{sc:.1f}', t, f'{r:.1f}%') for s, sc, t, r in top5]}")
+                        f"{[(s, f'{sc:.1f}', t, f'{r:.1f}%', f'WR{w:.0f}%') for s, sc, t, r, w in top5]}")
 
         return results_summary
 
@@ -854,7 +964,7 @@ class AISymbolSelectionService:
         for info in sessions_needing_switch:
             sid = info["session_id"]
             assigned = None
-            for symbol, score, _, _ in ranked:
+            for symbol, score, *_ in ranked:
                 if symbol not in used and score > float('-inf'):
                     assigned = symbol
                     used.add(symbol)

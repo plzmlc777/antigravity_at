@@ -554,6 +554,8 @@ class LiveManager:
                 profile_id=profile_id,  # 프로필 ID for lock detection
                 ai_symbol_mode=config.get("ai_symbol_mode", "static"),
                 ai_search_conditions=config.get("ai_search_conditions"),
+                original_symbol=symbol,
+                original_symbol_name=strat_config.get("symbol_name"),
             )
             db.add(sess)
             db.commit()
@@ -782,7 +784,11 @@ class LiveManager:
                     pass
             if resolved_name:
                 cfg['symbol_name'] = resolved_name
+            # Clear preset name — no longer relevant after AI symbol switch
+            cfg.pop('selected_preset_name', None)
+            cfg.pop('selected_preset_id', None)
             sess.strategy_config = cfg
+            sess.ai_awaiting_cycle = True  # Block re-trigger until next cycle completes
             db.commit()
             account_id = sess.account_id
         finally:
