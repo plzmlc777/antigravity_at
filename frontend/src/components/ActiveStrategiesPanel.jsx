@@ -54,7 +54,7 @@ const ActiveStrategiesPanel = ({
         });
     });
 
-    // Auto-select first preset for configs without selected_preset_id
+    // Auto-select preset for configs without selected_preset_id (Profile page only)
     const initializedConfigs = useRef(new Set());
 
     useEffect(() => {
@@ -79,36 +79,28 @@ const ActiveStrategiesPanel = ({
             }
 
             // Try to match by comparing current config params with preset params
-            const paramKeys = fields.map(f => f.key || f.name);
-            const currentParams = {};
-            paramKeys.forEach(key => {
-                if (cfg[key] !== undefined) currentParams[key] = cfg[key];
-            });
-
-            let matchedPreset = null;
-            for (const p of presets) {
-                if (p.params) {
-                    const presetParams = {};
-                    paramKeys.forEach(key => {
-                        if (p.params[key] !== undefined) presetParams[key] = p.params[key];
-                    });
-                    if (JSON.stringify(currentParams) === JSON.stringify(presetParams)) {
-                        matchedPreset = p;
-                        break;
-                    }
-                }
+            const matched = findCurrentPreset(cfg);
+            if (matched && matched.id !== '__saved__') {
+                initializedConfigs.current.add(configKey);
+                onVersionChange(idx, matched.params, {
+                    id: matched.id,
+                    version_name: matched.name,
+                    config_hash: matched.config_hash,
+                });
+                return;
             }
 
-            const presetToUse = matchedPreset || presets[0];
-            initializedConfigs.current.add(configKey);
-
-            onVersionChange(idx, presetToUse.params, {
-                id: presetToUse.id,
-                version_name: presetToUse.name,
-                config_hash: presetToUse.config_hash,
-            });
+            // No match — only apply first preset if this is NOT a live session
+            if (!disabled && presets[0]) {
+                initializedConfigs.current.add(configKey);
+                onVersionChange(idx, presets[0].params, {
+                    id: presets[0].id,
+                    version_name: presets[0].name,
+                    config_hash: presets[0].config_hash,
+                });
+            }
         });
-    }, [configList, onVersionChange, fields]);
+    }, [configList, onVersionChange, fields, disabled]);
 
     // Handle preset selection
     const handlePresetSelect = (idx, cfg, presetId) => {
@@ -124,17 +116,54 @@ const ActiveStrategiesPanel = ({
         }
     };
 
-    // Find current preset
+    // Find current preset by ID or by matching params
     const findCurrentPreset = (cfg) => {
         const presets = cfg.parameter_presets || [];
         if (!presets.length) return null;
 
+        // 1. Direct ID match
         if (cfg.selected_preset_id) {
             const match = presets.find(p => p.id === cfg.selected_preset_id);
             if (match) return match;
         }
 
-        return presets[0];
+        // 2. Fallback: match by comparing current config params with preset params
+        // Only compare keys present in BOTH config and preset (skip missing keys)
+        const paramKeys = fields.map(f => f.key || f.name);
+        let bestMatch = null;
+        let bestMatchCount = 0;
+        for (const p of presets) {
+            if (!p.params) continue;
+            let matchCount = 0;
+            let mismatch = false;
+            for (const key of paramKeys) {
+                const cfgVal = cfg[key];
+                const presetVal = p.params[key];
+                // Skip keys not present in either side
+                if (cfgVal == null && presetVal == null) continue;
+                if (cfgVal == null || presetVal == null) continue;
+                // Both have a value — compare with type coercion
+                if (String(cfgVal) === String(presetVal)) {
+                    matchCount++;
+                } else {
+                    mismatch = true;
+                    break;
+                }
+            }
+            // Require at least 3 matching keys and no mismatches
+            if (!mismatch && matchCount >= 3 && matchCount > bestMatchCount) {
+                bestMatch = p;
+                bestMatchCount = matchCount;
+            }
+        }
+        if (bestMatch) return bestMatch;
+
+        // 3. No match found — show saved preset name if available
+        if (cfg.selected_preset_name) {
+            return { id: '__saved__', name: cfg.selected_preset_name };
+        }
+
+        return null;
     };
 
     const formatValue = (cfg, field) => {
@@ -233,9 +262,9 @@ const ActiveStrategiesPanel = ({
                                             );
                                         })}
                                         <td className="px-4 py-3 text-right">
-                                            {presets.length === 0 ? (
-                                                cfg.selected_preset_name ? (
-                                                    <span className="text-xs text-gray-400 font-medium">{cfg.selected_preset_name}</span>
+                                            {presets.length === 0 || (disabled && !currentPreset) ? (
+                                                (currentPreset?.name || cfg.selected_preset_name) ? (
+                                                    <span className="text-xs text-gray-400 font-medium">{currentPreset?.name || cfg.selected_preset_name}</span>
                                                 ) : (
                                                     <span className="text-xs text-gray-600 italic">-</span>
                                                 )
@@ -243,7 +272,7 @@ const ActiveStrategiesPanel = ({
                                                 <div className="inline-flex items-center gap-1.5">
                                                     <div className="relative">
                                                         <select
-                                                            value={currentPreset?.id || presets[0]?.id || ''}
+                                                            value={currentPreset?.id || ''}
                                                             onChange={(e) => handlePresetSelect(idx, cfg, e.target.value)}
                                                             disabled={disabled}
                                                             className={`appearance-none bg-gray-800 border border-gray-600 text-white text-xs rounded px-2 py-1.5 pr-7 focus:outline-none focus:border-indigo-500 min-w-[140px] ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}

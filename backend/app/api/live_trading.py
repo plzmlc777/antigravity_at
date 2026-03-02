@@ -741,11 +741,13 @@ async def get_all_sessions(
                 if sym.get("code") and sym.get("name") and sym["code"] not in symbol_name_map:
                     symbol_name_map[sym["code"]] = sym["name"]
 
-    # Source 3: Profile-level saved_symbols (if profile_id available)
+    # Source 3: Profile-level saved_symbols + rank_configs (if profile_id available)
     profile_ids = list({sess.profile_id for sess in sessions if sess.profile_id})
+    # profile_id → {rank_index: selected_preset_id}
+    profile_preset_map = {}
     if profile_ids:
         from ..models.live_trading import StrategyProfile
-        profiles = db.query(StrategyProfile.id, StrategyProfile.saved_symbols).filter(
+        profiles = db.query(StrategyProfile.id, StrategyProfile.saved_symbols, StrategyProfile.rank_configs).filter(
             StrategyProfile.id.in_(profile_ids)
         ).all()
         for p in profiles:
@@ -753,6 +755,27 @@ async def get_all_sessions(
                 for sym in p.saved_symbols:
                     if sym.get("code") and sym.get("name") and sym["code"] not in symbol_name_map:
                         symbol_name_map[sym["code"]] = sym["name"]
+            # Build preset map from rank_configs
+            if p.rank_configs:
+                rank_map = {}
+                for rc in p.rank_configs:
+                    rank_idx = rc.get("rank")
+                    preset_id = rc.get("selected_preset_id") or rc.get("selected_version_id")
+                    if rank_idx is not None and preset_id:
+                        rank_map[int(rank_idx)] = preset_id
+                if rank_map:
+                    profile_preset_map[p.id] = rank_map
+
+    # Helper: enrich strategy_config with selected_preset_id from profile
+    def _enrich_strategy_config(sess, preset_map):
+        config = dict(sess.strategy_config) if sess.strategy_config else {}
+        if not config.get("selected_preset_id") and sess.profile_id and sess.profile_id in preset_map:
+            rank = config.get("rank")
+            if rank is not None:
+                pid = preset_map[sess.profile_id].get(int(rank))
+                if pid:
+                    config["selected_preset_id"] = pid
+        return config
 
     # Check which sessions are actually running in memory
     running_ids = set(live_manager.engines.keys())
@@ -799,7 +822,7 @@ async def get_all_sessions(
             "stopped_at": sess.stopped_at.isoformat() if sess.stopped_at else None,
             "error_log": sess.error_log,
             "is_archived": sess.is_archived or False,
-            "strategy_config": sess.strategy_config,  # Full config for UI display
+            "strategy_config": _enrich_strategy_config(sess, profile_preset_map),
             "ai_symbol_mode": sess.ai_symbol_mode or "static",
             "ai_search_conditions": sess.ai_search_conditions or "",
             "original_symbol": getattr(sess, 'original_symbol', None) or sess.symbol,
