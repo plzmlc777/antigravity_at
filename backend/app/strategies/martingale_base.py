@@ -422,8 +422,14 @@ class MartingaleBase(BaseStrategy):
 
             # 3e. Check Additional Entry (L2+)
             if self.current_level < self.max_buy_count and not self.trailing_active:
+                # Recalculate cycle_max_level if lost (e.g., after PM2 restart)
+                if self.cycle_max_level is None and self.current_level > 0:
+                    self.cycle_max_level = self._calculate_max_affordable_level(current_price)
+                    self.context.log(f"[{self._log_prefix}] Cycle Plan restored: Max affordable level = L{self.cycle_max_level} @ {current_price:,.0f}")
+
                 # Block further entries beyond the max affordable level for this cycle
-                if self.cycle_max_level and self.current_level >= self.cycle_max_level:
+                # Note: use 'is not None' to correctly handle cycle_max_level=0 (can't afford any level)
+                if self.cycle_max_level is not None and self.current_level >= self.cycle_max_level:
                     pass  # Capital plan exhausted, no more entries
                 else:
                     # Require worse price: LONG=lower price, SHORT=higher price
@@ -632,10 +638,13 @@ class MartingaleBase(BaseStrategy):
         if self.qty_mode == "percent" and price > 0:
             # Resolve L1 base qty once per cycle, cache it
             if not hasattr(self, '_resolved_base_qty') or self._resolved_base_qty is None:
-                # Use total equity (initial + compound profits) as base for percent calculation
-                equity = self.context.get_total_equity()
-                capital = equity if equity > 0 else getattr(self.context, 'cash', getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL))
-                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (equity-based)")
+                # Use SESSION-SPECIFIC equity: cash + own position value
+                # (not get_total_equity() which includes cross-session holdings from exchange sync)
+                session_cash = getattr(self.context, 'cash', 0)
+                own_position_value = self.total_quantity * price if self.total_quantity > 0 and price > 0 else 0
+                equity = session_cash + own_position_value
+                capital = equity if equity > 0 else getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL)
+                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (session: cash={session_cash:,.0f} + position={own_position_value:,.0f})")
                 self._resolved_base_qty = capital * self.base_quantity / 100 / price
             return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
 
@@ -715,17 +724,29 @@ class MartingaleBase(BaseStrategy):
                 safety_reserve = available_cash * (self.safety_margin_percent / 100)
                 usable_capital = available_cash - safety_reserve
 
-                remaining_capital = usable_capital
-                max_qty = remaining_capital / price if price > 0 else 0
-                final_qty = max(max_qty, standard_qty)
-
-                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): Investing remaining capital → {final_qty} qty")
-                return self._adjust_qty_for_exchange(final_qty, price)
+                # All-in: invest remaining capital ONLY (never exceed session cash)
+                max_qty = usable_capital / price if price > 0 else 0
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): cash={available_cash:,.0f} → {max_qty:.1f} qty")
+                qty = self._adjust_qty_for_exchange(max_qty, price)
             else:
                 self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} qty")
-                return self._adjust_qty_for_exchange(standard_qty, price)
+                qty = self._adjust_qty_for_exchange(standard_qty, price)
+        else:
+            qty = self._adjust_qty_for_exchange(self._resolve_level_qty(level, price), price)
 
-        return self._adjust_qty_for_exchange(self._resolve_level_qty(level, price), price)
+        # ── Cash guard: NEVER exceed session's available capital ──
+        if qty > 0 and price > 0:
+            available_cash = max(getattr(self.context, 'cash', 0), 0)
+            if available_cash <= 0:
+                self.context.log(f"[{self._log_prefix}] CASH GUARD: No cash available, blocking L{level}")
+                return 0
+            safety_reserve = available_cash * (self.safety_margin_percent / 100)
+            max_affordable = int((available_cash - safety_reserve) / price)
+            if qty > max_affordable:
+                self.context.log(f"[{self._log_prefix}] CASH GUARD: L{level} qty {qty} → {max_affordable} (cash: {available_cash:,.0f})")
+                qty = max_affordable
+
+        return qty
 
     def get_state(self) -> Dict[str, Any]:
         cur_price = getattr(self, 'last_price', 0)

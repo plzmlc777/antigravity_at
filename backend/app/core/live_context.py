@@ -289,6 +289,23 @@ class LiveContext:
         if self._exclusive_gate and not self._exclusive_gate():
             self.log(f"BUY BLOCKED: Exclusive lock held by another session")
             return {"status": "failed", "reason": "exclusive_locked"}
+
+        # Cash guard: block orders exceeding session's allocated capital
+        # Skip for position-close orders (e.g., short cover)
+        is_close = metadata and metadata.get("close_position")
+        if not is_close and self.initial_capital > 0 and quantity > 0:
+            exec_price = price if price > 0 else self.get_current_price(symbol)
+            available = max(self.cash, 0)
+            if exec_price > 0:
+                order_cost = quantity * exec_price
+                if order_cost > available:
+                    max_qty = int(available / exec_price) if available > 0 else 0
+                    if max_qty <= 0:
+                        self.log(f"BUY BLOCKED: Insufficient cash ({self.cash:,.0f}) for {quantity} × {exec_price:,.0f} = {order_cost:,.0f}")
+                        return {"status": "failed", "reason": "insufficient_cash"}
+                    self.log(f"BUY QTY CAPPED: {quantity} → {max_qty} (cash: {self.cash:,.0f}, cost: {order_cost:,.0f})")
+                    quantity = max_qty
+
         return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata, on_filled)
 
     def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
