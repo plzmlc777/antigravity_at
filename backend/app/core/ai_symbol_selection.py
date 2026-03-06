@@ -475,8 +475,14 @@ class AISymbolSelectionService:
         return best_symbol
 
     def _calculate_score(self, result: dict) -> float:
-        """Calculate a composite score from backtest results."""
-        # Backtest returns string values like "41.74%", "82.1%"
+        """Calculate a composite score from backtest results.
+
+        Reliability-weighted: low trade count penalizes the score heavily.
+        - 1-2 trades: 20-40% of base score (unreliable)
+        - 3-4 trades: 50-70% of base score (low confidence)
+        - 5-9 trades: 80-95% of base score (moderate)
+        - 10+ trades: 100%+ of base score (reliable, with bonus)
+        """
         total_return = float(str(result.get("total_return", "0")).replace('%', '').replace(',', ''))
         win_rate = float(str(result.get("win_rate", "0")).replace('%', ''))
         total_trades = int(result.get("total_cycles", 0))
@@ -484,8 +490,20 @@ class AISymbolSelectionService:
         if total_trades == 0:
             return float('-inf')
 
-        # Composite: 60% return + 30% win_rate + 10% trade frequency
-        score = (total_return * 0.6) + (win_rate * 0.3) + (min(total_trades, 20) * 0.5)
+        # Base score: return + win_rate contribution
+        base_score = (total_return * 0.5) + (win_rate * 0.3)
+
+        # Reliability multiplier based on trade count
+        if total_trades <= 2:
+            reliability = 0.2 + (total_trades * 0.1)   # 0.3 ~ 0.4
+        elif total_trades <= 4:
+            reliability = 0.4 + ((total_trades - 2) * 0.15)  # 0.55 ~ 0.7
+        elif total_trades <= 9:
+            reliability = 0.7 + ((total_trades - 4) * 0.06)  # 0.76 ~ 1.0
+        else:
+            reliability = 1.0 + (min(total_trades, 30) - 10) * 0.01  # 1.0 ~ 1.2 bonus
+
+        score = base_score * reliability
         return score
 
     async def _call_claude(self, context_data: dict, prompt: str) -> Optional[str]:
