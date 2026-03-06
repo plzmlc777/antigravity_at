@@ -1641,11 +1641,12 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         if (mode === 'TRADE' && !sessionId) return;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsHost = `${window.location.hostname}:${window.location.port}`;
         let wsUrl;
         if (mode === 'WATCH') {
-            wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/watch/${strategyConfig.symbol}`;
+            wsUrl = `${wsProtocol}//${wsHost}/api/v1/live/ws/watch/${strategyConfig.symbol}`;
         } else {
-            wsUrl = `${wsProtocol}//${window.location.hostname}:8001/api/v1/live/ws/${sessionId}`;
+            wsUrl = `${wsProtocol}//${wsHost}/api/v1/live/ws/${sessionId}`;
         }
 
         let ws = null;
