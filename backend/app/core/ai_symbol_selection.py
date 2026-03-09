@@ -1073,8 +1073,9 @@ class AISymbolSelectionService:
         if total_trades == 0:
             return float('-inf')
 
-        # Base score: return + win_rate contribution
-        base_score = (total_return * 0.5) + (win_rate * 0.3)
+        # Base score: return-dominant + win_rate as tiebreaker
+        # Return already reflects leverage (equity-based), so weight it heavily
+        base_score = (total_return * 0.7) + (win_rate * 0.15)
 
         # Reliability multiplier based on trade count
         if total_trades <= 2:

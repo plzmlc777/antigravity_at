@@ -196,6 +196,10 @@ class LiveContext:
             # Per-cycle PnL list for win_rate, max, min
             cycle_pnls = {"paper": [], "real": []}
 
+            # Also track short positions (SELL entry → BUY close)
+            running_short_cost = {"paper": 0.0, "real": 0.0}
+            running_short_qty = {"paper": 0.0, "real": 0.0}
+
             for ex in executions:
                 is_paper = ex.is_paper if ex.is_paper is not None else True
                 key = "paper" if is_paper else "real"
@@ -203,20 +207,42 @@ class LiveContext:
                 s["trades"] += 1
                 qty = ex.filled_quantity or 0.0
                 val = (ex.executed_price or 0.0) * qty
+                metadata = ex.trade_metadata or {}
+                is_close = metadata.get("level") == "CLOSE"
+                is_short_entry = (metadata.get("position_side", "").lower() == "short"
+                                  and isinstance(metadata.get("level"), int))
 
                 if ex.signal_type == "BUY":
                     s["buys"] += 1
-                    running_buy_cost[key] += val
-                    running_buy_qty[key] += qty
+                    if is_close and running_short_qty[key] > 0:
+                        # SHORT close: BUY to cover
+                        avg_entry = running_short_cost[key] / running_short_qty[key]
+                        cycle_pnl = (avg_entry - (ex.executed_price or 0)) * min(qty, running_short_qty[key])
+                        cycle_pnls[key].append(round(cycle_pnl, 2))
+                        s["cycles"] += 1
+                        remaining = running_short_qty[key] - qty
+                        if remaining <= 0:
+                            running_short_cost[key] = 0.0
+                            running_short_qty[key] = 0.0
+                        else:
+                            running_short_cost[key] = avg_entry * remaining
+                            running_short_qty[key] = remaining
+                    else:
+                        # LONG entry
+                        running_buy_cost[key] += val
+                        running_buy_qty[key] += qty
                 elif ex.signal_type == "SELL":
                     s["sells"] += 1
-                    s["cycles"] += 1
-                    # Calculate this cycle's PnL
-                    if running_buy_qty[key] > 0:
+                    if is_short_entry:
+                        # SHORT entry: accumulate short position
+                        running_short_cost[key] += val
+                        running_short_qty[key] += qty
+                    elif is_close and running_buy_qty[key] > 0:
+                        # LONG close: SELL to close
                         avg_cost = running_buy_cost[key] / running_buy_qty[key]
                         cycle_pnl = val - (qty * avg_cost)
                         cycle_pnls[key].append(round(cycle_pnl, 2))
-                        # Reduce running buy position by sold qty
+                        s["cycles"] += 1
                         remaining_qty = running_buy_qty[key] - qty
                         if remaining_qty <= 0:
                             running_buy_cost[key] = 0.0
@@ -224,8 +250,19 @@ class LiveContext:
                         else:
                             running_buy_cost[key] = avg_cost * remaining_qty
                             running_buy_qty[key] = remaining_qty
-                    else:
-                        cycle_pnls[key].append(0.0)
+                    elif not is_close and running_buy_qty[key] > 0:
+                        # Legacy LONG close (no metadata)
+                        avg_cost = running_buy_cost[key] / running_buy_qty[key]
+                        cycle_pnl = val - (qty * avg_cost)
+                        cycle_pnls[key].append(round(cycle_pnl, 2))
+                        s["cycles"] += 1
+                        remaining_qty = running_buy_qty[key] - qty
+                        if remaining_qty <= 0:
+                            running_buy_cost[key] = 0.0
+                            running_buy_qty[key] = 0.0
+                        else:
+                            running_buy_cost[key] = avg_cost * remaining_qty
+                            running_buy_qty[key] = remaining_qty
 
             # Compute stats per mode
             for key in ["paper", "real"]:

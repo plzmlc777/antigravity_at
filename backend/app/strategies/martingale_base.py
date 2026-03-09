@@ -4,7 +4,7 @@ from datetime import datetime
 import math
 import logging
 from .base import BaseStrategy, IContext
-from ..core.qty_rules import adjust_qty, EXCHANGE_QTY_RULES
+from ..core.qty_rules import adjust_qty, adjust_price, EXCHANGE_QTY_RULES
 from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 from ..core.trading_hours import calc_trading_seconds
 
@@ -140,7 +140,7 @@ class MartingaleBase(BaseStrategy):
                     metadata = ex.trade_metadata or {}
                     is_close = metadata.get("level") == "CLOSE"
                     # Legacy: SELL without position_side metadata = LONG close
-                    if not is_close and ex.signal_type == "SELL" and metadata.get("position_side") != "short":
+                    if not is_close and ex.signal_type == "SELL" and metadata.get("position_side", "").lower() != "short":
                         is_close = True
                     if is_close:
                         is_paper = ex.is_paper if ex.is_paper is not None else True
@@ -163,15 +163,15 @@ class MartingaleBase(BaseStrategy):
                     is_entry = False
                     if self.position_side == "both":
                         # "both" mode: detect direction from metadata
-                        if metadata.get("position_side") == "short" and ex.signal_type == "SELL":
+                        if metadata.get("position_side", "").lower() == "short" and ex.signal_type == "SELL":
                             is_entry = True
-                        elif metadata.get("position_side") == "long" and ex.signal_type == "BUY":
+                        elif metadata.get("position_side", "").lower() == "long" and ex.signal_type == "BUY":
                             is_entry = True
-                        elif ex.signal_type == "BUY" and metadata.get("position_side") != "short":
+                        elif ex.signal_type == "BUY" and metadata.get("position_side", "").lower() != "short":
                             is_entry = True  # Legacy BUY without metadata = LONG
                     elif self.is_short:
                         # SHORT entries: SELL with position_side=short metadata
-                        if ex.signal_type == "SELL" and metadata.get("position_side") == "short":
+                        if ex.signal_type == "SELL" and metadata.get("position_side", "").lower() == "short":
                             is_entry = True
                     else:
                         # LONG entries: BUY signal
@@ -225,7 +225,7 @@ class MartingaleBase(BaseStrategy):
                     # "both" mode: restore is_short from first entry's metadata
                     if self.position_side == "both" and open_buys:
                         first_meta = open_buys[0].trade_metadata or {}
-                        self.is_short = (first_meta.get("position_side") == "short")
+                        self.is_short = (first_meta.get("position_side", "").lower() == "short")
 
                     self.context.log(
                         f"[{self._log_prefix}] Position RESTORED from DB: "
@@ -710,6 +710,20 @@ class MartingaleBase(BaseStrategy):
         available_cash = getattr(self.context, 'cash', None)
         return adjust_qty(qty, exchange_name=exchange_name, price=price, available_cash=available_cash)
 
+    def _adjust_price_for_exchange(self, price: float) -> float:
+        """거래소별 가격 보정 (tick size 기준 반올림)."""
+        if price <= 0:
+            return 0
+        exchange_name = self.config.get('exchange_name', DEFAULT_EXCHANGE)
+        # Live 모드: adapter에서 심볼별 동적 필터 조회
+        symbol_filters = None
+        if hasattr(self.context, 'adapter') and hasattr(self.context.adapter, 'get_symbol_precision'):
+            filters = self.context.adapter.get_symbol_precision(self.symbol)
+            # exchangeInfo가 실제 로드된 경우만 사용 (기본 fallback 딕셔너리 무시)
+            if hasattr(self.context.adapter, '_symbol_filters') and self.symbol in self.context.adapter._symbol_filters:
+                symbol_filters = filters
+        return adjust_price(price, exchange_name=exchange_name, symbol_filters=symbol_filters)
+
     def _calculate_quantity(self, level: int, price: float = None) -> float:
         if price is None:
             price = getattr(self, 'last_price', 0)
@@ -771,12 +785,13 @@ class MartingaleBase(BaseStrategy):
         total_investment = self.average_price * self.total_quantity if self.average_price > 0 else 0
         profit_percent = position_profit / total_investment if total_investment > 0 else 0
 
-        # Target price: direction-aware
+        # Target price: direction-aware, adjusted to exchange tick size
         if self.average_price > 0:
             if self.is_short:
-                target_price = round(self.average_price * (1 - self.trailing_start_percent / 100.0))
+                target_price = self.average_price * (1 - self.trailing_start_percent / 100.0)
             else:
-                target_price = round(self.average_price * (1 + self.trailing_start_percent / 100.0))
+                target_price = self.average_price * (1 + self.trailing_start_percent / 100.0)
+            target_price = self._adjust_price_for_exchange(target_price)
         else:
             target_price = 0
 
@@ -784,18 +799,20 @@ class MartingaleBase(BaseStrategy):
         avg = self.average_price
         if avg > 0 and self.max_loss_percent > 0:
             if self.is_short:
-                stop_loss_price = round(avg * (1 + self.max_loss_percent / 100.0))
+                stop_loss_price = avg * (1 + self.max_loss_percent / 100.0)
             else:
-                stop_loss_price = round(avg * (1 - self.max_loss_percent / 100.0))
+                stop_loss_price = avg * (1 - self.max_loss_percent / 100.0)
+            stop_loss_price = self._adjust_price_for_exchange(stop_loss_price)
         else:
             stop_loss_price = 0
 
         # Trailing exit price: based on peak_price when trailing is active
         if self.trailing_active and self.peak_price > 0 and self.trailing_stop_percent > 0:
             if self.is_short:
-                trailing_exit_price = round(self.peak_price * (1 + self.trailing_stop_percent / 100.0))
+                trailing_exit_price = self.peak_price * (1 + self.trailing_stop_percent / 100.0)
             else:
-                trailing_exit_price = round(self.peak_price * (1 - self.trailing_stop_percent / 100.0))
+                trailing_exit_price = self.peak_price * (1 - self.trailing_stop_percent / 100.0)
+            trailing_exit_price = self._adjust_price_for_exchange(trailing_exit_price)
         else:
             trailing_exit_price = 0
 

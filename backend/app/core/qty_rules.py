@@ -1,7 +1,7 @@
 """
-Centralized Quantity Rules - Single Source of Truth
+Centralized Quantity & Price Rules - Single Source of Truth
 
-거래소별 최소 주문 수량, step size, min notional 규칙.
+거래소별 최소 주문 수량, step size, min notional, tick size 규칙.
 백테스트와 실거래 모두 동일한 보정 로직 적용.
 """
 
@@ -118,3 +118,71 @@ def adjust_qty(
                 return 0
 
     return float(adjusted)
+
+
+# ── 한국 주식 호가단위 (KRX Tick Size Rules) ──
+# 가격대별 호가 단위 (2023년 기준)
+KRX_TICK_SIZES = [
+    (2_000,     1),
+    (5_000,     5),
+    (20_000,    10),
+    (50_000,    50),
+    (200_000,   100),
+    (500_000,   500),
+    (float('inf'), 1_000),
+]
+
+
+def _get_krx_tick_size(price: float) -> float:
+    """한국 주식 가격대별 호가단위 반환."""
+    for threshold, tick in KRX_TICK_SIZES:
+        if price < threshold:
+            return tick
+    return 1_000
+
+
+def adjust_price(
+    price: float,
+    exchange_name: str = DEFAULT_EXCHANGE,
+    symbol_filters: dict = None,
+) -> float:
+    """
+    거래소별 가격 보정 (tick size 기준 반올림).
+
+    Args:
+        price: 전략에서 계산된 raw 가격
+        exchange_name: "Kiwoom", "KIS", "Binance", "BinanceFutures"
+        symbol_filters: Binance API exchangeInfo의 심볼별 필터
+                       (keys: tickSize, stepSize, minNotional)
+
+    Returns:
+        tick size에 맞게 반올림된 가격
+    """
+    if price <= 0:
+        return 0
+
+    # Binance: 동적 tickSize 사용 (symbol_filters 우선)
+    if exchange_name in ("Binance", "BinanceFutures"):
+        if symbol_filters:
+            tick_size = float(symbol_filters.get("tickSize", "0.0001"))
+        else:
+            # exchangeInfo 미로드 시 가격 크기 기반 합리적 기본값
+            if price < 1:
+                tick_size = 0.0001
+            elif price < 100:
+                tick_size = 0.01
+            else:
+                tick_size = 0.1
+        if tick_size <= 0:
+            return price
+        adjusted = round(price / tick_size) * tick_size
+        decimals = _count_decimals(tick_size)
+        return round(adjusted, decimals)
+
+    # 한국 주식 (Kiwoom, KIS): 호가단위 규칙
+    if exchange_name in ("Kiwoom", "KIS"):
+        tick_size = _get_krx_tick_size(price)
+        return int(round(price / tick_size) * tick_size)
+
+    # 기타: 원본 반환
+    return price

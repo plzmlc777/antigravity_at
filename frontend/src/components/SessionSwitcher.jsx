@@ -369,8 +369,14 @@ const SessionSwitcher = forwardRef(({
             const newSessionIds = selectedGroup.sessions?.map(s => s.session_id).sort().join(',');
             const statusChanged = activeSessionGroup.sessions?.[0]?.status !== selectedGroup.sessions?.[0]?.status;
             const symbolsChanged = activeSessionGroup.sessions?.map(s => s.symbol).join(',') !== selectedGroup.sessions?.map(s => s.symbol).join(',');
-            const configChanged = JSON.stringify(activeSessionGroup.configList?.map(c => ({ s: c.symbol, ai: c.ai_symbol_mode })))
-                !== JSON.stringify(selectedGroup.configList?.map(c => ({ s: c.symbol, ai: c.ai_symbol_mode })));
+            // Compare symbol, AI mode, and key strategy params (leverage, position_side, trigger levels)
+            const configFingerprint = (cl) => JSON.stringify(cl?.map(c => ({
+                s: c.symbol, ai: c.ai_symbol_mode,
+                lev: c.leverage, ps: c.position_side,
+                tl: c.trigger_level, stl: c.short_trigger_level,
+            })));
+            const configChanged = configFingerprint(activeSessionGroup.configList)
+                !== configFingerprint(selectedGroup.configList);
 
             if (currentSessionIds !== newSessionIds || statusChanged || symbolsChanged || configChanged) {
                 onSelectSessionGroup({

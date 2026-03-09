@@ -977,49 +977,78 @@ async def get_accumulated_stats(
             if ex.signal_timestamp:
                 s["trade_dates"].add(ex.signal_timestamp.date())
 
+            # Use trade_metadata to distinguish entries vs closes (supports short positions)
+            metadata = ex.trade_metadata or {}
+            is_close = metadata.get("level") == "CLOSE"
+            position_side = metadata.get("position_side", "").lower()
+            is_short_entry = (position_side == "short"
+                              and isinstance(metadata.get("level"), int))
+
             if ex.signal_type == "BUY":
                 s["buys"] += 1
-                # Track first BUY time for cycle duration
+            elif ex.signal_type == "SELL":
+                s["sells"] += 1
+
+            # Determine if this is an entry or a cycle close
+            is_entry = False
+            is_cycle_close = False
+
+            if is_close:
+                is_cycle_close = True
+            elif ex.signal_type == "BUY" and not is_close:
+                if position_side != "short":
+                    is_entry = True  # Long entry
+                # BUY with position_side=short and level=CLOSE → already handled above
+            elif ex.signal_type == "SELL" and not is_close:
+                if is_short_entry:
+                    is_entry = True  # Short entry
+
+            if is_entry:
+                # Track first entry time for cycle duration
                 if s["first_buy_time"] is None:
                     s["first_buy_time"] = ex.signal_timestamp
                 s["buy_queue"].append({"qty": qty, "price": price, "timestamp": ex.signal_timestamp})
-            elif ex.signal_type == "SELL":
-                s["sells"] += 1
-                # Match with buys (FIFO) to calculate cycle PnL
-                sell_qty = qty
-                sell_value = qty * price
-                buy_cost = 0.0
+
+            elif is_cycle_close:
+                # Match with entries (FIFO) to calculate cycle PnL
+                close_qty = qty
+                close_price = price
+                entry_cost = 0.0
                 matched_qty = 0.0
 
-                while sell_qty > 0 and s["buy_queue"]:
-                    buy = s["buy_queue"][0]
-                    match_qty = min(sell_qty, buy["qty"])
-                    buy_cost += match_qty * buy["price"]
+                while close_qty > 0 and s["buy_queue"]:
+                    entry = s["buy_queue"][0]
+                    match_qty = min(close_qty, entry["qty"])
+                    entry_cost += match_qty * entry["price"]
                     matched_qty += match_qty
-                    sell_qty -= match_qty
-                    buy["qty"] -= match_qty
-                    if buy["qty"] <= 0:
+                    close_qty -= match_qty
+                    entry["qty"] -= match_qty
+                    if entry["qty"] <= 0:
                         s["buy_queue"].pop(0)
 
                 if matched_qty > 0:
-                    cycle_pnl = (price * matched_qty) - buy_cost
+                    # PnL depends on direction
+                    if position_side == "short":
+                        cycle_pnl = entry_cost - (close_price * matched_qty)  # Short: sell high, buy low
+                    else:
+                        cycle_pnl = (close_price * matched_qty) - entry_cost  # Long: buy low, sell high
                     s["cycle_pnls"].append(cycle_pnl)
-                    s["cycle_entry_costs"].append(buy_cost)
+                    s["cycle_entry_costs"].append(entry_cost)
 
                     # Calculate cycle PnL percentage
-                    cycle_pnl_pct = (cycle_pnl / buy_cost * 100) if buy_cost > 0 else 0
+                    cycle_pnl_pct = (cycle_pnl / entry_cost * 100) if entry_cost > 0 else 0
                     s["cycle_pnl_pcts"].append(cycle_pnl_pct)
 
                     # Track cumulative PnL for max drawdown calculation
                     prev_cum = s["cumulative_pnls"][-1] if s["cumulative_pnls"] else 0
                     s["cumulative_pnls"].append(prev_cum + cycle_pnl)
 
-                    # Calculate cycle duration (first BUY to SELL)
+                    # Calculate cycle duration (first entry to close)
                     if s["first_buy_time"] and ex.signal_timestamp:
                         duration_mins = (ex.signal_timestamp - s["first_buy_time"]).total_seconds() / 60
                         s["cycle_durations"].append(duration_mins)
 
-                # Reset first_buy_time if no more buys in queue (cycle complete)
+                # Reset first_buy_time if no more entries in queue (cycle complete)
                 if not s["buy_queue"]:
                     s["first_buy_time"] = None
 
@@ -2466,7 +2495,7 @@ async def get_ai_symbol_history(
             "search_conditions": r.search_conditions,
             "evaluation_reason": r.evaluation_reason,
             "backtest_results": r.backtest_results,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "created_at": (r.created_at.isoformat() + "Z") if r.created_at else None,
         }
         for r in records
     ]
@@ -2502,7 +2531,7 @@ async def get_group_ai_symbol_history(
             "search_conditions": r.search_conditions,
             "evaluation_reason": r.evaluation_reason,
             "backtest_results": r.backtest_results,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "created_at": (r.created_at.isoformat() + "Z") if r.created_at else None,
         }
         for r in records
     ]

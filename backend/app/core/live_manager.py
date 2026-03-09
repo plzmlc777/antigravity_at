@@ -128,6 +128,14 @@ class LiveManager:
                     api_url=account.api_url,
                     is_virtual=account.is_virtual
                 )
+
+                # Initialize adapter (loads exchangeInfo for Binance, etc.)
+                if hasattr(adapter, 'initialize'):
+                    try:
+                        await adapter.initialize()
+                    except Exception as init_err:
+                        logger.warning(f"Adapter initialize() failed (non-fatal): {init_err}")
+
                 logger.info(f"Adapter created for account '{account.account_name}' "
                            f"(exchange={account.exchange_name}, virtual={account.is_virtual})")
                 return adapter
@@ -850,7 +858,7 @@ class LiveManager:
 
         # 2. Re-initialize strategy instance (preserve context, aggregator, history)
         try:
-            from ..strategies import strategy_registry
+            from .strategy_registry import strategy_registry
             StrategyClass = strategy_registry.get_strategy_class(engine.strategy_name)
             if not StrategyClass:
                 raise ValueError(f"Strategy '{engine.strategy_name}' not found")

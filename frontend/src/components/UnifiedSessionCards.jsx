@@ -1,5 +1,15 @@
 import React from 'react';
 
+// Smart price formatter: shows decimals for small prices (crypto), rounds for large prices (stocks)
+const formatPrice = (v) => {
+    if (!v || v === 0) return '0';
+    const abs = Math.abs(v);
+    if (abs < 1) return v.toFixed(4);       // $0.9112 → "0.9112"
+    if (abs < 10) return v.toFixed(3);      // $2.345 → "2.345"
+    if (abs < 1000) return v.toFixed(2);    // $123.45 → "123.45"
+    return Math.round(v).toLocaleString();  // $50000 → "50,000"
+};
+
 const UnifiedSessionCards = ({
     parallelSessions,
     sessionDataList,
@@ -185,7 +195,7 @@ const UnifiedSessionCards = ({
                                     {hasData && (
                                         <>
                                             <span className={`text-base font-mono font-semibold ${isRunning ? 'text-white' : 'text-gray-500'}`}>
-                                                {price.toLocaleString()}
+                                                {formatPrice(price)}
                                             </span>
                                             {(() => {
                                                 const profitPct = activeState.profit_percent || 0;
@@ -393,15 +403,15 @@ const PositionProgressBar = ({ state, dimmed = false }) => {
             {/* Labels */}
             <div className="flex justify-between items-center mb-1">
                 <span className="text-[9px] font-mono text-red-400">
-                    SL {Math.round(leftPrice).toLocaleString()}
+                    SL {formatPrice(leftPrice)}
                 </span>
                 {trailingActive && trailingExitPrice > 0 && (
                     <span className="text-[9px] font-mono text-yellow-400">
-                        Exit {Math.round(trailingExitPrice).toLocaleString()}
+                        Exit {formatPrice(trailingExitPrice)}
                     </span>
                 )}
                 <span className="text-[9px] font-mono text-green-400">
-                    TP {Math.round(rightPrice).toLocaleString()}
+                    TP {formatPrice(rightPrice)}
                 </span>
             </div>
             {/* Bar */}
@@ -518,7 +528,7 @@ const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
                         <span className={`text-[11px] font-mono ${dim}`}>{totalQty}qty</span>
                     )}
                     {avgPrice > 0 && (
-                        <span className={`text-[11px] font-mono ${dim}`}>Avg:{Math.round(avgPrice).toLocaleString()}</span>
+                        <span className={`text-[11px] font-mono ${dim}`}>Avg:{formatPrice(avgPrice)}</span>
                     )}
                     {avgPrice > 0 && (
                         <span className={`text-[11px] font-mono font-semibold ${dimmed ? 'text-gray-700' : profitPct >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
@@ -584,7 +594,8 @@ const formatStateValue = (key, val) => {
         // _pct suffix: already in percentage units (e.g., 20 = 20%)
         if (key.endsWith('_pct')) return `${val}%`;
         if (key.includes('percent') || key.includes('pct')) return `${(val * 100).toFixed(2)}%`;
-        if (key.includes('price') || val > 1000) return Math.round(val).toLocaleString();
+        if (key.includes('price')) return formatPrice(val);
+        if (val > 1000) return Math.round(val).toLocaleString();
         if (Number.isInteger(val)) return val.toString();
         return val.toFixed(2);
     }
