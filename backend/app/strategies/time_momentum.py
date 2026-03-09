@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
+from ..core.constants import Side
 
 
 class TimeMomentumStrategy(MartingaleBase):
@@ -140,7 +141,7 @@ class TimeMomentumStrategy(MartingaleBase):
             self.context.log(f"[{self._log_prefix}] Entry condition not met: "
                              f"Change {change*100:.2f}% vs Target {self.target_percent*100:.2f}% ({self.direction})")
 
-        return "long" if should_buy else None
+        return Side.LONG if should_buy else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """L2+ entries: Not used (max_buy_count defaults to 1)."""

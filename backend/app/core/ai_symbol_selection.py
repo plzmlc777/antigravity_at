@@ -18,6 +18,7 @@ import logging
 import os
 import tempfile
 from typing import Optional, List, Dict, Any
+from .constants import Side
 
 logger = logging.getLogger("AISymbolSelection")
 
@@ -712,7 +713,7 @@ class AISymbolSelectionService:
                 entry = {"code": c["code"], "name": c.get("name", "")}
                 if is_futures and "direction" in c:
                     direction = c["direction"].lower()
-                    entry["direction"] = direction if direction in ("long", "short") else "long"
+                    entry["direction"] = direction if direction in (Side.LONG, Side.SHORT) else Side.LONG
                 entry["reason"] = c.get("reason", "")
                 filtered.append(entry)
             return filtered[:20]

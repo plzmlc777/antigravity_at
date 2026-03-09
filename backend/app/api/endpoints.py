@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from ..core.waterfall_engine import fetch_visualization_feeds
+from ..core.constants import Signal
 from .auth import get_current_user
 from ..models.user import User
 from ..core.user_context import UserAccountContext, get_user_context
@@ -971,11 +972,11 @@ async def get_trade_history_list(
             "strategy_name": t.session.strategy_name if t.session else None,
         }
 
-        if t.signal_type == "BUY":
+        if t.signal_type == Signal.BUY:
             if key not in open_positions:
                 open_positions[key] = []
             open_positions[key].append(trade_dict)
-        elif t.signal_type == "SELL":
+        elif t.signal_type == Signal.SELL:
             buys = open_positions.get(key, [])
             # Get strategy_name and config_snapshot from first BUY or SELL
             first_config = buys[0]["config_snapshot"] if buys and buys[0].get("config_snapshot") else trade_dict.get("config_snapshot")

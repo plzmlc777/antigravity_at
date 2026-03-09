@@ -13,6 +13,7 @@ from ..adapters.kiwoom_real import KiwoomRealAdapter  # For default adapter
 from ..adapters.factory import create_adapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
+from ..core.constants import Signal, AiMode
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..models.strategy_config import StrategyConfig
@@ -368,11 +369,11 @@ class LiveManager:
             ) if execution.theoretical_price else 0
 
             # 4. Recalculate realized_pnl for SELL orders
-            if execution.signal_type == "SELL":
+            if execution.signal_type == Signal.SELL:
                 buys = db.query(LiveTradeExecution).filter(
                     LiveTradeExecution.session_id == execution.session_id,
                     LiveTradeExecution.symbol == execution.symbol,
-                    LiveTradeExecution.signal_type == "BUY",
+                    LiveTradeExecution.signal_type == Signal.BUY,
                     LiveTradeExecution.status == ExecutionStatus.FILLED,
                 ).all()
                 total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
@@ -560,7 +561,7 @@ class LiveManager:
                 group_id=group_id,  # 세션 그룹 ID
                 profile_name=profile_name,  # 프로필 이름
                 profile_id=profile_id,  # 프로필 ID for lock detection
-                ai_symbol_mode=config.get("ai_symbol_mode", "static"),
+                ai_symbol_mode=config.get("ai_symbol_mode", AiMode.STATIC),
                 ai_search_conditions=config.get("ai_search_conditions"),
                 ai_optimize_params=config.get("ai_optimize_params"),
                 original_symbol=symbol,
@@ -608,8 +609,8 @@ class LiveManager:
             # AI Symbol Selection: trigger initial symbol check on start
             # Skip if this session was just created by switch_session_symbol (avoid infinite loop)
             if not config.get("_skip_ai_trigger"):
-                ai_mode = config.get("ai_symbol_mode", "static")
-                if ai_mode == "ai" and config.get("ai_search_conditions"):
+                ai_mode = config.get("ai_symbol_mode", AiMode.STATIC)
+                if ai_mode == AiMode.AI and config.get("ai_search_conditions"):
                     engine._try_ai_symbol_switch()
 
             return session_id
@@ -1163,13 +1164,13 @@ class LiveManager:
                     # 3. Check if session has unfilled BUY orders (potential position)
                     filled_buys = db.query(LiveTradeExecution).filter(
                         LiveTradeExecution.session_id == session.id,
-                        LiveTradeExecution.signal_type == "BUY",
+                        LiveTradeExecution.signal_type == Signal.BUY,
                         LiveTradeExecution.status == ExecutionStatus.FILLED
                     ).all()
 
                     filled_sells = db.query(LiveTradeExecution).filter(
                         LiveTradeExecution.session_id == session.id,
-                        LiveTradeExecution.signal_type == "SELL",
+                        LiveTradeExecution.signal_type == Signal.SELL,
                         LiveTradeExecution.status == ExecutionStatus.FILLED
                     ).all()
 

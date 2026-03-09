@@ -11,6 +11,7 @@ from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionS
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..core.exchange_interface import ExchangeInterface
 from ..core.futures_interface import FuturesInterface
+from ..core.constants import Signal, Side, Level, Mode
 from ..services.error_logger import error_logger
 
 logger = logging.getLogger(__name__)
@@ -135,10 +136,10 @@ class LiveContext:
             
             for ex in executions:
                 val = (ex.executed_price or 0.0) * (ex.filled_quantity or 0.0)
-                if ex.signal_type == "BUY":
+                if ex.signal_type == Signal.BUY:
                     total_bought_cost += val
                     current_qty += (ex.filled_quantity or 0.0)
-                elif ex.signal_type == "SELL":
+                elif ex.signal_type == Signal.SELL:
                     total_sold_value += val
                     current_qty -= (ex.filled_quantity or 0.0)
             
@@ -150,7 +151,7 @@ class LiveContext:
             if current_price == 0 and current_qty > 0 and total_bought_cost > 0:
                 # Calculate average purchase price from remaining holdings
                 total_bought_qty = sum(
-                    (ex.filled_quantity or 0.0) for ex in executions if ex.signal_type == "BUY"
+                    (ex.filled_quantity or 0.0) for ex in executions if ex.signal_type == Signal.BUY
                 )
                 if total_bought_qty > 0:
                     avg_price = total_bought_cost / total_bought_qty
@@ -186,33 +187,33 @@ class LiveContext:
             ).order_by(LiveTradeExecution.signal_timestamp).all()
 
             stats = {
-                "paper": {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
-                "real": {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
+                Mode.PAPER: {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
+                Mode.REAL: {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
             }
 
             # Track running buy cost/qty per mode for per-cycle PnL
-            running_buy_cost = {"paper": 0.0, "real": 0.0}
-            running_buy_qty = {"paper": 0.0, "real": 0.0}
+            running_buy_cost = {Mode.PAPER: 0.0, Mode.REAL: 0.0}
+            running_buy_qty = {Mode.PAPER: 0.0, Mode.REAL: 0.0}
             # Per-cycle PnL list for win_rate, max, min
-            cycle_pnls = {"paper": [], "real": []}
+            cycle_pnls = {Mode.PAPER: [], Mode.REAL: []}
 
             # Also track short positions (SELL entry → BUY close)
-            running_short_cost = {"paper": 0.0, "real": 0.0}
-            running_short_qty = {"paper": 0.0, "real": 0.0}
+            running_short_cost = {Mode.PAPER: 0.0, Mode.REAL: 0.0}
+            running_short_qty = {Mode.PAPER: 0.0, Mode.REAL: 0.0}
 
             for ex in executions:
                 is_paper = ex.is_paper if ex.is_paper is not None else True
-                key = "paper" if is_paper else "real"
+                key = Mode.PAPER if is_paper else Mode.REAL
                 s = stats[key]
                 s["trades"] += 1
                 qty = ex.filled_quantity or 0.0
                 val = (ex.executed_price or 0.0) * qty
                 metadata = ex.trade_metadata or {}
-                is_close = metadata.get("level") == "CLOSE"
-                is_short_entry = (metadata.get("position_side", "").lower() == "short"
+                is_close = metadata.get("level") == Level.CLOSE
+                is_short_entry = (metadata.get("position_side", "").lower() == Side.SHORT
                                   and isinstance(metadata.get("level"), int))
 
-                if ex.signal_type == "BUY":
+                if ex.signal_type == Signal.BUY:
                     s["buys"] += 1
                     if is_close and running_short_qty[key] > 0:
                         # SHORT close: BUY to cover
@@ -231,7 +232,7 @@ class LiveContext:
                         # LONG entry
                         running_buy_cost[key] += val
                         running_buy_qty[key] += qty
-                elif ex.signal_type == "SELL":
+                elif ex.signal_type == Signal.SELL:
                     s["sells"] += 1
                     if is_short_entry:
                         # SHORT entry: accumulate short position
@@ -265,7 +266,7 @@ class LiveContext:
                             running_buy_qty[key] = remaining_qty
 
             # Compute stats per mode
-            for key in ["paper", "real"]:
+            for key in [Mode.PAPER, Mode.REAL]:
                 pnls = cycle_pnls[key]
                 total_pnl = sum(pnls)
                 stats[key]["realized_pnl"] = round(total_pnl, 2)
@@ -286,8 +287,8 @@ class LiveContext:
                     total_sold_cost = sum(
                         (ex.executed_price or 0) * (ex.filled_quantity or 0)
                         for ex in executions
-                        if ex.signal_type == "BUY"
-                        and ((ex.is_paper if ex.is_paper is not None else True) == (key == "paper"))
+                        if ex.signal_type == Signal.BUY
+                        and ((ex.is_paper if ex.is_paper is not None else True) == (key == Mode.PAPER))
                     )
                     if total_sold_cost > 0:
                         stats[key]["realized_pnl_pct"] = round((total_pnl / total_sold_cost) * 100, 2)
@@ -313,7 +314,7 @@ class LiveContext:
                 exception=e,
                 source_function="get_trade_stats"
             )
-            return {"paper": {}, "real": {}}
+            return {Mode.PAPER: {}, Mode.REAL: {}}
         finally:
             db.close()
 
@@ -355,7 +356,7 @@ class LiveContext:
             return {"status": "failed", "reason": "not_futures_adapter"}
         # Short orders use SELL side internally
         return self._execute_order(symbol, OrderSide.SELL, quantity, price,
-                                   {**(metadata or {}), "position_side": "SHORT"}, on_filled)
+                                   {**(metadata or {}), "position_side": Side.SHORT}, on_filled)
 
     def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Close entire position (futures only). Delegates to adapter.close_position()."""
@@ -491,9 +492,9 @@ class LiveContext:
                     for ex in executions:
                         price = ex.executed_price or ex.theoretical_price or 0
                         qty = ex.filled_quantity or ex.requested_quantity or 0
-                        if ex.signal_type == "BUY":
+                        if ex.signal_type == Signal.BUY:
                             net_cost += price * qty
-                        elif ex.signal_type == "SELL":
+                        elif ex.signal_type == Signal.SELL:
                             net_cost -= price * qty
                     self.cash = self.initial_capital - net_cost
                     logger.info(
@@ -608,7 +609,7 @@ class LiveContext:
                     if res and res.get("status") == "failed":
                         error_msg = res.get("message", "")
                         match = re.search(r'(\d+)주 매수가능', error_msg)
-                        if match and p.signal_type == "BUY":
+                        if match and p.signal_type == Signal.BUY:
                             available_qty = int(match.group(1))
                             if 0 < available_qty < p.requested_quantity:
                                 self.log(f"RETRY: Reducing qty {p.requested_quantity} → {available_qty} (margin limit)")
@@ -638,13 +639,13 @@ class LiveContext:
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
 
                         # 2. Calculate realized_pnl for SELL orders
-                        if p.signal_type == "SELL":
+                        if p.signal_type == Signal.SELL:
                             try:
                                 # Query all FILLED BUY executions for this session+symbol
                                 buys = db.query(LiveTradeExecution).filter(
                                     LiveTradeExecution.session_id == self.session_id,
                                     LiveTradeExecution.symbol == p.symbol,
-                                    LiveTradeExecution.signal_type == "BUY",
+                                    LiveTradeExecution.signal_type == Signal.BUY,
                                     LiveTradeExecution.status == ExecutionStatus.FILLED,
                                 ).all()
                                 total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
@@ -661,7 +662,7 @@ class LiveContext:
                         # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
                         cost = p.executed_price * p.filled_quantity
-                        if p.signal_type == "BUY":
+                        if p.signal_type == Signal.BUY:
                             self.cash -= cost
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
                         else:
@@ -717,7 +718,7 @@ class LiveContext:
                                 from .telegram_service import send_telegram_notification
                                 # Calculate return percentage for SELL orders
                                 return_pct = None
-                                if p.signal_type == "SELL" and p.realized_pnl and p.executed_price and p.filled_quantity:
+                                if p.signal_type == Signal.SELL and p.realized_pnl and p.executed_price and p.filled_quantity:
                                     cost = (p.executed_price * p.filled_quantity) - p.realized_pnl
                                     if cost > 0:
                                         return_pct = (p.realized_pnl / cost) * 100
@@ -733,7 +734,7 @@ class LiveContext:
                                     price=p.executed_price,
                                     strategy_name=self._strategy_name or "Unknown",
                                     is_paper=self._is_paper,
-                                    pnl=p.realized_pnl if p.signal_type == "SELL" else None,
+                                    pnl=p.realized_pnl if p.signal_type == Signal.SELL else None,
                                     return_pct=return_pct
                                 ))
                             except Exception as tg_err:
@@ -798,7 +799,7 @@ class LiveContext:
                                 actual_qty = actual_holdings.get(p.symbol, {}).get("quantity", 0)
                                 prev_qty = self._holdings.get(p.symbol, 0)
 
-                                if p.signal_type == "BUY":
+                                if p.signal_type == Signal.BUY:
                                     filled_qty = actual_qty - prev_qty
                                     if filled_qty > 0:
                                         actual_price = actual_holdings.get(p.symbol, {}).get("avg_price", 0)
@@ -838,26 +839,26 @@ class LiveContext:
                                 self._holdings[p.symbol] = sync_holdings.get(p.symbol, {}).get("quantity", 0)
                             except Exception as sync_err:
                                 logger.warning(f"Post-fill holdings sync failed: {sync_err}")
-                                if p.signal_type == "BUY":
+                                if p.signal_type == Signal.BUY:
                                     self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
                                 else:
                                     self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
 
                             # Cash: always use internal tracking (respects allocated capital)
                             fill_cost = p.executed_price * p.filled_quantity
-                            if p.signal_type == "BUY":
+                            if p.signal_type == Signal.BUY:
                                 self.cash -= fill_cost
                             else:
                                 self.cash += fill_cost
                             self.log(f"Cash updated: {self.cash:,.0f} (allocated: {self.initial_capital:,.0f})")
 
                             # SELL PnL 계산
-                            if p.signal_type == "SELL":
+                            if p.signal_type == Signal.SELL:
                                 try:
                                     buys = db.query(LiveTradeExecution).filter(
                                         LiveTradeExecution.session_id == self.session_id,
                                         LiveTradeExecution.symbol == p.symbol,
-                                        LiveTradeExecution.signal_type == "BUY",
+                                        LiveTradeExecution.signal_type == Signal.BUY,
                                         LiveTradeExecution.status == ExecutionStatus.FILLED,
                                     ).all()
                                     total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
@@ -898,7 +899,7 @@ class LiveContext:
                             try:
                                 from .telegram_service import send_telegram_notification
                                 return_pct = None
-                                if p.signal_type == "SELL" and p.realized_pnl and p.executed_price and p.filled_quantity:
+                                if p.signal_type == Signal.SELL and p.realized_pnl and p.executed_price and p.filled_quantity:
                                     cost = (p.executed_price * p.filled_quantity) - p.realized_pnl
                                     if cost > 0:
                                         return_pct = (p.realized_pnl / cost) * 100
@@ -913,7 +914,7 @@ class LiveContext:
                                     price=p.executed_price,
                                     strategy_name=self._strategy_name or "Unknown",
                                     is_paper=self._is_paper,
-                                    pnl=p.realized_pnl if p.signal_type == "SELL" else None,
+                                    pnl=p.realized_pnl if p.signal_type == Signal.SELL else None,
                                     return_pct=return_pct
                                 ))
                             except Exception as tg_err:

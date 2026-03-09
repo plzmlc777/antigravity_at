@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from collections import deque
 from .base import BaseStrategy
 from .martingale_base import MartingaleBase
+from ..core.constants import Side
 
 
 class EmaMomentumStrategy(MartingaleBase):
@@ -140,7 +141,7 @@ class EmaMomentumStrategy(MartingaleBase):
                 f"[{self._log_prefix}] GOLDEN CROSS! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} > "
                 f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
             )
-            return "long"
+            return Side.LONG
 
         if self._dead_cross:
             self._trigger_armed = False
@@ -148,7 +149,7 @@ class EmaMomentumStrategy(MartingaleBase):
                 f"[{self._log_prefix}] DEAD CROSS (SHORT)! EMA fast({self.ema_fast_period})={self._ema_fast:.4f} < "
                 f"slow({self.ema_slow_period})={self._ema_slow:.4f}"
             )
-            return "short"
+            return Side.SHORT
 
         return None
 

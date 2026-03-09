@@ -1,5 +1,6 @@
 
 from .config import DEFAULT_EXCHANGE
+from .constants import AiMode, Margin
 import asyncio
 import logging
 import traceback
@@ -152,7 +153,7 @@ class LiveTradingEngine:
             # 4.0 Futures initialization (leverage, margin type, monitor)
             if isinstance(self.adapter, FuturesInterface):
                 leverage = config.get("leverage", 1)
-                margin_type = config.get("margin_type", "CROSSED")
+                margin_type = config.get("margin_type", Margin.CROSSED)
                 try:
                     await self.adapter.set_leverage(self.symbol, leverage)
                     await self.adapter.set_margin_type(self.symbol, margin_type)
@@ -669,7 +670,7 @@ class LiveTradingEngine:
             session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
             if not session:
                 return
-            if getattr(session, 'ai_symbol_mode', 'static') != 'ai':
+            if getattr(session, 'ai_symbol_mode', AiMode.STATIC) != AiMode.AI:
                 return
             search_conditions = getattr(session, 'ai_search_conditions', None)
             if not search_conditions:

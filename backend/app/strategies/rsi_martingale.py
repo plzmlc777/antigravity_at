@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from collections import deque
 from .base import BaseStrategy
 from .martingale_base import MartingaleBase
+from ..core.constants import Side
 
 
 class RsiMartingaleStrategy(MartingaleBase):
@@ -181,14 +182,14 @@ class RsiMartingaleStrategy(MartingaleBase):
             if self._check_crossover(self._prev_rsi, self._current_rsi, self.trigger_level, self.trigger_direction):
                 self._long_trigger_armed = False
                 self.context.log(f"[{self._log_prefix}] LONG TRIGGER! RSI crossed {self.trigger_direction} {self.trigger_level} (RSI: {self._current_rsi:.1f})")
-                return "long"
+                return Side.LONG
 
         # Check SHORT trigger
         if self._short_trigger_armed:
             if self._check_crossover(self._prev_rsi, self._current_rsi, self.short_trigger_level, self.short_trigger_direction):
                 self._short_trigger_armed = False
                 self.context.log(f"[{self._log_prefix}] SHORT TRIGGER! RSI crossed {self.short_trigger_direction} {self.short_trigger_level} (RSI: {self._current_rsi:.1f})")
-                return "short"
+                return Side.SHORT
 
         return None
 

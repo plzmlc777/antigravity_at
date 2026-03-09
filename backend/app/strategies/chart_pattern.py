@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 from collections import deque
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
+from ..core.constants import Side
 
 
 class ChartPatternStrategy(MartingaleBase):
@@ -207,7 +208,7 @@ class ChartPatternStrategy(MartingaleBase):
             self._candles_since_entry_signal = 0
             self._entry_trigger_armed = False
             self._entry_pattern_detected = True
-            return "long"
+            return Side.LONG
 
         return None
 

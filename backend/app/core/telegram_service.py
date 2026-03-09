@@ -5,6 +5,7 @@ import logging
 import httpx
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
+from .constants import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -129,8 +130,8 @@ class TelegramNotificationService:
 
         mode_emoji = "📝" if is_paper else "💰"
         mode_label = "모의" if is_paper else "실거래"
-        side_emoji = "🟢" if side == "BUY" else "🔴"
-        side_label = "매수" if side == "BUY" else "매도"
+        side_emoji = "🟢" if side == Signal.BUY else "🔴"
+        side_label = "매수" if side == Signal.BUY else "매도"
 
         message = f"""
 {side_emoji} <b>{side_label} 체결</b> {mode_emoji}
@@ -142,7 +143,7 @@ class TelegramNotificationService:
 └ 모드: {mode_label}
 """
 
-        if side == "SELL" and pnl is not None:
+        if side == Signal.SELL and pnl is not None:
             pnl_emoji = "📈" if pnl >= 0 else "📉"
             pnl_sign = "+" if pnl >= 0 else ""
             message += f"""

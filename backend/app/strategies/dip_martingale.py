@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
 from .base import BaseStrategy
 from .martingale_base import MartingaleBase
+from ..core.constants import Side
 
 
 class DipMartingaleStrategy(MartingaleBase):
@@ -35,7 +36,7 @@ class DipMartingaleStrategy(MartingaleBase):
         current_price = data['close']
         candle_open = data.get('open', current_price)
         candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
-        return "long" if candle_drop >= (self.dip_percent / 100) else None
+        return Side.LONG if candle_drop >= (self.dip_percent / 100) else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """L2+: candle drops level_gap_percent% from its open."""

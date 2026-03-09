@@ -7,6 +7,7 @@ from .base import BaseStrategy, IContext
 from ..core.qty_rules import adjust_qty, adjust_price, EXCHANGE_QTY_RULES
 from ..core.config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 from ..core.trading_hours import calc_trading_seconds
+from ..core.constants import Signal, Side, Level, Mode
 
 logger = logging.getLogger(__name__)
 
@@ -67,10 +68,10 @@ class MartingaleBase(BaseStrategy):
         self.liquidation_floor_pct = self.config.get("liquidation_floor_pct", 3.0)
 
         # Position side: "long" (default) or "short" (futures only)
-        self.position_side = self.config.get("position_side", "long")
+        self.position_side = self.config.get("position_side", Side.LONG)
         if isinstance(self.position_side, str):
             self.position_side = self.position_side.lower()
-        self.is_short = (self.position_side == "short")
+        self.is_short = (self.position_side == Side.SHORT)
 
         # Tick execution: "tick" (default) or "candle" (check exits every tick, live only)
         self.tick_execution = self.config.get("tick_execution", "tick")
@@ -138,9 +139,9 @@ class MartingaleBase(BaseStrategy):
                 # LONG: entry=BUY, close=SELL. SHORT: entry=SELL (with position_side=short metadata), close=BUY
                 for i, ex in enumerate(executions):
                     metadata = ex.trade_metadata or {}
-                    is_close = metadata.get("level") == "CLOSE"
+                    is_close = metadata.get("level") == Level.CLOSE
                     # Legacy: SELL without position_side metadata = LONG close
-                    if not is_close and ex.signal_type == "SELL" and metadata.get("position_side", "").lower() != "short":
+                    if not is_close and ex.signal_type == Signal.SELL and metadata.get("position_side", "").lower() != Side.SHORT:
                         is_close = True
                     if is_close:
                         is_paper = ex.is_paper if ex.is_paper is not None else True
@@ -161,21 +162,21 @@ class MartingaleBase(BaseStrategy):
                         continue
                     metadata = ex.trade_metadata or {}
                     is_entry = False
-                    if self.position_side == "both":
+                    if self.position_side == Side.BOTH:
                         # "both" mode: detect direction from metadata
-                        if metadata.get("position_side", "").lower() == "short" and ex.signal_type == "SELL":
+                        if metadata.get("position_side", "").lower() == Side.SHORT and ex.signal_type == Signal.SELL:
                             is_entry = True
-                        elif metadata.get("position_side", "").lower() == "long" and ex.signal_type == "BUY":
+                        elif metadata.get("position_side", "").lower() == Side.LONG and ex.signal_type == Signal.BUY:
                             is_entry = True
-                        elif ex.signal_type == "BUY" and metadata.get("position_side", "").lower() != "short":
+                        elif ex.signal_type == Signal.BUY and metadata.get("position_side", "").lower() != Side.SHORT:
                             is_entry = True  # Legacy BUY without metadata = LONG
                     elif self.is_short:
                         # SHORT entries: SELL with position_side=short metadata
-                        if ex.signal_type == "SELL" and metadata.get("position_side", "").lower() == "short":
+                        if ex.signal_type == Signal.SELL and metadata.get("position_side", "").lower() == Side.SHORT:
                             is_entry = True
                     else:
                         # LONG entries: BUY signal
-                        if ex.signal_type == "BUY":
+                        if ex.signal_type == Signal.BUY:
                             is_entry = True
                     if is_entry:
                         open_buys.append(ex)
@@ -223,9 +224,9 @@ class MartingaleBase(BaseStrategy):
                     self.cycle_start_time = open_buys[0].signal_timestamp
 
                     # "both" mode: restore is_short from first entry's metadata
-                    if self.position_side == "both" and open_buys:
+                    if self.position_side == Side.BOTH and open_buys:
                         first_meta = open_buys[0].trade_metadata or {}
-                        self.is_short = (first_meta.get("position_side", "").lower() == "short")
+                        self.is_short = (first_meta.get("position_side", "").lower() == Side.SHORT)
 
                     self.context.log(
                         f"[{self._log_prefix}] Position RESTORED from DB: "
@@ -480,7 +481,7 @@ class MartingaleBase(BaseStrategy):
                                     self.context.log(f"[{self._log_prefix}] L{_level} Entry FILLED @ {filled_price:,.0f}. Avg: {self.average_price:,.0f}")
                                 # else: async failure, already logged by context
 
-                            actual_side = "short" if self.is_short else "long"
+                            actual_side = Side.SHORT if self.is_short else Side.LONG
                             entry_metadata = {"level": next_level, "position_side": actual_side}
                             if self.is_short:
                                 result = self.context.short(symbol, qty, metadata=entry_metadata, on_filled=on_filled_callback)
@@ -499,11 +500,11 @@ class MartingaleBase(BaseStrategy):
             direction = self._check_entry_trigger(data)
             if direction:
                 # Filter: when position_side is fixed ("long"/"short"), only allow matching direction
-                if self.position_side != "both" and direction != self.position_side:
+                if self.position_side != Side.BOTH and direction != self.position_side:
                     return
 
                 # Dynamic direction: set is_short for this cycle
-                self.is_short = (direction == "short")
+                self.is_short = (direction == Side.SHORT)
 
                 # Record total equity BEFORE L1 entry (cycle return denominator)
                 self._cycle_start_equity = self.context.get_total_equity()
@@ -521,7 +522,7 @@ class MartingaleBase(BaseStrategy):
                             self.context.log(f"[{self._log_prefix}] L1 Entry FILLED @ {filled_price:,.0f} (cycle_equity: {self._cycle_start_equity:,.0f})")
                         # else: async failure, already logged by context
 
-                    actual_side = "short" if self.is_short else "long"
+                    actual_side = Side.SHORT if self.is_short else Side.LONG
                     entry_metadata = {"level": 1, "position_side": actual_side}
                     if self.is_short:
                         result = self.context.short(symbol, qty, metadata=entry_metadata, on_filled=on_l1_filled)
@@ -611,8 +612,8 @@ class MartingaleBase(BaseStrategy):
                 self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
             # else: async failure, already logged by context
 
-        actual_side = "short" if self.is_short else "long"
-        close_metadata = {"level": "CLOSE", "cycle_id": cycle_id, "is_paper": is_paper, "cycle_start_equity": self._cycle_start_equity, "position_side": actual_side}
+        actual_side = Side.SHORT if self.is_short else Side.LONG
+        close_metadata = {"level": Level.CLOSE, "cycle_id": cycle_id, "is_paper": is_paper, "cycle_start_equity": self._cycle_start_equity, "position_side": actual_side}
         if self.is_short:
             # SHORT position: close via close_position (buy to cover)
             try:
@@ -838,7 +839,7 @@ class MartingaleBase(BaseStrategy):
             "trailing_exit_price": trailing_exit_price,
             "entries": self.entries,
             "require_lower_price": self.require_lower_price,
-            "position_side": "short" if self.is_short else "long",
+            "position_side": Side.SHORT if self.is_short else Side.LONG,
             "position_side_config": self.position_side,
             "paper_cycle_id": self.paper_cycle_id,
             "real_cycle_id": self.real_cycle_id,

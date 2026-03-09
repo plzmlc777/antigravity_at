@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
 from app.core.us_market_data import us_market
+from ..core.constants import Side
 
 
 class UsMarketFollowStrategy(MartingaleBase):
@@ -165,7 +166,7 @@ class UsMarketFollowStrategy(MartingaleBase):
                 f"(threshold: {threshold}%, direction: {self.trigger_direction})"
             )
 
-        return "long" if self._trigger_met else None
+        return Side.LONG if self._trigger_met else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         """No additional entries for this strategy (single entry per day)."""

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from ..core.exchange_interface import ExchangeInterface
 from ..core.futures_interface import FuturesInterface
+from ..core.constants import Signal, Side
 from ..models.live_trading import LiveTradeExecution, ExecutionStatus
 from ..services.error_logger import error_logger
 from ..models.live_trading import ErrorType
@@ -168,7 +169,7 @@ class OrderExecutionService:
             return await self.adapter.close_position(symbol)
 
         # Futures: short order uses place_short_order()
-        if metadata.get("position_side") == "SHORT" and isinstance(self.adapter, FuturesInterface):
+        if metadata.get("position_side", "").lower() == Side.SHORT and isinstance(self.adapter, FuturesInterface):
             return await self.adapter.place_short_order(symbol, price, quantity)
 
         if side.lower() == "buy":
@@ -237,7 +238,7 @@ class OrderExecutionService:
                     )
 
             # Calculate realized PnL for SELL orders
-            if execution.signal_type == "SELL":
+            if execution.signal_type == Signal.SELL:
                 self._calculate_realized_pnl(execution)
         else:
             execution.status = ExecutionStatus.FAILED
@@ -252,7 +253,7 @@ class OrderExecutionService:
             buys = self.db.query(LiveTradeExecution).filter(
                 LiveTradeExecution.session_id == self.session_id,
                 LiveTradeExecution.symbol == sell_execution.symbol,
-                LiveTradeExecution.signal_type == "BUY",
+                LiveTradeExecution.signal_type == Signal.BUY,
                 LiveTradeExecution.status == ExecutionStatus.FILLED,
             ).all()
 

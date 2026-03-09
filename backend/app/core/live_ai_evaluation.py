@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .config import DEFAULT_INITIAL_CAPITAL
+from .constants import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +99,14 @@ class LiveAIEvaluationService:
             qty = ex.filled_quantity or 0
             price = ex.executed_price or 0
 
-            if ex.signal_type == "BUY":
+            if ex.signal_type == Signal.BUY:
                 buy_queue.append({
                     "qty": qty,
                     "price": price,
                     "timestamp": ex.signal_timestamp,
                     "order_no": ex.exchange_order_no
                 })
-            elif ex.signal_type == "SELL" and buy_queue:
+            elif ex.signal_type == Signal.SELL and buy_queue:
                 sell_qty = qty
                 sell_value = qty * price
                 buy_cost = 0.0

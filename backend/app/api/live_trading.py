@@ -7,6 +7,7 @@ from ..core.live_manager import live_manager
 from ..db.session import get_db
 from ..core.user_context import UserAccountContext, get_user_context
 from ..core.config import DEFAULT_INITIAL_CAPITAL
+from ..core.constants import Signal, Side, Level, AiMode, Mode
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +271,7 @@ async def resume_session(
             live_manager.register_exclusive_session(session.account_id, session_id)
 
         # AI Symbol Selection: trigger initial symbol check on resume
-        if getattr(session, 'ai_symbol_mode', 'static') == 'ai' and getattr(session, 'ai_search_conditions', None):
+        if getattr(session, 'ai_symbol_mode', AiMode.STATIC) == AiMode.AI and getattr(session, 'ai_search_conditions', None):
             engine = live_manager.engines.get(session_id)
             if engine:
                 engine._try_ai_symbol_switch()
@@ -887,7 +888,7 @@ async def get_all_sessions(
             "error_log": sess.error_log,
             "is_archived": sess.is_archived or False,
             "strategy_config": _enrich_strategy_config(sess, profile_preset_map),
-            "ai_symbol_mode": sess.ai_symbol_mode or "static",
+            "ai_symbol_mode": sess.ai_symbol_mode or AiMode.STATIC,
             "ai_search_conditions": sess.ai_search_conditions or "",
             "ai_optimize_params": sess.ai_optimize_params,
             "original_symbol": getattr(sess, 'original_symbol', None) or sess.symbol,
@@ -942,7 +943,7 @@ async def get_accumulated_stats(
             sym = ex.symbol
             if sym not in stats_by_symbol:
                 stats_by_symbol[sym] = {
-                    "paper": {
+                    Mode.PAPER: {
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],  # Track buys for FIFO matching
                         "cycle_pnls": [],  # Per-cycle PnL list (absolute, KRW)
@@ -953,7 +954,7 @@ async def get_accumulated_stats(
                         "trade_dates": set(),  # Unique trade dates (for activity rate)
                         "cumulative_pnls": [],  # Cumulative PnL after each cycle (for MDD)
                     },
-                    "real": {
+                    Mode.REAL: {
                         "trades": 0, "buys": 0, "sells": 0,
                         "buy_queue": [],
                         "cycle_pnls": [],
@@ -967,7 +968,7 @@ async def get_accumulated_stats(
                 }
 
             is_paper = ex.is_paper if ex.is_paper is not None else True
-            key = "paper" if is_paper else "real"
+            key = Mode.PAPER if is_paper else Mode.REAL
             s = stats_by_symbol[sym][key]
             s["trades"] += 1
             qty = ex.filled_quantity or 0.0
@@ -979,14 +980,14 @@ async def get_accumulated_stats(
 
             # Use trade_metadata to distinguish entries vs closes (supports short positions)
             metadata = ex.trade_metadata or {}
-            is_close = metadata.get("level") == "CLOSE"
+            is_close = metadata.get("level") == Level.CLOSE
             position_side = metadata.get("position_side", "").lower()
-            is_short_entry = (position_side == "short"
+            is_short_entry = (position_side == Side.SHORT
                               and isinstance(metadata.get("level"), int))
 
-            if ex.signal_type == "BUY":
+            if ex.signal_type == Signal.BUY:
                 s["buys"] += 1
-            elif ex.signal_type == "SELL":
+            elif ex.signal_type == Signal.SELL:
                 s["sells"] += 1
 
             # Determine if this is an entry or a cycle close
@@ -995,11 +996,11 @@ async def get_accumulated_stats(
 
             if is_close:
                 is_cycle_close = True
-            elif ex.signal_type == "BUY" and not is_close:
-                if position_side != "short":
+            elif ex.signal_type == Signal.BUY and not is_close:
+                if position_side != Side.SHORT:
                     is_entry = True  # Long entry
                 # BUY with position_side=short and level=CLOSE → already handled above
-            elif ex.signal_type == "SELL" and not is_close:
+            elif ex.signal_type == Signal.SELL and not is_close:
                 if is_short_entry:
                     is_entry = True  # Short entry
 
@@ -1028,7 +1029,7 @@ async def get_accumulated_stats(
 
                 if matched_qty > 0:
                     # PnL depends on direction
-                    if position_side == "short":
+                    if position_side == Side.SHORT:
                         cycle_pnl = entry_cost - (close_price * matched_qty)  # Short: sell high, buy low
                     else:
                         cycle_pnl = (close_price * matched_qty) - entry_cost  # Long: buy low, sell high
@@ -1056,8 +1057,8 @@ async def get_accumulated_stats(
         import statistics as stat_module
         result = {}
         for sym, modes in stats_by_symbol.items():
-            result[sym] = {"paper": {}, "real": {}}
-            for key in ["paper", "real"]:
+            result[sym] = {Mode.PAPER: {}, Mode.REAL: {}}
+            for key in [Mode.PAPER, Mode.REAL]:
                 s = modes[key]
                 cycle_pnls = s["cycle_pnls"]  # Absolute (KRW)
                 cycle_pnl_pcts = s["cycle_pnl_pcts"]  # Percentage
@@ -1380,7 +1381,7 @@ async def get_parameter_analysis(
         return {"message": "No active account found", "data": []}
 
     try:
-        is_paper = mode.lower() == "paper"
+        is_paper = mode.lower() == Mode.PAPER
 
         # Query filled executions with config_snapshot - filter by user's account
         query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
@@ -1416,9 +1417,9 @@ async def get_parameter_analysis(
             qty = ex.filled_quantity or 0
             price = ex.executed_price or 0
 
-            if ex.signal_type == "BUY":
+            if ex.signal_type == Signal.BUY:
                 groups[config_hash]["buys"].append({"qty": qty, "price": price})
-            elif ex.signal_type == "SELL":
+            elif ex.signal_type == Signal.SELL:
                 groups[config_hash]["sells"].append({"qty": qty, "price": price, "buy_queue": []})
 
         # Calculate per-config stats using FIFO matching
@@ -1963,9 +1964,9 @@ async def update_version_performance_stats(version_id: str):
         for ex in sorted(matching_trades, key=lambda x: x.signal_timestamp):
             qty = ex.filled_quantity or 0
             price = ex.executed_price or 0
-            if ex.signal_type == "BUY":
+            if ex.signal_type == Signal.BUY:
                 buys.append({"qty": qty, "price": price})
-            elif ex.signal_type == "SELL":
+            elif ex.signal_type == Signal.SELL:
                 sells.append({"qty": qty, "price": price})
 
         buy_queue = list(buys)
@@ -2074,7 +2075,7 @@ async def run_ai_evaluation(
         service = LiveAIEvaluationService(db, user_id=ctx.user.id)
 
         # Run full evaluation
-        is_paper = req.mode.lower() == "paper"
+        is_paper = req.mode.lower() == Mode.PAPER
         result = await service.run_full_evaluation(
             session_id=session_id,
             symbol=session.symbol,
@@ -2157,7 +2158,7 @@ async def run_ai_evaluation(
         return {
             "status": "success",
             "evaluation_id": evaluation.id,
-            "mode": "paper" if is_paper else "real",
+            "mode": Mode.PAPER if is_paper else Mode.REAL,
             "grade": result.get("comparison_data", {}).get("overall_grade", "N/A"),
             "cycles_analyzed": result.get("cycles_analyzed", 0),
             "ai_response": result.get("ai_response"),
@@ -2204,7 +2205,7 @@ async def list_ai_evaluations(
             {
                 "id": e.id,
                 "evaluation_type": e.evaluation_type,
-                "mode": "paper" if e.is_paper else "real",
+                "mode": Mode.PAPER if e.is_paper else Mode.REAL,
                 "cycles_analyzed": e.cycles_analyzed,
                 "grade": e.comparison_data.get("overall_grade") if e.comparison_data else None,
                 "evaluation_score": e.evaluation_score,
@@ -2247,7 +2248,7 @@ async def get_ai_evaluation(
         "session_id": evaluation.session_id,
         "symbol": evaluation.symbol,
         "evaluation_type": evaluation.evaluation_type,
-        "mode": "paper" if evaluation.is_paper else "real",
+        "mode": Mode.PAPER if evaluation.is_paper else Mode.REAL,
         "trigger_cycle_count": evaluation.trigger_cycle_count,
         "cycles_analyzed": evaluation.cycles_analyzed,
         "analysis_start_time": evaluation.analysis_start_time.isoformat() if evaluation.analysis_start_time else None,
@@ -2299,7 +2300,7 @@ async def get_ai_eval_settings(
         "enabled": session.ai_eval_enabled or False,
         "cycles": session.ai_eval_cycles or 10,
         "backtest_days": session.ai_eval_backtest_days or 30,
-        "mode": session.ai_eval_mode or "paper",
+        "mode": session.ai_eval_mode or Mode.PAPER,
     }
 
 
@@ -2373,7 +2374,7 @@ async def get_ai_symbol_settings(
 
     return {
         "session_id": session_id,
-        "ai_symbol_mode": session.ai_symbol_mode or "static",
+        "ai_symbol_mode": session.ai_symbol_mode or AiMode.STATIC,
         "ai_search_conditions": session.ai_search_conditions or "",
         "ai_optimize_params": session.ai_optimize_params,
     }
@@ -2399,7 +2400,7 @@ async def update_ai_symbol_settings(
 
     reset_performed = False
 
-    if req.ai_symbol_mode == 'reset':
+    if req.ai_symbol_mode == AiMode.RESET:
         # Reset: revert symbol to original profile symbol and set mode to static
         original = getattr(session, 'original_symbol', None)
         if original and original != session.symbol:
@@ -2413,12 +2414,12 @@ async def update_ai_symbol_settings(
             session.strategy_config = cfg
             reset_performed = True
             logger.info(f"[AISymbol] Reset: {old_symbol} -> {original} (session {session_id[:8]})")
-        session.ai_symbol_mode = 'static'
+        session.ai_symbol_mode = AiMode.STATIC
         session.ai_awaiting_cycle = False
     else:
         session.ai_symbol_mode = req.ai_symbol_mode
         # Only update search conditions when AI mode is active; preserve for static mode
-        if req.ai_symbol_mode == 'ai':
+        if req.ai_symbol_mode == AiMode.AI:
             session.ai_search_conditions = req.ai_search_conditions
             session.ai_optimize_params = req.ai_optimize_params
             # Reset awaiting flag so pipeline can trigger on resume
