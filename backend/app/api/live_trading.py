@@ -25,6 +25,7 @@ class LiveBotStartRequest(BaseModel):
     auto_start: bool = False  # Phase 5: If False, create session in STOPPED state without starting engine
     ai_symbol_mode: str = "static"  # "static" | "ai" - AI symbol rotation
     ai_search_conditions: Optional[str] = None  # Natural language search conditions for AI mode
+    ai_optimize_params: Optional[dict] = None  # Parameter optimization config for AI mode
 
 class StopAllRequest(BaseModel):
     force: bool = False
@@ -240,6 +241,9 @@ async def resume_session(
         )
 
     try:
+        # Sync latest preset parameters before resume
+        _sync_preset_params(session, db)
+
         # Pre-resume validation: Check balance, holdings, strategy config
         validation = await live_manager.validate_before_resume(session, db)
 
@@ -286,6 +290,59 @@ async def resume_session(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to resume session: {str(e)}")
+
+
+@router.patch("/session/{session_id}/strategy-config")
+async def update_session_strategy_config(
+    session_id: str,
+    body: dict,
+    ctx: UserAccountContext = Depends(get_user_context),
+    db: Session = Depends(get_db)
+):
+    """
+    Hot-swap strategy parameters on a running session.
+    Expects: { "params": { "dip_percent": 1.5, "max_buy_count": 5, ... } }
+    Only works for RUNNING sessions with an active engine.
+    """
+    from ..models.live_trading import LiveBotSession, SessionStatus
+    from ..models.account import ExchangeAccount
+
+    params = body.get("params")
+    if not params or not isinstance(params, dict):
+        raise HTTPException(status_code=400, detail="Missing 'params' dict in request body")
+
+    session = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Verify ownership
+    user_accounts = db.query(ExchangeAccount.id).filter(
+        ExchangeAccount.user_id == ctx.user_id
+    ).all()
+    if session.account_id not in [a.id for a in user_accounts]:
+        raise HTTPException(status_code=403, detail="Session does not belong to your account")
+
+    if session.status != SessionStatus.RUNNING:
+        raise HTTPException(status_code=400, detail="Session is not running. Use restart to apply changes.")
+
+    if session_id not in live_manager.engines:
+        raise HTTPException(status_code=400, detail="Session engine not active in memory")
+
+    # Also update preset metadata if provided
+    preset_info = body.get("preset_info")
+    if preset_info:
+        params["selected_preset_id"] = preset_info.get("id")
+        params["selected_preset_name"] = preset_info.get("version_name")
+
+    try:
+        await live_manager.update_session_strategy_config(session_id, params)
+        return {
+            "status": "success",
+            "message": f"Strategy parameters updated ({len(params)} params)",
+            "updated_keys": list(params.keys()),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update parameters: {str(e)}")
 
 
 @router.delete("/session/{session_id}")
@@ -341,6 +398,12 @@ async def delete_session(
             LiveAIEvaluation.session_id == session_id
         ).delete()
 
+        # Delete related AI symbol history
+        from ..models.live_trading import AISymbolHistory
+        deleted_history = db.query(AISymbolHistory).filter(
+            AISymbolHistory.session_id == session_id
+        ).delete()
+
         # Delete related trade executions
         deleted_trades = db.query(LiveTradeExecution).filter(
             LiveTradeExecution.session_id == session_id
@@ -355,7 +418,8 @@ async def delete_session(
             "message": f"Session deleted successfully",
             "deleted_trades": deleted_trades,
             "deleted_ai_evaluations": deleted_evals,
-            "deleted_ai_reports": deleted_reports
+            "deleted_ai_reports": deleted_reports,
+            "deleted_ai_history": deleted_history
         }
     except Exception as e:
         db.rollback()
@@ -825,6 +889,7 @@ async def get_all_sessions(
             "strategy_config": _enrich_strategy_config(sess, profile_preset_map),
             "ai_symbol_mode": sess.ai_symbol_mode or "static",
             "ai_search_conditions": sess.ai_search_conditions or "",
+            "ai_optimize_params": sess.ai_optimize_params,
             "original_symbol": getattr(sess, 'original_symbol', None) or sess.symbol,
             "original_symbol_name": getattr(sess, 'original_symbol_name', None),
             **engine_info
@@ -1152,6 +1217,61 @@ async def websocket_watch_symbol(websocket: WebSocket, symbol: str):
 
 import hashlib
 import json
+
+
+def _sync_preset_params(session, db):
+    """
+    Sync latest profile rank_configs into session's strategy_config before resume.
+    Profile stores the authoritative parameter values per rank.
+    On resume, we pull the latest from the profile to pick up any changes
+    the user made in the Integrated Portfolio page.
+    """
+    from ..models.live_trading import StrategyProfile
+
+    profile_id = session.profile_id
+    if not profile_id:
+        return
+
+    cfg = dict(session.strategy_config or {})
+    rank = cfg.get("rank")
+    if rank is None:
+        return
+
+    profile = db.query(StrategyProfile).filter_by(id=profile_id).first()
+    if not profile or not profile.rank_configs:
+        return
+
+    # Find matching rank_config from profile
+    rank_cfg = None
+    for rc in profile.rank_configs:
+        if rc.get("rank") == rank:
+            rank_cfg = rc
+            break
+    if not rank_cfg:
+        return
+
+    # Keys to skip (metadata, not strategy params)
+    skip_keys = {
+        "uuid", "tabName", "rank", "symbol", "symbol_name", "is_active",
+        "days", "from_date", "to_date", "optValues", "optEnabled",
+        "lastOptTaskId", "parameter_presets", "session_id",
+    }
+
+    # Merge profile rank_config params into session strategy_config
+    updated_keys = []
+    for key, value in rank_cfg.items():
+        if key in skip_keys:
+            continue
+        if cfg.get(key) != value:
+            cfg[key] = value
+            updated_keys.append(key)
+
+    if updated_keys:
+        session.strategy_config = cfg
+        db.commit()
+        logger.info(f"[PresetSync] Session {session.id[:8]}: synced {len(updated_keys)} params from profile "
+                     f"(rank {rank}): {updated_keys[:10]}")
+
 
 def _create_config_hash(config_snapshot: dict) -> str:
     """
@@ -2202,6 +2322,7 @@ async def update_ai_eval_settings(
 class AISymbolSettingsRequest(PydanticBaseModel):
     ai_symbol_mode: str = "static"  # "static" | "ai" | "reset"
     ai_search_conditions: Optional[str] = None
+    ai_optimize_params: Optional[dict] = None  # {"params": {"leverage": [1,5,10], "position_side": ["long","short"]}}
 
 
 @router.get("/{session_id}/ai-symbol-settings")
@@ -2225,6 +2346,7 @@ async def get_ai_symbol_settings(
         "session_id": session_id,
         "ai_symbol_mode": session.ai_symbol_mode or "static",
         "ai_search_conditions": session.ai_search_conditions or "",
+        "ai_optimize_params": session.ai_optimize_params,
     }
 
 
@@ -2269,6 +2391,7 @@ async def update_ai_symbol_settings(
         # Only update search conditions when AI mode is active; preserve for static mode
         if req.ai_symbol_mode == 'ai':
             session.ai_search_conditions = req.ai_search_conditions
+            session.ai_optimize_params = req.ai_optimize_params
             # Reset awaiting flag so pipeline can trigger on resume
             session.ai_awaiting_cycle = False
 
@@ -2280,6 +2403,7 @@ async def update_ai_symbol_settings(
         "settings": {
             "ai_symbol_mode": session.ai_symbol_mode,
             "ai_search_conditions": session.ai_search_conditions,
+            "ai_optimize_params": session.ai_optimize_params,
         }
     }
     if reset_performed:

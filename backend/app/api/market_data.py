@@ -19,11 +19,18 @@ def get_data_status(symbol: str, interval: str = "1m", db: Session = Depends(get
     Check if we have fresh data for the symbol (within last 24 hours).
     Returns: { "symbol": str, "last_updated": str, "is_fresh": bool, "count": int }
     """
-    # Find the latest timestamp for this symbol
+    # Normalize: try exact match first, then uppercase (Binance stores UPPER)
     last_record = db.query(OHLCV.timestamp).filter(
         OHLCV.symbol == symbol,
         OHLCV.time_frame == interval
     ).order_by(OHLCV.timestamp.desc()).first()
+
+    if not last_record and symbol != symbol.upper():
+        symbol = symbol.upper()
+        last_record = db.query(OHLCV.timestamp).filter(
+            OHLCV.symbol == symbol,
+            OHLCV.time_frame == interval
+        ).order_by(OHLCV.timestamp.desc()).first()
 
     count = db.query(func.count(OHLCV.id)).filter(
         OHLCV.symbol == symbol,

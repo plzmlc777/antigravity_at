@@ -271,6 +271,14 @@ export const updateSessionSettings = async (sessionId, settings) => {
     return data;
 };
 
+export const updateSessionStrategyConfig = async (sessionId, params, presetInfo = null) => {
+    // Hot-swap strategy parameters on a running session
+    const body = { params };
+    if (presetInfo) body.preset_info = presetInfo;
+    const { data } = await api.patch(`/live/session/${sessionId}/strategy-config`, body);
+    return data;
+};
+
 export const toggleLiveOrders = async (sessionId, enabled) => {
     const { data } = await api.post(`/live/toggle-orders/${sessionId}`, { enabled });
     return data;

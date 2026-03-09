@@ -385,8 +385,10 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
 
     # ── Chart Data ──
 
-    async def get_minute_candles(self, symbol: str, interval: str = "1", count: int = 200) -> list:
+    async def get_minute_candles(self, symbol: str, interval: str = "1", count: int = 200, interval_minutes: int = None) -> list:
         """Fetch recent futures candles via REST API."""
+        if interval_minutes is not None:
+            interval = str(interval_minutes)
         interval_map = {"1": "1m", "3": "3m", "5": "5m", "15": "15m", "30": "30m", "60": "1h"}
         binance_interval = interval_map.get(interval, f"{interval}m")
 
@@ -422,6 +424,33 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
                 on_balance=self._on_ws_balance,
             )
 
+    async def start_realtime(self, symbols: list = None):
+        """Start Binance Futures WebSocket and subscribe to symbols."""
+        from .binance_websocket import BinanceWebSocket
+
+        if not self.ws_client:
+            self.ws_client = BinanceWebSocket(
+                api_key=self.api_key,
+                secret_key=self.secret_key,
+                api_url=self.api_url,
+                is_testnet=self.is_testnet,
+                is_futures=True,
+            )
+            self.setup_realtime_callbacks()
+
+        if symbols:
+            await self.ws_client.subscribe_symbols(symbols)
+
+        if not self.ws_client.is_running:
+            await self.ws_client.connect()
+            logger.info(f"Binance Futures WebSocket started for {symbols}")
+
+    async def stop_realtime(self):
+        """Stop Binance Futures WebSocket."""
+        if self.ws_client:
+            await self.ws_client.disconnect()
+            logger.info("Binance Futures WebSocket stopped")
+
     async def _on_ws_tick(self, tick_data: Dict):
         for listener in self._tick_listeners:
             try:
@@ -431,6 +460,31 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
                     listener(tick_data)
             except Exception as e:
                 logger.error(f"Tick listener error: {e}")
+
+    async def get_order_executions(self, order_no: str = "", symbol: str = "") -> list:
+        """Get recent trade/fill history from Binance Futures."""
+        await self._ensure_time_sync()
+        try:
+            params = {"limit": 50}
+            if symbol:
+                params["symbol"] = symbol
+            trades = await self._signed_get(f"{FAPI}/userTrades", params)
+            results = []
+            for t in trades:
+                results.append({
+                    "order_no": str(t.get("orderId", "")),
+                    "symbol": t.get("symbol", ""),
+                    "side": t.get("side", ""),
+                    "filled_price": float(t.get("price", 0)),
+                    "filled_qty": float(t.get("qty", 0)),
+                    "commission": float(t.get("commission", 0)),
+                    "realized_pnl": float(t.get("realizedPnl", 0)),
+                    "time": t.get("time", 0),
+                })
+            return results
+        except Exception as e:
+            logger.error(f"get_order_executions() failed: {e}")
+            return []
 
     async def _on_ws_order(self, order_data: Dict):
         for listener in self._order_listeners:

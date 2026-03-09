@@ -58,6 +58,10 @@ class AISymbolSelectionService:
 
     def _update_progress(self, session_id: str, stage: str, message: str, **kwargs):
         """Update pipeline progress for a session."""
+        existing = self._progress.get(session_id, {})
+        # Preserve accumulated results unless explicitly overridden
+        if "results" not in kwargs and "results" in existing:
+            kwargs["results"] = existing["results"]
         self._progress[session_id] = {
             "stage": stage,
             "message": message,
@@ -122,6 +126,9 @@ class AISymbolSelectionService:
         is_paper: bool,
         group_id: str = None,
         current_symbol_name: str = None,
+        ai_optimize_params: dict = None,
+        is_futures: bool = False,
+        exchange_name: str = "Kiwoom",
     ) -> Optional[str]:
         """
         Full AI symbol selection pipeline.
@@ -141,17 +148,24 @@ class AISymbolSelectionService:
                 if excluded_symbols:
                     logger.info(f"[AISymbol] Group {group_id} excluded symbols: {excluded_symbols}")
 
-            # Step 2: Get token for API calls
+            # Step 2-3: Fetch market data (exchange-specific)
             self._update_progress(session_id, "market_data", "시장 데이터 수집 중...")
-            api_url, token = await self._get_token(account_id)
-            if not token:
-                logger.error(f"[AISymbol] Failed to get token for account {account_id}")
-                self._update_progress(session_id, "error", "토큰 획득 실패")
-                self._clear_progress(session_id)
-                return None
+            _ex = (exchange_name or "").lower()
+            is_binance = "binance" in _ex
 
-            # Step 3: Fetch market data (stock list + rankings)
-            stock_data, ranking_data = await self._fetch_market_data(api_url, token)
+            if is_binance:
+                # Binance: no token needed, use public REST API
+                stock_data, ranking_data = await self._fetch_binance_market_data(is_futures=is_futures)
+            else:
+                # Kiwoom/KIS: use token-based API
+                api_url, token = await self._get_token(account_id)
+                if not token:
+                    logger.error(f"[AISymbol] Failed to get token for account {account_id}")
+                    self._update_progress(session_id, "error", "토큰 획득 실패")
+                    self._clear_progress(session_id)
+                    return None
+                stock_data, ranking_data = await self._fetch_market_data(api_url, token)
+
             if not stock_data:
                 logger.error("[AISymbol] Failed to fetch market data")
                 self._update_progress(session_id, "error", "시장 데이터 수집 실패")
@@ -175,11 +189,12 @@ class AISymbolSelectionService:
                 self._clear_progress(session_id)
                 return None
 
-            # Step 5: Find candidate symbols
+            # Step 5: Find candidate symbols (with direction for futures)
             self._update_progress(session_id, "finding", "AI가 후보 종목 탐색 중...")
             candidates = await self._find_candidates(
                 current_symbol, search_conditions, stock_data, ranking_data,
                 excluded_symbols=excluded_symbols,
+                is_futures=is_futures,
             )
             if not candidates:
                 reason = "후보 종목 없음 - 현재 종목 유지"
@@ -193,17 +208,48 @@ class AISymbolSelectionService:
                 self._clear_progress(session_id)
                 return None
 
-            logger.info(f"[AISymbol] Found {len(candidates)} candidates: {candidates}")
+            codes = [c["code"] if isinstance(c, dict) else c for c in candidates]
+            logger.info(f"[AISymbol] Found {len(candidates)} candidates: {codes}")
 
-            # Step 6: Compare candidates via backtest
-            self._update_progress(session_id, "backtesting",
-                                  f"{len(candidates)}개 후보 백테스트 중... (0/{len(candidates)})",
-                                  total=len(candidates), current=0, results=[])
-            best_symbol = await self._compare_symbols(
+            # Step 6: Generate optimization ranges via AI (if params selected)
+            optimize_param_names = ai_optimize_params.get("params", []) if ai_optimize_params else []
+            optimize_params = {}
+            if optimize_param_names and isinstance(optimize_param_names, list) and len(optimize_param_names) > 0:
+                self._update_progress(session_id, "optimizing",
+                                      f"AI가 {len(optimize_param_names)}개 파라미터 최적화 범위 결정 중...")
+                optimize_params = await self._generate_optimize_ranges(
+                    optimize_param_names, strategy_name, strategy_config, candidates[0],
+                )
+                if optimize_params:
+                    logger.info(f"[AISymbol] AI-generated optimize ranges: {optimize_params}")
+                else:
+                    logger.warning("[AISymbol] AI failed to generate ranges, proceeding without optimization")
+
+            # Step 7: Compare candidates via backtest (with optional parameter optimization)
+            if optimize_params:
+                import itertools
+                keys = list(optimize_params.keys())
+                values = list(optimize_params.values())
+                combos = list(itertools.product(*values))
+                total_bt = len(candidates) * len(combos)
+                logger.info(f"[AISymbol] Optimization mode: {len(candidates)} symbols × "
+                            f"{len(combos)} param combos = {total_bt} backtests")
+                self._update_progress(session_id, "backtesting",
+                                      f"최적화 백테스트 중... (0/{total_bt}) "
+                                      f"[{len(candidates)}종목 × {len(combos)}조합]",
+                                      total=total_bt, current=0, results=[])
+            else:
+                total_bt = len(candidates)
+                self._update_progress(session_id, "backtesting",
+                                      f"{len(candidates)}개 후보 백테스트 중... (0/{len(candidates)})",
+                                      total=len(candidates), current=0, results=[])
+
+            compare_results = await self._compare_symbols(
                 candidates, strategy_name, strategy_config, initial_capital,
                 session_id=session_id,
+                optimize_params=optimize_params,
             )
-            if not best_symbol:
+            if not compare_results:
                 bt_results = self._progress.get(session_id, {}).get("results", [])
                 reason = (f"[교체 사유] {eval_reason}\n"
                           f"[결과] 적합한 후보 없음 - 현재 종목 유지")
@@ -218,13 +264,39 @@ class AISymbolSelectionService:
                 self._clear_progress(session_id)
                 return None
 
+            # Step 8: AI selects best symbol+params from backtest results
+            best_symbol, best_params, select_reason = await self._ai_select_best(
+                compare_results, search_conditions, strategy_name,
+                current_symbol, session_id=session_id,
+            )
+
+            if not best_symbol:
+                bt_results = self._progress.get(session_id, {}).get("results", [])
+                reason = (f"[교체 사유] {eval_reason}\n"
+                          f"[결과] AI 최종 선택 실패 - 현재 종목 유지")
+                logger.warning("[AISymbol] AI final selection failed. Keeping current symbol.")
+                self._update_progress(session_id, "done", "AI 최종 선택 실패 - 현재 종목 유지")
+                self._save_history(session_id, group_id, "no_candidates",
+                                   old_symbol=current_symbol,
+                                   old_symbol_name=_sym_name,
+                                   search_conditions=search_conditions,
+                                   evaluation_reason=reason,
+                                   backtest_results=bt_results)
+                self._clear_progress(session_id)
+                return None
+
             bt_results = self._progress.get(session_id, {}).get("results", [])
+            params_str = f" (params: {best_params})" if best_params else ""
             reason = (f"[교체 사유] {eval_reason}\n"
-                      f"[결과] {current_symbol} → {best_symbol}")
-            logger.info(f"[AISymbol] Pipeline COMPLETE: {current_symbol} -> {best_symbol}")
-            self._update_progress(session_id, "done",
-                                  f"종목 전환 완료: {current_symbol} → {best_symbol}",
-                                  new_symbol=best_symbol)
+                      f"[결과] {current_symbol} → {best_symbol}{params_str}")
+            if select_reason:
+                reason += f"\n[선정 사유] {select_reason}"
+            logger.info(f"[AISymbol] Pipeline COMPLETE: {current_symbol} -> {best_symbol}{params_str}")
+            done_msg = f"종목 전환 완료: {current_symbol} → {best_symbol}"
+            if best_params:
+                done_msg += f" (최적 파라미터: {best_params})"
+            self._update_progress(session_id, "done", done_msg,
+                                  new_symbol=best_symbol, optimized_params=best_params)
             self._save_history(session_id, group_id, "switched",
                                old_symbol=current_symbol,
                                old_symbol_name=_sym_name,
@@ -232,6 +304,8 @@ class AISymbolSelectionService:
                                search_conditions=search_conditions,
                                evaluation_reason=reason,
                                backtest_results=bt_results)
+            # Store result including optimized params for caller
+            self._last_result = {"symbol": best_symbol, "optimized_params": best_params}
             return best_symbol
 
         except Exception as e:
@@ -273,6 +347,77 @@ class AISymbolSelectionService:
             return api_url, token
         except Exception as e:
             logger.error(f"[AISymbol] Token error: {e}")
+            return None, None
+
+    async def _fetch_binance_market_data(self, is_futures: bool = False) -> tuple:
+        """Fetch Binance market data via public REST API (no auth needed).
+
+        Returns (stock_data, ranking_data) in a format compatible with Kiwoom data:
+          stock_data: [{"code": "BTCUSDT", "name": "BTCUSDT", "lastPrice": "...", ...}]
+          ranking_data: {"volume_top": [...], "change_top": [...], "change_bottom": [...]}
+        """
+        from ..core.http_client import HttpClientManager
+
+        try:
+            client = HttpClientManager.get_instance().get_client()
+
+            if is_futures:
+                url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+            else:
+                url = "https://api.binance.com/api/v3/ticker/24hr"
+
+            response = await client.get(url, timeout=15)
+            if response.status_code != 200:
+                logger.error(f"[AISymbol] Binance ticker API error: {response.status_code}")
+                return None, None
+
+            tickers = response.json()
+
+            # Filter USDT pairs only, exclude low-volume noise
+            usdt_tickers = [
+                t for t in tickers
+                if t.get("symbol", "").endswith("USDT")
+                and float(t.get("quoteVolume", 0)) > 100000  # min $100k volume
+            ]
+
+            # Build stock_data (compatible with Kiwoom format)
+            stock_data = []
+            for t in usdt_tickers:
+                symbol = t["symbol"]
+                price_change_pct = float(t.get("priceChangePercent", 0))
+                stock_data.append({
+                    "code": symbol,
+                    "name": symbol.replace("USDT", ""),
+                    "lastPrice": t.get("lastPrice", "0"),
+                    "priceChangePercent": f"{price_change_pct:+.2f}%",
+                    "quoteVolume": t.get("quoteVolume", "0"),
+                    "marketName": "Futures" if is_futures else "Spot",
+                })
+
+            # Build ranking_data
+            sorted_by_volume = sorted(usdt_tickers, key=lambda x: float(x.get("quoteVolume", 0)), reverse=True)
+            sorted_by_change = sorted(usdt_tickers, key=lambda x: float(x.get("priceChangePercent", 0)), reverse=True)
+
+            def _ticker_to_rank(t):
+                return {
+                    "code": t["symbol"],
+                    "name": t["symbol"].replace("USDT", ""),
+                    "lastPrice": t.get("lastPrice", "0"),
+                    "priceChangePercent": f"{float(t.get('priceChangePercent', 0)):+.2f}%",
+                    "quoteVolume": t.get("quoteVolume", "0"),
+                }
+
+            ranking_data = {
+                "volume_top": [_ticker_to_rank(t) for t in sorted_by_volume[:50]],
+                "change_top": [_ticker_to_rank(t) for t in sorted_by_change[:30]],
+                "change_bottom": [_ticker_to_rank(t) for t in sorted_by_change[-30:]],
+            }
+
+            logger.info(f"[AISymbol] Binance market data: {len(stock_data)} USDT pairs loaded")
+            return stock_data, ranking_data
+
+        except Exception as e:
+            logger.error(f"[AISymbol] Binance market data fetch error: {e}")
             return None, None
 
     async def _fetch_market_data(self, api_url: str, token: str) -> tuple:
@@ -349,8 +494,15 @@ class AISymbolSelectionService:
         stock_data: list,
         ranking_data: dict,
         excluded_symbols: set = None,
-    ) -> List[str]:
-        """Find up to 20 candidate symbols matching the conditions."""
+        is_futures: bool = False,
+    ) -> list:
+        """Find up to 20 candidate symbols matching the conditions.
+
+        For futures exchanges, also returns recommended direction (long/short) per candidate.
+        Returns:
+          - Spot: [{"code": "...", "name": "...", "reason": "..."}]
+          - Futures: [{"code": "...", "name": "...", "direction": "long/short", "reason": "..."}]
+        """
         excluded_symbols = excluded_symbols or set()
 
         # Build exclusion list for the prompt
@@ -364,16 +516,31 @@ class AISymbolSelectionService:
             "excluded_symbols": list(all_excluded),
             "stocks": self._slim_stock_data(stock_data),
             "rankings": ranking_data,
+            "is_futures": is_futures,
         }
 
-        prompt = (
-            f"Read the context file and find up to 20 stock candidates that match "
-            f"the user's conditions: '{search_conditions}'. "
-            f"Return as many candidates as possible (up to 20). "
-            f"Exclude ALL of these symbols (already in use): {exclude_str}. "
-            f"Respond with ONLY a JSON object: "
-            f'{{"candidates": [{{"code": "123456", "name": "종목명", "reason": "이유"}}]}}'
-        )
+        if is_futures:
+            prompt = (
+                f"Read the context file and find up to 20 futures candidates that match "
+                f"the user's conditions: '{search_conditions}'. "
+                f"This is a FUTURES exchange, so for each candidate you MUST also recommend "
+                f"a trading direction (long or short) based on your analysis of the chart pattern, "
+                f"volume profile, momentum, and market conditions. "
+                f"Return as many candidates as possible (up to 20). "
+                f"Exclude ALL of these symbols (already in use): {exclude_str}. "
+                f"Respond with ONLY a JSON object: "
+                f'{{"candidates": [{{"code": "BTCUSDT", "name": "Bitcoin", '
+                f'"direction": "long", "reason": "이유 (방향 근거 포함)"}}]}}'
+            )
+        else:
+            prompt = (
+                f"Read the context file and find up to 20 stock candidates that match "
+                f"the user's conditions: '{search_conditions}'. "
+                f"Return as many candidates as possible (up to 20). "
+                f"Exclude ALL of these symbols (already in use): {exclude_str}. "
+                f"Respond with ONLY a JSON object: "
+                f'{{"candidates": [{{"code": "123456", "name": "종목명", "reason": "이유"}}]}}'
+            )
 
         result = await self._call_claude(context_data, prompt)
         if result is None:
@@ -382,97 +549,358 @@ class AISymbolSelectionService:
         try:
             parsed = json.loads(result) if isinstance(result, str) else result
             candidates = parsed.get("candidates", [])
-            # Extract codes and filter out any excluded symbols (safety net)
-            codes = [c["code"] for c in candidates
-                     if "code" in c and c["code"] not in all_excluded]
-            return codes[:20]  # Max 20 candidates
+            # Filter out excluded symbols
+            filtered = []
+            for c in candidates:
+                if "code" not in c or c["code"] in all_excluded:
+                    continue
+                entry = {"code": c["code"], "name": c.get("name", "")}
+                if is_futures and "direction" in c:
+                    direction = c["direction"].lower()
+                    entry["direction"] = direction if direction in ("long", "short") else "long"
+                entry["reason"] = c.get("reason", "")
+                filtered.append(entry)
+            return filtered[:20]
         except (json.JSONDecodeError, AttributeError, KeyError):
             logger.warning(f"[AISymbol] Failed to parse find response: {result[:200]}")
             return []
 
     async def _compare_symbols(
         self,
-        candidates: List[str],
+        candidates: list,
         strategy_name: str,
         strategy_config: dict,
         initial_capital: float,
         session_id: str = None,
-    ) -> Optional[str]:
-        """Compare candidates via backtest (14-day) with same strategy params."""
-        from ..api.mock_strategies import _run_unified_backtest
+        optimize_params: dict = None,
+    ) -> List[dict]:
+        """Compare candidates via backtest (14-day) with same strategy params.
 
-        best_symbol = None
-        best_score = float('-inf')
+        candidates: list of dicts {"code": "...", "direction": "long/short" (optional)}
+                    or list of strings (backward compat).
+        If optimize_params is provided, runs grid search per candidate.
+        Returns list of per-symbol best results, sorted by score descending.
+        """
+        from ..api.mock_strategies import _run_unified_backtest
+        import itertools
+
         results_summary = []
 
-        for i, symbol in enumerate(candidates):
-            try:
-                config = dict(strategy_config)
-                config['symbol'] = symbol
+        # Normalize candidates to list of dicts
+        norm_candidates = []
+        for c in candidates:
+            if isinstance(c, dict):
+                norm_candidates.append(c)
+            else:
+                norm_candidates.append({"code": c})
 
-                # Update progress
-                if session_id:
-                    prog = self._progress.get(session_id, {})
-                    self._update_progress(
-                        session_id, "backtesting",
-                        f"{len(candidates)}개 후보 백테스트 중... ({i+1}/{len(candidates)}) - {symbol}",
-                        total=len(candidates), current=i+1,
-                        results=prog.get("results", []),
+        # Build parameter combinations
+        if optimize_params:
+            opt_keys = list(optimize_params.keys())
+            opt_values = list(optimize_params.values())
+            param_combos = list(itertools.product(*opt_values))
+            total_bt = len(norm_candidates) * len(param_combos)
+        else:
+            opt_keys = []
+            param_combos = [()]  # Single "no-op" combo
+            total_bt = len(norm_candidates)
+
+        bt_counter = 0
+        for i, cand in enumerate(norm_candidates):
+            symbol = cand["code"]
+            ai_direction = cand.get("direction")  # "long" / "short" / None
+            symbol_best_score = float('-inf')
+            symbol_best_params = None
+            symbol_best_stats = {}
+
+            for combo in param_combos:
+                bt_counter += 1
+                try:
+                    config = dict(strategy_config)
+                    config['symbol'] = symbol
+
+                    # Apply AI-recommended direction for futures
+                    if ai_direction:
+                        config['position_side'] = ai_direction
+
+                    # Apply optimization parameters
+                    combo_params = {}
+                    for k_idx, key in enumerate(opt_keys):
+                        config[key] = combo[k_idx]
+                        combo_params[key] = combo[k_idx]
+
+                    # Update progress
+                    if session_id:
+                        prog = self._progress.get(session_id, {})
+                        dir_tag = f" ({ai_direction})" if ai_direction else ""
+                        if optimize_params:
+                            params_desc = ", ".join(f"{k}={v}" for k, v in combo_params.items())
+                            msg = (f"최적화 백테스트 중... ({bt_counter}/{total_bt}) "
+                                   f"- {symbol}{dir_tag} [{params_desc}]")
+                        else:
+                            msg = (f"{len(norm_candidates)}개 후보 백테스트 중... "
+                                   f"({bt_counter}/{total_bt}) - {symbol}{dir_tag}")
+                        self._update_progress(
+                            session_id, "backtesting", msg,
+                            total=total_bt, current=bt_counter,
+                            results=prog.get("results", []),
+                        )
+
+                    result = await _run_unified_backtest(
+                        strategy_id=strategy_name,
+                        configs=[config],
+                        symbol=symbol,
+                        interval="1m",
+                        days=14,
+                        from_date=None,
+                        initial_capital=int(initial_capital),
+                        execution_mode="single",
+                        optimize_mode=True,
                     )
 
-                result = await _run_unified_backtest(
-                    strategy_id=strategy_name,
-                    configs=[config],
-                    symbol=symbol,
-                    interval="1m",
-                    days=14,
-                    from_date=None,
-                    initial_capital=int(initial_capital),
-                    execution_mode="single",
-                    optimize_mode=True,
-                )
+                    if "error" in result:
+                        logger.warning(f"[AISymbol] Backtest failed for {symbol}: {result['error']}")
+                        continue
 
-                if "error" in result:
-                    logger.warning(f"[AISymbol] Backtest failed for {symbol}: {result['error']}")
+                    # Extract metrics
+                    score = self._calculate_score(result)
+                    trades = int(result.get("total_cycles", 0))
+                    ret = float(str(result.get("total_return", "0")).replace('%', '').replace(',', ''))
+                    wr = float(str(result.get("win_rate", "0")).replace('%', ''))
+                    mdd = float(str(result.get("max_drawdown", "0")).replace('%', '').replace(',', ''))
+
+                    dir_log = f" [{ai_direction}]" if ai_direction else ""
+                    if optimize_params:
+                        params_desc = ", ".join(f"{k}={v}" for k, v in combo_params.items())
+                        logger.info(f"[AISymbol] BT [{bt_counter}/{total_bt}] {symbol}{dir_log} "
+                                    f"[{params_desc}]: score={score:.2f}, cycles={trades}, "
+                                    f"return={ret:.1f}%, WR={wr:.1f}%")
+                    else:
+                        logger.info(f"[AISymbol] BT [{bt_counter}/{total_bt}] {symbol}{dir_log}: "
+                                    f"score={score:.2f}, cycles={trades}, return={ret:.1f}%, WR={wr:.1f}%")
+
+                    # Track per-symbol best
+                    if score > symbol_best_score:
+                        symbol_best_score = score
+                        symbol_best_params = combo_params if combo_params else None
+                        symbol_best_stats = {
+                            "cycles": trades, "return_pct": ret,
+                            "win_rate": wr, "max_drawdown": mdd,
+                        }
+
+                except Exception as e:
+                    logger.warning(f"[AISymbol] Backtest error for {symbol}: {e}")
                     continue
 
-                # Extract score
-                score = self._calculate_score(result)
-                trades = int(result.get("total_cycles", 0))
-                ret = float(str(result.get("total_return", "0")).replace('%', '').replace(',', ''))
-                wr = float(str(result.get("win_rate", "0")).replace('%', ''))
-                logger.info(f"[AISymbol] Backtest [{i+1}/{len(candidates)}] {symbol}: "
-                           f"score={score:.2f}, cycles={trades}, return={ret:.1f}%, WR={wr:.1f}%")
-                results_summary.append((symbol, score, trades, ret, wr))
+            # Add best result per symbol to summary
+            if symbol_best_score > float('-inf'):
+                entry = {
+                    "symbol": symbol,
+                    "score": round(symbol_best_score, 2),
+                    "params": symbol_best_params,
+                    **symbol_best_stats,
+                }
+                if ai_direction:
+                    entry["direction"] = ai_direction
+                    # Include direction in params for application
+                    if entry["params"] is None:
+                        entry["params"] = {}
+                    entry["params"]["position_side"] = ai_direction
+                results_summary.append(entry)
 
-                # Update progress with result
-                if session_id:
-                    bt_results = self._progress.get(session_id, {}).get("results", [])
-                    bt_results.append({
-                        "symbol": symbol, "score": round(score, 1),
-                        "cycles": trades, "return": round(ret, 2), "win_rate": round(wr, 1),
-                    })
-                    self._update_progress(
-                        session_id, "backtesting",
-                        f"{len(candidates)}개 후보 백테스트 중... ({i+1}/{len(candidates)})",
-                        total=len(candidates), current=i+1, results=bt_results,
-                    )
+            # Update progress with per-symbol result
+            if session_id and symbol_best_score > float('-inf'):
+                bt_results = self._progress.get(session_id, {}).get("results", [])
+                prog_entry = {
+                    "symbol": symbol, "score": round(symbol_best_score, 1),
+                    "cycles": symbol_best_stats.get("cycles", 0),
+                    "return": symbol_best_stats.get("return_pct", 0),
+                    "win_rate": symbol_best_stats.get("win_rate", 0),
+                }
+                if ai_direction:
+                    prog_entry["direction"] = ai_direction
+                if symbol_best_params:
+                    prog_entry["optimized_params"] = symbol_best_params
+                bt_results.append(prog_entry)
+                self._update_progress(
+                    session_id, "backtesting",
+                    f"백테스트 중... ({bt_counter}/{total_bt})",
+                    total=total_bt, current=bt_counter, results=bt_results,
+                )
 
-                if score > best_score:
-                    best_score = score
-                    best_symbol = symbol
+        # Sort by score descending
+        results_summary.sort(key=lambda x: x["score"], reverse=True)
 
-            except Exception as e:
-                logger.warning(f"[AISymbol] Backtest error for {symbol}: {e}")
-                continue
+        # Log top 5
+        for r in results_summary[:5]:
+            p_str = f" {r['params']}" if r.get('params') else ""
+            d_str = f" [{r['direction']}]" if r.get('direction') else ""
+            logger.info(f"[AISymbol] Top: {r['symbol']}{d_str} score={r['score']:.1f} "
+                        f"ret={r.get('return_pct', 0):.1f}% WR={r.get('win_rate', 0):.1f}% "
+                        f"cycles={r.get('cycles', 0)}{p_str}")
 
-        # Log top 5 results
-        if results_summary:
-            results_summary.sort(key=lambda x: x[1], reverse=True)
-            top5 = results_summary[:5]
-            logger.info(f"[AISymbol] Top 5: {[(s, f'{sc:.1f}', t, f'{r:.1f}%') for s, sc, t, r in top5]}")
+        return results_summary
 
-        return best_symbol
+    async def _ai_select_best(
+        self,
+        bt_results: List[dict],
+        search_conditions: str,
+        strategy_name: str,
+        current_symbol: str,
+        session_id: str = None,
+    ) -> tuple:
+        """Ask AI to select the best symbol+params from backtest results.
+
+        Returns (best_symbol, best_params, reason) tuple.
+        Fallback: if AI fails, pick the top-scoring result mechanically.
+        """
+        # Take top 10 for AI evaluation
+        top_results = bt_results[:10]
+
+        context_data = {
+            "mode": "SELECT_BEST",
+            "strategy_name": strategy_name,
+            "current_symbol": current_symbol,
+            "search_conditions": search_conditions,
+            "backtest_results": top_results,
+        }
+
+        prompt = (
+            "Read the context file. You are given backtest results for candidate symbols "
+            "(each with their best parameter combination if optimization was used). "
+            "Select the single best symbol+params combination for live trading.\n\n"
+            "Consider:\n"
+            "- Return % and win rate (higher is better)\n"
+            "- Number of cycles/trades (more trades = more reliable signal, fewer = possibly overfitted)\n"
+            "- Max drawdown (lower is better, indicates risk)\n"
+            "- Parameter reasonableness (extreme leverage or unusual params may indicate overfitting)\n"
+            "- If the score difference between top candidates is small, prefer the one with more trades\n"
+            "- The user's original search conditions for context\n\n"
+            "Respond with ONLY a JSON object:\n"
+            '{"selected_symbol": "code", "selected_params": {"key": value, ...} or null, '
+            '"reason": "Korean explanation of why this combination was chosen, including risk assessment"}'
+        )
+
+        if session_id:
+            self._update_progress(session_id, "ai_selecting",
+                                  f"AI가 상위 {len(top_results)}개 결과에서 최적 조합 선택 중...")
+
+        result = await self._call_claude(context_data, prompt)
+
+        # Fallback: mechanical selection
+        fallback_symbol = top_results[0]["symbol"] if top_results else None
+        fallback_params = top_results[0].get("params") if top_results else None
+
+        if result is None:
+            logger.warning("[AISymbol] AI selection failed, using mechanical fallback")
+            return fallback_symbol, fallback_params, ""
+
+        try:
+            parsed = json.loads(result) if isinstance(result, str) else result
+            selected_symbol = parsed.get("selected_symbol")
+            selected_params = parsed.get("selected_params")
+            reason = parsed.get("reason", "")
+
+            # Validate that selected symbol is in our results
+            valid_symbols = {r["symbol"] for r in top_results}
+            if selected_symbol not in valid_symbols:
+                logger.warning(f"[AISymbol] AI selected invalid symbol '{selected_symbol}', "
+                               f"using fallback. Valid: {valid_symbols}")
+                return fallback_symbol, fallback_params, ""
+
+            # If AI selected a symbol but returned no params, use that symbol's best params
+            if selected_params is None:
+                for r in top_results:
+                    if r["symbol"] == selected_symbol:
+                        selected_params = r.get("params")
+                        break
+
+            logger.info(f"[AISymbol] AI selected: {selected_symbol} params={selected_params} "
+                        f"reason={reason[:100]}")
+            return selected_symbol, selected_params, reason
+
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning(f"[AISymbol] Failed to parse AI selection: {result[:200]}")
+            return fallback_symbol, fallback_params, ""
+
+    async def _generate_optimize_ranges(
+        self,
+        param_names: list,
+        strategy_name: str,
+        strategy_config: dict,
+        sample_symbol: str,
+    ) -> dict:
+        """Ask AI to determine smart optimization ranges for selected parameters.
+
+        Returns dict like: {"leverage": [1, 5, 10, 20], "position_side": ["long", "short"]}
+        """
+        from .strategy_registry import StrategyRegistry
+
+        # Get schema for param metadata (min/max/step/options)
+        schema = StrategyRegistry.get_parameter_schema(strategy_name)
+        fields = schema.get("fields", []) if schema else []
+
+        # Build param info for AI
+        param_info = []
+        for name in param_names:
+            field = next((f for f in fields if (f.get("key") or f.get("name")) == name), None)
+            current_val = strategy_config.get(name)
+            info = {"name": name, "current_value": current_val}
+            if field:
+                info["label"] = field.get("label", name)
+                info["type"] = field.get("type", "number")
+                if field.get("type") == "number":
+                    info["min"] = field.get("min")
+                    info["max"] = field.get("max")
+                    info["step"] = field.get("step")
+                elif field.get("options"):
+                    info["options"] = field["options"]
+            param_info.append(info)
+
+        context_data = {
+            "mode": "OPTIMIZE_RANGES",
+            "strategy_name": strategy_name,
+            "sample_symbol": sample_symbol,
+            "current_config": {k: v for k, v in strategy_config.items()
+                               if k in param_names or k in ("symbol", "interval")},
+            "parameters_to_optimize": param_info,
+        }
+
+        prompt = (
+            "Read the context file. You need to suggest optimization ranges for the listed parameters. "
+            "The current config values are provided. Generate 3-5 candidate values per parameter that "
+            "would be meaningful to test via grid search backtest. "
+            "Rules:\n"
+            "- For number params: include the current value, plus values above and below it. "
+            "Respect min/max/step constraints. Choose values that are practically meaningful "
+            "(e.g., for leverage, include 1 as baseline).\n"
+            "- For select params: include all options that make sense to compare.\n"
+            "- Keep total combinations reasonable (under 50 if possible).\n"
+            "- Consider the strategy context when choosing values.\n"
+            "Respond with ONLY a JSON object:\n"
+            '{"ranges": {"param_name": [value1, value2, ...], ...}}'
+        )
+
+        result = await self._call_claude(context_data, prompt)
+        if result is None:
+            return {}
+
+        try:
+            parsed = json.loads(result) if isinstance(result, str) else result
+            ranges = parsed.get("ranges", {})
+
+            # Validate and sanitize
+            validated = {}
+            for name in param_names:
+                if name in ranges and isinstance(ranges[name], list) and len(ranges[name]) >= 2:
+                    validated[name] = ranges[name]
+                else:
+                    logger.warning(f"[AISymbol] AI returned invalid range for '{name}', skipping")
+
+            return validated
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning(f"[AISymbol] Failed to parse optimize ranges response: {result[:200]}")
+            return {}
 
     def _calculate_score(self, result: dict) -> float:
         """Calculate a composite score from backtest results.
@@ -716,12 +1144,19 @@ class AISymbolSelectionService:
                 for sid in session_ids:
                     self._update_progress(sid, "market_data", "시장 데이터 수집 중...")
 
-                api_url, token = await self._get_token(first["account_id"])
-                if not token:
-                    self._fail_group(session_ids, "토큰 획득 실패")
-                    return
+                _ex = (first.get("exchange_name") or "").lower()
+                is_binance = "binance" in _ex
 
-                stock_data, ranking_data = await self._fetch_market_data(api_url, token)
+                if is_binance:
+                    is_futures = first.get("is_futures", False)
+                    stock_data, ranking_data = await self._fetch_binance_market_data(is_futures=is_futures)
+                else:
+                    api_url, token = await self._get_token(first["account_id"])
+                    if not token:
+                        self._fail_group(session_ids, "토큰 획득 실패")
+                        return
+                    stock_data, ranking_data = await self._fetch_market_data(api_url, token)
+
                 if not stock_data:
                     self._fail_group(session_ids, "시장 데이터 수집 실패")
                     return

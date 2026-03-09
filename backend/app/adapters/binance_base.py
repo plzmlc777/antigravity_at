@@ -115,7 +115,7 @@ class BinanceBaseAdapter:
         Make an authenticated or public API request.
         Uses the global HttpClientManager.
         """
-        from ..services.http_client import HttpClientManager
+        from ..core.http_client import HttpClientManager
 
         await self._rate_limiter.acquire()
 
@@ -168,10 +168,16 @@ class BinanceBaseAdapter:
 
     # ── Time Sync ──
 
+    def _time_endpoint(self) -> str:
+        """Return the appropriate time endpoint based on API URL."""
+        if "fapi" in self.api_url:
+            return "/fapi/v1/time"
+        return "/api/v3/time"
+
     async def sync_server_time(self):
         """Synchronize with Binance server time (call periodically)."""
         try:
-            data = await self._public_get("/api/v3/time")
+            data = await self._public_get(self._time_endpoint())
             server_time = data["serverTime"]
             local_time = int(time.time() * 1000)
             self._time_offset_ms = server_time - local_time

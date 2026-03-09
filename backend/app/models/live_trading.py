@@ -88,6 +88,7 @@ class LiveBotSession(Base):
     ai_awaiting_cycle = Column(Boolean, default=False)     # True = 종목 교체 후 다음 사이클 대기 중
     original_symbol = Column(String, nullable=True)        # 프로필 원래 종목 코드 (AI 전환 전 복원용)
     original_symbol_name = Column(String, nullable=True)   # 프로필 원래 종목명
+    ai_optimize_params = Column(JSON, nullable=True)       # 파라미터 최적화 설정 {"params": {"leverage": [1,5,10], ...}}
 
     # Archive (hide from list without deleting trade history)
     is_archived = Column(Boolean, default=False)

@@ -256,6 +256,7 @@ const SessionSwitcher = forwardRef(({
                     _session_status: session.status,  // Track session status for dedup
                     ai_symbol_mode: session.ai_symbol_mode || 'static',
                     ai_search_conditions: session.ai_search_conditions || '',
+                    ai_optimize_params: session.ai_optimize_params || null,
                     original_symbol: session.original_symbol || session.symbol,
                     original_symbol_name: session.original_symbol_name || session.symbol_name || session.symbol,
                 });

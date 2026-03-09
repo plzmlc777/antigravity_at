@@ -554,6 +554,7 @@ class LiveManager:
                 profile_id=profile_id,  # 프로필 ID for lock detection
                 ai_symbol_mode=config.get("ai_symbol_mode", "static"),
                 ai_search_conditions=config.get("ai_search_conditions"),
+                ai_optimize_params=config.get("ai_optimize_params"),
                 original_symbol=symbol,
                 original_symbol_name=strat_config.get("symbol_name"),
             )
@@ -725,7 +726,7 @@ class LiveManager:
         finally:
             db.close()
 
-    async def switch_session_symbol(self, session_id: str, new_symbol: str, new_symbol_name: str = None):
+    async def switch_session_symbol(self, session_id: str, new_symbol: str, new_symbol_name: str = None, optimized_params: dict = None):
         """
         AI Symbol Switch: In-place symbol update on the same session.
         Keeps the same session ID, updates DB symbol, and re-initializes the engine.
@@ -784,6 +785,11 @@ class LiveManager:
                     pass
             if resolved_name:
                 cfg['symbol_name'] = resolved_name
+            # Apply optimized parameters if provided by AI pipeline
+            if optimized_params:
+                for k, v in optimized_params.items():
+                    cfg[k] = v
+                logger.info(f"[AISymbol] Applied optimized params: {optimized_params}")
             # Clear preset name — no longer relevant after AI symbol switch
             cfg.pop('selected_preset_name', None)
             cfg.pop('selected_preset_id', None)
@@ -797,6 +803,12 @@ class LiveManager:
         # 3. Create new engine with same session ID
         try:
             adapter = self._adapters.get(account_id) or self.get_primary_adapter()
+
+            # Unsubscribe old symbol from WebSocket (prevent stale streams)
+            if old_symbol and old_symbol != new_symbol:
+                if hasattr(adapter, 'ws_client') and adapter.ws_client and hasattr(adapter.ws_client, 'unsubscribe_symbols'):
+                    await adapter.ws_client.unsubscribe_symbols([old_symbol])
+
             engine = LiveTradingEngine(session_id, adapter)
             await engine.initialize()
             self.engines[session_id] = engine
@@ -809,6 +821,63 @@ class LiveManager:
             logger.info(f"[AISymbol] Symbol Switch: {old_symbol} -> {new_symbol} (session {session_id[:8]})")
         except Exception as e:
             logger.error(f"[AISymbol] Failed to restart engine after symbol switch: {e}")
+
+    async def update_session_strategy_config(self, session_id: str, new_params: dict):
+        """
+        Hot-swap strategy parameters on a running session.
+        Updates DB strategy_config, then re-initializes strategy instance
+        without losing position or candle history.
+        """
+        engine = self.engines.get(session_id)
+        if not engine:
+            raise ValueError(f"Session {session_id} not in running engines")
+
+        # 1. Update DB
+        db = SessionLocal()
+        try:
+            sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+            if not sess:
+                raise ValueError(f"Session {session_id} not found")
+
+            cfg = dict(sess.strategy_config or {})
+            for k, v in new_params.items():
+                cfg[k] = v
+            sess.strategy_config = cfg
+            db.commit()
+            logger.info(f"[ParamUpdate] DB updated for {session_id[:8]}: {list(new_params.keys())}")
+        finally:
+            db.close()
+
+        # 2. Re-initialize strategy instance (preserve context, aggregator, history)
+        try:
+            from ..strategies import strategy_registry
+            StrategyClass = strategy_registry.get_strategy_class(engine.strategy_name)
+            if not StrategyClass:
+                raise ValueError(f"Strategy '{engine.strategy_name}' not found")
+
+            # Merge new params into engine's config
+            engine.strategy_config = engine.strategy_config or {}
+            for k, v in new_params.items():
+                engine.strategy_config[k] = v
+
+            # Create new strategy instance with updated config, same context
+            new_instance = StrategyClass(engine.context, engine.strategy_config)
+            new_instance.initialize()
+
+            # Swap strategy instance
+            engine.strategy_instance = new_instance
+
+            # Re-cache tick execution flag
+            engine._tick_execution_enabled = (
+                hasattr(new_instance, 'on_tick')
+                and getattr(new_instance, 'tick_execution', 'candle') == 'tick'
+            )
+
+            logger.info(f"[ParamUpdate] Strategy re-initialized for {session_id[:8]} with new params")
+            return True
+        except Exception as e:
+            logger.error(f"[ParamUpdate] Failed to re-initialize strategy: {e}", exc_info=True)
+            raise
 
     async def toggle_orders(self, session_id: str, enabled: bool):
         """
@@ -1107,7 +1176,7 @@ class LiveManager:
                 warnings.append("Session has no strategy configuration. Using defaults.")
 
             # 7. Check if symbol is valid (basic check)
-            if not session.symbol or len(session.symbol) != 6:
+            if not session.symbol:
                 errors.append(f"Invalid symbol: {session.symbol}")
 
         except Exception as e:

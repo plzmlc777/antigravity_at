@@ -184,15 +184,20 @@ class BacktestEngine:
             except Exception as e:
                 print(f"Date filter error: {e}")
 
-        # 2. Setup Context (use FuturesBacktestContext if strategy requires it,
-        #    or if position_side requires short selling capability)
+        # 2. Setup Context
+        # Auto-detect futures: exchange_name, REQUIRES_FUTURES, position_side, or leverage > 1
+        from .waterfall_engine import is_futures_exchange
         needs_futures = getattr(self.strategy_class, 'REQUIRES_FUTURES', False)
         position_side = self.config.get('position_side', 'long')
+        leverage = self.config.get('leverage', 1)
         if not needs_futures and position_side in ('short', 'both'):
+            needs_futures = True
+        if not needs_futures and is_futures_exchange(exchange_name):
+            needs_futures = True
+        if not needs_futures and leverage > 1:
             needs_futures = True
         if needs_futures:
             from .futures_backtest_context import FuturesBacktestContext
-            leverage = self.config.get('leverage', 1)
             context = FuturesBacktestContext(data_feed, initial_capital=initial_capital, leverage=leverage)
         else:
             context = BacktestContext(data_feed, initial_capital=initial_capital)

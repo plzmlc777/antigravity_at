@@ -7,6 +7,7 @@ Binance Spot Adapter - Implements ExchangeInterface for Binance Spot trading.
 - Fractional quantity support
 """
 
+import asyncio
 import logging
 from typing import Dict, Any
 from ..core.exchange_interface import ExchangeInterface
@@ -216,8 +217,10 @@ class BinanceSpotAdapter(BinanceBaseAdapter, ExchangeInterface):
 
     # ── Chart Data (adapter-level access) ──
 
-    async def get_minute_candles(self, symbol: str, interval: str = "1", count: int = 200) -> list:
+    async def get_minute_candles(self, symbol: str, interval: str = "1", count: int = 200, interval_minutes: int = None) -> list:
         """Fetch recent candles via REST API (for live engine warm-up)."""
+        if interval_minutes is not None:
+            interval = str(interval_minutes)
         interval_map = {"1": "1m", "3": "3m", "5": "5m", "15": "15m", "30": "30m", "60": "1h"}
         binance_interval = interval_map.get(interval, f"{interval}m")
 
@@ -255,6 +258,33 @@ class BinanceSpotAdapter(BinanceBaseAdapter, ExchangeInterface):
                 on_balance=self._on_ws_balance,
             )
 
+    async def start_realtime(self, symbols: list = None):
+        """Start Binance Spot WebSocket and subscribe to symbols."""
+        from .binance_websocket import BinanceWebSocket
+
+        if not self.ws_client:
+            self.ws_client = BinanceWebSocket(
+                api_key=self.api_key,
+                secret_key=self.secret_key,
+                api_url=self.api_url,
+                is_testnet=self.is_testnet,
+                is_futures=False,
+            )
+            self.setup_realtime_callbacks()
+
+        if symbols:
+            await self.ws_client.subscribe_symbols(symbols)
+
+        if not self.ws_client.is_running:
+            await self.ws_client.connect()
+            logger.info(f"Binance Spot WebSocket started for {symbols}")
+
+    async def stop_realtime(self):
+        """Stop Binance Spot WebSocket."""
+        if self.ws_client:
+            await self.ws_client.disconnect()
+            logger.info("Binance Spot WebSocket stopped")
+
     async def _on_ws_tick(self, tick_data: Dict):
         """Route tick to listeners."""
         for listener in self._tick_listeners:
@@ -276,6 +306,31 @@ class BinanceSpotAdapter(BinanceBaseAdapter, ExchangeInterface):
                     listener(order_data)
             except Exception as e:
                 logger.error(f"Order listener error: {e}")
+
+    async def get_order_executions(self, order_no: str = "", symbol: str = "") -> list:
+        """Get recent trade/fill history from Binance Spot."""
+        await self._ensure_time_sync()
+        try:
+            if not symbol:
+                return []
+            trades = await self._signed_get("/api/v3/myTrades", {
+                "symbol": symbol, "limit": 50,
+            })
+            results = []
+            for t in trades:
+                results.append({
+                    "order_no": str(t.get("orderId", "")),
+                    "symbol": t.get("symbol", ""),
+                    "side": "BUY" if t.get("isBuyer") else "SELL",
+                    "filled_price": float(t.get("price", 0)),
+                    "filled_qty": float(t.get("qty", 0)),
+                    "commission": float(t.get("commission", 0)),
+                    "time": t.get("time", 0),
+                })
+            return results
+        except Exception as e:
+            logger.error(f"get_order_executions() failed: {e}")
+            return []
 
     async def _on_ws_balance(self, balance_data: Dict):
         """Route balance event to listeners."""

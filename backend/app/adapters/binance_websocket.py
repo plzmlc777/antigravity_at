@@ -108,13 +108,29 @@ class BinanceWebSocket:
 
     async def subscribe_symbols(self, symbols: List[str]):
         """Add symbols to monitor for market data."""
+        changed = False
         for s in symbols:
             s_lower = s.lower()
             if s_lower not in self._monitored_symbols:
                 self._monitored_symbols.append(s_lower)
+                changed = True
 
         # If already running, reconnect to apply new subscriptions
-        if self.is_running and self._stream_task:
+        if changed and self.is_running and self._stream_task:
+            self._stream_task.cancel()
+            self._stream_task = asyncio.create_task(self._run_market_stream())
+
+    async def unsubscribe_symbols(self, symbols: List[str]):
+        """Remove symbols from monitoring."""
+        changed = False
+        for s in symbols:
+            s_lower = s.lower()
+            if s_lower in self._monitored_symbols:
+                self._monitored_symbols.remove(s_lower)
+                changed = True
+
+        # If already running, reconnect to apply updated subscriptions
+        if changed and self.is_running and self._stream_task:
             self._stream_task.cancel()
             self._stream_task = asyncio.create_task(self._run_market_stream())
 
@@ -312,7 +328,7 @@ class BinanceWebSocket:
 
     async def _create_listen_key(self):
         """Create a new listenKey via REST API."""
-        from ..services.http_client import HttpClientManager
+        from ..core.http_client import HttpClientManager
 
         try:
             client = HttpClientManager.get_instance().get_client()
@@ -342,7 +358,7 @@ class BinanceWebSocket:
         if not self._listen_key:
             return
 
-        from ..services.http_client import HttpClientManager
+        from ..core.http_client import HttpClientManager
 
         try:
             client = HttpClientManager.get_instance().get_client()
@@ -374,7 +390,7 @@ class BinanceWebSocket:
         if not self._listen_key:
             return
 
-        from ..services.http_client import HttpClientManager
+        from ..core.http_client import HttpClientManager
 
         try:
             client = HttpClientManager.get_instance().get_client()

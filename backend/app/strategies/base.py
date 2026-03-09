@@ -188,7 +188,8 @@ class BaseStrategy(ABC):
          "default": 1, "min": 1, "max": 125, "step": 1,
          "description": "Futures leverage multiplier (1=spot/no leverage)",
          "group": "futures",
-         "show_in_table": False},
+         "show_in_table": False,
+         "defaultOptRange": "1, 3, 5, 10"},
         {"name": "liquidation_floor_pct", "type": "number", "label": "Liq. Floor (%)",
          "default": 3.0, "min": 0.5, "max": 20, "step": 0.5,
          "description": "Force exit when price is within N% of liquidation price",
@@ -199,7 +200,8 @@ class BaseStrategy(ABC):
          "default": "long", "options": ["long", "short", "both"],
          "description": "Trade direction: long=buy low sell high, short=sell high buy low, both=strategy decides per trade (futures only)",
          "group": "futures",
-         "show_in_table": True},
+         "show_in_table": True,
+         "defaultOptRange": "long, short"},
     ]
 
     # Subclasses override with their parameter schema dict.

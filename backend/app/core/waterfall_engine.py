@@ -34,12 +34,19 @@ PERFORMANCE_STAT_KEYS = [
     "max_drawdown",
 ]
 
+FUTURES_EXCHANGES = {"binancefutures", "binance_futures"}
+
+def is_futures_exchange(exchange_name: str) -> bool:
+    """Check if exchange_name indicates a futures exchange."""
+    return (exchange_name or "").strip().lower() in FUTURES_EXCHANGES
+
 class BacktestContext(IContext):
-    def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = DEFAULT_INITIAL_CAPITAL, primary_symbol: str = None):
+    def __init__(self, feeds: Dict[str, List[Dict]], initial_capital: int = DEFAULT_INITIAL_CAPITAL, primary_symbol: str = None, leverage: int = 1):
         """
         Refactored Context for Multi-Symbol Support.
         :param feeds: Dictionary { "SYMBOL": [candle1, candle2, ...] }
         :param primary_symbol: The symbol driving the main loop (optional context)
+        :param leverage: Futures leverage multiplier (1=spot/no leverage)
         """
         self.feeds = feeds
         self.primary_symbol = primary_symbol or (list(feeds.keys())[0] if feeds else "UNKNOWN")
@@ -68,6 +75,11 @@ class BacktestContext(IContext):
         self._use_rank_isolation = False  # Set to True for exclusive mode multi-rank
         self._exclusive_buy_blocked = 0  # Debug counter for blocked buys
         
+        # Futures leverage support
+        self._leverage = max(1, leverage)
+        self._margin_used: Dict[str, float] = {}  # {symbol: total margin locked}
+        self._notional_cost: Dict[str, float] = {}  # {symbol: total notional cost (for avg price)}
+
         # Optimize: Pre-index feeds for O(1) price lookup
         self.price_map = {}
         for sym, feed in feeds.items():
@@ -167,13 +179,19 @@ class BacktestContext(IContext):
             order.validate()
 
             cost = exec_price * quantity
+            margin = cost / self._leverage if self._leverage > 1 else cost
 
             # Capital Check: Ensure sufficient funds before buying
-            if self.cash < cost:
-                self.log(f"BUY REJECTED: Insufficient capital. Need {cost:,.0f}, have {self.cash:,.0f}")
+            if self.cash < margin:
+                self.log(f"BUY REJECTED: Insufficient capital. Need {margin:,.0f}, have {self.cash:,.0f}")
                 return {"status": "failed", "reason": "Insufficient Capital"}
 
-            self.cash -= cost
+            self.cash -= margin
+
+            # Track margin/notional for leveraged sell calculation
+            if self._leverage > 1:
+                self._margin_used[symbol] = self._margin_used.get(symbol, 0) + margin
+                self._notional_cost[symbol] = self._notional_cost.get(symbol, 0) + cost
 
             # Update holdings (per-rank if isolation enabled, shared otherwise)
             if self._use_rank_isolation:
@@ -241,7 +259,23 @@ class BacktestContext(IContext):
 
                 order.validate()
 
-                revenue = exec_price * quantity
+                if self._leverage > 1:
+                    # Futures: return margin + PnL
+                    total_holding = current_qty
+                    proportion = quantity / total_holding if total_holding > 0 else 1.0
+                    margin_released = self._margin_used.get(symbol, 0) * proportion
+                    notional_released = self._notional_cost.get(symbol, 0) * proportion
+                    avg_entry = notional_released / quantity if quantity > 0 else exec_price
+                    pnl = (exec_price - avg_entry) * quantity
+                    revenue = margin_released + pnl
+                    # Update tracking
+                    self._margin_used[symbol] = self._margin_used.get(symbol, 0) - margin_released
+                    self._notional_cost[symbol] = self._notional_cost.get(symbol, 0) - notional_released
+                    if self._margin_used.get(symbol, 0) <= 0:
+                        self._margin_used.pop(symbol, None)
+                        self._notional_cost.pop(symbol, None)
+                else:
+                    revenue = exec_price * quantity
                 self.cash += revenue
 
                 # Update holdings (per-rank if isolation enabled)
@@ -309,11 +343,12 @@ class BacktestContext(IContext):
             return {"status": "failed", "reason": "Invalid Price"}
 
         cost = exec_price * quantity
-        if self.cash < cost:
-            self.log(f"SHORT REJECTED: Insufficient capital. Need {cost:,.0f}, have {self.cash:,.0f}")
+        margin = cost / self._leverage if self._leverage > 1 else cost
+        if self.cash < margin:
+            self.log(f"SHORT REJECTED: Insufficient capital. Need {margin:,.0f}, have {self.cash:,.0f}")
             return {"status": "failed", "reason": "Insufficient Capital"}
 
-        self.cash -= cost  # Lock margin (1x leverage)
+        self.cash -= margin  # Lock margin
 
         # Weighted average entry price
         existing_qty = self._short_holdings.get(symbol, 0)
@@ -361,7 +396,7 @@ class BacktestContext(IContext):
         if short_qty > 0:
             avg_entry = self._short_avg_prices.get(symbol, exec_price)
             pnl = (avg_entry - exec_price) * short_qty
-            margin_returned = avg_entry * short_qty
+            margin_returned = avg_entry * short_qty / self._leverage
             self.cash += margin_returned + pnl
 
             trade = {
@@ -404,18 +439,37 @@ class BacktestContext(IContext):
         """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치 (롱+숏)."""
         equity = self.cash + self.realized_pnl
         # Long positions
-        if self._use_rank_isolation:
-            for rank_h in self._rank_holdings.values():
-                for symbol, qty in rank_h.items():
-                    equity += qty * self.get_current_price(symbol)
+        if self._leverage > 1:
+            # Futures: equity = margin_used + unrealized PnL
+            if self._use_rank_isolation:
+                for rank_h in self._rank_holdings.values():
+                    for symbol, qty in rank_h.items():
+                        margin = self._margin_used.get(symbol, 0)
+                        notional = self._notional_cost.get(symbol, 0)
+                        avg_entry = notional / qty if qty > 0 else 0
+                        unrealized_pnl = (self.get_current_price(symbol) - avg_entry) * qty
+                        equity += margin + unrealized_pnl
+            else:
+                for symbol, qty in self._holdings.items():
+                    margin = self._margin_used.get(symbol, 0)
+                    notional = self._notional_cost.get(symbol, 0)
+                    avg_entry = notional / qty if qty > 0 else 0
+                    unrealized_pnl = (self.get_current_price(symbol) - avg_entry) * qty
+                    equity += margin + unrealized_pnl
         else:
-            for symbol, qty in self._holdings.items():
-                equity += qty * self.get_current_price(symbol)
+            # Spot: equity = holdings * current_price
+            if self._use_rank_isolation:
+                for rank_h in self._rank_holdings.values():
+                    for symbol, qty in rank_h.items():
+                        equity += qty * self.get_current_price(symbol)
+            else:
+                for symbol, qty in self._holdings.items():
+                    equity += qty * self.get_current_price(symbol)
         # Short positions (locked margin + unrealized PnL)
         for symbol, qty in self._short_holdings.items():
             avg_entry = self._short_avg_prices.get(symbol, 0)
             current_price = self.get_current_price(symbol)
-            margin = avg_entry * qty
+            margin = avg_entry * qty / self._leverage
             unrealized_pnl = (avg_entry - current_price) * qty
             equity += margin + unrealized_pnl
         return equity
@@ -425,6 +479,48 @@ class BacktestContext(IContext):
         self.equity_curve.append(make_equity_point(
             self.get_time().strftime("%Y-%m-%d %H:%M"), equity
         ))
+
+    def get_futures_data(self, symbol: str) -> Dict[str, Any]:
+        """Return simulated futures data for strategy consumption."""
+        if self._leverage <= 1:
+            return {}
+
+        current_price = self.get_current_price(symbol)
+        long_qty = self.holdings.get(symbol, 0)
+        short_qty = self._short_holdings.get(symbol, 0)
+
+        if long_qty > 0:
+            notional = self._notional_cost.get(symbol, 0)
+            avg_price = notional / long_qty if long_qty > 0 else current_price
+            liq_price = avg_price * (1 - 1.0 / self._leverage) if self._leverage > 1 else 0
+            unrealized_pnl = (current_price - avg_price) * long_qty
+            return {
+                "funding_rate": 0.0001,
+                "liquidation_price": liq_price,
+                "mark_price": current_price,
+                "leverage": self._leverage,
+                "unrealized_pnl": unrealized_pnl,
+                "position_side": "LONG",
+                "position_qty": long_qty,
+                "entry_price": avg_price,
+                "adl_quantile": 0,
+            }
+        elif short_qty > 0:
+            avg_price = self._short_avg_prices.get(symbol, current_price)
+            liq_price = avg_price * (1 + 1.0 / self._leverage) if self._leverage > 1 else float('inf')
+            unrealized_pnl = (avg_price - current_price) * short_qty
+            return {
+                "funding_rate": 0.0001,
+                "liquidation_price": liq_price,
+                "mark_price": current_price,
+                "leverage": self._leverage,
+                "unrealized_pnl": unrealized_pnl,
+                "position_side": "SHORT",
+                "position_qty": short_qty,
+                "entry_price": avg_price,
+                "adl_quantile": 0,
+            }
+        return {}
 
 async def fetch_visualization_feeds(strategies_config: List[Dict], global_symbol: str, interval: str, duration_days: int, from_date: str = None, to_date: str = None, preloaded_feeds: Dict[str, List] = None, exchange_name: str = DEFAULT_EXCHANGE) -> Dict[str, List]:
     """
@@ -506,8 +602,12 @@ class WaterfallBacktestEngine:
             return self._empty_result(["No data provided"])
 
         # 1. Create Independent Context
+        # Auto-detect futures exchange → apply leverage
+        leverage = 1
+        if is_futures_exchange(self._exchange_name):
+            leverage = max(1, int(config.get('leverage', 1)))
         feeds = {symbol: feed}
-        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol)
+        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol, leverage=leverage)
         context.current_rank = rank
         context.optimize_mode = optimize_mode
 
@@ -641,7 +741,11 @@ class WaterfallBacktestEngine:
         primary_symbol = strategies_config[0].get('symbol', global_symbol) if strategies_config else global_symbol
         
         # 2. Setup Shared Context
-        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=primary_symbol)
+        # Auto-detect futures exchange → apply leverage from Rank 1 config
+        leverage = 1
+        if is_futures_exchange(exchange_name):
+            leverage = max(1, int(strategies_config[0].get('leverage', 1))) if strategies_config else 1
+        context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=primary_symbol, leverage=leverage)
         context.optimize_mode = optimize_mode
         # Enable per-rank holdings isolation for multi-rank exclusive mode
         if len(strategies_config) > 1:

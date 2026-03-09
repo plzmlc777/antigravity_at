@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Square, Activity, AlertTriangle, Terminal, List, X, Pause, Shield, ShieldOff, ShieldAlert, Radio, BarChart3, History, ChevronLeft, Clock, Download, Wifi, WifiOff, Check, RotateCcw, Trash2, Settings, Zap, EyeOff, Eye } from 'lucide-react';
 // import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleLiveModeGroup, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail, getAISymbolProgress, updateAISymbolSettings, getGroupAISymbolHistory } from '../api/client';
+import { startLiveBot, stopLiveBot, getLiveStatus, getOHLCV, getTradeHistoryList, fetchMarketData, toggleLiveOrders, toggleLiveMode, toggleLiveModeGroup, toggleTickExecution, liquidateLiveBot, getBalance, getBalanceForAccount, getAccumulatedStats, checkLivePosition, resumeSession, deleteSession, archiveSession, updateSessionSettings, listAnalysisSchedules, createAnalysisSchedule, updateAnalysisSchedule, deleteAnalysisSchedule, runAnalysisAllSessions, listAllAnalysisReports, getAnalysisReportDetail, getAISymbolProgress, updateAISymbolSettings, getGroupAISymbolHistory, getAISymbolHistory } from '../api/client';
 import { Wallet, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
 import { DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL, getQuoteCurrency, getDefaultDays } from '../constants/exchanges';
 import ConfirmModal from './ConfirmModal';
@@ -94,6 +94,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     const [aiModeOverrides, setAiModeOverrides] = useState({}); // { idx: 'static'|'ai'|'reset' } - local overrides for configList
     const [aiProgressMap, setAiProgressMap] = useState({}); // { session_id: progress }
     const [aiSymbolHistory, setAiSymbolHistory] = useState([]); // AI symbol selection history records
+    const [aiOptimizeParams, setAiOptimizeParams] = useState(null); // { params: { leverage: [1,5,10], ... } }
 
     // Effective configList with AI mode overrides merged in (must be before useEffects that reference it)
     const effectiveConfigList = useMemo(() => {
@@ -258,6 +259,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
         // Sync AI settings from session (per-rank mode from configList, shared search conditions)
         setAiSearchConditions(selectedSession.ai_search_conditions || '');
+        setAiOptimizeParams(selectedSession.ai_optimize_params || null);
         // Reset AI mode overrides (will use values from configList)
         setAiModeOverrides({});
 
@@ -300,15 +302,25 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         return () => { cancelled = true; clearInterval(interval); };
     }, [effectiveConfigList, status]);
 
-    // AI Symbol History Fetch (load when group changes or on completion)
+    // AI Symbol History Fetch (load when group/session changes or on completion)
     const fetchAiHistory = useCallback(async () => {
         const groupId = activeSessionGroup?.groupId;
-        if (!groupId) return;
-        try {
-            const data = await getGroupAISymbolHistory(groupId, 10);
-            setAiSymbolHistory(data || []);
-        } catch { /* ignore */ }
-    }, [activeSessionGroup?.groupId]);
+        if (groupId) {
+            try {
+                const data = await getGroupAISymbolHistory(groupId, 10);
+                setAiSymbolHistory(data || []);
+                return;
+            } catch { /* ignore */ }
+        }
+        // Fallback: solo session (no group) — fetch by session ID
+        const sessionId = activeSessionGroup?.sessions?.[0]?.session_id;
+        if (sessionId) {
+            try {
+                const data = await getAISymbolHistory(sessionId, 10);
+                setAiSymbolHistory(data || []);
+            } catch { /* ignore */ }
+        }
+    }, [activeSessionGroup?.groupId, activeSessionGroup?.sessions]);
 
     useEffect(() => {
         // Fetch history when group changes
@@ -1183,6 +1195,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 // Only update search conditions for AI mode; preserve existing value for static
                 if (mode === 'ai') {
                     settings.ai_search_conditions = aiSearchConditions || null;
+                    settings.ai_optimize_params = aiOptimizeParams || null;
                 }
                 return updateAISymbolSettings(s.session_id, settings);
             });
@@ -1353,6 +1366,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         group_id: groupId,  // Phase 5: Session grouping for multi-rank
                         ai_symbol_mode: cfgAiMode,
                         ai_search_conditions: cfgAiMode === 'ai' ? aiSearchConditions : null,
+                        ai_optimize_params: cfgAiMode === 'ai' ? aiOptimizeParams : null,
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -1403,6 +1417,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         group_id: groupId,  // Phase 5: Session grouping for multi-rank
                         ai_symbol_mode: cfgAiModeExcl,
                         ai_search_conditions: cfgAiModeExcl === 'ai' ? aiSearchConditions : null,
+                        ai_optimize_params: cfgAiModeExcl === 'ai' ? aiOptimizeParams : null,
                     };
                     try {
                         const res = await startLiveBot(payload);
@@ -1471,6 +1486,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                 updateAISymbolSettings(cfg.session_id, {
                     ai_symbol_mode: 'ai',
                     ai_search_conditions: value || null,
+                    ai_optimize_params: aiOptimizeParams || null,
                 }).catch(() => {});
             });
         }, 1000);
@@ -1784,6 +1800,10 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             ws.onopen = () => {
                 reconnectAttempt = 0;
                 setWsConnected(true);
+                // Clear stale chart data — fresh history will arrive from backend
+                setRawCandles([]);
+                setRealTimeCandles([]);
+                setTickData([]);
                 addLog("System", `WS connected to: ${wsUrl}`);
             };
 
@@ -2005,6 +2025,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                         onAiModeChange={handleAiModeChange}
                         aiSearchConditions={aiSearchConditions}
                         onAiSearchConditionsChange={handleAiSearchConditionsChange}
+                        aiOptimizeParams={aiOptimizeParams}
+                        onAiOptimizeParamsChange={setAiOptimizeParams}
                     />
                 </div>
             )}
@@ -2507,6 +2529,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                 )}
                                             </div>
                                             <p className="text-gray-300 text-xs">{progress.message}</p>
+                                            {isDone && progress.optimized_params && (
+                                                <p className="text-amber-300 text-[10px] mt-0.5">
+                                                    최적 파라미터: {Object.entries(progress.optimized_params).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                </p>
+                                            )}
                                             {progress.stage === 'backtesting' && progress.total > 0 && (
                                                 <div className="mt-2">
                                                     <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
@@ -2523,7 +2550,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                         .sort((a, b) => b.score - a.score)
                                                         .slice(0, 3)
                                                         .map((r, i) => (
-                                                            <div key={r.symbol} className="flex items-center text-[10px] gap-2">
+                                                            <div key={r.symbol} className="flex items-center text-[10px] gap-2 flex-wrap">
                                                                 <span className={`w-4 text-center font-bold ${i === 0 ? 'text-yellow-400' : 'text-gray-500'}`}>
                                                                     {i + 1}
                                                                 </span>
@@ -2531,6 +2558,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                 <span className="text-purple-300 w-12">S:{r.score}</span>
                                                                 <span className="text-blue-300 w-14">WR:{r.win_rate}%</span>
                                                                 <span className="text-gray-400 w-10">C:{r.cycles}</span>
+                                                                {r.optimized_params && (
+                                                                    <span className="text-amber-300/80 text-[9px]">
+                                                                        {Object.entries(r.optimized_params).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         ))}
                                                 </div>
@@ -2616,6 +2648,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                                                             <td className={`text-right py-px font-medium ${isSelected ? 'text-green-300' : 'text-purple-400/70'}`}>
                                                                                 {r.score}
                                                                             </td>
+                                                                            {r.optimized_params && (
+                                                                                <td className="text-left pl-2 py-px text-amber-300/70 text-[8px]">
+                                                                                    {Object.entries(r.optimized_params).map(([k, v]) => `${k}=${v}`).join(', ')}
+                                                                                </td>
+                                                                            )}
                                                                         </tr>
                                                                     );
                                                                 })}

@@ -644,8 +644,11 @@ class MartingaleBase(BaseStrategy):
                 own_position_value = self.total_quantity * price if self.total_quantity > 0 and price > 0 else 0
                 equity = session_cash + own_position_value
                 capital = equity if equity > 0 else getattr(self.context, 'initial_capital', DEFAULT_INITIAL_CAPITAL)
-                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} (session: cash={session_cash:,.0f} + position={own_position_value:,.0f})")
-                self._resolved_base_qty = capital * self.base_quantity / 100 / price
+                leverage = self._get_leverage()
+                # With leverage, buying power = capital * leverage
+                buying_power = capital * leverage
+                self.context.log(f"[{self._log_prefix}] Capital for qty calc: {capital:,.0f} x {leverage}x = {buying_power:,.0f} (session: cash={session_cash:,.0f} + position={own_position_value:,.0f})")
+                self._resolved_base_qty = buying_power * self.base_quantity / 100 / price
             return self._resolved_base_qty * (self.lot_size_multiplier ** (level - 1))
 
         # Fixed mode: resolve effective base once per cycle
@@ -668,6 +671,7 @@ class MartingaleBase(BaseStrategy):
         available_cash = getattr(self.context, 'cash', 0)
         safety_reserve = available_cash * (self.safety_margin_percent / 100)
         usable_capital = available_cash - safety_reserve
+        leverage = self._get_leverage()
 
         if price <= 0 or usable_capital <= 0:
             return 0
@@ -681,10 +685,10 @@ class MartingaleBase(BaseStrategy):
             raw_qty = self._resolve_level_qty(level, price)
             # Use adjusted qty with simulated remaining cash for accurate cost
             adj_qty = adjust_qty(raw_qty, exchange_name=exchange_name,
-                                 price=price, available_cash=remaining_cash)
+                                 price=price, available_cash=remaining_cash * leverage)
             if adj_qty <= 0:
                 break
-            level_cost = adj_qty * price
+            level_cost = adj_qty * price / leverage  # Margin required (not full notional)
             cumulative_cost += level_cost
 
             if cumulative_cost <= usable_capital:
@@ -723,10 +727,11 @@ class MartingaleBase(BaseStrategy):
                 available_cash = getattr(self.context, 'cash', 0)
                 safety_reserve = available_cash * (self.safety_margin_percent / 100)
                 usable_capital = available_cash - safety_reserve
+                lev = self._get_leverage()
 
-                # All-in: invest remaining capital ONLY (never exceed session cash)
-                max_qty = usable_capital / price if price > 0 else 0
-                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): cash={available_cash:,.0f} → {max_qty:.1f} qty")
+                # All-in: invest remaining capital ONLY (with leverage buying power)
+                max_qty = usable_capital * lev / price if price > 0 else 0
+                self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL (ALL-IN): cash={available_cash:,.0f}, lev={lev}x → {max_qty:.1f} qty")
                 qty = self._adjust_qty_for_exchange(max_qty, price)
             else:
                 self.context.log(f"[{self._log_prefix}] L{level} FINAL LEVEL: Standard qty → {standard_qty} qty")
@@ -740,10 +745,12 @@ class MartingaleBase(BaseStrategy):
             if available_cash <= 0:
                 self.context.log(f"[{self._log_prefix}] CASH GUARD: No cash available, blocking L{level}")
                 return 0
+            leverage = self._get_leverage()
             safety_reserve = available_cash * (self.safety_margin_percent / 100)
-            max_affordable = int((available_cash - safety_reserve) / price)
+            # With leverage, buying power = (cash - reserve) * leverage / price
+            max_affordable = int((available_cash - safety_reserve) * leverage / price)
             if qty > max_affordable:
-                self.context.log(f"[{self._log_prefix}] CASH GUARD: L{level} qty {qty} → {max_affordable} (cash: {available_cash:,.0f})")
+                self.context.log(f"[{self._log_prefix}] CASH GUARD: L{level} qty {qty} → {max_affordable} (cash: {available_cash:,.0f}, lev: {leverage}x)")
                 qty = max_affordable
 
         return qty

@@ -248,8 +248,9 @@ class LiveTradingEngine:
             db.close()
 
     def get_history(self) -> List[Dict]:
-        """Return loaded historical candles"""
-        return self.history_candles
+        """Return loaded historical candles, filtering out corrupt entries."""
+        return [c for c in self.history_candles
+                if c.get("low", 0) > 0 and c.get("close", 0) > 0]
 
     async def run_loop(self):
         """Main Async Loop"""
@@ -310,6 +311,10 @@ class LiveTradingEngine:
         """
         price = tick_data.get('price', 0)
         volume = tick_data.get('volume', 0)
+
+        # Reject invalid ticks
+        if price <= 0:
+            return
 
         # Deduplication
         if price == self.last_price and volume == self.last_accum_volume:
@@ -386,6 +391,11 @@ class LiveTradingEngine:
         # 4. Strategy Execution (On Candle Close)
         if closed_candle:
             logger.info(f"Candle Closed: {closed_candle['timestamp']}")
+
+            # Skip corrupt candles (e.g., low=0 from WebSocket reconnection gaps)
+            if closed_candle.get("low", 0) <= 0 or closed_candle.get("close", 0) <= 0:
+                logger.warning(f"Skipping corrupt candle: {closed_candle}")
+                return
 
             # Append to history so reconnecting clients get updated data
             self.history_candles.append(closed_candle)
@@ -679,6 +689,17 @@ class LiveTradingEngine:
                                 f"awaiting cycle completion, skipping trigger")
                     return
 
+            # Determine exchange type
+            is_futures = False
+            exchange_name = "Kiwoom"
+            if session.account_id:
+                from ..models.account import ExchangeAccount
+                account = db.query(ExchangeAccount).filter_by(id=session.account_id).first()
+                if account:
+                    exchange_name = account.exchange_name or "Kiwoom"
+                    ex_name = exchange_name.lower()
+                    is_futures = "futures" in ex_name
+
             # Capture session info before closing DB
             session_info = {
                 "session_id": self.session_id,
@@ -691,6 +712,9 @@ class LiveTradingEngine:
                 "account_id": session.account_id,
                 "is_paper": session.is_paper,
                 "group_id": session.group_id,
+                "ai_optimize_params": getattr(session, 'ai_optimize_params', None),
+                "is_futures": is_futures,
+                "exchange_name": exchange_name,
             }
         finally:
             db.close()
@@ -735,19 +759,28 @@ class LiveTradingEngine:
                 is_paper=session_info["is_paper"],
                 group_id=None,
                 current_symbol_name=session_info.get("current_symbol_name"),
+                ai_optimize_params=session_info.get("ai_optimize_params"),
+                is_futures=session_info.get("is_futures", False),
+                exchange_name=session_info.get("exchange_name", "Kiwoom"),
             )
 
             if new_symbol and new_symbol != self.symbol:
-                logger.info(f"[AISymbol] Switching: {self.symbol} -> {new_symbol}")
+                # Get optimized params from pipeline result
+                optimized_params = getattr(service, '_last_result', {}).get('optimized_params')
+                logger.info(f"[AISymbol] Switching: {self.symbol} -> {new_symbol}"
+                            f"{f' (params: {optimized_params})' if optimized_params else ''}")
                 from .live_manager import live_manager
                 await live_manager.switch_session_symbol(
                     session_id=self.session_id,
                     new_symbol=new_symbol,
+                    optimized_params=optimized_params,
                 )
+                done_msg = f"종목 전환 완료: {self.symbol} → {new_symbol}"
+                if optimized_params:
+                    done_msg += f" (최적 파라미터: {optimized_params})"
                 service._update_progress(
-                    self.session_id, "done",
-                    f"종목 전환 완료: {self.symbol} → {new_symbol}",
-                    new_symbol=new_symbol,
+                    self.session_id, "done", done_msg,
+                    new_symbol=new_symbol, optimized_params=optimized_params,
                 )
                 service._clear_progress(self.session_id)
             else:
