@@ -874,10 +874,38 @@ class LiveManager:
             )
 
             logger.info(f"[ParamUpdate] Strategy re-initialized for {session_id[:8]} with new params")
+
+            # 3. Sync leverage/margin to exchange if changed (real trading only)
+            if "leverage" in new_params or "margin_type" in new_params:
+                from .futures_interface import FuturesInterface
+                if isinstance(engine.adapter, FuturesInterface) and not getattr(engine, 'is_paper', True):
+                    try:
+                        if "leverage" in new_params:
+                            await engine.adapter.set_leverage(engine.symbol, int(new_params["leverage"]))
+                            logger.info(f"[ParamUpdate] Exchange leverage synced: {engine.symbol} → {new_params['leverage']}x")
+                        if "margin_type" in new_params:
+                            await engine.adapter.set_margin_type(engine.symbol, new_params["margin_type"])
+                            logger.info(f"[ParamUpdate] Exchange margin type synced: {engine.symbol} → {new_params['margin_type']}")
+                    except Exception as e:
+                        logger.error(f"[ParamUpdate] Exchange sync failed: {e}")
+
             return True
         except Exception as e:
             logger.error(f"[ParamUpdate] Failed to re-initialize strategy: {e}", exc_info=True)
             raise
+
+    async def apply_optimized_params(self, session_id: str, optimized_params: dict):
+        """
+        Apply AI-optimized parameters to a running session without symbol change.
+        Uses update_session_strategy_config for hot-swap.
+        """
+        if not optimized_params:
+            return
+        try:
+            await self.update_session_strategy_config(session_id, optimized_params)
+            logger.info(f"[AISymbol] Applied optimized params to {session_id[:8]}: {optimized_params}")
+        except Exception as e:
+            logger.error(f"[AISymbol] Failed to apply optimized params to {session_id[:8]}: {e}")
 
     async def toggle_orders(self, session_id: str, enabled: bool):
         """

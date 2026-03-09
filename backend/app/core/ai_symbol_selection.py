@@ -178,16 +178,38 @@ class AISymbolSelectionService:
                 current_symbol, search_conditions, stock_data, ranking_data
             )
             if not should_switch:
-                reason = f"현재 종목({current_symbol}) 유지: {eval_reason}" if eval_reason else f"현재 종목({current_symbol}) 유지 - 조건 부합"
-                logger.info(f"[AISymbol] Current symbol {current_symbol} keeping. Reason: {eval_reason}")
-                self._update_progress(session_id, "done", reason)
-                self._save_history(session_id, group_id, "kept",
-                                   old_symbol=current_symbol,
-                                   old_symbol_name=_sym_name,
-                                   search_conditions=search_conditions,
-                                   evaluation_reason=reason)
-                self._clear_progress(session_id)
-                return None
+                # Symbol stays — but check if parameter optimization is requested
+                optimize_param_names = ai_optimize_params.get("params", []) if ai_optimize_params else []
+                if optimize_param_names and isinstance(optimize_param_names, list) and len(optimize_param_names) > 0:
+                    # Run parameter optimization on current symbol only
+                    logger.info(f"[AISymbol] Symbol {current_symbol} kept, but running param optimization "
+                                f"for {optimize_param_names}")
+                    opt_result = await self._optimize_current_symbol(
+                        session_id=session_id,
+                        group_id=group_id,
+                        current_symbol=current_symbol,
+                        current_symbol_name=_sym_name,
+                        search_conditions=search_conditions,
+                        eval_reason=eval_reason,
+                        strategy_name=strategy_name,
+                        strategy_config=strategy_config,
+                        initial_capital=initial_capital,
+                        optimize_param_names=optimize_param_names,
+                        is_futures=is_futures,
+                        candidates_for_range=None,  # use current symbol for range generation
+                    )
+                    return opt_result  # None (keep symbol) but _last_result has optimized_params
+                else:
+                    reason = f"현재 종목({current_symbol}) 유지: {eval_reason}" if eval_reason else f"현재 종목({current_symbol}) 유지 - 조건 부합"
+                    logger.info(f"[AISymbol] Current symbol {current_symbol} keeping. Reason: {eval_reason}")
+                    self._update_progress(session_id, "done", reason)
+                    self._save_history(session_id, group_id, "kept",
+                                       old_symbol=current_symbol,
+                                       old_symbol_name=_sym_name,
+                                       search_conditions=search_conditions,
+                                       evaluation_reason=reason)
+                    self._clear_progress(session_id)
+                    return None
 
             # Step 5: Find candidate symbols (with direction for futures)
             self._update_progress(session_id, "finding", "AI가 후보 종목 탐색 중...")
@@ -313,6 +335,139 @@ class AISymbolSelectionService:
             self._update_progress(session_id, "error", f"파이프라인 오류: {str(e)[:100]}")
             self._clear_progress(session_id)
             return None
+
+    async def _optimize_current_symbol(
+        self,
+        session_id: str,
+        group_id: str,
+        current_symbol: str,
+        current_symbol_name: str,
+        search_conditions: str,
+        eval_reason: str,
+        strategy_name: str,
+        strategy_config: dict,
+        initial_capital: float,
+        optimize_param_names: list,
+        is_futures: bool = False,
+        candidates_for_range=None,
+    ) -> Optional[str]:
+        """Optimize parameters for the CURRENT symbol (no symbol switch).
+
+        Runs when the symbol is kept but ai_optimize_params are configured.
+        Returns None (symbol not changed) but stores optimized params in _last_result.
+        """
+        import itertools
+
+        self._update_progress(session_id, "optimizing",
+                              f"현재 종목({current_symbol}) 파라미터 최적화 범위 결정 중...")
+
+        # Generate optimization ranges using AI
+        sample_symbol = candidates_for_range or current_symbol
+        optimize_params = await self._generate_optimize_ranges(
+            optimize_param_names, strategy_name, strategy_config, sample_symbol,
+        )
+        if not optimize_params:
+            reason = f"현재 종목({current_symbol}) 유지: {eval_reason or '조건 부합'}\n[최적화] 범위 생성 실패 - 현재 파라미터 유지"
+            logger.warning(f"[AISymbol] Param optimization: failed to generate ranges for {current_symbol}")
+            self._update_progress(session_id, "done", reason)
+            self._save_history(session_id, group_id, "kept",
+                               old_symbol=current_symbol,
+                               old_symbol_name=current_symbol_name,
+                               search_conditions=search_conditions,
+                               evaluation_reason=reason)
+            self._clear_progress(session_id)
+            self._last_result = {"symbol": None, "optimized_params": None}
+            return None
+
+        logger.info(f"[AISymbol] Param optimization ranges for {current_symbol}: {optimize_params}")
+
+        # Build candidate as current symbol only
+        cand = {"code": current_symbol}
+        if is_futures:
+            direction = strategy_config.get("position_side")
+            if direction:
+                cand["direction"] = direction
+
+        # Calculate total backtests
+        opt_keys = list(optimize_params.keys())
+        opt_values = list(optimize_params.values())
+        combos = list(itertools.product(*opt_values))
+        total_bt = len(combos)
+
+        self._update_progress(session_id, "backtesting",
+                              f"현재 종목({current_symbol}) 파라미터 최적화 중... (0/{total_bt}) "
+                              f"[{len(combos)}개 조합]",
+                              total=total_bt, current=0, results=[])
+
+        # Run backtest with optimization on current symbol
+        compare_results = await self._compare_symbols(
+            [cand], strategy_name, strategy_config, initial_capital,
+            session_id=session_id,
+            optimize_params=optimize_params,
+        )
+
+        if not compare_results:
+            bt_results = self._progress.get(session_id, {}).get("results", [])
+            reason = f"현재 종목({current_symbol}) 유지: {eval_reason or '조건 부합'}\n[최적화] 백테스트 결과 없음 - 현재 파라미터 유지"
+            self._update_progress(session_id, "done", reason)
+            self._save_history(session_id, group_id, "kept",
+                               old_symbol=current_symbol,
+                               old_symbol_name=current_symbol_name,
+                               search_conditions=search_conditions,
+                               evaluation_reason=reason,
+                               backtest_results=bt_results)
+            self._clear_progress(session_id)
+            self._last_result = {"symbol": None, "optimized_params": None}
+            return None
+
+        # Best result is the top-scoring parameter combination for current symbol
+        best = compare_results[0]
+        best_params = best.get("params")
+
+        # Check if optimized params actually differ from current
+        params_changed = False
+        if best_params:
+            for k, v in best_params.items():
+                if strategy_config.get(k) != v:
+                    params_changed = True
+                    break
+
+        bt_results = self._progress.get(session_id, {}).get("results", [])
+        params_str = f" (params: {best_params})" if best_params else ""
+
+        if params_changed and best_params:
+            reason = (f"현재 종목({current_symbol}) 유지: {eval_reason or '조건 부합'}\n"
+                      f"[최적화] 파라미터 변경: {params_str}")
+            done_msg = f"종목 유지({current_symbol}) - 파라미터 최적화 완료: {best_params}"
+            logger.info(f"[AISymbol] Param optimization COMPLETE for {current_symbol}: {best_params}")
+            self._update_progress(session_id, "done", done_msg,
+                                  optimized_params=best_params)
+            self._save_history(session_id, group_id, "param_optimized",
+                               old_symbol=current_symbol,
+                               old_symbol_name=current_symbol_name,
+                               new_symbol=current_symbol,
+                               search_conditions=search_conditions,
+                               evaluation_reason=reason,
+                               backtest_results=bt_results)
+            self._clear_progress(session_id)
+            # Store optimized params for caller to apply
+            self._last_result = {"symbol": None, "optimized_params": best_params}
+        else:
+            reason = (f"현재 종목({current_symbol}) 유지: {eval_reason or '조건 부합'}\n"
+                      f"[최적화] 현재 파라미터가 이미 최적 - 변경 없음")
+            done_msg = f"종목 유지({current_symbol}) - 현재 파라미터가 최적"
+            logger.info(f"[AISymbol] Param optimization: current params already optimal for {current_symbol}")
+            self._update_progress(session_id, "done", done_msg)
+            self._save_history(session_id, group_id, "kept",
+                               old_symbol=current_symbol,
+                               old_symbol_name=current_symbol_name,
+                               search_conditions=search_conditions,
+                               evaluation_reason=reason,
+                               backtest_results=bt_results)
+            self._clear_progress(session_id)
+            self._last_result = {"symbol": None, "optimized_params": None}
+
+        return None  # Symbol not changed
 
     async def _get_group_symbols(self, group_id: str, exclude_ids: set = None) -> set:
         """Get symbols used by other RUNNING sessions in the same group."""

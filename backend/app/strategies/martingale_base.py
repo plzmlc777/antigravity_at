@@ -535,16 +535,21 @@ class MartingaleBase(BaseStrategy):
         """
         Get effective leverage for this strategy.
         Sources (priority order):
-        1. Futures data cache (live trading - actual exchange leverage)
-        2. Strategy config parameter
-        3. Default: 1 (spot, no leverage)
+        - Paper mode: Always use config parameter (no real exchange dependency)
+        - Real mode: Exchange futures data > config parameter > default 1
         """
-        # Try futures data cache first (most accurate for live trading)
+        config_leverage = self.config.get("leverage", 1)
+
+        # Paper mode: use config value directly (no exchange constraint)
+        is_paper = getattr(self.context, 'is_paper', True)
+        if is_paper:
+            return config_leverage
+
+        # Real mode: prefer actual exchange leverage for safety
         futures_data = self.context.get_futures_data(self.symbol)
         if futures_data and futures_data.get("leverage", 0) > 0:
             return futures_data["leverage"]
-        # Fallback to config parameter
-        return self.config.get("leverage", 1)
+        return config_leverage
 
     def _log_prefix(self) -> str:
         """Log prefix for this strategy. Override in subclass if needed."""

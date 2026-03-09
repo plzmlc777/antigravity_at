@@ -764,9 +764,11 @@ class LiveTradingEngine:
                 exchange_name=session_info.get("exchange_name", "Kiwoom"),
             )
 
+            # Get optimized params from pipeline result (available even when symbol kept)
+            last_result = getattr(service, '_last_result', {}) or {}
+            optimized_params = last_result.get('optimized_params')
+
             if new_symbol and new_symbol != self.symbol:
-                # Get optimized params from pipeline result
-                optimized_params = getattr(service, '_last_result', {}).get('optimized_params')
                 logger.info(f"[AISymbol] Switching: {self.symbol} -> {new_symbol}"
                             f"{f' (params: {optimized_params})' if optimized_params else ''}")
                 from .live_manager import live_manager
@@ -783,6 +785,14 @@ class LiveTradingEngine:
                     new_symbol=new_symbol, optimized_params=optimized_params,
                 )
                 service._clear_progress(self.session_id)
+            elif optimized_params:
+                # Symbol kept but parameters optimized — apply params in-place
+                logger.info(f"[AISymbol] Symbol kept ({self.symbol}), applying optimized params: {optimized_params}")
+                from .live_manager import live_manager
+                await live_manager.apply_optimized_params(
+                    session_id=self.session_id,
+                    optimized_params=optimized_params,
+                )
             else:
                 logger.info(f"[AISymbol] No switch needed for session {self.session_id[:8]}")
         except Exception as e:
