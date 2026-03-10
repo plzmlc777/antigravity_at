@@ -70,18 +70,28 @@ When `mode` is `"FIND"` in the context file:
 }
 ```
 
+## Ranking Fallback Logic (IMPORTANT)
+
+When evaluating volume-related conditions (거래량 급증, 거래량 폭증, 거래량 상위 등):
+1. **Primary**: Check `volume_spike` (거래량급증) and `volume_top` (당일거래량상위) first
+2. **Fallback**: If `volume_spike` and `volume_top` are empty or the symbol is not found in them, **MUST also check `prev_volume_top` (전일거래량상위)** as a fallback
+3. This fallback is critical because `volume_spike` and `volume_top` only have meaningful data during market hours (09:00-15:30). Outside market hours, `prev_volume_top` is the only reliable volume indicator.
+4. When using `prev_volume_top` as fallback, mention it in the reason (e.g., "전일 거래량 상위 N위")
+
 ## Evaluation Logic
 
 ### For EVALUATE mode:
 1. Parse the user's search conditions to understand what they want
 2. Check if the current symbol appears in relevant rankings
-3. Check if the current symbol matches sector/theme criteria from stocks data
-4. Determine if the symbol still fits the conditions
+3. **If volume-related rankings are empty or symbol not found, check `prev_volume_top` as fallback**
+4. Check if the current symbol matches sector/theme criteria from stocks data
+5. Determine if the symbol still fits the conditions
 
 ### For FIND mode:
 1. Parse the user's search conditions
 2. Filter stocks and rankings to find matching candidates
-3. Cross-reference between stocks and rankings for best matches
-4. Return up to 20 candidates with clear reasons (the more the better)
-5. Prefer stocks that appear in multiple relevant rankings (stronger signal)
-6. Include a diverse mix: top matches first, then secondary matches
+3. **If `volume_spike`/`volume_top` are empty, use `prev_volume_top` as the primary volume source**
+4. Cross-reference between stocks and rankings for best matches
+5. Return up to 20 candidates with clear reasons (the more the better)
+6. Prefer stocks that appear in multiple relevant rankings (stronger signal)
+7. Include a diverse mix: top matches first, then secondary matches
