@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import tempfile
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from .constants import Side
 
@@ -45,6 +46,10 @@ class AISymbolSelectionService:
 
         self.GROUP_COLLECT_WINDOW = 30   # Wait time for first session (seconds)
         self.GROUP_EXTEND_WINDOW = 10    # Wait time for additional sessions (seconds)
+
+        # Binance volume spike cache (rolling 24h volume snapshots)
+        self._binance_volume_cache: Dict[str, float] = {}   # symbol → previous quoteVolume
+        self._binance_cache_time: Optional[datetime] = None  # when cache was last updated
 
     def get_progress(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get current pipeline progress for a session."""
@@ -569,7 +574,50 @@ class AISymbolSelectionService:
                 "change_bottom": [_ticker_to_rank(t) for t in sorted_by_change[-30:]],
             }
 
-            logger.info(f"[AISymbol] Binance market data: {len(stock_data)} USDT pairs loaded")
+            # ── Volume Spike: compare current 24h volume vs cached previous ──
+            now = datetime.now()
+            volume_spike_data = []
+            if (self._binance_cache_time and
+                    (now - self._binance_cache_time) > timedelta(minutes=20)):
+                for t in usdt_tickers:
+                    sym = t["symbol"]
+                    cur_vol = float(t.get("quoteVolume", 0))
+                    prev_vol = self._binance_volume_cache.get(sym)
+                    if prev_vol and prev_vol > 100000:
+                        spike_pct = ((cur_vol - prev_vol) / prev_vol) * 100
+                        if spike_pct > 5:  # at least 5% increase
+                            entry = _ticker_to_rank(t)
+                            entry["spike_pct"] = f"+{spike_pct:.1f}%"
+                            volume_spike_data.append((entry, spike_pct))
+                volume_spike_data.sort(key=lambda x: x[1], reverse=True)
+                ranking_data["volume_spike"] = [d[0] for d in volume_spike_data[:50]]
+                logger.info(f"[AISymbol] Binance volume_spike: {len(ranking_data['volume_spike'])} items")
+            else:
+                ranking_data["volume_spike"] = []
+                if not self._binance_cache_time:
+                    logger.info("[AISymbol] Binance volume_spike: first run, caching volumes for next comparison")
+
+            # Update volume cache
+            self._binance_volume_cache = {
+                t["symbol"]: float(t.get("quoteVolume", 0)) for t in usdt_tickers
+            }
+            self._binance_cache_time = now
+
+            # ── Volatility: 24h price range (high-low)/low ──
+            volatility_data = []
+            for t in usdt_tickers:
+                high = float(t.get("highPrice", 0))
+                low = float(t.get("lowPrice", 0))
+                if low > 0:
+                    vol_pct = ((high - low) / low) * 100
+                    entry = _ticker_to_rank(t)
+                    entry["volatility"] = f"{vol_pct:.1f}%"
+                    volatility_data.append((entry, vol_pct))
+            volatility_data.sort(key=lambda x: x[1], reverse=True)
+            ranking_data["volatility_top"] = [d[0] for d in volatility_data[:30]]
+
+            logger.info(f"[AISymbol] Binance market data: {len(stock_data)} USDT pairs, "
+                        f"{sum(len(v) for v in ranking_data.values())} ranking items")
             return stock_data, ranking_data
 
         except Exception as e:
