@@ -156,6 +156,7 @@ const StrategyView = () => {
         strategies,
         selectedStrategy, setSelectedStrategy,
         accounts, effectiveAccountId,
+        loadAccounts,
     } = useStrategies();
 
     // Active account info - 기본값 (profileMeta 로드 후 아래에서 재계산)
@@ -1170,7 +1171,7 @@ const StrategyView = () => {
                         {/* Profile Actions */}
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setIsNewProfileModalOpen(true)}
+                                onClick={() => { loadAccounts(true); setIsNewProfileModalOpen(true); }}
                                 className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
                             >
                                 <Plus size={14} />
@@ -1502,7 +1503,7 @@ const StrategyView = () => {
                         <p className="text-lg font-medium">프로필을 선택하거나 새로 만드세요</p>
                         <p className="text-sm text-gray-500 mt-2">위에서 기존 프로필을 선택하거나 "New Profile" 버튼을 클릭하세요</p>
                         <button
-                            onClick={() => setIsNewProfileModalOpen(true)}
+                            onClick={() => { loadAccounts(true); setIsNewProfileModalOpen(true); }}
                             className="mt-6 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl transition-all flex items-center gap-2"
                         >
                             <Plus size={20} />
