@@ -676,10 +676,10 @@ class LiveTradingEngine:
             if not search_conditions:
                 return
 
-            # Guard: if recently switched, wait for cycle completion before re-evaluating
+            # Guard: After symbol switch, wait for cycle completion before re-evaluating
             if getattr(session, 'ai_awaiting_cycle', False):
                 if from_cycle:
-                    # Cycle completed after switch → clear flag and proceed with evaluation
+                    # Cycle completed after switch → clear flag and proceed
                     session.ai_awaiting_cycle = False
                     db.commit()
                     logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
@@ -742,7 +742,7 @@ class LiveTradingEngine:
             logger.error(f"[AISymbol] Group pipeline error: {e}", exc_info=True)
         finally:
             self._ai_switch_in_progress = False
-            self._set_awaiting_cycle()
+            self._set_pipeline_completed()
 
     async def _run_solo_pipeline(self, session_info: dict):
         """Per-session pipeline for ungrouped sessions."""
@@ -803,22 +803,13 @@ class LiveTradingEngine:
             self._ai_switch_in_progress = False
             # Always set ai_awaiting_cycle after pipeline completes (keep or switch)
             # This prevents immediate re-trigger from param changes resetting strategy state
-            self._set_awaiting_cycle()
+            self._set_pipeline_completed()
 
-    def _set_awaiting_cycle(self):
-        """Set ai_awaiting_cycle=True to prevent re-trigger until next real cycle."""
-        db = SessionLocal()
-        try:
-            session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
-            if session:
-                session.ai_awaiting_cycle = True
-                db.commit()
-                logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
-                            f"set ai_awaiting_cycle=True (pipeline complete)")
-        except Exception as e:
-            logger.error(f"[AISymbol] Failed to set awaiting_cycle: {e}")
-        finally:
-            db.close()
+    def _set_pipeline_completed(self):
+        """Reset _had_position so cycle trigger needs a fresh entry→exit after pipeline."""
+        self._had_position = False
+        logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                    f"pipeline complete, _had_position reset (next trigger requires new cycle)")
 
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
