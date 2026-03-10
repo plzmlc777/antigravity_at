@@ -96,9 +96,26 @@ class AISymbolSelectionService:
         """Save AI symbol selection result to DB for history tracking."""
         from ..db.session import SessionLocal
         from ..models.live_trading import AISymbolHistory
+        from sqlalchemy import func
 
         try:
             db = SessionLocal()
+
+            # Dedup: skip if same session+action+old+new was saved within last 60 seconds
+            cutoff = datetime.now() - timedelta(seconds=60)
+            existing = db.query(AISymbolHistory).filter(
+                AISymbolHistory.session_id == session_id,
+                AISymbolHistory.action == action,
+                AISymbolHistory.old_symbol == old_symbol,
+                AISymbolHistory.new_symbol == new_symbol,
+                AISymbolHistory.created_at >= cutoff,
+            ).first()
+            if existing:
+                logger.info(f"[AISymbol] History dedup: {session_id[:8]} {action} "
+                            f"{old_symbol} -> {new_symbol or '(kept)'} (skipped, recent duplicate)")
+                db.close()
+                return
+
             record = AISymbolHistory(
                 session_id=session_id,
                 group_id=group_id,
