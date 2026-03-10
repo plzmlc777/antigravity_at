@@ -303,7 +303,7 @@ wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh"
 
 ---
 
-## Remote Server Deployment
+## Remote Server Deployment — 민트 서버 (Real: 121.183.229.140)
 
 > ⚠️ **CRITICAL: 배포 전 반드시 라이브 세션 확인!**
 
@@ -373,6 +373,43 @@ ssh mint@121.183.229.140 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep 
 # 3. 실패 시 백업에서 복구
 ssh mint@121.183.229.140 'ls -la ~/db_backup*.dump'
 ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db < ~/db_backup_<timestamp>.dump'
+```
+
+---
+
+## Remote Server Deployment — 우분투 서버 (Test: 121.183.229.170)
+
+> 테스트 전용 서버. `TRADING_MODE=MOCK`으로 설정됨. 실거래 세션 체크 불필요.
+
+### Server Info
+
+| 항목 | 값 |
+|------|-----|
+| Host | 121.183.229.170 |
+| User | ubuntu |
+| Path | ~/auto_trading |
+| Mode | MOCK (테스트 전용) |
+| Web | http://121.183.229.170:5173 |
+| API | http://121.183.229.170:8001 |
+
+### Quick Deploy
+```bash
+ssh ubuntu@121.183.229.170 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+```
+
+### Full Deploy with DB Migration
+```bash
+ssh ubuntu@121.183.229.170 "cd ~/auto_trading && git pull origin master && cd backend && python3 -m migrations.run_migrations && cd .. && pm2 restart at-backend at-frontend"
+```
+
+### Verify Deployment
+```bash
+ssh ubuntu@121.183.229.170 "curl -s http://localhost:8001/api/v1/system/version"
+```
+
+### Logs
+```bash
+ssh ubuntu@121.183.229.170 "pm2 logs at-backend --lines 50 --nostream"
 ```
 
 ---
