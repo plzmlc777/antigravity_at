@@ -1485,19 +1485,28 @@ class AISymbolSelectionService:
 
         results_summary = []
 
-        for i, symbol in enumerate(candidates):
+        # Normalize candidates to list of dicts
+        norm_candidates = []
+        for c in candidates:
+            if isinstance(c, dict):
+                norm_candidates.append(c)
+            else:
+                norm_candidates.append({"code": c})
+
+        for i, cand in enumerate(norm_candidates):
+            symbol = cand["code"]
             try:
                 config = dict(strategy_config)
                 config['symbol'] = symbol
 
                 # Update progress for ALL sessions
-                progress_msg = (f"{len(candidates)}개 후보 백테스트 중... "
-                                f"({i+1}/{len(candidates)}) - {symbol}")
+                progress_msg = (f"{len(norm_candidates)}개 후보 백테스트 중... "
+                                f"({i+1}/{len(norm_candidates)}) - {symbol}")
                 for sid in (session_ids or []):
                     prog = self._progress.get(sid, {})
                     self._update_progress(
                         sid, "backtesting", progress_msg,
-                        total=len(candidates), current=i+1,
+                        total=len(norm_candidates), current=i+1,
                         results=prog.get("results", []),
                     )
 
@@ -1522,7 +1531,7 @@ class AISymbolSelectionService:
                 ret = float(str(result.get("total_return", "0")).replace('%', '').replace(',', ''))
                 wr = float(str(result.get("win_rate", "0")).replace('%', ''))
 
-                logger.info(f"[AISymbol] Group Backtest [{i+1}/{len(candidates)}] {symbol}: "
+                logger.info(f"[AISymbol] Group Backtest [{i+1}/{len(norm_candidates)}] {symbol}: "
                             f"score={score:.2f}, cycles={trades}, return={ret:.1f}%, WR={wr:.1f}%")
                 results_summary.append((symbol, score, trades, ret, wr))
 
@@ -1536,8 +1545,8 @@ class AISymbolSelectionService:
                     bt_results.append(bt_entry)
                     self._update_progress(
                         sid, "backtesting",
-                        f"{len(candidates)}개 후보 백테스트 중... ({i+1}/{len(candidates)})",
-                        total=len(candidates), current=i+1, results=bt_results,
+                        f"{len(norm_candidates)}개 후보 백테스트 중... ({i+1}/{len(norm_candidates)})",
+                        total=len(norm_candidates), current=i+1, results=bt_results,
                     )
 
             except Exception as e:
