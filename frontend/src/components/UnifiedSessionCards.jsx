@@ -36,10 +36,12 @@ const UnifiedSessionCards = ({
 }) => {
     if (!configList || configList.length === 0) return null;
 
-    // Build lookup: symbol -> session data
+    // Build lookup: symbol -> session data AND session_id -> session data
     const sessionBySymbol = {};
+    const sessionById = {};
     (sessionDataList || []).forEach(s => {
         sessionBySymbol[s.symbol] = s;
+        if (s.session_id) sessionById[s.session_id] = s;
     });
 
     // Build ranks: active configs with optional session data
@@ -47,9 +49,14 @@ const UnifiedSessionCards = ({
     configList.forEach((cfg, idx) => {
         if (!cfg.is_active) return;
         const sid = parallelSessions?.[idx];
-        const session = sessionBySymbol[cfg.symbol] || null;
+        // Match by session_id first (handles AI symbol switch), fallback to symbol
+        const session = (sid && sessionById[sid]) || sessionBySymbol[cfg.symbol] || null;
         const isRunning = !!(sid && session?.is_running);
-        ranks.push({ idx, cfg, session, sid, isRunning });
+        // Update cfg symbol display if session switched to a different symbol
+        const effectiveCfg = (session && session.symbol && session.symbol !== cfg.symbol)
+            ? { ...cfg, symbol: session.symbol, symbol_name: session.symbol_name || session.symbol }
+            : cfg;
+        ranks.push({ idx, cfg: effectiveCfg, session, sid, isRunning });
     });
 
     if (ranks.length === 0) return null;
