@@ -798,18 +798,19 @@ class AISymbolSelectionService:
             else:
                 norm_candidates.append({"code": c})
 
-        # Build parameter combinations
-        if optimize_params:
-            opt_keys = list(optimize_params.keys())
-            opt_values = list(optimize_params.values())
-            param_combos = list(itertools.product(*opt_values))
-            total_bt = len(norm_candidates) * len(param_combos)
-        else:
-            opt_keys = []
-            param_combos = [()]  # Single "no-op" combo
-            total_bt = len(norm_candidates)
+        # Build parameter combinations (per-candidate, may vary if AI direction overrides)
+        base_optimize_params = dict(optimize_params) if optimize_params else {}
 
         bt_counter = 0
+        # Pre-calculate total for progress (approximate, recalculated per candidate)
+        if base_optimize_params:
+            _approx_combos = 1
+            for v in base_optimize_params.values():
+                _approx_combos *= len(v)
+            total_bt = len(norm_candidates) * _approx_combos
+        else:
+            total_bt = len(norm_candidates)
+
         for i, cand in enumerate(norm_candidates):
             symbol = cand["code"]
             ai_direction = cand.get("direction")  # "long" / "short" / None
@@ -817,17 +818,33 @@ class AISymbolSelectionService:
             symbol_best_params = None
             symbol_best_stats = {}
 
+            # Build per-candidate optimize params
+            # If AI recommended a direction, lock position_side to that direction
+            cand_optimize = dict(base_optimize_params)
+            if ai_direction and "position_side" in cand_optimize:
+                cand_optimize["position_side"] = [ai_direction]
+                logger.info(f"[AISymbol] {symbol}: AI direction={ai_direction}, "
+                            f"locking position_side optimization to [{ai_direction}]")
+
+            if cand_optimize:
+                opt_keys = list(cand_optimize.keys())
+                opt_values = list(cand_optimize.values())
+                param_combos = list(itertools.product(*opt_values))
+            else:
+                opt_keys = []
+                param_combos = [()]
+
             for combo in param_combos:
                 bt_counter += 1
                 try:
                     config = dict(strategy_config)
                     config['symbol'] = symbol
 
-                    # Apply AI-recommended direction for futures
+                    # Apply AI-recommended direction for futures (even without optimization)
                     if ai_direction:
                         config['position_side'] = ai_direction
 
-                    # Apply optimization parameters
+                    # Apply optimization parameters (won't conflict with ai_direction now)
                     combo_params = {}
                     for k_idx, key in enumerate(opt_keys):
                         config[key] = combo[k_idx]
