@@ -10,6 +10,17 @@ const formatPrice = (v) => {
     return Math.round(v).toLocaleString();  // $50000 → "50,000"
 };
 
+// Smart PnL formatter: shows decimals for small amounts (crypto), rounds for large amounts (stocks)
+const formatPnl = (v) => {
+    if (!v || v === 0) return '0';
+    const abs = Math.abs(v);
+    const sign = v >= 0 ? '+' : '';
+    if (abs < 1) return sign + v.toFixed(3);       // +0.084 → "+0.084"
+    if (abs < 10) return sign + v.toFixed(2);      // +3.45 → "+3.45"
+    if (abs < 100) return sign + v.toFixed(1);     // +45.3 → "+45.3"
+    return sign + Math.round(v).toLocaleString();  // +1234 → "+1,234"
+};
+
 const UnifiedSessionCards = ({
     parallelSessions,
     sessionDataList,
@@ -202,13 +213,13 @@ const UnifiedSessionCards = ({
                                                 const avgP = activeState.average_price || 0;
                                                 const qty = activeState.total_quantity || 0;
                                                 if (!avgP || qty <= 0) return null;
-                                                const pnlAmt = Math.round(profitPct * avgP * qty);
+                                                const pnlAmt = profitPct * avgP * qty;
                                                 return (
                                                     <span className={`text-sm font-mono font-bold ${
                                                         !isRunning ? 'text-gray-600'
                                                         : pnlAmt >= 0 ? 'text-red-400' : 'text-blue-400'
                                                     }`}>
-                                                        {pnlAmt >= 0 ? '+' : ''}{pnlAmt.toLocaleString()}
+                                                        {formatPnl(pnlAmt)}
                                                     </span>
                                                 );
                                             })()}
@@ -480,10 +491,7 @@ const CompactSummary = ({ state, tradeStats = {}, dimmed = false }) => {
     const totalPnl = (paperStats.realized_pnl || 0) + (realStats.realized_pnl || 0);
     const totalPnlPct = (paperStats.realized_pnl_pct || 0) + (realStats.realized_pnl_pct || 0);
 
-    const formatPnl = (v) => {
-        if (!v) return '0';
-        return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
-    };
+    // Uses top-level formatPnl
     const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
 
     const hasLevelInfo = maxLevels > 0;
@@ -636,10 +644,7 @@ const GenericStrategyCard = ({ state, config = {}, price = 0, isPaper = true, tr
     const minPnl = Math.min(paperStats.min_pnl || 0, realStats.min_pnl || 0);
     const avgPnl = totalCycles > 0 ? totalPnl / totalCycles : 0;
 
-    const formatPnl = (v) => {
-        if (!v) return '0';
-        return (v >= 0 ? '+' : '') + Math.round(v).toLocaleString();
-    };
+    // Uses top-level formatPnl
     const pnlColor = (v) => dimmed ? 'text-gray-700' : (v >= 0 ? 'text-green-400' : 'text-red-400');
 
     const hasDisplayEntries = displayEntries.length > 0;

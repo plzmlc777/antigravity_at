@@ -67,6 +67,79 @@ def get_accounts(
     return result
 
 
+class ConnectionTestRequest(BaseModel):
+    exchange_name: str
+    access_key: str
+    secret_key: str
+    account_number: Optional[str] = None
+    environment: str = TradingEnvironment.REAL.value
+
+
+@router.post("/test-connection")
+async def test_account_connection(
+    req: ConnectionTestRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Test exchange API connection before saving account.
+    Creates a temporary adapter, attempts get_balance(), and returns result.
+    """
+    from ..adapters.factory import create_adapter
+    from ..core.trading_env import TradingEnvironment as TE
+
+    try:
+        env = TE(req.environment)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid environment: {req.environment}")
+
+    is_virtual = env == TE.VIRTUAL
+
+    try:
+        adapter = create_adapter(
+            exchange_name=req.exchange_name,
+            app_key=req.access_key,
+            secret_key=req.secret_key,
+            account_no=req.account_number,
+            account_name="connection_test",
+            is_virtual=is_virtual,
+        )
+
+        if hasattr(adapter, 'initialize'):
+            await adapter.initialize()
+
+        balance = await adapter.get_balance()
+
+        # Extract summary info
+        cash_info = balance.get("cash", {})
+        holdings_count = len(balance.get("holdings", {}))
+
+        return {
+            "success": True,
+            "message": "API 연결 성공",
+            "details": {
+                "cash": cash_info,
+                "holdings_count": holdings_count,
+            }
+        }
+    except Exception as e:
+        error_msg = str(e)
+        # Provide user-friendly messages for common errors
+        if "-2015" in error_msg or "Invalid API-key" in error_msg:
+            friendly = "API 키가 유효하지 않거나 IP 접근이 제한되어 있습니다."
+        elif "Unauthorized" in error_msg or "401" in error_msg:
+            friendly = "인증 실패 - API 키를 확인해주세요."
+        elif "timeout" in error_msg.lower() or "connect" in error_msg.lower():
+            friendly = "서버 연결 실패 - 네트워크를 확인해주세요."
+        else:
+            friendly = f"연결 실패: {error_msg[:200]}"
+
+        return {
+            "success": False,
+            "message": friendly,
+            "details": {"error": error_msg[:500]}
+        }
+
+
 @router.post("/", response_model=AccountOut)
 def create_account(
     account_in: AccountCreate,

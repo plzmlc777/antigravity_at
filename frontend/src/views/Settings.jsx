@@ -9,7 +9,6 @@ import { DEFAULT_EXCHANGE } from '../constants/exchanges';
 const ENVIRONMENTS = [
     { value: 'real', label: '실거래', labelEn: 'Real', color: 'green' },
     { value: 'virtual', label: '모의투자', labelEn: 'Virtual', color: 'purple' },
-    { value: 'paper', label: '페이퍼', labelEn: 'Paper', color: 'yellow' }
 ];
 
 const getEnvConfig = (envValue) => ENVIRONMENTS.find(e => e.value === envValue) || ENVIRONMENTS[0];
@@ -56,6 +55,10 @@ const Settings = () => {
     const [showAiKeyInput, setShowAiKeyInput] = useState(false);
     const [aiModels, setAiModels] = useState([]);
     const [defaultAiModel, setDefaultAiModel] = useState('');
+
+    // Connection Test State
+    const [connectionTesting, setConnectionTesting] = useState(false);
+    const [connectionResult, setConnectionResult] = useState(null);  // { success, message, details }
 
     // Telegram Notification State (Per Account)
     const [expandedAccountId, setExpandedAccountId] = useState(null);  // Track which account's telegram section is expanded
@@ -301,11 +304,43 @@ const Settings = () => {
 
     const handleAddAccount = async (e) => {
         e.preventDefault();
+
+        // Test connection first
+        setConnectionTesting(true);
+        setConnectionResult(null);
+        try {
+            const res = await axios.post('/api/v1/accounts/test-connection', {
+                exchange_name: formData.exchange_name,
+                access_key: formData.access_key,
+                secret_key: formData.secret_key,
+                account_number: formData.account_number,
+                environment: formData.environment,
+            }, { headers: { Authorization: `Bearer ${token}` } });
+
+            setConnectionResult({
+                ...res.data,
+                // Attach formData so the modal "Save" button can proceed
+                _pendingSave: true,
+            });
+        } catch (error) {
+            setConnectionResult({
+                success: false,
+                message: error.response?.data?.detail || 'API 연결 테스트 실패',
+                details: {},
+                _pendingSave: false,
+            });
+        } finally {
+            setConnectionTesting(false);
+        }
+    };
+
+    const saveAccount = async () => {
         try {
             await axios.post('/api/v1/accounts/', formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setIsAdding(false);
+            setConnectionResult(null);
             setFormData({
                 exchange_name: DEFAULT_EXCHANGE,
                 account_name: '',
@@ -613,14 +648,12 @@ const Settings = () => {
                                     <>
                                         <p><strong className="text-green-400">실거래:</strong> KIS 실서버 (openapi.koreainvestment.com) - 실제 자금 거래</p>
                                         <p><strong className="text-purple-400">모의투자:</strong> KIS 모의서버 (openapivts.koreainvestment.com) - 가상 자금 거래</p>
-                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
                                         <p className="text-blue-400 mt-1">계좌번호 형식: CANO(8자리)-상품코드(2자리) 예: 12345678-01</p>
                                     </>
                                 ) : formData.exchange_name === 'Binance' ? (
                                     <>
                                         <p><strong className="text-green-400">실거래:</strong> Binance Spot 실서버 (api.binance.com) - 실제 자금 거래</p>
                                         <p><strong className="text-purple-400">모의투자:</strong> Binance Testnet (testnet.binance.vision) - 테스트넷 거래</p>
-                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
                                         <p className="text-blue-400 mt-1">API Key는 Binance 계정 &gt; API Management에서 생성</p>
                                         <p className="text-blue-400">심볼 형식: BTCUSDT, ETHUSDT (대문자)</p>
                                     </>
@@ -628,7 +661,6 @@ const Settings = () => {
                                     <>
                                         <p><strong className="text-green-400">실거래:</strong> Binance Futures 실서버 (fapi.binance.com) - USDM 선물 거래</p>
                                         <p><strong className="text-purple-400">모의투자:</strong> Futures Testnet (testnet.binancefuture.com) - 테스트넷 거래</p>
-                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
                                         <p className="text-blue-400 mt-1">API Key는 Binance 계정 &gt; API Management에서 생성 (Spot과 동일 키)</p>
                                         <p className="text-blue-400">심볼 형식: BTCUSDT, ETHUSDT (대문자)</p>
                                         <p className="text-orange-400 mt-1">레버리지/마진 설정은 전략 프로필에서 구성</p>
@@ -637,15 +669,104 @@ const Settings = () => {
                                     <>
                                         <p><strong className="text-green-400">실거래:</strong> Kiwoom 실서버 (api.kiwoom.com) - 실제 자금 거래</p>
                                         <p><strong className="text-purple-400">모의투자:</strong> Kiwoom 모의서버 (mockapi.kiwoom.com) - 가상 자금 거래</p>
-                                        <p><strong className="text-yellow-400">페이퍼:</strong> 로컬 시뮬레이션 - API 호출 없음</p>
                                     </>
                                 )}
                             </div>
                         </div>
                         <div className="md:col-span-2 mt-2">
-                            <button type="submit" className="w-full bg-green-600 hover:bg-green-500 py-2 rounded text-sm font-medium">Save Account</button>
+                            <button
+                                type="submit"
+                                disabled={connectionTesting}
+                                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed py-2 rounded text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                                {connectionTesting ? (
+                                    <>
+                                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        API 연결 테스트 중...
+                                    </>
+                                ) : 'Test Connection & Save'}
+                            </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Connection Test Result Modal */}
+            {connectionResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                        {/* Header */}
+                        <div className="flex items-center gap-3 mb-4">
+                            {connectionResult.success ? (
+                                <div className="h-10 w-10 flex items-center justify-center rounded-full bg-green-500/20">
+                                    <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            ) : (
+                                <div className="h-10 w-10 flex items-center justify-center rounded-full bg-red-500/20">
+                                    <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                            )}
+                            <h3 className={`text-lg font-semibold ${connectionResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                                {connectionResult.success ? 'API 연결 성공' : 'API 연결 실패'}
+                            </h3>
+                        </div>
+
+                        {/* Message */}
+                        <p className="text-sm text-gray-300 mb-4">{connectionResult.message}</p>
+
+                        {/* Details */}
+                        {connectionResult.success && connectionResult.details?.cash && (
+                            <div className="bg-black/30 rounded-lg p-3 mb-4 text-xs text-gray-400">
+                                <div className="font-medium text-gray-300 mb-1">Balance Info</div>
+                                {Object.entries(connectionResult.details.cash).map(([currency, amount]) => (
+                                    <div key={currency} className="flex justify-between">
+                                        <span>{currency}</span>
+                                        <span className="text-white">{typeof amount === 'number' ? amount.toLocaleString(undefined, {maximumFractionDigits: 4}) : amount}</span>
+                                    </div>
+                                ))}
+                                {connectionResult.details.holdings_count > 0 && (
+                                    <div className="mt-1 text-gray-500">보유 종목: {connectionResult.details.holdings_count}개</div>
+                                )}
+                            </div>
+                        )}
+
+                        {!connectionResult.success && connectionResult.details?.error && (
+                            <div className="bg-black/30 rounded-lg p-3 mb-4 text-xs text-red-400/80 break-all max-h-24 overflow-auto">
+                                {connectionResult.details.error}
+                            </div>
+                        )}
+
+                        {/* Buttons */}
+                        <div className="flex gap-3">
+                            {connectionResult.success && connectionResult._pendingSave ? (
+                                <>
+                                    <button
+                                        onClick={() => { setConnectionResult(null); saveAccount(); }}
+                                        className="flex-1 bg-green-600 hover:bg-green-500 py-2 rounded text-sm font-medium"
+                                    >
+                                        계좌 저장
+                                    </button>
+                                    <button
+                                        onClick={() => setConnectionResult(null)}
+                                        className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded text-sm"
+                                    >
+                                        취소
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => setConnectionResult(null)}
+                                    className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded text-sm"
+                                >
+                                    닫기
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
 
