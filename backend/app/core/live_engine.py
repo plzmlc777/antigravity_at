@@ -458,11 +458,21 @@ class LiveTradingEngine:
                         state = self.strategy_instance.get_state()
                         qty = state.get("total_quantity", 0)
                         if qty > 0:
-                            self._had_position = True
-                        elif qty == 0 and self._had_position:
-                            # Position transitioned from >0 to 0 = cycle completed
-                            self._had_position = False
-                            self._try_ai_symbol_switch(from_cycle=True)
+                            if getattr(self, '_ai_skip_next_exit', False):
+                                # Pipeline just completed while position was open.
+                                # Don't count this position — wait for it to close first.
+                                pass
+                            else:
+                                self._had_position = True
+                        elif qty == 0:
+                            if getattr(self, '_ai_skip_next_exit', False):
+                                # Carry-over position has closed. Now reset for fresh cycle.
+                                self._ai_skip_next_exit = False
+                                self._had_position = False
+                            elif self._had_position:
+                                # Fresh cycle completed (entry → exit after last pipeline)
+                                self._had_position = False
+                                self._try_ai_symbol_switch(from_cycle=True)
                     except Exception:
                         pass
 
@@ -658,6 +668,99 @@ class LiveTradingEngine:
             self.strategy_instance.tick_execution = mode
         logger.info(f"Session {self.session_id}: Tick execution {old_mode} -> {mode}")
 
+    async def _run_ai_before_start(self):
+        """Run AI symbol evaluation BEFORE trading starts. Blocks until complete.
+
+        Called from start_session/restore_engine. If AI selects a new symbol,
+        switch_session_symbol is called and this engine's symbol is updated
+        before run_loop() begins.
+        """
+        try:
+            self._ai_switch_in_progress = True
+            db = SessionLocal()
+            try:
+                session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+                if not session:
+                    return
+                search_conditions = getattr(session, 'ai_search_conditions', None)
+                if not search_conditions:
+                    return
+
+                # Determine exchange type
+                is_futures = False
+                exchange_name = "Kiwoom"
+                if session.account_id:
+                    from ..models.account import ExchangeAccount
+                    account = db.query(ExchangeAccount).filter_by(id=session.account_id).first()
+                    if account:
+                        exchange_name = account.exchange_name or "Kiwoom"
+                        is_futures = "futures" in exchange_name.lower()
+
+                session_info = {
+                    "session_id": self.session_id,
+                    "current_symbol": self.symbol,
+                    "current_symbol_name": (session.strategy_config or {}).get("symbol_name", self.symbol),
+                    "search_conditions": search_conditions,
+                    "strategy_name": session.strategy_name,
+                    "strategy_config": dict(session.strategy_config or {}),
+                    "initial_capital": session.initial_capital,
+                    "account_id": session.account_id,
+                    "is_paper": session.is_paper,
+                    "group_id": session.group_id,
+                    "ai_optimize_params": getattr(session, 'ai_optimize_params', None),
+                    "is_futures": is_futures,
+                    "exchange_name": exchange_name,
+                }
+            finally:
+                db.close()
+
+            # Run the pipeline synchronously (await) — trading hasn't started yet
+            from .ai_symbol_selection import AISymbolSelectionService
+            service = AISymbolSelectionService.get_instance()
+
+            new_symbol = await service.run_pipeline(
+                session_id=session_info["session_id"],
+                current_symbol=session_info["current_symbol"],
+                search_conditions=session_info["search_conditions"],
+                strategy_name=session_info["strategy_name"],
+                strategy_config=session_info["strategy_config"],
+                initial_capital=session_info["initial_capital"],
+                account_id=session_info["account_id"],
+                is_paper=session_info["is_paper"],
+                group_id=session_info.get("group_id"),
+                current_symbol_name=session_info.get("current_symbol_name"),
+                ai_optimize_params=session_info.get("ai_optimize_params"),
+                is_futures=session_info.get("is_futures", False),
+                exchange_name=session_info.get("exchange_name", "Kiwoom"),
+            )
+
+            last_result = getattr(service, '_last_result', {}) or {}
+            optimized_params = last_result.get('optimized_params')
+
+            if new_symbol and new_symbol != self.symbol:
+                logger.info(f"[AISymbol] Pre-start switch: {self.symbol} -> {new_symbol}")
+                from .live_manager import live_manager
+                await live_manager.switch_session_symbol(
+                    session_id=self.session_id,
+                    new_symbol=new_symbol,
+                    optimized_params=optimized_params,
+                )
+            elif optimized_params:
+                logger.info(f"[AISymbol] Pre-start param optimization: {optimized_params}")
+                from .live_manager import live_manager
+                await live_manager.apply_optimized_params(
+                    session_id=self.session_id,
+                    optimized_params=optimized_params,
+                )
+            else:
+                logger.info(f"[AISymbol] Pre-start: keeping {self.symbol}")
+
+        except Exception as e:
+            logger.error(f"[AISymbol] Pre-start evaluation failed: {e}", exc_info=True)
+            # On failure, proceed with current symbol
+        finally:
+            self._ai_switch_in_progress = False
+
     def _try_ai_symbol_switch(self, from_cycle=False):
         """Check if AI symbol selection is enabled and trigger the pipeline.
 
@@ -806,10 +909,19 @@ class LiveTradingEngine:
             self._set_pipeline_completed()
 
     def _set_pipeline_completed(self):
-        """Reset _had_position so cycle trigger needs a fresh entry→exit after pipeline."""
+        """Reset cycle tracking so trigger requires a fresh entry→exit after pipeline."""
         self._had_position = False
+        # If strategy currently has a position, skip its exit to avoid false trigger
+        has_position = False
+        if self.strategy_instance:
+            try:
+                state = self.strategy_instance.get_state()
+                has_position = state.get("total_quantity", 0) > 0
+            except Exception:
+                pass
+        self._ai_skip_next_exit = has_position
         logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
-                    f"pipeline complete, _had_position reset (next trigger requires new cycle)")
+                    f"pipeline complete, cycle reset (skip_exit={has_position})")
 
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
