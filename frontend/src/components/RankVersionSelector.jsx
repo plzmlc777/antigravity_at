@@ -26,13 +26,15 @@ const RankVersionSelector = ({
     const [renameValue, setRenameValue] = useState('');
     const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const autoCreatedRef = useRef(false);
-
     // Auto-create "Default" preset when none exist
+    // presets.length becomes 1 after creation, preventing re-fire
+    const pendingCreateRef = useRef(false);
     useEffect(() => {
-        if (presets.length === 0 && onAddPreset && !disabled && !autoCreatedRef.current) {
-            autoCreatedRef.current = true;
+        if (presets.length === 0 && onAddPreset && !disabled && !pendingCreateRef.current) {
+            pendingCreateRef.current = true;
             onAddPreset('Default');
+        } else if (presets.length > 0) {
+            pendingCreateRef.current = false;
         }
     }, [presets.length, onAddPreset, disabled]);
 
