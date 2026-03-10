@@ -742,6 +742,7 @@ class LiveTradingEngine:
             logger.error(f"[AISymbol] Group pipeline error: {e}", exc_info=True)
         finally:
             self._ai_switch_in_progress = False
+            self._set_awaiting_cycle()
 
     async def _run_solo_pipeline(self, session_info: dict):
         """Per-session pipeline for ungrouped sessions."""
@@ -800,6 +801,24 @@ class LiveTradingEngine:
             logger.error(f"[AISymbol] Pipeline error: {e}", exc_info=True)
         finally:
             self._ai_switch_in_progress = False
+            # Always set ai_awaiting_cycle after pipeline completes (keep or switch)
+            # This prevents immediate re-trigger from param changes resetting strategy state
+            self._set_awaiting_cycle()
+
+    def _set_awaiting_cycle(self):
+        """Set ai_awaiting_cycle=True to prevent re-trigger until next real cycle."""
+        db = SessionLocal()
+        try:
+            session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+            if session:
+                session.ai_awaiting_cycle = True
+                db.commit()
+                logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                            f"set ai_awaiting_cycle=True (pipeline complete)")
+        except Exception as e:
+            logger.error(f"[AISymbol] Failed to set awaiting_cycle: {e}")
+        finally:
+            db.close()
 
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
