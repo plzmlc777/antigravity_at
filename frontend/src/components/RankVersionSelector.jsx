@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ChevronDown, Save, Trash2, X, AlertCircle, Pencil } from 'lucide-react';
 
 /**
@@ -26,6 +26,15 @@ const RankVersionSelector = ({
     const [renameValue, setRenameValue] = useState('');
     const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const autoCreatedRef = useRef(false);
+
+    // Auto-create "Default" preset when none exist
+    useEffect(() => {
+        if (presets.length === 0 && onAddPreset && !disabled && !autoCreatedRef.current) {
+            autoCreatedRef.current = true;
+            onAddPreset('Default');
+        }
+    }, [presets.length, onAddPreset, disabled]);
 
     // Find current preset
     const currentPreset = useMemo(() => {
