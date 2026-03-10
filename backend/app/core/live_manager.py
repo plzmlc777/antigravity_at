@@ -1130,18 +1130,25 @@ class LiveManager:
         await engine.initialize()
         self.engines[sess.id] = engine
 
-        # AI Symbol Selection: run BEFORE trading starts on restore
+        # AI mode: run evaluation then start trading (as background task to not block other restores)
         if getattr(sess, 'ai_symbol_mode', 'static') == 'ai' and getattr(sess, 'ai_search_conditions', None):
-            logger.info(f"[AISymbol] Session {sess.id[:8]}: "
-                        f"running AI evaluation before restore trading...")
-            await engine._run_ai_before_start()
-
-        # Start trading AFTER AI evaluation completes
-        asyncio.create_task(engine.run_loop())
-
-        # Restore Real-time using this session's adapter (use engine.symbol which may have changed)
-        if hasattr(adapter, "start_realtime"):
-            asyncio.create_task(adapter.start_realtime([engine.symbol]))
+            async def _ai_then_trade():
+                try:
+                    logger.info(f"[AISymbol] Session {sess.id[:8]}: "
+                                f"running AI evaluation before restore trading...")
+                    await engine._run_ai_before_start()
+                except Exception as e:
+                    logger.error(f"[AISymbol] Restore AI eval failed for {sess.id[:8]}: {e}")
+                # Start trading after AI completes (or fails)
+                asyncio.create_task(engine.run_loop())
+                if hasattr(adapter, "start_realtime"):
+                    asyncio.create_task(adapter.start_realtime([engine.symbol]))
+            asyncio.create_task(_ai_then_trade())
+        else:
+            # Non-AI: start trading immediately
+            asyncio.create_task(engine.run_loop())
+            if hasattr(adapter, "start_realtime"):
+                asyncio.create_task(adapter.start_realtime([sess.symbol]))
 
     async def validate_before_resume(self, session: LiveBotSession, db: Session) -> Dict[str, Any]:
         """
