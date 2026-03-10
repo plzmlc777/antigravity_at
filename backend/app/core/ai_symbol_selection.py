@@ -1037,7 +1037,7 @@ class AISymbolSelectionService:
             '{"ranges": {"param_name": [value1, value2, ...], ...}}'
         )
 
-        result = await self._call_claude(context_data, prompt)
+        result = await self._call_claude(context_data, prompt, agent=None)
         if result is None:
             return {}
 
@@ -1091,7 +1091,7 @@ class AISymbolSelectionService:
         score = base_score * reliability
         return score
 
-    async def _call_claude(self, context_data: dict, prompt: str) -> Optional[str]:
+    async def _call_claude(self, context_data: dict, prompt: str, agent: str = "symbol-evaluator") -> Optional[str]:
         """Call Claude CLI with context file, reusing stock_search.py pattern."""
         from .config import get_claude_cli_path
         claude_path = get_claude_cli_path()
@@ -1115,9 +1115,10 @@ class AISymbolSelectionService:
                 claude_path,
                 "-p", full_prompt,
                 "--output-format", "json",
-                "--agent", "symbol-evaluator",
                 "--permission-mode", "bypassPermissions",
             ]
+            if agent:
+                cmd.extend(["--agent", agent])
 
             env = os.environ.copy()
             for key in ["NODE_CHANNEL_FD", "NODE_CHANNEL_SERIALIZATION_MODE", "NODE_APP_INSTANCE"]:
