@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import asyncio
 import json
 import logging
+import os
 
 from ..db.session import get_db
 from ..models.strategy_request import StrategyRequest
@@ -245,7 +246,7 @@ class ChatResponse(BaseModel):
     new_strategies: Optional[List[str]] = None  # IDs of newly created strategies
 
 
-STRATEGIES_DIR = "/home/hcpark/antigravity/backend/app/strategies"
+STRATEGIES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "strategies")
 # Files to ignore when scanning for new strategies
 _STRATEGY_IGNORE = {"__init__", "__pycache__", "base", "martingale_base"}
 
@@ -382,7 +383,7 @@ async def strategy_lab_chat(
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd="/home/hcpark/antigravity",
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             env=env,
             start_new_session=True,
         )

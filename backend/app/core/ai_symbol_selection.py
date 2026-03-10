@@ -1093,9 +1093,8 @@ class AISymbolSelectionService:
 
     async def _call_claude(self, context_data: dict, prompt: str) -> Optional[str]:
         """Call Claude CLI with context file, reusing stock_search.py pattern."""
-        claude_path = os.path.expanduser("~/.claude/local/claude")
-        if not os.path.exists(claude_path):
-            claude_path = "claude"  # fallback to PATH
+        from .config import get_claude_cli_path
+        claude_path = get_claude_cli_path()
 
         context_file = None
         try:
@@ -1129,7 +1128,7 @@ class AISymbolSelectionService:
                 stdin=asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd="/home/hcpark/antigravity",
+                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
                 env=env,
                 start_new_session=True,
             )

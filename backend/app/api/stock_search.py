@@ -268,7 +268,7 @@ async def stock_search_chat(
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd="/home/hcpark/antigravity",
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
             env=env,
             start_new_session=True,
         )
