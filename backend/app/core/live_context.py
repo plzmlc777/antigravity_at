@@ -335,13 +335,15 @@ class LiveContext:
             exec_price = price if price > 0 else self.get_current_price(symbol)
             available = max(self.cash, 0)
             if exec_price > 0:
-                order_cost = quantity * exec_price
+                # Futures: margin = notional / leverage
+                leverage = self._get_leverage(symbol) if self.is_futures else 1
+                order_cost = quantity * exec_price / leverage
                 if order_cost > available:
-                    max_qty = int(available / exec_price) if available > 0 else 0
+                    max_qty = int(available * leverage / exec_price) if available > 0 else 0
                     if max_qty <= 0:
-                        self.log(f"BUY BLOCKED: Insufficient cash ({self.cash:,.0f}) for {quantity} × {exec_price:,.0f} = {order_cost:,.0f}")
+                        self.log(f"BUY BLOCKED: Insufficient cash ({self.cash:,.2f}) for {quantity} × {exec_price:,.4f} / {leverage}x = {order_cost:,.2f}")
                         return {"status": "failed", "reason": "insufficient_cash"}
-                    self.log(f"BUY QTY CAPPED: {quantity} → {max_qty} (cash: {self.cash:,.0f}, cost: {order_cost:,.0f})")
+                    self.log(f"BUY QTY CAPPED: {quantity} → {max_qty} (cash: {self.cash:,.2f}, margin: {order_cost:,.2f}, lev: {leverage}x)")
                     quantity = max_qty
 
         return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata, on_filled)
@@ -354,6 +356,22 @@ class LiveContext:
         if not isinstance(self.adapter, FuturesInterface):
             self.log("SHORT FAILED: Adapter does not support futures")
             return {"status": "failed", "reason": "not_futures_adapter"}
+
+        # Cash guard for short entry (margin-based)
+        if self.initial_capital > 0 and quantity > 0:
+            exec_price = price if price > 0 else self.get_current_price(symbol)
+            available = max(self.cash, 0)
+            if exec_price > 0:
+                leverage = self._get_leverage(symbol)
+                margin_needed = quantity * exec_price / leverage
+                if margin_needed > available:
+                    max_qty = int(available * leverage / exec_price) if available > 0 else 0
+                    if max_qty <= 0:
+                        self.log(f"SHORT BLOCKED: Insufficient margin ({self.cash:,.2f}) for {quantity} × {exec_price:,.4f} / {leverage}x = {margin_needed:,.2f}")
+                        return {"status": "failed", "reason": "insufficient_cash"}
+                    self.log(f"SHORT QTY CAPPED: {quantity} → {max_qty} (cash: {self.cash:,.2f}, margin: {margin_needed:,.2f}, lev: {leverage}x)")
+                    quantity = max_qty
+
         # Short orders use SELL side internally
         return self._execute_order(symbol, OrderSide.SELL, quantity, price,
                                    {**(metadata or {}), "position_side": Side.SHORT}, on_filled)
@@ -448,6 +466,74 @@ class LiveContext:
         finally:
             db.close()
 
+    @property
+    def is_futures(self) -> bool:
+        """Check if this session uses a futures adapter."""
+        return isinstance(self.adapter, FuturesInterface)
+
+    def _get_leverage(self, symbol: str = None) -> int:
+        """Get effective leverage. Priority: futures_data_cache > DB session config > 1."""
+        if not self.is_futures:
+            return 1
+        if symbol:
+            fd = self._futures_data_cache.get(symbol, {})
+            lev = fd.get("leverage", 0)
+            if lev > 0:
+                return lev
+        # Fallback: check any cached futures data
+        for fd in self._futures_data_cache.values():
+            lev = fd.get("leverage", 0)
+            if lev > 0:
+                return lev
+        # Fallback: read from DB session config (important during _restore_trades_from_db)
+        try:
+            db = SessionLocal()
+            session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+            if session and session.strategy_config:
+                config_lev = (session.strategy_config or {}).get("leverage", 1)
+                if config_lev and int(config_lev) > 0:
+                    db.close()
+                    return int(config_lev)
+            db.close()
+        except Exception:
+            pass
+        return 1
+
+    def _calc_cash_delta(self, signal_type: str, price: float, qty: float,
+                         metadata: dict = None, realized_pnl: float = 0) -> float:
+        """
+        Calculate cash change for a trade.
+
+        Spot: BUY costs full notional, SELL returns full notional.
+        Futures: Entry costs margin (notional/leverage), exit returns margin + PnL.
+          - LONG: BUY=entry, SELL=exit
+          - SHORT: SELL=entry, BUY=exit
+        """
+        notional = price * qty
+        if not self.is_futures:
+            # Spot: simple notional
+            if signal_type == Signal.BUY:
+                return -notional  # cash decreases
+            else:
+                return notional   # cash increases
+
+        # Futures: margin-based
+        leverage = self._get_leverage()
+        margin = notional / leverage if leverage > 0 else notional
+        pos_side = (metadata or {}).get("position_side", "").lower()
+
+        is_entry = (
+            (signal_type == Signal.SELL and pos_side == Side.SHORT) or
+            (signal_type == Signal.BUY and pos_side in (Side.LONG, ""))
+        )
+        is_exit = not is_entry
+
+        if is_entry:
+            return -margin  # margin used
+        else:
+            # Exit: margin returned + realized PnL
+            return margin + realized_pnl
+
     def log(self, message: str):
         print(f"[LIVE] {message}")
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
@@ -488,18 +574,19 @@ class LiveContext:
 
                 # Recalculate cash from initial_capital and trade history
                 if self.initial_capital > 0:
-                    net_cost = 0
+                    cash = self.initial_capital
                     for ex in executions:
                         price = ex.executed_price or ex.theoretical_price or 0
                         qty = ex.filled_quantity or ex.requested_quantity or 0
-                        if ex.signal_type == Signal.BUY:
-                            net_cost += price * qty
-                        elif ex.signal_type == Signal.SELL:
-                            net_cost -= price * qty
-                    self.cash = self.initial_capital - net_cost
+                        metadata = ex.trade_metadata or {}
+                        pnl = ex.realized_pnl or 0
+                        delta = self._calc_cash_delta(
+                            ex.signal_type, price, qty, metadata, pnl)
+                        cash += delta
+                    self.cash = cash
                     logger.info(
-                        f"Context {self.session_id}: Cash restored = {self.cash:,.0f} "
-                        f"(allocated={self.initial_capital:,.0f}, net_invested={net_cost:,.0f})"
+                        f"Context {self.session_id}: Cash restored = {self.cash:,.2f} "
+                        f"(allocated={self.initial_capital:,.2f}, futures={self.is_futures})"
                     )
         except Exception as e:
             logger.error(f"Trade restore error: {e}")
@@ -661,15 +748,16 @@ class LiveContext:
 
                         # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
-                        cost = p.executed_price * p.filled_quantity
+                        cash_delta = self._calc_cash_delta(
+                            p.signal_type, p.executed_price, p.filled_quantity,
+                            p.trade_metadata, p.realized_pnl or 0)
+                        self.cash += cash_delta
                         if p.signal_type == Signal.BUY:
-                            self.cash -= cost
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
                         else:
-                            self.cash += cost
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
 
-                        self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price}")
+                        self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price} (cash delta: {cash_delta:+,.2f})")
 
                         # 4. Invoke on_filled callback (for strategy position update)
                         if p.id in self._order_callbacks:
@@ -845,12 +933,11 @@ class LiveContext:
                                     self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
 
                             # Cash: always use internal tracking (respects allocated capital)
-                            fill_cost = p.executed_price * p.filled_quantity
-                            if p.signal_type == Signal.BUY:
-                                self.cash -= fill_cost
-                            else:
-                                self.cash += fill_cost
-                            self.log(f"Cash updated: {self.cash:,.0f} (allocated: {self.initial_capital:,.0f})")
+                            cash_delta = self._calc_cash_delta(
+                                p.signal_type, p.executed_price, p.filled_quantity,
+                                p.trade_metadata, p.realized_pnl or 0)
+                            self.cash += cash_delta
+                            self.log(f"Cash updated: {self.cash:,.2f} (allocated: {self.initial_capital:,.2f}, delta: {cash_delta:+,.2f})")
 
                             # SELL PnL 계산
                             if p.signal_type == Signal.SELL:

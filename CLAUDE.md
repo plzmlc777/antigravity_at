@@ -216,21 +216,24 @@ Environment variables are loaded from multiple sources (priority order):
 
 **반드시 `bump_version.sh` 스크립트를 사용할 것:**
 ```bash
+# ⚠️ VSCode 확장 터미널에서는 $PATH가 불완전하여 PM2를 못 찾음
+# 반드시 wsl -e bash -c 로 감싸서 실행할 것!
+
 # 버전업 + 커밋 + 태그 + 푸시 + PM2 재시작 (올인원)
-./scripts/bump_version.sh 0.9.9.14
+wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh 0.9.9.14"
 
 # 재시작만 (버전 변경 없이)
-./scripts/bump_version.sh --restart
+wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh --restart"
 
 # 현재 버전 확인
-./scripts/bump_version.sh
+wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh"
 ```
 
 **Claude 버전업 체크리스트** (이 순서대로 실행):
 1. ✅ `.claude/docs/release_protocol.md` 읽기 (상세 절차 확인)
 2. ✅ 커밋되지 않은 변경사항이 있으면 먼저 커밋
 3. ✅ Change Log Report 생성 (User Ordered / Self-Initiated / Modified Files)
-4. ✅ `./scripts/bump_version.sh <새버전>` 실행 (절대 수동 편집 금지!)
+4. ✅ `wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh <새버전>"` 실행 (절대 수동 편집 금지!)
 5. ✅ 사용자에게 결과 보고
 
 **Claude에게 요청 시:**
@@ -387,11 +390,13 @@ ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_us
 
 ### Apply Version Bump
 ```bash
+# ⚠️ VSCode 확장 터미널에서는 반드시 wsl -e bash -c 로 실행!
+
 # 버전업 + 커밋 + 태그 + 푸시 + PM2 재시작 (올인원)
-./scripts/bump_version.sh X.Y.Z
+wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh X.Y.Z"
 
 # 재시작만
-./scripts/bump_version.sh --restart
+wsl -e bash -c "cd /home/hcpark/antigravity && bash scripts/bump_version.sh --restart"
 ```
 
 ### Post-Release
