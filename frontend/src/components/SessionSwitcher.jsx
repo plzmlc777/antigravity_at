@@ -191,7 +191,11 @@ const SessionSwitcher = forwardRef(({
     // Expose refresh method via ref for parent to call after actions
     useImperativeHandle(ref, () => ({
         refresh: fetchSessions,
-        getSymbolName
+        getSymbolName,
+        showAllSessions: () => {
+            setShowAll(true);
+            localStorage.setItem('sessionSwitcher_showAll', JSON.stringify(true));
+        },
     }), [fetchSessions]);
 
     // Get account info by ID

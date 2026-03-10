@@ -62,16 +62,20 @@ const LiveTradingView = () => {
 
     // Handle new session created
     const handleSessionStarted = (result) => {
-        // Refresh SessionSwitcher first to get new session data
+        // Switch to "Show All" so the new session is visible
+        sessionSwitcherRef.current?.showAllSessions?.();
+        // Refresh SessionSwitcher to get new session data
         sessionSwitcherRef.current?.refresh?.();
 
-        // Set the new session group as active
+        // Set the new session group as active (also store account_id in snake_case for balance)
         setActiveSessionGroup({
             accountId: result.accountId,
+            account_id: result.accountId,
             strategyName: result.strategyName,
             groupId: result.groupId,
             sessionId: result.sessions?.[0]?.sessionId,
-            sessions: result.sessions
+            sessions: result.sessions,
+            profile_name: result.profileName,
         });
 
         // Update selectedStrategy from result
