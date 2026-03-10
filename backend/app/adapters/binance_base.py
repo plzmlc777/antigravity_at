@@ -166,6 +166,31 @@ class BinanceBaseAdapter:
         """Signed DELETE."""
         return await self._request("DELETE", path, params, signed=True)
 
+    async def test_connection(self) -> Dict[str, Any]:
+        """Test API key validity. Raises on failure instead of returning defaults."""
+        await self._ensure_time_sync()
+        # Use account endpoint for signed request validation
+        if "fapi" in self.api_url:
+            data = await self._signed_get("/fapi/v2/account")
+        else:
+            data = await self._signed_get("/api/v3/account")
+        # Extract balance summary
+        cash = {}
+        holdings_count = 0
+        if "assets" in data:  # Futures
+            for asset in data.get("assets", []):
+                avail = float(asset.get("availableBalance", 0))
+                if avail > 0 or asset["asset"] == "USDT":
+                    cash[asset["asset"]] = avail
+            holdings_count = sum(1 for p in data.get("positions", []) if float(p.get("positionAmt", 0)) != 0)
+        elif "balances" in data:  # Spot
+            for b in data.get("balances", []):
+                free = float(b.get("free", 0))
+                if free > 0:
+                    cash[b["asset"]] = free
+            holdings_count = len(cash)
+        return {"cash": cash, "holdings_count": holdings_count}
+
     # ── Time Sync ──
 
     def _time_endpoint(self) -> str:

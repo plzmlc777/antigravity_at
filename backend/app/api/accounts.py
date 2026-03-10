@@ -107,11 +107,15 @@ async def test_account_connection(
         if hasattr(adapter, 'initialize'):
             await adapter.initialize()
 
-        balance = await adapter.get_balance()
-
-        # Extract summary info
-        cash_info = balance.get("cash", {})
-        holdings_count = len(balance.get("holdings", {}))
+        # Use test_connection() if available (raises on failure instead of swallowing errors)
+        if hasattr(adapter, 'test_connection'):
+            result = await adapter.test_connection()
+            cash_info = result.get("cash", {})
+            holdings_count = result.get("holdings_count", 0)
+        else:
+            balance = await adapter.get_balance()
+            cash_info = balance.get("cash", {})
+            holdings_count = len(balance.get("holdings", {}))
 
         return {
             "success": True,
