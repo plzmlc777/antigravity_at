@@ -339,7 +339,9 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
     // Fetch balance for the selected session's account
     useEffect(() => {
         const fetchSessionBalance = async () => {
-            const accountId = activeSessionGroup?.sessions?.[0]?.account_id || activeSessionGroup?.account_id;
+            const accountId = activeSessionGroup?.sessions?.[0]?.account_id
+                || activeSessionGroup?.account_id
+                || activeSessionGroup?.accountId;
             if (!accountId) {
                 setSessionBalance(null);
                 return;
@@ -378,16 +380,20 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         fetchSessionBalance();
 
         // Refresh balance periodically (every 10 seconds when session is active)
-        const accountId = activeSessionGroup?.sessions?.[0]?.account_id || activeSessionGroup?.account_id;
+        const accountId = activeSessionGroup?.sessions?.[0]?.account_id
+            || activeSessionGroup?.account_id
+            || activeSessionGroup?.accountId;
         if (accountId && status === 'RUNNING') {
             const interval = setInterval(fetchSessionBalance, 10000);
             return () => clearInterval(interval);
         }
-    }, [activeSessionGroup?.sessions?.[0]?.account_id, activeSessionGroup?.account_id, status]);
+    }, [activeSessionGroup?.sessions?.[0]?.account_id, activeSessionGroup?.account_id, activeSessionGroup?.accountId, status]);
 
     // Manual refresh balance
     const refreshSessionBalance = async () => {
-        const accountId = activeSessionGroup?.sessions?.[0]?.account_id || activeSessionGroup?.account_id;
+        const accountId = activeSessionGroup?.sessions?.[0]?.account_id
+            || activeSessionGroup?.account_id
+            || activeSessionGroup?.accountId;
         if (!accountId) return;
 
         setIsBalanceLoading(true);
@@ -423,8 +429,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
         // Get symbol name
         const symbolName = session.symbol_name || savedSymbols.find(s => s.code === session.symbol)?.name || session.symbol;
 
-        // Get account name (fallback to group-level account_id)
-        const accountId = session.account_id || activeSessionGroup?.account_id;
+        // Get account name (fallback to group-level account_id/accountId)
+        const accountId = session.account_id || activeSessionGroup?.account_id || activeSessionGroup?.accountId;
         const account = accounts.find(a => a.id === accountId);
         const accountName = account?.account_name || (accountId ? `Account ${accountId}` : '');
 
