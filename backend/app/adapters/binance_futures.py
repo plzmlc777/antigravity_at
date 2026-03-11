@@ -400,10 +400,11 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
             })
             candles = []
             for k in data:
-                from datetime import datetime, timezone
-                ts = datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc)
+                from datetime import datetime, timezone, timedelta
+                KST = timezone(timedelta(hours=9))
+                ts = datetime.fromtimestamp(k[0] / 1000, tz=timezone.utc).astimezone(KST)
                 candles.append({
-                    "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
+                    "timestamp": ts.isoformat(),
                     "open": float(k[1]), "high": float(k[2]),
                     "low": float(k[3]), "close": float(k[4]),
                     "volume": float(k[5]),
