@@ -402,12 +402,20 @@ class AISymbolSelectionService:
             self._last_result = {"symbol": None, "optimized_params": None}
             return None
 
+        # If position_side is in the optimization ranges but already set in strategy_config,
+        # lock it to the current direction (don't flip long↔short during re-optimization)
+        current_direction = strategy_config.get("position_side")
+        if current_direction and "position_side" in optimize_params:
+            optimize_params["position_side"] = [current_direction]
+            logger.info(f"[AISymbol] Param optimization: locking position_side to [{current_direction}] "
+                        f"(preserving current direction)")
+
         logger.info(f"[AISymbol] Param optimization ranges for {current_symbol}: {optimize_params}")
 
         # Build candidate as current symbol only
         cand = {"code": current_symbol}
         if is_futures:
-            direction = strategy_config.get("position_side")
+            direction = current_direction
             if direction:
                 cand["direction"] = direction
 
