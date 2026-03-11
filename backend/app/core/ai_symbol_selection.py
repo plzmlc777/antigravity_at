@@ -707,6 +707,9 @@ class AISymbolSelectionService:
             f"Read the context file and evaluate if the current symbol "
             f"({current_symbol} {symbol_name}) still matches the user's conditions: "
             f"'{search_conditions}'. "
+            f"IMPORTANT: If data is insufficient to properly evaluate (e.g., missing historical volume, "
+            f"chart patterns, order book data), you MUST return match=true (keep current symbol). "
+            f"Only return match=false when you have clear evidence the symbol no longer meets the conditions. "
             f"Respond with ONLY a JSON object: "
             f'{{"match": true/false, "reason": "detailed explanation in Korean why this symbol matches or does not match the conditions, including specific data points like volume change rate, price change rate, etc."}}'
         )
@@ -722,7 +725,13 @@ class AISymbolSelectionService:
 
             # Guard: if reason indicates evaluation failure (couldn't read data),
             # default to "keep" to avoid switching based on errors
-            error_keywords = ["unable to", "cannot", "could not", "exceeds", "capacity", "error", "fail"]
+            error_keywords = [
+                # English
+                "unable to", "cannot", "could not", "exceeds", "capacity", "error", "fail",
+                # Korean - data unavailable / evaluation impossible
+                "불가능", "부재", "확인할 수 없", "판단할 수 없", "데이터가 없",
+                "제공되지 않", "보완 후", "재평가 필요", "데이터 부족", "알 수 없",
+            ]
             if not match and any(kw in reason.lower() for kw in error_keywords):
                 logger.warning(f"[AISymbol] Evaluate returned match=false but reason indicates "
                               f"evaluation failure, defaulting to KEEP: {reason[:200]}")
