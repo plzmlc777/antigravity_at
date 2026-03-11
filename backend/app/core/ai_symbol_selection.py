@@ -686,12 +686,21 @@ class AISymbolSelectionService:
                 symbol_name = s.get("name", current_symbol)
                 break
 
+        # EVALUATE only needs the current symbol's data, not the full list
+        # Extract only the current symbol's info and relevant rankings
+        current_stock_data = [s for s in stock_data if s.get("code") == current_symbol]
+        current_rankings = {}
+        for rank_type, items in (ranking_data or {}).items():
+            matched = [r for r in (items or []) if r.get("code") == current_symbol]
+            if matched:
+                current_rankings[rank_type] = matched
+
         context_data = {
             "mode": "EVALUATE",
             "current_symbol": {"code": current_symbol, "name": symbol_name},
             "search_conditions": search_conditions,
-            "stocks": self._slim_stock_data(stock_data),
-            "rankings": ranking_data,
+            "stocks": self._slim_stock_data(current_stock_data) if current_stock_data else [{"code": current_symbol, "name": symbol_name}],
+            "rankings": current_rankings,
         }
 
         prompt = (
@@ -710,6 +719,15 @@ class AISymbolSelectionService:
             parsed = json.loads(result) if isinstance(result, str) else result
             match = parsed.get("match", True)
             reason = parsed.get("reason", "")
+
+            # Guard: if reason indicates evaluation failure (couldn't read data),
+            # default to "keep" to avoid switching based on errors
+            error_keywords = ["unable to", "cannot", "could not", "exceeds", "capacity", "error", "fail"]
+            if not match and any(kw in reason.lower() for kw in error_keywords):
+                logger.warning(f"[AISymbol] Evaluate returned match=false but reason indicates "
+                              f"evaluation failure, defaulting to KEEP: {reason[:200]}")
+                return False, f"AI 평가 불완전 - 현재 종목 유지 ({reason[:100]})"
+
             logger.info(f"[AISymbol] Evaluate result: match={match}, reason={reason}")
             return not match, reason  # (should_switch, reason)
         except (json.JSONDecodeError, AttributeError):
@@ -738,13 +756,18 @@ class AISymbolSelectionService:
         all_excluded = {current_symbol} | excluded_symbols
         exclude_str = ", ".join(all_excluded)
 
+        # Limit ranking data to top 100 per type to control context size
+        trimmed_rankings = {}
+        for rank_type, items in (ranking_data or {}).items():
+            trimmed_rankings[rank_type] = (items or [])[:100]
+
         context_data = {
             "mode": "FIND",
             "current_symbol": current_symbol,
             "search_conditions": search_conditions,
             "excluded_symbols": list(all_excluded),
             "stocks": self._slim_stock_data(stock_data),
-            "rankings": ranking_data,
+            "rankings": trimmed_rankings,
             "is_futures": is_futures,
         }
 
