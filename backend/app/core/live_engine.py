@@ -825,15 +825,9 @@ class LiveTradingEngine:
 
         self._ai_switch_in_progress = True
 
-        if session_info["group_id"]:
-            # Grouped session → register with group coordinator
-            logger.info(f"[AISymbol] Triggering GROUP pipeline for session {self.session_id[:8]} "
-                        f"(group {session_info['group_id'][:8]})")
-            asyncio.create_task(self._run_group_pipeline(session_info))
-        else:
-            # Solo session → existing per-session pipeline
-            logger.info(f"[AISymbol] Triggering SOLO pipeline for session {self.session_id[:8]}")
-            asyncio.create_task(self._run_solo_pipeline(session_info))
+        # Cycle completion always triggers solo pipeline (only this session needs re-eval)
+        logger.info(f"[AISymbol] Triggering SOLO pipeline for session {self.session_id[:8]}")
+        asyncio.create_task(self._run_solo_pipeline(session_info))
 
     async def _run_group_pipeline(self, session_info: dict):
         """Register with group pipeline coordinator. Actual execution managed by coordinator."""
