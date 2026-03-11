@@ -227,12 +227,25 @@ async def resume_session(
             detail="Session is already running"
         )
 
-    # Check if session is already in memory
+    # Check if session is already in memory — clean up stale engine if DB says STOPPED/ERROR
     if session_id in live_manager.engines:
-        raise HTTPException(
-            status_code=400,
-            detail="Session is already active in memory"
-        )
+        engine = live_manager.engines[session_id]
+        if session.status in [SessionStatus.STOPPED, SessionStatus.ERROR]:
+            # DB says stopped but engine still in memory → stale engine, clean up
+            logger.warning(f"[Resume] Cleaning up stale engine for session {session_id[:8]} "
+                          f"(DB status={session.status}, engine in memory)")
+            try:
+                engine.is_running = False
+                if hasattr(engine, 'adapter') and hasattr(engine.adapter, 'stop_realtime'):
+                    await engine.adapter.stop_realtime([engine.symbol])
+            except Exception as cleanup_err:
+                logger.warning(f"[Resume] Stale engine cleanup error: {cleanup_err}")
+            del live_manager.engines[session_id]
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Session is already active in memory"
+            )
 
     # Only allow resuming STOPPED or ERROR sessions
     if session.status not in [SessionStatus.STOPPED, SessionStatus.ERROR]:

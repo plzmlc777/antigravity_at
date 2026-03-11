@@ -1170,8 +1170,17 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     // Session Actions: Resume ALL sessions in the group (Option B - actions in panel)
     const handleResumeSession = async () => {
+        console.log('[Resume] handleResumeSession called', {
+            sessions: activeSessionGroup?.sessions,
+            hasUnsavedChanges,
+            isResuming,
+            effectiveConfigList: effectiveConfigList?.map(c => ({ id: c.session_id, ai: c.ai_symbol_mode })),
+        });
         const sessions = activeSessionGroup?.sessions;
-        if (!sessions || sessions.length === 0) return;
+        if (!sessions || sessions.length === 0) {
+            console.warn('[Resume] No sessions found, returning early');
+            return;
+        }
 
         // Check if any AI-mode session has empty search conditions
         const aiSessionsWithoutConditions = sessions.filter(s => {
@@ -1179,6 +1188,7 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             return cfg && cfg.ai_symbol_mode === 'ai' && !aiSearchConditions?.trim();
         });
         if (aiSessionsWithoutConditions.length > 0) {
+            console.warn('[Resume] AI sessions without conditions:', aiSessionsWithoutConditions);
             showAlert(
                 'AI 종목 검색 조건이 비어있습니다.\nAI 모드 세션의 종목 자동 전환이 작동하지 않습니다.\n검색 조건을 입력한 후 다시 시도해주세요.',
                 'warning',
@@ -1214,10 +1224,14 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             );
 
             const succeeded = results.filter(r => r.status === 'fulfilled').length;
-            const failed = results.filter(r => r.status === 'rejected').length;
+            const failedResults = results.filter(r => r.status === 'rejected');
 
-            if (failed > 0) {
-                addLog("Warning", `Group resumed: ${succeeded}/${sessions.length} succeeded, ${failed} failed`);
+            if (failedResults.length > 0) {
+                const errorDetails = failedResults.map(r =>
+                    r.reason?.response?.data?.detail || r.reason?.message || 'Unknown error'
+                ).join('; ');
+                addLog("Warning", `Group resumed: ${succeeded}/${sessions.length} succeeded, ${failedResults.length} failed`);
+                showAlert(`재시작 실패 (${failedResults.length}건): ${errorDetails}`, 'error', '세션 재시작 오류');
             } else {
                 addLog("System", `Group resumed: ${succeeded} session(s) (${sessions[0].strategy_name})`);
             }
