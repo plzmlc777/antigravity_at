@@ -5,7 +5,7 @@ import asyncio
 import logging
 import traceback
 from typing import List, Dict, Any, Callable
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
@@ -335,6 +335,15 @@ class LiveTradingEngine:
         await self._update_internals(price, volume, ts)
 
     async def _update_internals(self, price: float, volume: int, now: datetime):
+        # Normalize timestamp to KST (for consistent chart display across timezones)
+        KST = timezone(timedelta(hours=9))
+        if now.tzinfo is None:
+            # Naive datetime: assume system local time → convert to KST
+            now = now.astimezone(KST)
+        else:
+            # Aware datetime: convert to KST
+            now = now.astimezone(KST)
+
         # Update State
         self.last_price = price
         self.last_accum_volume = volume

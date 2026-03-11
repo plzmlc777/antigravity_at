@@ -253,6 +253,7 @@ const VisualBacktestChart = ({
                         const date = new Date(time * 1000);
                         if (tickMarkType < 3) {
                             const d = new Intl.DateTimeFormat('ko-KR', {
+                                timeZone: 'Asia/Seoul',
                                 month: 'numeric',
                                 day: 'numeric',
                             }).format(date);
@@ -276,7 +277,6 @@ const VisualBacktestChart = ({
                     } : {}),
                 },
                 localization: {
-                    timezone: 'Asia/Seoul',
                     dateFormat: 'yyyy-MM-dd',
                     timeFormatter: (timestamp) => {
                         const date = new Date(timestamp * 1000);
