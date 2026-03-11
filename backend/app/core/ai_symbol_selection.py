@@ -1046,6 +1046,21 @@ class AISymbolSelectionService:
             "backtest_results": top_results,
         }
 
+        # Check if any result has direction info (futures mode)
+        has_direction = any(r.get("direction") for r in top_results)
+
+        direction_guidance = ""
+        direction_response = ""
+        if has_direction:
+            direction_guidance = (
+                "- Direction (long/short): Each candidate was backtested with a specific direction. "
+                "Explain why the selected direction is appropriate given current market conditions.\n"
+            )
+            direction_response = (
+                ', "direction_reason": "Korean explanation of why this direction (long/short) '
+                'is recommended based on market trend, momentum, and risk"'
+            )
+
         prompt = (
             "Read the context file. You are given backtest results for competing symbols "
             "(each with their best parameter combination if optimization was used). "
@@ -1059,10 +1074,12 @@ class AISymbolSelectionService:
             "- If the score difference between top candidates is small, prefer the one with more trades\n"
             "- The user's original search conditions for context\n"
             f"- If '{current_symbol}' (current) has a comparable score to top candidates, "
-            "prefer keeping it to avoid unnecessary switching costs\n\n"
+            "prefer keeping it to avoid unnecessary switching costs\n"
+            f"{direction_guidance}\n"
             "Respond with ONLY a JSON object:\n"
             '{"selected_symbol": "code", "selected_params": {"key": value, ...} or null, '
-            '"reason": "Korean explanation of why this combination was chosen, including risk assessment"}'
+            '"reason": "Korean explanation of why this combination was chosen, including risk assessment"'
+            f'{direction_response}}}'
         )
 
         if session_id:
@@ -1084,6 +1101,9 @@ class AISymbolSelectionService:
             selected_symbol = parsed.get("selected_symbol")
             selected_params = parsed.get("selected_params")
             reason = parsed.get("reason", "")
+            direction_reason = parsed.get("direction_reason", "")
+            if direction_reason:
+                reason = f"{reason} [방향 근거] {direction_reason}"
 
             # Validate that selected symbol is in our results
             valid_symbols = {r["symbol"] for r in top_results}
