@@ -987,6 +987,10 @@ class AISymbolSelectionService:
                     if entry["params"] is None:
                         entry["params"] = {}
                     entry["params"]["position_side"] = ai_direction
+                # Carry forward FIND-stage reason (includes direction justification)
+                find_reason = cand.get("reason", "")
+                if find_reason:
+                    entry["find_reason"] = find_reason
                 results_summary.append(entry)
 
             # Update progress with per-symbol result
@@ -1038,27 +1042,30 @@ class AISymbolSelectionService:
         # Take top 10 for AI evaluation
         top_results = bt_results[:10]
 
+        # Include FIND-stage reasoning in context for data-driven direction justification
+        context_results = []
+        for r in top_results:
+            entry = dict(r)
+            # Keep find_reason in context so AI can reference actual market analysis
+            context_results.append(entry)
+
         context_data = {
             "mode": "SELECT_BEST",
             "strategy_name": strategy_name,
             "current_symbol": current_symbol,
             "search_conditions": search_conditions,
-            "backtest_results": top_results,
+            "backtest_results": context_results,
         }
 
         # Check if any result has direction info (futures mode)
         has_direction = any(r.get("direction") for r in top_results)
 
         direction_guidance = ""
-        direction_response = ""
         if has_direction:
             direction_guidance = (
-                "- Direction (long/short): Each candidate was backtested with a specific direction. "
-                "Explain why the selected direction is appropriate given current market conditions.\n"
-            )
-            direction_response = (
-                ', "direction_reason": "Korean explanation of why this direction (long/short) '
-                'is recommended based on market trend, momentum, and risk"'
+                "- Direction (long/short): Each candidate has a 'find_reason' field containing the "
+                "original market data analysis that determined its direction. Reference this analysis "
+                "in your reason — do NOT fabricate new market analysis.\n"
             )
 
         prompt = (
@@ -1078,8 +1085,8 @@ class AISymbolSelectionService:
             f"{direction_guidance}\n"
             "Respond with ONLY a JSON object:\n"
             '{"selected_symbol": "code", "selected_params": {"key": value, ...} or null, '
-            '"reason": "Korean explanation of why this combination was chosen, including risk assessment"'
-            f'{direction_response}}}'
+            '"reason": "Korean explanation including: 1) why this symbol was chosen (backtest metrics), '
+            '2) if futures, why this direction (long/short) based on the find_reason market analysis"}'
         )
 
         if session_id:
@@ -1101,9 +1108,6 @@ class AISymbolSelectionService:
             selected_symbol = parsed.get("selected_symbol")
             selected_params = parsed.get("selected_params")
             reason = parsed.get("reason", "")
-            direction_reason = parsed.get("direction_reason", "")
-            if direction_reason:
-                reason = f"{reason} [방향 근거] {direction_reason}"
 
             # Validate that selected symbol is in our results
             valid_symbols = {r["symbol"] for r in top_results}
