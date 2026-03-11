@@ -51,6 +51,13 @@ const LiveTradingView = () => {
     const handleSelectSessionGroup = (group) => {
         setActiveSessionGroup(group);
         setCurrentRankIndex(0); // Reset rank to first when switching sessions
+        // Save selected group identifier for persistence across refresh
+        if (group) {
+            const key = group.groupId || group.sessionId || group.sessions?.[0]?.session_id;
+            if (key) {
+                localStorage.setItem('live.lastSessionGroup', key);
+            }
+        }
         // Update selectedStrategy from session group
         if (group?.strategyName) {
             const matchingStrategy = getStrategyById(group.strategyName);

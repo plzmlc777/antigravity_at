@@ -342,17 +342,26 @@ const SessionSwitcher = forwardRef(({
         });
     }, [sessions]);
 
-    // Auto-select first group if none selected
+    // Auto-select group: restore last selected group from localStorage, fallback to first
     useEffect(() => {
         if (!activeSessionGroup && sessionGroups.length > 0 && onSelectSessionGroup) {
-            const firstGroup = sessionGroups[0];
+            const savedKey = localStorage.getItem('live.lastSessionGroup');
+            let targetGroup = null;
+            if (savedKey) {
+                targetGroup = sessionGroups.find(g =>
+                    g.groupId === savedKey || g.sessions?.[0]?.session_id === savedKey
+                );
+            }
+            if (!targetGroup) {
+                targetGroup = sessionGroups[0];
+            }
             onSelectSessionGroup({
-                accountId: firstGroup.account_id,
-                strategyName: firstGroup.strategy_name,
-                groupId: firstGroup.groupId,
-                sessionId: firstGroup.sessions[0]?.session_id,
-                sessions: firstGroup.sessions,
-                configList: firstGroup.configList || []  // For ActiveStrategiesPanel
+                accountId: targetGroup.account_id,
+                strategyName: targetGroup.strategy_name,
+                groupId: targetGroup.groupId,
+                sessionId: targetGroup.sessions[0]?.session_id,
+                sessions: targetGroup.sessions,
+                configList: targetGroup.configList || []
             });
         }
     }, [sessionGroups, activeSessionGroup, onSelectSessionGroup]);
