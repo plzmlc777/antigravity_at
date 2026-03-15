@@ -804,9 +804,9 @@ class LiveManager:
                 for k, v in optimized_params.items():
                     cfg[k] = v
                 logger.info(f"[AISymbol] Applied optimized params: {optimized_params}")
-            # Clear preset name — no longer relevant after AI symbol switch
-            cfg.pop('selected_preset_name', None)
+            # Mark as AI-selected (clear old preset ID, set display name)
             cfg.pop('selected_preset_id', None)
+            cfg['selected_preset_name'] = 'AI'
             sess.strategy_config = cfg
             sess.ai_awaiting_cycle = True  # Block re-trigger until next cycle completes
             db.commit()
