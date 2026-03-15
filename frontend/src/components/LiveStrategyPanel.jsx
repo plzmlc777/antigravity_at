@@ -3120,6 +3120,8 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                 const lines = [];
                                 const avgPrice = strategyState?.average_price || 0;
                                 const targetPrice = strategyState?.target_price || 0;
+                                const stopLossPrice = strategyState?.stop_loss_price || 0;
+                                const trailingExitPrice = strategyState?.trailing_exit_price || 0;
                                 if (avgPrice > 0) {
                                     lines.push({
                                         price: avgPrice,
@@ -3135,6 +3137,24 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
                                             title: '트레일시작',
                                             lineWidth: 1,
                                             lineStyle: 2, // dashed
+                                        });
+                                    }
+                                    if (trailingExitPrice > 0) {
+                                        lines.push({
+                                            price: trailingExitPrice,
+                                            color: '#f97316', // orange
+                                            title: '트레일스탑',
+                                            lineWidth: 1,
+                                            lineStyle: 2, // dashed
+                                        });
+                                    }
+                                    if (stopLossPrice > 0) {
+                                        lines.push({
+                                            price: stopLossPrice,
+                                            color: '#ef4444', // red
+                                            title: '손절',
+                                            lineWidth: 1,
+                                            lineStyle: 0, // solid
                                         });
                                     }
                                 }
