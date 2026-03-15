@@ -308,11 +308,12 @@ const VisualBacktestChart = ({
                         },
                     })
                     : (original) => {
+                        const originalRange = original(); // v5: original is a getter function
                         const plPrices = priceLinesValuesRef.current;
-                        if (!original?.priceRange || plPrices.length === 0) return original;
+                        if (!originalRange?.priceRange || plPrices.length === 0) return originalRange;
                         const allPrices = [
-                            original.priceRange.minValue,
-                            original.priceRange.maxValue,
+                            originalRange.priceRange.minValue,
+                            originalRange.priceRange.maxValue,
                             ...plPrices,
                         ];
                         const minValue = Math.min(...allPrices);
