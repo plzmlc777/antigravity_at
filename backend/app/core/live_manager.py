@@ -228,8 +228,9 @@ class LiveManager:
 
         # Update WebSocket URI and credentials for the primary adapter (only if WS exists)
         # Use _ws_client to avoid lazy creation - WS will be created when start_realtime is called
-        if adapter._ws_client:
-            ws = adapter._ws_client
+        _existing_ws = getattr(adapter, '_ws_client', None) or getattr(adapter, 'ws_client', None)
+        if _existing_ws:
+            ws = _existing_ws
 
             # Update URI
             if hasattr(ws, 'update_uri'):
@@ -1357,8 +1358,9 @@ class LiveManager:
         # 3. Clear WebSocket monitored symbols for all adapters (Phase 4)
         # Use _ws_client to avoid lazy creation of new WebSocket instances
         for account_id, adapter in self._adapters.items():
-            if adapter._ws_client:
-                adapter._ws_client.clear_symbols()
+            _ws = getattr(adapter, '_ws_client', None) or getattr(adapter, 'ws_client', None)
+            if _ws:
+                _ws.clear_symbols()
         logger.info(f"WebSocket symbols cleared for {len(self._adapters)} adapters")
 
         # 4. Clear MarketDataRouter
@@ -1375,8 +1377,8 @@ class LiveManager:
         """
         stopped_count = 0
         for account_id, adapter in self._adapters.items():
-            if adapter._ws_client:
-                ws = adapter._ws_client
+            ws = getattr(adapter, '_ws_client', None) or getattr(adapter, 'ws_client', None)
+            if ws:
                 ws.is_running = False
                 if ws.websocket and ws.ws_open:
                     try:
