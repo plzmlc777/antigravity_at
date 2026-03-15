@@ -248,7 +248,7 @@ const VisualBacktestChart = ({
                     secondsVisible: true,
                     borderColor: '#374151',
                     rightOffset: 12,
-                    fixLeftEdge: true,
+                    fixLeftEdge: false,
                     tickMarkFormatter: (time, tickMarkType) => {
                         const date = new Date(time * 1000);
                         if (tickMarkType < 3) {
@@ -448,7 +448,7 @@ const VisualBacktestChart = ({
         const lastCandle = visibleData[visibleData.length - 1];
         if (lastCandle) updateMarkersInViewLogic(lastCandle.time);
 
-        const from = Math.max(0, index - zoomLevel);
+        const from = index - zoomLevel;
         const to = index;
         chartInstance.current.timeScale().setVisibleLogicalRange({ from, to });
 
