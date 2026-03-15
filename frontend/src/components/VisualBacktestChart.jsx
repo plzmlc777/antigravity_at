@@ -34,6 +34,7 @@ const VisualBacktestChart = ({
     const allTradesRef = useRef([]);
     const allTradePriceDataRef = useRef([]);
     const dayChangesRef = useRef([]); // Store timestamps of day boundaries
+    const priceLinesValuesRef = useRef([]); // Track price line values for y-axis range
 
     // Helper to Draw Trade Connection Lines (Buy -> Sell pairs)
     const drawTradeConnections = (ctx, chart, dpr) => {
@@ -306,7 +307,24 @@ const VisualBacktestChart = ({
                             maxValue: priceScaleOptions.fixedYRange.max,
                         },
                     })
-                    : undefined,
+                    : (original) => {
+                        const plPrices = priceLinesValuesRef.current;
+                        if (!original?.priceRange || plPrices.length === 0) return original;
+                        const allPrices = [
+                            original.priceRange.minValue,
+                            original.priceRange.maxValue,
+                            ...plPrices,
+                        ];
+                        const minValue = Math.min(...allPrices);
+                        const maxValue = Math.max(...allPrices);
+                        const margin = (maxValue - minValue) * 0.05;
+                        return {
+                            priceRange: {
+                                minValue: minValue - margin,
+                                maxValue: maxValue + margin,
+                            },
+                        };
+                    },
             });
             series.setData(validData);
             seriesInstance.current = series;
@@ -491,6 +509,9 @@ const VisualBacktestChart = ({
             } catch (e) { }
         });
         priceLinesRef.current = [];
+
+        // Update price line values ref for autoscaleInfoProvider
+        priceLinesValuesRef.current = priceLines.map(pl => pl.price).filter(p => p > 0);
 
         // Create new price lines
         priceLines.forEach(({ price, color, title, lineWidth = 1, lineStyle = 2 }) => {
