@@ -310,15 +310,17 @@ const VisualBacktestChart = ({
                     : (original) => {
                         const originalRange = original(); // v5: original is a getter function
                         const plPrices = priceLinesValuesRef.current;
-                        if (!originalRange?.priceRange || plPrices.length === 0) return originalRange;
-                        const allPrices = [
-                            originalRange.priceRange.minValue,
-                            originalRange.priceRange.maxValue,
-                            ...plPrices,
-                        ];
+                        if (plPrices.length === 0) return originalRange;
+                        const basePrices = originalRange?.priceRange
+                            ? [originalRange.priceRange.minValue, originalRange.priceRange.maxValue]
+                            : [];
+                        const allPrices = [...basePrices, ...plPrices]
+                            .filter(p => typeof p === 'number' && isFinite(p) && p > 0);
+                        if (allPrices.length === 0) return originalRange;
                         const minValue = Math.min(...allPrices);
                         const maxValue = Math.max(...allPrices);
-                        const margin = (maxValue - minValue) * 0.05;
+                        const spread = maxValue - minValue;
+                        const margin = spread > 0 ? spread * 0.05 : maxValue * 0.02;
                         return {
                             priceRange: {
                                 minValue: minValue - margin,
@@ -512,7 +514,8 @@ const VisualBacktestChart = ({
         priceLinesRef.current = [];
 
         // Update price line values ref for autoscaleInfoProvider
-        priceLinesValuesRef.current = priceLines.map(pl => pl.price).filter(p => p > 0);
+        priceLinesValuesRef.current = priceLines.map(pl => pl.price)
+            .filter(p => typeof p === 'number' && isFinite(p) && p > 0);
 
         // Create new price lines
         priceLines.forEach(({ price, color, title, lineWidth = 1, lineStyle = 2 }) => {
