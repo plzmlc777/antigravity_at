@@ -55,6 +55,10 @@ class MartingaleBase(BaseStrategy):
         allin_val = self.config.get("last_level_allin", "off")
         self.last_level_allin = allin_val == "on" or allin_val is True
 
+        # Trailing start only after reaching last level
+        tll_val = self.config.get("trailing_on_last_level", "off")
+        self.trailing_on_last_level = tll_val == "on" or tll_val is True
+
         # Require lower price: L2+ entry only when price < last entry price
         rlp_val = self.config.get("require_lower_price", "off")
         self.require_lower_price = rlp_val == "on" or rlp_val is True
@@ -325,7 +329,11 @@ class MartingaleBase(BaseStrategy):
 
         # Trailing Stop Activation (direction-aware via _calc_price_return)
         price_return = self._calc_price_return(current_price)
-        if self.trailing_start_percent > 0 and not self.trailing_active and price_return >= (self.trailing_start_percent / 100):
+        last_level_reached = (self.current_level >= self.max_buy_count)
+        if (self.trailing_start_percent > 0
+                and not self.trailing_active
+                and price_return >= (self.trailing_start_percent / 100)
+                and (not self.trailing_on_last_level or last_level_reached)):
             self.trailing_active = True
             self.peak_price = current_price
             self.context.log(f"[{self._log_prefix}] Trailing Stop ACTIVATED. Price Return: {price_return*100:.2f}% (threshold: {self.trailing_start_percent}%)")
