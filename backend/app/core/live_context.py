@@ -728,21 +728,34 @@ class LiveContext:
                         # 2. Calculate realized_pnl for SELL orders
                         if p.signal_type == Signal.SELL:
                             try:
-                                # Query all FILLED BUY executions for this session+symbol
-                                buys = db.query(LiveTradeExecution).filter(
+                                # Find last CLOSE before current sell to scope BUYs to current cycle only
+                                last_close = db.query(LiveTradeExecution).filter(
+                                    LiveTradeExecution.session_id == self.session_id,
+                                    LiveTradeExecution.symbol == p.symbol,
+                                    LiveTradeExecution.signal_type == Signal.SELL,
+                                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                    LiveTradeExecution.id != p.id,
+                                ).order_by(LiveTradeExecution.signal_timestamp.desc()).first()
+                                buy_filter = [
                                     LiveTradeExecution.session_id == self.session_id,
                                     LiveTradeExecution.symbol == p.symbol,
                                     LiveTradeExecution.signal_type == Signal.BUY,
                                     LiveTradeExecution.status == ExecutionStatus.FILLED,
-                                ).all()
+                                ]
+                                if last_close:
+                                    buy_filter.append(LiveTradeExecution.signal_timestamp > last_close.signal_timestamp)
+                                buys = db.query(LiveTradeExecution).filter(*buy_filter).all()
                                 total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
                                 total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                                total_buy_fees = sum(b.fees or 0 for b in buys)
                                 if total_buy_qty > 0:
                                     avg_buy_price = total_buy_cost / total_buy_qty
-                                    p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
+                                    sell_proceeds = (p.executed_price or 0) * (p.filled_quantity or 0)
+                                    total_fees = total_buy_fees + (p.fees or 0)
+                                    p.realized_pnl = round(sell_proceeds - total_buy_cost - total_fees, 2)
                                     p.slippage = round(p.executed_price - p.theoretical_price, 2)
                                     p.slippage_percent = round((p.slippage / p.theoretical_price) * 100, 4) if p.theoretical_price else 0
-                                    self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, qty={p.filled_quantity})")
+                                    self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, qty={p.filled_quantity}, fees={total_fees:,.0f})")
                             except Exception as pnl_err:
                                 logger.error(f"PnL calc error: {pnl_err}")
 
@@ -942,18 +955,32 @@ class LiveContext:
                             # SELL PnL 계산
                             if p.signal_type == Signal.SELL:
                                 try:
-                                    buys = db.query(LiveTradeExecution).filter(
+                                    # Find last CLOSE before current sell to scope BUYs to current cycle only
+                                    last_close = db.query(LiveTradeExecution).filter(
+                                        LiveTradeExecution.session_id == self.session_id,
+                                        LiveTradeExecution.symbol == p.symbol,
+                                        LiveTradeExecution.signal_type == Signal.SELL,
+                                        LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                        LiveTradeExecution.id != p.id,
+                                    ).order_by(LiveTradeExecution.signal_timestamp.desc()).first()
+                                    buy_filter = [
                                         LiveTradeExecution.session_id == self.session_id,
                                         LiveTradeExecution.symbol == p.symbol,
                                         LiveTradeExecution.signal_type == Signal.BUY,
                                         LiveTradeExecution.status == ExecutionStatus.FILLED,
-                                    ).all()
+                                    ]
+                                    if last_close:
+                                        buy_filter.append(LiveTradeExecution.signal_timestamp > last_close.signal_timestamp)
+                                    buys = db.query(LiveTradeExecution).filter(*buy_filter).all()
                                     total_buy_cost = sum((b.executed_price or 0) * (b.filled_quantity or 0) for b in buys)
                                     total_buy_qty = sum(b.filled_quantity or 0 for b in buys)
+                                    total_buy_fees = sum(b.fees or 0 for b in buys)
                                     if total_buy_qty > 0:
                                         avg_buy_price = total_buy_cost / total_buy_qty
-                                        p.realized_pnl = round((p.executed_price - avg_buy_price) * p.filled_quantity, 2)
-                                        self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f})")
+                                        sell_proceeds = (p.executed_price or 0) * (p.filled_quantity or 0)
+                                        total_fees = total_buy_fees + (p.fees or 0)
+                                        p.realized_pnl = round(sell_proceeds - total_buy_cost - total_fees, 2)
+                                        self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, fees={total_fees:,.0f})")
                                 except Exception as pnl_err:
                                     logger.error(f"PnL calc error: {pnl_err}")
 
