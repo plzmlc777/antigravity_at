@@ -27,6 +27,7 @@ const VisualBacktestChart = ({
     const [sliderValue, setSliderValue] = useState(100);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(() => Number(localStorage.getItem('live_tick_speed')) || 100);
+    const ZOOM_MAX = 9999;
     const [zoomLevel, setZoomLevel] = useState(() => Number(localStorage.getItem('live_tick_zoom')) || 60);
 
     // Data Refs
@@ -35,6 +36,7 @@ const VisualBacktestChart = ({
     const allTradePriceDataRef = useRef([]);
     const dayChangesRef = useRef([]); // Store timestamps of day boundaries
     const priceLinesValuesRef = useRef([]); // Track price line values for y-axis range
+    const zoomIsMaxRef = useRef(zoomLevel === ZOOM_MAX); // autoscaleInfoProvider reads this
 
     // Helper to Draw Trade Connection Lines (Buy -> Sell pairs)
     const drawTradeConnections = (ctx, chart, dpr) => {
@@ -308,6 +310,7 @@ const VisualBacktestChart = ({
                         },
                     })
                     : (original) => {
+                        if (!zoomIsMaxRef.current) return original(); // non-max zoom: default y-axis
                         const originalRange = original(); // v5: original is a getter function
                         const plPrices = priceLinesValuesRef.current;
                         if (plPrices.length === 0) return originalRange;
@@ -491,6 +494,11 @@ const VisualBacktestChart = ({
         return () => clearInterval(interval);
     }, [isPlaying, speed]);
 
+    // Sync zoomIsMaxRef when zoomLevel changes
+    useEffect(() => {
+        zoomIsMaxRef.current = (zoomLevel === ZOOM_MAX);
+    }, [zoomLevel]);
+
     // Slider Effect (also triggers on zoomLevel change)
     useEffect(() => {
         if (!isReady || allDataRef.current.length === 0) return;
@@ -632,7 +640,7 @@ const VisualBacktestChart = ({
                             <option value={60}>Zoom: 60</option>
                             <option value={120}>Zoom: 120</option>
                             <option value={300}>Zoom: 300</option>
-                            <option value={1000}>Zoom: 1000</option>
+                            <option value={ZOOM_MAX}>Zoom: Max</option>
                         </select>
                         <select value={speed} onChange={(e) => { const v = Number(e.target.value); localStorage.setItem('live_tick_speed', v); setSpeed(v); }} className="bg-gray-900 border border-gray-600 rounded text-[10px] px-2 py-1 text-gray-300 outline-none focus:border-blue-500 hover:bg-gray-800 transition-colors">
                             <option value={1000}>Speed: 0.1x</option>
