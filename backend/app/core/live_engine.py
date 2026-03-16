@@ -63,6 +63,10 @@ class LiveTradingEngine:
         self._futures_monitor = None
         self._futures_refresh_task = None
 
+        # Position sync with exchange
+        self._last_position_sync_time: datetime = None
+        self._position_sync_interval = 600  # seconds (10 minutes)
+
     def add_tick_listener(self, listener: Callable[[Dict], None]):
         self.tick_listeners.append(listener)
 
@@ -257,15 +261,22 @@ class LiveTradingEngine:
         """Main Async Loop"""
         self.is_running = True
         logger.info("Starting Live Loop...")
-        
+
         try:
             while self.is_running:
                 loop_start = asyncio.get_running_loop().time()
-                
+
                 # Pure Event-Driven Mode (WebSocket)
                 # We do NOT poll current price via REST API to avoid Rate Limits.
                 # Data flows in via process_realtime_tick (Called by Adapter)
                 await asyncio.sleep(1)
+
+                # Periodic position sync: compare strategy internal state vs Kiwoom actual holdings
+                now = datetime.now()
+                if (self._last_position_sync_time is None or
+                        (now - self._last_position_sync_time).total_seconds() >= self._position_sync_interval):
+                    self._last_position_sync_time = now
+                    asyncio.create_task(self._sync_position_with_exchange())
                 
         except asyncio.CancelledError:
             logger.info("Live Loop Cancelled")
@@ -769,6 +780,79 @@ class LiveTradingEngine:
             # On failure, proceed with current symbol
         finally:
             self._ai_switch_in_progress = False
+
+    async def _sync_position_with_exchange(self):
+        """
+        주기적으로 키움 실제 잔고와 전략 내부 포지션을 비교하여 불일치를 감지·보정.
+        Source of Truth = 키움 API (get_balance).
+        """
+        if not self.strategy_instance or not self.context:
+            return
+
+        # 장 시간(09:00~15:30 KST)에만 실행
+        now = datetime.now()
+        if not (9 <= now.hour < 15 or (now.hour == 15 and now.minute <= 30)):
+            return
+
+        strategy_qty = getattr(self.strategy_instance, 'total_quantity', 0)
+
+        # 전략이 포지션 없다고 생각하면 검사 불필요
+        if strategy_qty <= 0:
+            return
+
+        try:
+            balance = await self.adapter.get_balance()
+            holdings = balance.get("holdings", {})
+            actual_qty = holdings.get(self.symbol, {}).get("quantity", 0)
+
+            # live_context._holdings도 최신 상태로 동기화
+            self.context._holdings[self.symbol] = actual_qty
+
+            if actual_qty == strategy_qty:
+                return  # 일치 → 정상
+
+            # 불일치 감지
+            logger.error(
+                f"[POSITION_SYNC] {self.symbol} 포지션 불일치: "
+                f"strategy={strategy_qty}, kiwoom={actual_qty} → 키움 기준으로 보정"
+            )
+
+            # 키움 기준으로 전략 내부 상태 보정
+            self.strategy_instance.total_quantity = actual_qty
+            if actual_qty == 0:
+                self.strategy_instance.current_level = 0
+                self.strategy_instance.trailing_active = False
+                self.strategy_instance.entries = []
+                self.strategy_instance.average_price = 0
+                self.strategy_instance.peak_price = 0
+                self.strategy_instance._pending_exit = False
+
+            # 텔레그램 알림
+            try:
+                from .telegram_service import send_telegram_notification
+                from ..db.session import SessionLocal
+                db = SessionLocal()
+                try:
+                    await send_telegram_notification(
+                        db=db,
+                        user_id=self.context._user_id,
+                        notification_type="error",
+                        account_id=self.context._account_id,
+                        error_type="포지션 불일치 감지",
+                        message=(
+                            f"종목 {self.symbol}: 전략={strategy_qty}주, 키움={actual_qty}주\n"
+                            f"키움 기준으로 자동 보정되었습니다."
+                        ),
+                        symbol=self.symbol,
+                        strategy_name=self.strategy_name,
+                    )
+                finally:
+                    db.close()
+            except Exception as tg_err:
+                logger.debug(f"[POSITION_SYNC] Telegram 알림 실패: {tg_err}")
+
+        except Exception as e:
+            logger.warning(f"[POSITION_SYNC] 잔고 조회 실패, 다음 주기에 재시도: {e}")
 
     def _try_ai_symbol_switch(self, from_cycle=False):
         """Check if AI symbol selection is enabled and trigger the pipeline.
