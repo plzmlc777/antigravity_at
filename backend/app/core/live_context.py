@@ -750,12 +750,15 @@ class LiveContext:
                                 total_buy_fees = sum(b.fees or 0 for b in buys)
                                 if total_buy_qty > 0:
                                     avg_buy_price = total_buy_cost / total_buy_qty
-                                    sell_proceeds = (p.executed_price or 0) * (p.filled_quantity or 0)
+                                    sell_qty = p.filled_quantity or 0
+                                    sell_proceeds = (p.executed_price or 0) * sell_qty
                                     total_fees = total_buy_fees + (p.fees or 0)
-                                    p.realized_pnl = round(sell_proceeds - total_buy_cost - total_fees, 2)
+                                    # Use avg_buy_price × sell_qty to correctly handle partial sells
+                                    # (sell_qty may differ from total_buy_qty after restarts)
+                                    p.realized_pnl = round(sell_proceeds - avg_buy_price * sell_qty - total_fees, 2)
                                     p.slippage = round(p.executed_price - p.theoretical_price, 2)
                                     p.slippage_percent = round((p.slippage / p.theoretical_price) * 100, 4) if p.theoretical_price else 0
-                                    self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, qty={p.filled_quantity}, fees={total_fees:,.0f})")
+                                    self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.4f}, sell={p.executed_price:,.4f}, qty={sell_qty}, fees={total_fees:,.0f})")
                             except Exception as pnl_err:
                                 logger.error(f"PnL calc error: {pnl_err}")
 
@@ -977,10 +980,11 @@ class LiveContext:
                                     total_buy_fees = sum(b.fees or 0 for b in buys)
                                     if total_buy_qty > 0:
                                         avg_buy_price = total_buy_cost / total_buy_qty
-                                        sell_proceeds = (p.executed_price or 0) * (p.filled_quantity or 0)
+                                        sell_qty = p.filled_quantity or 0
+                                        sell_proceeds = (p.executed_price or 0) * sell_qty
                                         total_fees = total_buy_fees + (p.fees or 0)
-                                        p.realized_pnl = round(sell_proceeds - total_buy_cost - total_fees, 2)
-                                        self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.0f}, sell={p.executed_price:,.0f}, fees={total_fees:,.0f})")
+                                        p.realized_pnl = round(sell_proceeds - avg_buy_price * sell_qty - total_fees, 2)
+                                        self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.4f}, sell={p.executed_price:,.4f}, qty={sell_qty}, fees={total_fees:,.0f})")
                                 except Exception as pnl_err:
                                     logger.error(f"PnL calc error: {pnl_err}")
 
