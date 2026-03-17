@@ -948,14 +948,7 @@ class LiveContext:
                                 else:
                                     self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
 
-                            # Cash: always use internal tracking (respects allocated capital)
-                            cash_delta = self._calc_cash_delta(
-                                p.signal_type, p.executed_price, p.filled_quantity,
-                                p.trade_metadata, p.realized_pnl or 0)
-                            self.cash += cash_delta
-                            self.log(f"Cash updated: {self.cash:,.2f} (allocated: {self.initial_capital:,.2f}, delta: {cash_delta:+,.2f})")
-
-                            # SELL PnL 계산
+                            # SELL PnL 계산 (must run BEFORE _calc_cash_delta for futures)
                             if p.signal_type == Signal.SELL:
                                 try:
                                     # Find last CLOSE before current sell to scope BUYs to current cycle only
@@ -987,6 +980,13 @@ class LiveContext:
                                         self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.4f}, sell={p.executed_price:,.4f}, qty={sell_qty}, fees={total_fees:,.0f})")
                                 except Exception as pnl_err:
                                     logger.error(f"PnL calc error: {pnl_err}")
+
+                            # Cash: always use internal tracking (respects allocated capital)
+                            cash_delta = self._calc_cash_delta(
+                                p.signal_type, p.executed_price, p.filled_quantity,
+                                p.trade_metadata, p.realized_pnl or 0)
+                            self.cash += cash_delta
+                            self.log(f"Cash updated: {self.cash:,.2f} (allocated: {self.initial_capital:,.2f}, delta: {cash_delta:+,.2f})")
 
                         # Invoke callback based on final status
                         if p.status == ExecutionStatus.FILLED and p.id in self._order_callbacks:
