@@ -27,6 +27,9 @@ class MartingaleBase(BaseStrategy):
         self.symbol = self.config.get("symbol", "UNKNOWN")
         self.max_buy_count = self.config.get("max_buy_count",
             self.config.get("max_levels", 4))  # backward-compat alias
+        # 0 = unlimited (no cap on additional buys, bounded only by capital)
+        if self.max_buy_count == 0:
+            self.max_buy_count = 999999
         self.lot_size_multiplier = self.config.get("lot_size_multiplier",
             self.config.get("pyramid_multiplier", 2.0))  # backward-compat alias
         self.base_quantity = self.config.get("base_quantity", 1)
