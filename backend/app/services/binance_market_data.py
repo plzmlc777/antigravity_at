@@ -107,14 +107,34 @@ class BinanceMarketDataService:
                 *query_filters
             ).order_by(OHLCV.timestamp.asc()).all()
 
-            # Check if data is sufficient for the requested period
-            # 24/7 crypto: ~1440 candles per day at 1m interval
-            expected_candles = days * 1440 if interval == "1m" else days * 24
-            # Consider sufficient if we have at least 70% of expected data
-            min_threshold = max(100, int(expected_candles * 0.7))
+            if len(db_candles) >= 100:
+                # Gap detection: check for missing data within the candles
+                from .gap_detector import detect_gaps
+                gaps = detect_gaps(db_candles, interval="1m", is_24h_market=True)
 
-            if len(db_candles) >= min_threshold:
-                logger.info(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol}")
+                if not gaps:
+                    logger.info(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (no gaps)")
+                    return [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low,
+                            "close": c.close, "volume": c.volume
+                        }
+                        for c in db_candles
+                    ]
+
+                # Gaps found — fill them before returning
+                logger.warning(f"[GapDetector] {symbol}: {len(gaps)} gap(s) detected. Filling...")
+                db.close()
+                db = None
+                await self._fill_gaps(symbol, gaps)
+
+                # Re-read from DB after gap fill
+                db = SessionLocal()
+                db_candles = db.query(OHLCV).filter(
+                    *query_filters
+                ).order_by(OHLCV.timestamp.asc()).all()
+                logger.info(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (after gap fill)")
                 return [
                     {
                         "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
@@ -124,7 +144,8 @@ class BinanceMarketDataService:
                     for c in db_candles
                 ]
         finally:
-            db.close()
+            if db:
+                db.close()
 
         # 2. Fetch from Binance API (insufficient DB data)
         logger.info(f"Insufficient data for {symbol} {interval} (count={len(db_candles) if 'db_candles' in dir() else 0}). Fetching from Binance API...")
@@ -383,6 +404,101 @@ class BinanceMarketDataService:
             logger.error(f"Fetch error: {e}")
             db.rollback()
             return 0
+        finally:
+            db.close()
+
+    async def _fill_gaps(self, symbol: str, gaps: list):
+        """
+        Fetch missing data for specific gap intervals from Binance API.
+        Each gap is a (gap_start, gap_end) tuple of datetime objects.
+        """
+        if not gaps:
+            return
+
+        if self.is_futures:
+            url = f"{self.base_url}/fapi/v1/klines"
+        else:
+            url = f"{self.base_url}/api/v3/klines"
+
+        client = self.http_manager.get_client()
+
+        from ..db.session import SessionLocal
+        from ..models.ohlcv import OHLCV
+        from sqlalchemy.dialects.postgresql import insert
+
+        db = SessionLocal()
+        total_filled = 0
+
+        try:
+            for gap_start, gap_end in gaps:
+                # Add 1 minute buffer to avoid refetching boundary candles
+                start_ms = int(gap_start.timestamp() * 1000) + 60000
+                end_ms = int(gap_end.timestamp() * 1000)
+
+                gap_minutes = (gap_end - gap_start).total_seconds() / 60
+                logger.info(f"[GapFill] {symbol}: filling {gap_minutes:.0f}min gap "
+                           f"({gap_start} → {gap_end})")
+
+                current_start = start_ms
+                while current_start < end_ms:
+                    params = {
+                        "symbol": symbol,
+                        "interval": "1m",
+                        "startTime": current_start,
+                        "endTime": end_ms,
+                        "limit": self.CANDLES_PER_REQUEST,
+                    }
+
+                    try:
+                        response = await client.get(url, params=params)
+                    except Exception as e:
+                        logger.error(f"[GapFill] API request failed: {e}")
+                        break
+
+                    if response.status_code != 200:
+                        logger.error(f"[GapFill] API error {response.status_code}")
+                        break
+
+                    klines = response.json()
+                    if not klines:
+                        break
+
+                    batch_data = []
+                    for k in klines:
+                        try:
+                            dt = datetime.utcfromtimestamp(k[0] / 1000)
+                            batch_data.append({
+                                "symbol": symbol, "timestamp": dt, "time_frame": "1m",
+                                "open": float(k[1]), "high": float(k[2]),
+                                "low": float(k[3]), "close": float(k[4]), "volume": float(k[5]),
+                            })
+                        except (IndexError, ValueError):
+                            continue
+
+                    if batch_data:
+                        stmt = insert(OHLCV).values(batch_data)
+                        stmt = stmt.on_conflict_do_update(
+                            constraint="uix_symbol_timestamp_tf",
+                            set_={"open": stmt.excluded.open, "high": stmt.excluded.high,
+                                   "low": stmt.excluded.low, "close": stmt.excluded.close,
+                                   "volume": stmt.excluded.volume}
+                        )
+                        db.execute(stmt)
+                        db.commit()
+
+                    total_filled += len(batch_data)
+                    current_start = klines[-1][0] + 60000
+
+                    if len(klines) < self.CANDLES_PER_REQUEST:
+                        break
+
+                    await asyncio.sleep(0.1)
+
+            logger.info(f"[GapFill] {symbol}: filled {total_filled} candles across {len(gaps)} gap(s)")
+
+        except Exception as e:
+            logger.error(f"[GapFill] Error: {e}")
+            db.rollback()
         finally:
             db.close()
 

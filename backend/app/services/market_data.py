@@ -99,8 +99,40 @@ class MarketDataService:
                 *query_filters
             ).order_by(OHLCV.timestamp.asc()).all()
             
-            if len(db_candles) >= 10: # Reduced threshold for testing
-                print(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (to_date={to_date}, end_ref={end_ref}, start_date={start_date})")
+            if len(db_candles) >= 100:
+                # Gap detection: check for missing data within trading hours
+                from .gap_detector import detect_gaps
+                gaps = detect_gaps(db_candles, interval="1m", is_24h_market=False)
+
+                if not gaps:
+                    logger.info(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (no gaps)")
+                    return [
+                        {
+                            "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                            "open": c.open, "high": c.high, "low": c.low, "close": c.close, "volume": c.volume
+                        }
+                        for c in db_candles
+                    ]
+
+                # Gaps found — Kiwoom API fetches newest-first, so full re-fetch with backfill
+                logger.warning(f"[GapDetector] {symbol}: {len(gaps)} gap(s) detected in trading hours. Re-fetching...")
+                db.close()
+                db = None
+                await self.fetch_history(symbol, interval, days, backfill=True)
+
+                # Re-read from DB after gap fill
+                db = SessionLocal()
+                query_filters_refetch = [
+                    OHLCV.symbol == symbol,
+                    OHLCV.time_frame == interval,
+                    OHLCV.timestamp >= start_date
+                ]
+                if to_date:
+                    query_filters_refetch.append(OHLCV.timestamp < end_ref)
+                db_candles = db.query(OHLCV).filter(
+                    *query_filters_refetch
+                ).order_by(OHLCV.timestamp.asc()).all()
+                logger.info(f"Loaded {len(db_candles)} {interval} candles from DB for {symbol} (after gap fill)")
                 return [
                     {
                         "timestamp": c.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
@@ -108,9 +140,10 @@ class MarketDataService:
                     }
                     for c in db_candles
                 ]
-                
+
         finally:
-            db.close()
+            if db:
+                db.close()
             
         # Count for fetch check
         db = SessionLocal()

@@ -198,3 +198,27 @@ async def get_candles(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Data Maintenance Endpoints ───────────────────────────────────────
+
+@router.get("/maintenance/status")
+async def get_maintenance_status():
+    """Get data maintenance scheduler status."""
+    from ..core.data_maintenance import data_maintenance_scheduler
+    return data_maintenance_scheduler.get_status()
+
+
+@router.post("/maintenance/run")
+async def run_maintenance(background_tasks: BackgroundTasks):
+    """
+    Manually trigger data maintenance (gap detection + backfill).
+    Runs in background and returns immediately.
+    """
+    from ..core.data_maintenance import data_maintenance_scheduler
+
+    if data_maintenance_scheduler._is_executing:
+        raise HTTPException(status_code=409, detail="Maintenance already in progress")
+
+    background_tasks.add_task(data_maintenance_scheduler.run_maintenance)
+    return {"status": "started", "message": "Data maintenance triggered in background"}

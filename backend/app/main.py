@@ -8,6 +8,7 @@ from .db.session import engine
 from .core.bot_manager import bot_manager
 from .core.condition_watcher import condition_watcher
 from .core.analysis_scheduler import analysis_scheduler
+from .core.data_maintenance import data_maintenance_scheduler
 from .models.bot import TradingBotModel # Register Model
 from .models.ohlcv import OHLCV # Register Model
 from .models.system import SystemMetadata # Register Model
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
     await live_manager.initialize() # Restore Live Sessions
     await condition_watcher.start()
     await analysis_scheduler.start()
+    await data_maintenance_scheduler.start()
 
     yield
     
@@ -44,6 +46,7 @@ async def lifespan(app: FastAPI):
     await HttpClientManager.get_instance().stop() # Close Global Client
     # await bot_manager.stop_all() # Ensure bots are stopped
     await analysis_scheduler.stop()
+    await data_maintenance_scheduler.stop()
     await condition_watcher.stop() # Stop watcher
 
 from .core.config import settings as app_settings
