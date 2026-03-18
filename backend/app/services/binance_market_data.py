@@ -8,6 +8,7 @@ Binance Market Data Service
 """
 
 import asyncio
+import calendar
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from ..core.http_client import HttpClientManager
@@ -24,6 +25,16 @@ INTERVAL_MAP = {
     "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "30m": "30m",
     "1h": "1h", "60m": "1h", "4h": "4h", "8h": "8h", "12h": "12h", "1d": "1d",
 }
+
+
+def _to_utc_ms(dt: datetime) -> int:
+    """Convert naive UTC datetime to Unix milliseconds.
+
+    datetime.timestamp() assumes local timezone for naive datetimes,
+    which causes a 9-hour offset on KST servers. calendar.timegm()
+    always treats the input as UTC.
+    """
+    return int(calendar.timegm(dt.timetuple()) * 1000)
 
 
 class BinanceMarketDataService:
@@ -209,8 +220,8 @@ class BinanceMarketDataService:
             url = f"{self.base_url}/api/v3/klines"
 
         # Calculate time range
-        end_ms = int(datetime.utcnow().timestamp() * 1000)
-        start_ms = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
+        end_ms = _to_utc_ms(datetime.utcnow())
+        start_ms = _to_utc_ms(datetime.utcnow() - timedelta(days=days))
 
         # Check for existing data (smart incremental fetch)
         from ..db.session import SessionLocal
@@ -230,8 +241,8 @@ class BinanceMarketDataService:
             ).order_by(OHLCV.timestamp.desc()).first()
 
             if first_record and last_record and not backfill:
-                first_ts_ms = int(first_record[0].timestamp() * 1000)
-                last_ts_ms = int(last_record[0].timestamp() * 1000)
+                first_ts_ms = _to_utc_ms(first_record[0])
+                last_ts_ms = _to_utc_ms(last_record[0])
 
                 if first_ts_ms > start_ms:
                     # Existing data doesn't cover the requested start → need backward fill
@@ -333,8 +344,8 @@ class BinanceMarketDataService:
 
             # Backfill: fetch older data if DB didn't cover the requested start
             if need_backfill and first_record:
-                backfill_end_ms = int(first_record[0].timestamp() * 1000) - 60000
-                backfill_start_ms = int((datetime.utcnow() - timedelta(days=days)).timestamp() * 1000)
+                backfill_end_ms = _to_utc_ms(first_record[0]) - 60000
+                backfill_start_ms = _to_utc_ms(datetime.utcnow() - timedelta(days=days))
                 current_start = backfill_start_ms
 
                 logger.info(f"Backfilling {symbol} from {datetime.utcfromtimestamp(backfill_start_ms / 1000)} to {first_record[0]}")
@@ -432,8 +443,8 @@ class BinanceMarketDataService:
         try:
             for gap_start, gap_end in gaps:
                 # Add 1 minute buffer to avoid refetching boundary candles
-                start_ms = int(gap_start.timestamp() * 1000) + 60000
-                end_ms = int(gap_end.timestamp() * 1000)
+                start_ms = _to_utc_ms(gap_start) + 60000
+                end_ms = _to_utc_ms(gap_end)
 
                 gap_minutes = (gap_end - gap_start).total_seconds() / 60
                 logger.info(f"[GapFill] {symbol}: filling {gap_minutes:.0f}min gap "
