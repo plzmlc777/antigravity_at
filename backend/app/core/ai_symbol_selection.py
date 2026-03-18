@@ -2,14 +2,12 @@
 AI Symbol Selection Service
 
 AI-driven symbol rotation for live trading sessions.
-All candidates (including current symbol) compete via backtest — no subjective
-EVALUATE step. The best performer wins.
-
 Pipeline:
-  1. FIND up to 20 candidates matching conditions (Claude CLI)
-  2. Add current symbol as competitor (with direction for futures)
-  3. COMPARE all via backtest (14-day) with optional parameter optimization
-  4. SELECT best — if current symbol wins, keep; otherwise switch
+  1. EVALUATE current symbol against search conditions
+  2. FIND up to 20 candidates matching conditions (Claude CLI)
+  3. Add current symbol as competitor ONLY IF it still meets conditions
+  4. COMPARE all via backtest (14-day) with optional parameter optimization
+  5. SELECT best — if current symbol wins, keep; otherwise switch
 """
 
 import asyncio
@@ -154,15 +152,15 @@ class AISymbolSelectionService:
         exchange_name: str = "Kiwoom",
     ) -> Optional[str]:
         """
-        AI symbol selection pipeline — competitive mode.
-        All candidates (including current symbol) compete via backtest.
+        AI symbol selection pipeline — competitive mode with condition gate.
         Returns new symbol code if a better candidate is found, None to keep current.
 
         Pipeline:
           1. Fetch market data
-          2. FIND candidates (current symbol excluded from AI search, added separately)
-          3. COMPARE all candidates + current symbol via backtest
-          4. SELECT best (if current symbol wins → keep, otherwise → switch)
+          2. EVALUATE current symbol against search conditions
+          3. FIND candidates matching conditions
+          4. Current symbol competes ONLY IF it still meets conditions
+          5. COMPARE via backtest → SELECT best
         """
         _sym_name = current_symbol_name or strategy_config.get("symbol_name", current_symbol)
         logger.info(f"[AISymbol] Pipeline START for session {session_id}, "
@@ -200,7 +198,17 @@ class AISymbolSelectionService:
                 self._clear_progress(session_id)
                 return None
 
-            # Step 3: Find candidate symbols (current symbol excluded from AI search)
+            # Step 3: EVALUATE — check if current symbol still matches conditions
+            self._update_progress(session_id, "evaluating",
+                                  f"현재 종목({current_symbol}) 조건 충족 여부 평가 중...")
+            should_switch, eval_reason = await self._check_current_symbol(
+                current_symbol, search_conditions, stock_data, ranking_data,
+            )
+            current_meets_conditions = not should_switch
+            logger.info(f"[AISymbol] EVALUATE {current_symbol}: "
+                        f"meets_conditions={current_meets_conditions}, reason={eval_reason[:200]}")
+
+            # Step 4: Find candidate symbols (current symbol excluded from AI search)
             self._update_progress(session_id, "finding", "AI가 후보 종목 탐색 중...")
             candidates = await self._find_candidates(
                 current_symbol, search_conditions, stock_data, ranking_data,
@@ -208,19 +216,35 @@ class AISymbolSelectionService:
                 is_futures=is_futures,
             )
 
-            # Step 4: Add current symbol as a competitor
-            # For futures, include current direction; for spot, just the code
-            current_entry = {"code": current_symbol, "name": _sym_name, "_is_current": True}
-            if is_futures:
-                current_direction = strategy_config.get("position_side", "long")
-                current_entry["direction"] = current_direction
-            all_competitors = [current_entry] + (candidates or [])
+            # Step 5: Build competitor list — current symbol only if it meets conditions
+            if current_meets_conditions:
+                current_entry = {"code": current_symbol, "name": _sym_name, "_is_current": True}
+                if is_futures:
+                    current_direction = strategy_config.get("position_side", "long")
+                    current_entry["direction"] = current_direction
+                all_competitors = [current_entry] + (candidates or [])
+                logger.info(f"[AISymbol] Current symbol PASSES conditions — competing with {len(candidates or [])} candidates")
+            else:
+                all_competitors = candidates or []
+                logger.info(f"[AISymbol] Current symbol FAILS conditions ({eval_reason[:100]}) — "
+                            f"excluded from competition. {len(all_competitors)} candidates only.")
+
+            if not all_competitors:
+                reason = f"현재 종목 조건 미충족 + 후보 없음 — 현재 종목 유지\n[평가] {eval_reason}"
+                logger.warning(f"[AISymbol] No competitors at all. Keeping current symbol.")
+                self._update_progress(session_id, "done", reason)
+                self._save_history(session_id, group_id, "kept",
+                                   old_symbol=current_symbol,
+                                   old_symbol_name=_sym_name,
+                                   search_conditions=search_conditions,
+                                   evaluation_reason=reason)
+                self._clear_progress(session_id)
+                return None
 
             codes = [c["code"] for c in all_competitors]
-            logger.info(f"[AISymbol] Competing {len(all_competitors)} symbols "
-                        f"(including current {current_symbol}): {codes}")
+            logger.info(f"[AISymbol] Competing {len(all_competitors)} symbols: {codes}")
 
-            # Step 5: Generate optimization ranges via AI (if params selected)
+            # Step 6: Generate optimization ranges via AI (if params selected)
             optimize_param_names = ai_optimize_params.get("params", []) if ai_optimize_params else []
             optimize_params = {}
             if optimize_param_names and isinstance(optimize_param_names, list) and len(optimize_param_names) > 0:
@@ -235,7 +259,7 @@ class AISymbolSelectionService:
                 else:
                     logger.warning("[AISymbol] AI failed to generate ranges, proceeding without optimization")
 
-            # Step 6: Backtest ALL competitors (current + candidates)
+            # Step 7: Backtest ALL competitors
             if optimize_params:
                 import itertools
                 keys = list(optimize_params.keys())
@@ -273,7 +297,7 @@ class AISymbolSelectionService:
                 self._clear_progress(session_id)
                 return None
 
-            # Step 7: AI selects best symbol+params from backtest results
+            # Step 8: AI selects best symbol+params from backtest results
             best_symbol, best_params, select_reason = await self._ai_select_best(
                 compare_results, search_conditions, strategy_name,
                 current_symbol, session_id=session_id,
@@ -296,7 +320,7 @@ class AISymbolSelectionService:
             bt_results = self._progress.get(session_id, {}).get("results", [])
             params_str = f" (params: {best_params})" if best_params else ""
 
-            # Step 8: Check if current symbol won the competition
+            # Step 9: Check if current symbol won the competition
             if best_symbol == current_symbol:
                 # Current symbol is the best — keep it, but apply optimized params if changed
                 params_changed = False
@@ -341,7 +365,7 @@ class AISymbolSelectionService:
                     self._last_result = {"symbol": None, "optimized_params": None}
                     return None
 
-            # Step 9: A new symbol won — switch
+            # Step 10: A new symbol won — switch
             reason = f"[결과] {current_symbol} → {best_symbol}{params_str}"
             if select_reason:
                 reason += f"\n[선정 사유] {select_reason}"
