@@ -50,6 +50,10 @@ class LiveContext:
         # Callback is invoked after order is FILLED with (order_id, filled_qty, filled_price, metadata)
         self._order_callbacks: Dict[str, Callable] = {}
 
+        # Pause gate: when True, _execute_order() returns immediately without creating DB records.
+        # Synced from LiveTradingEngine.orders_enabled (inverted).
+        self.orders_paused: bool = False
+
         # Futures data cache (updated by LiveEngine for FuturesInterface adapters)
         self._futures_data_cache: Dict[str, Dict[str, Any]] = {}
 
@@ -399,6 +403,13 @@ class LiveContext:
         4. DB Update (SUBMITTED/FAILED)
         5. Invoke on_filled callback after FILLED (in process_queue)
         """
+        # Pause gate: block order creation entirely when orders are paused.
+        # This prevents PENDING records from accumulating in DB during pause,
+        # which would otherwise execute all at once on resume/restart.
+        if self.orders_paused:
+            self.log(f"ORDER BLOCKED (paused): {side.value} {quantity} {symbol}")
+            return {"status": "failed", "reason": "orders_paused"}
+
         db: Session = SessionLocal()
         try:
             current_price = self.get_current_price(symbol)
@@ -648,6 +659,10 @@ class LiveContext:
         CRITICAL: Each order is processed in its own isolated DB transaction.
         This prevents one order's failure from affecting others.
         """
+        # Safety: skip if orders are paused (should not be called, but guard anyway)
+        if self.orders_paused:
+            return
+
         # First, get list of pending execution IDs (lightweight query)
         db_query: Session = SessionLocal()
         try:

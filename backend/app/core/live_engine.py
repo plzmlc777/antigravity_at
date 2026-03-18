@@ -126,6 +126,9 @@ class LiveTradingEngine:
                 account_id=self._account_id
             )
 
+            # Sync pause state to context (prevents PENDING accumulation)
+            self.context.orders_paused = not self.orders_enabled
+
             # Wire exclusive mode gate (blocks buy if another session holds the lock)
             if self._is_exclusive:
                 from .live_manager import live_manager
@@ -1012,4 +1015,36 @@ class LiveTradingEngine:
 
     def toggle_orders(self, enabled: bool):
         self.orders_enabled = enabled
+        # Sync pause gate to context
+        if self.context:
+            self.context.orders_paused = not enabled
         logger.info(f"Session {self.session_id}: Orders {'Enabled' if enabled else 'Disabled'}")
+
+        # When pausing: cancel all PENDING orders to prevent them executing on resume/restart
+        if not enabled:
+            self._cancel_pending_orders()
+
+    def _cancel_pending_orders(self):
+        """Cancel all PENDING orders in DB for this session.
+
+        Called when orders are paused to prevent stale PENDING records
+        from executing on resume or PM2 restart.
+        """
+        from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+        db = SessionLocal()
+        try:
+            pending = db.query(LiveTradeExecution).filter(
+                LiveTradeExecution.session_id == self.session_id,
+                LiveTradeExecution.status == ExecutionStatus.PENDING,
+            ).all()
+            if pending:
+                for p in pending:
+                    p.status = ExecutionStatus.FAILED
+                    p.error_reason = "Cancelled: orders paused"
+                db.commit()
+                logger.info(f"Session {self.session_id}: Cancelled {len(pending)} PENDING orders (pause)")
+        except Exception as e:
+            logger.error(f"Failed to cancel pending orders: {e}")
+            db.rollback()
+        finally:
+            db.close()
