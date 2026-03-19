@@ -282,6 +282,7 @@ class AISymbolSelectionService:
                 all_competitors, strategy_name, strategy_config, initial_capital,
                 session_id=session_id,
                 optimize_params=optimize_params,
+                exchange_name=exchange_name,
             )
             if not compare_results:
                 bt_results = self._progress.get(session_id, {}).get("results", [])
@@ -405,6 +406,7 @@ class AISymbolSelectionService:
         optimize_param_names: list,
         is_futures: bool = False,
         candidates_for_range=None,
+        exchange_name: str = "Kiwoom",
     ) -> Optional[str]:
         """Optimize parameters for the CURRENT symbol (no symbol switch).
 
@@ -467,6 +469,7 @@ class AISymbolSelectionService:
             [cand], strategy_name, strategy_config, initial_capital,
             session_id=session_id,
             optimize_params=optimize_params,
+            exchange_name=exchange_name,
         )
 
         if not compare_results:
@@ -861,6 +864,7 @@ class AISymbolSelectionService:
         initial_capital: float,
         session_id: str = None,
         optimize_params: dict = None,
+        exchange_name: str = "Kiwoom",
     ) -> List[dict]:
         """Compare candidates via backtest (14-day) with same strategy params.
 
@@ -1580,6 +1584,7 @@ class AISymbolSelectionService:
                 ranked = await self._compare_symbols_group(
                     candidates, first["strategy_name"], first["strategy_config"],
                     first["initial_capital"], session_ids=switch_sids,
+                    exchange_name=group_exchange_name,
                 )
 
                 # 6. ASSIGN top N candidates to N sessions
@@ -1653,6 +1658,7 @@ class AISymbolSelectionService:
         strategy_config: dict,
         initial_capital: float,
         session_ids: List[str] = None,
+        exchange_name: str = "Kiwoom",
     ) -> List[tuple]:
         """
         Compare candidates via backtest. Returns ranked list:
@@ -1698,7 +1704,7 @@ class AISymbolSelectionService:
                     initial_capital=int(initial_capital),
                     execution_mode="single",
                     optimize_mode=True,
-                    exchange_name=group_exchange_name,
+                    exchange_name=exchange_name,
                 )
 
                 if "error" in result:
