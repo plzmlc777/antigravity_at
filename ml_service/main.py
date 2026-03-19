@@ -317,6 +317,40 @@ async def screener_run():
     return {'total': len(results), 'symbols': [r['symbol'] for r in results], 'details': results}
 
 
+# ========== Martingale Screener endpoints ==========
+
+@app.post('/martingale/screen')
+async def martingale_screen(
+    top_n: int = Query(10),
+    min_volume: float = Query(10_000_000, description='Min 24h volume USD'),
+    symbols: Optional[str] = Query(None, description='Comma-separated symbols (optional)'),
+):
+    """마틴게일 전략에 최적인 종목 스크리닝."""
+    from martingale_screener import screen_martingale_candidates
+    symbol_list = [s.strip() for s in symbols.split(',') if s.strip()] if symbols else None
+    return await screen_martingale_candidates(symbol_list, top_n, min_volume)
+
+
+@app.get('/martingale/candidates')
+async def martingale_candidates(top_n: int = Query(10)):
+    """최신 마틴게일 스크리닝 결과 (캐시)."""
+    from martingale_screener import get_latest_result
+    result = get_latest_result()
+    if not result:
+        return {'error': 'No screening result yet. Run POST /martingale/screen first.'}
+    return result
+
+
+@app.get('/martingale/analyze/{symbol}')
+async def martingale_analyze(symbol: str):
+    """단일 종목 마틴게일 적합도 분석."""
+    from martingale_screener import analyze_symbol, _sanitize_for_json
+    result = analyze_symbol(symbol)
+    if not result:
+        return {'error': f'Not enough data for {symbol}'}
+    return _sanitize_for_json(result)
+
+
 # ========== Prediction endpoints (legacy) ==========
 
 @app.get('/predict/{symbol}')
