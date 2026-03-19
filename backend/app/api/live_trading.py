@@ -916,6 +916,7 @@ async def get_all_sessions(
 async def get_accumulated_stats(
     symbols: str = "",
     strategy_name: str = "",
+    session_ids: str = "",
     db: Session = Depends(get_db),
     ctx: UserAccountContext = Depends(get_user_context)
 ):
@@ -934,6 +935,7 @@ async def get_accumulated_stats(
 
     try:
         symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else []
+        session_id_list = [s.strip() for s in session_ids.split(",") if s.strip()] if session_ids else []
 
         # Build query - filter by user's account
         query = db.query(LiveTradeExecution).join(LiveBotSession).filter(
@@ -945,7 +947,10 @@ async def get_accumulated_stats(
         if strategy_name:
             query = query.filter(LiveBotSession.strategy_name == strategy_name)
 
-        if symbol_list:
+        # session_ids takes priority over symbols for AI mode sessions
+        if session_id_list:
+            query = query.filter(LiveTradeExecution.session_id.in_(session_id_list))
+        elif symbol_list:
             query = query.filter(LiveTradeExecution.symbol.in_(symbol_list))
 
         executions = query.order_by(LiveTradeExecution.signal_timestamp).all()

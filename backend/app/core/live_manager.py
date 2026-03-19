@@ -1098,7 +1098,14 @@ class LiveManager:
 
             trade_stats = {}
             try:
-                trade_stats = eng.context.get_trade_stats(symbol=eng.symbol)
+                # AI symbol mode: show all symbols stats (not just current)
+                _ai_mode = getattr(eng, '_ai_symbol_mode', None)
+                if not _ai_mode:
+                    _ai_mode = (eng.strategy_config or {}).get('ai_symbol_mode', 'static')
+                if _ai_mode == 'ai':
+                    trade_stats = eng.context.get_trade_stats(symbol=None)
+                else:
+                    trade_stats = eng.context.get_trade_stats(symbol=eng.symbol)
             except Exception:
                 pass
 

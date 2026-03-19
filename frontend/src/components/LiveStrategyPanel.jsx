@@ -151,14 +151,18 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
 
     // Fetch accumulated stats on mount and when configList/strategyName changes
     // This aggregates ALL historical cycles across all sessions with matching (symbol, strategy)
+    // For AI mode sessions, use session_ids to get all traded symbols (not just current)
     useEffect(() => {
         const fetchAccumulatedStats = async () => {
             if (!configList || configList.length === 0) return;
             const symbols = configList.map(c => c.symbol).filter(Boolean);
             if (symbols.length === 0) return;
             try {
-                // Pass strategyName to filter by strategy (aggregates all historical sessions)
-                const stats = await getAccumulatedStats(symbols, strategyName);
+                // Collect session IDs for AI mode sessions (they trade multiple symbols)
+                const aiSessionIds = configList
+                    .filter(c => c.ai_symbol_mode === 'ai' && c.session_id)
+                    .map(c => c.session_id);
+                const stats = await getAccumulatedStats(symbols, strategyName, aiSessionIds);
                 setAccumulatedStats(stats || {});
             } catch (err) {
                 console.error('Failed to fetch accumulated stats:', err);

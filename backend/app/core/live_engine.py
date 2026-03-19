@@ -98,6 +98,7 @@ class LiveTradingEngine:
             # Detect exclusive mode from strategy config
             config = session.strategy_config or {}
             self._is_exclusive = config.get("execution_mode") == "exclusive"
+            self._ai_symbol_mode = getattr(session, 'ai_symbol_mode', 'static') or 'static'
 
             # 1. Strategy Resolution
             strategy_name = session.strategy_name

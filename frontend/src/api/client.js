@@ -306,10 +306,11 @@ export const liquidateLiveBot = async (sessionId, { autoStop = true } = {}) => {
     return data;
 };
 
-export const getAccumulatedStats = async (symbols = [], strategyName = '') => {
+export const getAccumulatedStats = async (symbols = [], strategyName = '', sessionIds = []) => {
     const symbolsParam = symbols.join(',');
     const strategyParam = strategyName ? `&strategy_name=${encodeURIComponent(strategyName)}` : '';
-    const { data } = await api.get(`/live/accumulated-stats?symbols=${symbolsParam}${strategyParam}`);
+    const sessionParam = sessionIds.length > 0 ? `&session_ids=${sessionIds.join(',')}` : '';
+    const { data } = await api.get(`/live/accumulated-stats?symbols=${symbolsParam}${strategyParam}${sessionParam}`);
     return data;
 };
 
