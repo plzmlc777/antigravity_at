@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Query, BackgroundTasks
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix='/ml', tags=['ML Prediction'])
+router = APIRouter(prefix='', tags=['ML Prediction'])
 
 
 @router.post('/train/{symbol}')

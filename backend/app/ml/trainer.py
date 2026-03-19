@@ -185,7 +185,7 @@ class TrendTrainer:
             'top_features': top_features,
             'trained_at': datetime.utcnow().isoformat(),
         }
-        logger.info(f'[ML] Training complete: acc={metrics[accuracy]}, auc={metrics[auc]}')
+        logger.info(f'[ML] Training complete: acc={metrics["accuracy"]}, auc={metrics["auc"]}')
         return result
 
     def _save_model(self, metrics: dict, top_features: list):
