@@ -90,6 +90,12 @@ class LiveBotSession(Base):
     original_symbol_name = Column(String, nullable=True)   # 프로필 원래 종목명
     ai_optimize_params = Column(JSON, nullable=True)       # 파라미터 최적화 설정 {"params": {"leverage": [1,5,10], ...}}
 
+    # Position Snapshot (survives PM2 restart — primary restore source)
+    # {"current_level": 3, "total_quantity": 10743, "average_price": 1.033, "entries": [...],
+    #  "peak_price": 1.037, "reference_price": 1.0299, "trailing_active": false, "is_short": false,
+    #  "paper_cycle_id": 9, "real_cycle_id": 0, "cycle_start_time": "...", "cycle_max_level": 4}
+    position_snapshot = Column(JSON, nullable=True)
+
     # Archive (hide from list without deleting trade history)
     is_archived = Column(Boolean, default=False)
 

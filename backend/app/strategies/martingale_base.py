@@ -114,40 +114,152 @@ class MartingaleBase(BaseStrategy):
         # Reconstruct position state from DB execution records (survives PM2 restart)
         self._reconstruct_position_from_db()
 
-    def _reconstruct_position_from_db(self):
+    def _save_position_snapshot(self):
         """
-        Reconstruct position state from DB execution records after PM2 restart.
-        Prevents the strategy from "forgetting" its open position.
+        Save current position state to DB as a JSON snapshot.
+        Called after every entry/exit to ensure PM2 restart can restore accurately.
         """
         try:
             from ..db.session import SessionLocal
-            from ..models.live_trading import LiveTradeExecution, ExecutionStatus
+            from ..models.live_trading import LiveBotSession
 
             session_id = getattr(self.context, 'session_id', None)
             if not session_id:
+                logger.warning(f"[{self._log_prefix}] Cannot save snapshot: no session_id")
+                return
+
+            snapshot = {
+                "current_level": self.current_level,
+                "total_quantity": self.total_quantity,
+                "average_price": self.average_price,
+                "entries": self.entries,
+                "peak_price": self.peak_price,
+                "reference_price": self.reference_price,
+                "trailing_active": self.trailing_active,
+                "is_short": self.is_short,
+                "is_hodl": self.is_hodl,
+                "paper_cycle_id": self.paper_cycle_id,
+                "real_cycle_id": self.real_cycle_id,
+                "cycle_start_time": self.cycle_start_time.isoformat() if self.cycle_start_time else None,
+                "cycle_max_level": self.cycle_max_level,
+                "_cycle_start_equity": self._cycle_start_equity,
+                "saved_at": datetime.utcnow().isoformat(),
+            }
+
+            db = SessionLocal()
+            try:
+                db.query(LiveBotSession).filter(
+                    LiveBotSession.id == session_id
+                ).update({"position_snapshot": snapshot})
+                db.commit()
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.warning(f"[{self._log_prefix}] Failed to save position snapshot: {e}")
+
+    def _reconstruct_position_from_db(self):
+        """
+        Reconstruct position state after PM2 restart.
+        Strategy: 1) Use position_snapshot (fast, reliable)
+                  2) Fall back to execution-record reconstruction (slow, complex)
+        """
+        try:
+            from ..db.session import SessionLocal
+            from ..models.live_trading import LiveBotSession, LiveTradeExecution, ExecutionStatus
+
+            session_id = getattr(self.context, 'session_id', None)
+            if not session_id:
+                logger.error(f"[{self._log_prefix}] RESTORE FAILED: session_id is None in context!")
                 return
 
             db = SessionLocal()
             try:
+                # === Phase 1: Try snapshot restore (primary) ===
+                session = db.query(LiveBotSession).filter(
+                    LiveBotSession.id == session_id
+                ).first()
+
+                if session and session.position_snapshot:
+                    snap = session.position_snapshot
+                    saved_at_str = snap.get("saved_at")
+
+                    # Cross-validate: check if executions exist AFTER snapshot was saved
+                    snapshot_stale = False
+                    if saved_at_str:
+                        try:
+                            saved_at_dt = datetime.fromisoformat(saved_at_str)
+                            latest_exec = db.query(LiveTradeExecution).filter(
+                                LiveTradeExecution.session_id == session_id,
+                                LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                LiveTradeExecution.signal_timestamp > saved_at_dt
+                            ).order_by(LiveTradeExecution.signal_timestamp.desc()).first()
+
+                            if latest_exec:
+                                snapshot_stale = True
+                                logger.warning(
+                                    f"[{self._log_prefix}] Snapshot STALE! "
+                                    f"Saved at {saved_at_str}, but found execution at "
+                                    f"{latest_exec.signal_timestamp} ({latest_exec.signal_type}). "
+                                    f"Falling back to execution-record reconstruction."
+                                )
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"[{self._log_prefix}] Could not parse snapshot saved_at: {e}")
+                            snapshot_stale = True
+
+                    if not snapshot_stale:
+                        self.current_level = snap.get("current_level", 0)
+                        self.total_quantity = snap.get("total_quantity", 0)
+                        self.average_price = snap.get("average_price", 0)
+                        self.entries = snap.get("entries", [])
+                        self.peak_price = snap.get("peak_price", 0)
+                        self.reference_price = snap.get("reference_price", None)
+                        self.trailing_active = snap.get("trailing_active", False)
+                        self.is_short = snap.get("is_short", False)
+                        self.is_hodl = snap.get("is_hodl", False)
+                        self.paper_cycle_id = snap.get("paper_cycle_id", 0)
+                        self.real_cycle_id = snap.get("real_cycle_id", 0)
+                        self.cycle_max_level = snap.get("cycle_max_level", None)
+                        self._cycle_start_equity = snap.get("_cycle_start_equity", None)
+
+                        cst = snap.get("cycle_start_time")
+                        if cst:
+                            try:
+                                self.cycle_start_time = datetime.fromisoformat(cst)
+                            except (ValueError, TypeError):
+                                self.cycle_start_time = None
+
+                        self.context.log(
+                            f"[{self._log_prefix}] Position RESTORED from SNAPSHOT: "
+                            f"L{self.current_level}, {self.total_quantity} qty, "
+                            f"Avg: {self.average_price:,.4f}, "
+                            f"Cycles: paper={self.paper_cycle_id} real={self.real_cycle_id}, "
+                            f"Snapshot saved at: {saved_at_str}"
+                        )
+                        return  # Snapshot restore success
+
+                    # snapshot_stale=True → fall through to Phase 2
+
+                # === Phase 2: Fallback to execution-record reconstruction ===
+                logger.info(f"[{self._log_prefix}] No snapshot found, falling back to execution-record reconstruction")
+
                 executions = db.query(LiveTradeExecution).filter(
                     LiveTradeExecution.session_id == session_id,
                     LiveTradeExecution.status == ExecutionStatus.FILLED
                 ).order_by(LiveTradeExecution.signal_timestamp).all()
 
                 if not executions:
-                    return  # No trades yet, fresh session
+                    logger.info(f"[{self._log_prefix}] No executions found for session {session_id}. Fresh session.")
+                    return
 
                 # 1. Count completed cycles and find last CLOSE index
                 last_close_idx = -1
                 paper_cycles = 0
                 real_cycles = 0
 
-                # Determine entry/close signal types based on position side
-                # LONG: entry=BUY, close=SELL. SHORT: entry=SELL (with position_side=short metadata), close=BUY
                 for i, ex in enumerate(executions):
                     metadata = ex.trade_metadata or {}
                     is_close = metadata.get("level") == Level.CLOSE
-                    # Legacy: SELL without position_side metadata = LONG close
                     if not is_close and ex.signal_type == Signal.SELL and metadata.get("position_side", "").lower() != Side.SHORT:
                         is_close = True
                     if is_close:
@@ -170,33 +282,32 @@ class MartingaleBase(BaseStrategy):
                     metadata = ex.trade_metadata or {}
                     is_entry = False
                     if self.position_side == Side.BOTH:
-                        # "both" mode: detect direction from metadata
                         if metadata.get("position_side", "").lower() == Side.SHORT and ex.signal_type == Signal.SELL:
                             is_entry = True
                         elif metadata.get("position_side", "").lower() == Side.LONG and ex.signal_type == Signal.BUY:
                             is_entry = True
                         elif ex.signal_type == Signal.BUY and metadata.get("position_side", "").lower() != Side.SHORT:
-                            is_entry = True  # Legacy BUY without metadata = LONG
+                            is_entry = True
                     elif self.is_short:
-                        # SHORT entries: SELL with position_side=short metadata
                         if ex.signal_type == Signal.SELL and metadata.get("position_side", "").lower() == Side.SHORT:
                             is_entry = True
                     else:
-                        # LONG entries: BUY signal
                         if ex.signal_type == Signal.BUY:
                             is_entry = True
                     if is_entry:
                         open_buys.append(ex)
 
                 if not open_buys:
-                    if paper_cycles > 0 or real_cycles > 0:
-                        self.context.log(
-                            f"[{self._log_prefix}] DB restore: No open position. "
-                            f"Cycles: paper={paper_cycles} real={real_cycles}"
-                        )
-                    return  # No open position, at L0
+                    self.context.log(
+                        f"[{self._log_prefix}] DB restore (fallback): No open position. "
+                        f"Cycles: paper={paper_cycles} real={real_cycles}, "
+                        f"Total executions: {len(executions)}, Last close idx: {last_close_idx}"
+                    )
+                    # Save snapshot so next restart uses Phase 1
+                    self._save_position_snapshot()
+                    return
 
-                # 4. Reconstruct position state from open BUYs
+                # 4. Reconstruct position state from open entries
                 total_qty = 0
                 total_cost = 0.0
                 entries = []
@@ -208,7 +319,10 @@ class MartingaleBase(BaseStrategy):
                     metadata = ex.trade_metadata or {}
                     level = metadata.get("level", len(entries) + 1)
                     if not isinstance(level, int):
-                        level = len(entries) + 1
+                        try:
+                            level = int(level)
+                        except (ValueError, TypeError):
+                            level = len(entries) + 1
 
                     total_qty += qty
                     total_cost += price * qty
@@ -230,21 +344,27 @@ class MartingaleBase(BaseStrategy):
                     self.peak_price = max(e["price"] for e in entries)
                     self.cycle_start_time = open_buys[0].signal_timestamp
 
-                    # "both" mode: restore is_short from first entry's metadata
                     if self.position_side == Side.BOTH and open_buys:
                         first_meta = open_buys[0].trade_metadata or {}
                         self.is_short = (first_meta.get("position_side", "").lower() == Side.SHORT)
 
                     self.context.log(
-                        f"[{self._log_prefix}] Position RESTORED from DB: "
+                        f"[{self._log_prefix}] Position RESTORED from EXECUTIONS (fallback): "
                         f"L{self.current_level}, {self.total_quantity} qty, "
-                        f"Avg: {self.average_price:,.0f}, "
+                        f"Avg: {self.average_price:,.4f}, Entries: {len(entries)}, "
                         f"Cycles: paper={paper_cycles} real={real_cycles}"
+                    )
+                    # Save snapshot so next restart uses Phase 1
+                    self._save_position_snapshot()
+                else:
+                    logger.warning(
+                        f"[{self._log_prefix}] Execution restore found {len(open_buys)} entries but total_qty=0. "
+                        f"Entries: {[(ex.signal_type, ex.filled_quantity, ex.requested_quantity) for ex in open_buys]}"
                     )
             finally:
                 db.close()
         except Exception as e:
-            logger.warning(f"Position reconstruction failed: {e}")
+            logger.error(f"[{self._log_prefix}] Position reconstruction FAILED with exception: {e}")
             import traceback
             traceback.print_exc()
 
@@ -490,6 +610,7 @@ class MartingaleBase(BaseStrategy):
                                 if filled_qty > 0:  # Success
                                     self._add_position(filled_price, filled_qty, _level)
                                     self.context.log(f"[{self._log_prefix}] L{_level} Entry FILLED @ {filled_price:,.0f}. Avg: {self.average_price:,.0f}")
+                                    self._save_position_snapshot()
                                 # else: async failure, already logged by context
 
                             actual_side = Side.SHORT if self.is_short else Side.LONG
@@ -531,6 +652,7 @@ class MartingaleBase(BaseStrategy):
                             self.peak_price = filled_price
                             self.cycle_start_time = self.context.get_time()
                             self.context.log(f"[{self._log_prefix}] L1 Entry FILLED @ {filled_price:,.0f} (cycle_equity: {self._cycle_start_equity:,.0f})")
+                            self._save_position_snapshot()
                         # else: async failure, already logged by context
 
                     actual_side = Side.SHORT if self.is_short else Side.LONG
@@ -621,6 +743,7 @@ class MartingaleBase(BaseStrategy):
                 self._resolved_base_qty = None
                 self._cycle_start_equity = None
                 self.context.log(f"[{self._log_prefix}] Cycle {cycle_id} CLOSED @ {filled_price:,.0f}")
+                self._save_position_snapshot()
             # else: async failure, already logged by context
 
         actual_side = Side.SHORT if self.is_short else Side.LONG
