@@ -1401,18 +1401,24 @@ class AISymbolSelectionService:
 
     async def request_group_evaluation(self, session_info: dict):
         """
-        Entry point for group-level AI symbol selection.
-        Called by LiveTradingEngine when a grouped session completes a cycle.
-        Registers the session and starts a collection timer for batch processing.
+        Unified entry point for AI symbol selection (both group and solo sessions).
+        Group sessions: batched with timer to collect multiple sessions.
+        Solo sessions: executed immediately without timer delay.
         """
-        group_id = session_info["group_id"]
+        group_id = session_info.get("group_id")
         session_id = session_info["session_id"]
+        is_solo = not group_id
+
+        # Solo sessions get a temporary group_id for pipeline reuse
+        if is_solo:
+            group_id = f"solo_{session_id}"
+            session_info["group_id"] = group_id
 
         # Ensure group lock exists
         if group_id not in self._group_locks:
             self._group_locks[group_id] = asyncio.Lock()
 
-        # If group pipeline is already running, skip (will retry on next cycle)
+        # If pipeline is already running for this group, skip
         if self._group_locks[group_id].locked():
             logger.info(f"[AISymbol] Group {group_id[:8]} pipeline running. "
                         f"Skipping session {session_id[:8]}")
@@ -1424,14 +1430,19 @@ class AISymbolSelectionService:
         self._group_pending[group_id][session_id] = session_info
 
         pending_count = len(self._group_pending[group_id])
-        logger.info(f"[AISymbol] Session {session_id[:8]} registered for group "
-                    f"{group_id[:8]} evaluation ({pending_count} pending)")
+        logger.info(f"[AISymbol] Session {session_id[:8]} registered for "
+                    f"{"solo" if is_solo else "group " + group_id[:8]} "
+                    f"evaluation ({pending_count} pending)")
 
-        self._update_progress(session_id, "waiting",
-                              f"그룹 평가 대기 중... ({pending_count}개 세션)")
-
-        # Start or restart the collection timer
-        self._restart_collection_timer(group_id)
+        if is_solo:
+            # Solo: execute immediately, no timer
+            self._update_progress(session_id, "init", "파이프라인 시작...")
+            asyncio.create_task(self._run_group_pipeline(group_id))
+        else:
+            # Group: wait for other sessions
+            self._update_progress(session_id, "waiting",
+                                  f"그룹 평가 대기 중... ({pending_count}개 세션)")
+            self._restart_collection_timer(group_id)
 
     def _restart_collection_timer(self, group_id: str):
         """
