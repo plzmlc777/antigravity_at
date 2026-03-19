@@ -122,17 +122,21 @@ class LiveContext:
             equity += qty * price
         return equity
 
-    def calculate_pnl(self) -> float:
+    def calculate_pnl(self, symbol: str = None) -> float:
         """
         Calculates PnL based ONLY on trades executed during this session.
         PnL = Sum of (Sold Value) - Sum of (Bought Value) + (Current Holding Value)
+        If symbol is provided, only include executions for that symbol.
         """
         db = SessionLocal()
         try:
-            executions = db.query(LiveTradeExecution).filter(
+            query = db.query(LiveTradeExecution).filter(
                 LiveTradeExecution.session_id == self.session_id,
                 LiveTradeExecution.status == ExecutionStatus.FILLED
-            ).all()
+            )
+            if symbol:
+                query = query.filter(LiveTradeExecution.symbol == symbol)
+            executions = query.all()
             
             total_bought_cost = 0.0
             total_sold_value = 0.0
@@ -178,17 +182,22 @@ class LiveContext:
         finally:
             db.close()
 
-    def get_trade_stats(self) -> Dict[str, Any]:
+    def get_trade_stats(self, symbol: str = None) -> Dict[str, Any]:
         """
         Compute accumulated trade stats separated by Paper/Real.
         Tracks per-cycle PnL for win_rate, max_pnl, min_pnl, recent_10_win_rate.
+        If symbol is provided, only include executions for that symbol
+        (used after AI symbol switch to show only current symbol's stats).
         """
         db = SessionLocal()
         try:
-            executions = db.query(LiveTradeExecution).filter(
+            query = db.query(LiveTradeExecution).filter(
                 LiveTradeExecution.session_id == self.session_id,
                 LiveTradeExecution.status == ExecutionStatus.FILLED
-            ).order_by(LiveTradeExecution.signal_timestamp).all()
+            )
+            if symbol:
+                query = query.filter(LiveTradeExecution.symbol == symbol)
+            executions = query.order_by(LiveTradeExecution.signal_timestamp).all()
 
             stats = {
                 Mode.PAPER: {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},

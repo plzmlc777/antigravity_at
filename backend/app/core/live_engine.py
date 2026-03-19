@@ -952,7 +952,7 @@ class LiveTradingEngine:
                 initial_capital=session_info["initial_capital"],
                 account_id=session_info["account_id"],
                 is_paper=session_info["is_paper"],
-                group_id=None,
+                group_id=session_info.get("group_id"),
                 current_symbol_name=session_info.get("current_symbol_name"),
                 ai_optimize_params=session_info.get("ai_optimize_params"),
                 is_futures=session_info.get("is_futures", False),

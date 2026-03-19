@@ -1087,7 +1087,7 @@ class LiveManager:
                     logger.warning(f"Failed to fetch price for {eng.symbol}: {e}")
 
             # Context Summary (Isolated PnL based on trades)
-            pnl = eng.context.calculate_pnl()
+            pnl = eng.context.calculate_pnl(symbol=eng.symbol)
 
             strategy_state = {}
             try:
@@ -1098,7 +1098,7 @@ class LiveManager:
 
             trade_stats = {}
             try:
-                trade_stats = eng.context.get_trade_stats()
+                trade_stats = eng.context.get_trade_stats(symbol=eng.symbol)
             except Exception:
                 pass
 
