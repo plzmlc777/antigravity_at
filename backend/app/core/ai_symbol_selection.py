@@ -367,6 +367,13 @@ class AISymbolSelectionService:
                     return None
 
             # Step 10: A new symbol won — switch
+            # Find new symbol name from competitors list
+            _new_sym_name = best_symbol
+            for comp in all_competitors:
+                if comp.get("code") == best_symbol and comp.get("name"):
+                    _new_sym_name = comp["name"]
+                    break
+
             reason = f"[결과] {current_symbol} → {best_symbol}{params_str}"
             if select_reason:
                 reason += f"\n[선정 사유] {select_reason}"
@@ -380,10 +387,11 @@ class AISymbolSelectionService:
                                old_symbol=current_symbol,
                                old_symbol_name=_sym_name,
                                new_symbol=best_symbol,
+                               new_symbol_name=_new_sym_name,
                                search_conditions=search_conditions,
                                evaluation_reason=reason,
                                backtest_results=bt_results)
-            self._last_result = {"symbol": best_symbol, "optimized_params": best_params}
+            self._last_result = {"symbol": best_symbol, "symbol_name": _new_sym_name, "optimized_params": best_params}
             return best_symbol
 
         except Exception as e:

@@ -759,6 +759,7 @@ class LiveTradingEngine:
 
             last_result = getattr(service, '_last_result', {}) or {}
             optimized_params = last_result.get('optimized_params')
+            new_symbol_name = last_result.get('symbol_name')
 
             if new_symbol and new_symbol != self.symbol:
                 logger.info(f"[AISymbol] Pre-start switch: {self.symbol} -> {new_symbol}")
@@ -766,6 +767,7 @@ class LiveTradingEngine:
                 await live_manager.switch_session_symbol(
                     session_id=self.session_id,
                     new_symbol=new_symbol,
+                    new_symbol_name=new_symbol_name,
                     optimized_params=optimized_params,
                 )
             elif optimized_params:
@@ -962,6 +964,7 @@ class LiveTradingEngine:
             # Get optimized params from pipeline result (available even when symbol kept)
             last_result = getattr(service, '_last_result', {}) or {}
             optimized_params = last_result.get('optimized_params')
+            new_symbol_name = last_result.get('symbol_name')
 
             if new_symbol and new_symbol != self.symbol:
                 logger.info(f"[AISymbol] Switching: {self.symbol} -> {new_symbol}"
@@ -970,6 +973,7 @@ class LiveTradingEngine:
                 await live_manager.switch_session_symbol(
                     session_id=self.session_id,
                     new_symbol=new_symbol,
+                    new_symbol_name=new_symbol_name,
                     optimized_params=optimized_params,
                 )
                 done_msg = f"종목 전환 완료: {self.symbol} → {new_symbol}"
