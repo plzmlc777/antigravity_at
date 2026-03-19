@@ -536,7 +536,12 @@ class AISymbolSelectionService:
         return None  # Symbol not changed
 
     async def _get_group_symbols(self, group_id: str, exclude_ids: set = None) -> set:
-        """Get symbols used by other RUNNING sessions in the same group."""
+        """Get symbols used by other sessions in the same group (all non-STOPPED statuses + STOPPED with same group).
+
+        Includes STOPPED sessions to prevent symbol swaps when multiple sessions
+        restart simultaneously (neither is RUNNING yet, so without STOPPED inclusion
+        they can't see each other's symbols).
+        """
         from ..db.session import SessionLocal
         from ..models.live_trading import LiveBotSession
 
@@ -547,7 +552,7 @@ class AISymbolSelectionService:
             try:
                 sessions = db.query(LiveBotSession).filter(
                     LiveBotSession.group_id == group_id,
-                    LiveBotSession.status.in_(["RUNNING", "PAUSED"]),
+                    LiveBotSession.is_active == True,
                 ).all()
                 return {s.symbol for s in sessions if s.symbol and s.id not in _exclude}
             finally:
