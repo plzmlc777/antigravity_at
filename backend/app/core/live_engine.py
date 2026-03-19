@@ -737,48 +737,70 @@ class LiveTradingEngine:
             finally:
                 db.close()
 
-            # Run the pipeline synchronously (await) — trading hasn't started yet
             from .ai_symbol_selection import AISymbolSelectionService
             service = AISymbolSelectionService.get_instance()
 
-            new_symbol = await service.run_pipeline(
-                session_id=session_info["session_id"],
-                current_symbol=session_info["current_symbol"],
-                search_conditions=session_info["search_conditions"],
-                strategy_name=session_info["strategy_name"],
-                strategy_config=session_info["strategy_config"],
-                initial_capital=session_info["initial_capital"],
-                account_id=session_info["account_id"],
-                is_paper=session_info["is_paper"],
-                group_id=session_info.get("group_id"),
-                current_symbol_name=session_info.get("current_symbol_name"),
-                ai_optimize_params=session_info.get("ai_optimize_params"),
-                is_futures=session_info.get("is_futures", False),
-                exchange_name=session_info.get("exchange_name", "Kiwoom"),
-            )
-
-            last_result = getattr(service, '_last_result', {}) or {}
-            optimized_params = last_result.get('optimized_params')
-            new_symbol_name = last_result.get('symbol_name')
-
-            if new_symbol and new_symbol != self.symbol:
-                logger.info(f"[AISymbol] Pre-start switch: {self.symbol} -> {new_symbol}")
-                from .live_manager import live_manager
-                await live_manager.switch_session_symbol(
-                    session_id=self.session_id,
-                    new_symbol=new_symbol,
-                    new_symbol_name=new_symbol_name,
-                    optimized_params=optimized_params,
-                )
-            elif optimized_params:
-                logger.info(f"[AISymbol] Pre-start param optimization: {optimized_params}")
-                from .live_manager import live_manager
-                await live_manager.apply_optimized_params(
-                    session_id=self.session_id,
-                    optimized_params=optimized_params,
-                )
+            if session_info.get("group_id"):
+                # Group session: use group coordinator to prevent duplicate symbols
+                logger.info(f"[AISymbol] Pre-start: registering with GROUP pipeline for {self.session_id[:8]}")
+                await service.request_group_evaluation(session_info)
+                # Wait for group pipeline to complete (polls until done)
+                for _ in range(600):  # Max 10 minutes
+                    await asyncio.sleep(1)
+                    prog = service.get_progress(self.session_id)
+                    if not prog or not prog.get("active", False):
+                        break
+                # Check if symbol was switched by the group pipeline
+                db2 = SessionLocal()
+                try:
+                    updated = db2.query(LiveBotSession).filter_by(id=self.session_id).first()
+                    if updated and updated.symbol != self.symbol:
+                        logger.info(f"[AISymbol] Pre-start group switch detected: {self.symbol} -> {updated.symbol}")
+                        self.symbol = updated.symbol
+                        cfg = dict(updated.strategy_config or {})
+                        self.strategy_config = cfg
+                finally:
+                    db2.close()
             else:
-                logger.info(f"[AISymbol] Pre-start: keeping {self.symbol}")
+                # Solo session: run pipeline directly (await)
+                new_symbol = await service.run_pipeline(
+                    session_id=session_info["session_id"],
+                    current_symbol=session_info["current_symbol"],
+                    search_conditions=session_info["search_conditions"],
+                    strategy_name=session_info["strategy_name"],
+                    strategy_config=session_info["strategy_config"],
+                    initial_capital=session_info["initial_capital"],
+                    account_id=session_info["account_id"],
+                    is_paper=session_info["is_paper"],
+                    group_id=session_info.get("group_id"),
+                    current_symbol_name=session_info.get("current_symbol_name"),
+                    ai_optimize_params=session_info.get("ai_optimize_params"),
+                    is_futures=session_info.get("is_futures", False),
+                    exchange_name=session_info.get("exchange_name", "Kiwoom"),
+                )
+
+                last_result = getattr(service, '_last_result', {}) or {}
+                optimized_params = last_result.get('optimized_params')
+                new_symbol_name = last_result.get('symbol_name')
+
+                if new_symbol and new_symbol != self.symbol:
+                    logger.info(f"[AISymbol] Pre-start switch: {self.symbol} -> {new_symbol}")
+                    from .live_manager import live_manager
+                    await live_manager.switch_session_symbol(
+                        session_id=self.session_id,
+                        new_symbol=new_symbol,
+                        new_symbol_name=new_symbol_name,
+                        optimized_params=optimized_params,
+                    )
+                elif optimized_params:
+                    logger.info(f"[AISymbol] Pre-start param optimization: {optimized_params}")
+                    from .live_manager import live_manager
+                    await live_manager.apply_optimized_params(
+                        session_id=self.session_id,
+                        optimized_params=optimized_params,
+                    )
+                else:
+                    logger.info(f"[AISymbol] Pre-start: keeping {self.symbol}")
 
         except Exception as e:
             logger.error(f"[AISymbol] Pre-start evaluation failed: {e}", exc_info=True)
@@ -923,9 +945,14 @@ class LiveTradingEngine:
 
         self._ai_switch_in_progress = True
 
-        # Cycle completion always triggers solo pipeline (only this session needs re-eval)
-        logger.info(f"[AISymbol] Triggering SOLO pipeline for session {self.session_id[:8]}")
-        asyncio.create_task(self._run_solo_pipeline(session_info))
+        if session_info.get("group_id"):
+            # Group session -> group coordinator (batches evaluations, prevents duplicates)
+            logger.info(f"[AISymbol] Triggering GROUP pipeline for session {self.session_id[:8]}")
+            asyncio.create_task(self._run_group_pipeline(session_info))
+        else:
+            # Solo session -> individual pipeline
+            logger.info(f"[AISymbol] Triggering SOLO pipeline for session {self.session_id[:8]}")
+            asyncio.create_task(self._run_solo_pipeline(session_info))
 
     async def _run_group_pipeline(self, session_info: dict):
         """Register with group pipeline coordinator. Actual execution managed by coordinator."""
