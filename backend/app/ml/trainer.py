@@ -24,11 +24,13 @@ MODEL_DIR = os.environ.get('ML_MODEL_DIR', '/mnt/data/ml/models')
 
 class TrendTrainer:
     def __init__(self, symbol: str, timeframe: str = '5m',
-                 horizon: int = 12, threshold: float = 0.002):
+                 horizon: int = 12, threshold: float = 0.002,
+                 auto_weight: bool = True):
         self.symbol = symbol
         self.timeframe = timeframe
         self.horizon = horizon          # predict N candles ahead
         self.threshold = threshold      # min return to count as 'up' (0.2%)
+        self.auto_weight = auto_weight  # auto class balancing
         self.model = None
         self.feature_columns = []
         self.metadata = {}
@@ -126,6 +128,15 @@ class TrendTrainer:
         train_set = lgb.Dataset(X_train, label=y_train)
         val_set = lgb.Dataset(X_test, label=y_test, reference=train_set)
 
+        # Auto class balancing
+        spw = 1.0
+        if self.auto_weight:
+            n_pos = y_train.sum()
+            n_neg = len(y_train) - n_pos
+            if n_pos > 0:
+                spw = n_neg / n_pos
+                logger.info(f'[ML] scale_pos_weight={spw:.3f} (pos={int(n_pos)}, neg={int(n_neg)})')
+
         params = {
             'objective': 'binary',
             'metric': 'binary_logloss',
@@ -136,6 +147,7 @@ class TrendTrainer:
             'bagging_fraction': 0.8,
             'bagging_freq': 5,
             'min_child_samples': 20,
+            'scale_pos_weight': spw,
             'verbose': -1,
             'seed': 42,
         }
