@@ -9,6 +9,7 @@ Finds symbols optimal for martingale strategies:
 
 "작은 파도가 자주 치는 바다" = 마틴게일 천국
 """
+import asyncio
 import logging
 import math
 from datetime import datetime
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 _latest_result: Dict[str, Any] = {}
 
 # Settings
+SCREEN_INTERVAL_HOURS = 6
 MIN_CANDLES = 168  # 7 days of hourly data minimum
 ANALYSIS_CANDLES = 500  # ~20 days for robust stats
 
@@ -520,3 +522,27 @@ def get_candidates(top_n: int = 10) -> List[Dict]:
     if not _latest_result:
         return []
     return _latest_result.get('candidates', [])[:top_n]
+
+
+async def run_martingale_scheduler():
+    """Run martingale screening every SCREEN_INTERVAL_HOURS."""
+    logger.info(f'[Martingale] Scheduler started: every {SCREEN_INTERVAL_HOURS}h')
+
+    # Initial delay: let collector gather some data first
+    await asyncio.sleep(120)
+
+    while True:
+        try:
+            logger.info('[Martingale] Running scheduled screening...')
+            result = await screen_martingale_candidates(top_n=15)
+            n_analyzed = result.get('stage2_analyzed', 0)
+            candidates = result.get('candidates', [])
+            top3 = [(c['symbol'], c['fitness'], c['grade']) for c in candidates[:3]]
+            logger.info(
+                f'[Martingale] Scheduled screen done: '
+                f'{n_analyzed} analyzed, top 3: {top3}'
+            )
+        except Exception as e:
+            logger.error(f'[Martingale] Scheduler error: {e}', exc_info=True)
+
+        await asyncio.sleep(SCREEN_INTERVAL_HOURS * 3600)

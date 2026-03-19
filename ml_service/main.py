@@ -23,14 +23,18 @@ async def lifespan(app: FastAPI):
     global _scheduler_task
     from collector import run_scheduler
     from scanner import run_scan_scheduler
+    from martingale_screener import run_martingale_scheduler
     _scheduler_task = asyncio.create_task(run_scheduler())
     _scan_task = asyncio.create_task(run_scan_scheduler())
-    logger.info('[ML] Collector + Scanner schedulers launched')
+    _martingale_task = asyncio.create_task(run_martingale_scheduler())
+    logger.info('[ML] Collector + Scanner + Martingale schedulers launched')
     yield
     if _scheduler_task:
         _scheduler_task.cancel()
     if _scan_task:
         _scan_task.cancel()
+    if _martingale_task:
+        _martingale_task.cancel()
     logger.info('[ML] Schedulers stopped')
 
 
