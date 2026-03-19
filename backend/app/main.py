@@ -119,3 +119,6 @@ from .api import binance_data
 app.include_router(binance_data.router, prefix="/api/v1/binance", tags=["binance-data"])
 from .api import stock_search
 app.include_router(stock_search.router, prefix="/api/v1/stock-search", tags=["stock-search"])
+
+from .api import ml_prediction
+app.include_router(ml_prediction.router, prefix="/api/v1/ml", tags=["ml-prediction"])
