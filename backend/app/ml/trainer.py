@@ -39,13 +39,32 @@ class TrendTrainer:
         db = SessionLocal()
         try:
             since = datetime.utcnow() - timedelta(days=days)
+
+            # Try exact timeframe first
             rows = db.query(OHLCV).filter(
                 OHLCV.symbol == self.symbol,
                 OHLCV.time_frame == self.timeframe,
                 OHLCV.timestamp >= since
             ).order_by(OHLCV.timestamp).all()
 
-            if not rows:
+            if rows:
+                data = [{
+                    'timestamp': r.timestamp,
+                    'open': r.open, 'high': r.high,
+                    'low': r.low, 'close': r.close,
+                    'volume': r.volume
+                } for r in rows]
+                return pd.DataFrame(data)
+
+            # Fallback: load 1m data and resample to target timeframe
+            logger.info(f'[ML] No {self.timeframe} data, resampling from 1m')
+            rows_1m = db.query(OHLCV).filter(
+                OHLCV.symbol == self.symbol,
+                OHLCV.time_frame == '1m',
+                OHLCV.timestamp >= since
+            ).order_by(OHLCV.timestamp).all()
+
+            if not rows_1m:
                 return pd.DataFrame()
 
             data = [{
@@ -53,10 +72,27 @@ class TrendTrainer:
                 'open': r.open, 'high': r.high,
                 'low': r.low, 'close': r.close,
                 'volume': r.volume
-            } for r in rows]
-            return pd.DataFrame(data)
+            } for r in rows_1m]
+            df = pd.DataFrame(data)
+            return self._resample(df, self.timeframe)
         finally:
             db.close()
+
+    @staticmethod
+    def _resample(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+        tf_map = {'3m': '3min', '5m': '5min', '15m': '15min',
+                  '30m': '30min', '1h': '1h', '4h': '4h', '1d': '1D'}
+        rule = tf_map.get(timeframe)
+        if not rule:
+            return df
+        df = df.set_index('timestamp')
+        resampled = df.resample(rule).agg({
+            'open': 'first', 'high': 'max',
+            'low': 'min', 'close': 'last',
+            'volume': 'sum'
+        }).dropna()
+        resampled.reset_index(inplace=True)
+        return resampled
 
     def train(self, days: int = 90) -> Dict[str, Any]:
         logger.info(f'[ML] Training {self.symbol} ({self.timeframe}, horizon={self.horizon})')

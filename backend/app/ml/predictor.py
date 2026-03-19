@@ -130,20 +130,34 @@ class TrendPredictor:
         from ..models.ohlcv import OHLCV
         db = SessionLocal()
         try:
+            # Try exact timeframe first
             rows = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
                 OHLCV.time_frame == timeframe,
             ).order_by(OHLCV.timestamp.desc()).limit(limit).all()
 
             if not rows:
-                return None
+                # Fallback: load 1m and resample
+                tf_minutes = {'3m': 3, '5m': 5, '15m': 15, '30m': 30,
+                              '1h': 60, '4h': 240}.get(timeframe, 5)
+                need_1m = limit * tf_minutes + 100
+                rows = db.query(OHLCV).filter(
+                    OHLCV.symbol == symbol,
+                    OHLCV.time_frame == '1m',
+                ).order_by(OHLCV.timestamp.desc()).limit(need_1m).all()
 
-            data = [{
-                'timestamp': r.timestamp,
-                'open': r.open, 'high': r.high,
-                'low': r.low, 'close': r.close,
-                'volume': r.volume
-            } for r in rows]
+                if not rows:
+                    return None
+
+                data = [{'timestamp': r.timestamp, 'open': r.open, 'high': r.high,
+                         'low': r.low, 'close': r.close, 'volume': r.volume} for r in rows]
+                df = pd.DataFrame(data).sort_values('timestamp').reset_index(drop=True)
+
+                from .trainer import TrendTrainer
+                return TrendTrainer._resample(df, timeframe)
+
+            data = [{'timestamp': r.timestamp, 'open': r.open, 'high': r.high,
+                     'low': r.low, 'close': r.close, 'volume': r.volume} for r in rows]
             df = pd.DataFrame(data)
             df.sort_values('timestamp', inplace=True)
             df.reset_index(drop=True, inplace=True)
