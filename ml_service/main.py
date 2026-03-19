@@ -24,10 +24,12 @@ async def lifespan(app: FastAPI):
     from collector import run_scheduler
     from scanner import run_scan_scheduler
     from martingale_screener import run_martingale_scheduler
+    from martingale_watchdog import run_watchdog_scheduler
     _scheduler_task = asyncio.create_task(run_scheduler())
     _scan_task = asyncio.create_task(run_scan_scheduler())
     _martingale_task = asyncio.create_task(run_martingale_scheduler())
-    logger.info('[ML] Collector + Scanner + Martingale schedulers launched')
+    _watchdog_task = asyncio.create_task(run_watchdog_scheduler())
+    logger.info('[ML] Collector + Scanner + Martingale + Watchdog schedulers launched')
     yield
     if _scheduler_task:
         _scheduler_task.cancel()
@@ -35,6 +37,8 @@ async def lifespan(app: FastAPI):
         _scan_task.cancel()
     if _martingale_task:
         _martingale_task.cancel()
+    if _watchdog_task:
+        _watchdog_task.cancel()
     logger.info('[ML] Schedulers stopped')
 
 
@@ -353,6 +357,52 @@ async def martingale_analyze(symbol: str):
     if not result:
         return {'error': f'Not enough data for {symbol}'}
     return _sanitize_for_json(result)
+
+
+# ========== Martingale Watchdog endpoints ==========
+
+@app.post('/martingale/watch')
+async def watchdog_register(symbol: str = Query(...), meta: Optional[str] = Query(None)):
+    """마틴게일 감시 종목 등록. meta: JSON string (optional)."""
+    from martingale_watchdog import register_symbol
+    import json
+    meta_dict = json.loads(meta) if meta else {}
+    return register_symbol(symbol, meta_dict)
+
+
+@app.delete('/martingale/watch')
+async def watchdog_unregister(symbol: str = Query(...)):
+    """마틴게일 감시 종목 해제."""
+    from martingale_watchdog import unregister_symbol
+    return unregister_symbol(symbol)
+
+
+@app.get('/martingale/watch')
+async def watchdog_status():
+    """감시 중인 전체 종목 상태."""
+    from martingale_watchdog import get_watched_symbols, _sanitize
+    return _sanitize(get_watched_symbols())
+
+
+@app.get('/martingale/watch/{symbol}')
+async def watchdog_check_one(symbol: str):
+    """특정 종목 긴급 체크 (즉시 실행)."""
+    from martingale_watchdog import check_symbol, _sanitize
+    return _sanitize(check_symbol(symbol))
+
+
+@app.get('/martingale/alerts')
+async def watchdog_alerts():
+    """전체 알림 요약 (ALERT/WARNING/OK 분류)."""
+    from martingale_watchdog import get_alerts_summary
+    return get_alerts_summary()
+
+
+@app.post('/martingale/watch/check')
+async def watchdog_check_all():
+    """등록된 전체 종목 즉시 체크."""
+    from martingale_watchdog import check_all_watched
+    return await check_all_watched()
 
 
 # ========== Prediction endpoints (legacy) ==========
