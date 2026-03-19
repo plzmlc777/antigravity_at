@@ -961,6 +961,7 @@ class AISymbolSelectionService:
                         initial_capital=int(initial_capital),
                         execution_mode="single",
                         optimize_mode=True,
+                        exchange_name=exchange_name,
                     )
 
                     if "error" in result:
@@ -1477,7 +1478,8 @@ class AISymbolSelectionService:
                 for sid in session_ids:
                     self._update_progress(sid, "market_data", "시장 데이터 수집 중...")
 
-                _ex = (first.get("exchange_name") or "").lower()
+                group_exchange_name = first.get("exchange_name") or "Kiwoom"
+                _ex = group_exchange_name.lower()
                 is_binance = "binance" in _ex
 
                 if is_binance:
@@ -1696,6 +1698,7 @@ class AISymbolSelectionService:
                     initial_capital=int(initial_capital),
                     execution_mode="single",
                     optimize_mode=True,
+                    exchange_name=group_exchange_name,
                 )
 
                 if "error" in result:
