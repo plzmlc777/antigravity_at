@@ -294,6 +294,25 @@ def analyze_symbol(symbol: str) -> Optional[Dict[str, Any]]:
     max_levels = int(current_atr_pct * 100 * 5 / max(grid_spacing_pct, 0.1))
     max_levels = max(3, min(max_levels, 20))
 
+    # Recommended threshold (additional_buy_step %)
+    # Based on p75 move: entry at ~1.2x typical oscillation to avoid noise
+    # Conservative: use p75 move as base (covers 75% of moves)
+    rec_threshold = round(p75_move * 100 * 1.2, 2)
+    rec_threshold = max(0.1, min(rec_threshold, 5.0))  # clamp 0.1% ~ 5.0%
+
+    # Recommended leverage
+    # Based on max drawdown tolerance: if ATR is small, higher leverage is safer
+    # Formula: safe_leverage = max_tolerable_dd / (atr_pct * max_levels_expected)
+    # Assume max tolerable drawdown = 30% of capital
+    max_dd_tolerance = 0.30
+    worst_case_dd = current_atr_pct * 3  # ~3x ATR as worst case single move
+    if worst_case_dd > 0:
+        safe_leverage = max_dd_tolerance / worst_case_dd
+        rec_leverage = int(min(safe_leverage, 20))  # cap at 20x
+        rec_leverage = max(1, rec_leverage)
+    else:
+        rec_leverage = 1
+
     result = {
         'symbol': symbol,
         'current_price': current_price,
@@ -329,6 +348,8 @@ def analyze_symbol(symbol: str) -> Optional[Dict[str, Any]]:
         'recommendation': {
             'grid_spacing_pct': grid_spacing_pct,
             'max_levels': max_levels,
+            'threshold_pct': rec_threshold,
+            'leverage': rec_leverage,
             'preferred_direction': 'neutral',  # martingale is direction-agnostic
         },
 
