@@ -414,6 +414,68 @@ ssh ubuntu@121.183.229.170 "pm2 logs at-backend --lines 50 --nostream"
 
 ---
 
+## Remote Server Deployment — GCP 서버 (Temp: 35.202.214.187)
+
+> 민트 서버 이사 기간(~2026-04-24) 임시 운영 서버. `TRADING_MODE=REAL` 실거래 운영.
+> 키움 API 지정단말기에 GCP 외부 IP 등록 필요.
+
+### Server Info
+
+| 항목 | 값 |
+|------|-----|
+| Host | 35.202.214.187 |
+| User | hcpark |
+| Path | ~/auto_trading |
+| Branch | master (기본 브랜치가 아님, 반드시 master 사용) |
+| Mode | REAL (실거래) |
+| Web | http://35.202.214.187:5173 |
+| API | http://35.202.214.187:8001 |
+| Spec | 2 vCPU, 4GB RAM, 50GB disk (us-central1-c) |
+
+### 1. 라이브 세션 확인 (필수)
+
+```bash
+ssh hcpark@35.202.214.187 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
+```
+
+### 2. Quick Deploy
+
+```bash
+ssh hcpark@35.202.214.187 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+```
+
+### 3. Full Deploy with Frontend Rebuild
+
+```bash
+ssh hcpark@35.202.214.187 "cd ~/auto_trading && git pull origin master && cd frontend && npm run build && cd .. && pm2 restart at-backend at-frontend"
+```
+
+### 4. Verify Deployment
+
+```bash
+ssh hcpark@35.202.214.187 "curl -s http://localhost:8001/api/v1/status"
+```
+
+### 5. 세션 복원 확인
+
+```bash
+ssh hcpark@35.202.214.187 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
+```
+
+### Logs
+
+```bash
+ssh hcpark@35.202.214.187 "pm2 logs at-backend --lines 50 --nostream"
+```
+
+### 주의사항
+- Git clone 기본 브랜치가 `antigravity_auto_trading`이므로 반드시 `master` 브랜치 확인
+- 대규모 백테스트/최적화 비권장 (2 vCPU / 4GB RAM)
+- GCP 외부 IP 변경 시 키움 API 지정단말기 재등록 필요
+- 임시 서버이므로 이사 완료 후 민트 서버로 DB 역마이그레이션 필요
+
+---
+
 ## Version Release Protocol
 
 > ⚠️ **트리거 키워드**: "버전업", "배포", "Version Up"
