@@ -1825,10 +1825,11 @@ const LiveStrategyPanel = ({ strategyConfig, strategyName, mode = 'TRADE', confi
             ws.onopen = () => {
                 reconnectAttempt = 0;
                 setWsConnected(true);
-                // Clear stale chart data — fresh history will arrive from backend
+                // Clear stale data — fresh history + strategy status will arrive from backend
                 setRawCandles([]);
                 setRealTimeCandles([]);
                 setTickData([]);
+                setStrategyState(null); // Clear stale strategy state from previous session
                 addLog("System", `WS connected to: ${wsUrl}`);
             };
 

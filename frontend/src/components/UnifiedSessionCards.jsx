@@ -164,7 +164,9 @@ const UnifiedSessionCards = ({
                     const hasAccumulatedData = accHasTrades;
 
                     // Use strategyState for selected rank (more up-to-date from WebSocket)
-                    const activeState = (isSelected && strategyState) ? strategyState : state;
+                    // Validate strategyState belongs to this session's symbol to avoid cross-session data
+                    const wsMatchesSession = strategyState && strategyState.symbol === cfg.symbol;
+                    const activeState = (isSelected && wsMatchesSession) ? strategyState : state;
 
                     return (
                         <div
