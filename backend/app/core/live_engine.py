@@ -65,7 +65,9 @@ class LiveTradingEngine:
 
         # Position sync with exchange
         self._last_position_sync_time: datetime = None
-        self._position_sync_interval = 600  # seconds (10 minutes)
+        self._position_sync_interval = 300  # seconds (5 minutes)
+        self._position_sync_failures = 0  # consecutive failure count
+        self._position_sync_max_failures = 3  # after this many, increase interval
 
     def add_tick_listener(self, listener: Callable[[Dict], None]):
         self.tick_listeners.append(listener)
@@ -277,8 +279,13 @@ class LiveTradingEngine:
 
                 # Periodic position sync: compare strategy internal state vs Kiwoom actual holdings
                 now = datetime.now()
+                # After failures, retry sooner (60s) instead of waiting full interval
+                effective_interval = (
+                    60 if 0 < self._position_sync_failures < self._position_sync_max_failures
+                    else self._position_sync_interval
+                )
                 if (self._last_position_sync_time is None or
-                        (now - self._last_position_sync_time).total_seconds() >= self._position_sync_interval):
+                        (now - self._last_position_sync_time).total_seconds() >= effective_interval):
                     self._last_position_sync_time = now
                     asyncio.create_task(self._sync_position_with_exchange())
                 
@@ -781,6 +788,9 @@ class LiveTradingEngine:
         """
         주기적으로 키움 실제 잔고와 전략 내부 포지션을 비교하여 불일치를 감지·보정.
         Source of Truth = 키움 API (get_balance).
+
+        전략이 L0이어도 실행 — 키움에 실제 보유가 있을 수 있음.
+        불일치 시 키움 기준으로 전략 내부 상태를 보정하고 스냅샷 저장.
         """
         if not self.strategy_instance or not self.context:
             return
@@ -790,38 +800,92 @@ class LiveTradingEngine:
         if not (9 <= now.hour < 15 or (now.hour == 15 and now.minute <= 30)):
             return
 
-        strategy_qty = getattr(self.strategy_instance, 'total_quantity', 0)
-
-        # 전략이 포지션 없다고 생각하면 검사 불필요
-        if strategy_qty <= 0:
-            return
+        strategy_qty = getattr(self.strategy_instance, 'total_quantity', 0) or 0
 
         try:
             balance = await self.adapter.get_balance()
             holdings = balance.get("holdings", {})
-            actual_qty = holdings.get(self.symbol, {}).get("quantity", 0)
+            holding_info = holdings.get(self.symbol, {})
+            actual_qty = holding_info.get("quantity", 0)
+            actual_avg_price = holding_info.get("avg_price", 0)
+
+            # 조회 성공 → 실패 카운터 리셋
+            self._position_sync_failures = 0
 
             # live_context._holdings도 최신 상태로 동기화
             self.context._holdings[self.symbol] = actual_qty
 
             if actual_qty == strategy_qty:
-                return  # 일치 → 정상
+                # 수량 일치 — 평균가도 확인 (10% 이상 차이면 보정)
+                strategy_avg = getattr(self.strategy_instance, 'average_price', 0) or 0
+                if actual_avg_price > 0 and strategy_avg > 0 and actual_qty > 0:
+                    price_diff_pct = abs(actual_avg_price - strategy_avg) / strategy_avg
+                    if price_diff_pct > 0.10:
+                        logger.warning(
+                            f"[POSITION_SYNC] {self.symbol} 평균가 불일치: "
+                            f"strategy={strategy_avg:.0f}, kiwoom={actual_avg_price:.0f} "
+                            f"(차이 {price_diff_pct*100:.1f}%) → 키움 기준으로 보정"
+                        )
+                        self.strategy_instance.average_price = actual_avg_price
+                        if hasattr(self.strategy_instance, '_save_position_snapshot'):
+                            self.strategy_instance._save_position_snapshot()
+                return  # 수량 일치 → 정상
 
-            # 불일치 감지
+            # ========== 불일치 감지 ==========
             logger.error(
                 f"[POSITION_SYNC] {self.symbol} 포지션 불일치: "
-                f"strategy={strategy_qty}, kiwoom={actual_qty} → 키움 기준으로 보정"
+                f"strategy={strategy_qty}주(L{getattr(self.strategy_instance, 'current_level', '?')}), "
+                f"kiwoom={actual_qty}주 → 키움 기준으로 보정"
             )
+
+            old_level = getattr(self.strategy_instance, 'current_level', 0)
+            old_qty = strategy_qty
 
             # 키움 기준으로 전략 내부 상태 보정
             self.strategy_instance.total_quantity = actual_qty
+
             if actual_qty == 0:
+                # 키움에 보유 없음 → 전략도 완전 리셋
                 self.strategy_instance.current_level = 0
                 self.strategy_instance.trailing_active = False
                 self.strategy_instance.entries = []
                 self.strategy_instance.average_price = 0
                 self.strategy_instance.peak_price = 0
                 self.strategy_instance._pending_exit = False
+                self.strategy_instance._pending_entry = False
+            else:
+                # 키움에 보유 있음 → 수량에 맞게 레벨/평균가 보정
+                if actual_avg_price > 0:
+                    self.strategy_instance.average_price = actual_avg_price
+
+                # 레벨 보정: entries 기반으로 계산하거나, 수량 비율로 추정
+                entries = getattr(self.strategy_instance, 'entries', [])
+                if entries and actual_qty < strategy_qty:
+                    # 일부 매도됨 — entries에서 실제 수량에 맞게 트림
+                    trimmed = []
+                    remaining = actual_qty
+                    for entry in entries:
+                        entry_qty = entry.get('quantity', 0)
+                        if remaining <= 0:
+                            break
+                        if entry_qty <= remaining:
+                            trimmed.append(entry)
+                            remaining -= entry_qty
+                        else:
+                            trimmed.append({**entry, 'quantity': remaining})
+                            remaining = 0
+                    self.strategy_instance.entries = trimmed
+                    self.strategy_instance.current_level = len(trimmed)
+                elif actual_qty > strategy_qty:
+                    # 수량 증가 (외부 매수?) — 레벨만 증가 추정
+                    self.strategy_instance.current_level = max(
+                        getattr(self.strategy_instance, 'current_level', 0),
+                        len(entries) if entries else 1
+                    )
+
+            # 스냅샷 저장 (PM2 재시작 시에도 보정 상태 유지)
+            if hasattr(self.strategy_instance, '_save_position_snapshot'):
+                self.strategy_instance._save_position_snapshot()
 
             # 텔레그램 알림
             try:
@@ -829,6 +893,7 @@ class LiveTradingEngine:
                 from ..db.session import SessionLocal
                 db = SessionLocal()
                 try:
+                    new_level = getattr(self.strategy_instance, 'current_level', 0)
                     await send_telegram_notification(
                         db=db,
                         user_id=self.context._user_id,
@@ -836,8 +901,8 @@ class LiveTradingEngine:
                         account_id=self.context._account_id,
                         error_type="포지션 불일치 감지",
                         message=(
-                            f"종목 {self.symbol}: 전략={strategy_qty}주, 키움={actual_qty}주\n"
-                            f"키움 기준으로 자동 보정되었습니다."
+                            f"종목 {self.symbol}: 전략={old_qty}주(L{old_level}), 키움={actual_qty}주\n"
+                            f"→ 키움 기준으로 보정: L{new_level}, {actual_qty}주"
                         ),
                         symbol=self.symbol,
                         strategy_name=self.strategy_name,
@@ -848,7 +913,11 @@ class LiveTradingEngine:
                 logger.debug(f"[POSITION_SYNC] Telegram 알림 실패: {tg_err}")
 
         except Exception as e:
-            logger.warning(f"[POSITION_SYNC] 잔고 조회 실패, 다음 주기에 재시도: {e}")
+            self._position_sync_failures += 1
+            logger.warning(
+                f"[POSITION_SYNC] {self.symbol} 잔고 조회 실패 "
+                f"({self._position_sync_failures}회 연속): {e}"
+            )
 
     def _try_ai_symbol_switch(self, from_cycle=False):
         """Check if AI symbol selection is enabled and trigger the pipeline.

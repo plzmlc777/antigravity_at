@@ -21,6 +21,31 @@ async def _rate_limited_post(url: str, **kwargs) -> httpx.Response:
     client = HttpClientManager.get_instance().get_client()
     return await client.post(url, **kwargs)
 
+
+async def _rate_limited_post_with_retry(url: str, max_retries: int = 3, retry_delay: float = 2.0, **kwargs) -> httpx.Response:
+    """Rate-limited POST with automatic retry on 5xx errors."""
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            resp = await _rate_limited_post(url, **kwargs)
+            if resp.status_code < 500:
+                return resp
+            # 5xx error — retry
+            last_error = httpx.HTTPStatusError(
+                f"Server error '{resp.status_code}' for url '{url}'",
+                request=resp.request, response=resp)
+            if attempt < max_retries - 1:
+                delay = retry_delay * (attempt + 1)
+                logger.warning(f"[KiwoomAPI] {resp.status_code} for {url}, retry {attempt+1}/{max_retries} in {delay}s")
+                await asyncio.sleep(delay)
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                delay = retry_delay * (attempt + 1)
+                logger.warning(f"[KiwoomAPI] {type(e).__name__} for {url}, retry {attempt+1}/{max_retries} in {delay}s")
+                await asyncio.sleep(delay)
+    raise last_error
+
 def _is_token_error(data: dict) -> bool:
     """Check if API response indicates a token authentication failure (8005)."""
     if data.get("return_code") == 0:
@@ -279,7 +304,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     "dmst_stex_tp": "KRX"  # 한국거래소
                 }
 
-                response = await _rate_limited_post(url, headers=headers, json=payload)
+                response = await _rate_limited_post_with_retry(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
 
@@ -287,7 +312,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     logger.warning("Token rejected in get_balance (mock). Force-refreshing...")
                     await self._force_refresh_token()
                     headers = self._get_auth_headers(tr_id="kt00004")
-                    response = await _rate_limited_post(url, headers=headers, json=payload)
+                    response = await _rate_limited_post_with_retry(url, headers=headers, json=payload)
                     response.raise_for_status()
                     data = response.json()
 
@@ -316,7 +341,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     "qry_dt": today_str
                 }
 
-                response = await _rate_limited_post(url, headers=headers, json=payload)
+                response = await _rate_limited_post_with_retry(url, headers=headers, json=payload)
                 response.raise_for_status()
                 data = response.json()
 
@@ -324,7 +349,7 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                     logger.warning("Token rejected in get_balance (real). Force-refreshing...")
                     await self._force_refresh_token()
                     headers = self._get_auth_headers(tr_id="ka01690")
-                    response = await _rate_limited_post(url, headers=headers, json=payload)
+                    response = await _rate_limited_post_with_retry(url, headers=headers, json=payload)
                     response.raise_for_status()
                     data = response.json()
 
