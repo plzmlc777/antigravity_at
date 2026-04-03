@@ -55,6 +55,10 @@ class LiveTradingEngine:
         self._is_exclusive = False
         self._account_id = None
 
+        # ExecutionEngine (v2) — None이면 기존 방식(v1)
+        self._execution_engine = None
+        self._signal_context = None  # SignalInterceptContext (전략에 전달)
+
         # AI Symbol Selection
         self._ai_switch_in_progress = False
         self._had_position = False  # Track if we ever had a position (for cycle completion detection)
@@ -139,8 +143,22 @@ class LiveTradingEngine:
                 sid = self.session_id
                 self.context._exclusive_gate = lambda: live_manager.try_acquire_exclusive_lock(acct_id, sid)
 
-            # 3. Strategy Instance
-            self.strategy_instance = StrategyClass(self.context, self.strategy_config)
+            # 2.5 ExecutionEngine v2 (optional — config에 engine_version이 있으면 활성화)
+            engine_version = config.get("engine_version", "v1")
+            if engine_version == "v2":
+                from .signal_context import SignalInterceptContext
+                from .execution_engine import PassthroughExecutor, FilterChainExecutor
+                executor_type = config.get("executor_type", "passthrough")
+                if executor_type == "passthrough":
+                    self._execution_engine = PassthroughExecutor()
+                else:
+                    self._execution_engine = FilterChainExecutor()
+                self._signal_context = SignalInterceptContext(self.context, self._execution_engine)
+                logger.info(f"Session {self.session_id}: ExecutionEngine v2 enabled (executor={executor_type})")
+
+            # 3. Strategy Instance — v2면 SignalInterceptContext 전달
+            strategy_context = self._signal_context if self._signal_context else self.context
+            self.strategy_instance = StrategyClass(strategy_context, self.strategy_config)
             self.strategy_instance.initialize()
 
             # 3.1 Cache tick execution flag
@@ -455,7 +473,7 @@ class LiveTradingEngine:
                 
                 # Check if context is linked (Safety)
                 if not hasattr(self.strategy_instance, 'context') or self.strategy_instance.context is None:
-                        self.strategy_instance.context = self.context
+                        self.strategy_instance.context = self._signal_context if self._signal_context else self.context
 
                 # Set config snapshot for parameter versioning (before any trades)
                 self.context.set_config_snapshot(
@@ -476,6 +494,21 @@ class LiveTradingEngine:
                     await self.context.process_queue()
                 else:
                     logger.debug(f"Session {self.session_id}: Orders disabled, skipping order processing")
+
+                # 5.0.1 ExecutionEngine v2: emit signal stats via tick listeners
+                if self._signal_context:
+                    signal_event = {
+                        "type": "signal_stats",
+                        "data": self._signal_context.get_signal_stats(),
+                        "engine_stats": self._execution_engine.get_stats() if self._execution_engine else {},
+                    }
+                    for listener in self.tick_listeners:
+                        try:
+                            result = listener(signal_event)
+                            if asyncio.iscoroutine(result):
+                                asyncio.ensure_future(result)
+                        except Exception:
+                            pass
 
                 # 5.1 Exclusive mode: release lock when cycle completes (position → 0)
                 if self._is_exclusive and self.strategy_instance:
