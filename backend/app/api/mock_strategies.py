@@ -684,73 +684,13 @@ async def run_mock_backtest(strategy_id: str, request: BacktestRequest):
     }
 
 # ============================================================================
-# V2 SIGNAL-BASED BACKTEST (병렬 검증용)
+# V2 SIGNAL-BASED BACKTEST (deprecated → v3으로 리다이렉트)
 # ============================================================================
 
 @router.post("/{strategy_id}/v2-backtest")
 async def run_signal_backtest(strategy_id: str, request: BacktestRequest):
-    """
-    Signal 기반 백테스트 (v2).
-    기존 backtest와 동일한 결과를 내면서, 시그널을 캡처하여 반환.
-    병행 검증 후 기존 backtest를 대체할 예정.
-    """
-    from ..core.signal_engine import SignalBacktestEngine
-    from ..core.strategy_registry import StrategyRegistry
-
-    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
-    if not strategy_class:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Strategy '{strategy_id}' not found."
-        )
-
-    start_date = request.start_date or request.from_date
-    config = build_backtest_config(
-        request.config,
-        symbol=request.symbol,
-        interval=request.interval,
-        days=request.days,
-        from_date=start_date,
-        initial_capital=request.initial_capital,
-        to_date=request.to_date
-    )
-
-    engine = SignalBacktestEngine(strategy_class, config, exchange_name=request.exchange_name)
-    result = await engine.run(
-        symbol=request.symbol,
-        duration_days=request.days,
-        from_date=start_date,
-        interval=config['interval'],
-        initial_capital=request.initial_capital,
-        exchange_name=request.exchange_name,
-        to_date=request.to_date
-    )
-
-    return {
-        "engine": "signal_v2",
-        "strategy_id": strategy_id,
-        "total_return": result.get('total_return', 0),
-        "win_rate": result.get('win_rate', 0),
-        "max_drawdown": result.get('max_drawdown', 0),
-        "total_cycles": result.get('total_cycles', 0),
-        "avg_pnl": result.get('avg_pnl', "0%"),
-        "max_profit": result.get('max_profit', "0%"),
-        "max_loss": result.get('max_loss', "0%"),
-        "profit_factor": result.get('profit_factor', "0.00"),
-        "sharpe_ratio": result.get('sharpe_ratio', "0.00"),
-        "activity_rate": result.get('activity_rate', "0%"),
-        "total_days": result.get('total_days', 0),
-        "avg_holding_time": result.get('avg_holding_time', "0m"),
-        "stability_score": result.get('stability_score', "0.00"),
-        "acceleration_score": result.get('acceleration_score', "0.00"),
-        "chart_data": result.get('chart_data', []),
-        "ohlcv_data": result.get('ohlcv_data', []),
-        "trades": result.get('trades', []),
-        "logs": result.get('logs', []),
-        # Signal v2 전용
-        "signals": result.get('signals', []),
-        "signal_count": result.get('signal_count', {}),
-    }
+    """v2-backtest는 v3-backtest로 대체되었습니다. 호환성을 위해 v3로 위임."""
+    return await run_intercepted_backtest(strategy_id, request)
 
 
 # ============================================================================

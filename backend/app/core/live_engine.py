@@ -511,20 +511,39 @@ class LiveTradingEngine:
                 else:
                     logger.debug(f"Session {self.session_id}: Orders disabled, skipping order processing")
 
-                # 5.0.1 ExecutionEngine v2: emit signal stats via tick listeners
+                # 5.0.1 ExecutionEngine v2: emit new signals from this candle
                 if self._signal_context:
-                    signal_event = {
-                        "type": "signal_stats",
-                        "data": self._signal_context.get_signal_stats(),
-                        "engine_stats": self._execution_engine.get_stats() if self._execution_engine else {},
-                    }
-                    for listener in self.tick_listeners:
-                        try:
-                            result = listener(signal_event)
-                            if asyncio.iscoroutine(result):
-                                asyncio.ensure_future(result)
-                        except Exception:
-                            pass
+                    # Emit individual signals generated during this on_data call
+                    prev_count = getattr(self, '_last_signal_count', 0)
+                    all_signals = self._signal_context.signals
+                    new_signals = all_signals[prev_count:]
+                    self._last_signal_count = len(all_signals)
+
+                    if new_signals:
+                        for sig in new_signals:
+                            sig_event = {
+                                "type": "signal",
+                                "data": {
+                                    "signal_id": sig.signal_id,
+                                    "side": sig.side.value,
+                                    "symbol": sig.symbol,
+                                    "quantity": sig.quantity,
+                                    "price": sig.price,
+                                    "executed": sig.executed,
+                                    "exec_price": sig.exec_price,
+                                    "decision": sig.decision.action.value if sig.decision else None,
+                                    "reason": sig.decision.reason if sig.decision else "",
+                                    "timestamp": sig.timestamp.isoformat() if sig.timestamp else None,
+                                },
+                                "stats": self._signal_context.get_signal_stats(),
+                            }
+                            for listener in self.tick_listeners:
+                                try:
+                                    result = listener(sig_event)
+                                    if asyncio.iscoroutine(result):
+                                        asyncio.ensure_future(result)
+                                except Exception:
+                                    pass
 
                 # 5.1 Exclusive mode: release lock when cycle completes (position → 0)
                 if self._is_exclusive and self.strategy_instance:
