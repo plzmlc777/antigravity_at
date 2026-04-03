@@ -754,6 +754,154 @@ async def run_signal_backtest(strategy_id: str, request: BacktestRequest):
 
 
 # ============================================================================
+# V3 SIGNAL-INTERCEPT BACKTEST (ExecutionEngine 검증용)
+# ============================================================================
+
+@router.post("/{strategy_id}/v3-backtest")
+async def run_intercepted_backtest(strategy_id: str, request: BacktestRequest):
+    """
+    ExecutionEngine 기반 백테스트 (v3).
+    SignalInterceptContext + PassthroughExecutor로 v1과 동일 결과 보장.
+    추가로 ExecutionEngine 통계 + 시그널 데이터 반환.
+    """
+    from ..core.signal_context import SignalInterceptContext
+    from ..core.execution_engine import PassthroughExecutor
+    from ..core.waterfall_engine import WaterfallBacktestEngine, BacktestContext as WaterfallContext, is_futures_exchange
+    from ..core.strategy_registry import StrategyRegistry
+    from ..services.market_data_factory import get_market_data_service
+    from ..core.data_schemas import EQUITY_VALUE_KEY
+
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_id)
+    if not strategy_class:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Strategy '{strategy_id}' not found."
+        )
+
+    start_date = request.start_date or request.from_date
+    config = build_backtest_config(
+        request.config,
+        symbol=request.symbol,
+        interval=request.interval,
+        days=request.days,
+        from_date=start_date,
+        initial_capital=request.initial_capital,
+        to_date=request.to_date
+    )
+
+    # 1. Fetch data
+    exchange_name = request.exchange_name
+    data_service = get_market_data_service(exchange_name)
+    days = reconcile_days_with_dates(request.days, start_date, request.to_date)
+    raw_feed = await data_service.get_candles(
+        request.symbol, interval=config['interval'], days=days, to_date=request.to_date
+    )
+    if raw_feed:
+        if start_date:
+            raw_feed = [c for c in raw_feed if c['timestamp'] >= start_date]
+        raw_feed.sort(key=lambda x: x['timestamp'])
+
+    if not raw_feed:
+        return {"error": "No data available"}
+
+    # 2. Create real context (WaterfallBacktestContext)
+    leverage = 1
+    if is_futures_exchange(exchange_name):
+        leverage = max(1, int(config.get('leverage', 1)))
+    feeds = {request.symbol: raw_feed}
+    real_context = WaterfallContext(
+        feeds, initial_capital=request.initial_capital,
+        primary_symbol=request.symbol, leverage=leverage
+    )
+
+    # 3. Wrap with SignalInterceptContext + PassthroughExecutor
+    executor = PassthroughExecutor()
+    context = SignalInterceptContext(real_context, executor)
+
+    # 4. Create and run strategy
+    p_config = config.copy()
+    p_config['initial_capital'] = request.initial_capital
+    p_config['symbol'] = request.symbol
+    p_config['exchange_name'] = exchange_name
+
+    strat = strategy_class(context, p_config)
+    if hasattr(strat, 'initialize'):
+        strat.initialize()
+
+    for candle in raw_feed:
+        real_context.current_timestamp = candle['timestamp']
+        try:
+            context.process_pending_orders(candle)
+            strat.on_data(candle)
+            context.update_equity()
+        except Exception:
+            pass
+
+    # 5. Force liquidation at end
+    long_positions = {}
+    short_positions = {}
+    for t in real_context.trades:
+        sym = t['symbol']
+        qty = t['quantity']
+        if t['type'] == 'buy':
+            long_positions[sym] = long_positions.get(sym, 0) + qty
+        elif t['type'] == 'sell':
+            long_positions[sym] = long_positions.get(sym, 0) - qty
+        elif t['type'] == 'short':
+            short_positions[sym] = short_positions.get(sym, 0) + qty
+        elif t['type'] == 'close_short':
+            short_positions[sym] = short_positions.get(sym, 0) - qty
+
+    if raw_feed:
+        close_price = raw_feed[-1]['close']
+        for sym, net in long_positions.items():
+            if net > 0:
+                context.sell(sym, int(net), price=close_price,
+                             metadata={"reason": "end_of_backtest_liquidation"})
+                context.update_equity()
+        for sym, net in short_positions.items():
+            if net > 0:
+                try:
+                    context.close_position(sym, metadata={"reason": "end_of_backtest_liquidation"})
+                except Exception:
+                    context.buy(sym, int(net), price=close_price,
+                                metadata={"reason": "end_of_backtest_liquidation"})
+                context.update_equity()
+
+    # 6. Calculate stats using WaterfallBacktestEngine._generate_stats
+    engine = WaterfallBacktestEngine(strategy_class, {}, exchange_name=exchange_name)
+    stats = engine._generate_stats(real_context, raw_feed)
+
+    final_equity = real_context.equity_curve[-1][EQUITY_VALUE_KEY] if real_context.equity_curve else request.initial_capital
+
+    return {
+        "engine": "signal_v3",
+        "strategy_id": strategy_id,
+        "total_return": stats.get('total_return', 0),
+        "win_rate": stats.get('win_rate', 0),
+        "max_drawdown": stats.get('max_drawdown', 0),
+        "total_cycles": stats.get('total_cycles', 0),
+        "avg_pnl": stats.get('avg_pnl', "0%"),
+        "max_profit": stats.get('max_profit', "0%"),
+        "max_loss": stats.get('max_loss', "0%"),
+        "profit_factor": stats.get('profit_factor', "0.00"),
+        "sharpe_ratio": stats.get('sharpe_ratio', "0.00"),
+        "activity_rate": stats.get('activity_rate', "0%"),
+        "total_days": stats.get('total_days', 0),
+        "avg_holding_time": stats.get('avg_holding_time', "0m"),
+        "stability_score": stats.get('stability_score', "0.00"),
+        "acceleration_score": stats.get('acceleration_score', "0.00"),
+        "chart_data": stats.get('chart_data', []),
+        "ohlcv_data": stats.get('ohlcv_data', []),
+        "trades": stats.get('trades', []),
+        "logs": stats.get('logs', []),
+        # V3 전용: ExecutionEngine 통계 + 시그널 데이터
+        "signal_stats": context.get_signal_stats(),
+        "engine_stats": executor.get_stats(),
+    }
+
+
+# ============================================================================
 # HEAVY OPTIMIZATION (Large-scale, 10K-100K+ combinations)
 # ============================================================================
 
