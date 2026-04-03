@@ -22,6 +22,7 @@ SignalInterceptContext — 어떤 IContext든 래핑하여 ExecutionEngine을 �
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Dict, List, Optional
 from datetime import datetime
 
@@ -29,6 +30,8 @@ from .execution_engine import (
     Signal, SignalSide, SignalAction,
     ExecutionDecision, IExecutionEngine, PassthroughExecutor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SignalInterceptContext:
@@ -55,6 +58,7 @@ class SignalInterceptContext:
         self._inner = inner
         self._engine = engine or PassthroughExecutor()
         self._signals: List[Signal] = []
+        self._default_source = "strategy"
 
     # =========================================================================
     # Intercepted Methods — Signal → ExecutionEngine → RealContext
@@ -111,6 +115,13 @@ class SignalInterceptContext:
         signal.exec_result = result
         self._engine.on_signal_executed(signal)
         self._signals.append(signal)
+
+        logger.info(
+            f"[SignalIntercept] Result: executed={signal.executed} "
+            f"status={result.get('status', '?')} "
+            f"price={signal.exec_price} qty={signal.exec_quantity}"
+        )
+
         return result
 
     # =========================================================================
@@ -142,6 +153,7 @@ class SignalInterceptContext:
             on_filled=on_filled,
             metadata=metadata,
             timestamp=timestamp,
+            source=self._default_source,
         )
 
     def _process_signal(self, signal: Signal, on_filled: Callable,
@@ -150,6 +162,13 @@ class SignalInterceptContext:
 
         decision = self._engine.evaluate(signal, self._inner)
         signal.decision = decision
+
+        logger.info(
+            f"[SignalIntercept] [{signal.source}] {signal.side.value} {signal.symbol} "
+            f"qty={signal.quantity} price={signal.price} "
+            f"→ {decision.action.value}"
+            f"{(' reason=' + decision.reason) if decision.reason else ''}"
+        )
 
         # REJECT → 실행하지 않음
         if decision.action == SignalAction.REJECT:
@@ -255,6 +274,85 @@ class SignalInterceptContext:
         """명시적으로 정의되지 않은 속성은 내부 컨텍스트에서 조회."""
         # __getattr__은 일반 조회 실패 시에만 호출됨 (위의 명시적 메서드가 우선)
         return getattr(self._inner, name)
+
+    # =========================================================================
+    # External Signal Submission (Skill / API)
+    # =========================================================================
+
+    def submit_external_signal(
+        self, side: str, symbol: str, quantity: float,
+        price: float = 0, order_type: str = "market",
+        metadata: Dict[str, Any] = None, source: str = "skill",
+    ) -> Dict[str, Any]:
+        """
+        외부 소스(스킬, API 등)에서 시그널을 수신하여 ExecutionEngine으로 평가.
+
+        Args:
+            side: "buy", "sell", "short", "close_position"
+            symbol: 종목 코드
+            quantity: 수량 (close_position이면 0)
+            price: 가격 (0이면 현재가)
+            order_type: "market", "limit" 등
+            metadata: 추가 메타데이터
+            source: 시그널 소스 (e.g. "skill:rsi_analysis")
+        """
+        side_map = {
+            "buy": SignalSide.BUY,
+            "sell": SignalSide.SELL,
+            "short": SignalSide.SHORT,
+            "close_position": SignalSide.CLOSE_POSITION,
+        }
+        signal_side = side_map.get(side.lower())
+        if not signal_side:
+            return {"status": "failed", "reason": f"Unknown side: {side}"}
+
+        try:
+            timestamp = self._inner.get_time()
+        except Exception:
+            timestamp = datetime.now()
+
+        try:
+            current_price = self._inner.get_current_price(symbol)
+        except Exception:
+            current_price = 0
+
+        signal = Signal(
+            side=signal_side,
+            symbol=symbol,
+            quantity=quantity,
+            price=price if price > 0 else current_price,
+            order_type=order_type,
+            metadata=metadata,
+            timestamp=timestamp,
+            source=source,
+        )
+
+        # close_position은 별도 처리
+        if signal_side == SignalSide.CLOSE_POSITION:
+            decision = self._engine.evaluate(signal, self._inner)
+            signal.decision = decision
+
+            logger.info(
+                f"[SignalIntercept] [{source}] close_position {symbol} "
+                f"→ {decision.action.value}"
+            )
+
+            if decision.action == SignalAction.REJECT:
+                signal.executed = False
+                signal.exec_result = {"status": "filtered", "reason": decision.reason}
+                self._engine.on_signal_rejected(signal)
+                self._signals.append(signal)
+                return signal.exec_result
+
+            result = self._inner.close_position(symbol, metadata)
+            signal.executed = result.get("status") != "failed"
+            signal.exec_result = result
+            self._engine.on_signal_executed(signal)
+            self._signals.append(signal)
+            return result
+
+        # buy/sell/short → 기존 _process_signal 파이프라인 사용
+        return self._process_signal(signal, on_filled=None)
 
     # =========================================================================
     # Signal Access

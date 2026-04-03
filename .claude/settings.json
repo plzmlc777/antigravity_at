@@ -3,7 +3,8 @@
     "allow": [
       "Edit(/.claude/skills/at-backtest/**)",
       "Edit(/.claude/skills/at-strategy/**)",
-      "Edit(/.claude/skills/at-binance/**)"
+      "Edit(/.claude/skills/at-binance/**)",
+      "Edit(/.claude/skills/at-live-signal/**)"
     ]
   }
 }

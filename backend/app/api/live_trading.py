@@ -2813,7 +2813,7 @@ async def delete_strategy_profile(
 # ============================================================================
 
 @router.get("/session/{session_id}/signals")
-async def get_session_signals(session_id: str, limit: int = 50, executed_only: bool = False):
+async def get_session_signals(session_id: str, limit: int = 50, executed_only: bool = False, source: Optional[str] = None):
     """
     세션의 캡처된 시그널 목록 조회.
     engine_version=v2 세션에서만 데이터 반환.
@@ -2826,6 +2826,8 @@ async def get_session_signals(session_id: str, limit: int = 50, executed_only: b
         return {"engine_version": "v1", "signals": [], "message": "v1 engine — no signal data"}
 
     signals = engine._signal_context.executed_signals if executed_only else engine._signal_context.signals
+    if source:
+        signals = [s for s in signals if s.source and s.source.startswith(source)]
     recent = signals[-limit:] if len(signals) > limit else signals
 
     return {
@@ -2850,6 +2852,7 @@ async def get_session_signals(session_id: str, limit: int = 50, executed_only: b
                     "reason": s.decision.reason,
                     "filter_name": s.decision.filter_name,
                 } if s.decision else None,
+                "source": s.source,
                 "metadata": s.metadata,
             }
             for s in recent
@@ -2941,4 +2944,101 @@ async def configure_session_filters(session_id: str, request: FilterConfigReques
         "session_id": session_id,
         "filters_applied": applied,
         "engine_stats": new_engine.get_stats(),
+    }
+
+
+class SubmitSignalRequest(BaseModel):
+    side: str  # "buy", "sell", "short", "close_position"
+    symbol: Optional[str] = None  # None → use session's current symbol
+    quantity: float = 0
+    price: float = 0  # 0 = market price
+    order_type: str = "market"
+    source: str = "skill"  # must start with "skill"
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@router.post("/session/{session_id}/submit-signal")
+async def submit_signal(session_id: str, request: SubmitSignalRequest):
+    """
+    외부 소스(스킬 등)에서 시그널을 제출하여 ExecutionEngine을 통해 평가/실행.
+    v2 엔진 필수.
+    """
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    if not engine.is_running:
+        raise HTTPException(status_code=400, detail="Session is not running")
+
+    if not engine._signal_context:
+        raise HTTPException(status_code=400, detail="v2 engine required for external signals")
+
+    if not request.source.startswith("skill"):
+        raise HTTPException(status_code=400, detail="source must start with 'skill'")
+
+    symbol = request.symbol or engine.symbol
+    if not symbol:
+        raise HTTPException(status_code=400, detail="symbol is required")
+
+    try:
+        result = await engine.process_external_signal(
+            side=request.side,
+            symbol=symbol,
+            quantity=request.quantity,
+            price=request.price,
+            order_type=request.order_type,
+            source=request.source,
+            metadata=request.metadata,
+        )
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "symbol": symbol,
+            "result": result,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"submit_signal error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/session/{session_id}/candles")
+async def get_session_candles(session_id: str, limit: int = 100):
+    """
+    세션의 히스토리 캔들 데이터 + 현재가 + 포지션 정보 제공.
+    스킬이 기술 지표 분석에 사용.
+    """
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    candles = engine.get_history()
+    recent = candles[-limit:] if len(candles) > limit else candles
+
+    # Current price
+    current_price = 0
+    try:
+        current_price = engine.context.get_current_price(engine.symbol)
+    except Exception:
+        pass
+
+    # Holdings
+    holdings = {}
+    try:
+        holdings = engine.context.holdings
+    except Exception:
+        pass
+
+    interval = engine.strategy_config.get("interval", "1m") if engine.strategy_config else "1m"
+
+    return {
+        "session_id": session_id,
+        "symbol": engine.symbol,
+        "interval": interval,
+        "candle_count": len(recent),
+        "current_price": current_price,
+        "holdings": holdings,
+        "orders_enabled": engine.orders_enabled,
+        "candles": recent,
     }

@@ -87,6 +87,70 @@ class LiveTradingEngine:
         if listener in self.candle_listeners:
             self.candle_listeners.remove(listener)
 
+    # =========================================================================
+    # External Signal Submission (Skill / API)
+    # =========================================================================
+
+    async def process_external_signal(
+        self, side: str, symbol: str, quantity: float,
+        price: float = 0, order_type: str = "market",
+        source: str = "skill", metadata: dict = None,
+    ) -> Dict[str, Any]:
+        """외부 소스(스킬/API)에서 시그널을 받아 ExecutionEngine으로 처리."""
+        if not self._signal_context:
+            raise ValueError("v2 engine required for external signals")
+
+        result = self._signal_context.submit_external_signal(
+            side=side, symbol=symbol, quantity=quantity,
+            price=price, order_type=order_type,
+            metadata=metadata, source=source,
+        )
+
+        # 주문 큐 처리
+        if self.orders_enabled and result.get("status") != "filtered":
+            await self.context.process_queue()
+
+        # WebSocket으로 시그널 이벤트 전파
+        self._emit_new_signals()
+
+        return result
+
+    def _emit_new_signals(self):
+        """새로 생성된 시그널을 tick_listeners(WebSocket)로 전파."""
+        if not self._signal_context:
+            return
+
+        prev_count = getattr(self, '_last_signal_count', 0)
+        all_signals = self._signal_context.signals
+        new_signals = all_signals[prev_count:]
+        self._last_signal_count = len(all_signals)
+
+        for sig in new_signals:
+            sig_event = {
+                "type": "signal",
+                "data": {
+                    "signal_id": sig.signal_id,
+                    "side": sig.side.value,
+                    "symbol": sig.symbol,
+                    "quantity": sig.quantity,
+                    "price": sig.price,
+                    "executed": sig.executed,
+                    "exec_price": sig.exec_price,
+                    "decision": sig.decision.action.value if sig.decision else None,
+                    "reason": sig.decision.reason if sig.decision else "",
+                    "timestamp": sig.timestamp.isoformat() if sig.timestamp else None,
+                    "source": sig.source,
+                },
+                "stats": self._signal_context.get_signal_stats(),
+            }
+            for listener in self.tick_listeners:
+                try:
+                    result = listener(sig_event)
+                    if asyncio.iscoroutine(result):
+                        asyncio.ensure_future(result)
+                except Exception:
+                    pass
+
     async def initialize(self):
         """Setup Context, Strategy, Aggregator"""
         db = SessionLocal()
@@ -512,38 +576,7 @@ class LiveTradingEngine:
                     logger.debug(f"Session {self.session_id}: Orders disabled, skipping order processing")
 
                 # 5.0.1 ExecutionEngine v2: emit new signals from this candle
-                if self._signal_context:
-                    # Emit individual signals generated during this on_data call
-                    prev_count = getattr(self, '_last_signal_count', 0)
-                    all_signals = self._signal_context.signals
-                    new_signals = all_signals[prev_count:]
-                    self._last_signal_count = len(all_signals)
-
-                    if new_signals:
-                        for sig in new_signals:
-                            sig_event = {
-                                "type": "signal",
-                                "data": {
-                                    "signal_id": sig.signal_id,
-                                    "side": sig.side.value,
-                                    "symbol": sig.symbol,
-                                    "quantity": sig.quantity,
-                                    "price": sig.price,
-                                    "executed": sig.executed,
-                                    "exec_price": sig.exec_price,
-                                    "decision": sig.decision.action.value if sig.decision else None,
-                                    "reason": sig.decision.reason if sig.decision else "",
-                                    "timestamp": sig.timestamp.isoformat() if sig.timestamp else None,
-                                },
-                                "stats": self._signal_context.get_signal_stats(),
-                            }
-                            for listener in self.tick_listeners:
-                                try:
-                                    result = listener(sig_event)
-                                    if asyncio.iscoroutine(result):
-                                        asyncio.ensure_future(result)
-                                except Exception:
-                                    pass
+                self._emit_new_signals()
 
                 # 5.1 Exclusive mode: release lock when cycle completes (position → 0)
                 if self._is_exclusive and self.strategy_instance:
