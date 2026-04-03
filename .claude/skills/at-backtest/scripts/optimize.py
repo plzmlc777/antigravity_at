@@ -57,6 +57,29 @@ DEFAULT_PARAM_GRIDS = {
         "trailing_stop_percent": [0.5, 1.0, 1.5],
         "max_buy_count": [2, 3, 4],
     },
+    "chart_pattern": {
+        "lookback_candles": [15, 20, 30, 50],
+        "tolerance_percent": [1.0, 1.5, 2.0, 3.0],
+        "min_pattern_depth": [2.0, 3.0, 5.0, 7.0],
+        "cooldown_candles": [3, 5, 10],
+    },
+    "us_market_follow": {
+        "us_change_threshold": [0.5, 1.0, 1.5, 2.0],
+        "trailing_start_percent": [1.0, 2.0, 3.0, 5.0],
+        "trailing_stop_percent": [0.5, 1.0, 1.5, 2.0],
+        "max_loss_percent": [2.0, 3.0, 5.0],
+        "cycle_max_hours": [2, 4, 6, 8],
+    },
+    "funding_rate_arb": {
+        "entry_rate_threshold": [0.01, 0.03, 0.05, 0.1],
+        "exit_rate_threshold": [0.001, 0.005, 0.01],
+        "proxy_lookback": [4, 8, 12, 24],
+    },
+    "spot_futures_hedge": {
+        "entry_rate_threshold": [0.03, 0.05, 0.1],
+        "exit_rate_threshold": [0.005, 0.01, 0.02],
+        "proxy_lookback": [4, 8, 12],
+    },
 }
 
 

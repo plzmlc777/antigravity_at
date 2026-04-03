@@ -11,6 +11,7 @@ Trading Strategy Definitions (Standalone)
 """
 
 from abc import ABC, abstractmethod
+from collections import deque, OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
@@ -246,7 +247,7 @@ class MartingaleStrategy(ABC):
         })
 
     def close_position(self, exit_price: float, exit_time: datetime) -> Trade:
-        """포지션 청산 → Trade 생성."""
+        """포지션 청산 -> Trade 생성."""
         pnl = self._calc_pnl(exit_price)
         pnl_pct = self._calc_price_return(exit_price)
         holding_sec = (exit_time - self.cycle_start_time).total_seconds() if self.cycle_start_time else 0
@@ -310,7 +311,7 @@ class MartingaleStrategy(ABC):
         else:
             move_pct = (ref_price - current_price) / ref_price * 100
 
-        # initial_entry 모드: 누적 스텝 (L2=1×step, L3=2×step, ...)
+        # initial_entry 모드: 누적 스텝 (L2=1*step, L3=2*step, ...)
         if ref_mode == "initial_entry":
             required_move = cfg["additional_buy_step"] * self.current_level
         else:
@@ -363,7 +364,7 @@ class DipMartingaleStrategy(MartingaleStrategy):
 class EmaMomentumStrategy(MartingaleStrategy):
     """
     EMA 모멘텀.
-    L1: Golden cross (fast > slow) → long, Dead cross → short
+    L1: Golden cross (fast > slow) -> long, Dead cross -> short
     Exit: 반대 크로스
     """
     name = "ema_momentum"
@@ -458,8 +459,8 @@ class EmaMomentumStrategy(MartingaleStrategy):
             return False
         curr_diff = self._ema_fast - self._ema_slow
         if self.is_short:
-            return curr_diff > 0  # Golden cross → exit short
-        return curr_diff < 0      # Dead cross → exit long
+            return curr_diff > 0  # Golden cross -> exit short
+        return curr_diff < 0      # Dead cross -> exit long
 
 
 class RsiMartingaleStrategy(MartingaleStrategy):
@@ -565,7 +566,7 @@ class RsiMartingaleStrategy(MartingaleStrategy):
 class TimeMomentumStrategy(MartingaleStrategy):
     """
     시간대 모멘텀.
-    매일 start_time에 기준가 설정 → delay_minutes 후 변동률 체크 → 진입
+    매일 start_time에 기준가 설정 -> delay_minutes 후 변동률 체크 -> 진입
     stop_time에 강제 청산.
     """
     name = "time_momentum"
@@ -664,6 +665,531 @@ class TimeMomentumStrategy(MartingaleStrategy):
 
 
 # =============================================================================
+# New Strategies (chart_pattern, us_market_follow, funding_rate_arb, spot_futures_hedge)
+# =============================================================================
+
+
+class ChartPatternStrategy(MartingaleStrategy):
+    """
+    차트 패턴 전략.
+    Double Bottom (W), V-Bottom, Triangle, Wedge 등 차트 패턴 감지 후 진입.
+    Double Top (M), V-Top 등 패턴 감지 시 청산.
+    API chart_pattern.py와 동일한 패턴 감지 로직.
+    """
+    name = "chart_pattern"
+
+    STRATEGY_DEFAULTS = {
+        "entry_patterns": "double_bottom",
+        "exit_patterns": "",
+        "lookback_candles": 20,
+        "tolerance_percent": 1.5,
+        "min_pattern_depth": 3.0,
+        "breakout_confirm": "immediate",
+        "cooldown_candles": 5,
+        "max_buy_count": 3,
+        "trailing_start_percent": 5.0,
+        "trailing_stop_percent": 2.0,
+    }
+
+    def __init__(self, config=None):
+        merged = {**self.STRATEGY_DEFAULTS, **(config or {})}
+        super().__init__(merged)
+        self._candle_history: deque = deque(maxlen=50)
+        self._candles_since_signal: int = 999
+        self._trigger_armed: bool = True
+
+    def _initialize_trigger(self):
+        self._candle_history = deque(maxlen=50)
+        self._candles_since_signal = 999
+        self._trigger_armed = True
+
+    def _parse_patterns(self, raw) -> List[str]:
+        if isinstance(raw, str):
+            return [p.strip() for p in raw.split(",") if p.strip()]
+        if isinstance(raw, list):
+            return [p for p in raw if p]
+        return []
+
+    def _on_candle(self, candle: Dict):
+        self._candle_history.append({
+            'open': candle.get('open', candle['close']),
+            'high': candle.get('high', candle['close']),
+            'low': candle.get('low', candle['close']),
+            'close': candle['close'],
+            'volume': candle.get('volume', 0),
+        })
+        self._candles_since_signal += 1
+        cooldown = int(self.config.get("cooldown_candles", 5))
+        if not self._trigger_armed and self._candles_since_signal >= cooldown:
+            self._trigger_armed = True
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        self._on_candle(candle)
+        if not self._trigger_armed:
+            return None
+
+        lookback = int(self.config.get("lookback_candles", 20))
+        if len(self._candle_history) < lookback:
+            return None
+
+        candles = list(self._candle_history)[-lookback:]
+        entry_patterns = self._parse_patterns(self.config.get("entry_patterns", "double_bottom"))
+        tolerance = float(self.config.get("tolerance_percent", 1.5)) / 100.0
+        min_depth = float(self.config.get("min_pattern_depth", 3.0)) / 100.0
+        confirm = self.config.get("breakout_confirm", "immediate")
+        price = candle["close"]
+
+        for pat in entry_patterns:
+            detected = None
+            if pat == "double_bottom":
+                detected = self._detect_double_bottom(candles, price, tolerance, min_depth, confirm)
+            elif pat == "v_bottom":
+                detected = self._detect_v_bottom(candles, price, min_depth)
+            elif pat == "triangle":
+                detected = self._detect_triangle(candles, price, min_depth, "up")
+            elif pat == "wedge":
+                detected = self._detect_wedge(candles, price, "up")
+            if detected:
+                self._candles_since_signal = 0
+                self._trigger_armed = False
+                return "long"
+        return None
+
+    def _check_additional_trigger(self, candle: Dict) -> bool:
+        return bool(self._check_entry_trigger(candle))
+
+    def _check_exit_trigger(self, candle: Dict) -> bool:
+        exit_patterns = self._parse_patterns(self.config.get("exit_patterns", ""))
+        if not exit_patterns:
+            return False
+
+        lookback = int(self.config.get("lookback_candles", 20))
+        if len(self._candle_history) < lookback:
+            return False
+
+        candles = list(self._candle_history)[-lookback:]
+        tolerance = float(self.config.get("tolerance_percent", 1.5)) / 100.0
+        min_depth = float(self.config.get("min_pattern_depth", 3.0)) / 100.0
+        confirm = self.config.get("breakout_confirm", "immediate")
+        price = candle["close"]
+
+        for pat in exit_patterns:
+            detected = None
+            if pat == "double_top":
+                detected = self._detect_double_top(candles, price, tolerance, min_depth, confirm)
+            elif pat == "v_top":
+                detected = self._detect_v_top(candles, price, min_depth)
+            elif pat == "triangle":
+                detected = self._detect_triangle(candles, price, min_depth, "down")
+            elif pat == "wedge":
+                detected = self._detect_wedge(candles, price, "down")
+            if detected:
+                return True
+        return False
+
+    # --- Pattern Detection (API chart_pattern.py 동일 로직) ---
+
+    def _detect_double_bottom(self, candles, price, tolerance, min_depth, confirm) -> Optional[str]:
+        lows = [c['low'] for c in candles]
+        highs = [c['high'] for c in candles]
+        min_idx1 = lows.index(min(lows))
+        second_lows = [(i, lows[i]) for i in range(len(lows)) if abs(i - min_idx1) >= 3]
+        if not second_lows:
+            return None
+        min_idx2, min_val2 = min(second_lows, key=lambda x: x[1])
+        min_val1 = lows[min_idx1]
+        avg_low = (min_val1 + min_val2) / 2
+        if abs(min_val1 - min_val2) / avg_low > tolerance:
+            return None
+        left_idx, right_idx = min(min_idx1, min_idx2), max(min_idx1, min_idx2)
+        if right_idx - left_idx < 3:
+            return None
+        neckline = max(highs[left_idx:right_idx + 1])
+        depth = (neckline - avg_low) / neckline
+        if depth < min_depth:
+            return None
+        if confirm == "close_above":
+            if candles[-1]['close'] > neckline:
+                return "double_bottom"
+        elif confirm == "volume_confirm":
+            avg_vol = sum(c['volume'] for c in candles[:-1]) / max(len(candles) - 1, 1)
+            if price > neckline and candles[-1]['volume'] > avg_vol * 1.2:
+                return "double_bottom"
+        else:  # immediate
+            if price > neckline:
+                return "double_bottom"
+        return None
+
+    def _detect_v_bottom(self, candles, price, min_depth) -> Optional[str]:
+        lows = [c['low'] for c in candles]
+        closes = [c['close'] for c in candles]
+        min_idx = lows.index(min(lows))
+        min_price = lows[min_idx]
+        if min_idx < 3 or min_idx > len(candles) - 3:
+            return None
+        pre_high = max(c['high'] for c in candles[:min_idx])
+        decline = (pre_high - min_price) / pre_high
+        post_high = max(c['high'] for c in candles[min_idx:])
+        recovery = (post_high - min_price) / min_price if min_price > 0 else 0
+        if decline < min_depth or recovery < min_depth * 0.7:
+            return None
+        if recovery < decline * 0.6:
+            return None
+        if price > closes[min_idx] * (1 + min_depth * 0.5):
+            return "v_bottom"
+        return None
+
+    def _detect_double_top(self, candles, price, tolerance, min_depth, confirm) -> Optional[str]:
+        highs = [c['high'] for c in candles]
+        lows = [c['low'] for c in candles]
+        max_idx1 = highs.index(max(highs))
+        second_highs = [(i, highs[i]) for i in range(len(highs)) if abs(i - max_idx1) >= 3]
+        if not second_highs:
+            return None
+        max_idx2, max_val2 = max(second_highs, key=lambda x: x[1])
+        max_val1 = highs[max_idx1]
+        avg_high = (max_val1 + max_val2) / 2
+        if abs(max_val1 - max_val2) / avg_high > tolerance:
+            return None
+        left_idx, right_idx = min(max_idx1, max_idx2), max(max_idx1, max_idx2)
+        if right_idx - left_idx < 3:
+            return None
+        neckline = min(lows[left_idx:right_idx + 1])
+        depth = (avg_high - neckline) / avg_high
+        if depth < min_depth:
+            return None
+        if confirm == "close_above":
+            if candles[-1]['close'] < neckline:
+                return "double_top"
+        elif confirm == "volume_confirm":
+            avg_vol = sum(c['volume'] for c in candles[:-1]) / max(len(candles) - 1, 1)
+            if price < neckline and candles[-1]['volume'] > avg_vol * 1.2:
+                return "double_top"
+        else:
+            if price < neckline:
+                return "double_top"
+        return None
+
+    def _detect_v_top(self, candles, price, min_depth) -> Optional[str]:
+        highs = [c['high'] for c in candles]
+        closes = [c['close'] for c in candles]
+        max_idx = highs.index(max(highs))
+        max_price = highs[max_idx]
+        if max_idx < 3 or max_idx > len(candles) - 3:
+            return None
+        pre_low = min(c['low'] for c in candles[:max_idx])
+        rise = (max_price - pre_low) / pre_low if pre_low > 0 else 0
+        post_low = min(c['low'] for c in candles[max_idx:])
+        decline = (max_price - post_low) / max_price if max_price > 0 else 0
+        if rise < min_depth or decline < min_depth * 0.7:
+            return None
+        if decline < rise * 0.6:
+            return None
+        if price < closes[max_idx] * (1 - min_depth * 0.5):
+            return "v_top"
+        return None
+
+    def _detect_triangle(self, candles, price, min_depth, direction) -> Optional[str]:
+        highs = [c['high'] for c in candles]
+        lows = [c['low'] for c in candles]
+        half = len(candles) // 2
+        first_range = max(highs[:half]) - min(lows[:half])
+        second_range = max(highs[half:]) - min(lows[half:])
+        if second_range >= first_range * 0.9:
+            return None
+        high_trend = (highs[-1] - highs[0]) / highs[0] if highs[0] > 0 else 0
+        low_trend = (lows[-1] - lows[0]) / lows[0] if lows[0] > 0 else 0
+        avg_price = sum(c['close'] for c in candles) / len(candles)
+        convergence = first_range - second_range
+        if convergence / avg_price < min_depth * 0.3:
+            return None
+        recent_high = max(highs[-3:])
+        recent_low = min(lows[-3:])
+        if direction == "up":
+            if price > recent_high and high_trend <= 0:
+                return "triangle_up"
+        else:
+            if price < recent_low and low_trend >= 0:
+                return "triangle_down"
+        return None
+
+    def _detect_wedge(self, candles, price, direction) -> Optional[str]:
+        highs = [c['high'] for c in candles]
+        lows = [c['low'] for c in candles]
+        n = len(candles)
+        x_sum = sum(range(n))
+        x2_sum = sum(i * i for i in range(n))
+        high_xy = sum(i * highs[i] for i in range(n))
+        low_xy = sum(i * lows[i] for i in range(n))
+        high_y = sum(highs)
+        low_y = sum(lows)
+        denom = n * x2_sum - x_sum * x_sum
+        if denom == 0:
+            return None
+        high_slope = (n * high_xy - x_sum * high_y) / denom
+        low_slope = (n * low_xy - x_sum * low_y) / denom
+        avg_price = (high_y + low_y) / (2 * n)
+        high_slope_pct = high_slope / avg_price if avg_price > 0 else 0
+        low_slope_pct = low_slope / avg_price if avg_price > 0 else 0
+        if direction == "up":
+            if high_slope < 0 and low_slope < 0:
+                if low_slope_pct < high_slope_pct:
+                    if price > max(highs[-3:]):
+                        return "falling_wedge"
+        else:
+            if high_slope > 0 and low_slope > 0:
+                if high_slope_pct < low_slope_pct:
+                    if price < min(lows[-3:]):
+                        return "rising_wedge"
+        return None
+
+
+class UsMarketFollowStrategy(MartingaleStrategy):
+    """
+    미국 증시 추종 전략.
+    전일 미국 증시 변동률이 임계값을 넘으면 한국 장 시작에 진입.
+    yfinance로 미국 지수 데이터를 가져옴.
+    API us_market_follow.py와 동일한 로직.
+    """
+    name = "us_market_follow"
+
+    STRATEGY_DEFAULTS = {
+        "us_index": "^GSPC",
+        "trigger_direction": "above",
+        "us_change_threshold": 1.0,
+        "entry_start_time": "09:00",
+        "max_buy_count": 1,
+        "last_level_allin": "on",
+        "trailing_start_percent": 2.0,
+        "trailing_stop_percent": 1.0,
+        "max_loss_percent": 3.0,
+        "cycle_max_hours": 6,
+    }
+
+    def __init__(self, config=None):
+        merged = {**self.STRATEGY_DEFAULTS, **(config or {})}
+        super().__init__(merged)
+        self._daily_date = None
+        self._checked_today = False
+        self._us_change_map: Dict[str, float] = {}
+        self._trigger_met = False
+
+    def _initialize_trigger(self):
+        self._daily_date = None
+        self._checked_today = False
+        self._us_change_map = {}
+        self._trigger_met = False
+
+    def preload_us_data(self, days: int = 365):
+        """백테스트 시작 전 미국 지수 데이터를 미리 로드."""
+        try:
+            import yfinance as yf
+            ticker = self.config.get("us_index", "^GSPC")
+            period_map = {365: "1y", 180: "6mo", 90: "3mo", 30: "1mo"}
+            period = period_map.get(days, "1y")
+            t = yf.Ticker(ticker)
+            hist = t.history(period=period)
+            if hist is None or len(hist) < 2:
+                return
+            for i in range(1, len(hist)):
+                prev_close = float(hist["Close"].iloc[i - 1])
+                curr_close = float(hist["Close"].iloc[i])
+                change_pct = (curr_close - prev_close) / prev_close * 100
+                date_str = str(hist.index[i].date())
+                self._us_change_map[date_str] = change_pct
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+    def _get_us_change_for_date(self, korean_date_str: str) -> float:
+        """한국 날짜에 해당하는 미국 증시 변동률 조회."""
+        d = datetime.strptime(korean_date_str, "%Y-%m-%d").date()
+        for offset in range(1, 5):
+            us_date = str(d - timedelta(days=offset))
+            if us_date in self._us_change_map:
+                return self._us_change_map[us_date]
+        return 0.0
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        ts = candle["timestamp"]
+        if isinstance(ts, str):
+            ts = datetime.fromisoformat(ts)
+
+        current_date = ts.date()
+
+        # Daily reset
+        if self._daily_date != current_date:
+            self._daily_date = current_date
+            self._checked_today = False
+            self._trigger_met = False
+
+        if self._checked_today:
+            return None
+
+        # entry_start_time 확인
+        start_str = self.config.get("entry_start_time", "09:00")
+        parts = start_str.split(":")
+        sh, sm = int(parts[0]), int(parts[1])
+        if ts.hour < sh or (ts.hour == sh and ts.minute < sm):
+            return None
+
+        self._checked_today = True
+
+        # 미국 증시 변동률 확인
+        us_change = self._get_us_change_for_date(current_date.strftime("%Y-%m-%d"))
+        threshold = float(self.config.get("us_change_threshold", 1.0))
+        direction = self.config.get("trigger_direction", "above")
+
+        if direction == "above":
+            self._trigger_met = us_change >= threshold
+        elif direction == "below":
+            self._trigger_met = us_change <= -threshold
+
+        return "long" if self._trigger_met else None
+
+    def _check_additional_trigger(self, candle: Dict) -> bool:
+        return False
+
+
+class FundingRateArbStrategy(MartingaleStrategy):
+    """
+    펀딩비 차익거래 전략 (독립 백테스트용 간소화 버전).
+    실제 펀딩레이트 데이터가 OHLCV에 포함되지 않으므로,
+    가격 변동률을 펀딩레이트의 프록시로 사용.
+
+    원본 API: 펀딩레이트 > entry_threshold -> SHORT (숏이 펀딩비 수령)
+              펀딩레이트 < -entry_threshold -> LONG (롱이 펀딩비 수령)
+
+    스킬 버전: 가격 모멘텀을 펀딩레이트 프록시로 사용한 방향성 거래 시뮬레이션.
+    NOTE: 실제 펀딩비 수익은 시뮬레이션하지 않음.
+    """
+    name = "funding_rate_arb"
+
+    STRATEGY_DEFAULTS = {
+        "entry_rate_threshold": 0.03,
+        "exit_rate_threshold": 0.005,
+        "position_size_pct": 50.0,
+        "proxy_lookback": 8,
+        "max_buy_count": 1,
+    }
+
+    def __init__(self, config=None):
+        merged = {**self.STRATEGY_DEFAULTS, **(config or {})}
+        super().__init__(merged)
+        self._close_history: List[float] = []
+        self._proxy_rate: float = 0.0
+
+    def _initialize_trigger(self):
+        self._close_history = []
+        self._proxy_rate = 0.0
+
+    def _calc_proxy_funding_rate(self, close: float) -> float:
+        """가격 변동률을 펀딩레이트 프록시로 사용."""
+        self._close_history.append(close)
+        lookback = int(self.config.get("proxy_lookback", 8))
+        if len(self._close_history) < lookback + 1:
+            return 0.0
+        old_price = self._close_history[-lookback - 1]
+        if old_price == 0:
+            return 0.0
+        change_pct = (close - old_price) / old_price * 100
+        return change_pct / 100  # e.g., 1% change -> 0.01
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        self._proxy_rate = self._calc_proxy_funding_rate(candle["close"])
+        entry_threshold = float(self.config.get("entry_rate_threshold", 0.03)) / 100
+
+        if abs(self._proxy_rate) < entry_threshold:
+            return None
+
+        if self._proxy_rate > 0:
+            # 양의 "펀딩레이트" -> SHORT (숏이 수령)
+            pos_side = self.config.get("position_side", "long")
+            if pos_side in ("short", "both"):
+                return "short"
+            return None
+        else:
+            # 음의 "펀딩레이트" -> LONG (롱이 수령)
+            return "long"
+
+    def _check_additional_trigger(self, candle: Dict) -> bool:
+        return False
+
+    def _check_exit_trigger(self, candle: Dict) -> bool:
+        exit_threshold = float(self.config.get("exit_rate_threshold", 0.005)) / 100
+        if abs(self._proxy_rate) < exit_threshold:
+            return True
+        entry_threshold = float(self.config.get("entry_rate_threshold", 0.03)) / 100
+        if self.is_short and self._proxy_rate < -entry_threshold:
+            return True
+        if not self.is_short and self._proxy_rate > entry_threshold:
+            return True
+        return False
+
+
+class SpotFuturesHedgeStrategy(MartingaleStrategy):
+    """
+    현선물 헤지 전략 (독립 백테스트용 간소화 버전).
+    실제로는 Spot LONG + Futures SHORT 동시 진입으로 펀딩비 수령.
+    독립 백테스트에서는 헤지 구조를 시뮬레이션할 수 없으므로,
+    펀딩비 수령 기회를 가격 기반으로 근사.
+
+    NOTE: 실제 헤지 수익은 시뮬레이션 불가. 진입/청산 타이밍만 백테스트.
+    실전에서는 반드시 API 방식(live_binance.py)을 사용.
+    """
+    name = "spot_futures_hedge"
+
+    STRATEGY_DEFAULTS = {
+        "entry_rate_threshold": 0.05,
+        "exit_rate_threshold": 0.01,
+        "hedge_size_pct": 50.0,
+        "proxy_lookback": 8,
+        "max_buy_count": 1,
+        "trailing_start_percent": 0.5,
+        "trailing_stop_percent": 0.3,
+    }
+
+    def __init__(self, config=None):
+        merged = {**self.STRATEGY_DEFAULTS, **(config or {})}
+        super().__init__(merged)
+        self._close_history: List[float] = []
+        self._proxy_rate: float = 0.0
+
+    def _initialize_trigger(self):
+        self._close_history = []
+        self._proxy_rate = 0.0
+
+    def _calc_proxy_rate(self, close: float) -> float:
+        self._close_history.append(close)
+        lookback = int(self.config.get("proxy_lookback", 8))
+        if len(self._close_history) < lookback + 1:
+            return 0.0
+        old_price = self._close_history[-lookback - 1]
+        if old_price == 0:
+            return 0.0
+        return (close - old_price) / old_price
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        self._proxy_rate = self._calc_proxy_rate(candle["close"])
+        entry_threshold = float(self.config.get("entry_rate_threshold", 0.05)) / 100
+        if self._proxy_rate >= entry_threshold:
+            return "long"
+        return None
+
+    def _check_additional_trigger(self, candle: Dict) -> bool:
+        return False
+
+    def _check_exit_trigger(self, candle: Dict) -> bool:
+        exit_threshold = float(self.config.get("exit_rate_threshold", 0.01)) / 100
+        if self._proxy_rate < exit_threshold:
+            return True
+        if self._proxy_rate < 0:
+            return True
+        return False
+
+
+# =============================================================================
 # Strategy Registry
 # =============================================================================
 
@@ -672,6 +1198,10 @@ STRATEGY_REGISTRY = {
     "ema_momentum": EmaMomentumStrategy,
     "rsi_martingale": RsiMartingaleStrategy,
     "time_momentum": TimeMomentumStrategy,
+    "chart_pattern": ChartPatternStrategy,
+    "us_market_follow": UsMarketFollowStrategy,
+    "funding_rate_arb": FundingRateArbStrategy,
+    "spot_futures_hedge": SpotFuturesHedgeStrategy,
 }
 
 
@@ -690,4 +1220,8 @@ def list_strategies() -> Dict[str, str]:
         "ema_momentum": "EMA 모멘텀 - EMA 골든/데드 크로스 기반 추세 추종",
         "rsi_martingale": "RSI 마틴게일 - RSI 과매도/과매수 기반 진입, 마틴게일 추가매수",
         "time_momentum": "시간대 모멘텀 - 특정 시간대 모멘텀 확인 후 진입",
+        "chart_pattern": "차트 패턴 - Double Bottom, V-Bottom, Triangle 등 패턴 감지",
+        "us_market_follow": "미국 증시 추종 - 전일 미국 증시 변동률 기반 진입",
+        "funding_rate_arb": "펀딩비 차익 - 펀딩레이트 기반 방향성 거래 (선물 전용)",
+        "spot_futures_hedge": "현선물 헤지 - Spot+Futures 델타 중립 펀딩비 수령",
     }

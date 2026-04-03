@@ -2,7 +2,10 @@
 """
 Standalone Backtest Engine
 기존 BacktestEngine과 동일한 로직을 독립 실행 가능한 형태로 구현.
-API 없이 PostgreSQL 직접 조회 → 전략 실행 → 성과 분석.
+API 없이 PostgreSQL 직접 조회 -> 전략 실행 -> 성과 분석.
+
+v2: ExecutionEngine 기반 리팩토링.
+    전략 -> Signal -> BacktestExecutor 구조로 분리.
 
 Usage:
     python backtest.py --strategy dip_martingale --symbol 005930 --interval 1d --days 365
@@ -23,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fetch_data import load_ohlcv
 from strategies import get_strategy, list_strategies, MartingaleStrategy, Trade
 from metrics import calculate_metrics, format_results, BacktestResult
+from execution_engine import BacktestExecutor, StrategyAdapter
 
 
 def run_backtest(
@@ -40,7 +44,7 @@ def run_backtest(
 
     1. DB에서 OHLCV 로드
     2. 전략 초기화
-    3. 캔들 루프 (on_data 시뮬레이션)
+    3. Signal -> ExecutionEngine 루프
     4. 성과 분석
     """
 
@@ -56,48 +60,20 @@ def run_backtest(
     strategy = get_strategy(strategy_name, config)
     strategy._initialize_trigger()
 
-    # 3. Simulation loop
-    cash = initial_capital
-    holdings = 0.0  # quantity held
-    trades: List[Trade] = []
-    raw_trades = []  # API 동일 FIFO 매칭용 개별 매매 기록
-    equity_curve = []
+    # us_market_follow: 미국 지수 데이터 프리로드
+    if hasattr(strategy, 'preload_us_data'):
+        strategy.preload_us_data(days=max(days, 365))
 
-    # Leverage support (API BacktestContext와 동일)
+    # 3. Create executor and adapter
     leverage = max(1, int((config or {}).get("leverage", 1)))
-    margin_used = 0.0  # 레버리지 사용 시 마진 추적
-    notional_cost = 0.0  # 실제 투자 비용 추적
+    executor = BacktestExecutor(
+        initial_capital=initial_capital,
+        leverage=leverage,
+        config=config,
+    )
+    adapter = StrategyAdapter(strategy)
 
-    def _buy_margin(price, qty):
-        """Buy: cash에서 마진만 차감 (API BacktestContext.buy 동일)"""
-        nonlocal cash, holdings, margin_used, notional_cost
-        cost = price * qty
-        margin = cost / leverage if leverage > 1 else cost
-        if cash < margin:
-            return False
-        cash -= margin
-        holdings += qty
-        if leverage > 1:
-            margin_used += margin
-            notional_cost += cost
-        return True
-
-    def _sell_margin(price, qty):
-        """Sell: 마진 + PnL 반환 (API BacktestContext.sell 동일)"""
-        nonlocal cash, holdings, margin_used, notional_cost
-        if leverage > 1 and notional_cost > 0:
-            revenue = price * qty
-            pnl = revenue - notional_cost
-            cash += margin_used + pnl
-            margin_used = 0.0
-            notional_cost = 0.0
-        else:
-            cash += price * qty
-        holdings = 0
-
-    # Track current trading date for daily reset (mirrors API engine)
-    current_trading_date = None
-
+    # 4. Simulation loop
     for i, candle in enumerate(candles):
         ts = candle["timestamp"]
         if not isinstance(ts, datetime):
@@ -105,139 +81,46 @@ def run_backtest(
 
         current_price = candle["close"]
 
-        # --- Strategy logic (mirrors MartingaleBase.on_data exactly) ---
+        # A. Process pending orders (LIMIT/STOP from previous candles)
+        executor.on_candle(candle, strategy, ts)
 
-        # 0. Indicator update hook (e.g., RSI, EMA calculations)
-        if hasattr(strategy, '_on_candle'):
-            strategy._on_candle(candle)
+        # B. Get signals from strategy
+        signals = adapter.process_candle(candle, ts, current_price, executor)
 
-        # 1. Daily reset of reference_price (API 엔진과 동일)
-        current_date = ts.date() if isinstance(ts, datetime) else None
-        if current_date and current_trading_date != current_date:
-            current_trading_date = current_date
-            if strategy.current_level == 0:
-                if hasattr(strategy, 'reference_price'):
-                    strategy.reference_price = None
+        # C. Execute signals
+        adapter.execute_signals(signals, executor, ts, current_price)
 
-        # A. Check exits if holding
-        exited = False
-        if strategy.current_level > 0:
-            # A1. Strategy-based exit
-            should_strategy_exit = strategy._check_exit_trigger(candle)
+        # D. Record equity curve
+        executor.record_equity(current_price, ts)
 
-            if should_strategy_exit:
-                # Record sell for FIFO matching (API 동일)
-                sell_qty = strategy.total_quantity
-                raw_trades.append({"type": "sell", "price": current_price,
-                                   "quantity": sell_qty, "time": ts.isoformat(),
-                                   "cycle_start_equity": strategy._cycle_start_equity})
-                trade = _execute_exit(strategy, current_price, ts, cash)
-                _sell_margin(current_price, trade.total_quantity)
-                trades.append(trade)
-                if hasattr(strategy, '_trigger_armed'):
-                    strategy._trigger_armed = True
-                exited = True
-            else:
-                # A2. Price-based exits (trailing, max_loss, timeout)
-                exit_reason = strategy.check_exits(current_price, ts)
-                if exit_reason:
-                    sell_qty = strategy.total_quantity
-                    raw_trades.append({"type": "sell", "price": current_price,
-                                       "quantity": sell_qty, "time": ts.isoformat(),
-                                       "cycle_start_equity": strategy._cycle_start_equity})
-                    trade = _execute_exit(strategy, current_price, ts, cash)
-                    _sell_margin(current_price, trade.total_quantity)
-                    trades.append(trade)
-                    if hasattr(strategy, '_trigger_armed'):
-                        strategy._trigger_armed = True
-                    exited = True
-                else:
-                    # A3. Additional entry (L2+)
-                    # API 엔진: trailing_active일 때 추가 진입 차단
-                    if (strategy.current_level < strategy.config["max_buy_count"]
-                            and not strategy.trailing_active):
-                        should_add = False
-
-                        if strategy.config["additional_buy_mode"] == "step":
-                            should_add = strategy._check_step_trigger(current_price)
-                        else:
-                            should_add = strategy._check_additional_trigger(candle)
-
-                        if should_add and strategy._check_require_lower(current_price):
-                            next_level = strategy.current_level + 1
-                            qty = strategy.calculate_quantity(
-                                next_level, current_price, cash, initial_capital
-                            )
-                            if qty > 0 and _buy_margin(current_price, qty):
-                                strategy.add_entry(next_level, current_price, qty, ts)
-                                raw_trades.append({"type": "buy", "price": current_price,
-                                                   "quantity": qty, "time": ts.isoformat()})
-
-        # B. L1 entry if no position
-        # API on_data(): exit 후 return → 같은 캔들에서 재진입 불가
-        if not exited and strategy.current_level == 0:
-            direction = strategy._check_entry_trigger(candle)
-            if direction:
-                strategy.is_short = (direction == "short")
-                if leverage > 1 and holdings > 0:
-                    strategy._cycle_start_equity = cash + margin_used + ((current_price * holdings) - notional_cost)
-                else:
-                    strategy._cycle_start_equity = cash + holdings * current_price
-
-                qty = strategy.calculate_quantity(1, current_price, cash, initial_capital)
-                if qty > 0 and _buy_margin(current_price, qty):
-                    strategy.add_entry(1, current_price, qty, ts)
-                    raw_trades.append({"type": "buy", "price": current_price,
-                                       "quantity": qty, "time": ts.isoformat()})
-                    # API 엔진: L1 진입 시 peak_price를 진입가로 설정
-                    strategy.peak_price = current_price
-
-        # C. Update equity curve
-        # API 동일: leverage 시 equity = cash + margin_used + unrealized_pnl
-        if leverage > 1 and holdings > 0:
-            unrealized_pnl = (current_price * holdings) - notional_cost
-            equity = cash + margin_used + unrealized_pnl
-        else:
-            equity = cash + holdings * current_price
-        equity_curve.append({
-            "date": ts.strftime("%Y-%m-%d %H:%M") if isinstance(ts, datetime) else str(ts),
-            "equity": equity,
-        })
-
-    # Close any open position at end
+    # 5. Force liquidate any open position
     if strategy.current_level > 0:
         final_price = candles[-1]["close"]
         final_ts = candles[-1]["timestamp"]
         if not isinstance(final_ts, datetime):
             final_ts = datetime.fromisoformat(str(final_ts))
 
-        sell_qty = strategy.total_quantity
-        raw_trades.append({"type": "sell", "price": final_price,
-                           "quantity": sell_qty, "time": final_ts.isoformat(),
-                           "force_liquidated": True})
-        trade = _execute_exit(strategy, final_price, final_ts, cash)
-        _sell_margin(final_price, trade.total_quantity)
-        trades.append(trade)
+        executor._last_trade = None
+        executor.force_liquidate(strategy, final_price, final_ts)
+        if executor._last_trade is not None:
+            adapter._trades.append(executor._last_trade)
 
         # Update last equity point
-        equity_curve[-1]["equity"] = cash
+        if executor.equity_curve:
+            executor.equity_curve[-1]["equity"] = executor.cash
 
-    # 4. Calculate metrics (FIFO matching — API _analyze_trades와 동일)
+    # 6. Calculate metrics (FIFO matching -- API _analyze_trades와 동일)
     timestamps = [c["timestamp"] for c in candles]
-    result = calculate_metrics(trades, equity_curve, timestamps, initial_capital, strategy_name,
-                               raw_trades=raw_trades)
+    result = calculate_metrics(
+        adapter.trades,
+        executor.equity_curve,
+        timestamps,
+        initial_capital,
+        strategy_name,
+        raw_trades=executor.raw_trades,
+    )
 
     return result
-
-
-def _execute_exit(
-    strategy: MartingaleStrategy,
-    price: float,
-    time: datetime,
-    cash: float,
-) -> Trade:
-    """포지션 청산 실행."""
-    return strategy.close_position(price, time)
 
 
 def main():
