@@ -80,33 +80,40 @@ def calc_max_drawdown(equity_curve: List[Dict]) -> float:
     return -max_dd * 100
 
 
-def calc_activity_rate(trades, data_feed_timestamps: List) -> tuple:
+def calc_activity_rate(trades, data_feed_timestamps: List, raw_trades: List[Dict] = None) -> tuple:
     """
-    활동률 (%). 기존과 동일.
+    활동률 (%). API와 동일: raw_trades의 모든 매매 날짜를 카운트.
     Returns: (activity_rate, total_days)
     """
+    from datetime import datetime as dt
+
     data_dates = set()
     for ts in data_feed_timestamps:
         try:
             if hasattr(ts, 'date'):
                 data_dates.add(ts.date())
             else:
-                from datetime import datetime
-                data_dates.add(datetime.fromisoformat(str(ts)).date())
+                data_dates.add(dt.fromisoformat(str(ts)).date())
         except Exception:
             pass
 
     traded_dates = set()
-    for t in trades:
-        try:
-            entry_time = t.entry_time
-            if hasattr(entry_time, 'date'):
-                traded_dates.add(entry_time.date())
-            exit_time = t.exit_time
-            if hasattr(exit_time, 'date'):
-                traded_dates.add(exit_time.date())
-        except Exception:
-            pass
+    if raw_trades:
+        # API 동일: raw trade log의 모든 날짜 (buy + sell)
+        for t in raw_trades:
+            try:
+                traded_dates.add(dt.fromisoformat(t['time']).date())
+            except Exception:
+                pass
+    else:
+        for t in trades:
+            try:
+                if hasattr(t.entry_time, 'date'):
+                    traded_dates.add(t.entry_time.date())
+                if hasattr(t.exit_time, 'date'):
+                    traded_dates.add(t.exit_time.date())
+            except Exception:
+                pass
 
     total_days = len(data_dates)
     traded_count = len(traded_dates)
@@ -197,6 +204,8 @@ def calc_stability_stats(trades, n_buckets: int = 12) -> Dict[str, Any]:
     if not trades or len(trades) < 3:
         return {"stability_score": 0.0, "acceleration_score": 0.0, "bucket_stats": []}
 
+    # API 동일: 시간순 정렬 (exit_time 기준)
+    trades = sorted(trades, key=lambda t: t.exit_time if hasattr(t, 'exit_time') else 0)
     total = len(trades)
     actual_buckets = min(n_buckets, total)
     if actual_buckets < 2:
@@ -422,7 +431,7 @@ def calculate_metrics(
         fifo_trades = fifo_match_trades(raw_trades)
         # 사이클 집계: 같은 exit_time의 FIFO 매치들을 하나의 사이클로 (API cycle_id 동일)
         cycle_trades = aggregate_fifo_to_cycles(fifo_trades, raw_trades)
-        activity_rate, total_days = calc_activity_rate(cycle_trades, data_timestamps)
+        activity_rate, total_days = calc_activity_rate(cycle_trades, data_timestamps, raw_trades)
         trade_stats = calc_trade_stats(cycle_trades)
         # API 동일: stability/acceleration은 raw FIFO 트레이드 기준 (사이클 집계 전)
         stability = calc_stability_stats(fifo_trades)

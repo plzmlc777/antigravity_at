@@ -57,12 +57,43 @@ def run_backtest(
     strategy._initialize_trigger()
 
     # 3. Simulation loop
-    # API BacktestContext 동일: cash는 음수 허용 (Fixed Betting 지원)
     cash = initial_capital
     holdings = 0.0  # quantity held
     trades: List[Trade] = []
     raw_trades = []  # API 동일 FIFO 매칭용 개별 매매 기록
     equity_curve = []
+
+    # Leverage support (API BacktestContext와 동일)
+    leverage = max(1, int((config or {}).get("leverage", 1)))
+    margin_used = 0.0  # 레버리지 사용 시 마진 추적
+    notional_cost = 0.0  # 실제 투자 비용 추적
+
+    def _buy_margin(price, qty):
+        """Buy: cash에서 마진만 차감 (API BacktestContext.buy 동일)"""
+        nonlocal cash, holdings, margin_used, notional_cost
+        cost = price * qty
+        margin = cost / leverage if leverage > 1 else cost
+        if cash < margin:
+            return False
+        cash -= margin
+        holdings += qty
+        if leverage > 1:
+            margin_used += margin
+            notional_cost += cost
+        return True
+
+    def _sell_margin(price, qty):
+        """Sell: 마진 + PnL 반환 (API BacktestContext.sell 동일)"""
+        nonlocal cash, holdings, margin_used, notional_cost
+        if leverage > 1 and notional_cost > 0:
+            revenue = price * qty
+            pnl = revenue - notional_cost
+            cash += margin_used + pnl
+            margin_used = 0.0
+            notional_cost = 0.0
+        else:
+            cash += price * qty
+        holdings = 0
 
     # Track current trading date for daily reset (mirrors API engine)
     current_trading_date = None
@@ -101,8 +132,7 @@ def run_backtest(
                                    "quantity": sell_qty, "time": ts.isoformat(),
                                    "cycle_start_equity": strategy._cycle_start_equity})
                 trade = _execute_exit(strategy, current_price, ts, cash)
-                cash += trade.total_quantity * current_price
-                holdings = 0
+                _sell_margin(current_price, trade.total_quantity)
                 trades.append(trade)
                 if hasattr(strategy, '_trigger_armed'):
                     strategy._trigger_armed = True
@@ -116,8 +146,7 @@ def run_backtest(
                                        "quantity": sell_qty, "time": ts.isoformat(),
                                        "cycle_start_equity": strategy._cycle_start_equity})
                     trade = _execute_exit(strategy, current_price, ts, cash)
-                    cash += trade.total_quantity * current_price
-                    holdings = 0
+                    _sell_margin(current_price, trade.total_quantity)
                     trades.append(trade)
                     if hasattr(strategy, '_trigger_armed'):
                         strategy._trigger_armed = True
@@ -139,12 +168,7 @@ def run_backtest(
                             qty = strategy.calculate_quantity(
                                 next_level, current_price, cash, initial_capital
                             )
-                            # API: cash check는 _calculate_quantity 내부에서만 (외부 체크 제거)
-                            # API BacktestContext.buy()는 음수 cash 허용
-                            if qty > 0:
-                                cost = current_price * qty
-                                cash -= cost
-                                holdings += qty
+                            if qty > 0 and _buy_margin(current_price, qty):
                                 strategy.add_entry(next_level, current_price, qty, ts)
                                 raw_trades.append({"type": "buy", "price": current_price,
                                                    "quantity": qty, "time": ts.isoformat()})
@@ -155,14 +179,13 @@ def run_backtest(
             direction = strategy._check_entry_trigger(candle)
             if direction:
                 strategy.is_short = (direction == "short")
-                strategy._cycle_start_equity = cash + holdings * current_price
+                if leverage > 1 and holdings > 0:
+                    strategy._cycle_start_equity = cash + margin_used + ((current_price * holdings) - notional_cost)
+                else:
+                    strategy._cycle_start_equity = cash + holdings * current_price
 
                 qty = strategy.calculate_quantity(1, current_price, cash, initial_capital)
-                # API: 외부 cash check 없음 (BacktestContext.buy는 음수 cash 허용)
-                if qty > 0:
-                    cost = current_price * qty
-                    cash -= cost
-                    holdings += qty
+                if qty > 0 and _buy_margin(current_price, qty):
                     strategy.add_entry(1, current_price, qty, ts)
                     raw_trades.append({"type": "buy", "price": current_price,
                                        "quantity": qty, "time": ts.isoformat()})
@@ -170,7 +193,12 @@ def run_backtest(
                     strategy.peak_price = current_price
 
         # C. Update equity curve
-        equity = cash + holdings * current_price
+        # API 동일: leverage 시 equity = cash + margin_used + unrealized_pnl
+        if leverage > 1 and holdings > 0:
+            unrealized_pnl = (current_price * holdings) - notional_cost
+            equity = cash + margin_used + unrealized_pnl
+        else:
+            equity = cash + holdings * current_price
         equity_curve.append({
             "date": ts.strftime("%Y-%m-%d %H:%M") if isinstance(ts, datetime) else str(ts),
             "equity": equity,
@@ -188,8 +216,7 @@ def run_backtest(
                            "quantity": sell_qty, "time": final_ts.isoformat(),
                            "force_liquidated": True})
         trade = _execute_exit(strategy, final_price, final_ts, cash)
-        cash += trade.total_quantity * final_price
-        holdings = 0
+        _sell_margin(final_price, trade.total_quantity)
         trades.append(trade)
 
         # Update last equity point
