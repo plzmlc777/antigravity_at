@@ -147,14 +147,30 @@ class LiveTradingEngine:
             engine_version = config.get("engine_version", "v1")
             if engine_version == "v2":
                 from .signal_context import SignalInterceptContext
-                from .execution_engine import PassthroughExecutor, FilterChainExecutor
-                executor_type = config.get("executor_type", "passthrough")
-                if executor_type == "passthrough":
-                    self._execution_engine = PassthroughExecutor()
-                else:
+                from .execution_engine import (
+                    PassthroughExecutor, FilterChainExecutor,
+                    MaxPositionSizeFilter, MaxConsecutiveLossFilter, TimeRestrictionFilter,
+                )
+                # Build executor from config
+                filter_configs = config.get("filters", [])
+                if filter_configs:
                     self._execution_engine = FilterChainExecutor()
+                    for fc in filter_configs:
+                        ft = fc.get("type", "")
+                        if ft == "max_position_size":
+                            self._execution_engine.add_filter(MaxPositionSizeFilter(fc.get("max_quantity", 100)))
+                        elif ft == "max_consecutive_loss":
+                            self._execution_engine.add_filter(MaxConsecutiveLossFilter(fc.get("max_consecutive", 3)))
+                        elif ft == "time_restriction":
+                            self._execution_engine.add_filter(TimeRestrictionFilter(
+                                start_hour=fc.get("start_hour", 9), end_hour=fc.get("end_hour", 15),
+                                start_minute=fc.get("start_minute", 0), end_minute=fc.get("end_minute", 20),
+                            ))
+                    logger.info(f"Session {self.session_id}: ExecutionEngine v2 with {len(filter_configs)} filters")
+                else:
+                    self._execution_engine = PassthroughExecutor()
+                    logger.info(f"Session {self.session_id}: ExecutionEngine v2 (passthrough)")
                 self._signal_context = SignalInterceptContext(self.context, self._execution_engine)
-                logger.info(f"Session {self.session_id}: ExecutionEngine v2 enabled (executor={executor_type})")
 
             # 3. Strategy Instance — v2면 SignalInterceptContext 전달
             strategy_context = self._signal_context if self._signal_context else self.context

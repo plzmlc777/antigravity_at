@@ -2806,3 +2806,139 @@ async def delete_strategy_profile(
     db.commit()
 
     return {"status": "success", "message": message}
+
+
+# ============================================================================
+# ExecutionEngine V2 — Signal API
+# ============================================================================
+
+@router.get("/session/{session_id}/signals")
+async def get_session_signals(session_id: str, limit: int = 50, executed_only: bool = False):
+    """
+    세션의 캡처된 시그널 목록 조회.
+    engine_version=v2 세션에서만 데이터 반환.
+    """
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    if not engine._signal_context:
+        return {"engine_version": "v1", "signals": [], "message": "v1 engine — no signal data"}
+
+    signals = engine._signal_context.executed_signals if executed_only else engine._signal_context.signals
+    recent = signals[-limit:] if len(signals) > limit else signals
+
+    return {
+        "engine_version": "v2",
+        "session_id": session_id,
+        "total": len(signals),
+        "showing": len(recent),
+        "signals": [
+            {
+                "signal_id": s.signal_id,
+                "side": s.side.value,
+                "symbol": s.symbol,
+                "quantity": s.quantity,
+                "price": s.price,
+                "order_type": s.order_type,
+                "timestamp": s.timestamp.isoformat() if s.timestamp else None,
+                "executed": s.executed,
+                "exec_price": s.exec_price,
+                "exec_quantity": s.exec_quantity,
+                "decision": {
+                    "action": s.decision.action.value,
+                    "reason": s.decision.reason,
+                    "filter_name": s.decision.filter_name,
+                } if s.decision else None,
+                "metadata": s.metadata,
+            }
+            for s in recent
+        ],
+    }
+
+
+@router.get("/session/{session_id}/engine-stats")
+async def get_session_engine_stats(session_id: str):
+    """
+    세션의 ExecutionEngine 통계 조회.
+    """
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    if not engine._execution_engine:
+        return {"engine_version": "v1", "message": "v1 engine — no execution stats"}
+
+    return {
+        "engine_version": "v2",
+        "session_id": session_id,
+        "signal_stats": engine._signal_context.get_signal_stats() if engine._signal_context else {},
+        "engine_stats": engine._execution_engine.get_stats(),
+    }
+
+
+class FilterConfigRequest(BaseModel):
+    filters: List[Dict[str, Any]]  # [{"type": "max_position_size", "max_quantity": 100}, ...]
+
+
+@router.post("/session/{session_id}/filters")
+async def configure_session_filters(session_id: str, request: FilterConfigRequest):
+    """
+    실행 중인 v2 세션의 필터 체인을 동적으로 설정.
+    기존 필터를 교체합니다.
+
+    지원 필터:
+    - max_position_size: {"type": "max_position_size", "max_quantity": 100}
+    - max_consecutive_loss: {"type": "max_consecutive_loss", "max_consecutive": 3}
+    - time_restriction: {"type": "time_restriction", "start_hour": 9, "end_hour": 15}
+    """
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    if not engine._execution_engine:
+        raise HTTPException(status_code=400, detail="v1 engine — cannot configure filters")
+
+    from ..core.execution_engine import (
+        FilterChainExecutor, PassthroughExecutor,
+        MaxPositionSizeFilter, MaxConsecutiveLossFilter, TimeRestrictionFilter,
+    )
+
+    # Build new filter chain
+    new_engine = FilterChainExecutor()
+    applied = []
+
+    for f_config in request.filters:
+        f_type = f_config.get("type", "")
+        if f_type == "max_position_size":
+            new_engine.add_filter(MaxPositionSizeFilter(
+                max_quantity=f_config.get("max_quantity", 100)
+            ))
+            applied.append(f_type)
+        elif f_type == "max_consecutive_loss":
+            new_engine.add_filter(MaxConsecutiveLossFilter(
+                max_consecutive=f_config.get("max_consecutive", 3)
+            ))
+            applied.append(f_type)
+        elif f_type == "time_restriction":
+            new_engine.add_filter(TimeRestrictionFilter(
+                start_hour=f_config.get("start_hour", 9),
+                end_hour=f_config.get("end_hour", 15),
+                start_minute=f_config.get("start_minute", 0),
+                end_minute=f_config.get("end_minute", 20),
+            ))
+            applied.append(f_type)
+        else:
+            logger.warning(f"Unknown filter type: {f_type}")
+
+    # Hot-swap engine (signal context holds reference)
+    engine._execution_engine = new_engine
+    if engine._signal_context:
+        engine._signal_context._engine = new_engine
+
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "filters_applied": applied,
+        "engine_stats": new_engine.get_stats(),
+    }
