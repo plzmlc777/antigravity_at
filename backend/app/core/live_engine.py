@@ -464,10 +464,14 @@ class LiveTradingEngine:
                     symbol=self.symbol
                 )
 
+                # 4.5. Process pending orders (LIMIT/STOP/TRAILING) against new candle
+                if hasattr(self.context, 'process_pending_orders'):
+                    self.context.process_pending_orders(closed_candle)
+
                 # Call Strategy with Correct Signature (single argument)
                 self.strategy_instance.on_data(closed_candle)
-                
-                # 5. Process Orders
+
+                # 5. Process Orders (market orders from strategy + triggered pending orders)
                 if self.orders_enabled:
                     await self.context.process_queue()
                 else:

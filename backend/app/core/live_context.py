@@ -5,6 +5,7 @@ import asyncio
 import logging
 import re
 import traceback
+import uuid
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
@@ -13,8 +14,23 @@ from ..core.exchange_interface import ExchangeInterface
 from ..core.futures_interface import FuturesInterface
 from ..core.constants import Signal, Side, Level, Mode
 from ..services.error_logger import error_logger
+from ..core.pending_orders import (
+    OrderType as PendingOrderType, OrderSide as PendingOrderSide,
+    PendingOrder, PendingOrderBook, PendingFill,
+)
 
 logger = logging.getLogger(__name__)
+
+# order_type 문자열 → PendingOrderType 매핑
+_LIVE_ORDER_TYPE_MAP = {
+    "market": PendingOrderType.MARKET,
+    "limit": PendingOrderType.LIMIT,
+    "stop_market": PendingOrderType.STOP_MARKET,
+    "stop_limit": PendingOrderType.STOP_LIMIT,
+    "trailing_stop": PendingOrderType.TRAILING_STOP,
+    "take_profit": PendingOrderType.TAKE_PROFIT,
+    "take_profit_limit": PendingOrderType.TAKE_PROFIT_LIMIT,
+}
 
 class LiveContext:
     """
@@ -56,6 +72,9 @@ class LiveContext:
 
         # Futures data cache (updated by LiveEngine for FuturesInterface adapters)
         self._futures_data_cache: Dict[str, Dict[str, Any]] = {}
+
+        # Pending order book for extended order types (LIMIT, STOP, TRAILING, etc.)
+        self.pending_book = PendingOrderBook()
 
         # Initial Balance Sync
         self._sync_balance()
@@ -335,7 +354,19 @@ class LiveContext:
     def holdings(self) -> Dict[str, int]:
         return self._holdings
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
+            metadata: Dict[str, Any] = None, on_filled: Callable = None,
+            stop_price: float = 0, trailing_delta: float = 0,
+            linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        # 비-market 주문 → pending book
+        pot = _LIVE_ORDER_TYPE_MAP.get(order_type, PendingOrderType.MARKET)
+        if pot != PendingOrderType.MARKET:
+            return self._submit_live_pending(
+                PendingOrderSide.BUY, pot, symbol, quantity, price,
+                stop_price=stop_price, trailing_delta=trailing_delta,
+                metadata=metadata, on_filled=on_filled, linked_orders=linked_orders,
+            )
+
         # Exclusive mode: check if another session holds the trading lock
         if self._exclusive_gate and not self._exclusive_gate():
             self.log(f"BUY BLOCKED: Exclusive lock held by another session")
@@ -361,8 +392,118 @@ class LiveContext:
 
         return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata, on_filled)
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
+             metadata: Dict[str, Any] = None, on_filled: Callable = None,
+             stop_price: float = 0, trailing_delta: float = 0,
+             linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        # 비-market 주문 → pending book
+        pot = _LIVE_ORDER_TYPE_MAP.get(order_type, PendingOrderType.MARKET)
+        if pot != PendingOrderType.MARKET:
+            return self._submit_live_pending(
+                PendingOrderSide.SELL, pot, symbol, quantity, price,
+                stop_price=stop_price, trailing_delta=trailing_delta,
+                metadata=metadata, on_filled=on_filled, linked_orders=linked_orders,
+            )
+
         return self._execute_order(symbol, OrderSide.SELL, quantity, price, metadata, on_filled)
+
+    # --- Extended Order Types (Pending Orders) ---
+
+    def _submit_live_pending(
+        self, side: PendingOrderSide, ot: PendingOrderType, symbol: str,
+        quantity: float, price: float, stop_price: float = 0,
+        trailing_delta: float = 0, metadata: Dict[str, Any] = None,
+        on_filled: Callable = None, linked_orders: List[Dict] = None,
+    ) -> Dict[str, Any]:
+        """비-market 주문을 pending book에 등록."""
+        if self.orders_paused:
+            self.log(f"PENDING ORDER BLOCKED (paused): {side.value} {ot.value} {symbol}")
+            return {"status": "failed", "reason": "orders_paused"}
+
+        order = PendingOrder(
+            side=side,
+            order_type=ot,
+            price=price,
+            stop_price=stop_price,
+            quantity=quantity,
+            trailing_delta=trailing_delta,
+            metadata={**(metadata or {}), "symbol": symbol},
+            submitted_at=self.get_time(),
+            on_filled=on_filled,
+        )
+
+        if linked_orders:
+            bracket = []
+            for lo in linked_orders:
+                lo_side = PendingOrderSide.BUY if lo.get("side", "sell") == "buy" else PendingOrderSide.SELL
+                lo_ot = _LIVE_ORDER_TYPE_MAP.get(lo.get("order_type", "limit"), PendingOrderType.LIMIT)
+                bracket.append(PendingOrder(
+                    side=lo_side,
+                    order_type=lo_ot,
+                    price=lo.get("price", 0),
+                    stop_price=lo.get("stop_price", 0),
+                    quantity=lo.get("quantity", quantity),
+                    trailing_delta=lo.get("trailing_delta", 0),
+                    metadata={**(lo.get("metadata") or {}), "symbol": symbol},
+                    on_filled=lo.get("on_filled"),
+                ))
+            order.bracket_orders = bracket
+
+        self.pending_book.add(order)
+        self.log(f"PENDING {side.value.upper()} {ot.value}: qty={quantity} price={price} {symbol}")
+
+        return {"status": "pending", "order_id": order.order_id, "order_type": ot.value}
+
+    def process_pending_orders(self, candle: Dict[str, Any]):
+        """
+        캔들 완성 시 호출하여 대기 주문 체결을 확인.
+        조건 충족 시 기존 _execute_order() 파이프라인으로 market 주문 실행.
+        """
+        if not self.pending_book.active_orders:
+            return
+
+        current_time = self.get_time()
+        fills = self.pending_book.evaluate(candle, current_time)
+
+        for fill in fills:
+            symbol = fill.metadata.get("symbol", "")
+            # 원본 metadata에서 symbol 키 제거하여 전달
+            meta = {k: v for k, v in fill.metadata.items() if k != "symbol"}
+            meta["pending_order_type"] = fill.order_type.value
+            meta["pending_order_id"] = fill.order_id
+
+            if fill.side == PendingOrderSide.BUY:
+                side = OrderSide.BUY
+            else:
+                side = OrderSide.SELL
+
+            self.log(f"PENDING TRIGGERED: {fill.side.value.upper()} {fill.quantity} {symbol} @ {fill.price:.4f} ({fill.order_type.value})")
+
+            # 기존 market 주문 파이프라인으로 실행
+            self._execute_order(symbol, side, fill.quantity, fill.price, meta, fill.on_filled)
+
+            # Bracket: entry 체결 후 exit OCO 등록
+            if fill.bracket_orders:
+                oco_group = str(uuid.uuid4())[:8]
+                for bo in fill.bracket_orders:
+                    bo.group_id = oco_group
+                    bo.submitted_at = current_time
+                    self.pending_book.add(bo)
+                self.log(f"BRACKET OCO registered: {len(fill.bracket_orders)} exit orders (group={oco_group})")
+
+    def cancel_order(self, order_id: str) -> bool:
+        """대기 주문 취소."""
+        result = self.pending_book.cancel(order_id)
+        if result:
+            self.log(f"PENDING ORDER CANCELLED: {order_id}")
+        return result
+
+    def cancel_all_orders(self):
+        """모든 대기 주문 취소."""
+        count = len(self.pending_book.active_orders)
+        self.pending_book.cancel_all()
+        if count > 0:
+            self.log(f"ALL PENDING ORDERS CANCELLED: {count}")
 
     def short(self, symbol: str, quantity: float, price: float = 0, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         """Open a short position (futures only). Uses place_short_order on FuturesInterface."""
