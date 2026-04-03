@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/at-backtest/**)",
+      "Edit(/.claude/skills/at-strategy/**)"
+    ]
+  }
+}

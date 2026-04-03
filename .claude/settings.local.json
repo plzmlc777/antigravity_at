@@ -10,7 +10,16 @@
       "WebFetch(*)",
       "WebSearch(*)",
       "Task(*)",
-      "NotebookEdit(*)"
+      "NotebookEdit(*)",
+      "Agent(*)",
+      "Edit(/.claude/skills/at-backtest/**)"
+    ],
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": [
+      "\\home\\hcpark\\antigravity\\docs",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\docs",
+      "\\tmp"
     ]
-  }
+  },
+  "skipDangerousModePermissionPrompt": true
 }
