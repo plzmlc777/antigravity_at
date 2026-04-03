@@ -63,6 +63,18 @@ class IContext(ABC):
         """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치. 전략에서 수익률 계산 기준으로 사용."""
         return 0.0
 
+    def process_pending_orders(self, candle: Dict[str, Any] = None):
+        """대기 주문 체결 확인. BacktestContext에서 구현."""
+        pass
+
+    def cancel_order(self, order_id: str) -> bool:
+        """대기 주문 취소. BacktestContext에서 구현."""
+        return False
+
+    def cancel_all_orders(self):
+        """모든 대기 주문 취소. BacktestContext에서 구현."""
+        pass
+
     @abstractmethod
     def log(self, message: str):
         pass

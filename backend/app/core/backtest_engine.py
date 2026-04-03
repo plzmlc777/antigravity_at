@@ -4,6 +4,20 @@ from datetime import datetime, timedelta
 from ..strategies.base import IContext, BaseStrategy
 from .data_schemas import make_equity_point, EQUITY_VALUE_KEY
 from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
+from .pending_orders import (
+    OrderType, OrderSide, PendingOrder, PendingOrderBook, PendingFill,
+)
+
+# order_type 문자열 → OrderType 매핑
+_ORDER_TYPE_MAP = {
+    "market": OrderType.MARKET,
+    "limit": OrderType.LIMIT,
+    "stop_market": OrderType.STOP_MARKET,
+    "stop_limit": OrderType.STOP_LIMIT,
+    "trailing_stop": OrderType.TRAILING_STOP,
+    "take_profit": OrderType.TAKE_PROFIT,
+    "take_profit_limit": OrderType.TAKE_PROFIT_LIMIT,
+}
 
 class BacktestContext(IContext):
     def __init__(self, data_feed: List[Dict], initial_capital: int = DEFAULT_INITIAL_CAPITAL):
@@ -14,6 +28,7 @@ class BacktestContext(IContext):
         self.trades = []
         self.logs = []
         self.equity_curve = []
+        self.pending_book = PendingOrderBook()
 
     @property
     def current_candle(self):
@@ -34,12 +49,24 @@ class BacktestContext(IContext):
             return self.current_candle['close']
         return 0
 
-    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
+            metadata: Dict[str, Any] = None, on_filled: Callable = None,
+            stop_price: float = 0, trailing_delta: float = 0,
+            linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        ot = _ORDER_TYPE_MAP.get(order_type, OrderType.MARKET)
+
+        # 비-market 주문 → pending book
+        if ot != OrderType.MARKET:
+            return self._submit_pending(
+                OrderSide.BUY, ot, symbol, quantity, price,
+                stop_price=stop_price, trailing_delta=trailing_delta,
+                metadata=metadata, on_filled=on_filled, linked_orders=linked_orders,
+            )
+
         exec_price = price if price > 0 else self.get_current_price(symbol)
         cost = exec_price * quantity
 
         # Simulation Mode: Allow negative cash to support "Fixed Betting" regardless of drawdown
-        # if self.cash >= cost:
         self.cash -= cost
         self.holdings[symbol] = self.holdings.get(symbol, 0) + quantity
 
@@ -54,16 +81,28 @@ class BacktestContext(IContext):
         self.trades.append(trade)
         self.log(f"BUY EXECUTED: {quantity} @ {exec_price}")
 
-        # Backtest executes synchronously, so invoke callback immediately if provided
         if on_filled:
             try:
                 on_filled(order_id=None, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
             except Exception:
-                pass  # Ignore callback errors in backtest
+                pass
 
         return trade
 
-    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
+             metadata: Dict[str, Any] = None, on_filled: Callable = None,
+             stop_price: float = 0, trailing_delta: float = 0,
+             linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        ot = _ORDER_TYPE_MAP.get(order_type, OrderType.MARKET)
+
+        # 비-market 주문 → pending book
+        if ot != OrderType.MARKET:
+            return self._submit_pending(
+                OrderSide.SELL, ot, symbol, quantity, price,
+                stop_price=stop_price, trailing_delta=trailing_delta,
+                metadata=metadata, on_filled=on_filled, linked_orders=linked_orders,
+            )
+
         current_qty = self.holdings.get(symbol, 0)
         if current_qty >= quantity:
             exec_price = price if price > 0 else self.get_current_price(symbol)
@@ -83,7 +122,6 @@ class BacktestContext(IContext):
             self.trades.append(trade)
             self.log(f"SELL EXECUTED: {quantity} @ {exec_price}")
 
-            # Backtest executes synchronously, so invoke callback immediately if provided
             if on_filled:
                 try:
                     on_filled(order_id=None, filled_qty=quantity, filled_price=exec_price, metadata=metadata or {})
@@ -94,6 +132,120 @@ class BacktestContext(IContext):
         else:
             self.log("SELL FAILED: Insufficient Holdings")
             return {"status": "failed", "reason": "Insufficient Holdings"}
+
+    def _submit_pending(
+        self, side: OrderSide, ot: OrderType, symbol: str, quantity: float,
+        price: float, stop_price: float = 0, trailing_delta: float = 0,
+        metadata: Dict[str, Any] = None, on_filled: Callable = None,
+        linked_orders: List[Dict] = None,
+    ) -> Dict[str, Any]:
+        """비-market 주문을 pending book에 등록."""
+        order = PendingOrder(
+            side=side,
+            order_type=ot,
+            price=price,
+            stop_price=stop_price,
+            quantity=quantity,
+            trailing_delta=trailing_delta,
+            metadata={**(metadata or {}), "symbol": symbol},
+            submitted_at=self.get_time(),
+            on_filled=on_filled,
+        )
+
+        if linked_orders:
+            # Bracket/OCO 처리
+            bracket = []
+            for lo in linked_orders:
+                lo_side = OrderSide.BUY if lo.get("side", "sell") == "buy" else OrderSide.SELL
+                lo_ot = _ORDER_TYPE_MAP.get(lo.get("order_type", "limit"), OrderType.LIMIT)
+                bracket.append(PendingOrder(
+                    side=lo_side,
+                    order_type=lo_ot,
+                    price=lo.get("price", 0),
+                    stop_price=lo.get("stop_price", 0),
+                    quantity=lo.get("quantity", quantity),
+                    trailing_delta=lo.get("trailing_delta", 0),
+                    metadata={**(lo.get("metadata") or {}), "symbol": symbol},
+                    on_filled=lo.get("on_filled"),
+                ))
+            order.bracket_orders = bracket
+
+        self.pending_book.add(order)
+        self.log(f"PENDING {side.value.upper()} {ot.value}: qty={quantity} price={price}")
+
+        return {"status": "pending", "order_id": order.order_id, "order_type": ot.value}
+
+    def process_pending_orders(self, candle: Dict[str, Any] = None):
+        """
+        매 캔들마다 호출하여 대기 주문 체결을 확인.
+        BacktestEngine 루프에서 strategy.on_data() 전에 호출.
+        """
+        if not self.pending_book.active_orders:
+            return
+
+        candle = candle or self.current_candle
+        if not candle:
+            return
+
+        current_time = self.get_time()
+        fills = self.pending_book.evaluate(candle, current_time)
+
+        for fill in fills:
+            symbol = fill.metadata.get("symbol", "")
+
+            if fill.side == OrderSide.BUY:
+                self.cash -= fill.price * fill.quantity
+                self.holdings[symbol] = self.holdings.get(symbol, 0) + fill.quantity
+                trade = {
+                    "type": "buy", "symbol": symbol,
+                    "price": fill.price, "quantity": fill.quantity,
+                    "time": current_time.isoformat(),
+                    "metadata": fill.metadata,
+                }
+                self.trades.append(trade)
+                self.log(f"PENDING FILL BUY: {fill.quantity} @ {fill.price} ({fill.order_type.value})")
+
+            elif fill.side == OrderSide.SELL:
+                current_qty = self.holdings.get(symbol, 0)
+                sell_qty = min(fill.quantity, current_qty) if current_qty > 0 else fill.quantity
+                if sell_qty > 0:
+                    self.cash += fill.price * sell_qty
+                    self.holdings[symbol] = self.holdings.get(symbol, 0) - sell_qty
+                    trade = {
+                        "type": "sell", "symbol": symbol,
+                        "price": fill.price, "quantity": sell_qty,
+                        "time": current_time.isoformat(),
+                        "metadata": fill.metadata,
+                    }
+                    self.trades.append(trade)
+                    self.log(f"PENDING FILL SELL: {sell_qty} @ {fill.price} ({fill.order_type.value})")
+
+            # Bracket: entry 체결 후 exit OCO 등록
+            if fill.bracket_orders:
+                import uuid
+                oco_group = str(uuid.uuid4())[:8]
+                for bo in fill.bracket_orders:
+                    bo.group_id = oco_group
+                    bo.submitted_at = current_time
+                    self.pending_book.add(bo)
+
+            # on_filled 콜백
+            if fill.on_filled:
+                try:
+                    fill.on_filled(
+                        order_id=fill.order_id, filled_qty=fill.quantity,
+                        filled_price=fill.price, metadata=fill.metadata,
+                    )
+                except Exception:
+                    pass
+
+    def cancel_order(self, order_id: str) -> bool:
+        """주문 ID로 대기 주문 취소."""
+        return self.pending_book.cancel(order_id)
+
+    def cancel_all_orders(self):
+        """모든 대기 주문 취소."""
+        self.pending_book.cancel_all()
 
     def log(self, message: str):
         self.logs.append(f"[{self.get_time().strftime('%H:%M:%S')}] {message}")
@@ -212,6 +364,7 @@ class BacktestEngine:
         # 4. Run Loop
         for i, candle in enumerate(data_feed):
             context.current_index = i
+            context.process_pending_orders(candle)  # 대기 주문 체결 확인
             strategy.on_data(candle)
             context.update_equity()
             

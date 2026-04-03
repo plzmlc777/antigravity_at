@@ -625,6 +625,8 @@ class WaterfallBacktestEngine:
         for candle in feed:
             context.current_timestamp = candle['timestamp']
             try:
+                if hasattr(context, 'process_pending_orders'):
+                    context.process_pending_orders(candle)
                 strat.on_data(candle)
                 context.update_equity()
             except Exception as e:
@@ -805,12 +807,9 @@ class WaterfallBacktestEngine:
                 # But strategy.on_data(candle) is what matters.
                 
                 try:
+                    if hasattr(context, 'process_pending_orders'):
+                        context.process_pending_orders(candle)
                     strat.on_data(candle)
-                    
-                    # Update Equity (Lightweight)
-                    # Inline update_equity optimization?
-                    # context.update_equity() -> heavy?
-                    # Let's use the optimized one.
                     context.update_equity()
                 except Exception as e:
                      pass # similar to main loop error handling
