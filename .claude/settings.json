@@ -5,6 +5,10 @@
       "Edit(/.claude/skills/at-strategy/**)",
       "Edit(/.claude/skills/at-binance/**)",
       "Edit(/.claude/skills/at-live-signal/**)"
+    ],
+    "additionalDirectories": [
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references"
     ]
   }
 }

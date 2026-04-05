@@ -238,6 +238,9 @@ class LiveTradingEngine:
 
             # 3. Strategy Instance — v2면 SignalInterceptContext 전달
             strategy_context = self._signal_context if self._signal_context else self.context
+            # Inject symbol into config for strategies that read config["symbol"]
+            if "symbol" not in self.strategy_config:
+                self.strategy_config["symbol"] = self.symbol
             self.strategy_instance = StrategyClass(strategy_context, self.strategy_config)
             self.strategy_instance.initialize()
 

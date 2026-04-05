@@ -28,9 +28,8 @@ class NoOpStrategy(BaseStrategy):
         ],
     }
 
-    def initialize(self, context, config: Dict[str, Any]):
-        self.context = context
-        self.config = config
+    def initialize(self):
+        pass
 
     def on_data(self, candle: Dict[str, Any]):
         # Intentionally empty — all signals come from external skills

@@ -3040,5 +3040,9 @@ async def get_session_candles(session_id: str, limit: int = 100):
         "current_price": current_price,
         "holdings": holdings,
         "orders_enabled": engine.orders_enabled,
+        "strategy_name": engine.strategy_name if hasattr(engine, 'strategy_name') else None,
+        "strategy_config": engine.strategy_config if hasattr(engine, 'strategy_config') else {},
+        "initial_capital": engine.context.initial_capital if hasattr(engine, 'context') else 0,
+        "is_paper": engine.is_paper if hasattr(engine, 'is_paper') else True,
         "candles": recent,
     }
