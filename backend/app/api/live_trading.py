@@ -3125,3 +3125,57 @@ async def get_session_candles(session_id: str, limit: int = 100):
         "is_paper": engine.is_paper if hasattr(engine, 'is_paper') else True,
         "candles": recent,
     }
+
+
+# =========================================================================
+# Skill Monitor endpoints (no auth required)
+# =========================================================================
+
+@router.get("/monitor/sessions")
+async def monitor_sessions():
+    """
+    모니터링 스킬 전용 — 인증 없이 모든 RUNNING 세션의 건강 상태 조회.
+    """
+    results = []
+    for session_id, engine in live_manager.engines.items():
+        if not engine.is_running:
+            continue
+
+        # Basic info
+        info = {
+            "session_id": session_id,
+            "symbol": engine.symbol,
+            "strategy_name": engine.strategy_name if hasattr(engine, 'strategy_name') else "?",
+            "is_paper": engine.is_paper if hasattr(engine, 'is_paper') else True,
+            "orders_enabled": engine.orders_enabled,
+            "status": "RUNNING",
+        }
+
+        # Trade stats
+        try:
+            stats = engine.context.get_trade_stats(engine.symbol)
+            info["total_return"] = stats.get("total_return", 0)
+            info["win_rate"] = stats.get("win_rate", 0)
+            info["max_drawdown"] = stats.get("max_drawdown", 0)
+            info["total_cycles"] = stats.get("total_cycles", 0)
+            info["sharpe_ratio"] = stats.get("sharpe_ratio", 0)
+            info["profit_factor"] = stats.get("profit_factor", 0)
+            info["avg_pnl"] = stats.get("avg_pnl", 0)
+            info["realized_pnl"] = stats.get("realized_pnl", 0)
+        except Exception:
+            info["total_return"] = 0
+            info["win_rate"] = 0
+            info["max_drawdown"] = 0
+            info["total_cycles"] = 0
+
+        # Current price & equity
+        try:
+            info["current_price"] = engine.context.get_current_price(engine.symbol)
+            info["equity"] = engine.context.get_total_equity()
+            info["initial_capital"] = engine.context.initial_capital
+        except Exception:
+            pass
+
+        results.append(info)
+
+    return {"sessions": results, "count": len(results)}
