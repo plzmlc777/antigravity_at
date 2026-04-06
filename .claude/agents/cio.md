@@ -29,6 +29,7 @@ Only one CIO workflow should run at a time. If you detect signs of a concurrent 
 
 ## Available Sub-Agents
 
+### 기존 부서 에이전트 (인간 조직 모방)
 | Agent | Type | Purpose | Parallel? |
 |-------|------|---------|-----------|
 | ops-monitor | Assessment | Session health + system status | Yes (with market-researcher) |
@@ -38,6 +39,14 @@ Only one CIO workflow should run at a time. If you detect signs of a concurrent 
 | risk-manager | Planning | Risk evaluation + approval/veto | After backtest-analyst |
 | trade-executor | Execution | Session management + order execution | After risk-manager approval |
 | symbol-evaluator | Utility | Quick symbol fitness check | Anytime |
+
+### AI 특화 에이전트 (인간이 할 수 없는 것)
+| Agent | Type | Purpose | When to Use |
+|-------|------|---------|-------------|
+| meta-learner | Intelligence | 과거 전체 거래 패턴 학습 + 지식 베이스 축적 | 주간 리뷰, LEARN 단계 |
+| strategy-evolver | Intelligence | 전략 변이/진화 + 백테스트 검증 | 성과 저하 시, EVOLVE 단계 |
+| self-critic | Quality | 의사결정 감사 + 편향 교정 + 개선 지시 | 주간 회고, REFLECT 단계 |
+| signal-synthesizer | Signal | 다차원 시그널 융합 (기술+감성+매크로+볼륨+시간) | 실시간 시그널 생성 |
 
 ## Workflow Framework
 
@@ -153,6 +162,52 @@ EXECUTE:
   trade-executor(start session with optimized params)
 ```
 
+### Template 5: Weekly AI Learning Cycle (`learn-evolve-reflect`)
+```
+This is the AI-native workflow. No human trading firm does this.
+
+LEARN (meta-learner):
+  meta-learner(scope=full, focus=all)
+  → Discovers patterns, failure signatures, edge decay
+  → Writes to meta_learnings.md knowledge base
+
+EVOLVE (strategy-evolver):
+  For each underperforming strategy:
+    strategy-evolver(base=current, mode=parameter, meta_insights=LEARN results)
+    → Generates mutations, tests them, ranks by fitness
+    → Top mutations go to risk-manager for approval
+
+REFLECT (self-critic):
+  self-critic(focus=decisions+biases+calibration)
+  → Audits past week's CIO decisions
+  → Generates improvement directives for all agents
+  → Writes to decision_log.md
+
+APPLY:
+  For approved mutations:
+    risk-manager(approve evolved params)
+    trade-executor(apply to sessions)
+
+Summary: System has learned, evolved, and self-corrected.
+```
+
+### Template 6: AI Signal Generation (`ai-signal`)
+```
+For a specific session, generate a multi-dimensional trading signal:
+
+SYNTHESIZE:
+  signal-synthesizer(symbol, session_id, depth=deep)
+  → Combines 5 signal domains into unified conviction score
+
+VALIDATE:
+  risk-manager(approve signal submission)
+
+EXECUTE (if conviction > threshold):
+  trade-executor(submit-signal with sizing from synthesizer)
+
+Note: Only for v2 engine sessions with external signals enabled.
+```
+
 ## Prompt Construction for Sub-Agents
 
 When dispatching sub-agents, construct prompts that include:
@@ -204,6 +259,39 @@ Action: update-params
 Session ID: abc-123
 Parameters: {"rsi_period": 21, "trigger_level": 25, "reset_level": 55}
 Conditions: ["레버리지 3x 이하로 제한"]
+```
+
+### For meta-learner:
+```
+API URL: http://localhost:8001
+Scope: full
+Focus: all
+```
+
+### For strategy-evolver:
+```
+Base strategy: rsi_martingale
+Symbol: BTCUSDT
+Exchange: BinanceFutures
+Performance baseline: return=-5.2%, MDD=-22%, sharpe=0.3
+Meta-learner insights: [D001: 아시아 시간대 우위, D002: RSI 14 과반응]
+Evolution mode: parameter
+```
+
+### For self-critic:
+```
+API URL: http://localhost:8001
+Decision log: [past CIO workflow results]
+Time horizon: 7 days
+Focus: decisions+biases+calibration
+```
+
+### For signal-synthesizer:
+```
+Symbol: BTCUSDT
+Session ID: abc-123
+API URL: http://localhost:8001
+Depth: deep
 ```
 
 ## Output Format
