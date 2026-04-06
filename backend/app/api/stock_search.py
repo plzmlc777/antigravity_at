@@ -36,6 +36,10 @@ get_user_context = create_get_user_context_dependency()
 class StockSearchRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    # When True, agent returns pure JSON (no conversational wrapper) for
+    # consumption by other agents or automated pipelines. Default False for
+    # backward-compatible chat UI behavior.
+    machine_mode: bool = False
 
 
 class StockResult(BaseModel):
@@ -231,7 +235,7 @@ async def stock_search_chat(
         )
 
         # --- Step 3: Build and execute Claude CLI ---
-        prompt = (
+        base_prompt = (
             f"Read the stock data context file at `{context_file}` using the Read tool. "
             f"The file contains a JSON object with 'query', 'stocks', and 'rankings' fields. "
             f"The 'rankings' field contains real-time market ranking data (26 categories): "
@@ -247,6 +251,19 @@ async def stock_search_chat(
             f"Use both stock list and ranking data to find stocks matching the user's query.\n\n"
             f"User query: {request.message}"
         )
+
+        if request.machine_mode:
+            # Machine-mode: pure JSON, no conversational wrapper. Used by other agents.
+            prompt = (
+                f"{base_prompt}\n\n"
+                f"MACHINE MODE — respond with ONLY a single JSON object (no markdown, "
+                f"no Korean explanation, no [STOCK_RESULTS] block). Schema:\n"
+                f'{{"stocks": [{{"code": "...", "name": "...", "market": "...", "reason": "..."}}], '
+                f'"summary": "one-line Korean rationale"}}\n'
+                f"Return at most 20 stocks. If none match, return {{\"stocks\": [], \"summary\": \"...\"}}."
+            )
+        else:
+            prompt = base_prompt
 
         cmd = [
             claude_path,
@@ -335,7 +352,24 @@ async def stock_search_chat(
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Parse structured stock results
-        parsed_stocks = _parse_stock_results(response_text)
+        if request.machine_mode:
+            # Machine mode: response_text is a single JSON object {stocks, summary}
+            parsed_stocks = []
+            try:
+                payload = json.loads(response_text)
+                for s in (payload.get("stocks") or [])[:20]:
+                    if not s.get("code"):
+                        continue
+                    parsed_stocks.append({
+                        "code": s.get("code", ""),
+                        "name": s.get("name", ""),
+                        "market": s.get("market", ""),
+                        "reason": s.get("reason", ""),
+                    })
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                logger.warning(f"[StockSearch] machine_mode parse failed: {e}; raw={response_text[:200]}")
+        else:
+            parsed_stocks = _parse_stock_results(response_text)
 
         return StockSearchResponse(
             response=response_text,
