@@ -63,7 +63,7 @@ custom agents become natively registerable.
 | strategy-advisor | ✅ Verified | 2026-04-06 | Reasoning-based recommendations work. Path lookup for at-strategy skill needs improvement (fell back to reasoning). |
 | backtest-analyst | ✅ Verified | 2026-04-06 | Real backtest executed (BTCUSDT, 7d, 27 cycles, WR 81%). Fixed CLI flags in agent .md (--futures/--config not --exchange/--params). |
 | cio | ✅ Verified (as playbook) | 2026-04-06 | Workflow logic verified. CIO operates as a playbook executed by main conversation, not an autonomous agent. Main conversation dispatches sub-agents via parallel general-purpose Agent calls then synthesizes. True parallelism confirmed in Phase A-6. |
-| meta-learner | ⏳ Pending | - | - |
+| meta-learner | ✅ Verified | 2026-04-06 | Graceful insufficient_data handling. Bootstrapped meta_learnings.md schema. Found: /accumulated-stats requires auth (gap). |
 | strategy-evolver | ⏳ Pending | - | - |
 | self-critic | ⏳ Pending | - | - |
 | signal-synthesizer | ✅ Verified | 2026-04-06 | 3-domain quick synthesis with data_provenance tracking. Returned HOLD with watch_triggers (institutional vs technical decoupling identified). |
