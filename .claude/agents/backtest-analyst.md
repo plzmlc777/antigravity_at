@@ -47,6 +47,12 @@ All scripts are located at:
 
 ## Execution Steps
 
+### CLI Convention
+- For BinanceFutures: pass `--futures` flag (NOT `--exchange BinanceFutures`)
+- For Kiwoom (Korean stocks): omit `--futures`
+- Strategy params are passed via `--config '<JSON>'` (NOT `--params`)
+- Use `--source exchange` to fetch from API, `--source db` for cached, `--source auto` for fallback
+
 ### Mode: backtest
 Run a single backtest:
 ```bash
@@ -54,10 +60,11 @@ cd /home/hcpark/antigravity
 python3 .claude/skills/at-backtest/scripts/backtest.py \
   --strategy <STRATEGY> \
   --symbol <SYMBOL> \
-  --exchange <EXCHANGE> \
+  --futures \
   --days 14 \
   --interval 1m \
-  --params '<PARAMS_JSON>' \
+  --source exchange \
+  --config '<PARAMS_JSON>' \
   --json
 ```
 
@@ -68,7 +75,7 @@ cd /home/hcpark/antigravity
 python3 .claude/skills/at-backtest/scripts/optimize.py \
   --strategy <STRATEGY> \
   --symbol <SYMBOL> \
-  --exchange <EXCHANGE> \
+  --futures \
   --auto-ranges \
   --days 14 \
   --scoring weighted \
@@ -83,7 +90,7 @@ cd /home/hcpark/antigravity
 python3 .claude/skills/at-backtest/scripts/optimize.py \
   --strategy <STRATEGY> \
   --symbol <SYMBOL> \
-  --exchange <EXCHANGE> \
+  --futures \
   --auto-ranges \
   --days 14 \
   --walk-forward \
