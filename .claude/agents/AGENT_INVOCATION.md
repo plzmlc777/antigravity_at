@@ -62,7 +62,7 @@ custom agents become natively registerable.
 | risk-manager | ✅ Verified | 2026-04-06 | Portfolio query + risk evaluation + conditional approval w/ veto power verified. |
 | strategy-advisor | ⏳ Pending | - | - |
 | backtest-analyst | ⏳ Pending | - | - |
-| cio | ⚠️ Partial | 2026-04-06 | Workflow logic + JSON output verified. BUT: general-purpose has no Agent tool, so CIO cannot truly dispatch sub-agents — falls back to executing them inline by reading their .md specs. Real parallelism requires native subagent_type registration. |
+| cio | ✅ Verified (as playbook) | 2026-04-06 | Workflow logic verified. CIO operates as a playbook executed by main conversation, not an autonomous agent. Main conversation dispatches sub-agents via parallel general-purpose Agent calls then synthesizes. True parallelism confirmed in Phase A-6. |
 | meta-learner | ⏳ Pending | - | - |
 | strategy-evolver | ⏳ Pending | - | - |
 | self-critic | ⏳ Pending | - | - |
