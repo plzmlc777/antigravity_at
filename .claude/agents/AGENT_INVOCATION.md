@@ -60,7 +60,7 @@ custom agents become natively registerable.
 | market-researcher | ✅ Verified | 2026-04-06 | Returns valid JSON. WebSearch + regime + event risks + impact mapping all work. |
 | trade-executor | ✅ Verified | 2026-04-06 | Read-only status-check verified. API query + JSON output format work. |
 | risk-manager | ✅ Verified | 2026-04-06 | Portfolio query + risk evaluation + conditional approval w/ veto power verified. |
-| strategy-advisor | ⏳ Pending | - | - |
+| strategy-advisor | ✅ Verified | 2026-04-06 | Reasoning-based recommendations work. Path lookup for at-strategy skill needs improvement (fell back to reasoning). |
 | backtest-analyst | ⏳ Pending | - | - |
 | cio | ✅ Verified (as playbook) | 2026-04-06 | Workflow logic verified. CIO operates as a playbook executed by main conversation, not an autonomous agent. Main conversation dispatches sub-agents via parallel general-purpose Agent calls then synthesizes. True parallelism confirmed in Phase A-6. |
 | meta-learner | ⏳ Pending | - | - |
