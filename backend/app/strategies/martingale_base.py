@@ -24,7 +24,15 @@ class MartingaleBase(BaseStrategy):
 
     def initialize(self):
         # Configuration parameters
-        self.symbol = self.config.get("symbol", "UNKNOWN")
+        # D-006 (audit 2026-04-06): fail fast on missing/invalid symbol to prevent
+        # UNKNOWN-symbol orders from ever reaching the exchange.
+        self.symbol = self.config.get("symbol")
+        if not self.symbol or str(self.symbol).strip().upper() in ("", "UNKNOWN", "NONE", "NULL"):
+            raise ValueError(
+                f"MartingaleBase.initialize: invalid or missing 'symbol' in config "
+                f"(got {self.symbol!r}). Strategy refuses to start without a valid symbol."
+            )
+        self.symbol = str(self.symbol).strip().upper()
         self.max_buy_count = self.config.get("max_buy_count",
             self.config.get("max_levels", 4))  # backward-compat alias
         # 0 = unlimited (no cap on additional buys, bounded only by capital)
@@ -82,6 +90,17 @@ class MartingaleBase(BaseStrategy):
 
         # Tick execution: "tick" (default) or "candle" (check exits every tick, live only)
         self.tick_execution = self.config.get("tick_execution", "tick")
+
+        # D-002 (audit 2026-04-06): block new L1 entries during configured hours.
+        # Default [22, 23] (KST 22:00-23:59) — derived from audit finding that
+        # late-night martingale entries produced two large losses (-14.44, -13.09).
+        # Blocks ONLY new cycle starts; existing positions and L2+ adds are unaffected.
+        # Set to [] in config to disable. Hours use local server time (server runs KST).
+        raw_block = self.config.get("block_entry_hours", [22, 23])
+        try:
+            self.block_entry_hours = set(int(h) for h in raw_block) if raw_block else set()
+        except (TypeError, ValueError):
+            self.block_entry_hours = {22, 23}
 
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
@@ -628,6 +647,12 @@ class MartingaleBase(BaseStrategy):
             # Guard: skip if already waiting for pending order
             if self._pending_entry:
                 return
+
+            # D-002: block L1 cycle starts during configured night-time hours
+            if self.block_entry_hours:
+                cur_hour = self.context.get_time().hour
+                if cur_hour in self.block_entry_hours:
+                    return
 
             direction = self._check_entry_trigger(data)
             if direction:

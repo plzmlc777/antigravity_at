@@ -354,10 +354,23 @@ class LiveContext:
     def holdings(self) -> Dict[str, int]:
         return self._holdings
 
+    @staticmethod
+    def _is_invalid_symbol(symbol) -> bool:
+        """D-006 (audit 2026-04-06): defense-in-depth guard against UNKNOWN-symbol orders."""
+        if symbol is None:
+            return True
+        s = str(symbol).strip().upper()
+        return s in ("", "UNKNOWN", "NONE", "NULL")
+
     def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market",
             metadata: Dict[str, Any] = None, on_filled: Callable = None,
             stop_price: float = 0, trailing_delta: float = 0,
             linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        # D-006: block UNKNOWN/empty symbol orders before they reach the exchange
+        if self._is_invalid_symbol(symbol):
+            self.log(f"BUY BLOCKED: invalid symbol {symbol!r} (D-006)")
+            return {"status": "failed", "reason": "invalid_symbol"}
+
         # 비-market 주문 → pending book
         pot = _LIVE_ORDER_TYPE_MAP.get(order_type, PendingOrderType.MARKET)
         if pot != PendingOrderType.MARKET:
@@ -396,6 +409,11 @@ class LiveContext:
              metadata: Dict[str, Any] = None, on_filled: Callable = None,
              stop_price: float = 0, trailing_delta: float = 0,
              linked_orders: List[Dict] = None) -> Dict[str, Any]:
+        # D-006: block UNKNOWN/empty symbol orders before they reach the exchange
+        if self._is_invalid_symbol(symbol):
+            self.log(f"SELL BLOCKED: invalid symbol {symbol!r} (D-006)")
+            return {"status": "failed", "reason": "invalid_symbol"}
+
         # 비-market 주문 → pending book
         pot = _LIVE_ORDER_TYPE_MAP.get(order_type, PendingOrderType.MARKET)
         if pot != PendingOrderType.MARKET:
@@ -507,6 +525,10 @@ class LiveContext:
 
     def short(self, symbol: str, quantity: float, price: float = 0, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         """Open a short position (futures only). Uses place_short_order on FuturesInterface."""
+        # D-006: block UNKNOWN/empty symbol orders
+        if self._is_invalid_symbol(symbol):
+            self.log(f"SHORT BLOCKED: invalid symbol {symbol!r} (D-006)")
+            return {"status": "failed", "reason": "invalid_symbol"}
         if not isinstance(self.adapter, FuturesInterface):
             self.log("SHORT FAILED: Adapter does not support futures")
             return {"status": "failed", "reason": "not_futures_adapter"}
@@ -532,6 +554,10 @@ class LiveContext:
 
     def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """Close entire position (futures only). Delegates to adapter.close_position()."""
+        # D-006: block UNKNOWN/empty symbol orders
+        if self._is_invalid_symbol(symbol):
+            self.log(f"CLOSE_POSITION BLOCKED: invalid symbol {symbol!r} (D-006)")
+            return {"status": "failed", "reason": "invalid_symbol"}
         if not isinstance(self.adapter, FuturesInterface):
             self.log("CLOSE_POSITION FAILED: Adapter does not support futures")
             return {"status": "failed", "reason": "not_futures_adapter"}

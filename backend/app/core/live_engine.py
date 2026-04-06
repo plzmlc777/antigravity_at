@@ -62,6 +62,11 @@ class LiveTradingEngine:
         # AI Symbol Selection
         self._ai_switch_in_progress = False
         self._had_position = False  # Track if we ever had a position (for cycle completion detection)
+        # D-004 (audit 2026-04-06): cooldown + daily cap on AI symbol swaps.
+        # In-memory list of switch timestamps (datetime). Trimmed to 24h on each check.
+        self._ai_switch_history: list = []
+        self._ai_switch_cooldown_seconds = 3600  # 1 hour
+        self._ai_switch_max_per_24h = 2
 
         # Futures monitoring
         self._futures_monitor = None
@@ -1034,6 +1039,22 @@ class LiveTradingEngine:
             from_cycle: True when called from cycle completion (position >0 → 0).
                         False when called from start/restore/resume triggers.
         """
+        # D-004: enforce cooldown + daily cap on AI symbol swaps
+        now = datetime.now()
+        cutoff = now - timedelta(hours=24)
+        self._ai_switch_history = [t for t in self._ai_switch_history if t > cutoff]
+        if self._ai_switch_history:
+            last_switch = self._ai_switch_history[-1]
+            cooldown_remaining = self._ai_switch_cooldown_seconds - (now - last_switch).total_seconds()
+            if cooldown_remaining > 0:
+                logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                            f"cooldown active ({cooldown_remaining/60:.1f}m remaining), skipping (D-004)")
+                return
+        if len(self._ai_switch_history) >= self._ai_switch_max_per_24h:
+            logger.info(f"[AISymbol] Session {self.session_id[:8]}: "
+                        f"daily cap reached ({len(self._ai_switch_history)}/{self._ai_switch_max_per_24h} in 24h), skipping (D-004)")
+            return
+
         db = SessionLocal()
         try:
             session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
@@ -1090,6 +1111,8 @@ class LiveTradingEngine:
             db.close()
 
         self._ai_switch_in_progress = True
+        # D-004: record dispatch timestamp for cooldown/rate-limit tracking
+        self._ai_switch_history.append(datetime.now())
 
         # All sessions use unified group pipeline (solo sessions run immediately without timer)
         logger.info(f"[AISymbol] Triggering pipeline for session {self.session_id[:8]}")
