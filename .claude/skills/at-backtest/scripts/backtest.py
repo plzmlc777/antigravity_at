@@ -2,14 +2,21 @@
 """
 Standalone Backtest Engine
 기존 BacktestEngine과 동일한 로직을 독립 실행 가능한 형태로 구현.
-API 없이 PostgreSQL 직접 조회 -> 전략 실행 -> 성과 분석.
+DB 또는 거래소 API에서 데이터 로드 -> 전략 실행 -> 성과 분석.
 
-v2: ExecutionEngine 기반 리팩토링.
-    전략 -> Signal -> BacktestExecutor 구조로 분리.
+v3: 완전 독립 모드 추가 — DB 없이 거래소 API만으로 백테스트 가능.
+    --source exchange|db|auto 옵션으로 데이터 소스 선택.
 
 Usage:
-    python backtest.py --strategy dip_martingale --symbol 005930 --interval 1d --days 365
+    # 거래소 API에서 직접 (DB 불필요)
+    python backtest.py --strategy rsi_martingale --symbol BTCUSDT --interval 1h --days 30 --source exchange
+
+    # DB에서 (기존 방식)
+    python backtest.py --strategy dip_martingale --symbol 005930 --interval 1d --days 365 --source db
+
+    # 자동 (exchange 먼저, 실패 시 DB fallback)
     python backtest.py --strategy ema_momentum --symbol BTCUSDT --interval 1h --days 180
+
     python backtest.py --list
 """
 
@@ -23,10 +30,30 @@ from typing import Dict, Any, List, Optional
 # Add script directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fetch_data import load_ohlcv
 from strategies import get_strategy, list_strategies, MartingaleStrategy, Trade
 from metrics import calculate_metrics, format_results, BacktestResult
 from execution_engine import BacktestExecutor, StrategyAdapter
+
+
+def _load_candles(
+    symbol: str,
+    interval: str,
+    days: int,
+    from_date: str = None,
+    to_date: str = None,
+    source: str = "auto",
+    futures: bool = False,
+):
+    """데이터 소스에 따라 OHLCV 로드."""
+    if source == "exchange":
+        from fetch_exchange import load_ohlcv_exchange
+        return load_ohlcv_exchange(symbol, interval, days, from_date, to_date, futures=futures)
+    elif source == "db":
+        from fetch_data import load_ohlcv
+        return load_ohlcv(symbol, interval, days, from_date, to_date)
+    else:  # auto
+        from fetch_exchange import load_ohlcv_auto
+        return load_ohlcv_auto(symbol, interval, days, from_date, to_date, source="auto", futures=futures)
 
 
 def run_backtest(
@@ -38,18 +65,20 @@ def run_backtest(
     config: Dict[str, Any] = None,
     from_date: str = None,
     to_date: str = None,
+    source: str = "auto",
+    futures: bool = False,
 ) -> BacktestResult:
     """
     독립 백테스트 실행. 기존 BacktestEngine.run()과 동일한 흐름.
 
-    1. DB에서 OHLCV 로드
+    1. OHLCV 로드 (exchange API 또는 DB)
     2. 전략 초기화
     3. Signal -> ExecutionEngine 루프
     4. 성과 분석
     """
 
     # 1. Load data
-    df = load_ohlcv(symbol, interval, days=days, from_date=from_date, to_date=to_date)
+    df = _load_candles(symbol, interval, days, from_date, to_date, source=source, futures=futures)
     if df.empty:
         print(f"Error: No data for {symbol} ({interval}, {days}d)")
         return BacktestResult(strategy_id=strategy_name)
@@ -135,6 +164,9 @@ def main():
     parser.add_argument("--config", help="Strategy config as JSON string")
     parser.add_argument("--from-date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--to-date", help="End date (YYYY-MM-DD)")
+    parser.add_argument("--source", default="auto", choices=["exchange", "db", "auto"],
+                        help="Data source: exchange (API), db (PostgreSQL), auto (exchange→db fallback)")
+    parser.add_argument("--futures", action="store_true", help="Use futures API for exchange source")
     parser.add_argument("--list", action="store_true", help="List available strategies")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
 
@@ -152,7 +184,8 @@ def main():
     config = json.loads(args.config) if args.config else {}
 
     print(f"Running backtest: {args.strategy} / {args.symbol} ({args.interval}, {args.days}d)")
-    print(f"Capital: {args.capital:,.0f}")
+    print(f"Capital: {args.capital:,.0f} | Source: {args.source}" +
+          (" (futures)" if args.futures else ""))
     if config:
         print(f"Config: {json.dumps(config)}")
     print()
@@ -166,6 +199,8 @@ def main():
         config=config,
         from_date=args.from_date,
         to_date=args.to_date,
+        source=args.source,
+        futures=args.futures,
     )
 
     if args.json:

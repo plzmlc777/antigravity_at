@@ -636,12 +636,12 @@ class StrategyAdapter:
     ) -> List[Signal]:
         """
         캔들 하나를 처리하여 Signal 목록을 반환.
-        기존 backtest.py 루프 로직과 동일한 순서:
+        백엔드 MartingaleBase.on_data()와 100% 동일한 순서:
         1. _on_candle 훅
-        2. Daily reset
-        3. 청산 확인 (전략 / 가격 기반)
-        4. 추가매수 확인 (L2+)
-        5. L1 진입 확인
+        2. Daily reset (reference_price 초기화)
+        3. Reference price 설정
+        4. 포지션 보유 시: exit trigger → price exits → additional entry
+        5. 포지션 없을 시: L1 진입
 
         Returns: 발신할 Signal 목록
         """
@@ -649,11 +649,11 @@ class StrategyAdapter:
         signals: List[Signal] = []
         exited = False
 
-        # 0. Indicator update hook
+        # 0. Indicator update hook (backend line 515)
         if hasattr(strategy, '_on_candle'):
             strategy._on_candle(candle)
 
-        # 1. Daily reset
+        # 1. Daily reset (backend line 522-527)
         current_date = ts.date() if isinstance(ts, datetime) else None
         if current_date and self._current_trading_date != current_date:
             self._current_trading_date = current_date
@@ -661,9 +661,13 @@ class StrategyAdapter:
                 if hasattr(strategy, 'reference_price'):
                     strategy.reference_price = None
 
-        # A. Check exits if holding
+        # 2. Set reference price (backend line 530-532)
+        if hasattr(strategy, 'reference_price') and strategy.reference_price is None:
+            strategy.reference_price = current_price
+
+        # A. Check exits if holding (backend line 534-625)
         if strategy.current_level > 0:
-            # A1. Strategy-based exit
+            # A1. Strategy-based exit (backend line 545-549)
             should_strategy_exit = strategy._check_exit_trigger(candle)
 
             if should_strategy_exit:
@@ -676,7 +680,7 @@ class StrategyAdapter:
                 exited = True
 
             else:
-                # A2. Price-based exits (trailing, max_loss, timeout)
+                # A2. Price-based exits (backend line 551-553)
                 exit_reason = strategy.check_exits(current_price, ts)
                 if exit_reason:
                     signals.append(Signal(
@@ -688,41 +692,59 @@ class StrategyAdapter:
                     exited = True
 
                 else:
-                    # A3. Additional entry (L2+)
+                    # A3. Additional entry L2+ (backend line 555-624)
                     if (strategy.current_level < strategy.config["max_buy_count"]
                             and not strategy.trailing_active):
-                        should_add = False
 
-                        if strategy.config["additional_buy_mode"] == "step":
-                            should_add = strategy._check_step_trigger(current_price)
-                        else:
-                            should_add = strategy._check_additional_trigger(candle)
+                        # cycle_max_level guard (backend line 558-565)
+                        cycle_max = getattr(strategy, 'cycle_max_level', None)
+                        blocked_by_cycle_max = (
+                            cycle_max is not None
+                            and strategy.current_level >= cycle_max
+                        )
 
-                        if should_add and strategy._check_require_lower(current_price):
-                            next_level = strategy.current_level + 1
-                            signals.append(Signal(
-                                side=OrderSide.BUY,
-                                order_type=OrderType.MARKET,
-                                level=next_level,
-                                reason="additional_entry",
-                            ))
+                        if not blocked_by_cycle_max:
+                            # require_lower_price guard (backend line 568-575)
+                            if not strategy._check_require_lower(current_price):
+                                pass  # blocked
+                            else:
+                                should_add = False
 
-        # B. L1 entry if no position
-        # API: exit 후 같은 캔들에서 재진입 불가
+                                if strategy.config["additional_buy_mode"] == "step":
+                                    should_add = strategy._check_step_trigger(current_price)
+                                else:
+                                    should_add = strategy._check_additional_trigger(candle)
+
+                                if should_add:
+                                    next_level = strategy.current_level + 1
+                                    signals.append(Signal(
+                                        side=OrderSide.BUY,
+                                        order_type=OrderType.MARKET,
+                                        level=next_level,
+                                        reason="additional_entry",
+                                    ))
+
+        # B. L1 entry if no position (backend line 626-666)
+        # Backend: exit 후 return → 같은 캔들에서 재진입 불가
         if not exited and strategy.current_level == 0:
             direction = strategy._check_entry_trigger(candle)
             if direction:
-                # cycle_start_equity 계산
-                cse = executor.get_equity(current_price)
+                # position_side filter (backend line 635-636)
+                pos_side = strategy.config.get("position_side", "long")
+                if pos_side != "both" and direction != pos_side:
+                    pass  # blocked
+                else:
+                    # cycle_start_equity 계산 (backend line 642)
+                    cse = executor.get_equity(current_price)
 
-                signals.append(Signal(
-                    side=OrderSide.BUY,
-                    order_type=OrderType.MARKET,
-                    level=1,
-                    direction=direction,
-                    reason="entry_trigger",
-                    metadata={"cycle_start_equity": cse},
-                ))
+                    signals.append(Signal(
+                        side=OrderSide.BUY,
+                        order_type=OrderType.MARKET,
+                        level=1,
+                        direction=direction,
+                        reason="entry_trigger",
+                        metadata={"cycle_start_equity": cse},
+                    ))
 
         return signals
 

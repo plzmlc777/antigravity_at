@@ -391,6 +391,7 @@ class EmaMomentumStrategy(MartingaleStrategy):
         self._candle_count = 0
         self._close_history = []
         self._trigger_armed = True
+        self._last_crossover = None
 
     def _update_emas(self, close: float):
         self._candle_count += 1
@@ -432,9 +433,14 @@ class EmaMomentumStrategy(MartingaleStrategy):
         self._prev_diff = curr_diff
         return result
 
-    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+    def _on_candle(self, candle: Dict):
+        """Update EMA on every candle (backend _on_candle와 동일)."""
         self._update_emas(candle["close"])
-        cross = self._get_crossover()
+        self._last_crossover = self._get_crossover()
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        # EMA is already updated by _on_candle()
+        cross = self._last_crossover
 
         if cross == "golden_cross" and self._trigger_armed:
             self._trigger_armed = False
@@ -447,14 +453,14 @@ class EmaMomentumStrategy(MartingaleStrategy):
         return None
 
     def _check_additional_trigger(self, candle: Dict) -> bool:
-        cross = self._get_crossover()
+        # EMA is already updated by _on_candle()
+        cross = self._last_crossover
         if self.is_short:
             return cross == "dead_cross"
         return cross == "golden_cross"
 
     def _check_exit_trigger(self, candle: Dict) -> bool:
-        # Note: crossover already updated in entry check
-        # Re-check current state
+        # EMA is already updated by _on_candle()
         if self._ema_fast is None or self._ema_slow is None:
             return False
         curr_diff = self._ema_fast - self._ema_slow
@@ -525,15 +531,15 @@ class RsiMartingaleStrategy(MartingaleStrategy):
         else:  # above
             return prev_val <= level and curr_val > level
 
-    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+    def _on_candle(self, candle: Dict):
+        """Update RSI + re-arm on every candle (backend _on_candle와 동일)."""
         self._close_history.append(candle["close"])
         self._prev_rsi = self._rsi
         self._rsi = self._calc_rsi()
 
         cfg = self.config
-        pos_side = cfg.get("position_side", "long")
 
-        # Re-arm logic
+        # Re-arm logic (backend _on_candle lines 159-169)
         if not self._long_armed:
             if self._check_cross(self._prev_rsi, self._rsi, cfg["reset_level"], cfg["reset_direction"]):
                 self._long_armed = True
@@ -541,6 +547,14 @@ class RsiMartingaleStrategy(MartingaleStrategy):
         if not self._short_armed:
             if self._check_cross(self._prev_rsi, self._rsi, cfg["short_reset_level"], cfg["short_reset_direction"]):
                 self._short_armed = True
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        # RSI is already updated by _on_candle() — no duplicate update here
+        if self._rsi < 0 or self._prev_rsi < 0:
+            return None
+
+        cfg = self.config
+        pos_side = cfg.get("position_side", "long")
 
         # Long trigger
         if pos_side in ("long", "both") and self._long_armed:
@@ -557,10 +571,24 @@ class RsiMartingaleStrategy(MartingaleStrategy):
         return None
 
     def _check_additional_trigger(self, candle: Dict) -> bool:
+        # RSI is already updated by _on_candle()
+        if self._rsi < 0 or self._prev_rsi < 0:
+            return False
+
         cfg = self.config
         if self.is_short:
-            return self._check_cross(self._prev_rsi, self._rsi, cfg["short_trigger_level"], cfg["short_trigger_direction"])
-        return self._check_cross(self._prev_rsi, self._rsi, cfg["trigger_level"], cfg["trigger_direction"])
+            if not self._short_armed:
+                return False
+            if self._check_cross(self._prev_rsi, self._rsi, cfg["short_trigger_level"], cfg["short_trigger_direction"]):
+                self._short_armed = False
+                return True
+        else:
+            if not self._long_armed:
+                return False
+            if self._check_cross(self._prev_rsi, self._rsi, cfg["trigger_level"], cfg["trigger_direction"]):
+                self._long_armed = False
+                return True
+        return False
 
 
 class TimeMomentumStrategy(MartingaleStrategy):
@@ -724,7 +752,7 @@ class ChartPatternStrategy(MartingaleStrategy):
             self._trigger_armed = True
 
     def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
-        self._on_candle(candle)
+        # _on_candle() already called by adapter — no duplicate call
         if not self._trigger_armed:
             return None
 
@@ -756,6 +784,7 @@ class ChartPatternStrategy(MartingaleStrategy):
         return None
 
     def _check_additional_trigger(self, candle: Dict) -> bool:
+        # _on_candle() already called by adapter — pattern detection uses current state
         return bool(self._check_entry_trigger(candle))
 
     def _check_exit_trigger(self, candle: Dict) -> bool:
@@ -1096,8 +1125,12 @@ class FundingRateArbStrategy(MartingaleStrategy):
         change_pct = (close - old_price) / old_price * 100
         return change_pct / 100  # e.g., 1% change -> 0.01
 
-    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+    def _on_candle(self, candle: Dict):
+        """Update proxy funding rate on every candle."""
         self._proxy_rate = self._calc_proxy_funding_rate(candle["close"])
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        # _proxy_rate already updated by _on_candle()
         entry_threshold = float(self.config.get("entry_rate_threshold", 0.03)) / 100
 
         if abs(self._proxy_rate) < entry_threshold:
@@ -1170,8 +1203,12 @@ class SpotFuturesHedgeStrategy(MartingaleStrategy):
             return 0.0
         return (close - old_price) / old_price
 
-    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+    def _on_candle(self, candle: Dict):
+        """Update proxy rate on every candle."""
         self._proxy_rate = self._calc_proxy_rate(candle["close"])
+
+    def _check_entry_trigger(self, candle: Dict) -> Optional[str]:
+        # _proxy_rate already updated by _on_candle()
         entry_threshold = float(self.config.get("entry_rate_threshold", 0.05)) / 100
         if self._proxy_rate >= entry_threshold:
             return "long"

@@ -3003,6 +3003,85 @@ async def submit_signal(session_id: str, request: SubmitSignalRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class SkillSymbolSwitchRequest(BaseModel):
+    new_symbol: str
+    new_symbol_name: Optional[str] = None
+    optimized_params: Optional[Dict[str, Any]] = None
+    source: str = "skill:symbol-select"
+    reason: Optional[str] = None
+    backtest_results: Optional[List[Dict[str, Any]]] = None
+
+
+@router.post("/session/{session_id}/skill-symbol-switch")
+async def skill_symbol_switch(session_id: str, request: SkillSymbolSwitchRequest):
+    """
+    외부 스킬에서 AI 종목 선정 결과를 적용하여 세션 종목을 전환.
+    LiveManager.switch_session_symbol()을 호출하여 엔진 재초기화.
+    """
+    if not request.source.startswith("skill"):
+        raise HTTPException(status_code=400, detail="source must start with 'skill'")
+
+    engine = live_manager.engines.get(session_id)
+    if not engine:
+        raise HTTPException(status_code=404, detail="Session not found or not running")
+
+    old_symbol = engine.symbol
+
+    if old_symbol == request.new_symbol and not request.optimized_params:
+        return {
+            "status": "kept",
+            "session_id": session_id,
+            "symbol": old_symbol,
+            "message": "Same symbol, no change needed",
+        }
+
+    try:
+        await live_manager.switch_session_symbol(
+            session_id=session_id,
+            new_symbol=request.new_symbol,
+            new_symbol_name=request.new_symbol_name,
+            optimized_params=request.optimized_params,
+        )
+
+        # Save AI symbol history if service available
+        try:
+            from ..core.ai_symbol_selection import AISymbolSelectionService
+            ai_service = AISymbolSelectionService.get_instance()
+            db = SessionLocal()
+            try:
+                sess = db.query(LiveBotSession).filter_by(id=session_id).first()
+                group_id = sess.group_id if sess else None
+            finally:
+                db.close()
+
+            action = "switched" if old_symbol != request.new_symbol else "kept"
+            ai_service._save_history(
+                session_id=session_id,
+                group_id=group_id,
+                action=action,
+                old_symbol=old_symbol,
+                new_symbol=request.new_symbol if action == "switched" else None,
+                new_symbol_name=request.new_symbol_name,
+                search_conditions=f"[{request.source}]",
+                evaluation_reason=request.reason or f"Skill symbol switch: {old_symbol} → {request.new_symbol}",
+                backtest_results=request.backtest_results or [],
+            )
+        except Exception as e:
+            logger.warning(f"skill-symbol-switch: history save failed: {e}")
+
+        return {
+            "status": "switched" if old_symbol != request.new_symbol else "updated",
+            "session_id": session_id,
+            "old_symbol": old_symbol,
+            "new_symbol": request.new_symbol,
+            "optimized_params": request.optimized_params,
+            "message": f"Symbol switched: {old_symbol} → {request.new_symbol}",
+        }
+    except Exception as e:
+        logger.error(f"skill-symbol-switch error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/session/{session_id}/candles")
 async def get_session_candles(session_id: str, limit: int = 100):
     """
