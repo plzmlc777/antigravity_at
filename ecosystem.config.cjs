@@ -18,6 +18,18 @@ module.exports = {
             env: {
                 NODE_ENV: "development"
             }
+        },
+        {
+            // Phase D — weekly LEARN→EVOLVE→REFLECT cycle.
+            // PM2 cron_restart fires the script every Sunday at 09:07 local time.
+            // The script runs to completion then exits; PM2 reschedules for next week.
+            // Logs land in .claude/skills/at-orchestrator/runs/cycle_<UTC>.log
+            name: "at-weekly-cycle",
+            script: "./.claude/skills/at-orchestrator/scripts/run_weekly_cycle.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "7 9 * * 0"
         }
     ]
 };
