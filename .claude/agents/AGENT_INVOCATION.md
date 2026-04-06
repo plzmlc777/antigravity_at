@@ -32,7 +32,7 @@ The agent reads its own behavioral spec from the .md file and executes according
 | Agent | Status | Test Date | Notes |
 |-------|--------|-----------|-------|
 | ops-monitor | ✅ Verified | 2026-04-06 | Returns valid JSON. health_check.py + PM2 + API checks all work. |
-| market-researcher | ⏳ Pending | - | - |
+| market-researcher | ✅ Verified | 2026-04-06 | Returns valid JSON. WebSearch + regime + event risks + impact mapping all work. |
 | trade-executor | ⏳ Pending | - | - |
 | risk-manager | ⏳ Pending | - | - |
 | strategy-advisor | ⏳ Pending | - | - |
