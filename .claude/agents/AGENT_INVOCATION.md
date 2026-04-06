@@ -27,6 +27,31 @@ Execute all steps and return the JSON response per the output format spec."""
 
 The agent reads its own behavioral spec from the .md file and executes accordingly.
 
+## ⚠️ Critical Limitation: No Nested Dispatch
+
+The `general-purpose` agent does NOT have access to the `Agent`/`Task` tool.
+This means CIO (or any orchestrator) cannot truly dispatch sub-agents in parallel
+when running via the workaround pattern — it must execute each sub-agent's logic
+inline by reading their .md spec.
+
+**Implication**: For true parallel sub-agent orchestration, the orchestrator
+(CIO) MUST be invoked from the **main conversation** (which has Agent tool access),
+and it dispatches each sub-agent as a separate `general-purpose` Agent call.
+
+**Recommended pattern for daily-review**:
+```
+Main conversation:
+  ├─ Agent(general-purpose, "ops-monitor task") ─┐
+  └─ Agent(general-purpose, "market-researcher task") ─┴─ parallel
+  → Main parses both JSONs
+  → If non-HEALTHY: Agent(general-purpose, "strategy-advisor task")
+  → ...continues
+```
+
+The CIO .md spec is then a **playbook the main conversation follows**, not
+an autonomous agent. This is the only way to get real parallelism until
+custom agents become natively registerable.
+
 ## Verified Agents (Phase A)
 
 | Agent | Status | Test Date | Notes |
@@ -37,7 +62,7 @@ The agent reads its own behavioral spec from the .md file and executes according
 | risk-manager | ✅ Verified | 2026-04-06 | Portfolio query + risk evaluation + conditional approval w/ veto power verified. |
 | strategy-advisor | ⏳ Pending | - | - |
 | backtest-analyst | ⏳ Pending | - | - |
-| cio | ⏳ Pending | - | - |
+| cio | ⚠️ Partial | 2026-04-06 | Workflow logic + JSON output verified. BUT: general-purpose has no Agent tool, so CIO cannot truly dispatch sub-agents — falls back to executing them inline by reading their .md specs. Real parallelism requires native subagent_type registration. |
 | meta-learner | ⏳ Pending | - | - |
 | strategy-evolver | ⏳ Pending | - | - |
 | self-critic | ⏳ Pending | - | - |
