@@ -34,7 +34,7 @@ The agent reads its own behavioral spec from the .md file and executes according
 | ops-monitor | ✅ Verified | 2026-04-06 | Returns valid JSON. health_check.py + PM2 + API checks all work. |
 | market-researcher | ✅ Verified | 2026-04-06 | Returns valid JSON. WebSearch + regime + event risks + impact mapping all work. |
 | trade-executor | ✅ Verified | 2026-04-06 | Read-only status-check verified. API query + JSON output format work. |
-| risk-manager | ⏳ Pending | - | - |
+| risk-manager | ✅ Verified | 2026-04-06 | Portfolio query + risk evaluation + conditional approval w/ veto power verified. |
 | strategy-advisor | ⏳ Pending | - | - |
 | backtest-analyst | ⏳ Pending | - | - |
 | cio | ⏳ Pending | - | - |
