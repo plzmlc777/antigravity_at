@@ -388,7 +388,14 @@ class AnalysisScheduler:
     MODEL_PRIORITY = ["opus", "sonnet"]
 
     async def _call_claude_agent(self, context_data: Dict, symbol: str, strategy_name: str, symbol_name: str = "") -> Dict:
-        """Call Claude CLI with trading-analyst agent. Falls back to lower model on rate limit."""
+        """Call Claude CLI to run market-researcher + strategy-advisor synthesis.
+
+        Migrated from the legacy --agent trading-analyst flow (Phase B).
+        Now uses the general-purpose CLI invocation with embedded instructions
+        pointing to the new agent .md specs at .claude/agents/.
+
+        Falls back to lower model on rate limit.
+        """
         from .config import get_claude_cli_path
         claude_path = get_claude_cli_path()
 
@@ -402,21 +409,50 @@ class AnalysisScheduler:
             json.dump(context_data, tmp_file, ensure_ascii=False, indent=2)
             tmp_file.close()
 
-            # Build prompt
+            # Build prompt: orchestrate market-researcher + strategy-advisor
+            # and emit the legacy trading-analyst output schema for backward compat
+            # with the ai_analysis_reports table consumers.
             stock_label = f"{symbol}({symbol_name})" if symbol_name else symbol
             has_news = bool(context_data.get("naver_news"))
             news_instruction = (
-                "The context file includes pre-fetched Naver news articles in the 'naver_news' field. "
-                "Use these articles for your news_impact analysis and include them in news_articles. "
-                "You may also search for additional news if needed."
+                "The context file includes pre-fetched Naver news articles in the "
+                "'naver_news' field. Use these articles for news_impact analysis "
+                "and include them in news_articles. You may also search for "
+                "additional news if needed."
             ) if has_news else (
                 "Search for recent news about this stock and include in your analysis."
             )
             prompt = (
-                f"Read the context file at {tmp_file.name} and analyze the trading session.\n"
-                f"Stock: {stock_label} ({strategy_name})\n"
-                f"{news_instruction}\n"
-                f"Respond with valid JSON only."
+                f"You are running a session analysis pipeline that combines two agents: "
+                f"market-researcher and strategy-advisor.\n\n"
+                f"Read the behavioral specs from these files (you must read both):\n"
+                f"  - /home/hcpark/antigravity/.claude/agents/market-researcher.md\n"
+                f"  - /home/hcpark/antigravity/.claude/agents/strategy-advisor.md\n\n"
+                f"Read the context file at {tmp_file.name}. It contains:\n"
+                f"  - session_info: session_id, symbol, strategy_name, is_paper\n"
+                f"  - strategy_config: current parameters\n"
+                f"  - trade_summary: live performance metrics\n"
+                f"  - backtest_comparison: live vs backtest delta\n"
+                f"  - backtest_stats: 30-day baseline backtest\n"
+                f"  - naver_news: pre-fetched news (may be empty)\n\n"
+                f"Stock: {stock_label} (strategy: {strategy_name})\n"
+                f"{news_instruction}\n\n"
+                f"Workflow:\n"
+                f"1. Apply market-researcher logic for news_impact + regime + event_risks\n"
+                f"2. Apply strategy-advisor logic for diagnosis + recommendation\n"
+                f"3. Synthesize into the OUTPUT SCHEMA below\n\n"
+                f"OUTPUT SCHEMA (REQUIRED — emit exactly these top-level fields):\n"
+                f"{{\n"
+                f'  "summary": "한국어 종합 요약 (2-3문장)",\n'
+                f'  "grade": "A|B|C|D|F",\n'
+                f'  "performance_analysis": "성과 분석 (한국어)",\n'
+                f'  "news_impact": "뉴스 영향 분석 (한국어)",\n'
+                f'  "news_articles": [{{"title": "...", "summary": "...", "impact": "positive|negative|neutral"}}],\n'
+                f'  "recommendations": ["권고사항 1", "권고사항 2"],\n'
+                f'  "action": "maintain|adjust|switch|stop",\n'
+                f'  "risk_level": "low|medium|high"\n'
+                f"}}\n\n"
+                f"Respond with valid JSON only — no markdown fences, no commentary outside JSON."
             )
 
             # Clean PM2 env vars
@@ -430,7 +466,6 @@ class AnalysisScheduler:
                     claude_path,
                     "-p", prompt,
                     "--output-format", "json",
-                    "--agent", "trading-analyst",
                     "--model", model,
                     "--permission-mode", "bypassPermissions",
                 ]
