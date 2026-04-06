@@ -194,6 +194,34 @@ curl -X POST http://localhost:8001/api/v1/strategies/recalculate-scores \
 오버피팅 여부를 판별하기 위해 In-Sample 최적화 → Out-of-Sample 검증을 롤링 수행.
 상세 절차는 `commands/walk-forward.md` 참조.
 
+### 독립 스크립트 최적화 (API 없이)
+
+```bash
+cd .claude/skills/at-backtest/scripts
+
+# Grid Search (기본 범위 사용)
+python3 optimize.py -s rsi_martingale --symbol SOLUSDT -i 1m -d 14 \
+    --exchange BinanceFutures --leverage 5
+
+# Grid Search (파라미터 지정)
+python3 optimize.py -s rsi_martingale --symbol SOLUSDT -i 1m -d 14 \
+    --exchange BinanceFutures --leverage 5 \
+    --param "rsi_period=7,14,21" --param "trigger_level=25,30,35"
+
+# 백엔드 호환 가중 점수 (Return^w * Sharpe^w * Stability^w / MDD^w)
+python3 optimize.py -s rsi_martingale --symbol SOLUSDT -i 1m -d 14 \
+    --exchange BinanceFutures --leverage 5 --scoring weighted --json
+
+# Walk-Forward 검증 (과적합 탐지)
+python3 optimize.py -s rsi_martingale --symbol SOLUSDT -i 1m -d 60 \
+    --exchange BinanceFutures --leverage 5 --walk-forward --folds 3
+```
+
+**Walk-Forward 결과 해석**:
+- `overfit_ratio < 0.2`: GOOD — 실전 적용 가능
+- `overfit_ratio 0.2~0.5`: WARNING — 파라미터 단순화 권장
+- `overfit_ratio > 0.5`: OVERFIT — 파라미터 범위 축소 또는 기간 확대 필요
+
 ## Scripts (독립 실행 코드)
 
 | 파일 | 역할 |
@@ -202,6 +230,7 @@ curl -X POST http://localhost:8001/api/v1/strategies/recalculate-scores \
 | `scripts/strategies.py` | 전략 로직 재현 (dip_martingale, ema_momentum, rsi_martingale, time_momentum) |
 | `scripts/metrics.py` | 성과지표 계산 (sharpe, mdd, win_rate, stability 등) |
 | `scripts/backtest.py` | 독립 백테스트 엔진 (CLI) |
+| `scripts/optimize.py` | Grid Search + Walk-Forward + 가중 점수 최적화 |
 | `scripts/compare.py` | API 결과 vs 독립 결과 비교 검증 |
 
 ## Resources

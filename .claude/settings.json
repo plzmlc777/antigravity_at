@@ -4,11 +4,16 @@
       "Edit(/.claude/skills/at-backtest/**)",
       "Edit(/.claude/skills/at-strategy/**)",
       "Edit(/.claude/skills/at-binance/**)",
-      "Edit(/.claude/skills/at-live-signal/**)"
+      "Edit(/.claude/skills/at-live-signal/**)",
+      "Edit(/.claude/skills/at-symbol-select/**)"
     ],
     "additionalDirectories": [
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
-      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references"
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest\\scripts",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest\\scripts",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest"
     ]
   }
 }
