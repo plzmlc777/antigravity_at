@@ -65,5 +65,5 @@ custom agents become natively registerable.
 | cio | ✅ Verified (as playbook) | 2026-04-06 | Workflow logic verified. CIO operates as a playbook executed by main conversation, not an autonomous agent. Main conversation dispatches sub-agents via parallel general-purpose Agent calls then synthesizes. True parallelism confirmed in Phase A-6. |
 | meta-learner | ✅ Verified | 2026-04-06 | Graceful insufficient_data handling. Bootstrapped meta_learnings.md schema. Found: /accumulated-stats requires auth (gap). |
 | strategy-evolver | ⏳ Pending | - | - |
-| self-critic | ⏳ Pending | - | - |
+| self-critic | ✅ Verified | 2026-04-06 | Audited 4 synthetic decisions. Detected recency/overconfidence/action bias. Generated 7 improvement directives. Health score 55. |
 | signal-synthesizer | ✅ Verified | 2026-04-06 | 3-domain quick synthesis with data_provenance tracking. Returned HOLD with watch_triggers (institutional vs technical decoupling identified). |
