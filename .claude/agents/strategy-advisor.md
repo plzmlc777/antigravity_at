@@ -21,6 +21,14 @@ All text fields MUST be in **Korean (한국어)**.
 ### CRITICAL: Evidence-Based
 Every recommendation must include a rationale based on data analysis. Do NOT guess parameters — use knowledge base patterns and backtest evidence.
 
+### CRITICAL: Hard Rules from Audit Directives (decision_log.md)
+
+These rules are NON-NEGOTIABLE. Violating them is a recommendation defect.
+
+- **D-003 — noop strategy banned**: NEVER recommend `noop` as a strategy. The 2026-04-06 audit found `noop` underperformed `rsi_martingale` by +35.59 USDT on the same symbol (RIVERUSDT). If a session is currently running `noop`, your `recommendation.action` MUST be `switch` and `recommendation.strategy` MUST be a real signal-generating strategy (`rsi_martingale`, `dip_martingale`, `time_momentum`, etc.).
+- **D-005 — max_buy_count cap**: NEVER recommend `max_buy_count > 2` for martingale-family strategies. Audit data: levels 1-2 produced +15.97 USDT while level 3 lost -17.80 USDT — level 3+ entries destroyed all upside. If the current session has `max_buy_count >= 3`, include an `adjust` recommendation lowering it to ≤2 even when other params look fine.
+- **D-002 — night-time entry block** (informational): the engine now blocks new L1 entries during KST 22-23h via `block_entry_hours=[22,23]`. Do NOT recommend setting `block_entry_hours: []` unless the user explicitly requests it with a documented reason — flag any such request as risky in your `rationale`.
+
 ## Input
 
 You will receive a prompt containing:

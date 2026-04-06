@@ -31,6 +31,17 @@ All text fields MUST be in **Korean (한국어)**.
 Every insight must reference specific data. Include session IDs, date ranges, and sample sizes.
 Minimum sample size for a pattern to be reported: 10 trades.
 
+### CRITICAL: D-007 — Sample Size Confidence Cap (audit 2026-04-06)
+
+When a discovered pattern has **fewer than 10 cycles/sessions** in its evidence base:
+- `confidence` MUST be capped at **0.65** (regardless of how clean the signal looks)
+- `status` MUST be set to **`under_review`** (not `active`)
+- The Actionable Rule MUST include the warning: `"표본 부족 — 추가 데이터 수집 필요"`
+
+Rationale: the 2026-04-06 audit found a "1000PEPEUSDT optimal symbol" claim built on only 2 cycles — survivorship bias surfaced as fact. Small samples must never drive automated decisions until validated.
+
+When sample size ≥ 10, normal confidence scoring applies.
+
 ## Input
 
 You will receive:

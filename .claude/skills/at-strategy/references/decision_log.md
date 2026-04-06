@@ -118,13 +118,13 @@
 
 | ID | Date | Target Agent | Directive | Priority | Status | Applied |
 |----|------|--------------|-----------|----------|--------|---------|
-| D-001 | 2026-04-06 | cio | 모든 의사결정 decision_log.md 기록 필수. ASSESS->PLAN->EXECUTE 프로세스 준수. | HIGH | open | - |
+| D-001 | 2026-04-06 | cio | 모든 의사결정 decision_log.md 기록 필수. ASSESS->PLAN->EXECUTE 프로세스 준수. | HIGH | applied | 2026-04-06 (cio.md: Decision Logging Mandate section) |
 | D-002 | 2026-04-06 | risk-manager | 야간(22:00-00:00 KST) 마틴게일 신규 L1 진입 차단. 기존 포지션 유지 허용. | CRITICAL | applied | 2026-04-06 (martingale_base.py: block_entry_hours=[22,23] default) |
-| D-003 | 2026-04-06 | strategy-advisor | noop 전략 사용 금지 권고. rsi_martingale 우선 사용. 동일 종목 +35.59 USDT 성과 차이. | HIGH | open | - |
+| D-003 | 2026-04-06 | strategy-advisor | noop 전략 사용 금지 권고. rsi_martingale 우선 사용. 동일 종목 +35.59 USDT 성과 차이. | HIGH | applied | 2026-04-06 (strategy-advisor.md: Hard Rules — noop banned) |
 | D-004 | 2026-04-06 | cio | AI 종목 교체 24시간 최대 2회 + cooldown 1시간. 교체 전 비교체 시나리오 필수 평가. | HIGH | applied | 2026-04-06 (live_engine.py: _ai_switch_history + cooldown/cap guards in _try_ai_symbol_switch) |
-| D-005 | 2026-04-06 | strategy-advisor | max_buy_count 2로 제한. 레벨3+ 진입 차단. 레벨1-2만 +15.97 vs 레벨3 -17.80. | HIGH | open | - |
+| D-005 | 2026-04-06 | strategy-advisor | max_buy_count 2로 제한. 레벨3+ 진입 차단. 레벨1-2만 +15.97 vs 레벨3 -17.80. | HIGH | applied | 2026-04-06 (strategy-advisor.md: Hard Rules — max_buy_count cap) |
 | D-006 | 2026-04-06 | trade-executor | UNKNOWN 심볼 거래 즉시 차단. 주문 전 심볼 유효성 검증 로직 필수 추가. | CRITICAL | applied | 2026-04-06 (martingale_base.py initialize() fail-fast + live_context.py buy/sell/short/close_position guards) |
-| D-007 | 2026-04-06 | meta-learner | 표본 10사이클 미만 발견은 confidence 상한 0.65 + status under_review 강제. | MEDIUM | open | - |
+| D-007 | 2026-04-06 | meta-learner | 표본 10사이클 미만 발견은 confidence 상한 0.65 + status under_review 강제. | MEDIUM | applied | 2026-04-06 (meta-learner.md: Sample Size Confidence Cap section) |
 
 ## [2026-04-06] CIO-20260406-001: noop strategy evolution (RIVERUSDT)
 - **Workflow**: learn-evolve-reflect

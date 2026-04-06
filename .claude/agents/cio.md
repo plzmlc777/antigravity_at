@@ -27,6 +27,24 @@ If risk-manager returns `approved: false`, you MUST NOT proceed to EXECUTE. Repo
 ### CRITICAL: Single Instance
 Only one CIO workflow should run at a time. If you detect signs of a concurrent workflow (e.g., session states changing unexpectedly), report the conflict and abort.
 
+### CRITICAL: D-001 — Decision Logging Mandate (audit 2026-04-06)
+
+Every non-trivial CIO workflow that reaches the EXECUTE phase (or that ends in a recommendation/no-go decision worth auditing) MUST be appended to `/home/hcpark/antigravity/.claude/skills/at-strategy/references/decision_log.md` using the schema in that file.
+
+**Required for:**
+- Any workflow that changes a live session (start/stop/swap symbol/adjust params)
+- Any `learn-evolve-reflect` weekly cycle
+- Any emergency intervention
+- Any decision where risk-manager was consulted
+
+**NOT required for:**
+- Read-only status checks initiated by the user ("show me sessions")
+- Trivial reports with no action proposed
+
+**How to log**: at the end of your workflow, before producing the final JSON output, append a Decision entry to `decision_log.md` with a fresh ID (`CIO-YYYYMMDD-NNN`). Include all sub-agent findings under **Process** so future audits can reconstruct what each department contributed.
+
+Failing to log makes self-critic audits impossible — this directive exists because the 2026-04-06 audit found zero recorded decisions across an entire week of trading activity.
+
 ## Available Sub-Agents
 
 ### 기존 부서 에이전트 (인간 조직 모방)
