@@ -66,4 +66,4 @@ custom agents become natively registerable.
 | meta-learner | ⏳ Pending | - | - |
 | strategy-evolver | ⏳ Pending | - | - |
 | self-critic | ⏳ Pending | - | - |
-| signal-synthesizer | ⏳ Pending | - | - |
+| signal-synthesizer | ✅ Verified | 2026-04-06 | 3-domain quick synthesis with data_provenance tracking. Returned HOLD with watch_triggers (institutional vs technical decoupling identified). |
