@@ -13,7 +13,7 @@ load_dotenv("backend/.env")    # child (if running from root)
 class Settings(BaseSettings):
     APP_ENV: str = "dev"
     PROJECT_NAME: str = "My Auto Trading"
-    PROJECT_VERSION: str = "1.4.2.2"
+    PROJECT_VERSION: str = "1.4.2.3"
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
     
