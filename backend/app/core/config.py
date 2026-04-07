@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
 
+    # Kill Switch (KPI guard) — DEFAULT OFF.
+    # See feedback_backwards_compatible_defaults.md: new behavior must be opt-in
+    # so existing live sessions are never broken by an upgrade.
+    # Enable by setting KILL_SWITCH_ENABLED=true in .env after validation.
+    KILL_SWITCH_ENABLED: bool = False
+    KILL_SWITCH_INTERVAL_SEC: int = 300        # check every 5 min
+    KILL_SWITCH_MONTHLY_PCT: float = -10.0      # ≤ -10% / month → stop all
+    KILL_SWITCH_SESSION_PCT: float = -20.0      # ≤ -20% / session → stop one
+    KILL_SWITCH_DAILY_PCT: float = -5.0         # ≤ -5% / day → pause orders
+
     class Config:
         model_config = {
             "env_file": [".env", "backend/.env", "../.env"],

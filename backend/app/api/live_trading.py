@@ -3179,3 +3179,141 @@ async def monitor_sessions():
         results.append(info)
 
     return {"sessions": results, "count": len(results)}
+
+
+# =========================================================================
+# Goal Progress — KPI tracking against 12%/month target
+# =========================================================================
+
+# Target return — system KPI (project_return_target.md)
+GOAL_MONTHLY_RETURN_TARGET = 12.0  # %
+
+# Kill switch thresholds (project_return_target.md, feedback_backwards_compatible_defaults.md)
+KILL_SWITCH_MONTHLY_PCT = -10.0   # 월 누적 -10% → 모든 세션 정지
+KILL_SWITCH_SESSION_PCT = -20.0   # 세션 -20% → 해당 세션 정지
+KILL_SWITCH_DAILY_PCT = -5.0      # 일 -5% → 신규 주문 일시 차단
+
+
+@router.get("/goal/progress")
+async def get_goal_progress(
+    db: Session = Depends(get_db),
+    ctx: UserAccountContext = Depends(get_user_context),
+):
+    """
+    Return progress vs the 12%/month KPI target for the current account.
+
+    Aggregates realized_pnl from FILLED LiveTradeExecution records grouped by:
+      - This month (vs target)
+      - Today
+      - Per-session (life-time, since session start)
+
+    Also surfaces kill-switch breach flags so callers (cron, UI, agents) can act.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import func
+    from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveBotSession
+
+    if not ctx.has_active_account:
+        raise HTTPException(status_code=400, detail="No active account selected")
+
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    day_start = datetime(now.year, now.month, now.day)
+
+    # All sessions for this account (used for capital base + per-session breakdown)
+    sessions = db.query(LiveBotSession).filter(
+        LiveBotSession.account_id == ctx.account_id
+    ).all()
+    if not sessions:
+        return {
+            "target_monthly_pct": GOAL_MONTHLY_RETURN_TARGET,
+            "monthly_pnl_krw": 0.0,
+            "monthly_return_pct": 0.0,
+            "progress_pct": 0.0,
+            "daily_pnl_krw": 0.0,
+            "daily_return_pct": 0.0,
+            "total_capital_base": 0.0,
+            "session_count": 0,
+            "sessions": [],
+            "kill_switch": {
+                "monthly_breach": False,
+                "daily_breach": False,
+                "breached_sessions": [],
+            },
+            "as_of": now.isoformat(),
+        }
+
+    session_ids = [s.id for s in sessions]
+    capital_base = sum((s.initial_capital or 0.0) for s in sessions) or 0.0
+
+    # Helper: sum realized_pnl over a period
+    def _sum_pnl(start: datetime) -> float:
+        row = db.query(func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0)).filter(
+            LiveTradeExecution.session_id.in_(session_ids),
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+            LiveTradeExecution.signal_timestamp >= start,
+        ).scalar()
+        return float(row or 0.0)
+
+    monthly_pnl = _sum_pnl(month_start)
+    daily_pnl = _sum_pnl(day_start)
+
+    monthly_return_pct = (monthly_pnl / capital_base * 100.0) if capital_base > 0 else 0.0
+    daily_return_pct = (daily_pnl / capital_base * 100.0) if capital_base > 0 else 0.0
+    progress_pct = (monthly_return_pct / GOAL_MONTHLY_RETURN_TARGET * 100.0) if GOAL_MONTHLY_RETURN_TARGET > 0 else 0.0
+
+    # Per-session lifetime PnL
+    per_session = (
+        db.query(
+            LiveTradeExecution.session_id,
+            func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0).label("pnl"),
+        )
+        .filter(
+            LiveTradeExecution.session_id.in_(session_ids),
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+        )
+        .group_by(LiveTradeExecution.session_id)
+        .all()
+    )
+    pnl_by_session = {sid: float(pnl or 0.0) for sid, pnl in per_session}
+
+    session_rows = []
+    breached_sessions = []
+    for s in sessions:
+        pnl = pnl_by_session.get(s.id, 0.0)
+        ic = s.initial_capital or 0.0
+        ret_pct = (pnl / ic * 100.0) if ic > 0 else 0.0
+        breached = ret_pct <= KILL_SWITCH_SESSION_PCT
+        if breached and s.status == "RUNNING":
+            breached_sessions.append(s.id)
+        session_rows.append({
+            "session_id": s.id,
+            "symbol": s.symbol,
+            "status": s.status,
+            "is_paper": s.is_paper,
+            "initial_capital": ic,
+            "realized_pnl": pnl,
+            "return_pct": ret_pct,
+            "session_kill_switch_breached": breached,
+        })
+
+    return {
+        "target_monthly_pct": GOAL_MONTHLY_RETURN_TARGET,
+        "monthly_pnl_krw": monthly_pnl,
+        "monthly_return_pct": monthly_return_pct,
+        "progress_pct": progress_pct,
+        "daily_pnl_krw": daily_pnl,
+        "daily_return_pct": daily_return_pct,
+        "total_capital_base": capital_base,
+        "session_count": len(sessions),
+        "sessions": session_rows,
+        "kill_switch": {
+            "monthly_threshold_pct": KILL_SWITCH_MONTHLY_PCT,
+            "session_threshold_pct": KILL_SWITCH_SESSION_PCT,
+            "daily_threshold_pct": KILL_SWITCH_DAILY_PCT,
+            "monthly_breach": monthly_return_pct <= KILL_SWITCH_MONTHLY_PCT,
+            "daily_breach": daily_return_pct <= KILL_SWITCH_DAILY_PCT,
+            "breached_sessions": breached_sessions,
+        },
+        "as_of": now.isoformat(),
+    }

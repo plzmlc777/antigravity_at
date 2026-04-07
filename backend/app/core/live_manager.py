@@ -517,6 +517,146 @@ class LiveManager:
         finally:
             db.close()
 
+        # Start kill-switch monitor (default OFF — opt-in via KILL_SWITCH_ENABLED)
+        self._kill_switch_task = None
+        if getattr(settings, "KILL_SWITCH_ENABLED", False):
+            try:
+                self._kill_switch_task = asyncio.create_task(self._kill_switch_monitor())
+                logger.info(
+                    f"KillSwitch: monitor started "
+                    f"(interval={settings.KILL_SWITCH_INTERVAL_SEC}s, "
+                    f"monthly={settings.KILL_SWITCH_MONTHLY_PCT}%, "
+                    f"session={settings.KILL_SWITCH_SESSION_PCT}%, "
+                    f"daily={settings.KILL_SWITCH_DAILY_PCT}%)"
+                )
+            except Exception as e:
+                logger.error(f"KillSwitch: failed to start monitor: {e}")
+        else:
+            logger.info("KillSwitch: disabled (set KILL_SWITCH_ENABLED=true to activate)")
+
+    async def _kill_switch_monitor(self):
+        """
+        Periodic safety net guarding the 12%/month KPI target.
+
+        Default OFF (feedback_backwards_compatible_defaults.md). When enabled:
+          - Monthly account return ≤ KILL_SWITCH_MONTHLY_PCT → stop ALL sessions for that account (force).
+          - Session lifetime return ≤ KILL_SWITCH_SESSION_PCT → stop that single session (force).
+          - Daily account return ≤ KILL_SWITCH_DAILY_PCT → pause orders on every running engine for that account.
+
+        Aggregation source: realized_pnl on FILLED LiveTradeExecution rows
+        (same source as /api/v1/live/goal/progress, kept consistent on purpose).
+        """
+        from sqlalchemy import func
+        from ..models.live_trading import LiveTradeExecution
+        from datetime import datetime as _dt
+
+        interval = max(30, int(getattr(settings, "KILL_SWITCH_INTERVAL_SEC", 300)))
+        monthly_th = float(getattr(settings, "KILL_SWITCH_MONTHLY_PCT", -10.0))
+        session_th = float(getattr(settings, "KILL_SWITCH_SESSION_PCT", -20.0))
+        daily_th = float(getattr(settings, "KILL_SWITCH_DAILY_PCT", -5.0))
+
+        while True:
+            try:
+                await asyncio.sleep(interval)
+                db = SessionLocal()
+                try:
+                    now = _dt.utcnow()
+                    month_start = _dt(now.year, now.month, 1)
+                    day_start = _dt(now.year, now.month, now.day)
+
+                    running = db.query(LiveBotSession).filter(
+                        LiveBotSession.status == SessionStatus.RUNNING
+                    ).all()
+                    if not running:
+                        continue
+
+                    # Group by account for monthly/daily aggregation
+                    by_account: Dict[int, List[LiveBotSession]] = {}
+                    for s in running:
+                        by_account.setdefault(s.account_id, []).append(s)
+
+                    for account_id, sessions in by_account.items():
+                        sids = [s.id for s in sessions]
+                        capital = sum((s.initial_capital or 0.0) for s in sessions) or 0.0
+                        if capital <= 0:
+                            continue
+
+                        def _sum(start):
+                            v = db.query(
+                                func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0)
+                            ).filter(
+                                LiveTradeExecution.session_id.in_(sids),
+                                LiveTradeExecution.status == "FILLED",
+                                LiveTradeExecution.signal_timestamp >= start,
+                            ).scalar()
+                            return float(v or 0.0)
+
+                        monthly_pct = _sum(month_start) / capital * 100.0
+                        daily_pct = _sum(day_start) / capital * 100.0
+
+                        # 1) Monthly breach → STOP ALL (force)
+                        if monthly_pct <= monthly_th:
+                            logger.critical(
+                                f"KillSwitch: account={account_id} monthly_return={monthly_pct:.2f}% "
+                                f"≤ {monthly_th}% → stopping ALL sessions"
+                            )
+                            try:
+                                await self.stop_all_sessions_for_account(account_id, force=True)
+                            except Exception as e:
+                                logger.error(f"KillSwitch: stop_all failed for account {account_id}: {e}")
+                            continue  # account fully stopped
+
+                        # 2) Daily breach → pause orders on every running engine for this account
+                        if daily_pct <= daily_th:
+                            logger.warning(
+                                f"KillSwitch: account={account_id} daily_return={daily_pct:.2f}% "
+                                f"≤ {daily_th}% → pausing orders"
+                            )
+                            for s in sessions:
+                                eng = self.engines.get(s.id)
+                                if eng and eng.orders_enabled:
+                                    try:
+                                        eng.toggle_orders(False)
+                                    except Exception as e:
+                                        logger.error(f"KillSwitch: toggle_orders failed for {s.id}: {e}")
+
+                        # 3) Per-session lifetime breach → stop that session
+                        per_session = (
+                            db.query(
+                                LiveTradeExecution.session_id,
+                                func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0).label("pnl"),
+                            )
+                            .filter(
+                                LiveTradeExecution.session_id.in_(sids),
+                                LiveTradeExecution.status == "FILLED",
+                            )
+                            .group_by(LiveTradeExecution.session_id)
+                            .all()
+                        )
+                        pnl_map = {sid: float(pnl or 0.0) for sid, pnl in per_session}
+                        for s in sessions:
+                            ic = s.initial_capital or 0.0
+                            if ic <= 0:
+                                continue
+                            ret_pct = pnl_map.get(s.id, 0.0) / ic * 100.0
+                            if ret_pct <= session_th:
+                                logger.critical(
+                                    f"KillSwitch: session={s.id[:8]} return={ret_pct:.2f}% "
+                                    f"≤ {session_th}% → stopping session"
+                                )
+                                try:
+                                    await self.stop_session(s.id, force=True)
+                                except Exception as e:
+                                    logger.error(f"KillSwitch: stop_session failed for {s.id}: {e}")
+                finally:
+                    db.close()
+            except asyncio.CancelledError:
+                logger.info("KillSwitch: monitor cancelled")
+                raise
+            except Exception as e:
+                logger.error(f"KillSwitch: monitor loop error: {e}")
+                traceback.print_exc()
+
     async def start_session(self, config: Dict[str, Any]) -> str:
         """
         Create and optionally Start a new Live Session.
