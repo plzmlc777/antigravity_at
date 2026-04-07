@@ -214,6 +214,7 @@ class AISymbolSelectionService:
                 current_symbol, search_conditions, stock_data, ranking_data,
                 excluded_symbols=excluded_symbols,
                 is_futures=is_futures,
+                exchange_name=exchange_name,
             )
 
             # Step 5: Build competitor list — current symbol only if it meets conditions
@@ -819,6 +820,51 @@ class AISymbolSelectionService:
             logger.warning(f"[AISymbol] Failed to parse evaluate response: {result[:200]}")
             return False, f"AI 응답 파싱 실패: {str(result)[:100]}"
 
+    def _load_hot_candidates(self, exchange_name: str) -> Optional[dict]:
+        """Load today's symbol-scout hot candidates file for the given exchange.
+
+        Symbol-scout is a daily cron agent that pre-ranks forward-looking candidates.
+        This helper lets _find_candidates inject those priors into the FIND context
+        so symbol-evaluator can leverage fresh daily research instead of scanning
+        the whole market from scratch at every cycle boundary.
+
+        Returns parsed JSON or None if missing/unreadable. Uses KST date (cron writer
+        uses KST, so reader must match). Falls back to yesterday's file once (useful
+        shortly after midnight KST).
+        """
+        import os
+        from datetime import datetime, timezone, timedelta
+
+        try:
+            ex = (exchange_name or "").lower()
+            if "binance" in ex:
+                market = "binance"
+            elif "kiwoom" in ex:
+                market = "kr"
+            else:
+                return None
+
+            # Project root: backend/app/core/ai_symbol_selection.py → up 4 levels
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )))
+            hot_dir = os.path.join(project_root, ".claude", "hot_candidates")
+
+            kst = timezone(timedelta(hours=9))
+            for offset in (0, 1):
+                day = (datetime.now(kst) - timedelta(days=offset)).strftime("%Y%m%d")
+                path = os.path.join(hot_dir, f"{market}_{day}.json")
+                if os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    data["_loaded_from"] = path
+                    data["_age_days"] = offset
+                    return data
+            return None
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(f"[AISymbol] hot_candidates load failed: {e}")
+            return None
+
     async def _find_candidates(
         self,
         current_symbol: str,
@@ -827,6 +873,7 @@ class AISymbolSelectionService:
         ranking_data: dict,
         excluded_symbols: set = None,
         is_futures: bool = False,
+        exchange_name: str = "",
     ) -> list:
         """Find up to 20 candidate symbols matching the conditions.
 
@@ -846,6 +893,25 @@ class AISymbolSelectionService:
         for rank_type, items in (ranking_data or {}).items():
             trimmed_rankings[rank_type] = (items or [])[:100]
 
+        # Load today's forward-looking scout priors (symbol-scout daily cron).
+        # If available, symbol-evaluator will use them as the primary candidate
+        # pool and fall back to full stocks/rankings only when search conditions
+        # require otherwise.
+        scout = self._load_hot_candidates(exchange_name)
+        scout_prior = None
+        if scout and scout.get("top_candidates"):
+            symbol_key = "symbol" if is_futures else "code"
+            scout_prior = [
+                c for c in scout["top_candidates"]
+                if c.get(symbol_key) and c.get(symbol_key) not in all_excluded
+            ]
+            if scout_prior:
+                logger.info(
+                    f"[AISymbol] scout prior loaded: {len(scout_prior)} candidates "
+                    f"(scan_date={scout.get('scan_date')}, regime={scout.get('regime')}, "
+                    f"age_days={scout.get('_age_days')})"
+                )
+
         context_data = {
             "mode": "FIND",
             "current_symbol": current_symbol,
@@ -854,12 +920,28 @@ class AISymbolSelectionService:
             "stocks": self._slim_stock_data(stock_data),
             "rankings": trimmed_rankings,
             "is_futures": is_futures,
+            "scout_prior": scout_prior,
+            "scout_regime": scout.get("regime") if scout else None,
+            "scout_scan_date": scout.get("scan_date") if scout else None,
         }
+
+        scout_instruction = ""
+        if scout_prior:
+            scout_instruction = (
+                f"A daily forward-looking symbol scout has pre-ranked these as today's "
+                f"top candidates (scan_date={scout.get('scan_date')}, "
+                f"regime={scout.get('regime')}): see the `scout_prior` field in the context. "
+                f"Use `scout_prior` as your PRIMARY candidate pool. Prefer those symbols "
+                f"unless the user's search conditions explicitly disqualify them. "
+                f"Only supplement from `stocks`/`rankings` when scout_prior does not provide "
+                f"enough matches for the user's conditions. "
+            )
 
         if is_futures:
             prompt = (
                 f"Read the context file and find up to 20 futures candidates that match "
                 f"the user's conditions: '{search_conditions}'. "
+                f"{scout_instruction}"
                 f"This is a FUTURES exchange, so for each candidate you MUST also recommend "
                 f"a trading direction (long or short) based on your analysis of the chart pattern, "
                 f"volume profile, momentum, and market conditions. "
@@ -873,6 +955,7 @@ class AISymbolSelectionService:
             prompt = (
                 f"Read the context file and find up to 20 stock candidates that match "
                 f"the user's conditions: '{search_conditions}'. "
+                f"{scout_instruction}"
                 f"Return as many candidates as possible (up to 20). "
                 f"Exclude ALL of these symbols (already in use): {exclude_str}. "
                 f"Respond with ONLY a JSON object: "
@@ -1613,6 +1696,8 @@ class AISymbolSelectionService:
                     stock_data=stock_data,
                     ranking_data=ranking_data,
                     excluded_symbols=excluded,
+                    is_futures=first.get("is_futures", False),
+                    exchange_name=group_exchange_name,
                 )
 
                 if not candidates:

@@ -63,3 +63,8 @@ kis_token_cache.json
 .claude/plans/
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
+
+# Claude Code ephemeral outputs (daily/per-run artifacts)
+.claude/hot_candidates/
+.claude/strategy_candidates/
+.claude/verification_logs/

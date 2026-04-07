@@ -66,9 +66,32 @@ When `mode` is `"FIND"` in the context file:
     "foreign_buy": [...],
     "volume_spike": [...],
     ...
-  }
+  },
+  "scout_prior": [...],       // optional: today's symbol-scout top candidates
+  "scout_regime": "...",      // optional: scout's market regime assessment
+  "scout_scan_date": "..."    // optional: scout scan date (KST)
 }
 ```
+
+## Scout Prior Integration (FIND mode)
+
+When `scout_prior` is present and non-empty in the context file, it contains the output
+of the `symbol-scout` daily cron agent — a **forward-looking, pre-ranked** list of top
+candidates for today. Use it as your **primary candidate pool**:
+
+1. **Prefer scout_prior symbols** that match the user's `search_conditions`. Rank them first.
+2. **Respect excluded_symbols** — drop any scout candidate already in the exclusion list.
+3. **Supplement from `stocks`/`rankings` only if needed** — if scout_prior doesn't yield
+   enough matches for the user's conditions, fill the rest from full market data.
+4. **Preserve scout rationale** — when reusing a scout candidate, your `reason` field
+   should reference why it matched both the scout's forward-looking criteria and the
+   user's search conditions (one Korean sentence each).
+5. **If scout_prior is absent or empty**, fall back to the original logic (scan full
+   `stocks` + `rankings`).
+
+The scout already applied the forward-looking principle and blacklist filtering, so you
+can trust its output as a quality starting pool. Your job in FIND mode is to **filter
+and rank scout_prior by the user's specific conditions**, not to re-rank the whole market.
 
 ## Ranking Fallback Logic (IMPORTANT)
 
