@@ -1,0 +1,17 @@
+{
+  "type": "target_assets",
+  "version": "1.0",
+  "exportedAt": "2026-02-12T00:00:00.000Z",
+  "accountName": "Binance DipMartingale",
+  "symbols": [
+    { "code": "BTCUSDT",  "name": "Bitcoin" },
+    { "code": "ETHUSDT",  "name": "Ethereum" },
+    { "code": "SOLUSDT",  "name": "Solana" },
+    { "code": "DOGEUSDT", "name": "Dogecoin" },
+    { "code": "PEPEUSDT", "name": "Pepe" },
+    { "code": "WIFUSDT",  "name": "dogwifhat" },
+    { "code": "AVAXUSDT", "name": "Avalanche" },
+    { "code": "LINKUSDT", "name": "Chainlink" },
+    { "code": "SUIUSDT",  "name": "Sui" }
+  ]
+}
