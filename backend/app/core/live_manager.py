@@ -1385,14 +1385,26 @@ class LiveManager:
         stopped_count = 0
         for account_id, adapter in self._adapters.items():
             ws = getattr(adapter, '_ws_client', None) or getattr(adapter, 'ws_client', None)
-            if ws:
-                ws.is_running = False
-                if ws.websocket and ws.ws_open:
-                    try:
-                        await ws.websocket.close()
-                        stopped_count += 1
-                    except Exception as e:
-                        logger.error(f"Error closing WS for account {account_id}: {e}")
+            if not ws:
+                continue
+            try:
+                # Mark stopped so background tasks exit cleanly
+                if hasattr(ws, 'is_running'):
+                    ws.is_running = False
+                # Prefer the adapter's own disconnect/close method (works for
+                # both Binance and Kiwoom websockets without leaking attribute
+                # assumptions). Fall back to legacy kiwoom-style attribute access.
+                if hasattr(ws, 'disconnect'):
+                    await ws.disconnect()
+                    stopped_count += 1
+                elif hasattr(ws, 'close'):
+                    await ws.close()
+                    stopped_count += 1
+                elif getattr(ws, 'websocket', None) and getattr(ws, 'ws_open', False):
+                    await ws.websocket.close()
+                    stopped_count += 1
+            except Exception as e:
+                logger.error(f"Error closing WS for account {account_id}: {e}")
         logger.info(f"WS: Closed {stopped_count} connections on shutdown")
 
 

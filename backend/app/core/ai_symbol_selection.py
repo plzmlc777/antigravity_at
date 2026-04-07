@@ -583,6 +583,33 @@ class AISymbolSelectionService:
             logger.error(f"[AISymbol] Token error: {e}")
             return None, None
 
+    def _load_symbol_blacklist(self) -> set:
+        """
+        D-012 (audit 2026-04-06): load symbol blacklist from
+        .claude/skills/at-symbol-select/references/symbol_blacklist.json.
+
+        Returns an empty set on any failure (file missing, malformed, etc.)
+        so blacklist absence never breaks symbol selection.
+        """
+        import os
+        # backend/app/core/ai_symbol_selection.py → project root is 4 levels up
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        path = os.path.join(
+            project_root,
+            ".claude", "skills", "at-symbol-select", "references", "symbol_blacklist.json",
+        )
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {
+                str(entry["symbol"]).strip().upper()
+                for entry in data.get("blacklist", [])
+                if entry.get("symbol")
+            }
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
+            logger.warning(f"[AISymbol] D-012 blacklist load failed (ignoring): {e}")
+            return set()
+
     async def _fetch_binance_market_data(self, is_futures: bool = False) -> tuple:
         """Fetch Binance market data via public REST API (no auth needed).
 
@@ -607,12 +634,18 @@ class AISymbolSelectionService:
 
             tickers = response.json()
 
-            # Filter USDT pairs only, exclude low-volume noise
+            # D-012 (audit 2026-04-06): load symbol blacklist before filtering
+            blacklist = self._load_symbol_blacklist()
+
+            # Filter USDT pairs only, exclude low-volume noise + blacklist
             usdt_tickers = [
                 t for t in tickers
                 if t.get("symbol", "").endswith("USDT")
                 and float(t.get("quoteVolume", 0)) > 100000  # min $100k volume
+                and t.get("symbol", "").strip().upper() not in blacklist
             ]
+            if blacklist:
+                logger.info(f"[AISymbol] D-012 blacklist excluded {len(blacklist)} symbols: {sorted(blacklist)}")
 
             # Build stock_data (compatible with Kiwoom format)
             stock_data = []
