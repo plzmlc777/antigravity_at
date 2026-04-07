@@ -92,15 +92,40 @@ class MartingaleBase(BaseStrategy):
         self.tick_execution = self.config.get("tick_execution", "tick")
 
         # D-002 (audit 2026-04-06): block new L1 entries during configured hours.
-        # Default [22, 23] (KST 22:00-23:59) — derived from audit finding that
-        # late-night martingale entries produced two large losses (-14.44, -13.09).
-        # Blocks ONLY new cycle starts; existing positions and L2+ adds are unaffected.
-        # Set to [] in config to disable. Hours use local server time (server runs KST).
-        raw_block = self.config.get("block_entry_hours", [22, 23])
+        # DEFAULT OFF (empty list) per backwards-compatibility principle 2026-04-07:
+        # the original [22, 23] default was Binance-crypto specific and would break
+        # Korean stock sessions. Opt in via config: e.g. block_entry_hours=[22, 23]
+        # for KST late-night Binance crypto sessions.
+        # Hours use local server time (server runs KST).
+        raw_block = self.config.get("block_entry_hours", [])
         try:
             self.block_entry_hours = set(int(h) for h in raw_block) if raw_block else set()
         except (TypeError, ValueError):
-            self.block_entry_hours = {22, 23}
+            self.block_entry_hours = set()
+
+        # D-013 (audit 2026-04-06): block new L1 entries on configured weekdays.
+        # DEFAULT OFF (empty list) per backwards-compatibility principle 2026-04-07:
+        # the original [2]=Wednesday default was derived from one Binance-crypto
+        # session and would break unrelated sessions. Opt in via config:
+        # e.g. block_entry_weekdays=[2] for the original Wednesday block.
+        # Python weekday(): Mon=0..Sun=6. Uses local server time (server runs KST).
+        raw_days = self.config.get("block_entry_weekdays", [])
+        try:
+            self.block_entry_weekdays = set(int(d) for d in raw_days) if raw_days else set()
+        except (TypeError, ValueError):
+            self.block_entry_weekdays = set()
+
+        # D-011 (audit 2026-04-06): cumulative-loss cooldown.
+        # When the rolling-window sum of recent cycle PnLs drops below the
+        # threshold, block new L1 entries for `cooldown_duration_minutes`.
+        # DEFAULT OFF (threshold=0) per backwards-compatibility principle 2026-04-07:
+        # the original -20 USDT default was Binance-crypto sized and inappropriate
+        # for Korean stock sessions. Opt in via config: cooldown_loss_threshold=-20.
+        self.cooldown_loss_threshold = float(self.config.get("cooldown_loss_threshold", 0.0))
+        self.cooldown_loss_window_minutes = int(self.config.get("cooldown_loss_window_minutes", 240))
+        self.cooldown_duration_minutes = int(self.config.get("cooldown_duration_minutes", 60))
+        self._cycle_pnl_history: list = []  # list of (datetime, pnl_float)
+        self._cooldown_until = None         # datetime or None
 
         # Cycle planning variables (calculated at cycle start)
         self.cycle_max_level = None
@@ -654,6 +679,23 @@ class MartingaleBase(BaseStrategy):
                 if cur_hour in self.block_entry_hours:
                     return
 
+            # D-013: block L1 cycle starts on configured weekdays (Mon=0..Sun=6)
+            if self.block_entry_weekdays:
+                cur_wd = self.context.get_time().weekday()
+                if cur_wd in self.block_entry_weekdays:
+                    return
+
+            # D-011: block L1 entries while a loss-cooldown is active
+            if self._cooldown_until is not None:
+                now = self.context.get_time()
+                if now < self._cooldown_until:
+                    return
+                # Cooldown expired — clear so logs only fire once on resume
+                self.context.log(
+                    f"[{self._log_prefix}] D-011 cooldown expired, resuming L1 entries"
+                )
+                self._cooldown_until = None
+
             direction = self._check_entry_trigger(data)
             if direction:
                 # Filter: when position_side is fixed ("long"/"short"), only allow matching direction
@@ -732,6 +774,48 @@ class MartingaleBase(BaseStrategy):
         else:  # "last_entry" (default)
             return self.entries[-1]["price"]
 
+    def _record_cycle_pnl_for_cooldown(self, cycle_start_equity):
+        """
+        D-011 (audit 2026-04-06): record this cycle's PnL into the rolling window
+        and trigger a cooldown if cumulative loss within the window crosses
+        `cooldown_loss_threshold`.
+
+        cycle_start_equity is the equity snapshot taken at L1 entry (before
+        the caller clears it). Current equity is read from the context.
+        """
+        if self.cooldown_loss_threshold >= 0:
+            return  # disabled
+        if cycle_start_equity is None:
+            return  # cycle never opened (e.g. restored mid-cycle); skip
+
+        try:
+            cur_equity = self.context.get_total_equity()
+        except Exception:
+            return  # context can't compute equity right now; skip silently
+
+        cycle_pnl = float(cur_equity) - float(cycle_start_equity)
+        now = self.context.get_time()
+        self._cycle_pnl_history.append((now, cycle_pnl))
+
+        # Trim to window
+        from datetime import timedelta
+        window_start = now - timedelta(minutes=self.cooldown_loss_window_minutes)
+        self._cycle_pnl_history = [
+            (t, p) for (t, p) in self._cycle_pnl_history if t >= window_start
+        ]
+
+        cumulative = sum(p for _, p in self._cycle_pnl_history)
+        if cumulative <= self.cooldown_loss_threshold:
+            self._cooldown_until = now + timedelta(minutes=self.cooldown_duration_minutes)
+            self.context.log(
+                f"[{self._log_prefix}] D-011 COOLDOWN TRIGGERED: window cum PnL "
+                f"{cumulative:+.2f} <= threshold {self.cooldown_loss_threshold:+.2f} "
+                f"({len(self._cycle_pnl_history)} cycles in {self.cooldown_loss_window_minutes}m). "
+                f"Pausing new entries until {self._cooldown_until.strftime('%H:%M')}."
+            )
+            # Reset history after triggering so cooldown isn't re-armed every cycle
+            self._cycle_pnl_history = []
+
     def _liquidate(self, price: float):
         # Guard: skip if already waiting for pending exit order
         if self._pending_exit:
@@ -753,6 +837,9 @@ class MartingaleBase(BaseStrategy):
             if filled_qty > 0:  # Success
                 if self.betting_strategy == "fixed":
                     self.context.reset_cycle_capital()
+
+                # D-011: capture cycle PnL BEFORE clearing _cycle_start_equity
+                self._record_cycle_pnl_for_cooldown(self._cycle_start_equity)
 
                 self.current_level = 0
                 self.total_quantity = 0
