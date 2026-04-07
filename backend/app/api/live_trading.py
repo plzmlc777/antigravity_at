@@ -3181,6 +3181,121 @@ async def monitor_sessions():
     return {"sessions": results, "count": len(results)}
 
 
+@router.get("/monitor/goal/progress")
+async def monitor_goal_progress(
+    account_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Cron/skill 전용 — 인증 없이 12%/월 KPI 진행률 조회.
+    account_id가 없으면 모든 계정 합산. localhost에서 cron이 호출.
+    Auth 필요한 /goal/progress 와 동일한 집계 로직, 사용자 컨텍스트만 우회.
+    """
+    from datetime import datetime as _dt
+    from sqlalchemy import func
+    from ..models.live_trading import LiveTradeExecution, ExecutionStatus, LiveBotSession
+
+    now = _dt.utcnow()
+    month_start = _dt(now.year, now.month, 1)
+    day_start = _dt(now.year, now.month, now.day)
+
+    q = db.query(LiveBotSession)
+    if account_id is not None:
+        q = q.filter(LiveBotSession.account_id == account_id)
+    sessions = q.all()
+
+    if not sessions:
+        return {
+            "target_monthly_pct": GOAL_MONTHLY_RETURN_TARGET,
+            "monthly_pnl_krw": 0.0,
+            "monthly_return_pct": 0.0,
+            "progress_pct": 0.0,
+            "daily_pnl_krw": 0.0,
+            "daily_return_pct": 0.0,
+            "total_capital_base": 0.0,
+            "session_count": 0,
+            "sessions": [],
+            "kill_switch": {
+                "monthly_breach": False,
+                "daily_breach": False,
+                "breached_sessions": [],
+            },
+            "as_of": now.isoformat(),
+        }
+
+    session_ids = [s.id for s in sessions]
+    capital_base = sum((s.initial_capital or 0.0) for s in sessions) or 0.0
+
+    def _sum_pnl(start: _dt) -> float:
+        v = db.query(func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0)).filter(
+            LiveTradeExecution.session_id.in_(session_ids),
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+            LiveTradeExecution.signal_timestamp >= start,
+        ).scalar()
+        return float(v or 0.0)
+
+    monthly_pnl = _sum_pnl(month_start)
+    daily_pnl = _sum_pnl(day_start)
+    monthly_return_pct = (monthly_pnl / capital_base * 100.0) if capital_base > 0 else 0.0
+    daily_return_pct = (daily_pnl / capital_base * 100.0) if capital_base > 0 else 0.0
+    progress_pct = (monthly_return_pct / GOAL_MONTHLY_RETURN_TARGET * 100.0) if GOAL_MONTHLY_RETURN_TARGET > 0 else 0.0
+
+    per_session = (
+        db.query(
+            LiveTradeExecution.session_id,
+            func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0.0).label("pnl"),
+        )
+        .filter(
+            LiveTradeExecution.session_id.in_(session_ids),
+            LiveTradeExecution.status == ExecutionStatus.FILLED,
+        )
+        .group_by(LiveTradeExecution.session_id)
+        .all()
+    )
+    pnl_by_session = {sid: float(pnl or 0.0) for sid, pnl in per_session}
+
+    session_rows = []
+    breached_sessions = []
+    for s in sessions:
+        pnl = pnl_by_session.get(s.id, 0.0)
+        ic = s.initial_capital or 0.0
+        ret_pct = (pnl / ic * 100.0) if ic > 0 else 0.0
+        breached = ret_pct <= KILL_SWITCH_SESSION_PCT
+        if breached and s.status == "RUNNING":
+            breached_sessions.append(s.id)
+        session_rows.append({
+            "session_id": s.id,
+            "symbol": s.symbol,
+            "status": s.status,
+            "is_paper": s.is_paper,
+            "account_id": s.account_id,
+            "initial_capital": ic,
+            "realized_pnl": pnl,
+            "return_pct": ret_pct,
+        })
+
+    return {
+        "target_monthly_pct": GOAL_MONTHLY_RETURN_TARGET,
+        "monthly_pnl_krw": monthly_pnl,
+        "monthly_return_pct": monthly_return_pct,
+        "progress_pct": progress_pct,
+        "daily_pnl_krw": daily_pnl,
+        "daily_return_pct": daily_return_pct,
+        "total_capital_base": capital_base,
+        "session_count": len(sessions),
+        "sessions": session_rows,
+        "kill_switch": {
+            "monthly_threshold_pct": KILL_SWITCH_MONTHLY_PCT,
+            "session_threshold_pct": KILL_SWITCH_SESSION_PCT,
+            "daily_threshold_pct": KILL_SWITCH_DAILY_PCT,
+            "monthly_breach": monthly_return_pct <= KILL_SWITCH_MONTHLY_PCT,
+            "daily_breach": daily_return_pct <= KILL_SWITCH_DAILY_PCT,
+            "breached_sessions": breached_sessions,
+        },
+        "as_of": now.isoformat(),
+    }
+
+
 # =========================================================================
 # Goal Progress — KPI tracking against 12%/month target
 # =========================================================================
