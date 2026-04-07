@@ -13,16 +13,38 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 import urllib.error
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Set, Tuple, Optional
 
 
 SPOT_URL = "https://api.binance.com/api/v3/ticker/24hr"
 FUTURES_URL = "https://fapi.binance.com/fapi/v1/ticker/24hr"
 
 DEFAULT_MIN_VOLUME = 100_000  # $100K minimum quote volume
+
+# D-012 (audit 2026-04-06): symbol blacklist applied before any ranking.
+BLACKLIST_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..", "references", "symbol_blacklist.json",
+)
+
+
+def load_blacklist() -> Set[str]:
+    """Load symbol blacklist from references/symbol_blacklist.json. Returns empty set on any failure."""
+    try:
+        with open(BLACKLIST_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            str(entry["symbol"]).strip().upper()
+            for entry in data.get("blacklist", [])
+            if entry.get("symbol")
+        }
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
+        print(f"[blacklist] load failed (ignoring): {e}", file=sys.stderr)
+        return set()
 
 
 def fetch_tickers(futures: bool = False, timeout: int = 15) -> Optional[List[Dict]]:
@@ -45,12 +67,18 @@ def build_market_data(
 ) -> Tuple[List[Dict], Dict[str, List[Dict]]]:
     """티커 → stock_data + ranking_data 변환 (백엔드 동일 포맷)."""
 
-    # Filter USDT pairs with minimum volume
+    # D-012: load blacklist (e.g. SUIUSDT) and exclude before any ranking
+    blacklist = load_blacklist()
+
+    # Filter USDT pairs with minimum volume + blacklist
     usdt_tickers = [
         t for t in tickers
         if t.get("symbol", "").endswith("USDT")
         and float(t.get("quoteVolume", 0)) > min_volume
+        and t.get("symbol", "").strip().upper() not in blacklist
     ]
+    if blacklist:
+        print(f"[blacklist] excluded {len(blacklist)} symbols: {sorted(blacklist)}", file=sys.stderr)
 
     # Build stock_data
     stock_data = []

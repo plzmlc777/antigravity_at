@@ -42,6 +42,51 @@ Rationale: the 2026-04-06 audit found a "1000PEPEUSDT optimal symbol" claim buil
 
 When sample size ≥ 10, normal confidence scoring applies.
 
+### CRITICAL: D-016 — Confound Cross-Check for Temporal Patterns (audit #3 2026-04-06)
+
+When reporting a pattern whose grouping dimension is **temporal** (hour-of-day, day-of-week,
+session-age, week-of-month, calendar-date), you MUST run a **confound cross-check** before
+marking it `active`:
+
+1. **Identify at least one alternative temporal dimension** that could independently explain
+   the same signal. Examples:
+   - "일요일 저조" → check hour-of-day distribution within Sunday trades
+   - "후반 edge decay" → check whether losses cluster in specific hours, not session age
+   - "KST 22시 손실" → check whether volume/spread regime differs at 22h
+2. **Report the confound check explicitly** inside the pattern entry under an `Evidence.confound_check` field:
+   - What alternative hypothesis was tested
+   - Result: `independent` (effect persists after controlling) or `confounded` (effect disappears/attenuates)
+3. **If confounded**: downgrade `confidence` by ≥0.30 AND set `status: under_review` AND add a
+   "Confound Warning" note pointing to the real cause.
+4. **Minimum requirement**: two temporal dimensions must be examined before any temporal
+   pattern can be marked `active`. Single-dimension analysis is forbidden for temporal findings.
+
+**Reason (audit #3 2026-04-06)**: meta-learner produced D005 ("일요일 저조") and D010 ("edge decay")
+as separate discoveries when both were re-manifestations of the same underlying D-003 finding
+(야간 22-24시 손실 집중). Controlling for hour-of-day made both effects vanish. Confirmation bias
+drove the agent to settle on the first plausible causal story per dimension.
+
+### CRITICAL: D-018 — Alternative Hypothesis Mandate (audit #3 2026-04-06)
+
+Every pattern entry with `status: active` MUST include an **`alternative_hypotheses`** field
+listing at least one competing explanation the pattern-finder considered and ruled out, with
+the evidence that ruled it out. Single-hypothesis findings are forbidden for `active` status.
+
+Example:
+```
+"alternative_hypotheses": [
+  {
+    "hypothesis": "수요일 효과는 실제로는 수요일에 집중된 야간 거래의 결과일 수 있다",
+    "tested_by": "수요일 거래를 hour-of-day로 재분할하여 22-24h 제외 후 재계산",
+    "result": "수요일 주간 시간대만으로도 WR=35% 유지 — 시간대 교란 아님, 요일 효과 독립"
+  }
+]
+```
+
+If no alternative can be plausibly stated, the pattern may only be reported as `under_review`
+with `confidence ≤ 0.50`. This prevents the "first plausible story wins" failure mode
+documented in D005/D010 (audit #3).
+
 ## Input
 
 You will receive:

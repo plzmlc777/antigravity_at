@@ -5,7 +5,8 @@
       "Edit(/.claude/skills/at-strategy/**)",
       "Edit(/.claude/skills/at-binance/**)",
       "Edit(/.claude/skills/at-live-signal/**)",
-      "Edit(/.claude/skills/at-symbol-select/**)"
+      "Edit(/.claude/skills/at-symbol-select/**)",
+      "Edit(/.claude/skills/at-orchestrator/**)"
     ],
     "additionalDirectories": [
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
@@ -13,7 +14,27 @@
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest\\scripts",
       "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest\\scripts",
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest",
-      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest"
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-backtest",
+      "\\home\\hcpark\\antigravity\\backend\\app\\api",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\backend\\app\\api",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-monitor\\scripts",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-monitor\\scripts",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-orchestrator\\scripts",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-orchestrator\\scripts",
+      "\\home\\hcpark\\antigravity\\.claude\\agents",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\agents",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-strategy",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-strategy\\references",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-strategy\\references",
+      "\\home\\hcpark\\antigravity\\backend\\app\\core",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\backend\\app\\core",
+      "\\home\\hcpark\\antigravity\\backend\\app\\strategies",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\backend\\app\\strategies",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\references",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\references",
+      "\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\scripts",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\scripts",
+      "\\tmp"
     ]
   }
 }

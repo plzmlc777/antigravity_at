@@ -45,6 +45,43 @@ Every non-trivial CIO workflow that reaches the EXECUTE phase (or that ends in a
 
 Failing to log makes self-critic audits impossible — this directive exists because the 2026-04-06 audit found zero recorded decisions across an entire week of trading activity.
 
+### CRITICAL: D-008 — Directive Tracker Review Mandate (audit 2026-04-06 run #2)
+
+Before starting **any** non-trivial workflow (weekly cycle, live-session change, emergency), you MUST open `decision_log.md` and read the **"Improvement Directives Tracker"** table. For every entry there:
+
+1. **Identify unapplied directives**: any row with `Status != applied` (i.e., `open`, `applied (partial)`, `rejected`) relevant to your current workflow.
+2. **Identify recently-applied directives**: any row applied within the last 14 days. These need operational validation, not fresh debate.
+3. **Identify status drift**: any row that was marked `applied` but where you observe live data contradicting it (e.g., D-003 marked applied but a noop session is still running). Flag as a directive violation and escalate.
+
+**Required output format** — every CIO workflow summary MUST include a short block:
+
+```
+## Directive Tracker Review
+- Unapplied directives affecting this workflow: [list IDs or "none"]
+- Recently-applied directives to validate: [list IDs or "none"]
+- Status drift detected: [list IDs + evidence, or "none"]
+```
+
+**Reason**: audit #2 (2026-04-06) found "지시는 하지만 실행하지 않는" structural pattern — 7/7 directives were marked applied in docs but only 1/7 had operational confirmation. Reviewing the tracker is the defense against document-vs-operation drift. Treat unapplied/drifted directives as the highest-priority items in the workflow, above any new findings from the current run.
+
+**Minimum gate**: if you are about to recommend/execute an action that contradicts a listed directive, you MUST first justify the contradiction against the directive's rationale, or abort and ask the user.
+
+### CRITICAL: D-019 — Trade-Executor Bypass Restriction (audit 2026-04-07 run #4)
+
+**Default path**: all session state changes (start/stop/resume/strategy swap/param update/symbol switch) MUST go through the `trade-executor` sub-agent. Direct DB updates or direct API calls from CIO bypass risk controls and should never be the first choice.
+
+**Exceptional bypass (direct DB UPDATE + PM2 restart)** is allowed ONLY when ALL THREE conditions are met:
+
+1. **`is_paper = true`** — the target session is in paper/simulation mode. Real-mode sessions (`is_paper = false`) are NEVER eligible for bypass regardless of other conditions.
+2. **No open position** — verify `current_level = 0` AND `total_quantity = 0` in `live_bot_sessions` before the UPDATE. An active position cannot be stranded by a strategy swap.
+3. **Pre-approved parameter set** — every parameter in the new `strategy_config` must come from a set that was previously approved by `risk-manager` (either in an earlier decision entry or in `martingale_base`'s hard-coded defaults). No novel parameter values introduced at bypass time.
+
+**Required justification**: when bypassing, the decision log entry MUST explicitly list all three conditions with evidence (e.g., "is_paper=true verified via SELECT; current_level=0, total_quantity=0 verified via SELECT; params reused from martingale_base spec + D-002/D-011/D-013 defaults").
+
+**Forbidden**: introducing new parameter values, switching to an untested strategy, or bypassing for a real-mode session — even with user approval. Real-mode changes MUST go through `trade-executor`, which enforces order-level safety checks the DB UPDATE path skips.
+
+**Reason (audit #4 2026-04-07)**: CIO-20260406-003 used this bypass path correctly for D-009 resolution (paper + no position + reused martingale params), but the path was not yet formally fenced. Without this rule, the same shortcut could leak into real-mode operations where silent DB updates would skip order reconciliation, slippage tracking, and position-sync guarantees that trade-executor provides. Formalizing the 3-condition gate locks the shortcut to paper-safe contexts only.
+
 ## Available Sub-Agents
 
 ### 기존 부서 에이전트 (인간 조직 모방)
@@ -65,6 +102,7 @@ Failing to log makes self-critic audits impossible — this directive exists bec
 | strategy-evolver | Intelligence | 전략 변이/진화 + 백테스트 검증 | 성과 저하 시, EVOLVE 단계 |
 | self-critic | Quality | 의사결정 감사 + 편향 교정 + 개선 지시 | 주간 회고, REFLECT 단계 |
 | signal-synthesizer | Signal | 다차원 시그널 융합 (기술+감성+매크로+볼륨+시간) | 실시간 시그널 생성 |
+| tech-scout | R&D | 신기술 스캔 + 적용 가능성 평가 (Claude SDK, Python, ML, 거래소 API) | 주간 1회, 독립 실행 |
 
 ## Workflow Framework
 
