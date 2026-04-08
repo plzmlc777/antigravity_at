@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import ManualTrading from './views/ManualTrading';
 import LiveTradingView from './views/LiveTradingView';
+import EmergencyManual from './views/EmergencyManual';
 import Login from './views/Login';
 import StrategyView from './views/StrategyView';
 import StrategyLab from './views/StrategyLab';
@@ -97,10 +97,9 @@ function AppContent() {
                             <NavLink to="/organization">조직도</NavLink>
                             <NavLink to="/decisions">결정</NavLink>
                             <NavLink to="/knowledge">KB</NavLink>
-                            <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
-                            <NavLink to="/strategies">Profiles</NavLink>
-                            <NavLink to="/strategy-lab">Strategy Lab</NavLink>
+                            <NavLink to="/strategies">Sessions</NavLink>
+                            <NavLink to="/strategy-lab">AI Workshop</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -124,7 +123,9 @@ function AppContent() {
                     <Route path="/organization" element={<Organization />} />
                     <Route path="/decisions" element={<DecisionTimeline />} />
                     <Route path="/knowledge" element={<KnowledgeBase />} />
-                    <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
+                    {/* Manual trading demoted to emergency-only path with bypass warning */}
+                    <Route path="/emergency/manual" element={<RequireAuth><EmergencyManual /></RequireAuth>} />
+                    <Route path="/manual" element={<Navigate to="/emergency/manual" replace />} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
                     <Route path="/strategy-lab" element={<RequireAuth><StrategyLab /></RequireAuth>} />
