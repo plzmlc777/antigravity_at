@@ -436,3 +436,27 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
 - 판정: `partial` (일부는 code-validated only, 일부는 runtime-idle, outcome validation은 표본 부족으로 미완).
 - 가장 중요한 관측: meta-learner가 자율적으로 D-007/D-016/D-018 체크리스트를 따라 null finding을 보고한 것. 이는 1 데이터포인트이지만, 이전 3런에서 재발하던 confirmation bias 실패 모드가 처음으로 억제된 신호.
 - 잔존 리스크: real 세션에서의 지시 이행 미확인, trade-executor 우회 경로 공식화 필요, outcome validation을 위한 표본 누적 대기.
+
+## [2026-04-08] CIO-20260408-001: Backtest 엔진 중복 제거 (Phase 3a.2)
+- **Workflow**: refactor (skill/backend deduplication)
+- **Session**: n/a (build infrastructure)
+- **Symbol**: n/a
+- **Action**: at-backtest 스킬의 standalone 엔진(strategies.py + execution_engine.py)을 제거하고 backend WaterfallBacktestEngine을 단일 진입점으로 일원화. backtest.py를 ~240 LOC thin wrapper로 재작성.
+- **Trigger**: 사용자 질문 — "전략처럼 스킬과 백엔드에 중복 구현되어 있는 파트가 또 있지 않아? 백테스트?" Phase 1(전략 마이그레이션) / Phase 2(런타임 스왑) 후속 정리.
+- **Process**:
+  - 인벤토리: 3개 critical/high-risk 중복 페어 식별. backtest engine이 가장 큰 누적 부채(at-backtest standalone 2,500+ LOC drift).
+  - 패리티 검증 (Waterfall vs legacy, BTCUSDT 30d, 4 strategies):
+    - dip_martingale, rsi_martingale, ema_momentum, time_momentum
+    - total_return / monthly_return_compound / max_drawdown / stability_score / acceleration_score / profit_factor: EXACT match
+    - sharpe_ratio drift < 0.5%
+  - 재작성: backtest.py가 candles 로드 → StrategyRegistry 조회 → WaterfallBacktestEngine.run_single_backtest() 호출 → metrics.calculate_metrics()로 KPI 보강(monthly_return_compound 등 스킬 고유 필드).
+  - 다운스트림 smoke: optimize.py(1+2 worker ProcessPoolExecutor), run_pipeline.py backtest, --list 모두 통과.
+- **Executed**: yes (commit af4f527)
+- **Expected**: -3,032 LOC 순감소, /v3-backtest와 CLI 모두 동일 엔진. 운영 세션 영향 0(backend Waterfall 경로 그대로).
+- **Outcome**:
+  - 7 files deleted (3,165 LOC), backtest.py +231 -133. Net -3,032 LOC.
+  - 라이브 GCP 세션(M003/M009/M-Ultra) 영향 없음 — backend Waterfall 경로 미변경.
+- **Status**: confirmed (commit + smoke tests pass)
+- **Follow-ups**:
+  - Phase 3a.3: `/integrated/v2-backtest` 엔드포인트를 Waterfall로 마이그레이션 (현재 legacy IntegratedBacktestEngine 사용)
+  - Phase 3a.4: backend BacktestEngine + IntegratedBacktestEngine 1,191 LOC 제거 (3a.3 후)
