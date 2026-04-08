@@ -49,6 +49,49 @@ curl -s --max-time 5 <API_URL>/api/v1/status
 pm2 jlist 2>/dev/null || echo '[]'
 ```
 
+### Step 2.5: Unauthorized Session Detection (CRITICAL)
+
+Cross-check every RUNNING session against the **authorized session whitelist**. Any session
+that does NOT match the whitelist is an "unauthorized session" and MUST trigger an
+immediate ALERT — these are sessions created by some unknown actor (rogue script, stale
+agent, manual API call) that the user did not sanction.
+
+**Whitelist source**: `/home/hcpark/auto_trading/.claude/authorized_sessions.json`
+(also valid at `/home/hcpark/antigravity/.claude/authorized_sessions.json` for local dev).
+
+Schema:
+```json
+{
+  "version": 1,
+  "updated_at": "2026-04-08T00:00:00Z",
+  "authorized": [
+    {
+      "session_id": "3b8f15de-525b-425f-8edc-2f5fe3993fd2",
+      "profile_name": "M003-BTC-7x",
+      "symbol": "BTCUSDT",
+      "strategy": "dip_martingale",
+      "owner": "user",
+      "note": "M003 paper validation"
+    }
+  ]
+}
+```
+
+Matching rule: a RUNNING session is authorized if **either** its `session_id` OR its
+non-empty `profile_name` appears in the whitelist. If the file is missing or unreadable,
+treat ALL sessions as unauthorized and flag the missing whitelist as a system-level alert.
+
+For each unauthorized session:
+- Set its `grade` to `"UNAUTHORIZED"` (a new grade overriding the health_check value).
+- Set its `recommendation` to `"investigate_then_stop"`.
+- Add a top-level alert: `"⚠️ UNAUTHORIZED SESSION: <id> <symbol> <strategy> started_at=<ts>"`.
+- Include `reasons: ["화이트리스트 미등록 — 사용자가 인지하지 못한 세션"]`.
+- Do NOT auto-stop. Surface to the user; the user decides.
+
+This guard exists because on 2026-04-07 two KR stock sessions (091160, 105560) appeared
+on at-asia without user authorization and went undetected for ~17 hours. The whitelist
+makes such drift impossible to miss in the next ops-monitor cycle.
+
 ### Step 3: Analyze & Recommend
 For each session, based on its grade and metrics:
 - **HEALTHY**: No action needed
@@ -101,8 +144,8 @@ For each session, based on its grade and metrics:
 
 ### Field Specifications
 
-- **grade**: HEALTHY, WARNING, CRITICAL, INSUFFICIENT, STOPPED, STALE
-- **recommendation**: One of: `none`, `monitor`, `optimize`, `switch`, `pause`, `restart`
+- **grade**: HEALTHY, WARNING, CRITICAL, INSUFFICIENT, STOPPED, STALE, **UNAUTHORIZED**
+- **recommendation**: One of: `none`, `monitor`, `optimize`, `switch`, `pause`, `restart`, **`investigate_then_stop`**
 - **system_health**: `ok` or `error` for each component
 - **alerts**: Array of urgent issues requiring immediate attention (CRITICAL sessions only)
 

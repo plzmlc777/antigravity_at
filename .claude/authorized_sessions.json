@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-08T00:50:00Z",
+  "note": "User-authorized live sessions. Any RUNNING session not listed here will trigger an UNAUTHORIZED alert from ops-monitor.",
+  "authorized": [
+    {
+      "session_id": "3b8f15de-525b-425f-8edc-2f5fe3993fd2",
+      "profile_name": "M003-BTC-7x",
+      "symbol": "BTCUSDT",
+      "strategy": "dip_martingale",
+      "exchange": "BinanceFutures",
+      "owner": "user",
+      "note": "M003 paper validation (7x leverage, 50% position)"
+    },
+    {
+      "session_id": "6260d7f9-8044-48c9-ae11-4f16e93d401f",
+      "profile_name": "M009-BTC-10x",
+      "symbol": "BTCUSDT",
+      "strategy": "dip_martingale",
+      "exchange": "BinanceFutures",
+      "owner": "user",
+      "note": "M009 paper validation (10x leverage, 50% position)"
+    },
+    {
+      "session_id": "6c040d03-b1ee-447c-be97-7fade30c772d",
+      "profile_name": "M-Ultra-ETH-3x",
+      "symbol": "ETHUSDT",
+      "strategy": "time_momentum",
+      "exchange": "BinanceFutures",
+      "owner": "user",
+      "note": "M-Ultra paper validation (3x leverage, time-based entry)"
+    }
+  ]
+}
