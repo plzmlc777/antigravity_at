@@ -188,8 +188,14 @@ curl -s -X POST <API_URL>/api/v1/gap-signals \
 
 **signal_id naming convention**: `GAP-YYYYMMDD-NNN` where NNN is a zero-padded sequence
 starting at 001 for the current day. If you are emitting multiple gaps in one run, increment.
-Check existing queue with `GET /api/v1/gap-signals?source=meta-learner` to find the highest
-NNN of the day and add 1.
+Check existing queue with BOTH source filters AND `status=all` (default is `status=pending`
+which hides consumed entries — must override):
+```bash
+curl -s 'http://localhost:8001/api/v1/gap-signals?status=all&source=meta-learner&limit=20'
+curl -s 'http://localhost:8001/api/v1/gap-signals?status=all&source=self-critic&limit=20'
+```
+Find the highest NNN of the current day and add 1. **Known pitfall (CIO-20260408-011)**:
+omitting `status=all` returns empty for sources whose signals are all consumed.
 
 **Anti-pattern — do not emit**:
 - ❌ "이 전략을 추가로 구현해야 함" (전략 추가는 strategy-builder 영역, skill-architect 아님)

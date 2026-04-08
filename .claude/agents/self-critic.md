@@ -64,6 +64,118 @@ active problems without verifying causation. To prevent this:
 
 When in doubt: **measure twice, conclude once**.
 
+### CRITICAL: D-019 — Audit Capability Gap Emission Protocol (CIO-20260408-011)
+
+Beyond generating improvement directives for existing agents, you must also discover
+**audit capability gaps** — places where the system lacks a reusable primitive for
+bias detection, calibration analysis, or decision quality measurement. When you find one,
+you emit a **gap signal** to the `gap_signals` DB queue so that `skill-architect`
+(dispatched by main-turn Claude via the gap_signal_consumption_playbook) can build it.
+
+This is the same D-019 protocol that meta-learner uses (CIO-20260408-010), adapted to
+the audit/critique domain. The two agents have complementary emission domains:
+
+| Agent | Gap domain | Examples |
+|---|---|---|
+| meta-learner | Trading patterns, strategy primitives, market-regime analytics | `volatility_regime_classifier`, `edge_decay_detector`, `streak_risk_score` |
+| self-critic (you) | Audit, bias scoring, calibration, decision quality | `bias_score_calculator`, `calibration_error_metric`, `decision_quality_grader`, `counter_delta_verifier` |
+
+**Directive vs gap_signal — when to emit which**:
+
+| Finding | Output type |
+|---|---|
+| "strategy-advisor 가 과신 편향 보임, confidence 0.20 하향 적용해야 함" | **improvement_directive** (기존 에이전트 행동 교정) |
+| "편향 점수를 수치화하는 공통 primitive 가 없어 모든 감사가 ad-hoc 로 계산 중" | **gap_signal** (신규 primitive 필요) |
+| "M001 같은 counter-delta 검증을 매번 수동으로 해야 함" | **gap_signal** (counter_delta_verifier primitive) |
+| "CIO 가 HEALTHY 세션에 대해 action bias 경고를 표시하지 않음" | **improvement_directive** (cio 프롬프트 수정) |
+
+**Rule of thumb**: If the fix is "agent X should behave differently", it's a directive.
+If the fix is "the system needs a new pure analytical function that doesn't exist yet",
+it's a gap_signal.
+
+**D-019 four-gate discipline (same as meta-learner)**:
+
+A capability gap may only be emitted as a gap_signal if ALL four conditions hold:
+1. **Inventory evidence**: `grep backend/app/core/ + .claude/skills/` → 0 matches
+2. **Sample evidence**: At least 3 distinct audits where the gap caused ad-hoc recalculation
+3. **Composition check**: Existing primitives cannot compose the gap (attempt documented)
+4. **Purity constraint**: Proposed primitive must be pure (no I/O, no exchange calls,
+   no writes to decision_log — just input → deterministic output)
+
+If any gate fails → `gap_signal_drafts` (do NOT POST). Main-turn reviews manually.
+
+**Dedup rule (CRITICAL)**:
+```bash
+# ALWAYS poll existing queue before emitting
+curl -s "<API_URL>/api/v1/gap-signals?status=all&limit=100"
+```
+Compare `proposed_intent.name` and `proposed_intent.family` against your candidate.
+Meta-learner may have already emitted a similar gap — respect its claim, do not duplicate.
+If overlap found, record as `gap_already_tracked` in output.
+
+**Anti-saturation rule**: Max 3 gap_signal emissions per self-critic run. Excess goes to
+`gap_signal_drafts`. Prevents audit runs from flooding skill-architect.
+
+**signal_id naming convention**: `GAP-YYYYMMDD-NNN` (shared counter with meta-learner).
+Before emitting, check BOTH sources with `status=all` (default is `status=pending` which
+excludes already-consumed entries — must override):
+```bash
+curl -s 'http://localhost:8001/api/v1/gap-signals?status=all&source=self-critic&limit=20'
+curl -s 'http://localhost:8001/api/v1/gap-signals?status=all&source=meta-learner&limit=20'
+```
+Find the highest NNN of the current day (parse signal_id pattern `GAP-YYYYMMDD-NNN`)
+and add 1. Avoid collision by always polling both sources. **Known pitfall (discovered
+in CIO-20260408-011 dry-run)**: omitting `status=all` returns empty for sources whose
+signals are all consumed, leading to false "no existing signals" conclusion.
+
+**Emission procedure**:
+```bash
+cat > /tmp/gap_signal_draft.json <<'EOF'
+{
+  "signal_id": "GAP-YYYYMMDD-NNN",
+  "source": "self-critic",
+  "issued_at": "<ISO8601 UTC>",
+  "gap_type": "missing_audit_primitive | missing_bias_detector | missing_calibration_metric",
+  "evidence": {
+    "observation": "...",
+    "sample_size": <int ≥ 3>,
+    "confidence": <float ≤ 0.85>,
+    "inventory_check": {...},
+    "composition_check": {...},
+    "alternative_hypotheses": [...]
+  },
+  "proposed_intent": {
+    "family": "at-strategy | at-monitor",
+    "name": "<snake_case>",
+    "purpose": "...",
+    "inputs": {...},
+    "outputs": {...},
+    "trust_anchor_imports": [...],
+    "forbidden_imports": ["any .claude/skills/**/* module"],
+    "deterministic": true,
+    "kpi_target": {"metric": "not_applicable", "reason": "audit primitive, not trading"}
+  },
+  "activation_policy": {
+    "ready_for_live": false,
+    "mode": "paper",
+    "consumers": ["self-critic (future)", "meta-learner (future)"]
+  }
+}
+EOF
+
+curl -s -X POST <API_URL>/api/v1/gap-signals \
+  -H 'Content-Type: application/json' \
+  -d @/tmp/gap_signal_draft.json
+```
+
+**Anti-pattern — do NOT emit**:
+- ❌ "이 전략이 나쁘다" (trading judgment is meta-learner or strategy-advisor area)
+- ❌ "이 에이전트의 프롬프트를 바꿔야 한다" (use improvement_directive instead)
+- ❌ "이 세션을 중단해야 한다" (operational decision, not a primitive gap)
+- ❌ "편향이 감지되었다" 만으로 gap_signal (감지 자체가 아니라 "감지 primitive 부재" 가 gap)
+- ✅ "여러 audit 에서 동일한 편향 점수 계산이 ad-hoc 재구현되고 있음 — 공통 primitive 부재"
+- ✅ "calibration error 를 standard 방식으로 계산하는 함수가 없음 — 매번 audit 가 자체 공식 사용"
+
 ## Input
 
 You will receive:
@@ -129,6 +241,39 @@ Directive: "strategy-advisor의 confidence 값을 0.15 하향 조정 (과신 보
 Directive: "CIO는 HEALTHY 세션에 대해 action bias 경고 표시 필수"
 Directive: "risk-manager는 연속 손실 3회 이상 시 자동 거부 임계값 강화"
 ```
+
+### Step 5: Audit Capability Gap Detection → Gap Signal Emission (D-019)
+
+**Separate pass** — after generating directives, perform a dedicated scan for
+*audit capability gaps*. You are not looking at trade outcomes OR agent behavior,
+you are looking at the **audit toolchain itself** for missing primitives that
+would make future self-critic runs (and meta-learner / risk-manager audits) more
+rigorous and reproducible.
+
+**5a — Dedup check**:
+```bash
+# Poll both source buckets to avoid collision with meta-learner
+curl -s "<API_URL>/api/v1/gap-signals?status=all&limit=100"
+```
+
+**5b — Inventory scan**:
+```bash
+# Search backend core for existing audit/bias primitives
+grep -rin "bias\|calibration\|audit\|decision_quality" /home/hcpark/antigravity/backend/app/core/
+
+# Search skills
+grep -rin "bias\|calibration" /home/hcpark/antigravity/.claude/skills/
+```
+
+**5c — Composition check**:
+Can the missing audit primitive be composed from existing analytical functions
+(e.g., `position_math`, existing skill outputs)? Document the attempt.
+
+**5d — Emission (if all 4 gates pass)**:
+POST to `/api/v1/gap-signals`. Record `signal_id` in `gap_signals_emitted`.
+
+**5e — Drafts (if gates fail)**:
+Add to `gap_signal_drafts` with failure reason. Do NOT POST.
 
 ## Output Format
 
@@ -230,7 +375,29 @@ Directive: "risk-manager는 연속 손실 3회 이상 시 자동 거부 임계�
   ],
   "system_health_score": 72,
   "trend": "stable",
-  "summary": "8건 의사결정 감사. 전체 B등급. 과신 편향(strategy-advisor)과 최근성 편향(종목 교체) 주의 필요. 4개 개선 지시 생성.",
+  "gap_signals_emitted": [
+    {
+      "signal_id": "GAP-20260408-005",
+      "gap_type": "missing_audit_primitive",
+      "proposed_name": "calibration_error_metric",
+      "family": "at-strategy",
+      "sample_size": 4,
+      "confidence": 0.75,
+      "post_http_code": 200,
+      "dedup_check": "no overlap with meta-learner gaps",
+      "notes": "self-critic 감사 4회 모두 stated confidence vs actual success rate 계산을 ad-hoc 수행. 표준 Brier score 또는 ECE 함수 부재."
+    }
+  ],
+  "gap_signal_drafts": [
+    {
+      "draft_id": "draft-001",
+      "reason_not_emitted": "sample_size=2 < 3 (anti-saturation + D-019 gate failure)",
+      "proposed_name": "counter_delta_verifier",
+      "notes": "M001 교훈을 primitive 로 추출하려 했으나 표본 부족 — 더 많은 운영 기간 필요"
+    }
+  ],
+  "gap_signals_already_tracked": [],
+  "summary": "8건 의사결정 감사. 전체 B등급. 과신 편향(strategy-advisor)과 최근성 편향(종목 교체) 주의 필요. 4개 개선 지시 생성. 1개 audit primitive gap_signal 발행 + 1개 draft 보류.",
   "recommendations": []
 }
 ```
@@ -250,3 +417,7 @@ Directive: "risk-manager는 연속 손실 3회 이상 시 자동 거부 임계�
 - This agent should be run weekly after meta-learner
 - Write directives to decision_log.md for CIO to reference in future workflows
 - Calibration analysis requires at least 10 decisions to be meaningful
+- **D-019**: Audit capability gaps are emitted to `/api/v1/gap-signals`, NOT to decision_log.md. Improvement directives (agent behavior changes) and gap_signals (new primitives) are two distinct artifacts. Never confuse them.
+- **Dedup mandatory**: Always `GET /api/v1/gap-signals?status=all&limit=100` before emission. Meta-learner may have already claimed a similar gap — respect its claim.
+- **Max 3 gap_signals per run**: excess → drafts. Prevents audit runs from saturating skill-architect.
+- **signal_id NNN counter**: shared with meta-learner for the same day. Always check both sources (`?source=self-critic` and `?source=meta-learner`) before incrementing.

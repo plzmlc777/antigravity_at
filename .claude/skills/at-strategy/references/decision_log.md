@@ -891,3 +891,166 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - dry-run 검증이 유효한 이유: 실제 거래 데이터 없이도 **프로토콜 이해 + 큐 상호작용 + 게이트 로직** 을 증명할 수 있음. 품질 검증은 실전 데이터 이전에 프로토콜 레벨에서 선행 가능.
   - "trading pattern 발견" 과 "capability gap 발견" 을 같은 출력 스키마에 섞지 말 것 — downstream 소비자가 다름 (사람 리뷰어 vs skill-architect). 이번에 `discoveries` 와 `gap_signals_emitted` 를 별도 필드로 분리한 것이 핵심.
 
+---
+
+## CIO-20260408-011 — self-critic D-019 Audit Capability Gap Emission Protocol
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (에이전트 프롬프트 재설계)
+- **Trigger**: CIO-20260408-008 follow-up #3 — self-critic 프롬프트 재설계하여 편향 감사 결과 중 "audit primitive 부재" 에 해당하는 것을 gap_signal 로 자동 발행. CIO-20260408-010 에서 meta-learner 에 D-019 를 적용한 것과 동일 패턴의 self-critic 버전.
+- **Context**: meta-learner 와 self-critic 은 발행 도메인이 상호보완적이므로 각자 D-019 를 적용하되 **동일 gap 을 중복 발행하지 않도록 dedup rule 이 두 에이전트에서 모두 강제**되어야 함. 도메인 구분은 다음과 같음:
+  - **meta-learner** (CIO-010): trading pattern / strategy primitive / market-regime analytics 도메인 — e.g., `volatility_regime_classifier`, `edge_decay_detector`, `streak_risk_score`
+  - **self-critic** (CIO-011, 이번): audit / bias / calibration / decision quality 도메인 — e.g., `bias_score_calculator`, `calibration_error_metric`, `decision_quality_grader`, `counter_delta_verifier`
+- **Design Decision — directive vs gap_signal 구분 원칙 (신규 규칙)**:
+  - self-critic 이 발견한 것이 "agent X 의 행동을 바꿔야 함" 이면 → `improvement_directives` (기존 출력 필드)
+  - self-critic 이 발견한 것이 "새 deterministic 순수 함수가 필요함" 이면 → `gap_signals_emitted` (신규 필드)
+  - **핵심**: 단일 에이전트 프롬프트 수정으로 해결되는 것은 directive, 여러 에이전트/감사에서 반복 재구현되는 분석 로직이 필요한 것은 gap_signal
+- **D-019 게이트 (meta-learner 와 동일)**:
+  1. Inventory: `grep backend/app/core + .claude/skills` 0 matches
+  2. Sample: 최소 3개 distinct audit 에서 동일 workaround 발견
+  3. Composition: 기존 primitive 조합 불가능 증명
+  4. Purity: 순수 분석 함수 (I/O/쓰기 없음)
+- **신규 safeguard — signal_id collision 방지**:
+  - meta-learner 와 self-critic 이 `GAP-YYYYMMDD-NNN` 시퀀스를 공유
+  - 발행 전 반드시 **두 source 모두** 폴링하여 highest NNN 확인 후 +1
+  - 실수로 중복 NNN 생성 시 DB `signal_id` unique 제약이 IntegrityError 로 안전하게 차단 (POST 가 dedupe 반환)
+- **Deliverables**:
+  - `.claude/agents/self-critic.md`:
+    - `CRITICAL: D-019 Audit Capability Gap Emission Protocol` 섹션 신규 (directive vs gap_signal 구분 표, 4개 게이트, emission procedure, signal_id naming, anti-pattern 리스트)
+    - `Execution Steps` 에 `Step 5` 신규 (5a~5e)
+    - Output JSON schema 확장: `gap_signals_emitted`, `gap_signal_drafts`, `gap_signals_already_tracked` 필드 추가
+    - `Important Notes` 에 D-019 관련 4개 룰 추가
+- **Verification — Dry-run 호출**:
+  - `Agent(subagent_type="self-critic")` 로 D-019 audit 프로토콜 이해 검증 호출 (Step 1~4 스킵, Step 5 만 dry-run)
+  - self-critic 응답:
+    - Step 5a dedup GET 실행 성공 → 기존 3개 엔트리 확인, `calibration_error_metric` 후보와 비중복 판정
+    - Step 5b inventory grep `calibration_error|brier_score|expected_calibration|ece` → backend/core + 7개 skills 양쪽 0 matches (Brier/ECE 진짜 부재)
+    - Step 5c composition check → `position_math` 만으로는 확률-결과 통계 거리 계산 불가, 불충분 판정
+    - Step 5d 게이트 결과: inventory=✅, sample_size=❌ (dry-run 이라 1개), alternative_hypothesis=❌, purity=✅ → `all_gates_passed=false, decision=draft_only`
+    - POST 정확히 미실행
+  - **directive vs gap_signal 4개 분류 테스트** — 모두 정답:
+    - (i) "cio 가 HEALTHY 세션에 action bias 경고 미표시" → **directive** (단일 에이전트 룰)
+    - (ii) "편향 점수가 audit 마다 ad-hoc 재구현" → **gap_signal** (deterministic primitive 부재)
+    - (iii) "strategy-advisor confidence 0.20 차감 필요" → **directive** (파라미터 보정)
+    - (iv) "counter-delta 검증 M001 수동 수행" → **gap_signal** (재사용 가능 분석 절차)
+  - 핵심 원칙 자체 발화: "agent prompt 변경으로 해결되면 directive, 새 deterministic 함수가 필요하면 gap_signal"
+- **🐞 검증 중 발견한 API UX 이슈 (부산물)**:
+  - self-critic 이 `?source=self-critic&limit=10` 로 폴링 시 **빈 배열 반환**. 원인: API 기본 `status=pending` 이라 consumed/failed 엔트리가 필터됨. self-critic 이 이것을 즉시 감지하고 `?status=all&limit=100` 으로 fallback → 정상 동작.
+  - 만약 self-critic 이 감지하지 못했다면 "기존 엔트리 없음" 으로 잘못 판단하여 중복 발행 위험 있었음
+  - **즉시 수정**: meta-learner.md 와 self-critic.md 양쪽 dedup 명령어에 `status=all` 를 명시적으로 추가 + "Known pitfall (CIO-011)" 경고 주석. 다음 실행부터 함정 회피.
+  - 이 발견은 CIO-20260408-009 의 "작은 체계적 결함도 즉시 플레이북 반영" 교훈의 반복 적용 — 2회차이므로 "검증이 검증 자체의 UX 이슈를 드러낸다" 패턴이 작동하고 있음을 확인.
+- **Outcome**:
+  - self-critic 가 **improvement directive** (기존 에이전트 교정) 와 **audit primitive gap_signal** (신규 함수 요청) 을 분리하여 생산할 수 있게 됨
+  - meta-learner + self-critic = **발행측 자율 파이프라인 완성**. 두 에이전트가 각자 도메인에서 gap 을 발견하고 queue 에 POST, main 턴이 gap_signal_consumption_playbook 에 따라 소비.
+  - 감사 품질 자체가 미래에 primitive 화될 수 있음 (meta-audit: self-critic 이 자신의 이전 audit 의 신뢰도를 측정하는 primitive 를 요청할 수 있음)
+- **Status**: confirmed
+- **자율성 계층 현재 상태 (CIO-011 이후)**:
+  - ✅ 런타임 에이전트 등록 (CIO-007)
+  - ✅ main → subagent 1-hop dispatch (CIO-007, CIO-009)
+  - ✅ gap_signal DB 큐 + API (CIO-008)
+  - ✅ gap_signal 소비 플레이북 — main 턴 전용 (CIO-009)
+  - ✅ gap_signal 자동 발행 — meta-learner D-019 (CIO-010)
+  - ✅ **gap_signal 자동 발행 — self-critic D-019 (CIO-011)**
+  - ❌ risk-manager 가 margin_exhaustion primitive 를 실제로 사용 (CIO-006 follow-up #7)
+  - ❌ main → cio → skill-architect 2-hop (구조적 불가능, B 모드 한계)
+  - ❌ 대화창 바깥 지속 루프 (A2 standalone runner, 6개월 재평가)
+  - ❌ 실전 운영 검증 — 거래 세션 있는 상태에서 meta-learner / self-critic 이 실제로 gap 을 발행하는지 아직 미증명
+- **Follow-ups**:
+  1. risk-manager 프롬프트 업데이트: `margin_exhaustion` primitive 실제 사용 (CIO-006 follow-up #7 — 이제 **모든 발행/소비 인프라 완료** 상태에서 최초의 skill consumer 통합 시점)
+  2. 다음 실제 self-critic 호출 (거래 데이터 + 과거 결정 이력 존재하는 상태) 에서 D-019 Step 5 가 실전에서 작동하는지 검증
+  3. meta-learner + self-critic 이 동일 run 에서 signal_id NNN collision 을 피하는지 검증 (sequential run 으로 충분, concurrent run 은 현재 구조상 발생 가능성 낮음)
+  4. directive vs gap_signal 구분 원칙이 long-term 운영에서 잘 지켜지는지 추적. 만약 self-critic 이 gap_signal 로 "에이전트 프롬프트 수정" 을 요청하면 (경계 위반) 프롬프트 강화 필요.
+  5. `status=all` pitfall 을 gap_signals API 의 **기본 동작 변경** 으로 해결할지 검토 — `source` 또는 `gap_type` 필터 제공 시 default status 를 `all` 로 변경. 현재는 문서/프롬프트 레벨 해결만 완료.
+- **Did NOT do (scope discipline)**:
+  - 실제 self-critic 호출로 거래 audit 수행 (scope 초과)
+  - risk-manager 프롬프트 수정 (별도 CIO 엔트리로 분리 예정)
+  - gap_signals API 기본 status 변경 (follow-up #5 로 추적)
+  - git commit / 버전업 (이미 v1.5.28.0 배포 직후 — CIO-011 은 포함되지 않음, 다음 세션 또는 다음 commit 에서 포함 예정)
+- **교훈**:
+  - 같은 프로토콜 (D-019) 을 두 번째 에이전트(self-critic) 에 적용하는 것은 첫 번째(meta-learner) 보다 훨씬 빠름. 구조적 재사용이 실제로 가능함을 증명.
+  - 두 번째 적용 시 **부산물로 첫 번째의 숨은 버그가 발견**됨 (`status=all` pitfall). 검증 depth 가 구현 depth 를 초과하면 품질 개선이 자동으로 일어남.
+  - directive vs gap_signal 경계를 명확히 정의하는 것이 실수 방지의 핵심. self-critic 의 4개 case 분류 테스트가 모두 정답이었던 것은 사전 정의된 rule of thumb ("agent 행동 변경 vs 새 함수 필요") 이 충분히 명확함을 시사.
+  - meta-learner + self-critic 의 dedup 협력은 **에이전트 간 느슨한 동기화** 의 첫 사례. DB 큐 + unique constraint 가 조정 메커니즘 역할. 이 패턴은 향후 다른 발행 주체 추가 시 재사용 가능.
+
+---
+
+## CIO-20260408-012 — risk-manager 가 margin_exhaustion primitive 의 첫 consumer 로 통합됨
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (에이전트 프롬프트 재설계 — consumer 통합)
+- **Trigger**: CIO-20260408-006 follow-up #7 — "risk-manager 프롬프트 업데이트: margin_exhaustion primitive 사용". CIO-006~011 의 전체 인프라(skill-architect + gap_signals + 발행측 + 소비측) 가 완성된 상태에서 **첫 번째 auto-generated skill 이 실제 operational gate 에 통합되는 시점**.
+- **Context**: CIO-006 에서 skill-architect 가 `margin_exhaustion.py` 스킬을 자율 생성했고 CIO-007 에서 byte-identical 재현이 증명됨. 그러나 생성된 스킬이 실제로 **사용되는지** 는 이번 CIO-012 까지 증명되지 않았음. "생성 → 저장 → 사용" 사이클의 마지막 고리.
+- **Why this matters**: 지금까지의 모든 자율성 작업(CIO-006~011) 은 "skill 을 만들 수 있는가?" 를 증명. CIO-012 는 **"만든 skill 이 실제로 가치를 창출하는가?"** 의 첫 증명. 이 고리가 닫히지 않으면 모든 인프라는 이론적 장식에 불과함.
+- **Integration Target — risk-manager**:
+  - **왜 risk-manager 인가**: margin_exhaustion 은 선물 포지션의 청산 임박도를 계산하는 primitive. risk-manager 는 martingale 추가 진입, 레버리지 증가 등 futures risk-adding action 을 평가하는 주체. 자연스러운 매칭.
+  - **왜 다른 에이전트가 아닌가**: cio (Phase 1 ASSESS) 는 결정을 dispatch 하는 역할이고 분석 계산은 하지 않음. ops-monitor 는 헬스 체크 위주. strategy-advisor 는 전략 파라미터 추천 영역. risk-manager 가 유일하게 "approve/reject 결정에 primitive 계산 결과가 직접 필요한" 에이전트.
+- **Design Decisions**:
+  - **Gate 적용 범위**: futures risk-adding actions + 기존 포지션 존재 (qty ≠ 0). spot / fresh entry / risk-reducing 은 제외.
+  - **Invocation**: risk-manager 가 `Bash` 툴로 `python3 margin_exhaustion.py --cash ... --qty ...` CLI 호출. 결정론적, 프로세스 격리, 외부 의존성 없음.
+  - **Threshold buckets** (5단계):
+    | exhaustion_score | bucket | decision |
+    |---|---|---|
+    | < 0.25 | safe | approve |
+    | 0.25 – 0.50 | moderate | approve with warning |
+    | 0.50 – 0.75 | elevated_risk | hedging-only approve, 아니면 reject |
+    | 0.75 – 0.95 | high_risk | **reject** |
+    | ≥ 0.95 | imminent_liquidation | **reject (absolute)** |
+  - **Margin ratio crosscheck**: `margin_ratio < 1.2` 이면 exhaustion_score 와 무관하게 reject (conservative bias)
+  - **Fail-safe**: skill 호출 실패 시 기본값 = reject. 스킬 파일 자체가 없으면 downgrade + warning (backwards compat).
+- **Deliverables**:
+  - `.claude/agents/risk-manager.md`:
+    - `CRITICAL: Margin Exhaustion Gate for Futures Positions (CIO-20260408-012)` 섹션 신규 — 호출 시점, 스킵 조건, CLI 인보케이션, 5단계 threshold table, margin_ratio crosscheck, failure handling, output schema
+    - `Special Cases — Always Reject` 에 2개 엔트리 추가: exhaustion_score ≥ 0.75, margin_ratio < 1.2
+    - `Important Notes` 에 CIO-012 margin exhaustion gate 룰 추가
+- **Verification — 3 시나리오 Dry-run**:
+  - `Agent(subagent_type="risk-manager")` 로 3개 가상 시나리오 dispatch
+  - **시나리오 1 (safe_long)**: cash=10000, qty=10, avg=100, price=105, lev=5, long
+    - skill 실행: exit 0, `{"exhaustion_score": 0.0, "liquidation_distance_pct": 24.5, "margin_ratio": 50.0, "reason": "safe"}`
+    - bucket: `safe` → **approve** ✅
+  - **시나리오 2 (boundary_long)**: cash=10000, qty=10, avg=100, price=82, lev=5, long
+    - skill 실행: exit 0, `{"exhaustion_score": 0.923077, "liquidation_distance_pct": 1.5, "unrealized_pnl": -180.0, "margin_ratio": 4.0, "reason": "high_risk"}`
+    - bucket: `high_risk` (0.9231 은 0.75~0.95 구간, 0.95 미만이므로 imminent 아님) → **REJECT** ✅
+    - risk-manager 가 정확히 구간 경계 감지 — "exhaustion_score=0.9231은 0.75~0.95 구간(high_risk)에 해당. 0.95 미만이므로 imminent_liquidation 버킷은 아님" 자체 발화
+  - **시나리오 3 (short leverage increase)**: cash=10000, qty=-10, avg=100, price=95, lev=10(제안 신규), short
+    - skill 실행: exit 0, `{"exhaustion_score": 0.0, "liquidation_distance_pct": 14.5, "unrealized_pnl": 50.0, "margin_ratio": 30.0, "reason": "safe"}`
+    - bucket: `safe` → **approve** (수치상) ✅
+    - **Bonus**: risk-manager 가 레버리지 10x 가 "futures ≤ 5x" 기존 정책을 초과함을 감지하고 별도 condition 으로 주석: "레버리지 10x는 risk-manager 정책 'futures: ≤5x' 소프트 한도를 초과". margin gate 는 통과하지만 다른 정책과의 교차 점검까지 수행 — 프롬프트 지시 범위를 넘는 자발적 보수 판단.
+  - **모든 시나리오에서 margin_ratio crosscheck 객체 정확히 생성됨**
+- **Key Observations**:
+  - **수학적 자체 검증**: risk-manager 가 시나리오 3 에서 liq_price 를 수동으로 재계산 — "short liq_price = 100*(1 + 1/10 - 0.005) = 109.5". 이것은 skill output 의 `liquidation_distance_pct: 14.5` 를 검증하기 위한 교차 검사. 블랙박스로 믿지 않고 수식을 재현.
+  - **경계 case 정확성**: 0.9231 이 0.75~0.95 구간인지 아닌지 구분은 사소해 보이지만, 만약 risk-manager 가 잘못 분류해서 imminent_liquidation 으로 보고했으면 숫자는 다르고 원인도 다른데 같은 결정이 나왔을 것. 경계 구분 정확도는 **감사 추적(audit trail)** 품질의 핵심.
+  - **Fallback 없이 정상 경로 PASS**: 3개 시나리오 모두 `fallback_used: false`. 스킬 경로가 안정적이고 접근 가능함을 증명.
+- **Outcome**:
+  - **생성 → 저장 → 사용 사이클 완결**: CIO-006 (생성) → CIO-007 (재현성) → CIO-008 (큐 인프라) → CIO-009 (소비 경로) → CIO-010/011 (자동 발행) → **CIO-012 (실제 사용)**
+  - risk-manager 는 이제 futures 세션의 martingale 추가 진입을 **audited, deterministic, byte-reproducible** primitive 기반으로 판정
+  - 이전의 ad-hoc 계산(전략마다 다른 방식으로 liquidation distance 를 추정하던 상태) 이 단일 trust anchor 로 대체됨
+  - 모든 향후 auto-generated skill 은 동일한 "risk-manager 프롬프트 업데이트 → dry-run 검증 → decision_log entry" consumer 통합 패턴을 따를 수 있음
+- **Status**: confirmed
+- **자율성 계층 현재 상태 (CIO-012 이후)**:
+  - ✅ 런타임 에이전트 등록 (CIO-007)
+  - ✅ 1-hop dispatch (CIO-007, CIO-009)
+  - ✅ gap_signal DB + API (CIO-008)
+  - ✅ 소비 플레이북 (CIO-009)
+  - ✅ 자동 발행 — meta-learner D-019 (CIO-010)
+  - ✅ 자동 발행 — self-critic D-019 (CIO-011)
+  - ✅ **첫 consumer 통합 — risk-manager + margin_exhaustion (CIO-012)** ← 이번
+  - ❌ 2-hop dispatch (구조적 불가능)
+  - ❌ 대화창 바깥 지속 루프 (A2 standalone runner, 6개월 재평가)
+  - ❌ 실전 운영 검증 — 실거래 세션에서 margin_exhaustion gate 가 실제로 작동하는지 (다음 risk-adding action 발생 시 자동 검증될 것)
+- **Follow-ups**:
+  1. 실제 거래 세션에서 risk-manager 가 martingale 추가 진입 요청을 받을 때 margin_exhaustion gate 가 실전에서 호출되는지 모니터링 (운영 로그로 자연 검증)
+  2. Test fixture 에 없는 edge case 발견 시 skill-architect 에게 개선 gap_signal 발행 가능 — 예: cross-margin 모드 지원, 심볼별 MMR 차이 자동 조회
+  3. 다음 auto-generated skill 이 생성되면 동일한 consumer 통합 패턴 적용 (CIO-012 가 템플릿 역할)
+  4. strategy-advisor 에도 margin_exhaustion 을 사용할 여지 검토 — parameter tuning 시 "이 파라미터 조합은 exhaustion 을 빠르게 증가시킨다" 같은 판단. 단, strategy-advisor 는 예측 영역이라 직접 primitive 사용이 자연스럽지 않을 수 있음. 보류.
+  5. `test-short-lev-03` 시나리오에서 risk-manager 가 감지한 정책 교차 문제 (leverage 10x > soft limit 5x) 를 cio 에 명시적 에스컬레이션하도록 프롬프트 강화 검토. 현재는 condition 배열로 기록하지만 cio 가 이것을 보고 별도 정책 승인을 요구하는 플로우는 아직 명시되어 있지 않음.
+- **Did NOT do (scope discipline)**:
+  - strategy-advisor / cio 의 margin_exhaustion 사용 검토 (follow-up #4, 명확한 use case 없음)
+  - 실제 거래 세션 개시 또는 실제 risk-manager 호출 (scope 초과, 실전 데이터 없음)
+  - git commit / 버전업 (사용자 명시 요청 없음)
+  - 새 skill 생성 (CIO-012 는 기존 skill 의 consumer 통합이지 새 skill 생성 아님)
+- **교훈**:
+  - "생성된 것을 사용하는 것" 은 "생성하는 것" 만큼 중요한 작업이다. 전자 없이 후자는 공회전. CIO-006~011 은 인프라, CIO-012 는 첫 수확.
+  - Dry-run 에서 리스크 매니저가 **프롬프트에 지시되지 않은 교차 검증** (수학 재계산, 정책 교차 점검) 을 자발적으로 수행했다는 것은 opus 모델의 품질 증거. 이런 자발적 검증은 rule-based 시스템에서는 나오지 않는다.
+  - 경계 case 구분 정확도(0.9231 이 high_risk 인지 imminent 인지) 는 장기 운영에서 **감사 추적 품질** 과 직결. 숫자는 달라도 같은 결정이 나오면 나중에 audit 할 때 원인 분석이 불가능해진다. 이번에 risk-manager 가 구간 경계를 정확히 언급한 것은 향후 audit 가능성을 보장.
+  - 이번 통합은 "consumer 통합 패턴의 원형" 이다. 동일 패턴(gate 섹션 추가 + Special Cases 업데이트 + Important Notes + 3-시나리오 dry-run + decision_log) 을 다음 skill 에 재사용 가능. 두 번째 적용 시점에서 이 패턴의 효율이 재검증될 것.
+

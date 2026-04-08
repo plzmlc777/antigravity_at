@@ -75,6 +75,101 @@ must be evaluated against the compound monthly return of the supporting backtest
 }
 ```
 
+### CRITICAL: Margin Exhaustion Gate for Futures Positions (CIO-20260408-012)
+
+For any risk-adding action on a futures position where a position already exists
+(additional martingale entry, leverage increase, pyramid layer), you MUST compute the
+**margin exhaustion score** of the current position using the audited analytical primitive
+`margin_exhaustion` from `.claude/skills/at-monitor/scripts/margin_exhaustion.py`.
+
+**Why this gate exists**: prior to this primitive, each strategy and audit recalculated
+liquidation proximity ad-hoc with inconsistent assumptions. This skill is the audited,
+deterministic, byte-reproducible source of truth for isolated-margin Binance futures
+(trust anchor: `backend/app/core/position_math.realized_pnl_simple`).
+
+**When to invoke** — you MUST run this skill when evaluating:
+- Martingale additional entry / pyramid layer on existing futures position
+- Leverage increase on existing futures position (compute at NEW leverage)
+- Any `risk-adding` action where session has `qty != 0` and `is_futures: true`
+
+**When to skip**:
+- Spot trading (no margin concept)
+- Fresh entries (no existing position — exhaustion is trivially 0)
+- Risk-reducing actions (pause/stop/reduce/close)
+- Position `qty == 0`
+
+**Invocation procedure**:
+```bash
+python3 /home/hcpark/antigravity/.claude/skills/at-monitor/scripts/margin_exhaustion.py \
+  --cash <session_cash> \
+  --qty <current_qty> \
+  --avg-cost <current_avg_cost> \
+  --current-price <current_market_price> \
+  --leverage <proposed_leverage_after_action> \
+  --side <long|short> \
+  --mmr <maintenance_margin_rate, default 0.005>
+```
+
+The output is canonical JSON: `{"exhaustion_score": <float>, "liquidation_distance_pct":
+<float>, "unrealized_pnl": <float>, "margin_ratio": <float>, "reason": "<label>"}`.
+
+**Decision thresholds** (applied to pre-action exhaustion score):
+
+| exhaustion_score | reason | Decision on risk-adding action |
+|---|---|---|
+| < 0.25 | `safe` | ✅ Normal evaluation continues |
+| 0.25 – 0.50 | `moderate` | ✅ Approve with warning "기존 포지션 중간 위험 — 추가 진입 시 총 노출 모니터링 필요" |
+| 0.50 – 0.75 | `elevated_risk` | ⚠️ Approve only if proposed action does NOT increase net exposure (e.g., hedging). Else reject with condition "기존 exhaustion 0.5+ 이므로 추가 진입 금지, 포지션 축소 권고" |
+| 0.75 – 0.95 | `high_risk` | ❌ **REJECT**. `reason: "margin exhaustion 0.75+ — 청산 임박, 추가 진입 대신 즉시 포지션 축소 필요"` |
+| ≥ 0.95 | `imminent_liquidation` | ❌ **REJECT**. `reason: "청산 임박 상태(score ≥ 0.95) — 어떤 위험 추가 행위도 금지"` |
+
+**Margin ratio cross-check**: the skill also returns `margin_ratio` (remaining_equity /
+maintenance_margin). If `margin_ratio < 1.2` and exhaustion_score disagrees (says `safe`),
+trust the `margin_ratio` — reject with `reason: "margin_ratio < 1.2 — exhaustion_score 와
+불일치, 보수적 해석으로 거부"`. Conservative bias applies.
+
+**Failure handling**:
+- If the skill invocation crashes (non-zero exit, invalid JSON): reject with
+  `reason: "margin_exhaustion skill invocation failed — 안전 기본값 적용"`. Fail-safe
+  default is conservative.
+- If the skill is missing (`FileNotFoundError`): log `skill_missing: true` in output and
+  fall back to manual liquidation distance calculation using `leverage` alone. Add warning
+  "margin_exhaustion primitive 미존재 — 정밀도 낮음" and downgrade approval by one level.
+
+**Output additions** (when the skill was invoked):
+
+```json
+"margin_exhaustion_gate": {
+  "invoked": true,
+  "skill_path": ".claude/skills/at-monitor/scripts/margin_exhaustion.py",
+  "skill_version": "0.1.0",
+  "inputs": {
+    "cash": 10000.0,
+    "qty": 10,
+    "avg_cost": 100.0,
+    "current_price": 95.5,
+    "leverage": 5,
+    "side": "long",
+    "mmr": 0.005
+  },
+  "outputs": {
+    "exhaustion_score": 0.38,
+    "liquidation_distance_pct": 12.3,
+    "unrealized_pnl": -45.0,
+    "margin_ratio": 2.1,
+    "reason": "moderate"
+  },
+  "threshold_bucket": "moderate",
+  "decision_contribution": "approved_with_warning",
+  "fallback_used": false
+}
+```
+
+**Why this integration matters**: this is the **first auto-generated skill integrated into
+an operational gate** (CIO-006 produced the skill via skill-architect; CIO-008~011 built
+the gap_signal pipeline; CIO-012 is the first consumer wiring). Every future auto-generated
+skill will follow this same consumer integration pattern.
+
 ## Input
 
 You will receive a prompt containing:
@@ -188,6 +283,8 @@ high: risk_score >= 60
 - **Promoting any strategy to live with `monthly_return_compound < 12.0`**
 - **Approving a risk-adding action backed only by arithmetic monthly return**
   (no `monthly_return_compound` field present)
+- **Adding position to futures with current `exhaustion_score ≥ 0.75`** (margin exhaustion gate)
+- **Any futures risk-adding action where `margin_ratio < 1.2`** regardless of exhaustion_score
 
 ## Important Notes
 
@@ -196,3 +293,4 @@ high: risk_score >= 60
 - Always explain rejection rationale clearly so the CIO or user can address the concern
 - Conditions are mandatory — if approved with conditions, the executor must honor them
 - Track portfolio concentration: if >60% in one asset class, flag as warning
+- **Margin exhaustion gate (CIO-012)**: for futures risk-adding actions on existing positions, ALWAYS invoke `margin_exhaustion` skill BEFORE final decision. Include `margin_exhaustion_gate` object in output. Skill path: `.claude/skills/at-monitor/scripts/margin_exhaustion.py`. Fail-safe on skill error = reject.
