@@ -15,7 +15,8 @@ const PYTHON = path.join(PROJECT_ROOT, 'backend', 'venv', 'bin', 'python3');
 
 const common = {
   script: PYTHON,
-  cwd: SCRIPT_DIR,
+  // cwd must be project root so backend/app/core/config.py's load_dotenv(".env") finds it
+  cwd: PROJECT_ROOT,
   interpreter: 'none',
   autorestart: true,
   max_restarts: 10,
