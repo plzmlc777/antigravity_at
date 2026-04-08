@@ -1212,3 +1212,120 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - **"전략 자동 생성" 과 "실거래 자동 배포" 를 분리한 설계가 정답**. 사용자의 "실거래 투입 여부는 걱정할 필요 없음" 통찰이 scope 를 극적으로 단순화. 이 원칙이 없었다면 KPI gate + backtest-analyst + risk-manager + live-promotion 까지 한 세션에 엮으려 했을 것. **"한 에이전트의 책임 범위를 좁게 유지" 가 복잡도 폭발 방지의 핵심**.
   - 이번 작업은 **CIO-012 의 consumer 통합 패턴과 대칭적**. CIO-012 는 "생성된 분석 primitive 의 첫 consumer 통합", CIO-014 는 "전략 자동 생성 경로의 첫 증명". 두 작업의 성격은 다르지만 **파이프라인의 마지막 고리를 채우는** 의미는 동일.
 
+---
+
+## CIO-20260408-015 Phase 1 — SAS (Strategy Audition System) 인프라 구축
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (Phase 1/4 of SAS rollout)
+- **Trigger**: 사용자 요청 — "전략 생성 에이전트는 하루에 1개씩 전략을 만들고, 전략 평가 에이전트는 만든 전략들을 백테스트 과정을 거쳐서 일주일 마다 한개의 전략을 선발하는 오디션 형식의 전략 발굴 과정 같은 시스템". 완전판 설계 문서 승인 후 Phase 1 (Infrastructure) 착수.
+- **Scope (Phase 1 only)**: DB + API + strategy-builder Step 7.5 + legacy seeding + end-to-end dry-run. Phase 2~4 (audition-judge 에이전트, meta-learner category rotation, PM2 스케줄링, graveyard, monitoring) 은 별도.
+- **Design**: 별도 설계 문서 참조 (이 세션 위에 기재). 10개 섹션, 8개 open question 모두 "제안 값 사용" 으로 확정.
+- **Deliverables**:
+  - **Model**: `backend/app/models/strategy_audition.py`
+    - 테이블 `strategy_audition` 1개, 16개 컬럼
+    - `STRATEGY_CATEGORIES` enum 8개 (momentum, mean_reversion, breakout, volume, arbitrage, time_based, pattern, news_driven)
+    - `AUDITION_STATUSES` enum 5개 (audition, graduated, eliminated, resurrected, error)
+  - **Migration**: `backend/migrate_add_strategy_audition.py` — idempotent, 테이블 + 6개 인덱스 생성
+  - **API**: `backend/app/api/strategy_audition.py` — 7개 엔드포인트
+    - `POST /` — 오디션 엔트리 등록 (dedup on strategy_id)
+    - `GET /` — 필터링 조회 (status/category/week)
+    - `GET /{strategy_id}` — 단건 조회
+    - `PATCH /{strategy_id}` — **forward-only 상태 전이** (audition → graduated/eliminated/error 등, backward 차단)
+    - `GET /stats/weekly` — 주간 집계 (by_status, category_dist, by_week, last_winner)
+    - `GET /stats/graveyard` — eliminated 풀 요약 + resurrect 대상
+    - `POST /{strategy_id}/resurrect` — 수동 부활 (emergency override)
+  - **Router**: `backend/app/main.py` 에 라우터 등록 3줄
+  - **Agent**: `.claude/agents/strategy-builder.md`
+    - **Step 7.5 (신규)**: 자동 audition 등록 — 파일 생성 + import check 이후 `curl POST /api/v1/strategy-audition`
+    - Category 추출 규칙: `gap_signal.evidence.audition_category` 우선, 없으면 keyword 매핑 fallback, 최후는 `"mean_reversion"` 기본값
+    - Step 8 JSON 에 `audition_registered`, `audition_week`, `audition_category`, `audition_error` 필드 추가
+    - 실패 시 전략 생성 자체는 성공으로 간주 (audition 등록은 non-blocking)
+- **Verification**:
+  - ✅ `py_compile` PASS (model / migration / api / main)
+  - ✅ Migration 실행 → 테이블 + 6 indexes 생성 확인
+  - ✅ PM2 at-backend 재시작 → 모든 엔드포인트 HTTP 200
+  - ✅ 7개 엔드포인트 모두 정상 응답 확인
+  - ✅ **Forward-only 전이 방어**: `_VALID_TRANSITIONS` 테이블로 상태 전이 검증 (예: `graduated → audition` 거부)
+  - ✅ **Category enum 검증**: 잘못된 카테고리 POST 시 400 에러
+  - ✅ **Dedup 검증**: 동일 strategy_id 재POST 시 기존 레코드 반환
+- **Seeding (기존 전략 9개 인입)**:
+  - 8개 legacy 전략을 `pre-SAS` week 로 `graduated` 상태 주입:
+    - `chart_pattern → pattern`
+    - `dip_martingale → mean_reversion`
+    - `ema_momentum → momentum`
+    - `funding_rate_arb → arbitrage`
+    - `rsi_martingale → mean_reversion`
+    - `spot_futures_hedge → arbitrage`
+    - `time_momentum → time_based`
+    - `us_market_follow → news_driven`
+  - 1개 pending: `bollinger_reversion` (CIO-014 에서 생성됨) → `audition` 상태, `audition_week=2026-W15`, gap_signal_id=GAP-20260408-004
+  - **seeding 전략**: POST 는 status=audition 으로만 허용되므로, 8개 legacy 도 먼저 audition 으로 POST 후 PATCH 로 graduated 전환. Forward-only rule 이 정상 작동함을 간접 검증.
+- **End-to-end Dry-run 검증**:
+  - **Input**: `GAP-20260408-005` 주입 (family=strategy, name=volume_spike_entry, category=volume, "20봉 평균 대비 거래량 N배 이상 시 진입")
+  - **Dispatch**: main-turn → `Agent(subagent_type="strategy-builder")` autonomous mode
+  - **strategy-builder 실행 결과**:
+    - inventory check (Reuse Before Create): 기존 전략에서 volume trigger 없음 확인
+    - 파일 생성: `volume_spike_entry.py` (5519 bytes, 127 LOC, MartingaleBase 상속)
+    - 파라미터: custom 3개 (volume_multiple=2.5, lookback=20, direction="both") + COMMON 21개 = 24개
+    - py_compile: PASS
+    - import_check: PASS (dispatch 내부 backend bootstrap)
+    - **Step 7.5 신규 동작**: `curl POST /strategy-audition` 로 자동 등록 → `audition_id=10, category=volume, week=2026-W15, status=audition`
+    - Step 8 JSON 에 audition 필드 포함 반환
+  - **Post-verification**:
+    - `GET /api/v1/strategy-audition?status=all` → 10 entries (8 graduated + 2 audition)
+    - `GET /api/v1/strategy-audition/stats/weekly` → `{'graduated': 8, 'audition': 2}`, category_dist 에 volume:1 포함
+    - `GET /api/v1/strategies/list` → `volume_spike_entry` 가 기존 전략과 동등 레벨 노출 (StrategyRegistry auto-discovery 정상 작동)
+    - `PATCH /api/v1/gap-signals/GAP-20260408-005 status=consumed` → gap_signal lifecycle 정상 완료
+- **DB Final State (CIO-015 Phase 1 완료 시점)**:
+  ```
+  gap_signals (5 entries):
+    id=1 GAP-20260408-001          consumed  (CIO-007)  margin_exhaustion 수동 증명
+    id=2 GAP-20260408-002-rerun    failed    (CIO-009)  2-hop 차단 증거
+    id=3 GAP-20260408-003-mainturn consumed  (CIO-009)  1-hop 증명
+    id=4 GAP-20260408-004          consumed  (CIO-014)  bollinger_reversion 생성
+    id=5 GAP-20260408-005          consumed  (CIO-015)  ★ volume_spike_entry 생성 + SAS 등록
+
+  strategy_audition (10 entries):
+    id=1  ema_momentum         momentum        graduated (pre-SAS legacy)
+    id=2  funding_rate_arb     arbitrage       graduated (pre-SAS legacy)
+    id=3  chart_pattern        pattern         graduated (pre-SAS legacy)
+    id=4  us_market_follow     news_driven     graduated (pre-SAS legacy)
+    id=5  rsi_martingale       mean_reversion  graduated (pre-SAS legacy)
+    id=6  spot_futures_hedge   arbitrage       graduated (pre-SAS legacy)
+    id=7  time_momentum        time_based      graduated (pre-SAS legacy)
+    id=8  dip_martingale       mean_reversion  graduated (pre-SAS legacy)
+    id=9  bollinger_reversion  mean_reversion  audition  (CIO-014 generated)
+    id=10 volume_spike_entry   volume          audition  (CIO-015 ★ Phase 1 verification)
+  ```
+- **Status**: confirmed (Phase 1 only)
+- **자율성 계층 현재 상태 (CIO-015 Phase 1 이후)**:
+  - ✅ 런타임 에이전트 등록 / 1-hop dispatch / gap_signal DB / 소비 플레이북 / 자동 발행
+  - ✅ 분석 primitive consumer 통합 (CIO-012)
+  - ✅ 전략 자동 생성 경로 (CIO-014)
+  - ✅ **SAS 인프라 — DB + API + 자동 audition 등록 (Phase 1)** ← 이번
+  - ❌ **SAS Phase 2** — audition-judge 에이전트 + meta-learner category rotation
+  - ❌ **SAS Phase 3** — PM2 cron 스케줄링 + graveyard soft delete
+  - ❌ **SAS Phase 4** — monthly resurrect + read-only frontend dashboard
+  - ❌ 2-hop dispatch (구조 불가, CIO-013 공식 확인)
+  - ❌ 대화창 바깥 지속 루프 (A2 standalone runner)
+- **Phase 1 → Phase 2 Follow-ups**:
+  1. `meta-learner.md` Step 5f 작성 — category rotation 규칙 (최근 7일 미사용 category 우선 선택)
+  2. `.claude/agents/audition-judge.md` 신규 작성 — 주간 백테스트 경쟁 + 1위 선발 로직
+  3. audition-judge dry-run — 현재 2개 audition 엔트리 (bollinger, volume_spike) 로 1회 심사 실행
+  4. backtest-analyst 통합 방식 확정: Agent dispatch (2-hop 불가) vs at-backtest API Bash 호출 → **Bash 호출로 확정**
+  5. Phase 3 에서 PM2 스케줄링 + graveyard 이동 로직
+- **Did NOT do (Phase 1 scope)**:
+  - audition-judge 에이전트 작성 (Phase 2)
+  - meta-learner category rotation 규칙 (Phase 2)
+  - PM2 스케줄러 프로세스 추가 (Phase 3)
+  - Frontend read-only dashboard (Phase 4)
+  - 실제 주간 judging 실행 (Phase 2 끝나면)
+  - git commit / 버전업 (사용자 요청 시)
+- **교훈**:
+  - **Forward-only 상태 전이 방어가 견고**. seeding 중 8개 legacy 전략을 `graduated` 로 직접 POST 하려 했으나 API 가 거부 → audition 으로 POST 후 PATCH 로 전환. 이 제약이 오히려 "POST 는 audition, 전이는 PATCH" 규칙을 자연스럽게 강제.
+  - **SAS 는 기존 CIO-014 를 depend 함**. CIO-014 가 strategy-builder autonomous mode 를 만들어 놓지 않았으면 SAS Phase 1 은 불가능했을 것. 인프라 작업의 순서가 중요 — 상위 시스템은 하위 시스템의 존재를 전제로 설계 가능.
+  - **`POST 는 audition 만` 제약 vs seeding 요구** 은 긴장 관계였으나 forward-only rule 덕에 자동 해결. 설계 제약이 "초기 데이터 주입" 을 자동으로 올바른 플로우로 유도.
+  - **dry-run 이 매번 예상 못한 버그를 발견**. 이번엔 None (처음으로 first-try PASS). CIO-011 의 `status=all` pitfall, CIO-008 의 numeric vs signal_id URL pitfall 등 이전 세션의 학습이 축적되어 설계 품질 향상. 품질 검증 루프 자체가 개선되고 있음.
+  - **Phase 분할이 효과적**. 전체 SAS 를 한 번에 구현하려 했다면 2000+ LOC 단일 변경이었을 것. Phase 1 만 ~530 LOC (model 70 + migration 80 + api 260 + agent edits 90 + seeding scripts 30) 로 관리 가능. 각 Phase 가 독립적으로 유용 — Phase 1 완료 상태에서도 수동 audition-judge 호출로 시스템 검증 가능.
+

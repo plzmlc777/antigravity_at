@@ -729,6 +729,61 @@ If the import fails (missing required methods, bad inheritance), it's a soft fai
 ### Step 7: Backend restart NOT required
 Per CLAUDE.md, the StrategyRegistry auto-discovers new files via `_discover_all()` on next API call. No PM2 restart, no manual registry edit.
 
+### Step 7.5: Register to strategy_audition pool (CIO-20260408-015)
+
+After `py_compile` and `import_check` pass, register the generated strategy in the audition pool so SAS (Strategy Audition System) can track it through weekly judging.
+
+**Compute current ISO week**:
+```bash
+CURRENT_WEEK=$(date -u +"%G-W%V")  # e.g., "2026-W15"
+```
+
+**Extract category from gap_signal**: `proposed_intent.evidence.audition_category` (set by meta-learner Step 5f category rotation). If missing, infer from `proposed_intent.name` / `purpose` using this fallback mapping:
+
+| Keyword hint in name/purpose | Category |
+|---|---|
+| `ema`, `macd`, `adx`, `momentum`, `trend` | `momentum` |
+| `rsi`, `bollinger`, `bb_`, `oversold`, `mean_rev`, `stoch` | `mean_reversion` |
+| `breakout`, `donchian`, `atr_expand`, `resistance` | `breakout` |
+| `volume`, `obv`, `vol_spike` | `volume` |
+| `funding`, `basis`, `arb`, `spread` | `arbitrage` |
+| `time`, `session`, `opening_range`, `daily_reset` | `time_based` |
+| `pattern`, `head_shoulders`, `triangle`, `flag` | `pattern` |
+| `news`, `earnings`, `macro`, `us_market` | `news_driven` |
+
+If no keyword matches → use `"mean_reversion"` as safest default (most conservative trading style).
+
+**POST to audition queue**:
+```bash
+curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "strategy_id": "<strategy_id>",
+    "gap_signal_id": "<signal_id>",
+    "category": "<category>",
+    "audition_week": "<CURRENT_WEEK>",
+    "audition_metadata": {
+      "parent_class": "MartingaleBase|BaseStrategy",
+      "file_lines": <int>,
+      "parameter_count": <int>,
+      "custom_parameter_names": [...]
+    }
+  }'
+```
+
+**On failure (non-200)**: do NOT fail the overall generation. The strategy file is still valid; registration can be retried manually by main-turn. Include in response JSON:
+```json
+"audition_registered": false,
+"audition_error": "<curl stderr or HTTP code>"
+```
+
+**On success**: include in response JSON:
+```json
+"audition_registered": true,
+"audition_week": "2026-W15",
+"audition_category": "mean_reversion"
+```
+
 ### Step 8: Return JSON
 
 ```json
@@ -745,14 +800,18 @@ Per CLAUDE.md, the StrategyRegistry auto-discovers new files via `_discover_all(
   "parameter_count": <int>,
   "py_compile_exit_code": 0,
   "import_check": "ok | failed",
+  "audition_registered": true,
+  "audition_week": "2026-W15",
+  "audition_category": "mean_reversion",
+  "audition_error": null,
   "reuse_existing": {
     "duplicate_of": "<existing_strategy_id>",
     "similarity_reason": "..."
   },
   "failure_reason": "..." ,
   "next_steps_for_main_turn": [
-    "기존 backtest 경쟁 파이프라인에 자동 진입 — at-backtest 스킬 호출",
-    "페이퍼 모드 경쟁에서 검증 후 자동 승급 결정은 별도 에이전트 영역"
+    "SAS 주간 judging (CIO-015) 이 이 전략을 자동으로 포함 — audition-judge 에이전트가 주 1회 dispatch",
+    "실거래 승급 결정은 별도 에이전트 영역"
   ],
   "notes": "..."
 }

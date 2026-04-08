@@ -133,3 +133,7 @@ app.include_router(approvals.router, prefix="/api/v1/approvals", tags=["approval
 from .models.gap_signal import GapSignal # Register Model
 from .api import gap_signals
 app.include_router(gap_signals.router, prefix="/api/v1/gap-signals", tags=["gap-signals"])
+
+from .models.strategy_audition import StrategyAudition # Register Model (CIO-015)
+from .api import strategy_audition
+app.include_router(strategy_audition.router, prefix="/api/v1/strategy-audition", tags=["strategy-audition"])
