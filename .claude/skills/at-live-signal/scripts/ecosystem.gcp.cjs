@@ -8,8 +8,10 @@
  * Start all: pm2 start ecosystem.gcp.cjs
  * Start one: pm2 start ecosystem.gcp.cjs --only skill-runner-btc-7x
  */
-const SCRIPT_DIR = '/home/hcpark/antigravity/.claude/skills/at-live-signal/scripts';
-const PYTHON = '/home/hcpark/antigravity/backend/venv/bin/python3';
+const path = require('path');
+const SCRIPT_DIR = __dirname;
+const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..', '..');
+const PYTHON = path.join(PROJECT_ROOT, 'backend', 'venv', 'bin', 'python3');
 
 const common = {
   script: PYTHON,
@@ -19,7 +21,7 @@ const common = {
   max_restarts: 10,
   restart_delay: 5000,
   env: {
-    PYTHONPATH: `${SCRIPT_DIR}:/home/hcpark/antigravity/backend`,
+    PYTHONPATH: `${SCRIPT_DIR}:${path.join(PROJECT_ROOT, 'backend')}`,
     PYTHONDONTWRITEBYTECODE: '1',
   },
 };
