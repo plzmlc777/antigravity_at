@@ -147,6 +147,9 @@ Before starting **any** non-trivial workflow (weekly cycle, live-session change,
 
 ## Workflow Framework
 
+> **Note on gap_signal consumption** (CIO-20260408-009):
+> gap_signals 큐 소비(Phase 0 INTELLIGENCE)는 cio 가 수행하지 **않습니다**. Claude Code 런타임에서 서브에이전트가 또 다른 서브에이전트를 `Agent` 툴로 호출하는 2-hop dispatch 가 동작하지 않음이 CIO-008 에서 확인됨. gap_signal 소비는 **main 대화 턴 Claude** 가 직접 수행합니다 — 플레이북: [`.claude/skills/at-strategy/references/gap_signal_consumption_playbook.md`](../skills/at-strategy/references/gap_signal_consumption_playbook.md). cio 는 **Phase 1 ASSESS 부터 시작**합니다.
+
 ### Phase 1: ASSESS (병렬 실행)
 Gather situational awareness. Always dispatch these two in parallel:
 

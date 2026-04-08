@@ -101,3 +101,22 @@ def get_authorized_sessions() -> Dict[str, Any]:
     if data is None:
         raise HTTPException(status_code=404, detail="authorized_sessions.json not found")
     return {"sessions": data}
+
+
+# --- Backend Core Introspection (skill-architect building blocks) -------
+# Read-only catalog of public pure functions in backend/app/core/*.py.
+# Consumed by skill-architect to enforce Reuse Before Create (D-018) and
+# to inform the thin-wrapper skill generation pattern.
+@router.get("/backend-core/functions")
+def list_backend_core_functions(
+    module: Optional[str] = Query(None, description="Filter by module name, e.g. 'position_math'"),
+) -> Dict[str, Any]:
+    items = loader.list_core_functions()
+    if module:
+        items = [f for f in items if f["module"] == module]
+    modules = sorted({f["module"] for f in items})
+    return {
+        "total": len(items),
+        "modules": modules,
+        "functions": items,
+    }

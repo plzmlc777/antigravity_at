@@ -129,3 +129,7 @@ app.include_router(agents_meta.router, prefix="/api/v1", tags=["agents-meta"])
 from .models.approval import PendingApproval # Register Model
 from .api import approvals
 app.include_router(approvals.router, prefix="/api/v1/approvals", tags=["approvals"])
+
+from .models.gap_signal import GapSignal # Register Model
+from .api import gap_signals
+app.include_router(gap_signals.router, prefix="/api/v1/gap-signals", tags=["gap-signals"])

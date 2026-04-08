@@ -87,6 +87,119 @@ If no alternative can be plausibly stated, the pattern may only be reported as `
 with `confidence ≤ 0.50`. This prevents the "first plausible story wins" failure mode
 documented in D005/D010 (audit #3).
 
+### CRITICAL: D-019 — Gap Signal Emission Protocol (CIO-20260408-010)
+
+Beyond discovering *trading* patterns, you must also discover **system capability gaps** —
+places where the codebase/skills ecosystem is missing a primitive that would make the AI
+trading system demonstrably more capable. When you find one, you emit a **gap signal** to
+the `gap_signals` DB queue so that `skill-architect` (dispatched by the main-turn Claude via
+the gap_signal_consumption_playbook) can build it.
+
+**What counts as a capability gap** (not a trading pattern):
+
+| Trading pattern (→ meta_learnings.md) | Capability gap (→ gap_signals queue) |
+|---|---|
+| "RSI 14 가 변동성 3% 초과 시 저성과" | "변동성 3% 임계값을 여러 전략이 ad-hoc 으로 재계산 중 — 공통 volatility_regime() 함수 부재" |
+| "SOLUSDT dip_martingale 효과 감소" | "전략 edge decay 를 자동 감지하는 공통 함수 부재 — 각 전략이 내부적으로 rolling Sharpe 계산 중" |
+| "3연패 전 승률 20%p 하락" | "연패 조기감지 로직이 ops-monitor 에 하드코딩됨 — 재사용 가능한 streak_risk_score() primitive 로 분리 필요" |
+
+**Gap signal dedup rule (CRITICAL — Reuse Before Create)**:
+
+Before emitting a new gap signal, ALWAYS poll the existing queue:
+```bash
+# Check for existing similar gaps (pending or already consumed)
+curl -s "<API_URL>/api/v1/gap-signals?status=all&limit=100"
+```
+
+For each existing entry, compare `proposed_intent.name` and `proposed_intent.family` against
+your candidate gap. If an existing entry (any status) covers the same capability:
+- **Do not emit** a duplicate
+- Instead, include a note in your meta-learner JSON output: `"gap_already_tracked": "<signal_id>"`
+
+**Minimum evidence bar for gap signal emission** (stricter than trading pattern reporting):
+
+A capability gap may only be emitted as a gap_signal if ALL of these hold:
+1. **Inventory evidence**: You have searched backend `app/core/*.py` and existing skills for
+   the missing primitive and found 0 matches. Include the search commands in `evidence.inventory_check`.
+2. **Sample evidence**: At least 3 distinct places in the codebase OR 3 distinct strategies/sessions
+   currently work around the gap. `sample_size` = count of workaround occurrences.
+3. **Alternative hypothesis (D-018 extension)**: You have explicitly considered "can this gap
+   be filled by composing existing primitives?" and ruled it out. Include the composition
+   attempt in `evidence.composition_check`.
+4. **Purity constraint**: The proposed primitive must be a *pure analytical function* (no I/O,
+   no exchange calls, no trading side effects). If the gap requires trading-side logic, emit
+   as `under_review` and defer — that requires risk-manager + cio policy review, not
+   skill-architect auto-generation.
+
+If any of the four conditions fails, **do not POST**. Instead include the draft in your
+JSON output under `gap_signal_drafts` with the failure reason — main-turn Claude will
+decide whether to promote it after manual review.
+
+**Emission procedure** (when all four conditions pass):
+
+```bash
+# 1. Build the JSON payload (in-memory or temp file)
+cat > /tmp/gap_signal_draft.json <<'EOF'
+{
+  "signal_id": "GAP-YYYYMMDD-NNN",
+  "source": "meta-learner",
+  "issued_at": "<ISO8601 UTC>",
+  "gap_type": "missing_analytical_primitive",
+  "evidence": {
+    "observation": "...",
+    "sample_size": <int ≥ 3>,
+    "confidence": <float ≤ 0.85>,
+    "inventory_check": {
+      "backend_core_searched": [...],
+      "skills_searched": [...],
+      "keyword_patterns": [...],
+      "matches_found": 0
+    },
+    "composition_check": {
+      "attempted_composition": "...",
+      "why_insufficient": "..."
+    },
+    "reusable_primitive": "<existing backend function to build on, if any>"
+  },
+  "proposed_intent": {
+    "family": "at-monitor | at-strategy | at-backtest | ...",
+    "name": "<snake_case_name>",
+    "purpose": "...",
+    "inputs": {...},
+    "outputs": {...},
+    "trust_anchor_imports": [...],
+    "forbidden_imports": ["any other .claude/skills/**/* module"],
+    "deterministic": true,
+    "kpi_target": {"metric": "not_applicable|monthly_return", "reason": "..."}
+  },
+  "activation_policy": {
+    "ready_for_live": false,
+    "mode": "paper",
+    "consumers": ["<agent-name that would use this primitive>"]
+  }
+}
+EOF
+
+# 2. POST to gap_signals queue (idempotent — dedupes on signal_id)
+curl -s -X POST <API_URL>/api/v1/gap-signals \
+  -H 'Content-Type: application/json' \
+  -d @/tmp/gap_signal_draft.json
+```
+
+**signal_id naming convention**: `GAP-YYYYMMDD-NNN` where NNN is a zero-padded sequence
+starting at 001 for the current day. If you are emitting multiple gaps in one run, increment.
+Check existing queue with `GET /api/v1/gap-signals?source=meta-learner` to find the highest
+NNN of the day and add 1.
+
+**Anti-pattern — do not emit**:
+- ❌ "이 전략을 추가로 구현해야 함" (전략 추가는 strategy-builder 영역, skill-architect 아님)
+- ❌ "이 파라미터를 바꿔야 함" (parameter tuning 은 strategy-advisor 영역)
+- ❌ "이 symbol 을 제외해야 함" (symbol selection 은 다른 영역)
+- ❌ "버그 수정이 필요함" (bug fix 는 사용자/개발자 영역, 자동 생성 대상 아님)
+- ✅ "여러 에이전트/전략이 동일 계산을 재구현하고 있음 — 공통 primitive 부재"
+- ✅ "순수 분석 함수로 추출 가능한 공통 로직이 없음"
+- ✅ "결정론적이고 사이드 이펙트 없는 연산이 반복 재구현되고 있음"
+
 ## Input
 
 You will receive:
@@ -156,6 +269,47 @@ cat >> /home/hcpark/antigravity/.claude/skills/at-strategy/references/meta_learn
 - Recommendation: ...
 EOF
 ```
+
+### Step 5: Capability Gap Detection → Gap Signal Emission (D-019)
+
+**Separate pass** — after trading pattern discovery, perform a dedicated scan for *system
+capability gaps*. This is different from Steps 2-3: you are not looking at trade outcomes,
+you are looking at the **codebase + skills ecosystem** itself for duplicated/ad-hoc logic
+that should become a shared primitive.
+
+**5a — Dedup check (always first)**:
+```bash
+curl -s "<API_URL>/api/v1/gap-signals?status=all&limit=100" > /tmp/existing_gaps.json
+# Review for any entry whose proposed_intent.name overlaps your candidate gaps
+```
+
+**5b — Inventory scan** (for each candidate gap):
+```bash
+# Search backend for existing primitives
+grep -rn "<keyword_pattern>" /home/hcpark/antigravity/backend/app/core/ | head -20
+
+# Search skills for duplicate wrappers
+grep -rn "<keyword_pattern>" /home/hcpark/antigravity/.claude/skills/ | head -20
+
+# Record counts — matches_found must be 0 for emission
+```
+
+**5c — Composition check**:
+Before proposing a new primitive, attempt to compose the gap from existing building blocks:
+- Can `position_math.realized_pnl_simple` + arithmetic cover it?
+- Can existing `at-monitor` skills be chained?
+- Would a small extension to an existing function be cheaper than a new skill?
+
+Record the attempt in `evidence.composition_check`. Only emit if composition is genuinely
+insufficient.
+
+**5d — Emission** (if all D-019 conditions pass):
+POST to `/api/v1/gap-signals`. On HTTP 200, capture the returned `signal_id` and add to
+the meta-learner output JSON under `gap_signals_emitted`.
+
+**5e — Drafts** (if conditions fail):
+Add the draft to `gap_signal_drafts` in the output JSON with failure reason. Do NOT POST.
+Main-turn Claude will decide whether to manually promote.
 
 ## Output Format
 
@@ -245,7 +399,36 @@ EOF
       "action": "written"
     }
   ],
-  "summary": "342건 거래 분석 완료. 3개 핵심 발견: 시간대별 성과 차이, SOLUSDT 전략 효과 감소, 연패 예측 시그너. 지식 베이스 업데이트 완료.",
+  "gap_signals_emitted": [
+    {
+      "signal_id": "GAP-20260408-004",
+      "gap_type": "missing_analytical_primitive",
+      "proposed_name": "volatility_regime",
+      "family": "at-monitor",
+      "sample_size": 5,
+      "confidence": 0.72,
+      "post_http_code": 200,
+      "dedup_check": "no existing entry with same name",
+      "inventory_matches": 0,
+      "composition_attempted": "volatility 계산을 realized_pnl_simple + rolling window 로 조합 시도 → rolling logic 미존재, 각 전략이 ad-hoc 재구현",
+      "notes": "3개 전략이 동일한 volatility threshold 계산을 재구현하고 있음 — 공통 primitive 로 추출 가능"
+    }
+  ],
+  "gap_signal_drafts": [
+    {
+      "draft_id": "draft-001",
+      "reason_not_emitted": "composition_check: 기존 ops-monitor.streak_detector 로 커버 가능",
+      "proposed_name": "losing_streak_score",
+      "notes": "D-019 composition_check 실패 — 기존 primitive 로 커버되므로 POST 생략. main-turn 이 필요시 수동 검토"
+    }
+  ],
+  "gap_signals_already_tracked": [
+    {
+      "existing_signal_id": "GAP-20260408-001",
+      "reason": "margin_exhaustion 은 이미 queue 에 있음 (consumed)"
+    }
+  ],
+  "summary": "342건 거래 분석 완료. 3개 trading pattern + 1개 capability gap 발행 + 1개 gap draft 보류. 지식 베이스 업데이트 완료.",
   "recommendations": [
     "RSI 전략에 시간대 필터 추가 검토",
     "SOLUSDT dip_martingale 긴급 재최적화 필요",
@@ -278,3 +461,6 @@ EOF
 - This agent should be run periodically (weekly) for continuous learning
 - Each discovery should have a unique ID for tracking across runs
 - Previous meta_learnings.md entries should be reviewed — update or invalidate stale ones
+- **D-019**: Capability gaps (system primitives) are emitted to `/api/v1/gap-signals` queue — NOT written to meta_learnings.md. Trading patterns and capability gaps are two distinct artifacts with different downstream consumers (human reviewer vs skill-architect).
+- **Dedup is mandatory**: always `GET /api/v1/gap-signals?status=all&limit=100` before emission. Duplicates are a hard failure per Reuse Before Create.
+- **Never emit more than 3 gap_signals per run**: if you find more, the remaining ones go into `gap_signal_drafts`. This prevents a single run from saturating the queue and creating pressure on skill-architect.

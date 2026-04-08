@@ -5,6 +5,7 @@ sections, and strategy candidates.
 """
 from __future__ import annotations
 
+import ast
 import os
 import re
 import time
@@ -21,6 +22,7 @@ STRATEGY_CANDIDATES_DIR = CLAUDE_DIR / "strategy_candidates"
 DECISION_LOG = CLAUDE_DIR / "skills" / "at-strategy" / "references" / "decision_log.md"
 META_LEARNINGS = CLAUDE_DIR / "skills" / "at-strategy" / "references" / "meta_learnings.md"
 AUTHORIZED_SESSIONS = CLAUDE_DIR / "authorized_sessions.json"
+BACKEND_CORE_DIR = PROJECT_ROOT / "backend" / "app" / "core"
 
 # at-* skills are the auto-trading custom skills (others are imports we don't expose).
 AT_SKILL_PREFIX = "at-"
@@ -181,9 +183,20 @@ class SkillMeta:
     version: Optional[str]
     scripts: List[str]
     file_path: str
+    disabled: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+def _is_truthy_flag(value: Any) -> bool:
+    """Parse frontmatter boolean-ish value (YAML true/false/yes/no/1/0)."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    return s in {"true", "yes", "1", "on"}
 
 
 def _parse_skill_dir(skill_dir: Path) -> Optional[SkillMeta]:
@@ -207,10 +220,16 @@ def _parse_skill_dir(skill_dir: Path) -> Optional[SkillMeta]:
         version=front.get("version"),
         scripts=scripts,
         file_path=str(skill_md.relative_to(PROJECT_ROOT)),
+        disabled=_is_truthy_flag(front.get("disabled")),
     )
 
 
-def list_skills() -> List[Dict[str, Any]]:
+def list_skills(include_disabled: bool = False) -> List[Dict[str, Any]]:
+    """List at-* skills. Disabled skills (frontmatter `disabled: true`) are
+    excluded by default — this is the primary mechanism for risk-manager VETO
+    of AI-generated skills (see skill-architect agent)."""
+    cache_key = "skills_all" if include_disabled else "skills"
+
     def _load():
         out: List[Dict[str, Any]] = []
         if not SKILLS_DIR.exists():
@@ -219,10 +238,13 @@ def list_skills() -> List[Dict[str, Any]]:
             if not d.is_dir() or not d.name.startswith(AT_SKILL_PREFIX):
                 continue
             meta = _parse_skill_dir(d)
-            if meta:
-                out.append(meta.to_dict())
+            if not meta:
+                continue
+            if meta.disabled and not include_disabled:
+                continue
+            out.append(meta.to_dict())
         return out
-    return _cached("skills", _load)
+    return _cached(cache_key, _load)
 
 
 def get_skill(name: str) -> Optional[Dict[str, Any]]:
@@ -374,6 +396,88 @@ def get_authorized_sessions() -> Optional[Dict[str, Any]]:
         return json.loads(AUTHORIZED_SESSIONS.read_text(encoding="utf-8"))
     except Exception:
         return None
+
+
+# Backend core function introspection ---------------------------------------
+# skill-architect needs a machine-readable catalog of pure functions in
+# backend/app/core/*.py so it can compose thin-wrapper skills without
+# generating new logic. Read-only. AST parsing only — never imports the
+# modules (safe against side effects).
+
+# Private modules and files that are not part of the public "building blocks"
+# catalog that skill-architect is allowed to reference.
+_CORE_EXCLUDE_FILES = {
+    "__init__.py",
+}
+
+
+def _format_signature(func: ast.AST) -> str:
+    """Render a function signature back to source using ast.unparse (3.9+)."""
+    try:
+        args_src = ast.unparse(func.args)  # type: ignore[attr-defined]
+    except Exception:
+        args_src = ""
+    ret = ""
+    returns = getattr(func, "returns", None)
+    if returns is not None:
+        try:
+            ret = " -> " + ast.unparse(returns)  # type: ignore[attr-defined]
+        except Exception:
+            ret = ""
+    return f"({args_src}){ret}"
+
+
+def _docstring_first_line(node: ast.AST) -> str:
+    doc = ast.get_docstring(node)  # type: ignore[arg-type]
+    if not doc:
+        return ""
+    for line in doc.splitlines():
+        line = line.strip()
+        if line:
+            return line
+    return ""
+
+
+def list_core_functions() -> List[Dict[str, Any]]:
+    """Enumerate public top-level functions in backend/app/core/*.py.
+
+    Returns a flat list of dicts: module, name, signature, doc, is_async.
+    Only `def`/`async def` at module level are included. Private names
+    (starting with `_`) are excluded — skill-architect must not rely on
+    private helpers.
+    """
+    def _load():
+        out: List[Dict[str, Any]] = []
+        if not BACKEND_CORE_DIR.exists():
+            return out
+        for py in sorted(BACKEND_CORE_DIR.glob("*.py")):
+            if py.name in _CORE_EXCLUDE_FILES:
+                continue
+            try:
+                source = py.read_text(encoding="utf-8")
+                tree = ast.parse(source, filename=str(py))
+            except Exception:
+                continue
+            module = py.stem
+            module_doc = _docstring_first_line(tree)
+            for node in tree.body:
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                name = node.name
+                if name.startswith("_"):
+                    continue
+                out.append({
+                    "module": module,
+                    "name": name,
+                    "qualname": f"app.core.{module}.{name}",
+                    "signature": _format_signature(node),
+                    "doc": _docstring_first_line(node),
+                    "is_async": isinstance(node, ast.AsyncFunctionDef),
+                    "module_doc": module_doc,
+                    "lineno": node.lineno,
+                })
+        return out
+    return _cached("core_functions", _load)
 
 
 def list_agent_activity(since_hours: int = 24) -> List[Dict[str, Any]]:

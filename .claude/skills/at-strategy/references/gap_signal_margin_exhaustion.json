@@ -1,0 +1,64 @@
+{
+  "signal_id": "GAP-20260408-001",
+  "source": "self-critic",
+  "issued_at": "2026-04-08T00:00:00Z",
+  "gap_type": "missing_analytical_primitive",
+  "evidence": {
+    "observation": "Martingale 세션의 추가 진입 판단 시 선물 포지션 청산 임박도(liquidation proximity)를 정량화하는 공통 함수가 없음. 각 전략/스킬이 ad-hoc 로 leverage / avg_cost / current_price 조합을 재계산하고 있고, 기준도 일관되지 않음.",
+    "sample_size": 12,
+    "confidence": 0.78,
+    "inventory_check": {
+      "backend_core_functions_searched": 46,
+      "skills_searched": 7,
+      "keyword_patterns": ["liquidation", "margin_exhaust", "liq_price", "maintenance_margin"],
+      "matches_found": 0
+    },
+    "reusable_primitive": "app.core.position_math.realized_pnl_simple"
+  },
+  "proposed_intent": {
+    "family": "at-monitor",
+    "name": "margin_exhaustion",
+    "purpose": "선물 포지션 청산 임박 정도를 0~1 스칼라(exhaustion_score)로 환산하는 순수 분석 함수. Isolated margin 가정, configurable maintenance margin rate (기본 Binance 0.005).",
+    "inputs": {
+      "cash": "float",
+      "qty": "int (signed: + long, - short — abs_qty 내부 계산)",
+      "avg_cost": "float",
+      "current_price": "float",
+      "leverage": "int",
+      "side": "str (long|short)",
+      "maintenance_margin_rate": "float (default 0.005)"
+    },
+    "outputs": {
+      "exhaustion_score": "float in [0, 1], 1 = at/past liquidation",
+      "liquidation_distance_pct": "float, % from current to liq_price",
+      "unrealized_pnl": "float, via realized_pnl_simple",
+      "margin_ratio": "float, remaining_equity / maintenance_margin",
+      "reason": "str (safe|moderate|elevated_risk|high_risk|imminent_liquidation|no_position_or_invalid_inputs)"
+    },
+    "trust_anchor_imports": [
+      "app.core.position_math.realized_pnl_simple"
+    ],
+    "forbidden_imports": [
+      "any other .claude/skills/**/* module (recursive AI trust forbidden)"
+    ],
+    "deterministic": true,
+    "kpi_target": {
+      "metric": "not_applicable",
+      "reason": "non-trading analytical primitive — 12% compound KPI gate does not apply"
+    }
+  },
+  "activation_policy": {
+    "ready_for_live": false,
+    "mode": "paper",
+    "consumers": ["risk-manager (future prompt update)"]
+  },
+  "expected_dry_run_hashes": {
+    "fixture_hash": "bfacd8233a8e1106...",
+    "output_hash": "d95eb7c0437dc199...",
+    "note": "CIO-20260408-006의 수동 dry-run 결과. 재시작 후 실제 Agent dispatch 시 byte-identical 비교 기준."
+  },
+  "notes": [
+    "Fixture inputs must be deterministic and byte-identical across runs for Skill Smoke Test Convention v1.0 reproducibility gate.",
+    "재시작 후 실제 Agent(subagent_type='skill-architect') dispatch 시 이 JSON을 그대로 prompt 의 input payload 로 사용할 것."
+  ]
+}

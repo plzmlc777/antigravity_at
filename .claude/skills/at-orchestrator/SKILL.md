@@ -1,36 +1,37 @@
 ---
 name: at-orchestrator
 description: |
-  Cross-skill orchestration. Chains health-check → parameter optimization → config apply
-  for autonomous AI trading cycles. Drives the weekly meta-cycle that ties at-monitor,
-  at-backtest, at-symbol-select together.
-allowed-tools: Read, Bash, Agent
+  AI 자율 트레이딩 오케스트레이터. 종목 선정 -> 파라미터 최적화 -> 라이브 배포 -> 모니터링 -> 재최적화 사이클.
+  기존 스킬들을 파이프라인으로 연결하여 완전 자동 트레이딩 사이클 구현.
+allowed-tools: Read, Write, Edit, Bash, Agent
 version: 1.0.0
-tags: [orchestration, autonomous, weekly-cycle, pipeline]
+tags: [orchestrator, autonomous, pipeline, ai-trading]
 ---
 
-# AT-Orchestrator
+# AT-Orchestrator: AI Autonomous Trading Pipeline
 
-Autonomous pipeline that wires individual skills into end-to-end cycles. Runs as
-the top-level driver behind cron jobs and ad-hoc CIO sub-agent dispatches.
+## Overview
 
-## Commands
+기존 스킬들을 하나의 자동 사이클로 연결:
 
-- pipeline.py run --session-id <ID> — health check → optimize → apply for one session
-- pipeline.py optimize --session-id <ID> — grid search via at-backtest only
-- pipeline.py auto — scan all RUNNING sessions and orchestrate as needed
-- weekly_cycle.sh — weekly meta-cycle (symbol scout + strategy evolve + KPI gate)
-- run_weekly_cycle.sh — cron entrypoint wrapper
 
-## Flow
 
-1. **at-monitor** identifies CRITICAL sessions (MDD/WR/cycles thresholds)
-2. **at-backtest/optimize** runs grid search on candidate parameters
-3. Best config is applied to the session via the live API
-4. Optionally **at-symbol-select** triggers symbol switch when KPI compound gap
-   exceeds the v1.5.12.0 monthly target
+## Pipeline Steps
 
-## Outputs
+### Step 1: Symbol Selection (at-symbol-select)
 
-- runs/ directory keeps per-cycle JSON traces consumed by /api/v1/agents/activity
-- decision_log.md entries (CIO-YYYYMMDD-NNN) for any operator-visible action
+
+### Step 2: Parameter Optimization (at-backtest/optimize)
+Best symbol from Step 1 -> Grid Search -> Walk-Forward validation
+
+### Step 3: Deploy (apply to session)
+Best params from Step 2 -> Apply via skill-symbol-switch API
+
+### Step 4: Monitor (at-monitor)
+Health check loop -> If CRITICAL -> Re-trigger Step 1
+
+## Scripts
+
+| File | Role |
+|------|------|
+| scripts/pipeline.py | Full pipeline orchestrator |
