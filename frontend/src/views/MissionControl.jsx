@@ -7,9 +7,11 @@ import {
     fetchMonitorSessions,
     fetchGoalProgress,
     fetchStrategyCandidates,
+    triggerEmergencyStop,
 } from '../api/agentsMeta';
 import AgentActivityCard from '../components/AgentActivityCard';
 import ActivityTimeline from '../components/ActivityTimeline';
+import EmergencyKillSwitch from '../components/EmergencyKillSwitch';
 import { Link } from 'react-router-dom';
 
 const POLL_MS = 30000;
@@ -77,12 +79,15 @@ export default function MissionControl() {
                         AI 트레이딩 시스템 관제탑 · 17개 에이전트 + 6개 스킬 자율 운영
                     </p>
                 </div>
-                <Link
-                    to="/organization"
-                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition"
-                >
-                    조직도 →
-                </Link>
+                <div className="flex items-center gap-3">
+                    <EmergencyKillSwitch onTrigger={triggerEmergencyStop} runningCount={runningSessions.length} />
+                    <Link
+                        to="/organization"
+                        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition"
+                    >
+                        조직도 →
+                    </Link>
+                </div>
             </div>
 
             {err && (
@@ -171,10 +176,10 @@ export default function MissionControl() {
                             </div>
                         ))}
                         <Link
-                            to="/strategies"
+                            to="/decisions"
                             className="block text-center text-xs text-blue-400 hover:text-blue-300 py-2"
                         >
-                            전체 세션 →
+                            결정 타임라인 →
                         </Link>
                     </div>
                 </section>

@@ -129,24 +129,6 @@ export const normalizeIntegratedConfig = (data) => ({
 });
 
 /**
- * Transformer for ManualOrderRequest
- * @param {Object} data - Raw API response
- * @returns {Object} Normalized for UI
- */
-export const normalizeManualOrderRequest = (data) => ({
-    symbol: data.symbol,
-    order_type: data.order_type,
-    price_type: data.price_type,
-    price: data.price,
-    mode: data.mode,
-    quantity: data.quantity,
-    amount: data.amount,
-    percent: data.percent,
-    stop_loss: data.stop_loss,
-    take_profit: data.take_profit,
-});
-
-/**
  * Transformer for OptimizationRequest
  * @param {Object} data - Raw API response
  * @returns {Object} Normalized for UI

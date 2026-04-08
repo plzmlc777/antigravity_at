@@ -118,27 +118,6 @@ export const getBalanceForAccount = async (accountId) => {
     return data;
 };
 
-export const placeBuyOrder = async (order) => {
-    const { data } = await api.post('/order/buy', order);
-    return data;
-};
-
-export const placeSellOrder = async (order) => {
-    const { data } = await api.post('/order/sell', order);
-    return data;
-};
-
-
-export const placeManualOrder = async (order, options = {}) => {
-    const { data } = await api.post('/order/manual', order, options);
-    return data;
-};
-
-export const placeConditionalOrder = async (order, options = {}) => {
-    const { data } = await api.post('/order/conditional', order, options);
-    return data;
-};
-
 export const getOutstandingOrders = async () => {
     const { data } = await api.get('/orders/outstanding');
     return data;

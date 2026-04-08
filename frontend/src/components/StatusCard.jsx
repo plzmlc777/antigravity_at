@@ -1,31 +1,27 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getLiveStatus } from '../api/client';
-import { useLiveTrading } from '../context/LiveTradingContext';
+import { fetchMonitorSessions } from '../api/agentsMeta';
 
+// Navbar status pill — must work without auth (Mission Control is public).
+// Uses the no-auth /live/monitor/sessions endpoint instead of the authed client,
+// so unauthenticated visitors don't get bounced to /login by the 401 interceptor.
 const StatusCard = () => {
-    const { getAccountById } = useLiveTrading();
-
-    const { data: liveData } = useQuery({
-        queryKey: ['live-status-nav'],
-        queryFn: () => getLiveStatus({ allAccounts: true }),
+    const { data: monitorData } = useQuery({
+        queryKey: ['live-status-nav-monitor'],
+        queryFn: () => fetchMonitorSessions(),
         refetchInterval: 15000,
-        retry: 1
+        retry: 0,
     });
 
-    const runningSessions = (liveData || []).filter(s => s.is_running);
+    const sessions = monitorData?.sessions || [];
+    const runningSessions = sessions.filter(s => s.status === 'RUNNING');
     const sessionCount = runningSessions.length;
     const isLive = sessionCount > 0;
 
-    // Collect unique account names from running sessions
-    const accountNames = [...new Set(
-        runningSessions
-            .map(s => {
-                const acc = getAccountById(s.account_id);
-                return acc?.account_name || acc?.exchange_name;
-            })
-            .filter(Boolean)
-    )];
+    // Show real/paper split as the badge text (no per-account name lookup —
+    // monitor endpoint omits account names by design).
+    const realCount = runningSessions.filter(s => !s.is_paper).length;
+    const paperCount = sessionCount - realCount;
 
     const colors = {
         success: 'bg-green-500/10 border-green-500/20 text-green-400',
@@ -38,11 +34,11 @@ const StatusCard = () => {
                 <h3 className="text-[10px] uppercase tracking-wider text-gray-400 leading-none">
                     Live Trading
                 </h3>
-                {accountNames.length > 0 && (
+                {sessionCount > 0 && (
                     <div className="flex items-center gap-1 bg-black/20 px-1.5 py-0.5 rounded-full">
                         <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
-                        <span className="text-[9px] font-medium text-gray-300 max-w-[80px] truncate leading-none">
-                            {accountNames.join(', ')}
+                        <span className="text-[9px] font-medium text-gray-300 leading-none">
+                            R{realCount}/P{paperCount}
                         </span>
                     </div>
                 )}

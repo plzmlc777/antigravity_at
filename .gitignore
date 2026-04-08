@@ -47,6 +47,11 @@ debug_log_search.py
 # Node Modules (Frontend)
 frontend/node_modules/
 
+# Playwright e2e artifacts (results, screenshots, traces)
+frontend/tests/e2e/__results__/
+frontend/playwright-report/
+frontend/test-results/
+
 # Utils
 tools/cleanup_ohlcv.py
 

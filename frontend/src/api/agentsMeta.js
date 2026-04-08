@@ -2,6 +2,7 @@
 // Uses the global axios instance from ./client.js so request logging + auth headers
 // (none required for these endpoints) stay consistent.
 import axios from 'axios';
+import { api as authedApi } from './client';
 
 // Standalone instance: these endpoints are no-auth read-only metadata, and we want
 // them to keep working even when the user is not logged in (Mission Control = home).
@@ -40,3 +41,9 @@ export const fetchMonitorSessions = () =>
   meta.get('/live/monitor/sessions').then(r => r.data);
 export const fetchGoalProgress = () =>
   meta.get('/live/monitor/goal/progress').then(r => r.data);
+
+// Emergency kill switch — only manual write operation in the AI-centric UI.
+// Requires JWT auth (uses default axios from client.js so token header is attached).
+export const triggerEmergencyStop = () =>
+  authedApi.post('/live/emergency-stop').then(r => r.data);
+

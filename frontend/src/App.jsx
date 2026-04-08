@@ -1,8 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import LiveTradingView from './views/LiveTradingView';
-import EmergencyManual from './views/EmergencyManual';
 import Login from './views/Login';
-import StrategyView from './views/StrategyView';
 import StrategyLab from './views/StrategyLab';
 import Settings from './views/Settings';
 import AdminView from './views/AdminView';
@@ -18,8 +15,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { WatchlistProvider } from './context/WatchlistContext';
 import { LiveTradingProvider } from './context/LiveTradingContext';
-import { StrategiesProvider } from './context/StrategiesContext';
-import { APP_VERSION, COMMIT_HASH, CODE_NAME } from './version';
+import { APP_VERSION, CODE_NAME } from './version';
 
 const NavLink = ({ to, children }) => {
     const location = useLocation();
@@ -55,7 +51,7 @@ const RequireAdmin = ({ children }) => {
     if (loading) return null;
 
     if (!token) return <Navigate to="/login" replace />;
-    if (!user?.is_admin) return <Navigate to="/strategies" replace />;
+    if (!user?.is_admin) return <Navigate to="/" replace />;
 
     return children;
 };
@@ -97,8 +93,6 @@ function AppContent() {
                             <NavLink to="/organization">조직도</NavLink>
                             <NavLink to="/decisions">결정</NavLink>
                             <NavLink to="/knowledge">KB</NavLink>
-                            <NavLink to="/live">Live</NavLink>
-                            <NavLink to="/strategies">Sessions</NavLink>
                             <NavLink to="/strategy-lab">AI Workshop</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
@@ -123,11 +117,6 @@ function AppContent() {
                     <Route path="/organization" element={<Organization />} />
                     <Route path="/decisions" element={<DecisionTimeline />} />
                     <Route path="/knowledge" element={<KnowledgeBase />} />
-                    {/* Manual trading demoted to emergency-only path with bypass warning */}
-                    <Route path="/emergency/manual" element={<RequireAuth><EmergencyManual /></RequireAuth>} />
-                    <Route path="/manual" element={<Navigate to="/emergency/manual" replace />} />
-                    <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
-                    <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
                     <Route path="/strategy-lab" element={<RequireAuth><StrategyLab /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
@@ -147,9 +136,7 @@ function App() {
                     <Route path="/*" element={
                         <WatchlistProvider>
                             <LiveTradingProvider>
-                                <StrategiesProvider>
-                                    <AppContent />
-                                </StrategiesProvider>
+                                <AppContent />
                             </LiveTradingProvider>
                         </WatchlistProvider>
                     } />

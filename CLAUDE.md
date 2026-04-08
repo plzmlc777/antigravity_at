@@ -608,6 +608,39 @@ cd frontend && npm run lint
 
 ---
 
+## Frontend Regression Protocol
+
+> ⚠️ **트리거**: `frontend/src/**` 또는 `frontend/tests/**` 파일을 수정한 모든 작업
+
+### 규약
+프론트엔드 코드를 수정한 직후 반드시 **`frontend-tester` 서브에이전트**를 호출해 회귀 검증을 받는다. 객관적인 증거(Playwright 결과 + 콘솔 에러 + 스크린샷 경로) 없이 "수정 완료"를 사용자에게 보고하지 않는다.
+
+### 호출 방법
+Task 도구로 `subagent_type: "frontend-tester"` 지정. 호출 시 프롬프트에 **이번에 어떤 화면/컴포넌트를 바꿨는지**를 한 줄로 전달.
+
+### 호출 시점
+- 단일 컴포넌트 수정 후
+- 라우트 추가/삭제 후
+- API 클라이언트 변경 후
+- 빌드/번들 관련 변경 후
+- 버전업 직전 (사용자 보고용 증거 확보)
+
+### 보고 처리
+- ✅ PASS: 사용자에게 "frontend-tester 통과 (X tests, Ys)" 한 줄 첨부 후 다음 단계 진행
+- ❌ FAIL: 보고서의 root cause + 스크린샷/트레이스 경로를 사용자에게 그대로 전달하고, 수정 → 재호출 사이클로 진입. 절대 실패를 무시하고 진행하지 않는다.
+
+### 예외
+- 텍스트만 변경 (주석/한글 라벨 1-2자) — 호출 생략 가능
+- 백엔드만 수정 — 호출 불필요
+- frontend-tester 자체를 수정 — 직접 `npx playwright test` 1회 실행으로 대체
+
+### 금지 사항
+- ❌ frontend-tester 호출 없이 프론트엔드 수정을 "완료"로 보고
+- ❌ 실패 보고서를 받고도 사용자 승인 없이 재시도/우회
+- ❌ frontend-tester가 KillSwitch를 클릭하거나 운영 세션을 변경하도록 지시
+
+---
+
 ## Troubleshooting
 
 ### SSH 접속 실패

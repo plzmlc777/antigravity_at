@@ -77,6 +77,13 @@ export const LiveTradingProvider = ({ children }) => {
             return accounts;
         }
 
+        // Skip when unauthenticated — Mission Control is public, but accounts API needs JWT.
+        // Without this guard, public visitors get 401 noise + interceptor redirect to /login.
+        const hasToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (!hasToken) {
+            return [];
+        }
+
         setAccountsLoading(true);
         try {
             const data = await getAccounts();

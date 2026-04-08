@@ -31,6 +31,50 @@ class LiveBotStartRequest(BaseModel):
 class StopAllRequest(BaseModel):
     force: bool = False
 
+@router.post("/emergency-stop")
+async def emergency_kill_switch(
+    ctx: UserAccountContext = Depends(get_user_context)
+):
+    """
+    Emergency global kill switch — stops ALL RUNNING live sessions across all accounts.
+    Bypasses position checks. The only manual session-control surface in the AI-centric UI.
+    Intended for "AI orchestrator went rogue" recovery, not routine use.
+    """
+    if not ctx.user_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    from ..db.session import SessionLocal
+    from ..models.live_session import LiveBotSession, SessionStatus
+    db = SessionLocal()
+    try:
+        before = db.query(LiveBotSession).filter(
+            LiveBotSession.status == SessionStatus.RUNNING
+        ).count()
+    finally:
+        db.close()
+
+    try:
+        await live_manager.stop_all_sessions()
+    except Exception as e:
+        logger.error(f"emergency_kill_switch failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    db = SessionLocal()
+    try:
+        after = db.query(LiveBotSession).filter(
+            LiveBotSession.status == SessionStatus.RUNNING
+        ).count()
+    finally:
+        db.close()
+
+    logger.warning(f"EMERGENCY KILL SWITCH triggered by user {ctx.user_id}: {before} → {after} running sessions")
+    return {
+        "status": "success",
+        "stopped_count": max(0, before - after),
+        "remaining_running": after,
+        "message": f"Emergency stop: {before - after} session(s) halted, {after} still running."
+    }
+
 @router.post("/stop-all")
 async def stop_all_live_bots(
     req: StopAllRequest = StopAllRequest(),
