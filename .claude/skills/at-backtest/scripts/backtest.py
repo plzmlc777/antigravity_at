@@ -1,50 +1,69 @@
 #!/usr/bin/env python3
 """
-Standalone Backtest Engine
-기존 BacktestEngine과 동일한 로직을 독립 실행 가능한 형태로 구현.
-DB 또는 거래소 API에서 데이터 로드 -> 전략 실행 -> 성과 분석.
+Standalone Backtest CLI — thin wrapper around backend WaterfallBacktestEngine.
 
-v3: 완전 독립 모드 추가 — DB 없이 거래소 API만으로 백테스트 가능.
-    --source exchange|db|auto 옵션으로 데이터 소스 선택.
+Phase 3a.2 rewrite: this file used to contain a 2,500+ LOC standalone reimplementation
+(strategies.py + execution_engine.py) that drifted from the backend's production
+backtest engine. It now delegates to the single source of truth
+(app.core.waterfall_engine.WaterfallBacktestEngine), wraps the raw candle loading
+step, and layers the skill-side KPI enrichment (metrics.py) on top.
 
 Usage:
-    # 거래소 API에서 직접 (DB 불필요)
     python backtest.py --strategy rsi_martingale --symbol BTCUSDT --interval 1h --days 30 --source exchange
-
-    # DB에서 (기존 방식)
     python backtest.py --strategy dip_martingale --symbol 005930 --interval 1d --days 365 --source db
-
-    # 자동 (exchange 먼저, 실패 시 DB fallback)
-    python backtest.py --strategy ema_momentum --symbol BTCUSDT --interval 1h --days 180
-
+    python backtest.py --strategy ema_momentum --symbol BTCUSDT --interval 1h --days 180 --json
     python backtest.py --list
 """
 
 import argparse
+import asyncio
 import json
+import os
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# Add script directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# ─── Bootstrap: backend on sys.path + .env loaded ────────────────────
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[3]  # .claude/skills/at-backtest/scripts → project root
+BACKEND_DIR = PROJECT_ROOT / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
-from strategies import get_strategy, list_strategies, MartingaleStrategy, Trade
-from metrics import calculate_metrics, format_results, BacktestResult
-from execution_engine import BacktestExecutor, StrategyAdapter
+# Load .env from project root (required by backend config.py at import time)
+_env_path = PROJECT_ROOT / ".env"
+if _env_path.exists():
+    with open(_env_path) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _k = _k.strip()
+                _v = _v.strip().strip('"').strip("'")
+                if _k not in os.environ:
+                    os.environ[_k] = _v
+
+# Suppress backend strategy snapshot warnings (no session_id during CLI backtest)
+import logging
+logging.getLogger("strategies.martingale_base").setLevel(logging.ERROR)
+
+from app.core.waterfall_engine import WaterfallBacktestEngine  # noqa: E402
+from app.core.strategy_registry import StrategyRegistry  # noqa: E402
+from metrics import BacktestResult, calculate_metrics, format_results  # noqa: E402
 
 
 def _load_candles(
     symbol: str,
     interval: str,
     days: int,
-    from_date: str = None,
-    to_date: str = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     source: str = "auto",
     futures: bool = False,
 ):
-    """데이터 소스에 따라 OHLCV 로드."""
     if source == "exchange":
         from fetch_exchange import load_ohlcv_exchange
         return load_ohlcv_exchange(symbol, interval, days, from_date, to_date, futures=futures)
@@ -56,105 +75,120 @@ def _load_candles(
         return load_ohlcv_auto(symbol, interval, days, from_date, to_date, source="auto", futures=futures)
 
 
-def run_backtest(
+def _detect_exchange_name(symbol: str, futures: bool) -> str:
+    """Pick the backend exchange tag so Waterfall applies leverage rules correctly."""
+    if futures:
+        return "BinanceFutures"
+    if symbol.endswith("USDT") or symbol.endswith("USDC") or symbol.endswith("BTC"):
+        return "Binance"
+    return "Kiwoom"
+
+
+async def run_backtest_async(
     strategy_name: str,
     symbol: str,
     interval: str = "1d",
     days: int = 365,
     initial_capital: float = 10_000_000,
-    config: Dict[str, Any] = None,
-    from_date: str = None,
-    to_date: str = None,
+    config: Optional[Dict[str, Any]] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     source: str = "auto",
     futures: bool = False,
 ) -> BacktestResult:
     """
-    독립 백테스트 실행. 기존 BacktestEngine.run()과 동일한 흐름.
+    Execute one backtest via WaterfallBacktestEngine and enrich with skill KPIs.
 
-    1. OHLCV 로드 (exchange API 또는 DB)
-    2. 전략 초기화
-    3. Signal -> ExecutionEngine 루프
-    4. 성과 분석
+    Flow:
+      1. Load candles from skill fetcher (exchange API or DB).
+      2. Look up strategy class from backend StrategyRegistry
+         (which after Phase 1 points at .claude/skills/at-live-signal/scripts/strategies).
+      3. Delegate to WaterfallBacktestEngine.run_single_backtest() — the same
+         entry point production /v3-backtest uses.
+      4. Pipe Waterfall's raw trades/equity_curve into metrics.calculate_metrics()
+         to add monthly_return_compound, kpi_gap_pp, etc.
     """
-
-    # 1. Load data
     df = _load_candles(symbol, interval, days, from_date, to_date, source=source, futures=futures)
     if df.empty:
-        print(f"Error: No data for {symbol} ({interval}, {days}d)")
+        print(f"Error: No data for {symbol} ({interval}, {days}d)", file=sys.stderr)
         return BacktestResult(strategy_id=strategy_name)
 
     candles = df.to_dict("records")
 
-    # 2. Initialize strategy
-    strategy = get_strategy(strategy_name, config)
-    strategy._initialize_trigger()
+    strategy_class = StrategyRegistry.get_strategy_class(strategy_name)
+    if strategy_class is None:
+        raise ValueError(f"Strategy '{strategy_name}' not found in StrategyRegistry")
 
-    # us_market_follow: 미국 지수 데이터 프리로드
-    if hasattr(strategy, 'preload_us_data'):
-        strategy.preload_us_data(days=max(days, 365))
+    exchange_name = _detect_exchange_name(symbol, futures)
+    p_config = dict(config or {})
 
-    # 3. Create executor and adapter
-    leverage = max(1, int((config or {}).get("leverage", 1)))
-    executor = BacktestExecutor(
-        initial_capital=initial_capital,
-        leverage=leverage,
-        config=config,
+    engine = WaterfallBacktestEngine(strategy_class, p_config, exchange_name=exchange_name)
+    stats = await engine.run_single_backtest(
+        config=p_config,
+        feed=candles,
+        initial_capital=int(initial_capital),
+        symbol=symbol,
+        optimize_mode=True,  # skip chart/ohlcv resampling — CLI doesn't need them
+        rank=1,
     )
-    adapter = StrategyAdapter(strategy)
 
-    # 4. Simulation loop
-    for i, candle in enumerate(candles):
-        ts = candle["timestamp"]
-        if not isinstance(ts, datetime):
-            ts = datetime.fromisoformat(str(ts))
-
-        current_price = candle["close"]
-
-        # A. Process pending orders (LIMIT/STOP from previous candles)
-        executor.on_candle(candle, strategy, ts)
-
-        # B. Get signals from strategy
-        signals = adapter.process_candle(candle, ts, current_price, executor)
-
-        # C. Execute signals
-        adapter.execute_signals(signals, executor, ts, current_price)
-
-        # D. Record equity curve
-        executor.record_equity(current_price, ts)
-
-    # 5. Force liquidate any open position
-    if strategy.current_level > 0:
-        final_price = candles[-1]["close"]
-        final_ts = candles[-1]["timestamp"]
-        if not isinstance(final_ts, datetime):
-            final_ts = datetime.fromisoformat(str(final_ts))
-
-        executor._last_trade = None
-        executor.force_liquidate(strategy, final_price, final_ts)
-        if executor._last_trade is not None:
-            adapter._trades.append(executor._last_trade)
-
-        # Update last equity point
-        if executor.equity_curve:
-            executor.equity_curve[-1]["equity"] = executor.cash
-
-    # 6. Calculate metrics (FIFO matching -- API _analyze_trades와 동일)
+    # Waterfall's _generate_stats already computed: total_return, win_rate, sharpe_ratio,
+    # max_drawdown, stability_score, etc. It also exposes raw trades + equity_curve.
+    trades = stats.get("trades", [])
+    equity_curve = stats.get("equity_curve", [])
     timestamps = [c["timestamp"] for c in candles]
+
+    # Normalize trade timestamps for metrics.py (expects 'time' key, ISO string).
+    raw_trades_for_metrics: List[Dict[str, Any]] = []
+    for t in trades:
+        rt = dict(t)
+        ts = rt.get("time") or rt.get("timestamp")
+        if isinstance(ts, datetime):
+            rt["time"] = ts.isoformat()
+        elif ts is not None:
+            rt["time"] = str(ts)
+        raw_trades_for_metrics.append(rt)
+
     result = calculate_metrics(
-        adapter.trades,
-        executor.equity_curve,
+        [],  # let metrics.py build its FIFO cycles from raw_trades
+        equity_curve,
         timestamps,
         initial_capital,
         strategy_name,
-        raw_trades=executor.raw_trades,
+        raw_trades=raw_trades_for_metrics,
     )
-
     return result
+
+
+def run_backtest(
+    strategy_name: str,
+    symbol: str,
+    **kwargs,
+) -> BacktestResult:
+    """Sync wrapper so callers don't need asyncio boilerplate."""
+    return asyncio.run(run_backtest_async(strategy_name=strategy_name, symbol=symbol, **kwargs))
+
+
+def _list_strategies() -> Dict[str, str]:
+    """Enumerate strategies the backend registry knows about."""
+    try:
+        names = StrategyRegistry.list_strategies()
+    except Exception as e:
+        return {"_error": str(e)}
+    out: Dict[str, str] = {}
+    for name in names:
+        cls = StrategyRegistry.get_strategy_class(name)
+        desc = ""
+        if cls is not None:
+            schema = getattr(cls, "PARAMETER_SCHEMA", None) or {}
+            desc = schema.get("description") or schema.get("name") or (cls.__doc__ or "").split("\n", 1)[0].strip()
+        out[name] = desc
+    return out
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Standalone Backtest Engine - 기존 BacktestEngine과 동일한 결과를 독립 실행"
+        description="Standalone backtest CLI — thin wrapper around backend Waterfall engine"
     )
     parser.add_argument("--strategy", "-s", help="Strategy name (e.g., dip_martingale)")
     parser.add_argument("--symbol", help="Symbol (e.g., 005930, BTCUSDT)")
@@ -164,8 +198,10 @@ def main():
     parser.add_argument("--config", help="Strategy config as JSON string")
     parser.add_argument("--from-date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--to-date", help="End date (YYYY-MM-DD)")
-    parser.add_argument("--source", default="auto", choices=["exchange", "db", "auto"],
-                        help="Data source: exchange (API), db (PostgreSQL), auto (exchange→db fallback)")
+    parser.add_argument(
+        "--source", default="auto", choices=["exchange", "db", "auto"],
+        help="Data source: exchange (API), db (PostgreSQL), auto (exchange→db fallback)",
+    )
     parser.add_argument("--futures", action="store_true", help="Use futures API for exchange source")
     parser.add_argument("--list", action="store_true", help="List available strategies")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -174,7 +210,7 @@ def main():
 
     if args.list:
         print("Available strategies:")
-        for name, desc in list_strategies().items():
+        for name, desc in _list_strategies().items():
             print(f"  {name:20s} {desc}")
         return
 
@@ -184,8 +220,7 @@ def main():
     config = json.loads(args.config) if args.config else {}
 
     print(f"Running backtest: {args.strategy} / {args.symbol} ({args.interval}, {args.days}d)")
-    print(f"Capital: {args.capital:,.0f} | Source: {args.source}" +
-          (" (futures)" if args.futures else ""))
+    print(f"Capital: {args.capital:,.0f} | Source: {args.source}" + (" (futures)" if args.futures else ""))
     if config:
         print(f"Config: {json.dumps(config)}")
     print()
