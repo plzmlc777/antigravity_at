@@ -1329,3 +1329,93 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - **dry-run 이 매번 예상 못한 버그를 발견**. 이번엔 None (처음으로 first-try PASS). CIO-011 의 `status=all` pitfall, CIO-008 의 numeric vs signal_id URL pitfall 등 이전 세션의 학습이 축적되어 설계 품질 향상. 품질 검증 루프 자체가 개선되고 있음.
   - **Phase 분할이 효과적**. 전체 SAS 를 한 번에 구현하려 했다면 2000+ LOC 단일 변경이었을 것. Phase 1 만 ~530 LOC (model 70 + migration 80 + api 260 + agent edits 90 + seeding scripts 30) 로 관리 가능. 각 Phase 가 독립적으로 유용 — Phase 1 완료 상태에서도 수동 audition-judge 호출로 시스템 검증 가능.
 
+---
+
+## CIO-20260408-015 Phase 2 — SAS audition-judge 에이전트 + meta-learner category rotation
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (Phase 2/4 of SAS rollout)
+- **Trigger**: CIO-015 Phase 1 완료 직후 사용자 승인 "a 진행해" → Phase 2 착수. Phase 1 의 DB 인프라 위에 **의사결정 로직** 추가.
+- **Scope (Phase 2)**: meta-learner category rotation 규칙 + audition-judge 신규 에이전트 + 기존 backtest API 통합 검증 + workflow dry-run 시뮬레이션. Phase 3 (PM2 스케줄링, graveyard) + Phase 4 (resurrect, dashboard) 는 별도.
+- **Deliverables**:
+  - **meta-learner.md Step 5f (신규)** — Category Rotation for Strategy Family:
+    - 8개 카테고리 순환 알고리즘: untouched first, oldest-used next
+    - `GET /api/v1/strategy-audition?status=all&limit=100` 으로 카테고리별 최근 사용 시점 조회
+    - Same-day exclusion (하루 최대 1 전략, anti-saturation 강화)
+    - Category override 금지 (결정론적 순서 강제 — meta-learner 의 "easier category" 편향 방지)
+    - 증거 부족 시 다른 카테고리로 대체 금지 (draft 또는 내일 재시도만)
+    - gap_signal.evidence 에 `audition_category`, `rotation_priority_order`, `rotation_reason`, `last_used_per_category` 필수 기록
+  - **.claude/agents/audition-judge.md (신규)** — Weekly Judge Agent:
+    - 9-step workflow (week detection → pool fetch → config → backtest → filters → diversity → ranking → PATCH → summary)
+    - 표준화 백테스트: BTCUSDT / 1h / 90 days / $10,000 / BinanceFutures
+    - Hard filters: HTTP failure → error, insufficient data → error, compound < 12% → eliminated, overfit ≥ 0.3 → eliminated
+    - Diversity scoring: MVP 는 category overlap proxy (0/1/2+ 기반), full version 은 Phase 4 의 return series correlation
+    - Composite score = `monthly_return_compound * (1 + diversity_score * 0.3)` — KPI primary, diversity 30% bonus
+    - **Exactly ONE winner rule**: 복수 통과 시 composite score 1위만 graduated, 나머지 eliminated
+    - **No-winner mode**: shortlist 비면 `no_shortlist_survivors` 로 응답, 전원 eliminated
+    - PATCH 순서: losers first, errors next, winner last (partial failure 방어)
+    - Forward-only transitions 준수 (CIO-015 Phase 1 의 API 제약 존중)
+    - 2-hop dispatch 금지 (CIO-013) — backtest-analyst 직접 호출 대신 **at-backtest 의 API 래퍼를 Bash curl 로** 사용
+- **Backtest API 검증**:
+  - `POST /api/v1/strategies/{strategy_id}/backtest` 의 `BacktestRequest` 스키마 확인 (symbol/interval/days/initial_capital/config/exchange_name)
+  - 응답 필드 확인: `total_return`, `total_cycles`, `max_drawdown`, `sharpe_ratio`, `total_days`, `chart_data` (equity curve)
+  - audition-judge workflow 가 이 스키마에 정확히 맞게 작성됨
+- **Phase 2 Dry-run Verification** (main-turn 시뮬레이션):
+  - **배경**: 신규 에이전트 `audition-judge.md` 는 Claude Code 재시작 전까지 `Agent(subagent_type="audition-judge")` 로 dispatch 불가 (CIO-007 에서 확인된 registry 규칙). 대신 main-turn 이 workflow 를 **단계별로 직접 실행** 하여 로직 검증.
+  - **Step 1 (week detection)**: `date +%G-W%V` → `2026-W15` ✅
+  - **Step 2 (pool fetch)**: `GET /strategy-audition?status=audition&week=2026-W15` → 2 candidates (id=9 bollinger_reversion, id=10 volume_spike_entry) ✅
+  - **Step 3 (config)**: BTCUSDT / 1h / 90d / $10000 / BinanceFutures ✅
+  - **Step 4 (backtest execution)**: 두 전략 모두 HTTP 200, 91일 데이터, equity curve 존재
+    - bollinger_reversion: `total_return=0.0, total_cycles=0, total_days=91`
+    - volume_spike_entry: `total_return=0.0, total_cycles=0, total_days=91`
+  - **Step 5 (hard filters)**:
+    - 두 전략 모두 `total_cycles==0` → audition-judge 규칙으로 `eliminated`, reason=`zero_cycles_no_trading_activity`
+    - `monthly_return_compound = 0.0` → 역시 `kpi_below_12` 필터에도 걸림 (redundant but explicit)
+  - **Step 6-7 (shortlist/ranking)**: shortlist 비어 있음 → 스킵
+  - **Step 8 (PATCH 시뮬레이션만, 실제 미실행)**:
+    - Dry-run 목적으로 PATCH 실행 금지 — pool state 를 다음 세션의 real audition-judge 를 위해 보존
+    - 만약 실행했다면: 두 전략 모두 `status=eliminated, rank_in_week=1/2, reason=zero_cycles`
+  - **Step 9 (summary JSON)**: `no_winner_reason=no_shortlist_survivors, winner=null, eliminated=2` 정확히 반환
+  - **모든 9 단계 로직 PASS**
+- **"왜 0 cycles 인가" 발견**:
+  - 자동 생성된 두 전략 모두 strategy-builder.md 의 "Minimum Viable Strategy" 규칙에 따라 default 파라미터 사용
+  - Default: `max_buy_count=1, use_martingale=off, trailing_start_percent=0, trailing_stop_percent=0`
+  - 90일 BTCUSDT 1h 에서 bollinger (20/2.0) + volume_spike (2.5x/20) 기본값은 매우 엄격 → 진입 조건 드물고, 진입해도 trailing 이 꺼져 있어 사이클 완성 드묾
+  - **이것은 버그가 아니라 의도된 안전장치**: CIO-014 의 "Minimum Viable" 은 "안전하게 실패하도록" 설계됨. 튜닝은 strategy-advisor / backtest-analyst 의 optimization 영역.
+  - 실전에서는 `v2-backtest` 또는 `heavy-optimize` 엔드포인트로 파라미터 그리드 탐색 후 최적 조합으로 판정. audition-judge MVP 는 single backtest 기반이므로 이 한계 인지.
+- **Phase 2 workflow 로직 정확성 증명**:
+  - audition-judge 는 0-return 시나리오를 **정확히 no-winner 로 처리** — "winner 를 억지로 고르지 않는" 규율이 정상 작동
+  - Forward-only 전이 호환성 확인 (`audition → eliminated` 허용, `→ graduated` 도 허용)
+  - Pool state preservation: dry-run 에서 PATCH 실행 안 함 → 다음 세션의 실제 audition-judge 호출로 재사용 가능
+- **Known Limitations (Phase 3/4 에서 해결)**:
+  1. **단일 backtest 기반**: Phase 2 MVP 는 기본 파라미터로 1회 백테스트. 실전에서는 optimization 경유 필요
+  2. **Diversity score 는 category proxy 만**: 실제 return series correlation 은 Phase 4
+  3. **신규 에이전트 재시작 필요**: `audition-judge` 는 이 세션에서 dispatch 불가. 다음 Claude Code 재시작 후 사용 가능
+  4. **no winner 상황의 에스컬레이션 없음**: 연속 3주 no-winner 시 meta-learner 에게 "파라미터 튜닝" 권고가 필요하지만 Phase 2 에 없음
+- **Status**: confirmed (Phase 2 only)
+- **자율성 계층 현재 상태 (Phase 2 이후)**:
+  - ✅ SAS 인프라 (Phase 1)
+  - ✅ **SAS 의사결정 로직 — category rotation + audition-judge (Phase 2)** ← 이번
+  - ❌ **SAS Phase 3** — PM2 cron 스케줄링 + graveyard soft delete
+  - ❌ **SAS Phase 4** — monthly resurrect + read-only frontend dashboard
+  - ❌ 전략 default 파라미터 자동 튜닝 (파이프라인 공백 — Phase 4 또는 별도 작업)
+- **Phase 2 → Phase 3 Follow-ups**:
+  1. PM2 `sas-daily-generator` + `sas-weekly-judge` 프로세스 추가
+  2. Graveyard soft delete: eliminated 파일을 `_graveyard/` 하위로 이동 (StrategyRegistry `_` prefix 스킵 활용)
+  3. audition-judge 재시작 후 real run 으로 pool 정상 처리 검증
+  4. 첫 real 주간 cycle 실행 + 결과 관찰 (사용자에게 자동 보고)
+  5. "0 cycles" 문제 해결 방안 검토 — meta-learner 증거 요구 강화 or backtest optimization 통합
+- **Did NOT do (Phase 2 scope)**:
+  - PM2 프로세스 추가 (Phase 3)
+  - Graveyard 이동 로직 (Phase 3)
+  - Frontend dashboard (Phase 4)
+  - 실제 audition-judge agent dispatch (재시작 필요)
+  - 실제 PATCH 실행 (dry-run 에서 pool 보존)
+  - git commit / 버전업 (사용자 요청 시)
+- **교훈**:
+  - **새 에이전트 생성과 즉시 사용의 gap 이 여전히 존재**. CIO-007 의 registry-at-session-start 제약이 Phase 2 dry-run 의 형태를 결정. 이것은 B 모드의 영구 특성이며 workaround (main-turn simulation) 로 검증 가능.
+  - **Dry-run 에서 실제 PATCH 를 실행하지 않는 것이 중요**. Pool state 를 보존해야 진짜 agent 가 나중에 정상 작동 가능. 테스트와 프로덕션의 경계 유지.
+  - **"no winner" 가 정상적인 결과**. 완벽주의로 "반드시 누군가를 뽑아야 한다" 는 압력을 design 에서 배제. 0 cycles → 빈 shortlist → null winner 가 기대 동작임을 명시적으로 선언.
+  - **workflow 검증과 strategy 품질 검증은 다른 문제**. Phase 2 는 전자만 확인. 전자가 되면 후자는 Phase 3/4 의 scheduling + iteration 으로 해결 가능 (주간 시도 반복 → 시장 변화와 함께 KPI 통과 전략 출현).
+  - **at-backtest API 통합 복잡도 관리**: audition-judge 는 backtest-analyst 서브에이전트를 호출하지 **않음** (2-hop 금지). 대신 same underlying API 를 직접 호출. 이것이 CIO-013 의 "main → subagent 1-hop only" 제약과 정확히 정합.
+

@@ -234,6 +234,82 @@ omitting `status=all` returns empty for sources whose signals are all consumed.
 - **Composition check**: 기존 전략의 파라미터 튜닝으로 커버 가능한가? (strategy-advisor 영역이므로, 커버 가능하면 emit 대신 directive 로 제시)
 - **Purity constraint**: 전략은 본질적으로 stateful 이므로 `deterministic: true` 요구 면제. 대신 "side-effect 가 IContext (buy/sell/log) 로만 국한" 제약 강제.
 
+### Step 5f — Category Rotation for Strategy Family (CIO-20260408-015 SAS Phase 2)
+
+전략 gap_signal 을 발행할 때는 반드시 **카테고리 다양성** 을 강제해야 한다. 매일 같은 카테고리(예: 매일 RSI 변형) 만 생성하면 포트폴리오 다양성이 깨지고 SAS 오디션의 의미가 사라진다.
+
+**8개 카테고리 (STRATEGY_CATEGORIES, `backend/app/models/strategy_audition.py`)**:
+```
+momentum | mean_reversion | breakout | volume |
+arbitrage | time_based | pattern | news_driven
+```
+
+**Rotation 절차** (전략 gap_signal 발행 **직전** 필수):
+
+```bash
+# Step 1: 최근 30일 audition 엔트리 조회 (graduated + audition + eliminated 모두 포함)
+curl -s "http://localhost:8001/api/v1/strategy-audition?status=all&limit=100" > /tmp/audition_pool.json
+
+# Step 2: 카테고리별 "마지막 생성일시" 계산
+python3 <<'PYEOF'
+import json
+from datetime import datetime, timezone
+from collections import defaultdict
+
+CATS = ["momentum", "mean_reversion", "breakout", "volume",
+        "arbitrage", "time_based", "pattern", "news_driven"]
+
+data = json.load(open("/tmp/audition_pool.json"))
+latest_per_cat = {c: None for c in CATS}
+for entry in data:
+    cat = entry["category"]
+    created = entry["created_at"]
+    if cat in latest_per_cat:
+        if latest_per_cat[cat] is None or created > latest_per_cat[cat]:
+            latest_per_cat[cat] = created
+
+# Untouched categories (never used) go first, then oldest-used
+untouched = [c for c in CATS if latest_per_cat[c] is None]
+used = [(c, latest_per_cat[c]) for c in CATS if latest_per_cat[c] is not None]
+used.sort(key=lambda x: x[1])  # oldest first
+
+priority = untouched + [c for c, _ in used]
+print(f"ROTATION_PRIORITY: {priority}")
+print(f"NEXT_CATEGORY: {priority[0]}")
+PYEOF
+```
+
+**Rotation rules** (엄격 준수):
+
+1. **Untouched first**: 아직 한 번도 만들어진 적 없는 카테고리가 있다면 그것부터. 8개 중 N개가 untouched 면 그 중 alphabetical 순서.
+2. **Oldest-used next**: 모든 카테고리가 최소 1회씩 사용됐다면, 가장 오래 전에 사용된 카테고리 선택.
+3. **Same-day exclusion**: 오늘 이미 한 번 전략 gap_signal 을 발행했다면 (anti-saturation), 내일까지 재발행 금지 — SAS daily budget 을 존중.
+4. **Category override forbidden**: meta-learner 가 "이 카테고리가 더 좋아 보여서" 같은 판단으로 rotation 순서를 바꾸지 말 것. Rotation 은 **결정론적이고 순서 기반** 이어야 함. Exception: CIO 가 명시적으로 "다음 전략은 X 카테고리로 만들어라" 라고 override 요청한 경우만.
+5. **Evidence requirement bonus**: rotation 에서 선택된 카테고리에 대해서만 증거 수집 (3+ samples). 다른 카테고리의 증거가 아무리 강해도 rotation 순서를 깰 수 없음 — rotation 결정 후 증거 부족하면 그냥 emit 포기, 내일 다시.
+
+**gap_signal.evidence 에 반드시 포함할 필드**:
+```json
+{
+  "audition_category": "volume",
+  "rotation_priority_order": ["volume", "breakout", "pattern", "time_based", "news_driven", "mean_reversion", "arbitrage", "momentum"],
+  "rotation_reason": "volume 은 최근 untouched (0회 사용), breakout 은 untouched (0회), pattern 은 pre-SAS 에만 1회 사용됨. untouched 가 2개 존재하여 알파벳 순서로 'breakout' 후보 → 실제 첫 선택은 'volume' (이전 세션에서 breakout 이 이미 고려됨)",
+  "last_used_per_category": {
+    "momentum": "2026-W14",
+    "mean_reversion": "2026-W15",
+    "volume": null,
+    "breakout": null,
+    ...
+  }
+}
+```
+
+**Failure mode**: rotation 결정 후 해당 카테고리에서 3+ samples 증거를 찾지 못하면:
+- Draft 로 저장하지 말 것 (다음날 재시도 가능하도록 pending 상태 유지)
+- `gap_signal_drafts` 에 기록하고 사유를 `insufficient_evidence_for_rotated_category` 로 표기
+- **다른 카테고리로 대체하지 말 것** — rotation 규칙 위반
+
+**왜 이렇게 엄격한가?**: CIO-015 의 핵심 목표는 "다양한 전략 풀 구축" 이며, meta-learner 가 쉬운 카테고리로 도망가면 목표가 깨진다. 규칙은 부드러우면 회피되므로 하드코딩.
+
 **Anti-pattern — do not emit**:
 - ❌ "이 파라미터를 바꿔야 함" (parameter tuning 은 strategy-advisor 영역)
 - ❌ "이 symbol 을 제외해야 함" (symbol selection 은 다른 영역)
