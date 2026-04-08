@@ -754,13 +754,24 @@ class WaterfallBacktestEngine:
             context._use_rank_isolation = True
 
         # 3. Initialize Strategies (League Participants)
+        # Per-config strategy class lookup: each rank can use a different strategy.
+        # Falls back to self.strategy_class if cfg has no 'strategy_id'/'strategy' field.
+        from .strategy_registry import StrategyRegistry
         participants = []
         for rank_idx, cfg_raw in enumerate(strategies_config):
             p_config = cfg_raw.copy()
-            p_config['initial_capital'] = initial_capital 
-            
+            p_config['initial_capital'] = initial_capital
+
+            # Resolve strategy class for this rank
+            strat_name = cfg_raw.get('strategy_id') or cfg_raw.get('strategy')
+            strat_class = None
+            if strat_name:
+                strat_class = StrategyRegistry.get_strategy_class(strat_name)
+            if strat_class is None:
+                strat_class = self.strategy_class
+
             # Create Instance (v0.8.9.9 Structure)
-            strat = self.strategy_class(context, p_config)
+            strat = strat_class(context, p_config)
             if hasattr(strat, 'initialize'):
                 strat.initialize()
             

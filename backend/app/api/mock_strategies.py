@@ -310,34 +310,6 @@ def _process_optimization_result(config, res):
     return item, None
 
 
-# Helper for Parallel Execution
-# Must be top-level for pickling
-def _run_backtest_wrapper(args):
-    strategy_cls, config, symbol, interval, days, from_date, initial_capital = args
-    from ..core.backtest_engine import BacktestEngine
-    
-    # Initialize implementation of run
-    engine = BacktestEngine(strategy_cls, config)
-    try:
-        # Run simplified backtest (we don't need charts for optimization, just metrics)
-        # But BacktestEngine.run might be heavy. 
-        # Ideally, we should add a 'lite' mode to run() to skip chart generation.
-        # For now, we just run it.
-        result = engine.run_sync( # Assuming valid sync method or using asyncio.run in wrapper if needed.
-             # Wait, engine.run is async? 
-             # If engine.run is async, we can't easily call it from ProcessPool without new event loop.
-             # Let's check imports. BacktestEngine is usually sync or has sync wrapper?
-             # Based on previous usage: result = await engine.run(...)
-             # If it's async, we should use ThreadPool or run_in_executor with loop.
-             # BUT Backtest is CPU bound.
-             # We should probably run it synchronously in the process.
-             # Let's assume we can call the core logic synchronously or use asyncio.run(engine.run(...))
-             symbol, interval, days, from_date, initial_capital
-        )
-        return config, result
-    except Exception as e:
-        return config, {"error": str(e)}
-
 def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date, initial_capital, to_date=None, exchange_name=DEFAULT_EXCHANGE):
     # Lower process priority so system/SSH processes remain responsive
     try:
@@ -442,25 +414,26 @@ class IntegratedBacktestRequest(BaseModel):
 @router.post("/integrated/v2-backtest")
 async def run_integrated_backtest(request: IntegratedBacktestRequest):
     try:
-        from ..core.backtest_engine import BacktestEngine
-        from ..core.integrated_backtest_engine import IntegratedBacktestEngine
+        from ..core.waterfall_engine import WaterfallBacktestEngine
 
-        # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
+        # Strategy class is resolved per-config inside run_integrated via StrategyRegistry
+        # (each cfg can carry its own 'strategy_id' / 'strategy' field). The init class is a
+        # placeholder fallback for configs that don't specify one.
         from strategies.base import BaseStrategy
         class MockStrategy(BaseStrategy):
              def initialize(self): pass
              def on_data(self, data): pass
 
-        engine = IntegratedBacktestEngine(MockStrategy, {}) # Use Subclass for Integrated Mode
+        engine = WaterfallBacktestEngine(MockStrategy, {}, exchange_name=request.exchange_name)
 
-        result = await engine.run_integrated_simulation(
+        result = await engine.run_integrated(
             strategies_config=request.configs,
-            symbol=request.symbol,
+            global_symbol=request.symbol,
             interval=request.interval,
             duration_days=request.days,
             from_date=request.from_date,
             initial_capital=request.initial_capital,
-            exchange_name=request.exchange_name
+            exchange_name=request.exchange_name,
         )
         
         return {
