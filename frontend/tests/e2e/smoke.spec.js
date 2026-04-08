@@ -12,10 +12,10 @@ const ROUTES = {
 
 // Pages that require login — we don't have a JWT in the smoke suite,
 // so we expect them to redirect to /login (also a valid render path).
-const AUTH_ROUTES = ['/strategy-lab', '/settings'];
+const AUTH_ROUTES = ['/settings'];
 
-// Pages that should be GONE (no /manual, /strategies, /live).
-const DEAD_ROUTES = ['/manual', '/strategies', '/live', '/emergency/manual'];
+// Pages that should be GONE (no /manual, /strategies, /live, /strategy-lab).
+const DEAD_ROUTES = ['/manual', '/strategies', '/live', '/emergency/manual', '/strategy-lab'];
 
 /** Attach console listener that ignores benign noise. */
 function captureConsoleErrors(page) {

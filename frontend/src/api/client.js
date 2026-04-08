@@ -596,24 +596,6 @@ export const deleteProfile = async (profileId, hardDelete = false) => {
     return data;
 };
 
-// ==========================================
-// Strategy Lab API
-// ==========================================
-export const getStrategyRequests = (status) =>
-    api.get('/strategy-lab/requests', { params: status ? { status } : {} }).then(r => r.data);
-export const createStrategyRequest = (req) =>
-    api.post('/strategy-lab/requests', req).then(r => r.data);
-export const getStrategyRequest = (id) =>
-    api.get(`/strategy-lab/requests/${id}`).then(r => r.data);
-export const updateStrategyRequest = (id, data) =>
-    api.put(`/strategy-lab/requests/${id}`, data).then(r => r.data);
-export const deleteStrategyRequest = (id) =>
-    api.delete(`/strategy-lab/requests/${id}`).then(r => r.data);
-export const activateStrategy = (requestId) =>
-    api.post(`/strategy-lab/requests/${requestId}/activate`).then(r => r.data);
-export const strategyLabChat = (message, sessionId = null, strategyId = null) =>
-    api.post('/strategy-lab/chat', { message, session_id: sessionId, strategy_id: strategyId }, { timeout: 610000 }).then(r => r.data);
-
 export const stockSearchChat = (message, sessionId = null) =>
     api.post('/stock-search/chat', { message, session_id: sessionId }, { timeout: 310000 }).then(r => r.data);
 export const getStockSearchTokenStatus = () =>
