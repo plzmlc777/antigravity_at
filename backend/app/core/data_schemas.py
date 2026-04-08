@@ -5,10 +5,7 @@ Centralizes key names used in equity curve, chart data, etc.
 Prevents key mismatch bugs (e.g., "timestamp" vs "date") across engines.
 
 Used by:
-- waterfall_engine.py (WaterfallBacktestContext.update_equity, run_parallel combined curve)
-- backtest_engine.py (BacktestContext.update_equity)
-- integrated_backtest_engine.py (inherits from backtest_engine)
-- _calc_mdd in both engines (reads equity key)
+- waterfall_engine.py (WaterfallBacktestContext.update_equity, run_parallel combined curve, _calc_mdd)
 
 Frontend counterpart: EQUITY_DATE_KEY in chartConfig.js
 """
