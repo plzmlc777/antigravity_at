@@ -164,8 +164,8 @@ class MartingaleBase(BaseStrategy):
         Called after every entry/exit to ensure PM2 restart can restore accurately.
         """
         try:
-            from ..db.session import SessionLocal
-            from ..models.live_trading import LiveBotSession
+            from app.db.session import SessionLocal
+            from app.models.live_trading import LiveBotSession
 
             session_id = getattr(self.context, 'session_id', None)
             if not session_id:
@@ -209,8 +209,8 @@ class MartingaleBase(BaseStrategy):
                   2) Fall back to execution-record reconstruction (slow, complex)
         """
         try:
-            from ..db.session import SessionLocal
-            from ..models.live_trading import LiveBotSession, LiveTradeExecution, ExecutionStatus
+            from app.db.session import SessionLocal
+            from app.models.live_trading import LiveBotSession, LiveTradeExecution, ExecutionStatus
 
             session_id = getattr(self.context, 'session_id', None)
             if not session_id:
