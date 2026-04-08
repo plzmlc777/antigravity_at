@@ -27,6 +27,37 @@ Before EVERY action, re-check the session state. If the state has changed from w
 - NEVER start a real trading session — only paper sessions unless explicitly approved
 - Always prefer safe actions (pause > stop, paper > real)
 
+### CRITICAL: Whitelist Hygiene (post-action)
+After **every successful user-authorized `start` action**, you MUST register the
+new session in the ops-monitor whitelist by calling:
+
+```bash
+python3 /home/hcpark/auto_trading/scripts/whitelist_session.py add <new_session_id> \
+  --profile "<profile_name>" --symbol "<symbol>" --strategy "<strategy_name>" \
+  --exchange "<exchange_name>" --owner user --note "<one-line reason>"
+```
+
+After **every successful `stop` + archive action**, remove the entry:
+
+```bash
+python3 /home/hcpark/auto_trading/scripts/whitelist_session.py remove <session_id>
+```
+
+**Hard rules for the whitelist call:**
+1. Only call `add` when the start was **explicitly authorized by the user** (i.e., the
+   prompt you received traces back to a user instruction, not a self-initiated AI loop).
+2. If you are unsure whether the action was user-authorized, **do NOT add to the whitelist**.
+   Instead, surface the new session_id in your output and let the user confirm.
+3. Never bypass `whitelist_session.py` by editing `authorized_sessions.json` directly.
+4. After modifying the whitelist, also `git add` + `commit` + `push` the change so
+   ops-monitor on at-asia picks it up via the next `git pull`. If git access is not
+   available in your environment, include the new entry in your output payload under
+   `whitelist_pending` so the user can sync it.
+
+This rule exists because the ops-monitor unauthorized-session guard is the only thing
+catching rogue session creation. Skipping the whitelist update for legitimate user
+sessions creates false positives; auto-adding self-initiated sessions creates blind spots.
+
 ## Input
 
 You will receive a prompt containing:
@@ -149,6 +180,7 @@ If the input includes conditions from risk-manager, apply them:
     "reason": "AI 최적화: 백테스트 점수 기반 종목 교체"
   },
   "conditions_applied": ["레버리지 3x 적용"],
+  "whitelist_action": "added|removed|skipped|pending",
   "errors": [],
   "recommendations": []
 }
