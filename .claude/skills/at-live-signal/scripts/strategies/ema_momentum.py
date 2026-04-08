@@ -1,7 +1,8 @@
 from typing import Dict, Any, Optional
 from collections import deque
-from .base import BaseStrategy, Side
+from .base import BaseStrategy
 from .martingale_base import MartingaleBase
+from app.core.constants import Side
 
 
 class EmaMomentumStrategy(MartingaleBase):
@@ -30,25 +31,29 @@ class EmaMomentumStrategy(MartingaleBase):
         self.ema_fast_period = int(self.config.get("ema_fast_period", 9))
         self.ema_slow_period = int(self.config.get("ema_slow_period", 21))
 
+        # Need enough history for the slower EMA
         max_period = max(self.ema_fast_period, self.ema_slow_period)
         self._close_history = deque(maxlen=max_period + 1)
 
+        # EMA values
         self._ema_fast = None
         self._ema_slow = None
         self._prev_ema_fast = None
         self._prev_ema_slow = None
 
+        # EMA smoothing factors
         self._fast_factor = 2.0 / (self.ema_fast_period + 1)
         self._slow_factor = 2.0 / (self.ema_slow_period + 1)
 
-        self._golden_cross = False
-        self._dead_cross = False
-        self._trigger_armed = True
+        # Crossover state
+        self._golden_cross = False  # fast crossed above slow
+        self._dead_cross = False    # fast crossed below slow
+        self._trigger_armed = True  # ready to fire entry
 
     def preload_history(self, candles: list):
         """Preload close prices from historical candles for EMA warmup."""
         max_period = max(self.ema_fast_period, self.ema_slow_period)
-        needed = max_period + 2
+        needed = max_period + 2  # +2 for prev/current crossover detection
         recent = candles[-needed:] if len(candles) >= needed else candles
 
         for candle in recent:
@@ -68,14 +73,18 @@ class EmaMomentumStrategy(MartingaleBase):
             )
 
     def _update_emas(self, close: float):
+        """Update both EMA values incrementally."""
         count = len(self._close_history)
 
+        # Fast EMA
         if count >= self.ema_fast_period:
             if self._ema_fast is None:
+                # First calculation: use SMA as seed
                 self._ema_fast = sum(list(self._close_history)[-self.ema_fast_period:]) / self.ema_fast_period
             else:
                 self._ema_fast = self._ema_fast + self._fast_factor * (close - self._ema_fast)
 
+        # Slow EMA
         if count >= self.ema_slow_period:
             if self._ema_slow is None:
                 self._ema_slow = sum(list(self._close_history)[-self.ema_slow_period:]) / self.ema_slow_period
@@ -83,6 +92,7 @@ class EmaMomentumStrategy(MartingaleBase):
                 self._ema_slow = self._ema_slow + self._slow_factor * (close - self._ema_slow)
 
     def _detect_crossover(self):
+        """Detect golden cross and dead cross from EMA values."""
         self._golden_cross = False
         self._dead_cross = False
 
@@ -93,12 +103,16 @@ class EmaMomentumStrategy(MartingaleBase):
         prev_diff = self._prev_ema_fast - self._prev_ema_slow
         curr_diff = self._ema_fast - self._ema_slow
 
+        # Golden cross: fast was below (or equal) slow, now above
         if prev_diff <= 0 and curr_diff > 0:
             self._golden_cross = True
+
+        # Dead cross: fast was above (or equal) slow, now below
         if prev_diff >= 0 and curr_diff < 0:
             self._dead_cross = True
 
     def _on_candle(self, data: Dict[str, Any]):
+        """Update EMAs on every candle (called before any trigger logic)."""
         close = data['close']
         self._prev_ema_fast = self._ema_fast
         self._prev_ema_slow = self._ema_slow
@@ -106,6 +120,7 @@ class EmaMomentumStrategy(MartingaleBase):
         self._update_emas(close)
         self._detect_crossover()
 
+        # Re-arm trigger after crossover (so next opposite cross can fire)
         if not self._trigger_armed:
             if self._dead_cross or self._golden_cross:
                 self._trigger_armed = True
@@ -116,6 +131,7 @@ class EmaMomentumStrategy(MartingaleBase):
                 )
 
     def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """L1: Golden cross → long, Dead cross → short (when position_side='both')."""
         if not self._trigger_armed:
             return None
 
@@ -138,10 +154,12 @@ class EmaMomentumStrategy(MartingaleBase):
         return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """L2+ (trigger mode): Golden cross re-occurrence after dead cross reset."""
         if not self._golden_cross:
             return False
         if not self._trigger_armed:
             return False
+
         self._trigger_armed = False
         self.context.log(
             f"[{self._log_prefix}] Additional GOLDEN CROSS! "
@@ -150,7 +168,9 @@ class EmaMomentumStrategy(MartingaleBase):
         return True
 
     def _check_exit_trigger(self, data: Dict[str, Any]) -> bool:
+        """Exit on opposite cross: LONG exits on dead cross, SHORT exits on golden cross."""
         if self.is_short:
+            # SHORT position: exit on golden cross (trend reversal upward)
             if not self._golden_cross:
                 return False
             self.context.log(
@@ -159,6 +179,7 @@ class EmaMomentumStrategy(MartingaleBase):
             )
             return True
         else:
+            # LONG position: exit on dead cross
             if not self._dead_cross:
                 return False
             self.context.log(

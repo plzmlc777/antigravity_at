@@ -3,7 +3,7 @@ import uuid
 import logging
 from typing import Dict, Any, List
 from datetime import datetime
-from ..strategies.base import BaseStrategy
+from strategies.base import BaseStrategy
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 import random
 

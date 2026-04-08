@@ -3,7 +3,7 @@ import logging
 import pkgutil
 from pathlib import Path
 from typing import Dict, Type, Optional, Any
-from ..strategies.base import BaseStrategy
+from strategies.base import BaseStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,14 @@ class StrategyRegistry:
     def _try_load(cls, name: str) -> Optional[Type[BaseStrategy]]:
         """Try to dynamically import a strategy module by name (filename = strategy_id)."""
         try:
-            mod = importlib.import_module(f"app.strategies.{name}")
+            mod = importlib.import_module(f"strategies.{name}")
             strategy_class = _find_strategy_class(mod)
             if strategy_class:
                 cls._strategies[name] = strategy_class
                 logger.info(f"Auto-loaded strategy: {name} -> {strategy_class.__name__}")
                 return strategy_class
             else:
-                logger.warning(f"Module 'app.strategies.{name}' has no BaseStrategy subclass")
+                logger.warning(f"Module 'strategies.{name}' has no BaseStrategy subclass")
         except ImportError as e:
             logger.debug(f"Strategy module '{name}' not found: {e}")
         except Exception as e:
@@ -96,7 +96,7 @@ class StrategyRegistry:
     @classmethod
     def reload_strategy(cls, name: str) -> Optional[Type[BaseStrategy]]:
         """Force-reimport a strategy module (for when its file was modified)."""
-        module_name = f"app.strategies.{name}"
+        module_name = f"strategies.{name}"
         import sys
         if module_name in sys.modules:
             try:

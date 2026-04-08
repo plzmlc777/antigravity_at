@@ -1,6 +1,7 @@
 from typing import Dict, Any, Optional
-from .base import BaseStrategy, Side
+from .base import BaseStrategy
 from .martingale_base import MartingaleBase
+from app.core.constants import Side
 
 
 class DipMartingaleStrategy(MartingaleBase):

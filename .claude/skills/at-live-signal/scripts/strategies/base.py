@@ -1,39 +1,8 @@
-"""
-Skill-local BaseStrategy + IContext — backend 의존성 완전 제거.
-
-backend/app/strategies/base.py 의 경량 복사본.
-DB, ORM, exchange adapter 등 외부 의존성 없이 순수 Python만 사용.
-"""
-
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import copy
 
-
-# ── Constants (from backend/app/core/constants.py) ──
-
-class Signal:
-    BUY = "BUY"
-    SELL = "SELL"
-
-
-class Side:
-    LONG = "long"
-    SHORT = "short"
-    BOTH = "both"
-
-
-class Level:
-    CLOSE = "CLOSE"
-
-
-class Mode:
-    PAPER = "paper"
-    REAL = "real"
-
-
-# ── Helper ──
 
 def customize_fields(fields, overrides):
     """Override defaults in parameter fields.
@@ -52,9 +21,6 @@ def customize_fields(fields, overrides):
             field.update(overrides[name])
     return result
 
-
-# ── IContext ──
-
 class IContext(ABC):
     """
     Interface for the execution context (Live or Backtest).
@@ -65,40 +31,48 @@ class IContext(ABC):
         pass
 
     @abstractmethod
-    def buy(self, symbol: str, quantity: int, price: float = 0,
-            order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def buy(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         pass
 
     @abstractmethod
-    def sell(self, symbol: str, quantity: int, price: float = 0,
-             order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    def sell(self, symbol: str, quantity: int, price: float = 0, order_type: str = "market", metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         pass
 
     @property
     @abstractmethod
     def holdings(self) -> Dict[str, int]:
+        """Returns current holdings {symbol: quantity}"""
         pass
-
-    def short(self, symbol: str, quantity: float, price: float = 0,
-              metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+    
+    def short(self, symbol: str, quantity: float, price: float = 0, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Open a short position (futures only). Default raises NotImplementedError."""
         raise NotImplementedError("short() requires a futures-enabled context")
 
     def close_position(self, symbol: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Close entire position (futures only). Default raises NotImplementedError."""
         raise NotImplementedError("close_position() requires a futures-enabled context")
 
     def get_futures_data(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get cached futures data (funding rate, liquidation price, ADL, etc.).
+        Returns empty dict for spot contexts. Overridden by LiveContext and FuturesBacktestContext.
+        """
         return {}
 
     def get_total_equity(self) -> float:
+        """총 자산 = 현금 + 실현손익 + 미실현 포지션 가치. 전략에서 수익률 계산 기준으로 사용."""
         return 0.0
 
     def process_pending_orders(self, candle: Dict[str, Any] = None):
+        """대기 주문 체결 확인. BacktestContext에서 구현."""
         pass
 
     def cancel_order(self, order_id: str) -> bool:
+        """대기 주문 취소. BacktestContext에서 구현."""
         return False
 
     def cancel_all_orders(self):
+        """모든 대기 주문 취소. BacktestContext에서 구현."""
         pass
 
     @abstractmethod
@@ -114,15 +88,13 @@ class IContext(ABC):
     def is_paper(self) -> bool:
         pass
 
-
-# ── BaseStrategy ──
-
 class BaseStrategy(ABC):
     """
     Abstract Base Class for all strategies.
-    Identical interface to backend/app/strategies/base.py.
     """
-
+    # Common parameters shared by ALL strategies.
+    # Subclasses merge their own trigger-specific fields with these.
+    # Use customize_fields() to override defaults for a specific strategy.
     COMMON_PARAMETER_FIELDS = [
         # ── Common Parameters ──
         {"name": "interval", "type": "select", "label": "Interval",
@@ -198,17 +170,17 @@ class BaseStrategy(ABC):
          "visible_when": {"use_martingale": {"eq": "on"}, "max_buy_count": {"ne": 1}}},
         {"name": "trailing_on_last_level", "type": "select", "label": "Trailing on Last Level Only",
          "default": "off", "options": ["off", "on"],
-         "description": "Trailing stop activates only after reaching the last level",
+         "description": "Trailing stop activates only after reaching the last level (off=activate at any level)",
          "group": "martingale",
          "show_in_table": False,
          "visible_when": {"use_martingale": {"eq": "on"}}},
         {"name": "require_lower_price", "type": "select", "label": "Require Lower Price",
          "default": "off", "options": ["off", "on"],
-         "description": "L2+ entry only when current price < last entry price",
+         "description": "L2+ entry only when current price < last entry price (off=buy at any price)",
          "group": "martingale",
          "show_in_table": True,
          "visible_when": {"use_martingale": {"eq": "on"}, "max_buy_count": {"ne": 1}}},
-        # ── Additional Buy Mode ──
+        # ── Additional Buy Mode (Step-down auto-buy) ──
         {"name": "additional_buy_mode", "type": "select", "label": "Add Buy Mode",
          "default": "trigger",
          "options": ["trigger", "step"],
@@ -225,7 +197,7 @@ class BaseStrategy(ABC):
         {"name": "additional_buy_step_ref", "type": "select", "label": "Step Reference",
          "default": "last_entry",
          "options": ["last_entry", "avg_price", "initial_entry"],
-         "description": "Reference price for step calculation",
+         "description": "Reference price for step calculation: last_entry=last buy price, avg_price=average cost, initial_entry=first buy price",
          "group": "martingale",
          "show_in_table": False,
          "visible_when": {"use_martingale": {"eq": "on"}, "max_buy_count": {"ne": 1}, "additional_buy_mode": {"eq": "step"}}},
@@ -244,12 +216,15 @@ class BaseStrategy(ABC):
          "visible_when": {"leverage": {"gt": 1}}},
         {"name": "position_side", "type": "select", "label": "Position Side",
          "default": "long", "options": ["long", "short", "both"],
-         "description": "Trade direction: long=buy low sell high, short=sell high buy low, both=strategy decides",
+         "description": "Trade direction: long=buy low sell high, short=sell high buy low, both=strategy decides per trade (futures only)",
          "group": "futures",
          "show_in_table": True,
          "defaultOptRange": "long, short"},
     ]
 
+    # Subclasses override with their parameter schema dict.
+    # Format: {"fields": [{"name", "type", "label", "default", ...}]}
+    # This is the Single Source of Truth for parameter metadata.
     PARAMETER_SCHEMA: Optional[Dict[str, Any]] = None
 
     def __init__(self, context: IContext, config: Dict[str, Any] = None):
@@ -258,11 +233,21 @@ class BaseStrategy(ABC):
 
     @abstractmethod
     def initialize(self):
+        """
+        Called once at the beginning.
+        """
         pass
 
     @abstractmethod
     def on_data(self, data: Dict[str, Any]):
+        """
+        Called on every data update (e.g., every minute or tick).
+        :param data: Dictionary containing 'symbol', 'open', 'high', 'low', 'close', 'volume', 'timestamp'
+        """
         pass
 
     def get_state(self) -> Dict[str, Any]:
+        """
+        Return the internal state of the strategy for visualization.
+        """
         return {}

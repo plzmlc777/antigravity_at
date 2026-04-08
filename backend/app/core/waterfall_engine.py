@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
-from ..strategies.base import IContext, BaseStrategy
+from strategies.base import IContext, BaseStrategy
 from ..models.new_orders import StockOrder, OrderSide, OrderType, OrderStatus
 from .data_schemas import make_equity_point, EQUITY_DATE_KEY, EQUITY_VALUE_KEY
 from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL

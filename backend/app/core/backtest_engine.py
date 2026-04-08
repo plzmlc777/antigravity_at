@@ -1,7 +1,7 @@
 import random
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime, timedelta
-from ..strategies.base import IContext, BaseStrategy
+from strategies.base import IContext, BaseStrategy
 from .data_schemas import make_equity_point, EQUITY_VALUE_KEY
 from .config import DEFAULT_EXCHANGE, DEFAULT_INITIAL_CAPITAL
 from .pending_orders import (
@@ -856,8 +856,8 @@ class BacktestEngine:
         context.log(f"DEBUG: Context Initialized. Primary Sym: {primary_symbol}")
         
         # 3. Initialize Strategies
-        from ..strategies.base import BaseStrategy
-        from ..strategies.time_momentum import TimeMomentumStrategy
+        from strategies.base import BaseStrategy
+        from strategies.time_momentum import TimeMomentumStrategy
         
         active_strategies = []
         for cfg in strategies_config:

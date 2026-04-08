@@ -1,9 +1,10 @@
 """
 Funding Rate Arbitrage Strategy
 - Collects funding fees by taking positions opposite to the dominant funding rate direction.
-- Positive funding rate -> SHORT (shorts receive funding)
-- Negative funding rate -> LONG (longs receive funding)
+- Positive funding rate → SHORT (shorts receive funding)
+- Negative funding rate → LONG (longs receive funding)
 - Exits when rate normalizes, max hold time exceeded, or max loss hit.
+- Requires FuturesInterface adapter (REQUIRES_FUTURES = True).
 """
 
 from typing import Dict, Any, Optional
@@ -42,13 +43,13 @@ class FundingRateArbStrategy(MartingaleBase):
     }
 
     def _initialize_trigger(self):
-        self.entry_rate = self.config.get("entry_rate_threshold", 0.03) / 100
+        """Initialize funding-rate-specific state."""
+        self.entry_rate = self.config.get("entry_rate_threshold", 0.03) / 100  # Convert % to decimal
         self.exit_rate = self.config.get("exit_rate_threshold", 0.005) / 100
         self.position_size_pct = self.config.get("position_size_pct", 50.0) / 100
-        self.max_hold_hours = self.config.get("cycle_max_hours", 0)
-        self.max_loss_pct = self.config.get("max_loss_percent", 10.0) / 100
 
-        self._position_side: Optional[str] = None
+        # State
+        self._position_side: Optional[str] = None  # "LONG" or "SHORT" or None
         self._entry_price: float = 0
         self._entry_time: Optional[datetime] = None
         self._position_qty: float = 0
@@ -62,22 +63,27 @@ class FundingRateArbStrategy(MartingaleBase):
         futures_data = self.context.get_futures_data(symbol)
         funding_rate = futures_data.get("funding_rate", 0)
 
+        # If we have a position, check exit conditions
         if self._position_side:
             self._check_exit(symbol, current_price, funding_rate, futures_data)
         else:
             self._check_entry(symbol, current_price, funding_rate)
 
     def _check_entry(self, symbol: str, price: float, funding_rate: float):
+        """Check if funding rate is extreme enough to enter."""
         if abs(funding_rate) < self.entry_rate:
             return
 
+        # Calculate position size
         initial_capital = getattr(self.context, 'initial_capital', 10000)
         notional = initial_capital * self.position_size_pct
         qty = notional / price if price > 0 else 0
+
         if qty <= 0:
             return
 
         if funding_rate > 0:
+            # Positive rate: shorts receive funding → go SHORT
             self.context.log(f"[FundingArb] SHORT signal: rate={funding_rate*100:.4f}% > threshold")
             result = self.context.short(symbol, qty, metadata={"reason": "funding_arb", "rate": funding_rate})
             if result.get("status") != "failed":
@@ -86,6 +92,7 @@ class FundingRateArbStrategy(MartingaleBase):
                 self._entry_time = self.context.get_time()
                 self._position_qty = qty
         else:
+            # Negative rate: longs receive funding → go LONG
             self.context.log(f"[FundingArb] LONG signal: rate={funding_rate*100:.4f}% < -threshold")
             result = self.context.buy(symbol, int(qty) if qty >= 1 else qty,
                                       metadata={"reason": "funding_arb", "rate": funding_rate})
@@ -96,13 +103,16 @@ class FundingRateArbStrategy(MartingaleBase):
                 self._position_qty = qty
 
     def _check_exit(self, symbol: str, price: float, funding_rate: float, futures_data: Dict):
+        """Check exit conditions for existing position."""
         should_exit = False
         reason = ""
 
+        # 1. Rate normalized (below exit threshold)
         if abs(funding_rate) < self.exit_rate:
             should_exit = True
             reason = f"rate_normalized ({funding_rate*100:.4f}%)"
 
+        # 2. Rate reversed direction
         if not should_exit:
             if self._position_side == "SHORT" and funding_rate < -self.entry_rate:
                 should_exit = True
@@ -111,12 +121,14 @@ class FundingRateArbStrategy(MartingaleBase):
                 should_exit = True
                 reason = f"rate_reversed ({funding_rate*100:.4f}%)"
 
+        # 3. Max hold time
         if not should_exit and self.max_hold_hours > 0 and self._entry_time:
             elapsed = (self.context.get_time() - self._entry_time).total_seconds() / 3600
             if elapsed >= self.max_hold_hours:
                 should_exit = True
                 reason = f"max_hold ({elapsed:.1f}h)"
 
+        # 4. Max loss
         if not should_exit and self._entry_price > 0:
             if self._position_side == "LONG":
                 pnl_pct = (price - self._entry_price) / self._entry_price
@@ -132,17 +144,21 @@ class FundingRateArbStrategy(MartingaleBase):
             try:
                 self.context.close_position(symbol, metadata={"reason": reason})
             except NotImplementedError:
+                # Fallback for backtest: sell/buy to close
                 if self._position_side == "LONG":
                     self.context.sell(symbol, int(self._position_qty), metadata={"reason": reason})
+                # Short close handled by FuturesBacktestContext
             self._position_side = None
             self._entry_price = 0
             self._entry_time = None
             self._position_qty = 0
 
     def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """Not used — funding_rate_arb uses its own on_data() flow."""
         return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """Not used — funding_rate_arb manages positions directly."""
         return False
 
     @property

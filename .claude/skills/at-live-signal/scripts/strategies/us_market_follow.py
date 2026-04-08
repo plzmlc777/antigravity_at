@@ -1,55 +1,8 @@
-"""
-US Market Follow Strategy — Skill-local version.
-
-미국 증시 변동률을 기반으로 매매:
-- backend의 us_market_data 모듈 대신 경량 HTTP 호출로 대체
-- yfinance 미설치 환경에서도 동작하도록 Yahoo Finance JSON API 직접 호출
-"""
-
 from typing import Dict, Any, Optional
-from datetime import datetime
-import json
-import urllib.request
-import urllib.error
-import logging
-
-from .base import BaseStrategy, Side, customize_fields
+from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
-
-logger = logging.getLogger(__name__)
-
-
-# ── Lightweight US Market Data (replaces app.core.us_market_data) ──
-
-def _fetch_us_change(index_symbol: str = "^GSPC") -> float:
-    """Fetch previous day's change % from Yahoo Finance.
-
-    Returns change as percentage (e.g., 1.5 for +1.5%).
-    Returns 0.0 on any error.
-    """
-    try:
-        url = (
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{index_symbol}"
-            f"?range=2d&interval=1d"
-        )
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0"
-        })
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-
-        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-        # Filter None values
-        valid = [c for c in closes if c is not None]
-        if len(valid) >= 2:
-            prev_close = valid[-2]
-            last_close = valid[-1]
-            change_pct = (last_close - prev_close) / prev_close * 100
-            return round(change_pct, 2)
-        return 0.0
-    except Exception as e:
-        logger.warning(f"Failed to fetch US market data for {index_symbol}: {e}")
-        return 0.0
+from app.core.us_market_data import us_market
+from app.core.constants import Side
 
 
 class UsMarketFollowStrategy(MartingaleBase):
@@ -94,8 +47,11 @@ class UsMarketFollowStrategy(MartingaleBase):
                 "name": "us_change_threshold",
                 "type": "number",
                 "label": "US Change Threshold (%)",
-                "default": 1.0, "min": 0.1, "max": 10.0, "step": 0.1,
-                "description": "미국 증시 변동률 임계값",
+                "default": 1.0,
+                "min": 0.1,
+                "max": 10.0,
+                "step": 0.1,
+                "description": "미국 증시 변동률 임계값 (n1)",
                 "show_in_table": True,
                 "defaultOptRange": "0.5, 1.0, 1.5, 2.0",
             },
@@ -118,25 +74,54 @@ class UsMarketFollowStrategy(MartingaleBase):
     }
 
     def _initialize_trigger(self):
+        """Initialize strategy parameters from config."""
         self.us_index = self.config.get("us_index", "^GSPC")
         self.trigger_direction = self.config.get("trigger_direction", "above")
         self.us_change_threshold = float(self.config.get("us_change_threshold", 1.0))
 
+        # Parse entry start time
         entry_start_str = self.config.get("entry_start_time", "09:00")
+
+        from datetime import datetime
         try:
             self.entry_start_time = datetime.strptime(entry_start_str, "%H:%M").time()
         except ValueError:
             self.entry_start_time = datetime.strptime("09:00", "%H:%M").time()
 
+        # Daily state
         self._daily_date = None
         self._checked_today = False
         self._us_change_today = None
         self._trigger_met = False
 
+        # For backtest: preload US change map
+        self._us_change_map = None
+
+    def preload_history(self, candles: list):
+        """Preload US market change map for backtest."""
+        # Load 1 year of US market data for backtest lookups
+        self._us_change_map = us_market.get_change_map(self.us_index, days=365)
+
+    def _get_us_change(self) -> float:
+        """Get US market change for trading decision."""
+        current_time = self.context.get_time()
+
+        if self._us_change_map:
+            # Backtest mode: lookup from preloaded map
+            return us_market.get_change_for_date(
+                current_time.strftime("%Y-%m-%d"),
+                self._us_change_map
+            )
+        else:
+            # Live mode: get real-time data
+            return us_market.get_change(self.us_index)
+
     def _on_candle(self, data: Dict[str, Any]):
+        """Daily reset and US change capture."""
         current_time = self.context.get_time()
         current_date = current_time.date()
 
+        # Daily reset
         if self._daily_date != current_date:
             self._daily_date = current_date
             self._checked_today = False
@@ -144,21 +129,29 @@ class UsMarketFollowStrategy(MartingaleBase):
             self._trigger_met = False
 
     def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """
+        Check if US market change meets threshold at market open.
+        Entry allowed after entry_start_time (exit controlled by cycle_max_hours).
+        """
         if self._checked_today:
             return None
 
         current_time = self.context.get_time()
         current_time_only = current_time.time()
 
+        # Check if past entry start time
         if current_time_only < self.entry_start_time:
             return None
 
+        # Get US market change (captures once per day)
         if self._us_change_today is None:
-            self._us_change_today = _fetch_us_change(self.us_index)
+            self._us_change_today = self._get_us_change()
             self.context.log(f"[UsMarketFollow] US {self.us_index} change: {self._us_change_today:.2f}%")
 
+        # Mark as checked
         self._checked_today = True
 
+        # Check if threshold is met based on direction
         us_change = self._us_change_today
         threshold = self.us_change_threshold
 
@@ -176,6 +169,7 @@ class UsMarketFollowStrategy(MartingaleBase):
         return Side.LONG if self._trigger_met else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """No additional entries for this strategy (single entry per day)."""
         return False
 
     @property
@@ -187,7 +181,10 @@ class UsMarketFollowStrategy(MartingaleBase):
         return "us_market_follow"
 
     def get_state(self) -> Dict[str, Any]:
+        """Return current strategy state for UI display."""
         state = super().get_state()
+
+        # Add US market specific state
         state["us_index"] = self.us_index
         state["us_change_today"] = self._us_change_today
         state["us_change_threshold"] = self.us_change_threshold
@@ -195,4 +192,5 @@ class UsMarketFollowStrategy(MartingaleBase):
         state["trigger_met"] = self._trigger_met
         state["checked_today"] = self._checked_today
         state["entry_start_time"] = self.config.get("entry_start_time", "09:00")
+
         return state

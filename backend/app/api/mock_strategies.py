@@ -360,7 +360,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
     import importlib
 
     # 1. Reload base classes in dependency order
-    for base_mod in ['app.strategies.base', 'app.strategies.martingale_base']:
+    for base_mod in ['strategies.base', 'strategies.martingale_base']:
         if base_mod in sys.modules:
             try:
                 importlib.reload(sys.modules[base_mod])
@@ -369,7 +369,7 @@ def _run_sync_in_process(strategy_cls, config, symbol, interval, days, from_date
 
     # 2. Reload ALL strategy modules (auto-discover, handles AI-generated strategies too)
     strategy_mods = [m for m in list(sys.modules.keys())
-                     if m.startswith('app.strategies.') and m not in ('app.strategies.base', 'app.strategies.martingale_base')]
+                     if m.startswith('strategies.') and m not in ('strategies.base', 'strategies.martingale_base')]
     for mod_name in strategy_mods:
         try:
             importlib.reload(sys.modules[mod_name])
@@ -446,7 +446,7 @@ async def run_integrated_backtest(request: IntegratedBacktestRequest):
         from ..core.integrated_backtest_engine import IntegratedBacktestEngine
 
         # Initialize Engine (Mock strategy class just to satisfy init, logic is in run_integrated)
-        from ..strategies.base import BaseStrategy
+        from strategies.base import BaseStrategy
         class MockStrategy(BaseStrategy):
              def initialize(self): pass
              def on_data(self, data): pass

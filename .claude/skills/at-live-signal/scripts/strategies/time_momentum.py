@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from .base import BaseStrategy, Side, customize_fields
+from .base import BaseStrategy, customize_fields
 from .martingale_base import MartingaleBase
+from app.core.constants import Side
 
 
 class TimeMomentumStrategy(MartingaleBase):
@@ -40,7 +41,7 @@ class TimeMomentumStrategy(MartingaleBase):
              "show_in_table": True, "defaultOptRange": "1.0, 2.0, 3.0, 5.0"},
         ] + customize_fields(BaseStrategy.COMMON_PARAMETER_FIELDS, {
             "max_buy_count": {"default": 1},
-            "last_level_allin": {"default": "on"},
+            "last_level_allin": {"default": "on"},  # With max_buy_count=1, L1 IS the last level → all-in
             "trailing_start_percent": {"default": 5.0, "defaultOptRange": "1.0, 3.0, 5.0, 10.0"},
             "trailing_stop_percent": {"default": 2.0, "defaultOptRange": "0.5, 1.0, 2.0, 3.0"},
             "max_loss_percent": {"default": 3.0, "defaultOptRange": "2.0, 3.0, 5.0"},
@@ -49,6 +50,7 @@ class TimeMomentumStrategy(MartingaleBase):
 
     def _initialize_trigger(self):
         """Initialize TimeMomentum-specific parameters and daily state."""
+        # Parse time parameters
         self.start_time_str = self.config.get("start_time") or "09:00"
         self.stop_time_str = self.config.get("stop_time") or "15:00"
 
@@ -65,10 +67,11 @@ class TimeMomentumStrategy(MartingaleBase):
         self.delay_minutes = int(self.config.get("delay_minutes", 10) or 10)
         self.direction = self.config.get("direction", "rise")
 
+        # target_percent: user input is percentage (e.g., 2.0 for 2%), convert to decimal
         raw_target = float(self.config.get("target_percent", 2.0) or 2.0)
         self.target_percent = abs(raw_target) / 100.0
 
-        # Daily state
+        # Daily state (separate from MartingaleBase's cycle state)
         self.checked_today = False
         self.daily_reference_price = None
         self._daily_date = None
@@ -77,6 +80,13 @@ class TimeMomentumStrategy(MartingaleBase):
                          f"window={self.start_time_str}~{self.stop_time_str} delay={self.delay_minutes}min")
 
     def _on_candle(self, data: Dict[str, Any]):
+        """Called at the very beginning of MartingaleBase.on_data().
+
+        Handles TimeMomentum-specific daily lifecycle:
+        1. Daily state reset on new date
+        2. Capture daily reference price at start_time
+        3. Force liquidation at stop_time
+        """
         current_time = self.context.get_time()
         current_date = current_time.date()
         current_price = data['close']
@@ -96,9 +106,14 @@ class TimeMomentumStrategy(MartingaleBase):
         if self.current_level > 0 and current_time.time() >= self.stop_time:
             self.context.log(f"[{self._log_prefix}] STOP TIME {self.stop_time_str} reached. Force liquidation.")
             self._liquidate(current_price)
-            self.checked_today = True
+            self.checked_today = True  # Prevent re-entry after stop_time liquidation
 
     def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """L1 entry: Snapshot check at start_time + delay_minutes.
+
+        Returns "long" ONCE per day if price change from daily reference
+        meets the target_percent threshold in the configured direction.
+        """
         if self.checked_today or self.daily_reference_price is None:
             return None
 
@@ -108,6 +123,7 @@ class TimeMomentumStrategy(MartingaleBase):
         if current_time < trigger_time:
             return None
 
+        # Snapshot: mark as checked immediately (only one chance per day)
         self.checked_today = True
 
         current_price = data['close']
@@ -128,6 +144,7 @@ class TimeMomentumStrategy(MartingaleBase):
         return Side.LONG if should_buy else None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
+        """L2+ entries: Not used (max_buy_count defaults to 1)."""
         return False
 
     @property
@@ -139,19 +156,28 @@ class TimeMomentumStrategy(MartingaleBase):
         return "time_momentum"
 
     def get_state(self) -> Dict[str, Any]:
+        """Return state dict for frontend UI compatibility.
+
+        Merges MartingaleBase state with TimeMomentum-specific fields.
+        """
         state = super().get_state()
 
+        # Calculate current change from daily reference
         change = 0
         if self.daily_reference_price and self.daily_reference_price > 0:
             current_price = self.context.get_current_price(self.config.get("symbol", ""))
             if current_price > 0:
                 change = (current_price - self.daily_reference_price) / self.daily_reference_price
 
+        # Check if delay has passed
         current_time = self.context.get_time()
         trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
         is_delay_passed = current_time >= trigger_time
 
+        # Override MartingaleBase's cycle reference_price with daily reference for UI
         state["reference_price"] = self.daily_reference_price
+
+        # TimeMomentum-specific fields (frontend compatibility)
         state["target_percent"] = self.target_percent
         state["direction"] = self.direction
         state["change_percent"] = change
