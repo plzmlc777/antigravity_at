@@ -9,6 +9,7 @@ import AdminView from './views/AdminView';
 import MissionControl from './views/MissionControl';
 import Organization from './views/Organization';
 import DecisionTimeline from './views/DecisionTimeline';
+import KnowledgeBase from './views/KnowledgeBase';
 import StatusCard from './components/StatusCard';
 import KpiGoalHeader from './components/KpiGoalHeader';
 import { useState, useEffect } from 'react';
@@ -95,6 +96,7 @@ function AppContent() {
                             <NavLink to="/">Mission</NavLink>
                             <NavLink to="/organization">조직도</NavLink>
                             <NavLink to="/decisions">결정</NavLink>
+                            <NavLink to="/knowledge">KB</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Profiles</NavLink>
@@ -121,6 +123,7 @@ function AppContent() {
                     <Route path="/" element={<MissionControl />} />
                     <Route path="/organization" element={<Organization />} />
                     <Route path="/decisions" element={<DecisionTimeline />} />
+                    <Route path="/knowledge" element={<KnowledgeBase />} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />

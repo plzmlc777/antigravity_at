@@ -125,3 +125,7 @@ app.include_router(ml_prediction.router, prefix="/api/v1/ml", tags=["ml-predicti
 
 from .api import agents_meta
 app.include_router(agents_meta.router, prefix="/api/v1", tags=["agents-meta"])
+
+from .models.approval import PendingApproval # Register Model
+from .api import approvals
+app.include_router(approvals.router, prefix="/api/v1/approvals", tags=["approvals"])

@@ -27,6 +27,14 @@ export const fetchStrategyCandidate = (filename) =>
 export const fetchMetaLearnings = () => meta.get('/meta-learnings').then(r => r.data);
 export const fetchAuthorizedSessions = () => meta.get('/whitelist/sessions').then(r => r.data);
 
+// Approvals queue
+export const fetchApprovals = (status = 'pending') =>
+  meta.get('/approvals', { params: { status } }).then(r => r.data);
+export const resolveApproval = (id, decision, note) =>
+  meta.post(`/approvals/${id}/resolve`, { decision, note }).then(r => r.data);
+export const createApproval = (body) =>
+  meta.post('/approvals', body).then(r => r.data);
+
 // Existing no-auth monitor endpoints (reused by Mission Control header).
 export const fetchMonitorSessions = () =>
   meta.get('/live/monitor/sessions').then(r => r.data);
