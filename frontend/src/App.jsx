@@ -8,6 +8,7 @@ import Settings from './views/Settings';
 import AdminView from './views/AdminView';
 import MissionControl from './views/MissionControl';
 import Organization from './views/Organization';
+import DecisionTimeline from './views/DecisionTimeline';
 import StatusCard from './components/StatusCard';
 import KpiGoalHeader from './components/KpiGoalHeader';
 import { useState, useEffect } from 'react';
@@ -93,6 +94,7 @@ function AppContent() {
                         <div className="flex gap-2">
                             <NavLink to="/">Mission</NavLink>
                             <NavLink to="/organization">조직도</NavLink>
+                            <NavLink to="/decisions">결정</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Profiles</NavLink>
@@ -118,6 +120,7 @@ function AppContent() {
                 <Routes>
                     <Route path="/" element={<MissionControl />} />
                     <Route path="/organization" element={<Organization />} />
+                    <Route path="/decisions" element={<DecisionTimeline />} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
