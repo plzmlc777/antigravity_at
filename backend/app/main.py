@@ -122,3 +122,6 @@ app.include_router(stock_search.router, prefix="/api/v1/stock-search", tags=["st
 
 from .api import ml_prediction
 app.include_router(ml_prediction.router, prefix="/api/v1/ml", tags=["ml-prediction"])
+
+from .api import agents_meta
+app.include_router(agents_meta.router, prefix="/api/v1", tags=["agents-meta"])

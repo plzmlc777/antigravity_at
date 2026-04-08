@@ -6,7 +6,10 @@ import StrategyView from './views/StrategyView';
 import StrategyLab from './views/StrategyLab';
 import Settings from './views/Settings';
 import AdminView from './views/AdminView';
+import MissionControl from './views/MissionControl';
+import Organization from './views/Organization';
 import StatusCard from './components/StatusCard';
+import KpiGoalHeader from './components/KpiGoalHeader';
 import { useState, useEffect } from 'react';
 import { getSystemVersion } from './api/client';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -88,6 +91,8 @@ function AppContent() {
                             My Auto Trading
                         </div>
                         <div className="flex gap-2">
+                            <NavLink to="/">Mission</NavLink>
+                            <NavLink to="/organization">조직도</NavLink>
                             <NavLink to="/manual">Manual</NavLink>
                             <NavLink to="/live">Live</NavLink>
                             <NavLink to="/strategies">Profiles</NavLink>
@@ -97,8 +102,7 @@ function AppContent() {
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
-                        {/* Mode Toggle */}
-                        {/* Mode Toggle Moved to Settings */}
+                        <KpiGoalHeader />
                         <StatusCard />
                         <div className="flex flex-col items-end mr-4">
                             <span className="text-xs font-bold text-blue-400">{backendVersion || APP_VERSION}</span>
@@ -112,7 +116,8 @@ function AppContent() {
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8">
                 <Routes>
-                    <Route path="/" element={<Navigate to="/strategies" replace />} />
+                    <Route path="/" element={<MissionControl />} />
+                    <Route path="/organization" element={<Organization />} />
                     <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/live" element={<RequireAuth><LiveTradingView /></RequireAuth>} />
                     <Route path="/strategies" element={<RequireAuth><StrategyView /></RequireAuth>} />
