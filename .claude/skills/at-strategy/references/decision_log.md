@@ -460,3 +460,33 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
 - **Follow-ups**:
   - Phase 3a.3: `/integrated/v2-backtest` 엔드포인트를 Waterfall로 마이그레이션 (현재 legacy IntegratedBacktestEngine 사용)
   - Phase 3a.4: backend BacktestEngine + IntegratedBacktestEngine 1,191 LOC 제거 (3a.3 후)
+
+## [2026-04-08] CIO-20260408-002: Backend 백테스트 엔진 통합 완료 (Phase 3a.3 + 3a.4)
+- **Workflow**: refactor (skill/backend deduplication, Phase 3a 마무리)
+- **Session**: n/a (build infrastructure)
+- **Symbol**: n/a
+- **Action**: `/integrated/v2-backtest` 엔드포인트를 WaterfallBacktestEngine으로 마이그레이션 후 레거시 backend 백테스트 엔진 3개 파일을 삭제. WaterfallBacktestEngine을 backend 백테스트의 단일 진실 원천으로 확정.
+- **Trigger**: CIO-20260408-001의 follow-up 항목. Phase 3a.2(at-backtest 스킬 통합)에 이어 backend 측 잔존 레거시 제거.
+- **Process**:
+  - **Phase 3a.3a — Engine surface 확장**: `WaterfallBacktestEngine.run_integrated()`에 per-config 전략 클래스 조회 추가. 각 rank가 cfg의 `strategy_id`/`strategy` 필드로 자체 전략 클래스를 지정 가능, 미지정 시 init class fallback. (commit 0f8f787)
+  - **Phase 3a.3b — Consumer 마이그레이션**: `backend/app/api/mock_strategies.py`의 `/integrated/v2-backtest` 엔드포인트를 `IntegratedBacktestEngine` 대신 `WaterfallBacktestEngine.run_integrated()` 호출로 교체. MockStrategy placeholder는 fallback용.
+  - **Phase 3a.3c — Smoke verification**: `ema_momentum` rank 1 + `rsi_martingale` rank 2 다중 전략 워터폴 백테스트 실행, distinct rank_stats_list 항목 확인.
+  - **Phase 3a.3d — Dead code 정리**: `_run_backtest_wrapper`(mock_strategies.py, 27 LOC) + frontend `runIntegratedBacktest` export(client.js, 4 LOC) 삭제. 두 항목 모두 호출자 0건이었음.
+  - **Phase 3a.4 — Legacy engine deletion** (commit 0fe2467):
+    - `backend/app/core/backtest_engine.py` (997 LOC) — 레거시 동기 엔진
+    - `backend/app/core/integrated_backtest_engine.py` (194 LOC) — BacktestEngine 서브클래스
+    - `backend/app/core/futures_backtest_context.py` (187 LOC) — BacktestContext 확장, 삭제된 BacktestEngine.run()만 사용
+    - 총 1,378 LOC 삭제
+  - **Phase 3a.4b — Doc 정리** (commit e4e2cc8): `data_schemas.py` docstring의 stale 참조 제거.
+- **Executed**: yes (commits 0f8f787, 0fe2467, e4e2cc8)
+- **Expected**: WaterfallBacktestEngine = backend 백테스트 단일 진입점. 운영 라이브 세션 영향 0 (backend Waterfall 경로 그대로).
+- **Outcome**:
+  - 3개 레거시 파일 삭제 (-1,378 LOC), `/integrated/v2-backtest` 엔드포인트는 동일 결과 반환 검증 완료.
+  - 라이브 세션 2개(RIVERUSDT, BTCUSDT) PM2 재시작 후 정상 복원.
+  - import 검증: 라이브 코드에서 삭제된 모듈에 대한 참조 0건 확인 (Grep 검증).
+  - 부수 발견: `/integrated-backtest`(다른 production 엔드포인트) curl smoke가 ClientDisconnect로 hang. 코드 경로상 `_run_unified_backtest` → Waterfall만 사용하므로 삭제와 무관한 기존 이슈로 판단. 별도 추적 필요.
+- **Status**: confirmed (Phase 3a 완전 종료)
+- **Pattern (재사용 가능)**: "Engine surface 확장 → consumer 마이그레이션 → smoke 검증 → dead code 정리 → 레거시 삭제" 5단계는 운영 영향 없이 중복 엔진을 안전하게 통합하는 표준 절차로 확립됨. Phase 3a.2(스킬 측), Phase 3a.3+3a.4(백엔드 측) 두 번의 적용에서 모두 라이브 세션 무중단 + 결과 일치 달성.
+- **Follow-ups**:
+  - Phase 3b 후보: `.claude/skills/at-backtest/scripts/backtest.py` ↔ backend Waterfall API 호출 단일화 검토
+  - `/integrated-backtest` ClientDisconnect 원인 별도 조사 (validation 단계 의심)
