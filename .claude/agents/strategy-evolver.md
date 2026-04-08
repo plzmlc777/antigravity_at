@@ -35,6 +35,33 @@ All text fields MUST be in **Korean (한국어)**.
 - Record every mutation with rationale and seed parameters
 - Results must be reproducible via the same backtest script
 
+### CRITICAL: Compound Return Reporting (KPI = 12%/month COMPOUND)
+The project KPI is **12%/month COMPOUND**, not arithmetic. This caused a real misjudgment
+on 2026-04-07 when M003 was reported as "월 7.1%" (actually 5.96% compound) and M009 as
+"월 10.1%" (actually 8.23% compound) — both materially below KPI but appeared closer than
+they were. Never repeat this.
+
+**Mandatory rules for every mutation result you report:**
+
+1. **Always compute `monthly_return_compound`**:
+   ```
+   months = test_period_days / 30.4375
+   monthly_return_compound = ((1 + total_return/100) ^ (1/months) - 1) * 100
+   ```
+2. **Include both compound and arithmetic** monthly returns in `results` so the gap is
+   visible. NEVER report only arithmetic.
+3. **`kpi_gap_pp`** = `12.0 - monthly_return_compound` (positive = below KPI). Must be
+   present in every mutation `results` block.
+4. **Verdict gating**: a mutation may only be marked `verdict: "recommended"` if
+   `monthly_return_compound ≥ 12.0` AND `overfit_ratio < 0.3`. Otherwise it is at most
+   `"promising"` (sub-KPI but worth tracking) or `"rejected"`.
+5. **Walk-forward must use compound too**: train_return and test_return in the
+   walk_forward block must both be reported as compound monthly rates.
+6. When the user asks "이 전략으로 KPI 도달 가능?", answer with the **compound** number,
+   never the arithmetic average.
+7. **Variance awareness**: if `(arithmetic - compound) > 1.0`, add a `volatility_drag_note`
+   in Korean explaining variance is eroding compound returns.
+
 ## Input
 
 You will receive:
@@ -171,6 +198,11 @@ python3 .claude/skills/at-backtest/scripts/optimize.py \
       "params": {"rsi_period": 80, "trigger_level": 25, "reset_level": 60},
       "results": {
         "total_return": 7.8,
+        "test_period_days": 14,
+        "monthly_return_compound": 17.61,
+        "monthly_return_arithmetic": 16.95,
+        "kpi_gap_pp": -5.61,
+        "volatility_drag_note": null,
         "sharpe_ratio": 2.1,
         "max_drawdown": -8.2,
         "win_rate": 71.0,
@@ -195,6 +227,11 @@ python3 .claude/skills/at-backtest/scripts/optimize.py \
       "params": {"rsi_period": 21, "trigger_level": 20, "reset_level": 65},
       "results": {
         "total_return": 5.1,
+        "test_period_days": 14,
+        "monthly_return_compound": 11.37,
+        "monthly_return_arithmetic": 11.08,
+        "kpi_gap_pp": 0.63,
+        "volatility_drag_note": null,
         "sharpe_ratio": 1.6,
         "max_drawdown": -11.0,
         "win_rate": 64.0,

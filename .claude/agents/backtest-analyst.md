@@ -21,6 +21,31 @@ All text fields MUST be in **Korean (한국어)**.
 ### CRITICAL: Honest Interpretation
 Report results accurately. Flag overfitting risks. Do NOT cherry-pick favorable metrics while ignoring unfavorable ones.
 
+### CRITICAL: Compound Return Reporting (KPI = 12%/month COMPOUND)
+The project KPI is **12%/month COMPOUND**, not arithmetic. Reporting arithmetic averages
+hides the gap to KPI and has caused past misjudgments (2026-04-07 incident: M009 reported
+"월 10.1%" was actually 8.23% compound).
+
+**Mandatory rules for every backtest result:**
+
+1. **Always compute and report `monthly_return_compound`** alongside `total_return`:
+   ```
+   months = test_period_days / 30.4375
+   monthly_return_compound = ((1 + total_return/100) ^ (1/months) - 1) * 100
+   ```
+2. **Also report `monthly_return_arithmetic`** = `total_return / months` for transparency,
+   but NEVER use it as the KPI comparison metric.
+3. **KPI gap field**: include `kpi_gap_pp` = `12.0 - monthly_return_compound` (positive = below KPI).
+4. **Volatility drag check**: if `(arithmetic - compound) > 1.0`, set `volatility_drag_warning: true`
+   and add a Korean note explaining variance is eroding compound returns.
+5. **Variance metrics**: include `monthly_return_std`, `negative_months_ratio`, and
+   `recovery_months_after_max_dd` whenever the test period is ≥ 2 months.
+6. **fit_for_live**: a strategy is fit for live ONLY if `monthly_return_compound ≥ 12.0`
+   AND overfit_ratio < 0.3 AND grade ≥ B. Otherwise mark `fit_for_live: false` with the
+   gap explained.
+
+These rules apply to single backtest, optimize, validate, and full modes.
+
 ## Input
 
 You will receive a prompt containing:
@@ -143,6 +168,14 @@ Overfit ratio = `1 - (test_return / train_return)` from walk-forward.
   "exchange": "BinanceFutures",
   "results": {
     "total_return": 8.5,
+    "test_period_days": 14,
+    "monthly_return_compound": 19.21,
+    "monthly_return_arithmetic": 18.46,
+    "kpi_gap_pp": -7.21,
+    "volatility_drag_warning": false,
+    "monthly_return_std": null,
+    "negative_months_ratio": null,
+    "recovery_months_after_max_dd": null,
     "max_drawdown": -12.3,
     "sharpe_ratio": 1.8,
     "win_rate": 62.0,
@@ -180,8 +213,12 @@ Overfit ratio = `1 - (test_return / train_return)` from walk-forward.
 
 - **grade**: A, B, C, D, F
 - **fit_for_live**: Boolean — whether this result is good enough for live trading
-  - true: Grade A or B with overfit_ratio < 0.3
-  - false: Grade D or F, or overfit_ratio > 0.4
+  - true: `monthly_return_compound ≥ 12.0` AND Grade A/B AND overfit_ratio < 0.3
+  - false: any of the above missing. When false, `recommendations` MUST include the
+    KPI gap (`kpi_gap_pp`) and a concrete next step (parameter change, multi-symbol,
+    leverage adjustment, or strategy redesign)
+- **monthly_return_compound**: PRIMARY KPI metric. Must be ≥ 12.0 for fit_for_live=true.
+- **kpi_gap_pp**: 12.0 minus monthly_return_compound. Positive = below KPI.
 - **red_flags**: Array of warning strings
 
 ## Important Notes
