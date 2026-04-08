@@ -32,7 +32,19 @@ curl -s 'http://localhost:8001/api/v1/gap-signals?status=pending&limit=10'
 - 응답이 `[]` → 종료 (silent skip). 사용자에게 "pending gap_signals 없음" 정도만 간단 보고.
 - 응답에 signal 이 있으면 Step 2.
 
-### Step 2 — For each pending signal, dispatch skill-architect (1-hop)
+### Step 2 — Family-based routing (CIO-20260408-014)
+
+Before dispatching, inspect `proposed_intent.family` of each signal to determine the correct consumer:
+
+| `proposed_intent.family` | Dispatch target | Output artifact |
+|---|---|---|
+| `at-monitor` / `at-strategy` / `at-backtest` / any `at-*` | **`skill-architect`** | Pure analytical primitive (`.claude/skills/**/scripts/*.py`) |
+| `strategy` | **`strategy-builder`** (autonomous mode) | Trading strategy subclass (`.claude/skills/at-live-signal/scripts/strategies/<id>.py`) |
+| (missing / unknown) | — | PATCH as `failed` with `failure_reason: "unknown_family"` |
+
+Route each signal individually — a single pending batch may contain mixed families.
+
+### Step 2a — Dispatch skill-architect (family starts with `at-`)
 
 ```
 Agent(
@@ -64,7 +76,39 @@ Agent(
 )
 ```
 
-**중요 — 순차 실행**: skill-architect 가 파일을 생성할 수 있으므로 여러 signal 을 병렬 dispatch 하지 말 것. 하나씩 순차 처리.
+### Step 2b — Dispatch strategy-builder (family == `strategy`)
+
+```
+Agent(
+  subagent_type="strategy-builder",
+  description="Generate new strategy",
+  prompt="""
+    Autonomous mode dispatch (CIO-20260408-014). proposed_intent.family == "strategy".
+    Follow the "Autonomous Mode" section of strategy-builder.md. Do NOT ask any questions.
+
+    ## Full gap_signal payload
+    <JSON from Step 1 response>
+
+    ## Required response JSON (see strategy-builder.md Autonomous Workflow Step 8)
+    {
+      "agent": "strategy-builder",
+      "mode": "autonomous",
+      "signal_id": "...",
+      "action_taken": "generated|reuse_existing|failed",
+      "strategy_id": "...",
+      "class_name": "...",
+      "file_path": "...",
+      "file_lines": ...,
+      "parent_class": "MartingaleBase|BaseStrategy",
+      "py_compile_exit_code": 0,
+      "import_check": "ok|failed",
+      "notes": "..."
+    }
+  """
+)
+```
+
+**중요 — 순차 실행**: 두 dispatch 경로 모두 파일을 생성하므로 여러 signal 을 병렬 dispatch 하지 말 것. 하나씩 순차 처리. 서로 다른 family 가 섞여 있어도 DB 순서대로 하나씩.
 
 ### Step 3 — PATCH result back to queue
 
@@ -78,14 +122,25 @@ curl -s -X PATCH http://localhost:8001/api/v1/gap-signals/<signal_id> \
   }'
 ```
 
-**Final status 결정 규칙**:
+**Final status 결정 규칙** (consumer 별):
 
-| skill-architect 결과 | PATCH status |
+skill-architect 응답:
+| 결과 | PATCH status |
 |---|---|
 | `action_taken: reuse_existing` + self_test PASS | `consumed` |
 | `action_taken: regenerated` + self_test PASS + risk_manager approved | `consumed` |
 | `action_taken: regenerated` + risk_manager rejected | `rejected` |
 | `action_taken: failed` 또는 self_test FAIL 또는 dispatch 자체 크래시 | `failed` |
+
+strategy-builder 응답 (CIO-014):
+| 결과 | PATCH status |
+|---|---|
+| `action_taken: generated` + `py_compile_exit_code: 0` + `import_check: "ok"` | `consumed` |
+| `action_taken: reuse_existing` | `consumed` |
+| `action_taken: failed` 또는 `py_compile_exit_code != 0` 또는 `import_check: "failed"` | `failed` |
+| dispatch 자체 크래시 | `failed` |
+
+**Note**: strategy-builder 는 risk-manager VETO 대상이 아님 — 생성된 전략 파일은 **backtest/paper 경쟁 파이프라인** 에 자동 진입하며, 실거래 승급 결정은 별도 에이전트 영역. 즉, 전략 생성 자체에는 "rejected" 상태가 존재하지 않음 (컴파일 통과 = consumed, 실패 = failed).
 
 **PATCH 엔드포인트 주의사항 (CIO-009 에서 발견)**:
 - URL 경로는 **문자열 `signal_id`** (예: `/GAP-20260408-001`) — numeric row id 가 아님

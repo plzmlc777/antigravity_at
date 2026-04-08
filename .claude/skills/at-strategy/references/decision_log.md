@@ -1054,3 +1054,161 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - 경계 case 구분 정확도(0.9231 이 high_risk 인지 imminent 인지) 는 장기 운영에서 **감사 추적 품질** 과 직결. 숫자는 달라도 같은 결정이 나오면 나중에 audit 할 때 원인 분석이 불가능해진다. 이번에 risk-manager 가 구간 경계를 정확히 언급한 것은 향후 audit 가능성을 보장.
   - 이번 통합은 "consumer 통합 패턴의 원형" 이다. 동일 패턴(gate 섹션 추가 + Special Cases 업데이트 + Important Notes + 3-시나리오 dry-run + decision_log) 을 다음 skill 에 재사용 가능. 두 번째 적용 시점에서 이 패턴의 효율이 재검증될 것.
 
+---
+
+## CIO-20260408-013 — 2-hop subagent dispatch 제약 공식 확인: CONFIRMED BY DESIGN
+
+- **Date**: 2026-04-08
+- **Phase**: RESEARCH (closing CIO-009 follow-up #4)
+- **Trigger**: CIO-20260408-009 follow-up #4 — "이 2-hop 제약이 Claude Code 공식 문서에 명시되어 있는지 확인 필요". CIO-009 에서 발견한 런타임 제약이 가설 수준이었고, 공식 확인이 아직이었음.
+- **Method**: `Agent(subagent_type="claude-code-guide")` dispatch 로 docs.claude.com / anthropics/claude-code GitHub issues / Claude Agent SDK 문서 리서치 요청. 명확한 출력 스펙(verdict / evidence / recommendation / date) 부여.
+- **Verdict**: **CONFIRMED FLAT by design, not a bug** — Claude Code 의 subagent tree 는 one-level, nested dispatch 미지원.
+- **Evidence (4개 GitHub 이슈 + 1개 실제 incident)**:
+  - [anthropics/claude-code#4182](https://github.com/anthropics/claude-code/issues/4182) — "Sub-Agent Task Tool Not Exposed". Closed as duplicate. 서브에이전트에게 frontmatter 로 tools:Agent 를 주어도 런타임에서 Task 툴이 노출되지 않음을 문서화.
+  - [anthropics/claude-code#5528](https://github.com/anthropics/claude-code/issues/5528) — "Sub-agent delegation pattern unusable for hierarchical task decomposition". Open. 계층 구조가 깨지는 사례들.
+  - [anthropics/claude-code#19077](https://github.com/anthropics/claude-code/issues/19077) — "Sub-agents can't create sub-sub-agents, even with Task tool access". Ongoing. Task 툴이 명시적으로 tools 필드에 있어도 runtime 에서 unavailable.
+  - [anthropics/claude-code#43198](https://github.com/anthropics/claude-code/issues/43198) — **특별히 중요**: 2026 년 실제 incident. statusline-setup 서브에이전트가 어떤 조건에서 자기 자신을 nested 재귀로 4레벨 spawn → 1.44M 토큰 소비 (30% rate limit). `cp` 명령 한 번이면 되는 일에. **이 사건이 "by design" 차단 결정의 실제 타당성 증거** — nested dispatch 가 가끔 동작할 때 catastrophic failure mode 가 실재함.
+- **Why blocked by design (공식 이유)**:
+  1. Runaway recursion 방지 (#43198 가 실제 경고)
+  2. 리소스 제어 — concurrent subagent limit 미정의 상태에서 nested 는 exponential blowup 위험
+  3. 가시성 보존 — main 대화가 nested task tree 를 추적 불가
+- **Roadmap**: 1년+ open 상태, immediate 로드맵에 변경 계획 없음. **의도된 설계이며 일시적 버그가 아님**.
+- **Recommendation (claude-code-guide 가 제시, 본 CIO 가 수용)**:
+  1. **Stop trying to nest** — main 턴 에서 subagents 를 sequential 하게 호출, 결과를 main 턴 이 synthesize. CIO-009 의 pivot 이 정확히 이 패턴.
+  2. 진짜 hierarchical orchestration 이 필요하면 **Claude Agent SDK 기반 standalone runner** (Python/TypeScript). 대화창 바깥 프로세스.
+  3. Skills 이 Bash 로 `claude -p` 를 spawn 하는 방식도 기술적으로 가능하나 tool sandboxing 과 가시성 상실.
+- **Implications for this project**:
+  - **CIO-009 의 pivot 결정이 완전히 정당화됨** — 가설이 아니라 정확한 판단이었음. 교훈: 가설 수준 발견도 구조적 원인 분석이 철저하면 pivot 의 근거로 충분.
+  - **A2 standalone runner 의 긴급도 재평가**: 이전까지는 "6개월 재평가" 로 보류. 이제 명확히 "main 턴 orchestrator 패턴의 유일한 한계는 대화창이 있어야만 동작한다는 것이며, 이 한계를 넘는 유일한 길은 A2" 가 확정. 6개월 재평가 타임라인은 유지 (다른 우선순위 때문), 하지만 "언젠가 전환한다" 가 "언젠가 해본다" 에서 "유일한 해법" 으로 격상.
+  - **B 모드 (현재 운영 규약) 의 수명**: 대화창에서 operator-style trading 을 지속하는 동안만 유효. 진짜 사람 없는 지속 자율 루프가 필요한 순간 = A2 전환 트리거.
+  - **메모리 업데이트**: `project_subagent_dispatch_constraint.md` 가 "가설 유력" 에서 "CONFIRMED BY DESIGN" 으로 격상, 4개 이슈 URL + #43198 incident 기록. 향후 Claude 세션들이 읽을 때 가설이 아닌 확정된 사실로 인지.
+- **Status**: confirmed
+- **Deliverables**:
+  - `memory/project_subagent_dispatch_constraint.md` — 본문 전면 재작성. "CONFIRMED BY DESIGN" 명시, 4개 GitHub 이슈 URL, #43198 incident 기록, A2 recommendation 명확화.
+  - decision_log: 본 엔트리 CIO-20260408-013.
+- **Did NOT do**:
+  - 코드 변경 (이미 CIO-009 에서 정확히 pivot 했으므로 변경 불필요)
+  - A2 standalone runner 착수 (우선순위 낮음, 6개월 타임라인 유지)
+  - cio.md 수정 (이미 Phase 0 제거됨)
+  - git commit / 버전업 (문서 업데이트만, 별도 릴리스 불요)
+- **Follow-ups**:
+  1. Claude Code 릴리스 노트를 주기적으로 체크하여 nested subagent dispatch 지원이 공식 발표되는지 모니터링 (tech-scout 에이전트의 주간 스캔 항목에 추가 고려)
+  2. A2 standalone runner 프로토타입 착수 시점 결정 — 민트 서버 이사 완료(~2026-04-24) + Binance 인프라 완료 후 검토
+  3. 만약 나중에 Anthropic 이 nested dispatch 를 공식 지원하면 **CIO-013 를 invalidated 로 표시** 하고 CIO-009 의 pivot 을 부분 되돌리기 검토 (cio Phase 0 복구). 그 때는 #43198 같은 runaway recursion 방어가 같이 들어가 있어야 함.
+- **교훈**:
+  - **"가설 유력" 과 "확인됨" 의 실무적 차이는 크다**. 가설 수준에서도 충분히 pivot 할 수 있지만, 확인 후에는 **미래의 재검토 비용이 사라진다**. 더 이상 "혹시나..." 라고 의심하며 같은 실험을 반복할 필요 없음.
+  - **이슈 트래커가 공식 문서보다 더 정확할 때가 많다**. docs.claude.com 에는 명시되지 않았지만 GitHub 이슈 4건이 장기간 동일 패턴을 기록. 향후 Claude Code 제약 리서치 시 이슈 트래커 검색이 첫 번째 소스여야 함.
+  - **incident-driven design 결정의 힘**. #43198 의 1.44M 토큰 소비 사건이 "blocked by design" 의 정당성을 실제 사례로 증명. 설계자가 이런 incident 를 보고 결정을 철회하기보다 오히려 강화했음을 시사.
+  - research 작업도 주요 결정만큼 decision_log 가치가 있음 — "우리가 이전에 확인했다" 의 증거가 미래 세션의 중복 조사를 방지.
+
+---
+
+## CIO-20260408-014 — AI 자율 전략 생성: strategy-builder 비대화식 재설계 + 첫 자동 전략 `bollinger_reversion` 생성 증명
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (에이전트 재설계 + end-to-end 증명)
+- **Trigger**: 사용자 요청 — "AI 가 자체적으로 전략을 스킬형태로 만들어서 적용 가능한 상태" 를 실제로 구현. 이전까지 (CIO-006~013) 는 **분석 primitive** 자동 생성만 가능했고, **트레이딩 전략** 자동 생성은 `strategy-builder` 가 인터랙티브 모드(AskUserQuestion) 로만 작동했음. 사용자가 "실거래 투입 여부는 걱정할 필요 없음 — 경쟁 파이프라인이 이미 게이트 역할" 이라고 명시.
+- **Context**: 기존 strategy-builder.md 는 두 가지 stale 문제를 가지고 있었음:
+  - (1) 파일 경로 불일치: "backend/app/strategies/*" 로 문서화되어 있으나 실제 전략 파일은 `.claude/skills/at-live-signal/scripts/strategies/` 에 존재 (`backend/app/__init__.py` 의 sys.path bootstrap 으로 import 가 작동). 이 불일치는 현재 세션에서 처음 발견.
+  - (2) AskUserQuestion 의존: 대화를 통해서만 전략 설계 가능. gap_signal 기반 자율 생성 경로 없음.
+- **Design Decision — Dual Mode**:
+  - **Interactive mode (기존 보존)**: 사용자가 `strategy-builder` 와 대화하며 전략 설계. `AskUserQuestion` 여전히 tools 에 포함.
+  - **Autonomous mode (신규)**: main-turn Claude 가 gap_signal JSON payload 를 받아 dispatch. 질문 금지, JSON 출력 전용. skill-architect 와 동일한 CRITICAL 규칙 (No User Dialogue / JSON Output / Reuse Before Create / Minimum Viable).
+  - **Mode detection**: dispatch prompt 가 `gap_signal` JSON 블록 + `proposed_intent.family == "strategy"` 을 포함하면 autonomous mode. 그 외는 interactive mode. 에이전트 자체가 프롬프트를 읽고 판단.
+- **Family-based Routing 도입**:
+  - gap_signals 의 `proposed_intent.family` 값이 main-turn 의 dispatch target 결정:
+    - `at-monitor` / `at-strategy` / `at-backtest` / 모든 `at-*` → `skill-architect` (분석 primitive)
+    - `strategy` → `strategy-builder` (트레이딩 전략)
+    - unknown / missing → PATCH `failed` with `unknown_family`
+  - 이 라우팅 규칙이 **playbook 에 공식 기록** 되어 main-turn 의 결정 규칙이 됨.
+- **Deliverables**:
+  - `.claude/agents/strategy-builder.md`:
+    - frontmatter description 재작성 — "TWO modes" + "AUTONOMOUS generation from gap_signal JSON payload" 명시
+    - 상단에 Mode detection rule 추가
+    - File Access Restriction 경로 수정 (`backend/app/strategies/*` → `.claude/skills/at-live-signal/scripts/strategies/*`) + 절대경로 명시
+    - Phase 2 Implementation 경로 수정
+    - Phase 3 Validation 경로 + 명령어 수정
+    - Key Files 경로 수정
+    - 파일 끝에 **"Autonomous Mode (CIO-20260408-014)"** 대형 섹션 신규 추가:
+      - 8-step Autonomous Workflow (parse → inventory → compose → write → py_compile → import check → skip restart → return JSON)
+      - MartingaleBase 상속 skeleton 템플릿
+      - Anti-patterns (질문 금지, 외부 경로 금지, 3-line bash restriction 등)
+      - Main-turn 후속 처리 규칙 (status 전이 로직)
+  - `.claude/agents/meta-learner.md`:
+    - D-019 섹션에 **Family-based routing** 하위 섹션 추가 (라우팅 테이블 + 전략 gap_signal 예시 JSON)
+    - 전략 도메인의 D-019 게이트 특이사항 (inventory = strategies dir ls, composition = strategy-advisor 영역 배제, purity = deterministic 면제 대신 IContext 제약)
+    - Anti-pattern 리스트 업데이트: "❌ 이 전략을 추가로 구현해야 함" 제거 (전략 가능), "❌ 이 전략이 실거래에 적합함" 추가 (실거래 승급은 별도)
+  - `.claude/skills/at-strategy/references/gap_signal_consumption_playbook.md`:
+    - Step 2 를 "Family-based routing" 으로 재작성 — 라우팅 테이블
+    - Step 2a (skill-architect dispatch 기존 유지), Step 2b (strategy-builder dispatch 신규) 로 분할
+    - Step 3 PATCH rules 를 consumer 별로 분리 (skill-architect 는 risk-manager VETO 존재, strategy-builder 는 컴파일 통과 = consumed, 실패 = failed, rejected 상태 없음)
+- **End-to-end Verification — GAP-20260408-004 `bollinger_reversion`**:
+  - **Step A — gap_signal 주입**: `family="strategy"`, `name="bollinger_reversion"`, `purpose="볼린저 밴드 기반 mean-reversion 진입"` 으로 POST. id=4, status=pending.
+  - **Step B — 폴링**: `curl GET /api/v1/gap-signals?status=pending` → id=4 반환, `family=strategy` 확인.
+  - **Step C — 라우팅**: main-turn 이 family 값으로 `strategy-builder` 를 autonomous mode 로 dispatch 결정.
+  - **Step D — Autonomous dispatch**: `Agent(subagent_type="strategy-builder", prompt=<gap_signal payload>)`.
+  - **Step E — strategy-builder 실행** (15-step 자율 워크플로우):
+    - Step 1 (parse): signal_id, proposed_intent, inputs 추출 OK
+    - Step 2 (inventory): `ls strategies/` → 11개 파일 확인, 기존 전략들(rsi/dip/ema/time/chart/funding/spot_futures/us_market/noop)의 docstring 을 grep. Bollinger Bands 관련 전략 0건. `reuse_decision: create_new`.
+    - Step 3 (compose): MartingaleBase 상속, `_check_entry_trigger` 에 BB lower/upper band touch 로직, `_on_candle` 에 SMA+stddev 증분 계산, `preload_history` 지원, `get_state` 커스텀 필드 (bb_sma/upper/lower/stddev/bands_ready)
+    - Step 4 (write): `/home/hcpark/antigravity/.claude/skills/at-live-signal/scripts/strategies/bollinger_reversion.py` (6427 bytes)
+    - Step 5 (py_compile): **exit 0 PASS**
+    - Step 6 (import check): 
+      - `python3 -c "from strategies.bollinger_reversion import BollingerReversionStrategy"` with backend path bootstrap → **PASS**
+      - **Bonus**: `python3 -c "from app import main"` 실행 결과 StrategyRegistry 의 auto-discovery 가 즉시 `bollinger_reversion` 을 로드: `INFO:app.core.strategy_registry:Auto-loaded strategy: bollinger_reversion -> BollingerReversionStrategy`
+    - Step 7 (API 확인): `curl GET /api/v1/strategies/list` → **8개 전략 중 `bollinger_reversion` 포함**, 기존 7개와 동등한 레벨로 노출
+    - Step 8 (JSON 응답): validation.py_compile=PASS, validation.import_check=PASS, api_list_visibility="confirmed", total_strategies_after=8
+  - **Step F — PATCH**: `curl PATCH /gap-signals/GAP-20260408-004 status=consumed` → DB 에 audit trail 저장 (generated, byte_path, 6427, api 가시성 확인 기록)
+- **증명된 것**:
+  - ✅ strategy-builder 가 **인터랙티브 의존성 없이** 전략 파일을 생성
+  - ✅ gap_signal 라우팅이 family 값 하나로 skill-architect 와 strategy-builder 를 정확히 구분
+  - ✅ 생성된 파일이 StrategyRegistry 의 auto-discovery 에 즉시 인지됨 (PM2 재시작 불필요)
+  - ✅ 생성된 전략이 `/api/v1/strategies/list` 에 **기존 전략과 동등 레벨로** 노출 → 기존 경쟁 파이프라인 자동 진입 가능
+  - ✅ Dual-mode 아키텍처 (interactive + autonomous) 가 한 에이전트 파일에서 공존 가능
+  - ✅ **AI 가 트레이딩 전략 자체를 스스로 생성하는 것이 기술적으로 증명됨** (CIO-012 의 분석 primitive 통합과는 본질적으로 다른 단계)
+- **DB 최종 상태** (이 엔트리 작성 시점):
+  ```
+  id=1 GAP-20260408-001         status=consumed  (CIO-007)  — margin_exhaustion 수동 증명
+  id=2 GAP-20260408-002-rerun   status=failed    (CIO-009)  — 2-hop 차단 증거
+  id=3 GAP-20260408-003-mainturn status=consumed (CIO-009)  — 1-hop main-turn 증명
+  id=4 GAP-20260408-004         status=consumed  (CIO-014)  — 첫 자동 생성 전략
+  ```
+- **생성된 전략 `bollinger_reversion` 의 기본 특성**:
+  - **파일**: 6427 bytes, MartingaleBase 상속
+  - **파라미터**: 커스텀 3개 (bb_period=20, bb_std_dev=2.0, entry_band="both"), 공통 21개 (COMMON_PARAMETER_FIELDS), 총 24개
+  - **진입 로직**: price touches lower band → long signal, upper band → short signal, entry_band 파라미터로 방향 필터
+  - **마틴게일**: 기본 off (CIO-014 Minimum Viable 규율)
+  - **인디케이터 워밍업**: `preload_history` + `_on_candle` 에서 20봉 deque 로 SMA+stddev 증분 계산
+  - **상태 표시**: get_state 에 bb_sma/upper/lower/stddev/bands_ready 추가, 부모 키 보존
+  - **배포 상태**: paper mode, ready_for_live=false, 경쟁 파이프라인 (strategy-advisor + backtest-analyst) 대기
+- **Status**: confirmed
+- **자율성 계층 현재 상태 (CIO-014 이후 — "AI 가 전략을 만든다" 증명 후)**:
+  - ✅ 런타임 에이전트 등록
+  - ✅ 1-hop dispatch
+  - ✅ gap_signal DB + API
+  - ✅ 소비 플레이북 (main-turn + family 라우팅)
+  - ✅ 자동 발행 — meta-learner + self-critic D-019
+  - ✅ 분석 primitive 소비자 통합 (CIO-012 risk-manager + margin_exhaustion)
+  - ✅ **트레이딩 전략 자동 생성 — strategy-builder 자율 모드 (CIO-014)** ← 이번
+  - ❌ 2-hop dispatch (구조 불가, CIO-013 공식 확인)
+  - ❌ 대화창 바깥 지속 루프 (A2 standalone runner, 6개월 재평가)
+  - ❌ **실전 운영 검증 — 생성된 bollinger_reversion 이 실제 백테스트 경쟁에서 살아남는지**, 페이퍼 모드에서 12% KPI 를 통과하는지, 다른 에이전트가 실거래 승급 결정을 내리는지. 이것들은 기존 파이프라인이 처리할 영역이며 이 세션 범위 밖.
+- **Follow-ups**:
+  1. 실제 거래 세션 또는 백테스트 경쟁 사이클이 돌 때 `bollinger_reversion` 이 자연스럽게 참가하는지 관찰 (실전 검증)
+  2. meta-learner 가 다음 주간 리뷰에서 "bollinger_reversion 의 백테스트 결과" 를 보고 개선 gap_signal 을 발행할 수 있는지 확인 (자기 개선 루프)
+  3. 전략 gap_signal 발행 시 D-019 의 `sample_size ≥ 3` 게이트가 실전에서 과잉/과소 발화 되는지 추적. 전략 gap 은 primitive gap 보다 증거 수집이 어려울 수 있음.
+  4. 실거래 승급 결정을 내리는 별도 에이전트가 아직 명확히 정의되어 있지 않음. strategy-advisor 가 대신 역할을 수행할 수 있는지 검토 필요 (현재 strategy-advisor.md 는 파라미터 추천 전용). 필요 시 `live-promotion` 에이전트 설계 고려.
+  5. Interactive mode 경로 보존이 실제로 유효한지 — 사용자가 명시적으로 대화식 전략 생성을 요청할 때 mode detection 이 정확히 interactive 로 분기하는지 검증 (현재 세션에선 autonomous 만 테스트)
+- **Did NOT do (scope discipline)**:
+  - 실제 백테스트 실행 (bollinger_reversion 의 수익률 검증은 기존 파이프라인 영역)
+  - 페이퍼 모드 배포 (사용자 명시 요청 없음 + risk-manager 의 KPI gate 경유 필수)
+  - 실거래 투입 여부 결정 (명시적으로 사용자가 "별도 에이전트 영역" 이라고 확인)
+  - live-promotion 에이전트 신규 생성 (follow-up #4 로 분리)
+  - git commit / 버전업 (별도 요청 시 실행)
+- **교훈**:
+  - **"인터랙티브 에이전트를 자율화" 패턴의 첫 사례**. 기존 skill-architect 는 처음부터 autonomous 로 설계되었지만, strategy-builder 는 인터랙티브 로 태어나 비대화식 모드가 나중에 추가됨. Dual-mode 공존이 가능함을 증명 — 미래에 strategy-advisor / strategy-evolver 등 다른 인터랙티브 에이전트도 동일 패턴으로 자율화 가능.
+  - **Stale documentation 은 작업 중에 발견하는 것이 정상**. strategy-builder.md 의 `backend/app/strategies/*` 경로가 수년간 잘못되어 있었고, 이번에 처음 발견 + 수정. "정기 도큐먼트 audit" 을 별도 작업으로 만들지 말고 **관련 에이전트를 수정할 때 한꺼번에 검증** 하는 것이 효율적.
+  - **auto-discovery 의 힘**. StrategyRegistry 가 `_discover_all()` 로 파일 시스템을 스캔하는 설계 덕분에 strategy-builder 가 파일 하나 쓰면 백엔드가 자동 인지. 이 설계가 없었다면 strategy-builder 는 migrate script 생성 + 실행 + registry edit + PM2 재시작까지 해야 했을 것. **자동화 인프라는 자동화의 전제조건이다**.
+  - **"전략 자동 생성" 과 "실거래 자동 배포" 를 분리한 설계가 정답**. 사용자의 "실거래 투입 여부는 걱정할 필요 없음" 통찰이 scope 를 극적으로 단순화. 이 원칙이 없었다면 KPI gate + backtest-analyst + risk-manager + live-promotion 까지 한 세션에 엮으려 했을 것. **"한 에이전트의 책임 범위를 좁게 유지" 가 복잡도 폭발 방지의 핵심**.
+  - 이번 작업은 **CIO-012 의 consumer 통합 패턴과 대칭적**. CIO-012 는 "생성된 분석 primitive 의 첫 consumer 통합", CIO-014 는 "전략 자동 생성 경로의 첫 증명". 두 작업의 성격은 다르지만 **파이프라인의 마지막 고리를 채우는** 의미는 동일.
+

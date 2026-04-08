@@ -197,14 +197,51 @@ curl -s 'http://localhost:8001/api/v1/gap-signals?status=all&source=self-critic&
 Find the highest NNN of the current day and add 1. **Known pitfall (CIO-20260408-011)**:
 omitting `status=all` returns empty for sources whose signals are all consumed.
 
+**Family-based routing (CIO-20260408-014)**: gap_signals 의 `proposed_intent.family` 값이 소비자 에이전트를 결정. main 턴 Claude 가 폴링 후 family 로 dispatch 를 라우팅:
+
+| `proposed_intent.family` | 소비 에이전트 | 생성되는 것 |
+|---|---|---|
+| `at-monitor` / `at-strategy` / `at-backtest` / ... | **skill-architect** | 순수 분석 primitive (`.claude/skills/**/scripts/*.py`) |
+| `strategy` | **strategy-builder** | 트레이딩 전략 (`.claude/skills/at-live-signal/scripts/strategies/<id>.py`) |
+
+두 경로 모두 동일한 4-게이트 D-019 규율을 따르되, **출력물의 성격이 다르다**:
+- 분석 primitive: 결정론적 순수 함수, I/O 없음, 즉시 다른 에이전트의 gate 에 통합 가능 (예: CIO-012 risk-manager + margin_exhaustion)
+- 트레이딩 전략: stateful, 실시간 거래 로직, **생성 후 자동으로 기존 경쟁 파이프라인(백테스트 → 페이퍼 → 실거래)에 진입**. 실거래 투입 결정은 별도 에이전트 영역 (strategy-builder 의 책임 범위 아님)
+
+**전략 gap_signal 의 예시**:
+```json
+{
+  "proposed_intent": {
+    "family": "strategy",
+    "name": "volume_spike_entry",
+    "purpose": "거래량이 N배 급증할 때 진입하는 추세 추종 전략. 기존 EMA/RSI/dip 전략이 거래량 시그널을 활용하지 않음.",
+    "inputs": {
+      "volume_multiple": "float (default 2.5) — 20봉 평균 대비 거래량 배수",
+      "lookback": "int (default 20) — 평균 계산 봉 수",
+      "direction": "str (long|short|both, default both)"
+    },
+    "outputs": {"entry_signal": "bool", "direction": "str"},
+    "deterministic": false,
+    "trust_anchor_imports": ["strategies.base", "strategies.martingale_base"],
+    "kpi_target": {"metric": "monthly_return_compound", "target": 12.0}
+  }
+}
+```
+
+**전략 도메인의 D-019 게이트 적용 특이사항**:
+- **Inventory evidence**: `ls .claude/skills/at-live-signal/scripts/strategies/` 로 기존 전략 파일 목록 확인 + 각 파일의 docstring/class 이름 grep. 동일 entry trigger 로직이 이미 있으면 중복.
+- **Sample evidence**: 최소 3개의 과거 세션/백테스트에서 "이런 트리거가 있었으면 유리했을 것" 증거 필요. 단순 "좋아 보이는 아이디어" 는 emit 자격 없음.
+- **Composition check**: 기존 전략의 파라미터 튜닝으로 커버 가능한가? (strategy-advisor 영역이므로, 커버 가능하면 emit 대신 directive 로 제시)
+- **Purity constraint**: 전략은 본질적으로 stateful 이므로 `deterministic: true` 요구 면제. 대신 "side-effect 가 IContext (buy/sell/log) 로만 국한" 제약 강제.
+
 **Anti-pattern — do not emit**:
-- ❌ "이 전략을 추가로 구현해야 함" (전략 추가는 strategy-builder 영역, skill-architect 아님)
 - ❌ "이 파라미터를 바꿔야 함" (parameter tuning 은 strategy-advisor 영역)
 - ❌ "이 symbol 을 제외해야 함" (symbol selection 은 다른 영역)
 - ❌ "버그 수정이 필요함" (bug fix 는 사용자/개발자 영역, 자동 생성 대상 아님)
-- ✅ "여러 에이전트/전략이 동일 계산을 재구현하고 있음 — 공통 primitive 부재"
-- ✅ "순수 분석 함수로 추출 가능한 공통 로직이 없음"
-- ✅ "결정론적이고 사이드 이펙트 없는 연산이 반복 재구현되고 있음"
+- ❌ "이 전략이 실거래에 적합함" (실거래 승급은 strategy-builder 책임 범위 밖 — 별도 에이전트)
+- ✅ "여러 에이전트/전략이 동일 계산을 재구현하고 있음 — 공통 primitive 부재" (→ skill-architect)
+- ✅ "순수 분석 함수로 추출 가능한 공통 로직이 없음" (→ skill-architect)
+- ✅ "현재 전략 풀에 없는 새로운 entry trigger 패턴이 증거상 유효함" (→ strategy-builder, family="strategy")
 
 ## Input
 
