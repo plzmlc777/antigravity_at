@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-AI 종목 선정 스코어링 — 백엔드 _calculate_score()와 100% 동일.
+AI 종목 선정 스코어링 CLI — backend.app.core.symbol_score의 thin wrapper.
 
 신뢰도 가중 복합 점수:
   base_score = (return% × 0.7) + (win_rate% × 0.15)
-  reliability = 거래 횟수 기반 승수 (1~2회: 0.2~0.4, 10+회: 1.0~1.2)
+  reliability = 거래 횟수 기반 승수 (1~2회: 0.3~0.4, 10+회: 1.0~1.2)
   score = base_score × reliability
 
+⚠️ 알고리즘 변경은 backend/app/core/symbol_score.py에서만 수행할 것.
+   이 파일은 CLI/import 어댑터일 뿐.
+
 Usage:
-    # Python module
-    from scoring import calculate_score
+    # Python module (호환)
+    from scoring import calculate_score, score_results
     score = calculate_score(total_return=5.43, win_rate=62.7, total_cycles=169)
 
     # CLI
@@ -20,68 +23,26 @@ Usage:
 import argparse
 import json
 import sys
-from typing import Dict, List, Any
+from pathlib import Path
 
+# ─── Bootstrap: backend on sys.path ──────────────────────────────────
+SCRIPT_DIR = Path(__file__).parent
+BACKEND_DIR = SCRIPT_DIR.parent.parent.parent.parent / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
-def calculate_score(
-    total_return: float,
-    win_rate: float,
-    total_cycles: int,
-) -> float:
-    """백엔드 _calculate_score()와 동일한 신뢰도 가중 점수 계산.
+# Re-export the canonical implementation so existing imports keep working.
+from app.core.symbol_score import (  # noqa: E402
+    calculate_score,
+    calculate_score_from_result,
+    score_results,
+)
 
-    Args:
-        total_return: 총 수익률 (%, e.g., 5.43)
-        win_rate: 승률 (%, e.g., 62.7)
-        total_cycles: 완료된 매매 사이클 수
-
-    Returns:
-        reliability-weighted composite score
-    """
-    if total_cycles == 0:
-        return float('-inf')
-
-    # Base score: return-dominant + win_rate as tiebreaker
-    base_score = (total_return * 0.7) + (win_rate * 0.15)
-
-    # Reliability multiplier based on trade count
-    if total_cycles <= 2:
-        reliability = 0.2 + (total_cycles * 0.1)       # 0.3 ~ 0.4
-    elif total_cycles <= 4:
-        reliability = 0.4 + ((total_cycles - 2) * 0.15) # 0.55 ~ 0.7
-    elif total_cycles <= 9:
-        reliability = 0.7 + ((total_cycles - 4) * 0.06) # 0.76 ~ 1.0
-    else:
-        reliability = 1.0 + (min(total_cycles, 30) - 10) * 0.01  # 1.0 ~ 1.2
-
-    return base_score * reliability
-
-
-def score_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """백테스트 결과 목록에 스코어를 추가하고 정렬.
-
-    Args:
-        results: 백테스트 결과 목록 (total_return, win_rate, total_cycles 포함)
-
-    Returns:
-        score 내림차순 정렬된 결과 (각 항목에 'score' 키 추가)
-    """
-    scored = []
-    for r in results:
-        ret = float(str(r.get("total_return", "0")).replace('%', '').replace(',', ''))
-        wr = float(str(r.get("win_rate", "0")).replace('%', ''))
-        cycles = int(r.get("total_cycles", 0))
-
-        entry = dict(r)
-        entry["score"] = round(calculate_score(ret, wr, cycles), 4)
-        scored.append(entry)
-
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored
+__all__ = ["calculate_score", "calculate_score_from_result", "score_results"]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AI 종목 선정 스코어 계산")
+    parser = argparse.ArgumentParser(description="AI 종목 선정 스코어 계산 (backend symbol_score wrapper)")
     parser.add_argument("--return", dest="total_return", type=float, help="총 수익률 (%)")
     parser.add_argument("--win-rate", type=float, help="승률 (%)")
     parser.add_argument("--cycles", type=int, help="사이클 수")
