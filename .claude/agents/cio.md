@@ -24,6 +24,47 @@ Always follow the ASSESS→PLAN→EXECUTE framework. Never skip to EXECUTE witho
 ### CRITICAL: Risk Manager Veto
 If risk-manager returns `approved: false`, you MUST NOT proceed to EXECUTE. Report the rejection to the user with the reason and suggested alternatives.
 
+### CRITICAL: KPI Compound Gate (12%/month COMPOUND)
+The project KPI is **12%/월 복리**, not arithmetic. Before authorizing ANY EXECUTE phase
+action that touches a live session (start/swap symbol/promote to real/raise leverage/
+increase size/swap strategy), you MUST verify the supporting backtest data passes the
+compound gate:
+
+1. **Required field check**: the backtest-analyst response MUST include
+   `monthly_return_compound`. If only `total_return` or arithmetic averages are present,
+   STOP. Re-dispatch backtest-analyst asking explicitly for the compound field, or abort
+   with reason `"KPI 평가 불가 — 백테스트가 복리 수익률을 보고하지 않음"`.
+
+2. **Pass criteria** (all three required):
+   - `monthly_return_compound ≥ 12.0`
+   - `overfit_ratio < 0.3` (when walk-forward is present)
+   - backtest-analyst `fit_for_live: true`
+
+3. **Fail handling**: if the gate fails, do NOT escalate to risk-manager — risk-manager
+   will reject anyway and the user shouldn't see a noisy chain. Instead, abort the
+   PLAN phase for this session and report:
+   ```
+   "session abc: KPI 미달 (compound X.XX%/mo, gap Y.YYpp) — 실거래 승급 불가"
+   ```
+   Then continue with the next session.
+
+4. **Risk-reducing actions exempt**: pause/stop/reduce-size/real→paper bypass the gate.
+
+5. **Historical reference**: 2026-04-07 strategy-evolver 사고 — M003 "월 7.1%",
+   M009 "월 10.1%" 둘 다 산술 평균이라 KPI 근접한 것처럼 보였으나 복리 환산 시
+   각각 6.18%, 8.37%로 미달. CIO가 이 게이트를 통과시켰다면 미달 전략이 실거래에
+   진입할 뻔했음.
+
+**Output additions**: every CIO summary that touched the gate must include in the
+JSON output:
+```json
+"kpi_gate_decisions": [
+  {"session_id": "abc-123", "passed": true,  "compound": 13.45, "gap_pp": -1.45},
+  {"session_id": "def-456", "passed": false, "compound":  6.18, "gap_pp":  5.82,
+   "abort_reason": "복리 KPI 미달, 실거래 승급 불가"}
+]
+```
+
 ### CRITICAL: Single Instance
 Only one CIO workflow should run at a time. If you detect signs of a concurrent workflow (e.g., session states changing unexpectedly), report the conflict and abort.
 

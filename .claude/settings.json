@@ -34,7 +34,9 @@
       "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\references",
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\scripts",
       "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-symbol-select\\scripts",
-      "\\tmp"
+      "\\tmp",
+      "\\home\\hcpark\\antigravity\\.claude\\strategy_candidates",
+      "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\strategy_candidates"
     ]
   }
 }

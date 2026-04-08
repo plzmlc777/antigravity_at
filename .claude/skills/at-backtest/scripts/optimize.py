@@ -269,6 +269,8 @@ def run_walk_forward(
                     days=train_days,
                     initial_capital=initial_capital,
                     config=merged,
+                    from_date=train_from,
+                    to_date=train_to,
                 )
                 score = scoring(result, weights) if weights else scoring(result)
                 if score > best_score:
@@ -297,12 +299,16 @@ def run_walk_forward(
                 days=test_days,
                 initial_capital=initial_capital,
                 config=test_merged,
+                from_date=test_from,
+                to_date=test_to,
             )
             test_return = test_result.total_return
+            test_return_compound = test_result.monthly_return_compound
             test_cycles = test_result.total_cycles
             test_error = None
         except Exception as e:
             test_return = 0.0
+            test_return_compound = 0.0
             test_cycles = 0
             test_error = str(e)
 
@@ -313,8 +319,10 @@ def run_walk_forward(
             "best_config": best_config,
             "train_score": round(best_score, 4),
             "train_return": best_train_result.total_return,
+            "train_return_monthly_compound": best_train_result.monthly_return_compound,
             "train_cycles": best_train_result.total_cycles,
             "test_return": test_return,
+            "test_return_monthly_compound": test_return_compound,
             "test_cycles": test_cycles,
             "test_error": test_error,
         })
@@ -326,8 +334,13 @@ def run_walk_forward(
 
     avg_train = sum(f["train_return"] for f in valid_folds) / len(valid_folds)
     avg_test = sum(f["test_return"] for f in valid_folds) / len(valid_folds)
+    avg_train_compound = sum(f.get("train_return_monthly_compound", 0.0) for f in valid_folds) / len(valid_folds)
+    avg_test_compound = sum(f.get("test_return_monthly_compound", 0.0) for f in valid_folds) / len(valid_folds)
 
-    if avg_train > 0:
+    # Overfit ratio computed on compound (KPI metric), not arithmetic period total
+    if avg_train_compound > 0:
+        overfit_ratio = 1.0 - (avg_test_compound / avg_train_compound)
+    elif avg_train > 0:
         overfit_ratio = 1.0 - (avg_test / avg_train)
     else:
         overfit_ratio = 0.0
@@ -349,6 +362,9 @@ def run_walk_forward(
             "valid_folds": len(valid_folds),
             "avg_train_return": round(avg_train, 2),
             "avg_test_return": round(avg_test, 2),
+            "avg_train_monthly_compound": round(avg_train_compound, 4),
+            "avg_test_monthly_compound": round(avg_test_compound, 4),
+            "kpi_gap_pp_test": round(12.0 - avg_test_compound, 4),
             "overfit_ratio": round(overfit_ratio, 3),
             "verdict": verdict,
         },
@@ -652,6 +668,11 @@ def main():
                 "score": r["score"],
                 "config": r["config"],
                 "total_return": r["result"].total_return,
+                "monthly_return_compound": r["result"].monthly_return_compound,
+                "monthly_return_arithmetic": r["result"].monthly_return_arithmetic,
+                "kpi_gap_pp": r["result"].kpi_gap_pp,
+                "volatility_drag_warning": r["result"].volatility_drag_warning,
+                "total_days": r["result"].total_days,
                 "max_drawdown": r["result"].max_drawdown,
                 "win_rate": r["result"].win_rate,
                 "total_cycles": r["result"].total_cycles,

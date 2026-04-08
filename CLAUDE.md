@@ -414,58 +414,60 @@ ssh ubuntu@121.183.229.170 "pm2 logs at-backend --lines 50 --nostream"
 
 ---
 
-## Remote Server Deployment — GCP 서버 (Temp: 35.202.214.187)
+## Remote Server Deployment — GCP 서버 (Temp: 34.64.87.89)
 
 > 민트 서버 이사 기간(~2026-04-24) 임시 운영 서버. `TRADING_MODE=REAL` 실거래 운영.
-> 키움 API 지정단말기에 GCP 외부 IP 등록 필요.
+> 키움 API 지정단말기 + Binance IP 화이트리스트에 등록 완료.
+> 2026-04-07 us-central1-c (35.202.214.187) → asia-northeast3-a (34.64.87.89) 이전 — Binance API 접속을 위해.
 
 ### Server Info
 
 | 항목 | 값 |
 |------|-----|
-| Host | 35.202.214.187 |
+| Host | 34.64.87.89 |
 | User | hcpark |
+| Instance | at-asia |
 | Path | ~/auto_trading |
 | Branch | master (기본 브랜치가 아님, 반드시 master 사용) |
 | Mode | REAL (실거래) |
-| Web | http://35.202.214.187:5173 |
-| API | http://35.202.214.187:8001 |
-| Spec | 2 vCPU, 4GB RAM, 50GB disk (us-central1-c) |
+| Web | http://34.64.87.89:5173 |
+| API | http://34.64.87.89:8001 |
+| Spec | 2 vCPU, 4GB RAM, 50GB disk (asia-northeast3-a, 서울) |
 
 ### 1. 라이브 세션 확인 (필수)
 
 ```bash
-ssh hcpark@35.202.214.187 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
+ssh hcpark@34.64.87.89 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
 ```
 
 ### 2. Quick Deploy
 
 ```bash
-ssh hcpark@35.202.214.187 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+ssh hcpark@34.64.87.89 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
 ```
 
 ### 3. Full Deploy with Frontend Rebuild
 
 ```bash
-ssh hcpark@35.202.214.187 "cd ~/auto_trading && git pull origin master && cd frontend && npm run build && cd .. && pm2 restart at-backend at-frontend"
+ssh hcpark@34.64.87.89 "cd ~/auto_trading && git pull origin master && cd frontend && npm run build && cd .. && pm2 restart at-backend at-frontend"
 ```
 
 ### 4. Verify Deployment
 
 ```bash
-ssh hcpark@35.202.214.187 "curl -s http://localhost:8001/api/v1/status"
+ssh hcpark@34.64.87.89 "curl -s http://localhost:8001/api/v1/status"
 ```
 
 ### 5. 세션 복원 확인
 
 ```bash
-ssh hcpark@35.202.214.187 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
+ssh hcpark@34.64.87.89 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
 ```
 
 ### Logs
 
 ```bash
-ssh hcpark@35.202.214.187 "pm2 logs at-backend --lines 50 --nostream"
+ssh hcpark@34.64.87.89 "pm2 logs at-backend --lines 50 --nostream"
 ```
 
 ### 주의사항

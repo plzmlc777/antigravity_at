@@ -36,6 +36,10 @@ class BacktestResult:
     sharpe_ratio: float = 0.0
     activity_rate: float = 0.0
     total_days: int = 0
+    monthly_return_compound: float = 0.0  # 복리 월수익률 (%) — KPI 비교 지표
+    monthly_return_arithmetic: float = 0.0  # 산술 월수익률 (%) — 참고용
+    kpi_gap_pp: float = 12.0  # 12.0 - monthly_return_compound (positive = 미달)
+    volatility_drag_warning: bool = False  # |arith - compound| > 1.0%p 시 True
     avg_holding_time: int = 0       # minutes
     max_holding_time: str = "0m"
     min_holding_time: str = "0m"
@@ -78,6 +82,47 @@ def calc_max_drawdown(equity_curve: List[Dict]) -> float:
                 max_dd = dd
 
     return -max_dd * 100
+
+
+def calc_monthly_returns(total_return_pct: float, total_days: int) -> Dict[str, float]:
+    """
+    KPI 게이트 메트릭. 복리/산술 월수익률 + KPI gap.
+
+    KPI = 12%/month COMPOUND. 산술 평균은 변동성 드래그를 숨기므로 사용 금지.
+    Formula: monthly_compound = (1 + total_return)^(1/months) - 1
+
+    Returns dict: {compound, arithmetic, kpi_gap_pp, volatility_drag_warning}
+    """
+    if total_days <= 0:
+        return {
+            "compound": 0.0,
+            "arithmetic": 0.0,
+            "kpi_gap_pp": 12.0,
+            "volatility_drag_warning": False,
+        }
+    months = total_days / 30.4375
+    if months <= 0:
+        return {
+            "compound": 0.0,
+            "arithmetic": 0.0,
+            "kpi_gap_pp": 12.0,
+            "volatility_drag_warning": False,
+        }
+
+    arithmetic = total_return_pct / months
+    # 손실로 자본금이 음수가 되는 극단 케이스 방지
+    growth = 1 + total_return_pct / 100
+    if growth <= 0:
+        compound = -100.0
+    else:
+        compound = (growth ** (1 / months) - 1) * 100
+
+    return {
+        "compound": round(compound, 4),
+        "arithmetic": round(arithmetic, 4),
+        "kpi_gap_pp": round(12.0 - compound, 4),
+        "volatility_drag_warning": (arithmetic - compound) > 1.0,
+    }
 
 
 def calc_activity_rate(trades, data_feed_timestamps: List, raw_trades: List[Dict] = None) -> tuple:
@@ -441,6 +486,8 @@ def calculate_metrics(
         trade_stats = calc_trade_stats(trades)
         stability = calc_stability_stats(trades)
 
+    monthly = calc_monthly_returns(total_return, total_days)
+
     return BacktestResult(
         strategy_id=strategy_id,
         total_return=round(total_return, 4),
@@ -455,6 +502,10 @@ def calculate_metrics(
         sharpe_ratio=trade_stats["sharpe_ratio"],
         activity_rate=round(activity_rate, 4),
         total_days=total_days,
+        monthly_return_compound=monthly["compound"],
+        monthly_return_arithmetic=monthly["arithmetic"],
+        kpi_gap_pp=monthly["kpi_gap_pp"],
+        volatility_drag_warning=monthly["volatility_drag_warning"],
         avg_holding_time=trade_stats["avg_holding_time"],
         max_holding_time=trade_stats["max_holding_time"],
         min_holding_time=trade_stats["min_holding_time"],
@@ -472,6 +523,9 @@ def format_results(result: BacktestResult) -> str:
         f"  Strategy: {result.strategy_id}",
         f"{'='*50}",
         f"  Total Return:     {result.total_return:>10.2f}%",
+        f"  Monthly (compound): {result.monthly_return_compound:>10.2f}%  [KPI 12.0%]",
+        f"  Monthly (arith):  {result.monthly_return_arithmetic:>10.2f}%",
+        f"  KPI Gap:          {result.kpi_gap_pp:>+10.2f}%p" + ("  ⚠ vol drag" if result.volatility_drag_warning else ""),
         f"  Max Drawdown:     {result.max_drawdown:>10.2f}%",
         f"  Sharpe Ratio:     {result.sharpe_ratio:>10.4f}",
         f"  Win Rate:         {result.win_rate:>10.1f}%",

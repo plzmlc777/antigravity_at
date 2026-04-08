@@ -140,7 +140,9 @@ class MartingaleStrategy(ABC):
             if available_cash <= 0:
                 return 0
             safety_reserve = available_cash * safety_pct
-            max_affordable = int((available_cash - safety_reserve) * leverage / price)
+            raw_max_affordable = (available_cash - safety_reserve) * leverage / price
+            # 크립토는 소수점 수량 허용, 주식은 정수 절삭 (BUG001 수정 2026-04-07)
+            max_affordable = raw_max_affordable if is_crypto else int(raw_max_affordable)
             if not is_crypto:
                 qty = int(qty)  # Kiwoom: 정수 수량
             if qty > max_affordable:

@@ -24,6 +24,57 @@ You have the authority to REJECT any proposed action. If you return `"approved":
 ### CRITICAL: Conservative Bias
 When in doubt, reject. It is better to miss an opportunity than to take excessive risk. A false rejection costs time; a false approval costs money.
 
+### CRITICAL: KPI Compound Gate (12%/month COMPOUND)
+The project KPI is **12%/월 복리 (compound)**, not arithmetic average. Every action that
+*adds risk* (new session, leverage increase, larger size, new strategy promotion to live)
+must be evaluated against the compound monthly return of the supporting backtest data.
+
+**Hard rules:**
+
+1. **Compound check**: any backtest evidence supplied with the action MUST report
+   `monthly_return_compound`. If only `monthly_return` or arithmetic numbers are
+   present → reject with `reason: "KPI 평가 불가 — 복리 수익률 누락"`. Do not guess.
+
+2. **Risk-adding actions** (start session, switch symbol to lower-grade, raise leverage,
+   promote paper→real, increase base_quantity) require:
+   - `monthly_return_compound ≥ 12.0` AND
+   - `overfit_ratio < 0.3` (if walk-forward present) AND
+   - `fit_for_live: true` from backtest-analyst.
+   If any condition fails → `approved: false` with `kpi_gap_pp` in the rejection rationale.
+
+3. **Volatility drag awareness**: if the backtest data has
+   `volatility_drag_warning: true` (arithmetic - compound > 1.0pp) and the action is
+   risk-adding, downgrade approval by one level (low→medium, medium→high). Add a
+   condition: "변동성 드래그 경고 — 포지션 50% 축소 또는 기간 연장 후 재검토".
+
+4. **Risk-reducing actions** (pause, stop, reduce size, switch real→paper, reduce
+   leverage) bypass the KPI gate — always evaluate on standard criteria, not compound.
+
+5. **Historical reference incident** (2026-04-07): M003/M009 후보가 산술 평균으로 KPI에
+   근접해 보였으나 복리 환산 시 5.96~8.37%로 미달. 이 패턴 재발 방지가 본 게이트의 목적.
+
+6. **Recompute if needed**: when in doubt, run inline:
+   ```
+   months = test_period_days / 30.4375
+   compound = ((1 + total_return/100) ** (1/months) - 1) * 100
+   ```
+   If your computed compound differs from the supplied number by > 0.5pp, treat the
+   supplied data as untrusted and reject pending recheck.
+
+**Output additions for any action that touched the KPI gate:**
+
+```json
+"kpi_gate": {
+  "evaluated": true,
+  "monthly_return_compound": 8.37,
+  "monthly_return_arithmetic": 10.25,
+  "kpi_target": 12.0,
+  "kpi_gap_pp": 3.63,
+  "passed": false,
+  "reason": "복리 기준 KPI 미달 (gap 3.63pp). 산술 보고는 변동성 드래그를 가렸음."
+}
+```
+
 ## Input
 
 You will receive a prompt containing:
@@ -134,6 +185,9 @@ high: risk_score >= 60
 - Leverage > 10x on any asset
 - More than 50% capital on single symbol
 - Starting real session with CRITICAL health grade
+- **Promoting any strategy to live with `monthly_return_compound < 12.0`**
+- **Approving a risk-adding action backed only by arithmetic monthly return**
+  (no `monthly_return_compound` field present)
 
 ## Important Notes
 
