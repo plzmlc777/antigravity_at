@@ -586,39 +586,29 @@ class AISymbolSelectionService:
 
     def _load_symbol_blacklist(self) -> set:
         """
-        D-012 (audit 2026-04-06): load symbol blacklist from
-        .claude/skills/at-symbol-select/references/symbol_blacklist.json.
-
-        Returns an empty set on any failure (file missing, malformed, etc.)
-        so blacklist absence never breaks symbol selection.
+        D-012 (audit 2026-04-06): load symbol blacklist via canonical loader.
+        See backend.app.core.binance_market_snapshot.load_blacklist for details.
         """
-        import os
-        # backend/app/core/ai_symbol_selection.py → project root is 4 levels up
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        path = os.path.join(
-            project_root,
-            ".claude", "skills", "at-symbol-select", "references", "symbol_blacklist.json",
-        )
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return {
-                str(entry["symbol"]).strip().upper()
-                for entry in data.get("blacklist", [])
-                if entry.get("symbol")
-            }
-        except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.warning(f"[AISymbol] D-012 blacklist load failed (ignoring): {e}")
-            return set()
+        from .binance_market_snapshot import load_blacklist
+        return load_blacklist()
 
     async def _fetch_binance_market_data(self, is_futures: bool = False) -> tuple:
         """Fetch Binance market data via public REST API (no auth needed).
 
-        Returns (stock_data, ranking_data) in a format compatible with Kiwoom data:
-          stock_data: [{"code": "BTCUSDT", "name": "BTCUSDT", "lastPrice": "...", ...}]
-          ranking_data: {"volume_top": [...], "change_top": [...], "change_bottom": [...]}
+        I/O + caching only. Pure transformation lives in
+        backend.app.core.binance_market_snapshot.build_market_data.
+
+        Returns (stock_data, ranking_data) in a format compatible with Kiwoom data.
+        ranking_data adds a stateful "volume_spike" key when prior cache exists
+        (>20min old), computed via compute_volume_spike.
         """
         from ..core.http_client import HttpClientManager
+        from .binance_market_snapshot import (
+            build_market_data,
+            compute_volume_spike,
+            filter_usdt_tickers,
+            load_blacklist,
+        )
 
         try:
             client = HttpClientManager.get_instance().get_client()
@@ -634,94 +624,33 @@ class AISymbolSelectionService:
                 return None, None
 
             tickers = response.json()
-
-            # D-012 (audit 2026-04-06): load symbol blacklist before filtering
-            blacklist = self._load_symbol_blacklist()
-
-            # Filter USDT pairs only, exclude low-volume noise + blacklist
-            usdt_tickers = [
-                t for t in tickers
-                if t.get("symbol", "").endswith("USDT")
-                and float(t.get("quoteVolume", 0)) > 100000  # min $100k volume
-                and t.get("symbol", "").strip().upper() not in blacklist
-            ]
+            blacklist = load_blacklist()
             if blacklist:
                 logger.info(f"[AISymbol] D-012 blacklist excluded {len(blacklist)} symbols: {sorted(blacklist)}")
 
-            # Build stock_data (compatible with Kiwoom format)
-            stock_data = []
-            for t in usdt_tickers:
-                symbol = t["symbol"]
-                price_change_pct = float(t.get("priceChangePercent", 0))
-                stock_data.append({
-                    "code": symbol,
-                    "name": symbol.replace("USDT", ""),
-                    "lastPrice": t.get("lastPrice", "0"),
-                    "priceChangePercent": f"{price_change_pct:+.2f}%",
-                    "quoteVolume": t.get("quoteVolume", "0"),
-                    "marketName": "Futures" if is_futures else "Spot",
-                })
+            stock_data, ranking_data = build_market_data(
+                tickers, is_futures=is_futures, blacklist=blacklist
+            )
 
-            # Build ranking_data
-            sorted_by_volume = sorted(usdt_tickers, key=lambda x: float(x.get("quoteVolume", 0)), reverse=True)
-            sorted_by_change = sorted(usdt_tickers, key=lambda x: float(x.get("priceChangePercent", 0)), reverse=True)
-
-            def _ticker_to_rank(t):
-                return {
-                    "code": t["symbol"],
-                    "name": t["symbol"].replace("USDT", ""),
-                    "lastPrice": t.get("lastPrice", "0"),
-                    "priceChangePercent": f"{float(t.get('priceChangePercent', 0)):+.2f}%",
-                    "quoteVolume": t.get("quoteVolume", "0"),
-                }
-
-            ranking_data = {
-                "volume_top": [_ticker_to_rank(t) for t in sorted_by_volume[:50]],
-                "change_top": [_ticker_to_rank(t) for t in sorted_by_change[:30]],
-                "change_bottom": [_ticker_to_rank(t) for t in sorted_by_change[-30:]],
-            }
-
-            # ── Volume Spike: compare current 24h volume vs cached previous ──
+            # ── Volume Spike: stateful, only when cache is >20min old ──
             now = datetime.now()
-            volume_spike_data = []
+            usdt_tickers = filter_usdt_tickers(tickers, blacklist=blacklist)
             if (self._binance_cache_time and
                     (now - self._binance_cache_time) > timedelta(minutes=20)):
-                for t in usdt_tickers:
-                    sym = t["symbol"]
-                    cur_vol = float(t.get("quoteVolume", 0))
-                    prev_vol = self._binance_volume_cache.get(sym)
-                    if prev_vol and prev_vol > 100000:
-                        spike_pct = ((cur_vol - prev_vol) / prev_vol) * 100
-                        if spike_pct > 5:  # at least 5% increase
-                            entry = _ticker_to_rank(t)
-                            entry["spike_pct"] = f"+{spike_pct:.1f}%"
-                            volume_spike_data.append((entry, spike_pct))
-                volume_spike_data.sort(key=lambda x: x[1], reverse=True)
-                ranking_data["volume_spike"] = [d[0] for d in volume_spike_data[:50]]
+                ranking_data["volume_spike"] = compute_volume_spike(
+                    usdt_tickers, self._binance_volume_cache
+                )
                 logger.info(f"[AISymbol] Binance volume_spike: {len(ranking_data['volume_spike'])} items")
             else:
                 ranking_data["volume_spike"] = []
                 if not self._binance_cache_time:
                     logger.info("[AISymbol] Binance volume_spike: first run, caching volumes for next comparison")
 
-            # Update volume cache
+            # Update volume cache for next run
             self._binance_volume_cache = {
                 t["symbol"]: float(t.get("quoteVolume", 0)) for t in usdt_tickers
             }
             self._binance_cache_time = now
-
-            # ── Volatility: 24h price range (high-low)/low ──
-            volatility_data = []
-            for t in usdt_tickers:
-                high = float(t.get("highPrice", 0))
-                low = float(t.get("lowPrice", 0))
-                if low > 0:
-                    vol_pct = ((high - low) / low) * 100
-                    entry = _ticker_to_rank(t)
-                    entry["volatility"] = f"{vol_pct:.1f}%"
-                    volatility_data.append((entry, vol_pct))
-            volatility_data.sort(key=lambda x: x[1], reverse=True)
-            ranking_data["volatility_top"] = [d[0] for d in volatility_data[:30]]
 
             logger.info(f"[AISymbol] Binance market data: {len(stock_data)} USDT pairs, "
                         f"{sum(len(v) for v in ranking_data.values())} ranking items")
