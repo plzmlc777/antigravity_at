@@ -387,21 +387,26 @@ class LiveContext:
 
         # Cash guard: block orders exceeding session's allocated capital
         # Skip for position-close orders (e.g., short cover)
+        # Phase 3d: delegates to position_math.cap_qty_by_cash (shared with SkillContext)
         is_close = metadata and metadata.get("close_position")
         if not is_close and self.initial_capital > 0 and quantity > 0:
             exec_price = price if price > 0 else self.get_current_price(symbol)
-            available = max(self.cash, 0)
             if exec_price > 0:
-                # Futures: margin = notional / leverage
+                from .position_math import cap_qty_by_cash
                 leverage = self._get_leverage(symbol) if self.is_futures else 1
-                order_cost = quantity * exec_price / leverage
-                if order_cost > available:
-                    max_qty = int(available * leverage / exec_price) if available > 0 else 0
-                    if max_qty <= 0:
+                capped_qty, was_capped = cap_qty_by_cash(
+                    qty=quantity, price=exec_price,
+                    available_cash=self.cash, leverage=leverage,
+                    is_futures=self.is_futures,
+                )
+                if was_capped:
+                    if capped_qty <= 0:
+                        order_cost = quantity * exec_price / leverage
                         self.log(f"BUY BLOCKED: Insufficient cash ({self.cash:,.2f}) for {quantity} × {exec_price:,.4f} / {leverage}x = {order_cost:,.2f}")
                         return {"status": "failed", "reason": "insufficient_cash"}
-                    self.log(f"BUY QTY CAPPED: {quantity} → {max_qty} (cash: {self.cash:,.2f}, margin: {order_cost:,.2f}, lev: {leverage}x)")
-                    quantity = max_qty
+                    order_cost = quantity * exec_price / leverage
+                    self.log(f"BUY QTY CAPPED: {quantity} → {capped_qty} (cash: {self.cash:,.2f}, margin: {order_cost:,.2f}, lev: {leverage}x)")
+                    quantity = capped_qty
 
         return self._execute_order(symbol, OrderSide.BUY, quantity, price, metadata, on_filled)
 
@@ -688,38 +693,21 @@ class LiveContext:
 
     def _calc_cash_delta(self, signal_type: str, price: float, qty: float,
                          metadata: dict = None, realized_pnl: float = 0) -> float:
+        """Cash delta for a trade — delegates to position_math.calc_cash_delta.
+
+        Phase 3d single source of truth: pure math lives in
+        backend/app/core/position_math.py and is shared with SkillContext.
         """
-        Calculate cash change for a trade.
-
-        Spot: BUY costs full notional, SELL returns full notional.
-        Futures: Entry costs margin (notional/leverage), exit returns margin + PnL.
-          - LONG: BUY=entry, SELL=exit
-          - SHORT: SELL=entry, BUY=exit
-        """
-        notional = price * qty
-        if not self.is_futures:
-            # Spot: simple notional
-            if signal_type == Signal.BUY:
-                return -notional  # cash decreases
-            else:
-                return notional   # cash increases
-
-        # Futures: margin-based
-        leverage = self._get_leverage()
-        margin = notional / leverage if leverage > 0 else notional
-        pos_side = (metadata or {}).get("position_side", "").lower()
-
-        is_entry = (
-            (signal_type == Signal.SELL and pos_side == Side.SHORT) or
-            (signal_type == Signal.BUY and pos_side in (Side.LONG, ""))
+        from .position_math import calc_cash_delta
+        return calc_cash_delta(
+            signal_type=signal_type,
+            price=price,
+            qty=qty,
+            is_futures=self.is_futures,
+            leverage=self._get_leverage() if self.is_futures else 1,
+            position_side=(metadata or {}).get("position_side", ""),
+            realized_pnl=realized_pnl,
         )
-        is_exit = not is_entry
-
-        if is_entry:
-            return -margin  # margin used
-        else:
-            # Exit: margin returned + realized PnL
-            return margin + realized_pnl
 
     def log(self, message: str):
         print(f"[LIVE] {message}")

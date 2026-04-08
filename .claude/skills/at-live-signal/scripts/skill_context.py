@@ -14,11 +14,28 @@ LiveContext의 핵심 동작을 재현:
 
 import json
 import logging
+import sys
 import urllib.request
 import urllib.error
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+
+# ─── Bootstrap: backend on sys.path so position_math is importable ──────
+# Phase 3d: shared pure math (calc_cash_delta, cap_qty_by_cash) lives in
+# backend/app/core/position_math.py — same pattern as binance_market_snapshot
+# and symbol_score (Phase 3b/3c). Stdlib-only module, no httpx/SQLAlchemy.
+_SCRIPT_DIR = Path(__file__).parent
+_BACKEND_DIR = _SCRIPT_DIR.parent.parent.parent.parent / "backend"
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
+from app.core.position_math import (  # noqa: E402
+    calc_cash_delta as _calc_cash_delta,
+    cap_qty_by_cash as _cap_qty_by_cash,
+    realized_pnl_simple as _realized_pnl_simple,
+)
 
 logger = logging.getLogger("skill_context")
 
@@ -168,19 +185,21 @@ class SkillContext:
         if exec_price <= 0:
             return {"status": "failed", "reason": "no_price"}
 
-        # Cash guard (futures: margin = notional / leverage)
+        # Cash guard — Phase 3d: shared with LiveContext
         leverage = self._leverage
         is_close = metadata and metadata.get("close_position")
         if not is_close and self.initial_capital > 0 and quantity > 0:
-            order_cost = quantity * exec_price / leverage
-            available = max(self.cash, 0)
-            if order_cost > available:
-                max_qty = int(available * leverage / exec_price) if available > 0 else 0
-                if max_qty <= 0:
+            capped_qty, was_capped = _cap_qty_by_cash(
+                qty=quantity, price=exec_price,
+                available_cash=self.cash, leverage=leverage,
+                is_futures=True,
+            )
+            if was_capped:
+                if capped_qty <= 0:
                     self.log(f"BUY BLOCKED: Insufficient cash ({self.cash:,.2f})")
                     return {"status": "failed", "reason": "insufficient_cash"}
-                self.log(f"BUY QTY CAPPED: {quantity} → {max_qty}")
-                quantity = max_qty
+                self.log(f"BUY QTY CAPPED: {quantity} → {capped_qty}")
+                quantity = capped_qty
 
         order_id = str(uuid.uuid4())[:8]
 
@@ -192,9 +211,12 @@ class SkillContext:
         if new_qty > 0:
             self._avg_costs[symbol] = (prev_cost + exec_price * quantity) / new_qty
 
-        # Cash delta (futures: margin-based)
-        cash_delta = -(quantity * exec_price / leverage)
-        self.cash += cash_delta
+        # Cash delta — Phase 3d: shared with LiveContext (futures long entry)
+        self.cash += _calc_cash_delta(
+            signal_type="BUY", price=exec_price, qty=quantity,
+            is_futures=True, leverage=leverage,
+            position_side=self.config.get("position_side", "long"),
+        )
 
         result = {
             "type": "buy", "symbol": symbol, "price": exec_price,
@@ -232,9 +254,9 @@ class SkillContext:
 
         order_id = str(uuid.uuid4())[:8]
 
-        # Calculate PnL
+        # Calculate PnL — Phase 3d: shared math (long exit)
         avg_cost = self._avg_costs.get(symbol, 0)
-        realized_pnl = (exec_price - avg_cost) * quantity if avg_cost > 0 else 0
+        realized_pnl = _realized_pnl_simple("long", avg_cost, exec_price, quantity)
 
         # Local state update
         self._holdings[symbol] = self._holdings.get(symbol, 0) - quantity
@@ -242,9 +264,12 @@ class SkillContext:
             self._holdings.pop(symbol, None)
             self._avg_costs.pop(symbol, None)
 
-        # Cash delta (margin release + PnL)
-        cash_delta = quantity * exec_price / self._leverage
-        self.cash += cash_delta
+        # Cash delta — Phase 3d: shared with LiveContext (futures long exit)
+        self.cash += _calc_cash_delta(
+            signal_type="SELL", price=exec_price, qty=quantity,
+            is_futures=True, leverage=self._leverage,
+            position_side="long", realized_pnl=realized_pnl,
+        )
 
         result = {
             "type": "sell", "symbol": symbol, "price": exec_price,
@@ -291,8 +316,12 @@ class SkillContext:
         if abs(new_qty) > 0:
             self._avg_costs[symbol] = (prev_cost + exec_price * quantity) / abs(new_qty)
 
-        cash_delta = -(quantity * exec_price / self._leverage)
-        self.cash += cash_delta
+        # Cash delta — Phase 3d: shared with LiveContext (futures short entry)
+        self.cash += _calc_cash_delta(
+            signal_type="SELL", price=exec_price, qty=quantity,
+            is_futures=True, leverage=self._leverage,
+            position_side="short",
+        )
 
         result = {
             "type": "short", "symbol": symbol, "price": exec_price,
@@ -327,15 +356,22 @@ class SkillContext:
         is_short = self._holdings.get(symbol, 0) < 0
         avg_cost = self._avg_costs.get(symbol, 0)
 
-        if is_short:
-            realized_pnl = (avg_cost - exec_price) * qty
-        else:
-            realized_pnl = (exec_price - avg_cost) * qty
+        # Phase 3d: shared PnL math
+        side = "short" if is_short else "long"
+        realized_pnl = _realized_pnl_simple(side, avg_cost, exec_price, qty)
 
         # Clear position
         self._holdings.pop(symbol, None)
         self._avg_costs.pop(symbol, None)
-        self.cash += qty * exec_price / self._leverage
+
+        # Cash delta — Phase 3d: shared with LiveContext (position close)
+        # Close direction: long exit = SELL, short exit = BUY
+        close_signal = "BUY" if is_short else "SELL"
+        self.cash += _calc_cash_delta(
+            signal_type=close_signal, price=exec_price, qty=qty,
+            is_futures=True, leverage=self._leverage,
+            position_side=side, realized_pnl=realized_pnl,
+        )
 
         result = {
             "status": "success", "symbol": symbol, "price": exec_price,

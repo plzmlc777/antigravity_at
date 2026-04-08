@@ -513,6 +513,40 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - Phase 3 인벤토리 추가 스캔: at-backtest/optimize.py(689 LOC)는 backend `_heavy_optimize_background_task`와 grid-search 오케스트레이션을 공유하지만 walk-forward(스킬 고유 기능)와 background-task vs CLI 차이 때문에 진짜 중복이 아님 — Phase 3 후보 아님으로 판정.
   - at-backtest/metrics.py(544 LOC)는 `monthly_return_compound` 등 KPI 보강 필드 단일 진실 원천 — 백엔드가 갖지 않은 필드라 중복 아님.
 
+## [2026-04-08] CIO-20260408-005: Position math 단일화 (Phase 3d)
+- **Workflow**: refactor (skill/backend deduplication, 사용자 명시 승인 작업)
+- **Session**: n/a (페이퍼 세션 RIVERUSDT/BTCUSDT로 검증)
+- **Symbol**: n/a
+- **Action**: LiveContext와 SkillContext 사이의 진짜 중복 수학(`_calc_cash_delta`, cash guard qty cap)을 신규 `backend/app/core/position_math.py` 순수 함수 모듈로 추출. 양쪽 컨텍스트가 동일한 import로 위임.
+- **Trigger**: Phase 3 인벤토리에서 보류했던 마지막 후보 (CIO-20260408-004 follow-up). 사용자가 "통합하는 작업 진행해줘"로 명시 승인.
+- **Process**:
+  - **정직한 범위 재산정**: 이전 추정 "400 LOC, MEDIUM risk"는 파일 크기 기반 상한값. 실제 코드 비교 결과, LiveContext는 DB 백킹 + 어댑터 큐 + 페이즈 게이트 패턴이고 SkillContext는 in-memory 시뮬레이터 + REST 기록 패턴으로 **아키텍처 자체가 의도적으로 다름**. 진짜 중복 수학은 ~50 LOC 수준.
+  - **추출된 순수 함수 3개**:
+    1. `calc_cash_delta(signal_type, price, qty, is_futures, leverage, position_side, realized_pnl=0)` — spot/futures × entry/exit × long/short 통합
+    2. `cap_qty_by_cash(qty, price, available_cash, leverage, is_futures)` — cash guard
+    3. `realized_pnl_simple(side, avg_cost, exit_price, qty)` — 시뮬레이터용 단순 PnL
+  - **Stdlib 전용 보장**: position_math.py는 typing만 import. SQLAlchemy/httpx 일체 없음 → 스킬 standalone CLI(urllib 기반)에서도 sys.path 부트스트랩으로 import 가능.
+  - **Byte-equivalence 스모크 테스트**: 21개 케이스(spot/futures × buy/sell × long/short × leverage 1x/5x/20x × cash guard) 모두 LiveContext 기존 inline 수식과 새 pure function이 byte-identical 결과 PASS.
+  - **LiveContext 마이그레이션**: `_calc_cash_delta`(35 LOC inline) → 9 LOC delegate, buy 메서드 cash guard(17 LOC) → 12 LOC delegate.
+  - **SkillContext 마이그레이션**: sys.path 부트스트랩 추가 (Phase 3b/3c와 동일 패턴), buy/sell/short/close_position 4개 메서드의 cash math/PnL 모두 delegate.
+- **Executed**:
+  - 신규: `backend/app/core/position_math.py` (~115 LOC, 순수 함수만)
+  - 수정: `backend/app/core/live_context.py` (`_calc_cash_delta` + buy cash guard delegate)
+  - 수정: `.claude/skills/at-live-signal/scripts/skill_context.py` (4개 메서드 delegate + sys.path bootstrap)
+  - 검증: 페이퍼 세션 RIVERUSDT가 백엔드 재시작 후에도 BUY/SELL 사이클 정상 진행, cash delta 출력값 정확. "Restored 2 sessions" 로그 확인. 에러 0건.
+- **Outcome**:
+  - 백엔드 LiveContext의 cash math 단일 위치 (`position_math.py`)에서 진실성 보장
+  - SkillContext가 별도 코드 분기를 유지하지 않고 백엔드 함수를 직접 import
+  - 스킬 standalone 실행성 보존 (urllib stdlib 경로 + 백엔드 sys.path 부트스트랩)
+  - 운영 영향 0: 페이퍼 세션만 운영 중, 실거래 없음. PM2 무중단 재시작 성공.
+- **Status**: completed
+- **Pattern**: Phase 3b/3c 패턴 재사용 — pure function 추출 → 양쪽이 thin delegate. 단, 이번엔 호출 측 양쪽이 모두 stateful 클래스라서 함수 시그니처 재설계 (instance 메서드 → 외부 인자) 필요.
+- **Follow-ups**:
+  - SkillContext 나머지 380 LOC는 의도적 패턴 차이로 통합 대상 아님 (in-memory 시뮬레이터 vs DB-backed 실행). 향후 유지보수 시 양쪽 동기화 부담 없음 — 진짜 공유 수학은 이미 단일화됨.
+  - Phase 3 인벤토리 모든 항목 처리 완료. 백엔드/스킬 사이의 의미 있는 중복은 더 이상 없음.
+
+---
+
 ## [2026-04-08] CIO-20260408-004: Binance market snapshot 단일화 (Phase 3c)
 - **Workflow**: refactor (skill/backend deduplication, Phase 3 인벤토리 후속)
 - **Session**: n/a
