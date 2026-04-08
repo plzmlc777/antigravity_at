@@ -490,3 +490,25 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
 - **Follow-ups**:
   - Phase 3b 후보: `.claude/skills/at-backtest/scripts/backtest.py` ↔ backend Waterfall API 호출 단일화 검토
   - `/integrated-backtest` ClientDisconnect 원인 별도 조사 (validation 단계 의심)
+
+## [2026-04-08] CIO-20260408-003: Symbol score 단일화 (Phase 3b)
+- **Workflow**: refactor (skill/backend deduplication, 다음 중복 페어 제거)
+- **Session**: n/a
+- **Symbol**: n/a
+- **Action**: AI 종목 선정 스코어링 함수의 byte-for-byte 중복(`AISymbolSelectionService._calculate_score` vs `at-symbol-select/scripts/scoring.py`)을 backend `app.core.symbol_score` 모듈로 일원화. 양쪽 호출자가 단일 구현에 위임하도록 변경.
+- **Trigger**: Phase 3a 종료 후 인벤토리 재스캔에서 발견. 두 구현이 (변수명 차이 외에는) 동일 로직: base_score=0.7×return+0.15×winrate, reliability multiplier(1~30 cycles 구간별).
+- **Process**:
+  - 신규 모듈 `backend/app/core/symbol_score.py`: pure functions `calculate_score(total_return, win_rate, total_cycles)`, `calculate_score_from_result(dict)`, `score_results(list)`. 알고리즘 단일 진실 원천.
+  - 백엔드 위임: `AISymbolSelectionService._calculate_score`가 `calculate_score_from_result`로 2-line 위임.
+  - 스킬 CLI thin wrapper: `at-symbol-select/scripts/scoring.py`가 `sys.path`에 backend를 추가하고 `from app.core.symbol_score import ...` 재수출. 기존 `from scoring import ...` 호출자(run_pipeline.py 등)는 변경 불필요.
+  - 패리티 검증: 10-case 등가 테스트 (cycles=0/1/2/3/4/9/10/30/100, 양/음 수익률, edge -inf) 전체 일치. CLI smoke (--return 5.43 --win-rate 62.7 --cycles 169) → 15.8472 양쪽 일치.
+- **Executed**: yes (commit a40bdfd)
+- **Outcome**:
+  - 백엔드 ai_symbol_selection.py: -30 LOC (inline 구현 → 2-line 위임)
+  - 스킬 scoring.py: rewrite (자체 구현 제거 + re-export)
+  - PM2 백엔드 재시작 후 라이브 세션 2개(RIVERUSDT, BTCUSDT) 정상 복원
+- **Status**: confirmed
+- **Pattern 재사용**: Phase 3a의 5단계 절차(engine surface 확장 → consumer 마이그레이션 → smoke → cleanup → 삭제) 중 작은 케이스. "byte-for-byte 동일 함수"는 한쪽을 thin re-export로 만드는 단순 패턴으로 즉시 단일화 가능.
+- **Follow-ups**:
+  - Phase 3 인벤토리 추가 스캔: at-backtest/optimize.py(689 LOC)는 backend `_heavy_optimize_background_task`와 grid-search 오케스트레이션을 공유하지만 walk-forward(스킬 고유 기능)와 background-task vs CLI 차이 때문에 진짜 중복이 아님 — Phase 3 후보 아님으로 판정.
+  - at-backtest/metrics.py(544 LOC)는 `monthly_return_compound` 등 KPI 보강 필드 단일 진실 원천 — 백엔드가 갖지 않은 필드라 중복 아님.
