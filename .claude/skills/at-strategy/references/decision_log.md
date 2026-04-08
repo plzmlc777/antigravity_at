@@ -512,3 +512,31 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
 - **Follow-ups**:
   - Phase 3 인벤토리 추가 스캔: at-backtest/optimize.py(689 LOC)는 backend `_heavy_optimize_background_task`와 grid-search 오케스트레이션을 공유하지만 walk-forward(스킬 고유 기능)와 background-task vs CLI 차이 때문에 진짜 중복이 아님 — Phase 3 후보 아님으로 판정.
   - at-backtest/metrics.py(544 LOC)는 `monthly_return_compound` 등 KPI 보강 필드 단일 진실 원천 — 백엔드가 갖지 않은 필드라 중복 아님.
+
+## [2026-04-08] CIO-20260408-004: Binance market snapshot 단일화 (Phase 3c)
+- **Workflow**: refactor (skill/backend deduplication, Phase 3 인벤토리 후속)
+- **Session**: n/a
+- **Symbol**: n/a
+- **Action**: AI 종목 선정용 Binance 24h 시장 스냅샷 변환 함수의 중복(`AISymbolSelectionService._fetch_binance_market_data` vs `at-symbol-select/scripts/fetch_market_data.py`)을 backend `app.core.binance_market_snapshot` 모듈로 일원화. I/O와 stateful 캐싱은 호출자에 남기고 pure transformation만 추출.
+- **Trigger**: Phase 3b 완료 후 Explore 에이전트로 systematic 인벤토리 스캔 (CIO-20260408-003 follow-up). 8개 페어 분류 결과 fetch_market_data가 HIGH priority(120 LOC, LOW risk).
+- **Process**:
+  - **인벤토리 스캔**: Explore 에이전트가 8개 스킬 파일 vs 백엔드 modules 분류. DUPLICATE 1건(fetch_market_data, 120 LOC), PARTIAL 2건(skill_context 400 LOC mid-risk, ab_test 80 LOC), DELEGATE 3건, UNIQUE 2건.
+  - **신규 모듈 `backend/app/core/binance_market_snapshot.py`**:
+    - pure functions: `load_blacklist`, `filter_usdt_tickers`, `build_stock_data`, `build_volume_top`, `build_change_rankings`, `build_volatility_top`, `build_market_data`, `compute_volume_spike`
+    - 알고리즘 상수 중앙화: `DEFAULT_MIN_VOLUME=100_000`, `VOLUME_TOP_N=50`, `CHANGE_TOP_N=30`, `VOLATILITY_TOP_N=30`
+    - `project_blacklist_path()`로 D-012 blacklist 단일 경로
+  - **백엔드 위임**: `_load_symbol_blacklist`(28 LOC → 2 LOC), `_fetch_binance_market_data`(120 LOC → 65 LOC). HTTP fetch(HttpClientManager async)와 volume_spike 캐시(`_binance_cache_time`, `_binance_volume_cache`)만 호출자에 남김.
+  - **스킬 thin CLI wrapper**: `fetch_market_data.py` 재작성. urllib 기반 stdlib HTTP는 그대로 유지(스킬 standalone 실행 위해), pure transformation은 `from app.core.binance_market_snapshot import ...` 재수출.
+  - **패리티 검증**: 동일 ticker dataset(582 USDT pairs, 라이브 spot)으로 backend `_fetch_binance_market_data` vs snapshot `build_market_data` 비교. stock_data 582/582 동일, 4개 ranking 키 전부 동일. backend는 expected `volume_spike` 키 1개 추가(첫 실행 캐시 빈 값).
+- **Executed**: yes (commit 0cdf82a)
+- **Outcome**:
+  - 신규 모듈 +198 LOC, 백엔드 -55 LOC, 스킬 -57 LOC. 순증 +86 LOC지만 두 호출자에서 byte-drift 가능 영역이 0이 됨.
+  - PM2 백엔드 재시작 후 라이브 세션 2개(RIVERUSDT, BTCUSDT) 정상 복원.
+- **Status**: confirmed
+- **Pattern 재사용**: Phase 3b와 동일한 "pure function 추출 → 양쪽 thin re-export" 패턴. I/O와 stateful 부분이 다를 때(async httpx + 캐시 vs sync urllib)는 transformation만 분리하면 깔끔.
+- **Follow-ups**:
+  - Phase 3 인벤토리 잔여 후보:
+    - **HIGH** (다음 후보): SkillContext ↔ LiveContext (400 LOC, MEDIUM risk) — 라이브 트레이딩 컨텍스트 인터페이스 정합
+    - **MEDIUM**: ab_test orchestration (80 LOC, LOW risk) — symbol_score 패턴 단순 적용 가능
+    - **LOW**: analyze_symbol.py, health_check.py, indicators.py, run_strategy.py(delegate) — 단일화 불요
+  - SkillContext 작업 전 사용자 승인 필요 (라이브 트레이딩 영향 영역).
