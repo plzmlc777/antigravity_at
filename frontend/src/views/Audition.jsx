@@ -41,6 +41,27 @@ function CategoryBadge({ category }) {
     );
 }
 
+function BirthBadge({ birth }) {
+    if (!birth) {
+        return <span className="text-gray-600 text-xs">—</span>;
+    }
+    const classification = birth.classification || 'unknown';
+    const CLS_MAP = {
+        healthy: { emoji: '🟢', cls: 'text-emerald-400', label: 'healthy' },
+        zero_cycles: { emoji: '🟡', cls: 'text-yellow-400', label: '0 cycles' },
+        loss_functional: { emoji: '🟠', cls: 'text-orange-400', label: 'loss' },
+        api_failure: { emoji: '🔴', cls: 'text-red-400', label: 'api fail' },
+        invalid_response: { emoji: '🔴', cls: 'text-red-400', label: 'invalid' },
+    };
+    const info = CLS_MAP[classification] || { emoji: '⚪', cls: 'text-gray-400', label: classification };
+    const cycles = birth.total_cycles != null ? birth.total_cycles : '?';
+    return (
+        <span className={`text-xs ${info.cls}`} title={`birth backtest: ${classification}, ${cycles} cycles`}>
+            {info.emoji} {info.label} ({cycles})
+        </span>
+    );
+}
+
 function StatCard({ label, value, hint }) {
     return (
         <div className="bg-black/30 border border-white/10 rounded-lg p-4">
@@ -96,6 +117,7 @@ function AuditionTable({ entries }) {
                         <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">전략</th>
                         <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">카테고리</th>
                         <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">상태</th>
+                        <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">Birth</th>
                         <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">주차</th>
                         <th className="px-4 py-2 text-right text-xs text-gray-400 uppercase">월복리(%)</th>
                         <th className="px-4 py-2 text-left text-xs text-gray-400 uppercase">판정일</th>
@@ -104,12 +126,14 @@ function AuditionTable({ entries }) {
                 <tbody>
                     {entries.map((e) => {
                         const compound = e.backtest_result?.monthly_return_compound;
+                        const birth = e.metadata?.birth_backtest;
                         return (
                             <tr key={e.id} className="border-b border-white/5 hover:bg-white/5">
                                 <td className="px-4 py-2 font-mono text-gray-500">{e.id}</td>
                                 <td className="px-4 py-2 font-mono text-white">{e.strategy_id}</td>
                                 <td className="px-4 py-2"><CategoryBadge category={e.category} /></td>
                                 <td className="px-4 py-2"><StatusBadge status={e.status} /></td>
+                                <td className="px-4 py-2"><BirthBadge birth={birth} /></td>
                                 <td className="px-4 py-2 text-gray-400 text-xs">{e.audition_week}</td>
                                 <td className="px-4 py-2 text-right font-mono text-xs text-gray-300">
                                     {compound != null ? compound.toFixed(2) : '—'}
@@ -178,6 +202,13 @@ export default function Audition() {
         (totalByStatus.graduated || 0) +
         (totalByStatus.resurrected || 0);
 
+    // Birth backtest aggregation across all entries
+    const birthCounts = entries.reduce((acc, e) => {
+        const c = e.metadata?.birth_backtest?.classification;
+        if (c) acc[c] = (acc[c] || 0) + 1;
+        return acc;
+    }, {});
+
     return (
         <div className="space-y-6">
             <div>
@@ -210,6 +241,33 @@ export default function Audition() {
                     hint="전체 풀 크기"
                 />
             </div>
+
+            {/* Birth backtest summary */}
+            {Object.keys(birthCounts).length > 0 && (
+                <div className="bg-black/30 border border-white/10 rounded-lg p-4">
+                    <div className="text-sm font-semibold text-white mb-2">Birth Backtest — 생성 직후 smoke test</div>
+                    <div className="flex flex-wrap gap-3 text-xs">
+                        {birthCounts.healthy > 0 && (
+                            <span className="text-emerald-400">🟢 healthy: {birthCounts.healthy}</span>
+                        )}
+                        {birthCounts.zero_cycles > 0 && (
+                            <span className="text-yellow-400">🟡 0 cycles: {birthCounts.zero_cycles}</span>
+                        )}
+                        {birthCounts.loss_functional > 0 && (
+                            <span className="text-orange-400">🟠 loss (functional): {birthCounts.loss_functional}</span>
+                        )}
+                        {birthCounts.api_failure > 0 && (
+                            <span className="text-red-400">🔴 api failure: {birthCounts.api_failure}</span>
+                        )}
+                        {birthCounts.invalid_response > 0 && (
+                            <span className="text-red-400">🔴 invalid response: {birthCounts.invalid_response}</span>
+                        )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                        Birth backtest 는 판정이 아닌 smoke test. 실제 심사는 월요일 audition-judge 에서 수행.
+                    </div>
+                </div>
+            )}
 
             {/* Last winner highlight */}
             {stats?.last_winner && (

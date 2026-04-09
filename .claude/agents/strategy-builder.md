@@ -784,6 +784,81 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
 "audition_category": "mean_reversion"
 ```
 
+### Step 7.6: Birth Certificate Backtest (CIO-20260408-015 Phase 4.5)
+
+After audition registration, run a single smoke-test backtest to verify that the newly generated strategy at least executes without crashing. This is a **birth certificate** — proof that the strategy is minimally functional — NOT a judgment. The authoritative evaluation happens in the weekly audition-judge cycle on Monday.
+
+**Purpose**:
+- Early detection of structural failures (import errors, 0 cycles, runtime crashes) without waiting until Monday
+- Feedback signal for next-day meta-learner (to avoid similar broken patterns)
+- "healthy vs warning" classification visible in the `/audition` dashboard immediately
+
+**Command** (identical conditions to the weekly audition-judge for consistency):
+```bash
+BIRTH_BT=$(curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>/backtest \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "symbol": "BTCUSDT",
+    "interval": "1h",
+    "days": 90,
+    "initial_capital": 10000,
+    "config": {},
+    "exchange_name": "BinanceFutures"
+  }')
+```
+
+**Classification rules** (CRITICAL — this is a smoke test, not a verdict):
+
+| Outcome | Final Status | Reason |
+|---|---|---|
+| HTTP != 200 OR JSON parse error | `error` | `birth_backtest_api_failure` — strategy cannot be tested at all |
+| `total_return` missing or `null` | `error` | `birth_backtest_invalid_response` |
+| `total_cycles > 0` AND monthly_return_compound >= 0 | `audition` (unchanged) | `birth_backtest_healthy` |
+| `total_cycles > 0` AND compound < 0 | `audition` (unchanged) | `birth_backtest_loss_but_functional` |
+| `total_cycles == 0` | `audition` (unchanged) | `birth_backtest_zero_cycles` (warning only — Monday may differ) |
+
+**Key principle**: ONLY API-level failures (HTTP error, invalid response) transition the strategy to `error`. Poor performance (0 cycles, negative return) leaves the strategy in `audition` — the Monday judge decides its fate. This preserves the "fair competition" guarantee: every strategy gets at least one judgment chance.
+
+**PATCH to audition**:
+```bash
+curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "status": "<audition|error>",
+    "audition_metadata": {
+      ...existing metadata...,
+      "birth_backtest": {
+        "executed_at": "<ISO8601>",
+        "ok": <bool>,
+        "http_status": <int>,
+        "total_cycles": <int>,
+        "total_return": <float>,
+        "monthly_return_compound": <float>,
+        "max_drawdown": <float>,
+        "warning": "zero_cycles | negative_return | null",
+        "classification": "healthy | zero_cycles | loss_functional | api_failure | invalid_response"
+      }
+    }
+  }'
+```
+
+**IMPORTANT — do NOT populate `backtest_result`**: that field is reserved for the authoritative weekly judge. Birth backtest results live only in `audition_metadata.birth_backtest`. This keeps the two evaluation systems decoupled.
+
+**Step 8 JSON additions**:
+```json
+"birth_backtest_executed": true,
+"birth_backtest_classification": "healthy",
+"birth_backtest_cycles": <int>,
+"birth_backtest_compound_pct": <float>,
+"birth_backtest_final_status": "audition | error"
+```
+
+**Failure handling**:
+- If the curl call itself fails (backend down): log the failure, leave status as `audition`, include `"birth_backtest_executed": false, "birth_backtest_error": "backend_unreachable"` in the JSON. Do NOT transition to `error` — the infrastructure issue is not the strategy's fault.
+- If the PATCH call fails: log the failure, the birth backtest result is lost but the strategy remains in audition. Weekly judge will still evaluate it normally.
+
+**Time budget**: Expected 1-3 minutes for a single 90-day 1h BTCUSDT backtest. Acceptable addition to the overall daily generation cycle (8 min → 10-11 min).
+
 ### Step 8: Return JSON
 
 ```json
@@ -804,6 +879,11 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
   "audition_week": "2026-W15",
   "audition_category": "mean_reversion",
   "audition_error": null,
+  "birth_backtest_executed": true,
+  "birth_backtest_classification": "healthy|zero_cycles|loss_functional|api_failure|invalid_response",
+  "birth_backtest_cycles": 12,
+  "birth_backtest_compound_pct": 3.42,
+  "birth_backtest_final_status": "audition",
   "reuse_existing": {
     "duplicate_of": "<existing_strategy_id>",
     "similarity_reason": "..."
