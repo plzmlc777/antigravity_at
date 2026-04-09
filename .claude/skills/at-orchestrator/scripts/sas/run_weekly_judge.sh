@@ -58,42 +58,19 @@ if [ "${ALREADY_JUDGED}" -gt "0" ]; then
 fi
 
 PROMPT=$(cat <<'PROMPT_EOF'
-SAS Weekly Judge Cycle — CIO-20260408-015 Phase 3.
+SAS Weekly Judge (CIO-015 Phase 3). PM2 cron, no user.
 
-You are running inside a PM2 cron job. There is no interactive user. Execute exactly one audition judging cycle:
+Dispatch Agent(subagent_type="audition-judge") with prompt:
+"Run the full audition-judge.md workflow on the current ISO week. Return your summary JSON."
 
-## Step 1 — Dispatch the audition-judge agent
-Agent(
-  subagent_type="audition-judge",
-  description="SAS weekly judging",
-  prompt="Run the full 9-step workflow from audition-judge.md on the current week's audition pool. Standardized config: BTCUSDT / 1h / 90 days / $10000 / BinanceFutures. Follow all PATCH rules strictly (losers first, winner last). Return the summary JSON."
-)
-
-## Step 2 — Parse the returned JSON
-Extract: winner.strategy_id, winner.monthly_return_compound, eliminated count, no_winner_reason.
-
-## Step 3 — Graveyard soft-move (Phase 3 addition)
-For each eliminated strategy in the response, move its file from:
-  /home/hcpark/antigravity/.claude/skills/at-live-signal/scripts/strategies/<id>.py
-to:
-  /home/hcpark/antigravity/.claude/skills/at-live-signal/scripts/strategies/_graveyard/<id>.py
-
-Use: `mkdir -p /home/hcpark/antigravity/.claude/skills/at-live-signal/scripts/strategies/_graveyard && mv <src> <dst>`
-
-The StrategyRegistry skips `_`-prefixed directories automatically so no code change needed.
-
-After each move, PATCH the audition entry with graveyard_path set to the new absolute path.
-
-## Step 4 — Return a single-line summary
-Print exactly one line: "SAS_WEEKLY_RESULT: winner=<id> score=<compound> eliminated=<N>" or "SAS_WEEKLY_RESULT: no-winner reason=<reason>".
-
-Do NOT touch graduated strategies' files. Do NOT deploy anything to live trading.
+After the subagent returns, emit exactly ONE line starting with "SAS_WEEKLY_RESULT:" summarizing winner or no-winner. Do not repeat the JSON.
 PROMPT_EOF
 )
 
 claude -p "${PROMPT}" \
   --permission-mode bypassPermissions \
   --model sonnet \
+  < /dev/null \
   > "${LOG_FILE}" 2>&1
 
 EXIT_CODE=$?

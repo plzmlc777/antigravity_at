@@ -147,3 +147,82 @@ test.describe('AI-centric frontend smoke', () => {
         expect([401, 403], `expected auth-required, got ${r.status()}`).toContain(r.status());
     });
 });
+
+// Audition page tests — CIO-20260408-015 Phase 4
+test.describe('Audition page (CIO-20260408-015)', () => {
+
+    test('/audition route renders Strategy Audition System heading', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Strategy Audition System' })).toBeVisible({ timeout: 15000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition shows navigation link 오디션 in navbar', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/', { waitUntil: 'networkidle' });
+        const navLink = page.locator('a[href="/audition"]');
+        await expect(navLink).toBeVisible();
+        await expect(navLink).toHaveText('오디션');
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition summary cards: Graduated and Eliminated visible', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Strategy Audition System' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Graduated', { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Eliminated', { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition pool table shows 10 entries', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.locator('table')).toBeVisible({ timeout: 15000 });
+        const rows = page.locator('table tbody tr');
+        await expect(rows).toHaveCount(10, { timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition Graveyard section visible', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByText("Graveyard — 탈락 풀", { exact: true })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('총 탈락')).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition has NO manual action buttons (READ-ONLY)', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Strategy Audition System' })).toBeVisible({ timeout: 15000 });
+        const actionTexts = ['승급', '탈락', '부활', '삭제', '초기화', 'Run', 'Submit', 'Save'];
+        for (const text of actionTexts) {
+            const btn = page.getByRole('button', { name: new RegExp(text, 'i') });
+            await expect(btn, `No button with text "${text}" should exist`).toHaveCount(0);
+        }
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('Audition API endpoints respond via frontend proxy', async ({ request }) => {
+        const r1 = await request.get('/api/v1/strategy-audition?status=all&limit=50');
+        expect(r1.status()).toBe(200);
+        const list = await r1.json();
+        expect(Array.isArray(list)).toBe(true);
+        expect(list.length).toBe(10);
+
+        const r2 = await request.get('/api/v1/strategy-audition/stats/weekly?weeks=8');
+        expect(r2.status()).toBe(200);
+        const stats = await r2.json();
+        expect(stats).toHaveProperty('total_by_status');
+        expect(stats.total_by_status.graduated).toBeGreaterThanOrEqual(8);
+        expect(stats.total_by_status.eliminated).toBeGreaterThanOrEqual(2);
+
+        const r3 = await request.get('/api/v1/strategy-audition/stats/graveyard');
+        expect(r3.status()).toBe(200);
+        const graveyard = await r3.json();
+        expect(graveyard).toHaveProperty('total_eliminated');
+        expect(graveyard.total_eliminated).toBeGreaterThanOrEqual(2);
+    });
+});

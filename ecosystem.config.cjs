@@ -57,6 +57,19 @@ module.exports = {
             cwd: ".",
             autorestart: false,
             cron_restart: "0 10 * * 1"
+        },
+        {
+            // SAS Phase 4 — monthly graveyard resurrect.
+            // CIO-20260408-015. Day 1 of each month at 11:00 local.
+            // Reviews eliminated pool (judged >=30 days ago), classifies
+            // elimination reasons, and resurrects up to 3 strategies that
+            // meet the threshold score. File-level restore from _graveyard/.
+            name: "sas-monthly-resurrect",
+            script: "./.claude/skills/at-orchestrator/scripts/sas/run_monthly_resurrect.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "0 11 1 * *"
         }
     ]
 };

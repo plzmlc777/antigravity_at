@@ -186,6 +186,70 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<error_id>" \
 
 **PATCH order**: losers first, errors second, winner last. This ensures that if the winner PATCH fails mid-flight, we don't leave the pool with multiple graduated entries.
 
+### Step 7.5: No-winner streak escalation (CIO-015 Phase 4)
+
+Before finalizing the winner selection, check the graduated-strategies history for a **no-winner streak**. If the last 3 consecutive weeks all returned zero graduated strategies, the audition process itself may be broken (wrong standardized config, bad category rotation, Minimum Viable defaults too strict, etc.). Escalate immediately.
+
+**Check procedure**:
+```bash
+curl -s "http://localhost:8001/api/v1/strategy-audition/stats/weekly?weeks=4" > /tmp/weekly_stats.json
+```
+
+Parse `by_week`:
+```python
+import json
+data = json.load(open('/tmp/weekly_stats.json'))
+by_week = data.get('by_week', {})
+# Sort weeks descending, take the last 3 BEFORE this week
+sorted_weeks = sorted(by_week.keys(), reverse=True)
+# If we are about to judge "2026-W15", look at 2026-W14, 2026-W13, 2026-W12
+recent = [w for w in sorted_weeks if w != CURRENT_WEEK][:3]
+
+no_winner_streak = all(
+    by_week[w].get('graduated', 0) == 0 and by_week[w].get('audition', 0) == 0
+    for w in recent
+) if len(recent) == 3 else False
+```
+
+**If `no_winner_streak == True`**:
+1. Emit an escalation gap_signal to the queue for meta-learner review:
+   ```bash
+   curl -s -X POST http://localhost:8001/api/v1/gap-signals \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "signal_id": "ESCALATION-<current_week>",
+       "source": "audition-judge",
+       "issued_at": "<ISO8601>",
+       "gap_type": "audition_health_alert",
+       "evidence": {
+         "observation": "3주 연속 no-winner. audition 파이프라인 품질 검토 필요.",
+         "sample_size": 3,
+         "confidence": 0.9,
+         "recent_weeks": [...],
+         "current_week": "<week>"
+       },
+       "proposed_intent": {
+         "family": "meta",
+         "name": "audition_process_review",
+         "purpose": "3주 연속 no-winner → (1) default 파라미터 너무 엄격 (2) category rotation 편향 (3) backtest 기간/심볼 부적합 중 원인 진단 필요"
+       },
+       "activation_policy": {
+         "ready_for_live": false,
+         "mode": "review"
+       }
+     }'
+   ```
+2. Include `"escalation_emitted": true` and `"escalation_signal_id": "ESCALATION-..."` in your Step 9 summary JSON.
+3. **Continue with normal Step 8 PATCH logic** — escalation is an alert, not a halt. Process this week's pool as usual, but flag the alarm.
+
+**If `no_winner_streak == False`**: skip escalation, proceed to Step 8 directly.
+
+**Why 3 weeks, not 2 or 4**:
+- 1 week: could be randomness
+- 2 weeks: worrying but not diagnostic
+- **3 weeks: systemic pattern requiring human review**
+- 4+ weeks: alert fatigue — we should have caught it earlier
+
 ### Step 8.5: Graveyard soft-move for eliminated strategies (CIO-015 Phase 3)
 
 After successfully PATCHing each `eliminated` strategy, physically move its `.py` file from the active strategies directory to the graveyard subdirectory. This prevents:
@@ -280,6 +344,9 @@ done
     "failed": 0,
     "failures": []
   },
+  "escalation_emitted": false,
+  "escalation_signal_id": null,
+  "no_winner_streak_weeks": 0,
   "notes": "한국어 요약",
   "next_steps_for_main_turn": [
     "사용자에게 주간 결과 보고",

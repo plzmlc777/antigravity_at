@@ -1515,3 +1515,165 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - **Execution error 는 실전 환경에서만 드러남**. Bash syntax check + ecosystem load 는 모두 PASS 했지만 실제 `claude -p` 실행은 별개 문제. Phase 3 scope 를 "인프라 배치" 로 한정한 것이 정답 — debugging 을 Phase 4 로 분리하여 scope creep 방지.
   - **`_` prefix convention 의 재활용성**. strategy_registry.py 의 기존 `_SKIP_MODULES` + `startswith('_')` 로직이 Phase 3 의 graveyard 설계에 아무 수정 없이 그대로 활용됨. 프로젝트 전반의 convention 일관성이 새 기능 구현 비용을 0 으로 만듦.
 
+---
+
+## CIO-20260408-015 Phase 4 — SAS 완결: execution error 수정 + resurrect + escalation + read-only dashboard
+
+- **Date**: 2026-04-09 (Phase 3 직후 연속 작업)
+- **Phase**: EXECUTE (Phase 4/4 — SAS 완결)
+- **Trigger**: 사용자 "phase 4 단계별로 진행해줘" — Phase 3 의 4개 follow-up (execution error, resurrect, escalation, dashboard) 모두 처리.
+- **Scope**: 5개 step 순차 처리
+  1. **Step 1 (B)**: graveyard_path DB 재동기화 (Phase 3 의 late-PATCH 누락 보정)
+  2. **Step 2 (A)**: `claude -p` execution error 진단 + 수정
+  3. **Step 3 (C)**: monthly-resurrect 신규 에이전트 + PM2 cron
+  4. **Step 4 (E)**: 연속 no-winner escalation 규칙 (audition-judge Step 7.5)
+  5. **Step 5 (D)**: Frontend `/audition` read-only 대시보드
+
+### Step 1 (B) — graveyard_path 보정
+
+- **배경**: Phase 3 첫 실전 cycle 에서 `claude -p` subprocess 가 PATCH(status=eliminated) + mv 는 완료했으나 마지막 `graveyard_path` PATCH 직전 Execution error 로 종료 → 2 eliminated 엔트리의 graveyard_path=null 상태 발생
+- **Fix**: 단순 재-PATCH — `bollinger_reversion` 과 `volume_spike_entry` 의 graveyard_path 를 실제 파일 위치(`_graveyard/<id>.py`)로 업데이트
+- **결과**: 두 엔트리 모두 graveyard_path 필드 정상 기록. DB 와 filesystem 완전 일치.
+
+### Step 2 (A) — `claude -p` execution error 진단
+
+- **진단 프로세스**:
+  1. Baseline 테스트: `echo '' | claude -p 'Print HELLO_WORLD' --model sonnet` → exit 0, 정상 출력
+  2. Bash tool 포함 테스트: `claude -p 'curl http://localhost:8001/... 요약'` → exit 0, 정상
+  3. 기존 SAS 스크립트 재실행: "Warning: no stdin data received in 3s" + "Execution error" 재현
+  4. Heredoc quoting 검사: `$var`, backtick, `$10000` 등 → single-quoted heredoc 이라 literal 보존 확인, 문제 없음
+  5. 짧은 프롬프트 + 동일 패턴 재현: `exit 0`, 정상
+- **가설 확인**:
+  - "Warning: no stdin" 은 단순 경고 (fatal 아님) — `< /dev/null` 추가로 제거 가능
+  - "Execution error" 는 **복잡한 중첩 Agent dispatch + 긴 프롬프트** 의 subprocess 에서 발생. 정확한 원인은 Claude CLI 내부 timeout 또는 tool-call chain 의 내부 limit 추정
+- **Fix 두 가지 동시 적용**:
+  1. **stdin redirect**: 두 스크립트 모두 `claude -p "${PROMPT}" ... < /dev/null` 추가
+  2. **프롬프트 간소화**: 원본 프롬프트가 9-step workflow + graveyard mv 등을 반복 설명했는데, 에이전트 .md 파일에 이미 정의되어 있으므로 **"call Agent(subagent_type=X) with the full workflow"** 로 축약. "fully trust the agent" 원칙 적용. 프롬프트 길이 ~60% 감소.
+- **검증 방식**: PM2 cron 로 실전 실행될 때 판정. 지금 세션에서는 idempotency 때문에 재실행 불가 (올바른 동작).
+- **Follow-up**: 월요일(2026-04-13) 10시 `sas-weekly-judge` 첫 자연 cron 시 관찰.
+
+### Step 3 (C) — monthly-resurrect 에이전트
+
+- **신규 에이전트** `.claude/agents/monthly-resurrect.md`:
+  - 8-step workflow: graveyard stats → eligible candidates → 분류 → 점수 → 상위 3개 → 파일 복원 → POST /resurrect → PATCH audition
+  - **Classification table** (6개 elimination reason → 분류):
+    | 패턴 | 분류 | base_score |
+    |---|---|---|
+    | zero_cycles_no_trading_activity | untuned_defaults | 0.8 |
+    | kpi_below_12 (compound 8-11%) | marginal_kpi_miss | 0.6 |
+    | runtime_error | technical_fault | 0.5 |
+    | correlated_with_existing | redundant | 0.2 |
+    | overfit_detected | overfit | 0.1 |
+    | kpi_below_12 (compound <5%) or negative | structurally_weak | 0.1 |
+  - **Adjustments**:
+    - `resurrect_count == 1`: base × 0.5 (두 번째 재시도는 merit 절반)
+    - 카테고리 희소성 보너스 (0 graduated: ×1.4, 1 graduated: ×1.1)
+    - 180일 이상 경과: × 0.7 (stale evidence 페널티)
+  - **Hard constraints**:
+    - Max 3 resurrections per cycle
+    - `resurrect_count >= 2` → retry_ceiling_hit (영구 폐기)
+    - `resurrect_score < 0.3` → too weak to justify
+    - Conservative default: 확실한 rationale 없으면 resurrect 금지
+  - **Transition 순서**: `POST /resurrect` (count 증가) → `PATCH status=audition` (다음 주 자동 참가)
+- **신규 PM2 프로세스** `sas-monthly-resurrect`:
+  - Cron: `0 11 1 * *` (매월 1일 11시)
+  - `run_monthly_resurrect.sh` lock + trap + idempotency (당월 last_resurrected_at 있으면 skip)
+- **ecosystem.config.cjs** 총 6개 앱 (기존 5개 + 신규 1개)
+
+### Step 4 (E) — no-winner streak escalation
+
+- **audition-judge.md Step 7.5 (신규)**: 매주 judging 시작 전 최근 3주 stat 조회
+- **조건**: 직전 3주 (current 제외) 모두 graduated=0 AND audition=0 → no_winner_streak 발생
+- **Action**: ESCALATION gap_signal POST
+  - signal_id: `ESCALATION-<week>`
+  - source: `audition-judge`
+  - gap_type: `audition_health_alert`
+  - proposed_intent.family: `meta`
+  - 원인 후보 3개 제시: (1) default 파라미터 너무 엄격 (2) category rotation 편향 (3) backtest config 부적합
+- **Not halt**: escalation 발행 후에도 이번 주 judging 은 정상 진행 (alert != halt)
+- **왜 정확히 3주?**:
+  - 1주: randomness
+  - 2주: worrying but not diagnostic
+  - **3주: systemic pattern**
+  - 4+주: alert fatigue
+- **Output JSON 확장**: `escalation_emitted`, `escalation_signal_id`, `no_winner_streak_weeks` 필드 추가
+
+### Step 5 (D) — Frontend `/audition` read-only 대시보드
+
+- **신규 파일**:
+  - `frontend/src/api/audition.js` — 3 read-only API 래퍼 (list / stats / graveyard)
+  - `frontend/src/views/Audition.jsx` — 대시보드 컴포넌트 (~240 LOC)
+- **수정 파일**: `frontend/src/App.jsx` — import, nav link "오디션", Route `/audition`
+- **대시보드 구성**:
+  1. **Summary cards** 4개: Audition / Graduated / Eliminated / Total Active
+  2. **Last winner highlight**: 최근 우승 전략 (strategy_id, category, 월복리, week)
+  3. **Category distribution**: 8개 카테고리 bar chart (0~총합 비율)
+  4. **Graveyard summary**: 총 탈락 + 부활 후보 (30일 이상 경과) + 카테고리 분포
+  5. **Pool table**: 전체 엔트리 (id, strategy, category, status, week, 월복리, 판정일)
+- **60초 auto-refresh** (자율 cycle 느리므로 적절)
+- **READ-ONLY 엄격 준수** (`feedback_no_manual_frontend_controls`):
+  - 버튼 0개
+  - Manual status 변경 불가
+  - 부활/삭제/승급 조작 UI 없음
+  - "이 페이지는 READ-ONLY 입니다" footer 명시
+- **색상 매핑**: 5 statuses + 8 categories 각각 distinct color
+- **frontend-tester 회귀 검증**: **15/15 PASS** (기존 8 + 신규 7)
+  - 신규 테스트: route render, nav link, summary cards, table 10 entries, graveyard section, NO manual buttons, API endpoints 200
+  - 기존 회귀: Mission Control / Organization / DecisionTimeline / KnowledgeBase / auth / demoted routes / proxy / killswitch
+  - 콘솔 에러 0건
+  - 부산물: Graveyard 텍스트 중복 매칭을 `exact: true` 로 수정 (tester 가 자동 적용)
+- **Duration**: 15.6s
+
+### Deliverables 총계
+| 파일 | 종류 | 변경 |
+|---|---|---|
+| `.claude/agents/audition-judge.md` | modify | Step 7.5 escalation + Step 8.5 graveyard + JSON schema 확장 |
+| `.claude/agents/monthly-resurrect.md` | new | 8-step workflow ~310 LOC |
+| `.claude/skills/at-orchestrator/scripts/sas/run_daily_generator.sh` | modify | stdin redirect + prompt 간소화 |
+| `.claude/skills/at-orchestrator/scripts/sas/run_weekly_judge.sh` | modify | stdin redirect + prompt 간소화 |
+| `.claude/skills/at-orchestrator/scripts/sas/run_monthly_resurrect.sh` | new | PM2 runner ~60 LOC |
+| `ecosystem.config.cjs` | modify | `sas-monthly-resurrect` 추가 (6번째 앱) |
+| `frontend/src/api/audition.js` | new | 3 API 래퍼 |
+| `frontend/src/views/Audition.jsx` | new | 대시보드 ~240 LOC |
+| `frontend/src/App.jsx` | modify | import / nav / route |
+| `frontend/tests/e2e/smoke.spec.js` | modify (by tester) | exact match fix |
+| DB PATCH | data | graveyard_path 보정 |
+
+### 자율성 계층 현재 상태 (Phase 4 완료 — SAS 완결)
+- ✅ SAS Phase 1 인프라 (DB + API)
+- ✅ SAS Phase 2 결정 로직 (category rotation + audition-judge)
+- ✅ SAS Phase 3 스케줄링 (PM2 cron + graveyard soft delete)
+- ✅ **SAS Phase 4 완결 (resurrect + escalation + dashboard + fix)** ← 이번
+- ✅ **사용자 관찰 가능성** (`/audition` read-only)
+- ❌ 실전 주간 cycle 관찰 (월요일 2026-04-13 대기)
+- ❌ Phase 4 의 fix 들이 실전에서 작동하는지 검증 (동일 대기)
+
+### Known Remaining Issues
+1. **`claude -p` fix 실전 검증 대기**: Step 2 의 수정이 정확한지 월요일 cron 실행으로 판정. 여전히 execution error 나면 log verbosity 추가 필요.
+2. **Resurrect 실전 검증 대기**: 2026-05-01 첫 monthly cron 시 graveyard 에서 실제 strategy 복원되는지 판정.
+3. **Escalation 실전 검증 어려움**: 3 consecutive no-winner 발생해야만 테스트 가능. 현재 시나리오에선 1주차 (eliminated 2개) → 2~4주차 빈 pool (daily generator 가 새로 채워야) → no-winner 누적. 월요일 이후 자연 관찰.
+
+- **Status**: confirmed (Phase 4 완결, 실전 검증 대기)
+
+### Follow-ups
+1. **월요일 2026-04-13 10시** `sas-weekly-judge` 첫 자연 cron 관찰 — `claude -p` fix 검증 + 새 workflow 실행
+2. **매일 09시** `sas-daily-generator` cron 관찰 — category rotation 이 새 전략 생성하는지
+3. `/audition` 대시보드 실사용 관찰 — 대시보드가 실제 의사결정 support 에 유용한지
+4. Default Minimum Viable 파라미터 개선 (0-cycles 문제 해결) — strategy-builder.md 재검토 필요할 수 있음
+5. 실거래 승급 flow 설계 (별도 CIO) — graduated 풀 → strategy-advisor → risk-manager KPI → 사용자 승인 → live
+6. backtest heavy-optimize 통합 — audition-judge 가 single backtest 대신 parameter sweep 경유
+
+### Did NOT do (Phase 4 scope)
+- 실거래 승급 에이전트 설계 (별도 CIO)
+- Strategy-builder default parameters 변경 (별도 작업)
+- backtest heavy-optimize 통합 (별도 작업)
+- 월요일 자연 cron 기다리지 않고 수동 강제 실행 (idempotency 존중)
+
+### 교훈
+- **"Execution error" 로그는 명목**. 진짜 증거는 DB/FS state. Phase 3 의 첫 실전 cycle 에서 "Execution error" 를 봤을 때 실패로 판단했으나, 이후 확인하니 PATCH + mv 까지 성공한 부분 실행이었음. 로그 한 줄로 결론 내리지 말 것.
+- **Frontend-tester 가 test spec 을 자동 수정**. `exact: true` 추가 같은 minor fix 를 tester 가 알아서 해결. 에이전트가 test suite 에 쓰기 권한이 있다는 점이 놀라움. 이것이 "에이전트 영역" 의 자연스러운 확장.
+- **Scope discipline 의 가치**. Phase 3 의 execution error 를 Phase 4 로 분리한 덕분에 Phase 3 는 infrastructure 배치만 깔끔히 끝남. Phase 4 에서 여유 있게 진단 + 여러 fix 를 함께 처리 가능. "디버깅이 scope creep 으로 이어지는 것" 을 방지.
+- **Fully-trust-the-agent 프롬프트 패턴**. 원본 프롬프트는 subagent .md 에 이미 있는 workflow 를 반복 설명했는데, 단순히 "call Agent(X) with the full workflow" 로 축약하니 더 안정적. 에이전트를 신뢰하면 복잡도가 감소.
+- **Read-only dashboard 의 가치**. 조작 UI 없이 정보 표시만으로도 "사용자가 감독자, AI 가 운영자" 철학이 명확히 구현됨. 버튼을 추가할 수 있는 유혹이 있지만 절대 추가하지 않는 것이 오히려 product quality 의 증거.
+- **Phase 분할 총평 (CIO-015 전체)**: Phase 1 (인프라) → Phase 2 (결정 로직) → Phase 3 (스케줄링) → Phase 4 (완결 + 보정). 각 Phase 가 독립적으로 value 를 제공하면서도 누적 구조. 이번이 **완전판 설계의 첫 4-phase 전체 완주** 사례. 앞으로 유사 규모 작업의 템플릿으로 사용 가능.
+

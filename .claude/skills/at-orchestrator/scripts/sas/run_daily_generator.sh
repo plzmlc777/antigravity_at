@@ -62,45 +62,25 @@ fi
 
 # Build the prompt for main-turn Claude
 PROMPT=$(cat <<'PROMPT_EOF'
-SAS Daily Generator Cycle — CIO-20260408-015 Phase 3.
+SAS Daily Generator (CIO-015 Phase 3). PM2 cron, no user.
 
-You are running inside a PM2 cron job. There is no interactive user. Execute the following scripted pipeline:
+Pipeline (sequential):
+1. Dispatch Agent(subagent_type="meta-learner") with prompt:
+   "Run Step 5f Category Rotation for family=strategy. Determine the next category via the rotation rules in meta-learner.md and emit exactly one gap_signal via POST /api/v1/gap-signals."
+2. Poll curl 'http://localhost:8001/api/v1/gap-signals?status=pending' and pick the newest signal with proposed_intent.family=='strategy'.
+3. Dispatch Agent(subagent_type="strategy-builder") in autonomous mode with the signal payload. The agent will run the full autonomous workflow including Step 7.5 audition registration.
+4. PATCH /api/v1/gap-signals/<signal_id> status=consumed with the builder's response JSON as the result.
 
-## Step 1 — Determine next category (rotation)
-curl -s 'http://localhost:8001/api/v1/strategy-audition?status=all&limit=100'
+Emit exactly ONE line starting with "SAS_DAILY_RESULT:" summarizing the outcome (category, strategy_id, audition_id) or "SAS_DAILY_RESULT: no-op (<reason>)".
 
-From the response, compute the next category per the rules in meta-learner.md Step 5f (untouched first, oldest-used next, 8 categories total).
-
-## Step 2 — Dispatch meta-learner to emit a strategy gap_signal
-Agent(
-  subagent_type="meta-learner",
-  description="SAS daily gap_signal",
-  prompt="Run Step 5f (Category Rotation) for family=strategy. Selected category: <NEXT_CATEGORY>. Find a capability gap within that category and POST to /api/v1/gap-signals."
-)
-
-## Step 3 — Poll the queue and dispatch strategy-builder autonomous
-curl -s 'http://localhost:8001/api/v1/gap-signals?status=pending'
-
-For each pending signal with family=strategy, dispatch:
-Agent(
-  subagent_type="strategy-builder",
-  description="Autonomous generation",
-  prompt="Autonomous mode. family=strategy. Follow strategy-builder.md Autonomous Mode section including Step 7.5 SAS registration."
-)
-
-## Step 4 — PATCH the gap_signal as consumed
-curl -s -X PATCH 'http://localhost:8001/api/v1/gap-signals/<signal_id>' with status=consumed.
-
-## Step 5 — Return a single-line summary
-Print exactly one line: "SAS_DAILY_RESULT: <category> -> <strategy_id> (<audition_id>)" or "SAS_DAILY_RESULT: no-op (<reason>)".
-
-Do NOT run backtests. Do NOT touch the audition pool beyond Step 7.5 auto-registration. Do NOT generate multiple strategies.
+Do NOT run backtests. Do NOT generate multiple strategies.
 PROMPT_EOF
 )
 
 claude -p "${PROMPT}" \
   --permission-mode bypassPermissions \
   --model sonnet \
+  < /dev/null \
   > "${LOG_FILE}" 2>&1
 
 EXIT_CODE=$?
