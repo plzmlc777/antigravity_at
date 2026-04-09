@@ -53,6 +53,7 @@ class AuditionUpdate(BaseModel):
     backtest_result: Optional[Dict[str, Any]] = None
     judge_notes: Optional[str] = None
     graveyard_path: Optional[str] = None
+    audition_metadata: Optional[Dict[str, Any]] = None
 
 
 def _serialize(a: StrategyAudition) -> Dict[str, Any]:
@@ -270,6 +271,13 @@ def update_audition(
         a.judge_notes = body.judge_notes
     if body.graveyard_path is not None:
         a.graveyard_path = body.graveyard_path
+    if body.audition_metadata is not None:
+        # Merge with existing metadata so partial updates (e.g., adding
+        # birth_backtest from strategy-builder Step 7.6) don't overwrite
+        # fields set at creation time (parent_class, file_lines, etc.).
+        merged = dict(a.audition_metadata or {})
+        merged.update(body.audition_metadata)
+        a.audition_metadata = merged
 
     if body.status != "audition":
         a.judged_at = datetime.utcnow()
