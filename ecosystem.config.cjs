@@ -46,6 +46,19 @@ module.exports = {
             cron_restart: "0 9 * * *"
         },
         {
+            // SISDS Phase 3 — sandbox researcher processor.
+            // CIO-20260410-001. Runs 1 hour after daily generator to process
+            // any (sandbox, pending) entries. Dispatches sandbox-researcher
+            // agent for parameter sweep + walk-forward + promote/retire.
+            // Max 1 strategy per cycle. Skip if none pending or one already running.
+            name: "sas-sandbox-processor",
+            script: "./.claude/skills/at-orchestrator/scripts/sas/run_sandbox_cycle.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "0 1 * * *"  // 01:00 UTC = 10:00 KST (1h after daily generator)
+        },
+        {
             // SAS Phase 3 — weekly audition judge.
             // CIO-20260408-015. Every Monday at 10:00 local, audition-judge
             // agent runs a standardized backtest competition on this week's
