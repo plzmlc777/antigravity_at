@@ -716,7 +716,7 @@ The generated strategy file MUST:
 3. Define `PARAMETER_SCHEMA` with `fields` + `customize_fields(BaseStrategy.COMMON_PARAMETER_FIELDS, {...})` tail
 4. Include `_log_prefix` and `_strategy_id` properties
 5. Optionally override `_initialize_trigger` / `_on_candle` / `preload_history` / `get_state`
-6. NO imports outside of `typing`, `collections`, `datetime`, `.base`, `.martingale_base`, and whitelisted `app.core.*` modules
+6. Allowed imports: `typing`, `collections`, `datetime`, `math`, `.base`, `.martingale_base`, whitelisted `app.core.*` modules, **and `pandas_ta` (aliased as `ta`)**. No other external packages.
 
 ### CRITICAL: No Framework Modification
 NEVER touch `base.py`, `martingale_base.py`, or `__init__.py`. If the gap_signal implies framework changes (e.g., "need a new lifecycle hook"), refuse with `action_taken: "failed", failure_reason: "framework_change_requested"` — framework changes require human review, not autonomous generation.
@@ -998,6 +998,112 @@ If the PATCH succeeds but the transition POST fails, the metadata is saved and t
   "notes": "..."
 }
 ```
+
+## Using `pandas-ta` for Technical Indicators (CIO-20260410-002)
+
+`pandas-ta` is installed in the backend virtualenv and provides 130+ technical
+indicators as one-liners. **Strongly recommended** over hand-rolling indicator math.
+
+### How to use in a strategy
+
+```python
+import pandas as pd
+import pandas_ta as ta
+from collections import deque
+
+class MyStrategy(MartingaleBase):
+    def _initialize_trigger(self):
+        self._close_history = deque(maxlen=200)  # store enough for indicator warmup
+
+    def _on_candle(self, data):
+        self._close_history.append(data['close'])
+        if len(self._close_history) < 30:
+            return  # not enough data yet
+
+        # Build a DataFrame from history
+        df = pd.DataFrame({'close': list(self._close_history)})
+
+        # MACD (one line!)
+        macd = df.ta.macd(fast=12, slow=26, signal=9)
+        self._macd_line = macd.iloc[-1]['MACD_12_26_9']
+        self._signal_line = macd.iloc[-1]['MACDs_12_26_9']
+        self._macd_hist = macd.iloc[-1]['MACDh_12_26_9']
+
+    def _check_entry_trigger(self, data) -> Optional[str]:
+        if self._macd_hist > 0 and self._prev_hist <= 0:
+            return "long"  # MACD histogram crosses above zero
+        return None
+```
+
+### Common indicators (copy-paste ready)
+
+```python
+# RSI
+rsi = df.ta.rsi(length=14)
+current_rsi = rsi.iloc[-1]
+
+# MACD
+macd = df.ta.macd(fast=12, slow=26, signal=9)
+# Columns: MACD_12_26_9, MACDh_12_26_9, MACDs_12_26_9
+
+# Stochastic
+stoch = df.ta.stoch(high=df['high'], low=df['low'], close=df['close'], k=14, d=3)
+# Columns: STOCHk_14_3_3, STOCHd_14_3_3
+
+# ATR (needs high/low/close)
+atr = df.ta.atr(high=df['high'], low=df['low'], close=df['close'], length=14)
+
+# Supertrend
+st = df.ta.supertrend(high=df['high'], low=df['low'], close=df['close'], length=7, multiplier=3)
+# Columns: SUPERT_7_3.0, SUPERTd_7_3.0 (direction: 1=up, -1=down)
+
+# Bollinger Bands
+bb = df.ta.bbands(close=df['close'], length=20, std=2)
+# Columns: BBL_20_2.0 (lower), BBM_20_2.0 (middle), BBU_20_2.0 (upper)
+
+# ADX
+adx = df.ta.adx(high=df['high'], low=df['low'], close=df['close'], length=14)
+# Columns: ADX_14, DMP_14, DMN_14
+
+# OBV
+obv = df.ta.obv(close=df['close'], volume=df['volume'])
+
+# Donchian Channel
+dc = df.ta.donchian(high=df['high'], low=df['low'], lower_length=20, upper_length=20)
+# Columns: DCL_20_20, DCM_20_20, DCU_20_20
+
+# CCI
+cci = df.ta.cci(high=df['high'], low=df['low'], close=df['close'], length=20)
+
+# Williams %R
+willr = df.ta.willr(high=df['high'], low=df['low'], close=df['close'], length=14)
+```
+
+### Important notes for strategy-builder
+
+1. **Always build DataFrame from deque history** — `on_data` receives one candle at a time,
+   but `pandas-ta` needs a DataFrame. Store close/high/low/volume in deques, then
+   `pd.DataFrame(...)` when calculating.
+
+2. **Warmup period** — most indicators need N candles before producing valid output.
+   Check `len(self._close_history) >= required_length` before computing.
+
+3. **Performance** — building a DataFrame every candle is O(N). For live trading this is fine
+   (candles are per-minute max), but for heavy backtests keep the deque maxlen reasonable (200-500).
+
+4. **OHLCV columns** — if the indicator needs `high`, `low`, or `volume`, store them too:
+   ```python
+   self._ohlcv_history = deque(maxlen=200)
+   # in _on_candle:
+   self._ohlcv_history.append({
+       'open': data['open'], 'high': data['high'],
+       'low': data['low'], 'close': data['close'],
+       'volume': data.get('volume', 0)
+   })
+   df = pd.DataFrame(list(self._ohlcv_history))
+   ```
+
+5. **Return `Optional[str]`** from `_check_entry_trigger` — NEVER bool! (CIO-015 Phase 4.6 lesson)
 
 ## Autonomous Template (MartingaleBase subclass skeleton)
 

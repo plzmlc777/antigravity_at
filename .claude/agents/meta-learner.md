@@ -234,6 +234,51 @@ omitting `status=all` returns empty for sources whose signals are all consumed.
 - **Composition check**: 기존 전략의 파라미터 튜닝으로 커버 가능한가? (strategy-advisor 영역이므로, 커버 가능하면 emit 대신 directive 로 제시)
 - **Purity constraint**: 전략은 본질적으로 stateful 이므로 `deterministic: true` 요구 면제. 대신 "side-effect 가 IContext (buy/sell/log) 로만 국한" 제약 강제.
 
+### Step 5e — Indicator Diversity (TradingView-informed, CIO-20260410-002)
+
+전략 gap_signal (family="strategy") 발행 시, **기존 전략 풀에서 사용하지 않는 기술 지표** 를
+적극적으로 탐색해야 한다. TradingView 등 트레이딩 커뮤니티에서 널리 사용되는 지표 중
+우리 시스템에 아직 없는 것을 우선 고려.
+
+**현재 전략 풀에 구현된 지표** (중복 제안 금지):
+- RSI (rsi_martingale)
+- EMA crossover (ema_momentum)
+- Price dip % (dip_martingale)
+- Candlestick pattern (chart_pattern)
+- Funding rate (funding_rate_arb)
+- US index change (us_market_follow)
+
+**아직 구현되지 않은 인기 지표** (이 중에서 우선 탐색):
+
+| 지표 | 카테고리 | 설명 | 난이도 |
+|---|---|---|---|
+| **MACD** | momentum | 이동평균 수렴/확산, 가장 널리 사용 | 쉬움 |
+| **Stochastic Oscillator** | mean_reversion | 과매수/과매도 영역 감지 | 쉬움 |
+| **ATR** (Average True Range) | breakout | 변동성 측정, 돌파 확인 | 쉬움 |
+| **Supertrend** | momentum | ATR 기반 추세 추종 | 쉬움 |
+| **ADX** | momentum | 추세 강도 측정 | 중간 |
+| **Ichimoku Cloud** | momentum | 다중 시간 프레임 추세 | 중간 |
+| **OBV** (On-Balance Volume) | volume | 거래량-가격 확인 | 쉬움 |
+| **VWAP** | volume | 거래량 가중 평균 가격 | 중간 |
+| **Donchian Channel** | breakout | N일 고가/저가 돌파 | 쉬움 |
+| **CCI** (Commodity Channel Index) | mean_reversion | 평균 가격 대비 편차 | 쉬움 |
+| **Williams %R** | mean_reversion | Stochastic 변형 | 쉬움 |
+| **Parabolic SAR** | momentum | 추세 반전 감지 | 중간 |
+
+**규칙**:
+1. 전략 gap_signal 발행 시 `proposed_intent.inputs` 에 사용할 지표 명시
+2. 이미 구현된 지표와 **본질적으로 같은** 것 제안 금지 (예: RSI 와 Stochastic 은 다르지만 RSI 와 "smoothed RSI" 는 사실상 같음)
+3. `pandas-ta` 라이브러리가 설치되어 있으므로 strategy-builder 에게 `import pandas_ta as ta` 사용을 권장
+4. 새 지표 사용 시 gap_signal.evidence 에 `"indicator": "MACD"`, `"indicator_rationale": "..."` 포함
+5. 선호 순서: 쉬움 > 중간 > 어려움 (strategy-builder 가 올바르게 구현할 확률)
+
+**WebSearch 참고** (선택적, 필수 아님):
+```
+WebSearch("tradingview most popular indicators crypto 2026")
+WebSearch("best technical indicators binance futures")
+```
+검색 결과에서 트렌드 지표를 발견하면 gap_signal 에 반영. 단, WebSearch 는 최대 2회.
+
 ### Step 5f — Category Rotation for Strategy Family (CIO-20260408-015 SAS Phase 2)
 
 전략 gap_signal 을 발행할 때는 반드시 **카테고리 다양성** 을 강제해야 한다. 매일 같은 카테고리(예: 매일 RSI 변형) 만 생성하면 포트폴리오 다양성이 깨지고 SAS 오디션의 의미가 사라진다.
