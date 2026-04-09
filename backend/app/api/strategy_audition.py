@@ -58,8 +58,15 @@ _VALID_TRANSITIONS = {
 
 _VALID_STATE_TRANSITIONS: Dict[Tuple[str, str], set] = {
     # ── Birth stage ────────────────────────────────────────────────────
+    # Strategy-builder handles birth-check in a single invocation:
+    #   POST (birth, pending) → birth backtest → transition.
+    # Both (birth, pending) and (birth, running) can go directly to
+    # (sandbox, pending) or (retired, failed) — intermediate state is
+    # optional if the agent handles it atomically.
     ("birth", "pending"): {
-        ("birth", "running"),
+        ("birth", "running"),       # if agent wants intermediate step
+        ("sandbox", "pending"),     # direct promote (birth check passed)
+        ("retired", "failed"),      # direct fail (api error, zero cycles)
     },
     ("birth", "running"): {
         ("sandbox", "pending"),     # T2: birth backtest passed → sandbox

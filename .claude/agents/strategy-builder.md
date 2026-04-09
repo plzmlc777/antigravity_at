@@ -797,7 +797,7 @@ CURRENT_WEEK=$(date -u +"%G-W%V")  # e.g., "2026-W15"
 
 If no keyword matches → use `"mean_reversion"` as safest default (most conservative trading style).
 
-**POST to audition queue**:
+**POST to audition queue** (SISDS Phase 2 — register with explicit stage):
 ```bash
 curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
   -H 'Content-Type: application/json' \
@@ -806,6 +806,8 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
     "gap_signal_id": "<signal_id>",
     "category": "<category>",
     "audition_week": "<CURRENT_WEEK>",
+    "stage": "birth",
+    "stage_status": "pending",
     "audition_metadata": {
       "parent_class": "MartingaleBase|BaseStrategy",
       "file_lines": <int>,
@@ -814,6 +816,8 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
     }
   }'
 ```
+
+**Note (CIO-017 SISDS Phase 2)**: `stage` and `stage_status` explicitly set to `"birth"` and `"pending"`. The POST API accepts these fields and records the initial stage transition in `strategy_transitions` audit log. If `stage`/`stage_status` are omitted, the API defaults to `(sandbox, pending)` for backward compat, but **new strategies MUST use `(birth, pending)`** to go through the proper birth-check pipeline.
 
 **On failure (non-200)**: do NOT fail the overall generation. The strategy file is still valid; registration can be retried manually by main-turn. Include in response JSON:
 ```json
@@ -851,38 +855,75 @@ BIRTH_BT=$(curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>
   }')
 ```
 
-**Classification rules** (CRITICAL — this is a smoke test, not a verdict):
+**Classification rules + State transition** (SISDS Phase 2 — CIO-017):
 
-| Outcome | Final Status | Reason |
+This step does TWO things:
+1. **Classify** the birth backtest result
+2. **Transition** the strategy from `(birth, pending)` to the next state via the `/transition` API
+
+| Outcome | Classification | Transition |
 |---|---|---|
-| HTTP != 200 OR JSON parse error | `error` | `birth_backtest_api_failure` — strategy cannot be tested at all |
-| `total_return` missing or `null` | `error` | `birth_backtest_invalid_response` |
-| `total_cycles > 0` AND monthly_return_compound >= 0 | `audition` (unchanged) | `birth_backtest_healthy` |
-| `total_cycles > 0` AND compound < 0 | `audition` (unchanged) | `birth_backtest_loss_but_functional` |
-| **`total_cycles == 0`** | **`error`** | **`birth_backtest_zero_cycles` — structural failure, auto-fail (CIO-015 Phase 4.6)** |
+| HTTP != 200 OR JSON parse error | `api_failure` | `(birth, pending) → (retired, failed)` |
+| `total_return` missing or `null` | `invalid_response` | `(birth, pending) → (retired, failed)` |
+| `total_cycles > 0` AND compound >= 0 | `healthy` | `(birth, pending) → (sandbox, pending)` ✅ |
+| `total_cycles > 0` AND compound < 0 | `loss_functional` | `(birth, pending) → (sandbox, pending)` ✅ |
+| **`total_cycles == 0`** | **`zero_cycles`** | **`(birth, pending) → (retired, failed)`** |
 
-**Key principle (revised CIO-015 Phase 4.6 with multi-symbol backtest)**:
+**Key principle (SISDS Phase 2)**:
+- **healthy** and **loss_functional** both enter `(sandbox, pending)` — Sandbox-researcher will investigate deeper
+- **zero_cycles** → `(retired, failed)` — structural failure, no sandbox slot wasted
+- **api_failure / invalid_response** → `(retired, failed)` — infrastructure issue
 
-Until Phase 4.5, `zero_cycles` left the strategy in `audition` because the backtest engine was single-symbol and pair strategies could not be fairly tested. Phase 4.6 (multi-symbol backtest engine via `get_required_symbols`) removes that excuse. Any strategy that makes zero entries in 90 days of 1h BTCUSDT data (with any declared pair feeds loaded) has a structural problem — wrong parameters, broken trigger logic, or the pair symbol logic is still not wiring up correctly. Sending it to Monday wastes a backtest slot and clutters the pool.
+**Transition via /transition API** (not PATCH — explicit audit trail):
+```bash
+# For healthy or loss_functional → promote to sandbox
+curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/<strategy_id>/transition" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to_stage": "sandbox",
+    "to_status": "pending",
+    "transitioned_by": "strategy-builder",
+    "reason": "birth backtest <classification>: <total_cycles> cycles, compound <X>%",
+    "evidence": {
+      "birth_backtest": {
+        "executed_at": "<ISO8601>",
+        "ok": true,
+        "http_status": 200,
+        "total_cycles": <int>,
+        "total_return": <float>,
+        "monthly_return_compound": <float>,
+        "max_drawdown": <float>,
+        "classification": "healthy | loss_functional"
+      }
+    }
+  }'
 
-So: `zero_cycles` now triggers **immediate `error` transition**. The strategy file remains on disk and the audition row stays in DB with `status=error`, so:
-- It will NOT participate in Monday's audition-judge cycle
-- It is still visible in the `/audition` dashboard as an error entry
-- Monthly resurrect MAY consider it if the classification later suggests the default params were the only issue (Phase 4 monthly-resurrect decides via classification rules)
-- The file is NOT moved to graveyard by birth backtest — only audition-judge moves files to graveyard. Birth just flags the row.
+# For zero_cycles, api_failure, invalid_response → retire
+curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/<strategy_id>/transition" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to_stage": "retired",
+    "to_status": "failed",
+    "transitioned_by": "strategy-builder",
+    "reason": "birth backtest <classification>: <detail>",
+    "evidence": {
+      "birth_backtest": {
+        "executed_at": "<ISO8601>",
+        "ok": false,
+        "http_status": <int>,
+        "total_cycles": <int>,
+        "classification": "<classification>"
+      }
+    }
+  }'
+```
 
-API-level failures (HTTP error, invalid response) still transition to `error` as before.
-
-Loss-functional strategies (`cycles > 0` but `compound < 0`) still stay in `audition` — they DO execute trades, they're just bad at it, and Monday's judge gives them a fair evaluation against diversity-adjusted graduates.
-
-**PATCH to audition**:
+**Also PATCH metadata** (birth_backtest data goes into audition_metadata, NOT backtest_result):
 ```bash
 curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" \
   -H 'Content-Type: application/json' \
   -d '{
-    "status": "<audition|error>",
     "audition_metadata": {
-      ...existing metadata...,
       "birth_backtest": {
         "executed_at": "<ISO8601>",
         "ok": <bool>,
@@ -898,7 +939,11 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" 
   }'
 ```
 
-**IMPORTANT — do NOT populate `backtest_result`**: that field is reserved for the authoritative weekly judge. Birth backtest results live only in `audition_metadata.birth_backtest`. This keeps the two evaluation systems decoupled.
+**Order of operations** (important):
+1. First: `PATCH` metadata (save birth_backtest data — non-destructive)
+2. Then: `POST /transition` (change stage — this records audit log)
+
+If the PATCH succeeds but the transition POST fails, the metadata is saved and the strategy stays in `(birth, pending)`. Main-turn can retry the transition later.
 
 **Step 8 JSON additions**:
 ```json
@@ -906,12 +951,13 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" 
 "birth_backtest_classification": "healthy",
 "birth_backtest_cycles": <int>,
 "birth_backtest_compound_pct": <float>,
-"birth_backtest_final_status": "audition | error"
+"birth_backtest_final_stage": "sandbox",
+"birth_backtest_final_status": "pending"
 ```
 
 **Failure handling**:
-- If the curl call itself fails (backend down): log the failure, leave status as `audition`, include `"birth_backtest_executed": false, "birth_backtest_error": "backend_unreachable"` in the JSON. Do NOT transition to `error` — the infrastructure issue is not the strategy's fault.
-- If the PATCH call fails: log the failure, the birth backtest result is lost but the strategy remains in audition. Weekly judge will still evaluate it normally.
+- If the backtest curl call itself fails (backend down): leave strategy in `(birth, pending)`, include `"birth_backtest_executed": false, "birth_backtest_error": "backend_unreachable"`. Do NOT transition — infrastructure issue, not strategy fault. Main-turn will detect `(birth, pending)` entries stuck > 1 hour and alert.
+- If the transition POST fails: metadata is already PATCHed. Strategy stays in `(birth, pending)`. Scheduler will retry on next cycle.
 
 **Time budget**: Expected 1-3 minutes for a single 90-day 1h BTCUSDT backtest. Acceptable addition to the overall daily generation cycle (8 min → 10-11 min).
 
