@@ -90,6 +90,7 @@ _VALID_STATE_TRANSITIONS: Dict[Tuple[str, str], set] = {
     },
     ("sandbox", "passed"): {
         ("paper", "pending"),       # T7: paper-scheduler queues
+        ("paper", "running"),       # T7b: paper-scheduler atomic (skips pending)
     },
     ("sandbox", "failed"): {
         ("retired", "failed"),

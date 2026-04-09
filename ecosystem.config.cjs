@@ -59,6 +59,18 @@ module.exports = {
             cron_restart: "0 1 * * *"  // 01:00 UTC = 10:00 KST (1h after daily generator)
         },
         {
+            // SISDS Phase 4 — paper scheduler.
+            // CIO-20260410-001. Every 6 hours:
+            //   Job 1: promote sandbox-passed → paper trading session
+            //   Job 2: evaluate paper sessions older than 14 days
+            name: "sas-paper-scheduler",
+            script: "./.claude/skills/at-orchestrator/scripts/sas/run_paper_scheduler.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "0 */6 * * *"  // every 6 hours
+        },
+        {
             // SAS Phase 3 — weekly audition judge.
             // CIO-20260408-015. Every Monday at 10:00 local, audition-judge
             // agent runs a standardized backtest competition on this week's
