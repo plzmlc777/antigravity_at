@@ -346,3 +346,110 @@ test.describe('Workflow Visualization (CIO-20260408-016)', () => {
         expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
     });
 });
+
+
+// SISDS Phase 1 State Machine frontend tests (CIO-20260410-001)
+test.describe("SISDS Phase 1 Stage Distribution (CIO-20260410-001)", () => {
+
+    test("/audition SISDS Stage Distribution section is visible", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText("SISDS Stage Distribution")).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText("CIO-017 Phase 1")).toBeVisible({ timeout: 10000 });
+    });
+
+    test("/audition shows all 6 stage cards", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText("SISDS Stage Distribution")).toBeVisible({ timeout: 10000 });
+        for (const stage of ["birth", "sandbox", "paper", "live", "retired", "legacy"]) {
+            await expect(page.getByText(stage, { exact: true })).toBeVisible({ timeout: 10000 });
+        }
+    });
+
+    test("/audition legacy=8 retired=2 via API snapshot", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByText("SISDS Stage Distribution")).toBeVisible({ timeout: 10000 });
+        const resp = await page.evaluate(async () => {
+            const r = await fetch("/api/v1/strategy-audition/stats/by-stage");
+            return r.json();
+        });
+        const legacyTotal = Object.values(resp.distribution?.legacy || {}).reduce((a, b) => a + b, 0);
+        const retiredTotal = Object.values(resp.distribution?.retired || {}).reduce((a, b) => a + b, 0);
+        expect(legacyTotal).toBe(8);
+        expect(retiredTotal).toBe(2);
+    });
+
+    test("/audition pool table has Stage column header", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.locator("table")).toBeVisible({ timeout: 15000 });
+        const stageHeader = page.locator("table thead th", { hasText: "Stage" });
+        await expect(stageHeader).toBeVisible({ timeout: 10000 });
+    });
+
+    test("/audition pool table rows have StageBadge slash separator", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 15000 });
+        const stageCells = page.locator("table tbody td span.font-mono").filter({ hasText: "/" });
+        await expect(stageCells.first()).toBeVisible({ timeout: 10000 });
+    });
+
+    test("/audition existing columns retained (Birth + Stage)", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.locator("table")).toBeVisible({ timeout: 15000 });
+        await expect(page.locator("table thead th", { hasText: "Birth" })).toBeVisible({ timeout: 10000 });
+        await expect(page.locator("table thead th", { hasText: "Stage" })).toBeVisible({ timeout: 10000 });
+    });
+
+    test("Stage API stats/by-stage returns 200 with all 6 stages", async ({ request }) => {
+        const r = await request.get("/api/v1/strategy-audition/stats/by-stage");
+        expect(r.status()).toBe(200);
+        const body = await r.json();
+        expect(body).toHaveProperty("total");
+        expect(body).toHaveProperty("distribution");
+        expect(body).toHaveProperty("stages");
+        expect(body).toHaveProperty("statuses");
+        for (const stage of ["birth", "sandbox", "paper", "live", "retired", "legacy"]) {
+            expect(body.distribution).toHaveProperty(stage);
+        }
+        const legacyTotal = Object.values(body.distribution.legacy || {}).reduce((a, b) => a + b, 0);
+        const retiredTotal = Object.values(body.distribution.retired || {}).reduce((a, b) => a + b, 0);
+        expect(legacyTotal).toBe(8);
+        expect(retiredTotal).toBe(2);
+    });
+
+    test("/audition summary cards Graduated+Eliminated still present", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText("Graduated", { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText("Eliminated", { exact: true })).toBeVisible({ timeout: 10000 });
+    });
+
+    test("/audition has NO manual action buttons after SISDS addition", async ({ page }) => {
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        const actionTexts = ["Transition", "Submit", "Save", "Run"];
+        for (const text of actionTexts) {
+            const btn = page.getByRole("button", { name: new RegExp(text, "i") });
+            await expect(btn).toHaveCount(0);
+        }
+    });
+
+    test("/workflow regression after SISDS addition", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/workflow", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Agent Workflow — Live Execution" })).toBeVisible({ timeout: 15000 });
+        expect(errors).toEqual([]);
+    });
+
+    test("/organization regression after SISDS addition", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/organization", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: /조직도|Organization/i })).toBeVisible({ timeout: 10000 });
+        const flowPane = page.locator(".react-flow").first();
+        await expect(flowPane).toBeVisible({ timeout: 10000 });
+        expect(errors).toEqual([]);
+    });
+});

@@ -135,6 +135,7 @@ from .api import gap_signals
 app.include_router(gap_signals.router, prefix="/api/v1/gap-signals", tags=["gap-signals"])
 
 from .models.strategy_audition import StrategyAudition # Register Model (CIO-015)
+from .models.strategy_transition import StrategyTransition # Register Model (CIO-017 SISDS Phase 1)
 from .api import strategy_audition
 app.include_router(strategy_audition.router, prefix="/api/v1/strategy-audition", tags=["strategy-audition"])
 
