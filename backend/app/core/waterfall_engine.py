@@ -579,7 +579,8 @@ class WaterfallBacktestEngine:
         initial_capital: int,
         symbol: str,
         optimize_mode: bool = False,
-        rank: int = 1
+        rank: int = 1,
+        extra_feeds: Optional[Dict[str, List[Dict]]] = None,
     ) -> Dict:
         """
         ATOMIC SINGLE STRATEGY BACKTEST - SINGLE SOURCE OF TRUTH
@@ -607,6 +608,13 @@ class WaterfallBacktestEngine:
         if is_futures_exchange(self._exchange_name):
             leverage = max(1, int(config.get('leverage', 1)))
         feeds = {symbol: feed}
+        # Multi-symbol support (CIO-015 / pair strategies):
+        # Merge extra feeds so BacktestContext.get_current_price(other_symbol)
+        # returns real prices instead of 0. Primary symbol wins on collision.
+        if extra_feeds:
+            for extra_sym, extra_feed in extra_feeds.items():
+                if extra_sym and extra_sym != symbol and extra_feed and extra_sym not in feeds:
+                    feeds[extra_sym] = extra_feed
         context = BacktestContext(feeds, initial_capital=initial_capital, primary_symbol=symbol, leverage=leverage)
         context.current_rank = rank
         context.optimize_mode = optimize_mode

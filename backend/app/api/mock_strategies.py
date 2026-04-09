@@ -166,16 +166,54 @@ async def _run_unified_backtest(
         if not raw_feed:
             return {"error": "No data available for the specified parameters"}
 
+        # Multi-symbol feed loading (CIO-015): if the strategy declares it
+        # needs additional pair/hedge symbols via get_required_symbols(), fetch
+        # their candles too and hand them to the engine as extra_feeds.
+        # Legacy single-symbol strategies return [] and see no change.
+        extra_feeds: Dict[str, List[Dict[str, Any]]] = {}
+        try:
+            extras = []
+            if hasattr(strategy_class, 'get_required_symbols'):
+                extras = strategy_class.get_required_symbols(config) or []
+            for extra_sym in extras:
+                if not extra_sym or extra_sym == rank_symbol or extra_sym in extra_feeds:
+                    continue
+                extra_raw = await data_service.get_candles(
+                    extra_sym, interval=interval, days=days, to_date=to_date
+                )
+                if not extra_raw:
+                    logger.warning(
+                        f"[UNIFIED_BACKTEST] pair feed empty for {extra_sym}, "
+                        f"strategy={strategy_id} — continuing without it"
+                    )
+                    continue
+                if from_date:
+                    extra_raw = [c for c in extra_raw if c['timestamp'] >= from_date]
+                extra_raw.sort(key=lambda x: x['timestamp'])
+                extra_feeds[extra_sym] = extra_raw
+                logger.info(
+                    f"[UNIFIED_BACKTEST] loaded pair feed {extra_sym}: "
+                    f"{len(extra_raw)} candles for strategy={strategy_id}"
+                )
+        except Exception as e:
+            logger.warning(
+                f"[UNIFIED_BACKTEST] get_required_symbols failed for {strategy_id}: {e}"
+            )
+            extra_feeds = {}
+
         result = await engine.run_single_backtest(
             config=config,
             feed=raw_feed,
             initial_capital=initial_capital,
             symbol=rank_symbol,
             optimize_mode=optimize_mode,
-            rank=1
+            rank=1,
+            extra_feeds=extra_feeds if extra_feeds else None,
         )
         result['strategy_id'] = strategy_id
         result['execution_mode'] = 'single'
+        if extra_feeds:
+            result['pair_symbols_loaded'] = list(extra_feeds.keys())
 
     elif execution_mode == "parallel":
         result = await engine.run_parallel(

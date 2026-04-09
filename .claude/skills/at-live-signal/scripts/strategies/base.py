@@ -231,6 +231,51 @@ class BaseStrategy(ABC):
         self.context = context
         self.config = config or {}
 
+    @classmethod
+    def get_required_symbols(cls, config: Dict[str, Any]) -> List[str]:
+        """
+        Return the list of *additional* symbols this strategy needs beyond the
+        primary trading symbol (e.g. pair-spread, hedge, cross-exchange).
+
+        Default implementation inspects PARAMETER_SCHEMA for fields whose
+        name matches any of:
+          - exactly 'pair_symbol'
+          - suffix '_symbol' (e.g. 'hedge_symbol', 'basis_symbol')
+        The value is resolved from config first, then from the field's default.
+
+        Return value semantics:
+          - [] → single-symbol strategy (legacy, no change)
+          - ["ETHUSDT"] → backtest/live engine MUST load ETHUSDT feed in
+            addition to the primary symbol feed and expose it via
+            context.get_current_price("ETHUSDT")
+
+        Override for custom discovery logic (e.g. dynamic pair selection
+        based on correlation or volume).
+        """
+        schema = cls.PARAMETER_SCHEMA or {}
+        fields = schema.get("fields", []) if isinstance(schema, dict) else []
+        extras: List[str] = []
+        seen = set()
+        for f in fields:
+            if not isinstance(f, dict):
+                continue
+            name = f.get("name", "")
+            if not name:
+                continue
+            # Skip the primary trading symbol field
+            if name in ("symbol", "primary_symbol"):
+                continue
+            # Match: exactly 'pair_symbol' OR any '_symbol' suffix
+            if name != "pair_symbol" and not name.endswith("_symbol"):
+                continue
+            val = (config or {}).get(name) if config else None
+            if not val:
+                val = f.get("default")
+            if val and isinstance(val, str) and val not in seen:
+                extras.append(val)
+                seen.add(val)
+        return extras
+
     @abstractmethod
     def initialize(self):
         """

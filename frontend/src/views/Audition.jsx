@@ -46,9 +46,10 @@ function BirthBadge({ birth }) {
         return <span className="text-gray-600 text-xs">—</span>;
     }
     const classification = birth.classification || 'unknown';
+    // CIO-015 Phase 4.6: zero_cycles is now an auto-fail (error), not a warning
     const CLS_MAP = {
         healthy: { emoji: '🟢', cls: 'text-emerald-400', label: 'healthy' },
-        zero_cycles: { emoji: '🟡', cls: 'text-yellow-400', label: '0 cycles' },
+        zero_cycles: { emoji: '🔴', cls: 'text-red-400', label: '0 cycles (fail)' },
         loss_functional: { emoji: '🟠', cls: 'text-orange-400', label: 'loss' },
         api_failure: { emoji: '🔴', cls: 'text-red-400', label: 'api fail' },
         invalid_response: { emoji: '🔴', cls: 'text-red-400', label: 'invalid' },
@@ -251,7 +252,7 @@ export default function Audition() {
                             <span className="text-emerald-400">🟢 healthy: {birthCounts.healthy}</span>
                         )}
                         {birthCounts.zero_cycles > 0 && (
-                            <span className="text-yellow-400">🟡 0 cycles: {birthCounts.zero_cycles}</span>
+                            <span className="text-red-400">🔴 0 cycles (auto-fail): {birthCounts.zero_cycles}</span>
                         )}
                         {birthCounts.loss_functional > 0 && (
                             <span className="text-orange-400">🟠 loss (functional): {birthCounts.loss_functional}</span>

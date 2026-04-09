@@ -815,9 +815,21 @@ BIRTH_BT=$(curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>
 | `total_return` missing or `null` | `error` | `birth_backtest_invalid_response` |
 | `total_cycles > 0` AND monthly_return_compound >= 0 | `audition` (unchanged) | `birth_backtest_healthy` |
 | `total_cycles > 0` AND compound < 0 | `audition` (unchanged) | `birth_backtest_loss_but_functional` |
-| `total_cycles == 0` | `audition` (unchanged) | `birth_backtest_zero_cycles` (warning only — Monday may differ) |
+| **`total_cycles == 0`** | **`error`** | **`birth_backtest_zero_cycles` — structural failure, auto-fail (CIO-015 Phase 4.6)** |
 
-**Key principle**: ONLY API-level failures (HTTP error, invalid response) transition the strategy to `error`. Poor performance (0 cycles, negative return) leaves the strategy in `audition` — the Monday judge decides its fate. This preserves the "fair competition" guarantee: every strategy gets at least one judgment chance.
+**Key principle (revised CIO-015 Phase 4.6 with multi-symbol backtest)**:
+
+Until Phase 4.5, `zero_cycles` left the strategy in `audition` because the backtest engine was single-symbol and pair strategies could not be fairly tested. Phase 4.6 (multi-symbol backtest engine via `get_required_symbols`) removes that excuse. Any strategy that makes zero entries in 90 days of 1h BTCUSDT data (with any declared pair feeds loaded) has a structural problem — wrong parameters, broken trigger logic, or the pair symbol logic is still not wiring up correctly. Sending it to Monday wastes a backtest slot and clutters the pool.
+
+So: `zero_cycles` now triggers **immediate `error` transition**. The strategy file remains on disk and the audition row stays in DB with `status=error`, so:
+- It will NOT participate in Monday's audition-judge cycle
+- It is still visible in the `/audition` dashboard as an error entry
+- Monthly resurrect MAY consider it if the classification later suggests the default params were the only issue (Phase 4 monthly-resurrect decides via classification rules)
+- The file is NOT moved to graveyard by birth backtest — only audition-judge moves files to graveyard. Birth just flags the row.
+
+API-level failures (HTTP error, invalid response) still transition to `error` as before.
+
+Loss-functional strategies (`cycles > 0` but `compound < 0`) still stay in `audition` — they DO execute trades, they're just bad at it, and Monday's judge gives them a fair evaluation against diversity-adjusted graduates.
 
 **PATCH to audition**:
 ```bash
