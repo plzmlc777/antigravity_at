@@ -83,6 +83,17 @@ module.exports = {
             cron_restart: "0 6 * * *"  // 06:00 UTC = 15:00 KST
         },
         {
+            // SISDS Phase 8 — meta-observer (weekly system health audit).
+            // CIO-20260410-001. Sunday 13:00 KST (04:00 UTC).
+            // Reviews pipeline throughput, calibration, lessons, agent performance.
+            name: "sas-meta-observer",
+            script: "./.claude/skills/at-orchestrator/scripts/sas/run_meta_observer.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "0 4 * * 0"  // 04:00 UTC Sunday = 13:00 KST Sunday
+        },
+        {
             // SAS Phase 3 — weekly audition judge.
             // CIO-20260408-015. Every Monday at 10:00 local, audition-judge
             // agent runs a standardized backtest competition on this week's
