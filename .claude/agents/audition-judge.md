@@ -186,6 +186,57 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<error_id>" \
 
 **PATCH order**: losers first, errors second, winner last. This ensures that if the winner PATCH fails mid-flight, we don't leave the pool with multiple graduated entries.
 
+### Step 8.5: Graveyard soft-move for eliminated strategies (CIO-015 Phase 3)
+
+After successfully PATCHing each `eliminated` strategy, physically move its `.py` file from the active strategies directory to the graveyard subdirectory. This prevents:
+- StrategyRegistry from loading eliminated strategies into memory on next API call
+- meta-learner inventory scan from finding them as "reuse" candidates
+- The next weekly audition pool from accidentally including last week's losers
+
+**Move procedure**:
+```bash
+STRATEGIES_DIR="/home/hcpark/antigravity/.claude/skills/at-live-signal/scripts/strategies"
+GRAVEYARD_DIR="${STRATEGIES_DIR}/_graveyard"
+
+mkdir -p "${GRAVEYARD_DIR}"
+
+for eliminated_id in <list of eliminated strategy_ids>; do
+  SRC="${STRATEGIES_DIR}/${eliminated_id}.py"
+  DST="${GRAVEYARD_DIR}/${eliminated_id}.py"
+
+  if [ -f "${SRC}" ]; then
+    mv "${SRC}" "${DST}"
+
+    # Update the audition entry with the new path
+    curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/${eliminated_id}" \
+      -H 'Content-Type: application/json' \
+      -d "{
+        \"status\": \"eliminated\",
+        \"graveyard_path\": \"${DST}\"
+      }"
+  fi
+done
+```
+
+**Why `_graveyard/` subdirectory**: StrategyRegistry's `_discover_all()` method in `backend/app/core/strategy_registry.py` explicitly skips modules whose name starts with `_` (line ~59). This means any `_`-prefixed subdirectory is also skipped by `pkgutil.iter_modules`. Zero code changes required — the convention is already enforced.
+
+**Preservation guarantees**:
+- File contents are NOT deleted (soft delete only)
+- `strategy_audition` row remains in DB with full history (backtest_result, judge_notes, etc.)
+- `graveyard_path` column tracks the new location for future resurrect (Phase 4)
+- Audit trail: the strategy_id stays unique in DB, so future dedup checks can still find it
+
+**DO NOT move**:
+- Winner (graduated): stays in active directory
+- Errors: NOT moved — may be re-run after bug fix
+- Pre-existing legacy graduated strategies: never touch
+- base.py / martingale_base.py / __init__.py: framework files
+
+**Error handling**:
+- If `mv` fails (file doesn't exist, permission denied): log warning but continue with next elimination
+- If PATCH for graveyard_path fails: the file is already moved, so the DB is out of sync. Log the strategy_id for manual reconciliation but do not attempt rollback.
+- Never halt the overall workflow on a single graveyard move failure.
+
 ### Step 9: Return summary JSON
 
 ```json
@@ -223,6 +274,12 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<error_id>" \
     "exchange": "BinanceFutures"
   },
   "graduated_pool_size_after": 9,
+  "graveyard_moves": {
+    "attempted": 6,
+    "succeeded": 6,
+    "failed": 0,
+    "failures": []
+  },
   "notes": "한국어 요약",
   "next_steps_for_main_turn": [
     "사용자에게 주간 결과 보고",

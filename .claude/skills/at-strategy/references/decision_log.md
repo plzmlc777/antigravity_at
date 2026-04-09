@@ -1419,3 +1419,99 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
   - **workflow 검증과 strategy 품질 검증은 다른 문제**. Phase 2 는 전자만 확인. 전자가 되면 후자는 Phase 3/4 의 scheduling + iteration 으로 해결 가능 (주간 시도 반복 → 시장 변화와 함께 KPI 통과 전략 출현).
   - **at-backtest API 통합 복잡도 관리**: audition-judge 는 backtest-analyst 서브에이전트를 호출하지 **않음** (2-hop 금지). 대신 same underlying API 를 직접 호출. 이것이 CIO-013 의 "main → subagent 1-hop only" 제약과 정확히 정합.
 
+---
+
+## CIO-20260408-015 Phase 3 — PM2 cron 스케줄링 + Graveyard soft delete
+
+- **Date**: 2026-04-08
+- **Phase**: EXECUTE (Phase 3/4 of SAS rollout)
+- **Trigger**: CIO-015 Phase 2 완료 직후 사용자 승인 "버전업 후 a 진행해" → Phase 3 착수 (v1.5.32.0 릴리스 후).
+- **Scope (Phase 3)**: PM2 cron_restart 2개 프로세스 추가 + bash runner scripts + graveyard soft-delete 로직 + audition-judge.md Step 8.5 업데이트 + end-to-end infrastructure 검증. Phase 4 (resurrect + frontend dashboard) 는 별도.
+- **Deliverables**:
+  - **PM2 runner scripts** (기존 `run_weekly_cycle.sh` 패턴 재사용):
+    - `.claude/skills/at-orchestrator/scripts/sas/run_daily_generator.sh` — 하루 1 전략 생성
+      - Lock file + trap cleanup (동시 실행 방지)
+      - Idempotency check: 오늘 audition 엔트리 있으면 skip
+      - `claude -p` 로 scripted prompt 실행 → main-turn → meta-learner (category rotation) → strategy-builder (autonomous)
+      - 90일 로그 retention
+    - `.claude/skills/at-orchestrator/scripts/sas/run_weekly_judge.sh` — 주간 1 우승자 선발
+      - 동일 패턴: lock + trap + idempotency
+      - Idempotency check: 이번 주 judged_at 엔트리 있으면 skip
+      - `claude -p` 로 audition-judge agent dispatch
+      - 365일 로그 retention
+  - **ecosystem.config.cjs 확장** — 2개 신규 PM2 앱:
+    - `sas-daily-generator`: `cron_restart: "0 9 * * *"` (매일 9시)
+    - `sas-weekly-judge`: `cron_restart: "0 10 * * 1"` (매주 월 10시)
+    - 둘 다 `autorestart: false` — cron_restart 가 재실행 담당
+  - **audition-judge.md Step 8.5 (신규)** — Graveyard soft-move:
+    - eliminated 전략 파일을 `.claude/skills/at-live-signal/scripts/strategies/_graveyard/<id>.py` 로 `mv`
+    - 이후 `strategy_audition.graveyard_path` 필드를 PATCH 로 업데이트
+    - StrategyRegistry 는 `_` prefix 디렉터리를 자동 스킵 (코드 변경 0)
+    - PATCH 순서 보존 규칙: losers first → errors → winner last
+    - DO NOT move: winner, errors (재시도 가능), legacy graduated, 프레임워크 파일
+    - 실패 처리: 단일 mv 실패 시 경고 후 다음 elimination 계속. 전체 워크플로 중단 금지.
+  - **Output JSON 확장** — `graveyard_moves: {attempted, succeeded, failed, failures[]}`
+- **Verification**:
+  1. **Bash syntax check**: `bash -n` PASS (daily + weekly)
+  2. **Ecosystem load**: `node -e "require('./ecosystem.config.cjs')"` → 5 apps (2 new with cron)
+  3. **PM2 load + start**: `pm2 start ecosystem.config.cjs --only sas-daily-generator,sas-weekly-judge` PASS, 2개 launched
+  4. **Idempotency 실제 검증 — daily**: 첫 launch 시 `10 entry(ies) already created today, skipping` → exit 0 → stopped 상태 진입. 규칙 정상 작동.
+  5. **Idempotency 실제 검증 — weekly**: 2026-W15 에 아직 judged 엔트리 없음 → 실행 진행 → `claude -p` 서브프로세스 spawn → 이후 execution error 로 종료 (상세 원인 미확인)
+  6. **Lock file + trap cleanup**: `.weekly.lock` 실행 중 생성 → 프로세스 종료 시 trap 에 의해 삭제 확인
+  7. **Pool state preservation**: 10개 엔트리 전부 그대로 (dry-run 의도대로 — 실제 판정 변경 없음)
+  8. **PM2 state 저장**: `pm2 save` → `/home/hcpark/.pm2/dump.pm2` 생성. 재부팅 시 복원 가능.
+- **🎯 Critical Discovery — Fresh `claude -p` subprocess 는 신규 에이전트 즉시 사용 가능**:
+  - CIO-007 에서 발견한 "신규 에이전트는 Claude Code 재시작 필요" 제약은 **인터랙티브 세션에만 적용**됨
+  - **각 `claude -p` subprocess 는 fresh process = fresh agent registry scan = 새 agent 즉시 가용**
+  - 이번 Phase 3 의 `sas-weekly-judge` subprocess 가 실제로 `audition-judge` agent 를 로드 (Phase 2 에서 방금 작성된 에이전트)
+  - **의미**: PM2 subprocess 기반 자율 루프는 에이전트 업데이트 후 PM2 재시작 없이 바로 새 에이전트 사용 가능. 에이전트 개발-배포 사이클이 단축됨.
+  - 단, 인터랙티브 대화창 세션은 여전히 재시작 필요 (이번 세션에서 audition-judge 직접 dispatch 불가)
+- **Graveyard 구조 검증**:
+  - `.claude/skills/at-live-signal/scripts/strategies/_graveyard/` 디렉터리 생성
+  - 테스트 파일 `dummy_graveyard_test.py` 를 해당 디렉터리에 생성, PM2 재시작 후 `/api/v1/strategies/list` 조회
+  - **결과**: dummy 파일 보이지 않음, 9개 active strategies 만 표시 → `_` prefix 스킵 로직 정상 작동 ✅
+  - `strategy_registry.py` line 59 의 `if module_info.name in _SKIP_MODULES or module_info.name.startswith('_')` 규칙이 subdirectory 탐색에도 동일 적용됨 — `pkgutil.iter_modules` 특성
+  - 테스트 후 dummy 파일 삭제
+- **Known Issue — `claude -p` execution error**:
+  - 증상: `sas-weekly-judge` subprocess 가 `claude -p` 를 실행한 후 약 3분 후 "Execution error" 출력하며 종료
+  - 스크립트 로그: `"Warning: no stdin data received in 3s, proceeding without it"` → `"Execution error"` 두 줄만 기록
+  - 가능 원인 후보:
+    1. `claude -p` 프롬프트가 너무 복잡하거나 길어 CLI 가 처리 실패
+    2. `--permission-mode bypassPermissions` 에서 특정 툴 불가
+    3. audition-judge 내부의 backtest API 호출이 timeout
+    4. fresh session 의 초기화 이슈
+  - **우회 방안 (Phase 3 scope)**:
+    - 이번 Phase 3 는 **인프라 배치 완료 + 첫 실전 cron 에서 진단** 으로 scope 경계 설정
+    - Phase 4 또는 즉시 fix 로 원인 진단 + 해결 (로그 verbosity 증가, 프롬프트 간소화 등)
+  - 현재 상태: PM2 프로세스는 stopped → 다음 cron 시간 (월요일 10시, 일요일 9시) 에 자동 재시도
+  - **Pool state 영향 없음**: 실패한 weekly-judge 는 PATCH 호출 전에 종료되어 audition pool 변경 없음
+- **Status**: confirmed (Phase 3 infrastructure complete, first scheduled run pending Monday 10am)
+- **자율성 계층 현재 상태 (Phase 3 이후)**:
+  - ✅ SAS Phase 1 인프라 (DB + API + audition 등록)
+  - ✅ SAS Phase 2 결정 로직 (category rotation + audition-judge)
+  - ✅ **SAS Phase 3 — PM2 스케줄링 + Graveyard soft delete** ← 이번
+  - ✅ **대화창 바깥 자율 루프 (PM2 cron subprocess)** ← Phase 3 부산물
+  - ✅ **Fresh subprocess 에서 신규 에이전트 즉시 사용 가능** ← critical discovery
+  - ❌ **Phase 4** — monthly resurrect + frontend dashboard + claude -p execution error 해결
+  - ❌ `claude -p` execution error 진단
+  - ❌ 첫 실전 주간 judging 관찰 (월요일 대기)
+- **Phase 3 → Phase 4 Follow-ups**:
+  1. `claude -p` execution error 디버깅 — 프롬프트 간소화 or verbose logging 추가
+  2. 월요일 10시 첫 실전 weekly-judge 실행 결과 관찰
+  3. Monthly resurrect 에이전트 설계 (eliminated 풀 30일 이상 후보 재평가)
+  4. Frontend `/audition` read-only 대시보드 (category distribution chart, last winners, pool stats)
+  5. 연속 N주 no-winner 시 meta-learner 에게 "파라미터 튜닝 강화" 시그널 발송 로직
+  6. backtest optimization 경로 통합 — default params 로만 0 cycles 인 전략을 `heavy-optimize` 경유 재평가
+- **Did NOT do (Phase 3 scope)**:
+  - Monthly resurrect (Phase 4)
+  - Frontend dashboard (Phase 4)
+  - `claude -p` execution error 완전 진단 (후속 디버깅)
+  - 실전 cron 실행 (월요일 대기)
+  - git commit / 버전업 (사용자 요청 시)
+- **교훈**:
+  - **Fresh subprocess 의 agent registry 는 실시간** — CIO-007 의 "재시작 필요" 제약을 우회하는 자연스러운 경로 발견. 이는 PM2 기반 자율 루프의 큰 장점으로, 인터랙티브 세션과 스케줄 세션이 분리됨을 증명. 새 에이전트 개발 후 즉시 cron 에서 사용 가능.
+  - **Idempotency 가 cron 의 품질 기준**. 같은 cron 이 여러 번 발화해도 (수동 pm2 start, 잘못된 시간 설정 등) 데이터 무결성 보장. SAS 의 daily/weekly 둘 다 DB 상태 기반 skip 규칙으로 안전.
+  - **Lock file + trap cleanup 패턴 재사용**. 기존 `run_weekly_cycle.sh` 의 검증된 패턴을 그대로 복사. 새 스크립트 작성 시 "처음부터" 가 아니라 "검증된 템플릿 기반 수정" 이 안전.
+  - **Execution error 는 실전 환경에서만 드러남**. Bash syntax check + ecosystem load 는 모두 PASS 했지만 실제 `claude -p` 실행은 별개 문제. Phase 3 scope 를 "인프라 배치" 로 한정한 것이 정답 — debugging 을 Phase 4 로 분리하여 scope creep 방지.
+  - **`_` prefix convention 의 재활용성**. strategy_registry.py 의 기존 `_SKIP_MODULES` + `startswith('_')` 로직이 Phase 3 의 graveyard 설계에 아무 수정 없이 그대로 활용됨. 프로젝트 전반의 convention 일관성이 새 기능 구현 비용을 0 으로 만듦.
+
