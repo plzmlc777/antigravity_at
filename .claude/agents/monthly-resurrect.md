@@ -145,42 +145,43 @@ for candidate in selected:
 
 **If the file is missing from graveyard entirely**: do NOT PATCH the DB. Log as `"file_missing_cannot_resurrect"` and skip. The strategy_id stays `eliminated` in DB.
 
-### Step 7: PATCH each successfully restored candidate
+### Step 7: Resurrect via state machine transition (SISDS Phase 9)
+
+For each successfully restored candidate, use the SISDS `/transition` API:
 
 ```bash
-curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/${strategy_id}" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "status": "resurrected",
-    "judge_notes": "<resurrection rationale>",
-    "graveyard_path": null
-  }'
-```
-
-Per the API's `_VALID_TRANSITIONS` table, `eliminated → resurrected` is allowed exactly once per PATCH call.
-
-**Important**: resurrected strategies are NOT automatically put back into the audition pool for the current week. They wait for the next weekly judging cycle. To make them participate, a follow-up PATCH sets `status: audition` (allowed per `resurrected → audition`). Do this immediately after the resurrect PATCH:
-
-```bash
-curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/${strategy_id}" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "status": "audition",
-    "judge_notes": "<rationale> — awaiting next weekly audition-judge run."
-  }'
-```
-
-This two-step transition (`eliminated → resurrected → audition`) creates a clear audit trail: the strategy WAS resurrected and then entered audition. The `resurrect_count` on the row is incremented automatically by the resurrect endpoint, so use `POST /{strategy_id}/resurrect` first instead:
-
-```bash
-# Preferred: use the dedicated resurrect endpoint (increments resurrect_count + last_resurrected_at)
+# Step 7a: Increment resurrect_count via the dedicated endpoint
 curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/${strategy_id}/resurrect"
 
-# Then transition to audition
+# Step 7b: Transition from (retired, failed) → (sandbox, pending) via state machine
+curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/${strategy_id}/transition" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to_stage": "sandbox",
+    "to_status": "pending",
+    "transitioned_by": "monthly-resurrect",
+    "reason": "<resurrection rationale — MUST be specific and testable>",
+    "evidence": {
+      "resurrect_score": <float>,
+      "classification": "<untuned_defaults|marginal_kpi_miss|...>",
+      "original_failure_reason": "<from the entry judge_notes>",
+      "resurrect_count_after": <int>
+    }
+  }'
+
+# Step 7c: Clear graveyard_path since file is restored
 curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/${strategy_id}" \
   -H 'Content-Type: application/json' \
-  -d '{"status": "audition", "judge_notes": "..."}'
+  -d '{"graveyard_path": null}'
 ```
+
+**Flow**: `(retired, failed) → resurrect endpoint → (sandbox, pending)` with full audit trail.
+The resurrected strategy enters the sandbox-researcher queue on the next daily cycle,
+going through the full investigation again — not directly to paper or audition.
+
+This is stricter than the pre-SISDS flow (which went to `audition` directly). The rationale:
+a resurrected strategy should be re-investigated from scratch because market conditions
+may have changed and the original sandbox report is stale.
 
 ### Step 8: Return summary JSON
 
