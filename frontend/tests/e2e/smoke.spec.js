@@ -226,3 +226,123 @@ test.describe('Audition page (CIO-20260408-015)', () => {
         expect(graveyard.total_eliminated).toBeGreaterThanOrEqual(2);
     });
 });
+
+// Workflow Visualization tests — CIO-20260408-016 Level 2
+test.describe('Workflow Visualization (CIO-20260408-016)', () => {
+
+    test('/workflow route renders heading', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow shows Workflow nav link', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/', { waitUntil: 'networkidle' });
+        const navLink = page.locator('a[href="/workflow"]');
+        await expect(navLink).toBeVisible();
+        await expect(navLink).toHaveText('Workflow');
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow summary bar shows Window / gap_signals / auditions', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        // Use summary-bar span (text-gray-500) to avoid strict-mode collision with nav label
+        await expect(page.locator('span.text-gray-500', { hasText: 'Window:' }).first()).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('span.text-gray-500', { hasText: 'gap_signals:' }).first()).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('span.text-gray-500', { hasText: 'auditions:' }).first()).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow has 3 window selector buttons with 7d active', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('button', { hasText: '1d' }).first()).toBeVisible();
+        await expect(page.locator('button', { hasText: '7d' }).first()).toBeVisible();
+        await expect(page.locator('button', { hasText: '30d' }).first()).toBeVisible();
+        const btn7d = page.locator('button', { hasText: '7d' }).first();
+        await expect(btn7d).toHaveClass(/bg-blue-600/);
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow ReactFlow canvas renders', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        const flowPane = page.locator('.react-flow').first();
+        await expect(flowPane).toBeVisible({ timeout: 10000 });
+        const attribution = page.locator('.react-flow__attribution');
+        await expect(attribution).toHaveCount(0);
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow Legend block shows 5 node types', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Legend')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('trigger')).toBeVisible();
+        await expect(page.getByText('agent', { exact: true })).toBeVisible();
+        await expect(page.getByText('router')).toBeVisible();
+        await expect(page.getByText('data store')).toBeVisible();
+        await expect(page.getByText('file')).toBeVisible();
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow Recent Timeline section is visible', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        const timelineHeading = page.getByText(/Recent Timeline/);
+        const noActivity = page.getByText('No activity in the selected window');
+        await expect(timelineHeading.or(noActivity)).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/workflow has NO manual action buttons', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        const forbiddenTexts = ['실행', '중지', '재시작', 'Stop', 'Submit', 'Save', 'Delete'];
+        for (const text of forbiddenTexts) {
+            const btn = page.getByRole('button', { name: new RegExp(text, 'i') });
+            await expect(btn, `No action button with text: ${text}`).toHaveCount(0);
+        }
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('Workflow API /api/v1/workflow/executions/recent responds 200 with required keys', async ({ request }) => {
+        const r = await request.get('/api/v1/workflow/executions/recent?days=7');
+        expect(r.status()).toBe(200);
+        const body = await r.json();
+        expect(body).toHaveProperty('time_range');
+        expect(body).toHaveProperty('totals');
+        expect(body).toHaveProperty('node_stats');
+        expect(body).toHaveProperty('edge_flow');
+        expect(body).toHaveProperty('timeline');
+        expect(body.totals).toHaveProperty('gap_signals_in_window');
+        expect(body.totals).toHaveProperty('auditions_in_window');
+    });
+
+    test('/organization ReactFlow regression after Workflow addition', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/organization', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: /조직도|Organization/i })).toBeVisible({ timeout: 10000 });
+        const flowPane = page.locator('.react-flow').first();
+        await expect(flowPane).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test('/audition regression — Strategy Audition System still intact', async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Strategy Audition System' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Graduated', { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Eliminated', { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+});

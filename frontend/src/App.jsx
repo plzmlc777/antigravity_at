@@ -7,6 +7,7 @@ import Organization from './views/Organization';
 import DecisionTimeline from './views/DecisionTimeline';
 import KnowledgeBase from './views/KnowledgeBase';
 import Audition from './views/Audition';
+import Workflow from './views/Workflow';
 import StatusCard from './components/StatusCard';
 import KpiGoalHeader from './components/KpiGoalHeader';
 import { useState, useEffect } from 'react';
@@ -94,6 +95,7 @@ function AppContent() {
                             <NavLink to="/decisions">결정</NavLink>
                             <NavLink to="/knowledge">KB</NavLink>
                             <NavLink to="/audition">오디션</NavLink>
+                            <NavLink to="/workflow">Workflow</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -118,6 +120,7 @@ function AppContent() {
                     <Route path="/decisions" element={<DecisionTimeline />} />
                     <Route path="/knowledge" element={<KnowledgeBase />} />
                     <Route path="/audition" element={<Audition />} />
+                    <Route path="/workflow" element={<Workflow />} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>

@@ -137,3 +137,6 @@ app.include_router(gap_signals.router, prefix="/api/v1/gap-signals", tags=["gap-
 from .models.strategy_audition import StrategyAudition # Register Model (CIO-015)
 from .api import strategy_audition
 app.include_router(strategy_audition.router, prefix="/api/v1/strategy-audition", tags=["strategy-audition"])
+
+from .api import workflow  # CIO-016 Workflow visualization aggregation
+app.include_router(workflow.router, prefix="/api/v1/workflow", tags=["workflow"])
