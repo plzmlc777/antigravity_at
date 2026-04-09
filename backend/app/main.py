@@ -141,3 +141,7 @@ app.include_router(strategy_audition.router, prefix="/api/v1/strategy-audition",
 
 from .api import workflow  # CIO-016 Workflow visualization aggregation
 app.include_router(workflow.router, prefix="/api/v1/workflow", tags=["workflow"])
+
+from .models.calibration_record import CalibrationRecord  # Register Model (CIO-017 Phase 7)
+from .api import calibration
+app.include_router(calibration.router, prefix="/api/v1/calibration", tags=["calibration"])

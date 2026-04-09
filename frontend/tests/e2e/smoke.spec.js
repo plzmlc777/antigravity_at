@@ -534,3 +534,106 @@ test.describe("SISDS Phase 5 Live Promotion Flow (CIO-20260408-017)", () => {
         expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
     });
 });
+
+// SISDS Phase 7 Calibration Dashboard tests (CIO-20260408-018)
+test.describe("SISDS Phase 7 Calibration Dashboard (CIO-20260408-018)", () => {
+
+    test("/calibration route renders Calibration Dashboard heading", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/calibration', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Calibration Dashboard' })).toBeVisible({ timeout: 15000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/calibration NavBar shows CIR link", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/', { waitUntil: 'networkidle' });
+        const navLink = page.locator('a[href="/calibration"]');
+        await expect(navLink).toBeVisible();
+        await expect(navLink).toHaveText('CIR');
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/calibration shows 4 BigMetric cards", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/calibration', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Calibration Dashboard' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('System Health')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Overall Avg Error')).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Recent 30d Error')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('main').getByText('CIR', { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/calibration no-data state: health=NO_DATA, dashes for metrics", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/calibration', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Calibration Dashboard' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('NO_DATA')).toBeVisible({ timeout: 10000 });
+        const dashes = page.getByText('\u2014');
+        await expect(dashes.first()).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/calibration shows no-data message or empty chart without crash", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/calibration', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Calibration Dashboard' })).toBeVisible({ timeout: 15000 });
+        const body = await page.locator('body').textContent();
+        expect(body.trim().length).toBeGreaterThan(50);
+        const noRecords = page.getByText(/No calibration records yet|no calibration/i);
+        const hasNoRecords = await noRecords.count() > 0;
+        if (!hasNoRecords) {
+            const dashboard = page.locator('text=Calibration Dashboard');
+            await expect(dashboard).toBeVisible();
+        }
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/calibration footer shows READ-ONLY text", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/calibration', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Calibration Dashboard' })).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('div.text-xs.text-gray-500').filter({ hasText: 'READ-ONLY' }).first()).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("Calibration API /api/v1/calibration/summary responds 200 with health key", async ({ request }) => {
+        const r = await request.get('/api/v1/calibration/summary');
+        expect(r.status()).toBe(200);
+        const body = await r.json();
+        expect(body).toHaveProperty('health');
+    });
+
+    test("Calibration API /api/v1/calibration/trend responds 200 with interpretation key", async ({ request }) => {
+        const r = await request.get('/api/v1/calibration/trend');
+        expect(r.status()).toBe(200);
+        const body = await r.json();
+        expect(body).toHaveProperty('interpretation');
+    });
+
+    test("/audition regression after Calibration addition", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/audition', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Strategy Audition System' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText('Graduated', { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText('Eliminated', { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/workflow regression after Calibration addition", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/workflow', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: 'Agent Workflow — Live Execution' })).toBeVisible({ timeout: 15000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/organization regression after Calibration addition", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto('/organization', { waitUntil: 'networkidle' });
+        await expect(page.getByRole('heading', { name: /조직도|Organization/i })).toBeVisible({ timeout: 10000 });
+        const flowPane = page.locator('.react-flow').first();
+        await expect(flowPane).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+});
