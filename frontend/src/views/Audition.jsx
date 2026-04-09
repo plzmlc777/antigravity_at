@@ -1,8 +1,8 @@
-// Strategy Audition Dashboard — SAS Phase 4 (CIO-20260408-015).
-// READ-ONLY. No buttons, no manual controls. User is supervisor, AI is operator.
-// Displays: audition pool, category distribution, last winners, graveyard summary.
-import { useEffect, useState } from 'react';
-import { fetchAuditionList, fetchAuditionStats, fetchGraveyardStats, fetchStageStats } from '../api/audition';
+// Strategy Audition Dashboard — SAS Phase 4 (CIO-20260408-015) + SISDS (CIO-017).
+// READ-ONLY except for the SINGLE manual gate: Live Promotion (Phase 5).
+// The Promote/Reject buttons are the ONLY user-facing mutations — by design.
+import { useEffect, useState, useCallback } from 'react';
+import { fetchAuditionList, fetchAuditionStats, fetchGraveyardStats, fetchStageStats, promoteToLive, rejectPromotion } from '../api/audition';
 
 const STATUS_COLORS = {
     audition: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
@@ -29,6 +29,67 @@ function StageBadge({ stage, stage_status }) {
             <span>{c.icon}</span>
             <span>{stage}/{stage_status}</span>
         </span>
+    );
+}
+
+function LiveCandidatePanel({ entries, onAction }) {
+    const candidates = (entries || []).filter(
+        e => e.stage === 'paper' && e.stage_status === 'waiting_human'
+    );
+    if (candidates.length === 0) return null;
+
+    return (
+        <div className="bg-gradient-to-r from-amber-900/20 to-amber-700/10 border border-amber-500/40 rounded-lg p-4">
+            <div className="text-sm font-semibold text-amber-200 mb-3">
+                🏅 Live 승급 후보 — 사용자 승인 필요 ({candidates.length})
+            </div>
+            <div className="text-xs text-amber-300/70 mb-3">
+                이 전략들은 14일 Paper 검증을 통과했습니다. 실거래 투입을 승인하거나 거부하세요.
+                이것은 SISDS 파이프라인의 <strong>유일한 수동 단계</strong>입니다.
+            </div>
+            <div className="space-y-3">
+                {candidates.map(c => {
+                    const paperEval = c.metadata?.paper_evaluation || {};
+                    const sandboxCompound = c.metadata?.sandbox_report?.best_monthly_compound;
+                    return (
+                        <div key={c.id} className="bg-black/30 border border-amber-500/20 rounded-lg p-3 flex items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                                <div className="text-white font-mono text-sm">{c.strategy_id}</div>
+                                <div className="flex gap-3 text-xs text-gray-400 mt-1">
+                                    <span>카테고리: <span className="text-white">{c.category}</span></span>
+                                    {paperEval.monthly_compound != null && (
+                                        <span>Paper 복리: <span className="text-emerald-300">{paperEval.monthly_compound.toFixed(1)}%</span></span>
+                                    )}
+                                    {sandboxCompound != null && (
+                                        <span>Sandbox 예측: <span className="text-blue-300">{sandboxCompound.toFixed(1)}%</span></span>
+                                    )}
+                                    {paperEval.days_active != null && (
+                                        <span>운영: <span className="text-white">{paperEval.days_active}일</span></span>
+                                    )}
+                                    {paperEval.total_cycles != null && (
+                                        <span>사이클: <span className="text-white">{paperEval.total_cycles}</span></span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                                <button
+                                    onClick={() => onAction(c.strategy_id, 'promote')}
+                                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded transition"
+                                >
+                                    ✅ Live 승급
+                                </button>
+                                <button
+                                    onClick={() => onAction(c.strategy_id, 'reject')}
+                                    className="px-4 py-1.5 bg-red-600/50 hover:bg-red-500/50 text-red-200 text-xs rounded transition"
+                                >
+                                    ❌ 거부
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 }
 
@@ -264,6 +325,31 @@ export default function Audition() {
         };
     }, []);
 
+    // SISDS Phase 5: Live promotion handler — the ONLY user mutation.
+    // IMPORTANT: useCallback MUST be called before any early return (React Rules of Hooks).
+    const handlePromotion = useCallback(async (strategyId, action) => {
+        try {
+            if (action === 'promote') {
+                await promoteToLive(strategyId);
+            } else {
+                await rejectPromotion(strategyId);
+            }
+            // Refresh data after action
+            const [s, list, g, ss] = await Promise.all([
+                fetchAuditionStats({ weeks: 8 }),
+                fetchAuditionList({ status: 'all', limit: 50 }),
+                fetchGraveyardStats(),
+                fetchStageStats(),
+            ]);
+            setStats(s);
+            setEntries(list);
+            setGraveyard(g);
+            setStageStats(ss);
+        } catch (e) {
+            console.error(`Promotion action failed: ${e?.response?.data?.detail || e?.message}`);
+        }
+    }, []);
+
     if (loading) {
         return (
             <div className="text-gray-400 text-center py-12">Loading audition pool...</div>
@@ -414,6 +500,9 @@ export default function Audition() {
                 </div>
             )}
 
+            {/* Live Candidates — SISDS Phase 5: the ONLY user action buttons */}
+            <LiveCandidatePanel entries={entries} onAction={handlePromotion} />
+
             {/* Pool table */}
             <div>
                 <div className="text-sm font-semibold text-white mb-2">전체 풀 ({entries.length})</div>
@@ -421,7 +510,7 @@ export default function Audition() {
             </div>
 
             <div className="text-xs text-gray-500 text-center pt-4">
-                이 페이지는 READ-ONLY 입니다. 모든 상태 변경은 SAS 에이전트 자동 워크플로우에 의해 수행됩니다. (CIO-20260408-015)
+                이 페이지는 READ-ONLY 입니다. 유일한 예외: Live 승급 후보의 승인/거부 버튼 (SISDS 파이프라인의 유일한 수동 단계). (CIO-017)
             </div>
         </div>
     );

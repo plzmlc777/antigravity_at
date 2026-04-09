@@ -1,8 +1,15 @@
-// Strategy Audition API client — SAS Phase 4 (CIO-015) + SISDS Phase 1 (CIO-017).
-// Read-only. No mutations from the frontend per feedback_no_manual_frontend_controls.
+// Strategy Audition API client — SAS Phase 4 (CIO-015) + SISDS (CIO-017).
+// Read-only EXCEPT for promote/reject actions (the only user-facing mutations).
 import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api/v1', timeout: 10000 });
+
+// Inject auth token if available
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
 
 export async function fetchAuditionList({ status = 'all', category = null, week = null, limit = 100 } = {}) {
     const params = { status, limit };
@@ -39,5 +46,18 @@ export async function fetchByStage({ stage = null, stage_status = null, limit = 
 
 export async function fetchTransitionHistory(strategyId) {
     const { data } = await api.get(`/strategy-audition/${strategyId}/history`);
+    return data;
+}
+
+// ── SISDS Phase 5: Live promotion (CIO-017) ──
+// These are the ONLY user-facing mutations in the entire SISDS pipeline.
+
+export async function promoteToLive(strategyId) {
+    const { data } = await api.post(`/strategy-audition/${strategyId}/promote-to-live`);
+    return data;
+}
+
+export async function rejectPromotion(strategyId) {
+    const { data } = await api.post(`/strategy-audition/${strategyId}/reject-promotion`);
     return data;
 }

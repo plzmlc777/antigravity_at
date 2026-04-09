@@ -453,3 +453,84 @@ test.describe("SISDS Phase 1 Stage Distribution (CIO-20260410-001)", () => {
         expect(errors).toEqual([]);
     });
 });
+
+// SISDS Phase 5 Live Promotion Flow tests (CIO-20260408-017)
+test.describe("SISDS Phase 5 Live Promotion Flow (CIO-20260408-017)", () => {
+
+    test("/audition LiveCandidatePanel hidden when no paper/waiting_human entries", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        // panel only renders when candidates exist — verify it is NOT present
+        const panel = page.getByText("Live 승급 후보 — 사용자 승인 필요");
+        await expect(panel).toHaveCount(0);
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/audition footer contains '유일한 예외' text", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText(/유일한 예외/)).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/audition Stage Distribution still renders after Phase 5 changes", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText("SISDS Stage Distribution")).toBeVisible({ timeout: 10000 });
+        for (const stage of ["birth", "sandbox", "paper", "live", "retired", "legacy"]) {
+            await expect(page.getByText(stage, { exact: true })).toBeVisible({ timeout: 10000 });
+        }
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/audition summary cards intact after Phase 5 changes", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Strategy Audition System" })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText("Graduated", { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText("Eliminated", { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/audition pool table and Graveyard intact after Phase 5 changes", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/audition", { waitUntil: "networkidle" });
+        await expect(page.locator("table")).toBeVisible({ timeout: 15000 });
+        const rows = page.locator("table tbody tr");
+        await expect(rows).toHaveCount(10, { timeout: 10000 });
+        await expect(page.getByText("Graveyard — 탈락 풀", { exact: true })).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("promote-to-live endpoint returns 404 (not 500) for unknown id", async ({ request }) => {
+        const r = await request.post("/api/v1/strategy-audition/test_id/promote-to-live");
+        // 401 if auth required, 404 if not found — both acceptable, 500 is NOT
+        expect(r.status(), `promote-to-live should not 500, got ${r.status()}`).not.toBe(500);
+        expect([401, 403, 404], `expected 401/403/404, got ${r.status()}`).toContain(r.status());
+    });
+
+    test("reject-promotion endpoint returns 404 (not 500) for unknown id", async ({ request }) => {
+        const r = await request.post("/api/v1/strategy-audition/test_id/reject-promotion");
+        expect(r.status(), `reject-promotion should not 500, got ${r.status()}`).not.toBe(500);
+        expect([401, 403, 404], `expected 401/403/404, got ${r.status()}`).toContain(r.status());
+    });
+
+    test("/workflow regression after Phase 5 changes", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/workflow", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: "Agent Workflow — Live Execution" })).toBeVisible({ timeout: 15000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+
+    test("/organization regression after Phase 5 changes", async ({ page }) => {
+        const errors = captureConsoleErrors(page);
+        await page.goto("/organization", { waitUntil: "networkidle" });
+        await expect(page.getByRole("heading", { name: /조직도|Organization/i })).toBeVisible({ timeout: 10000 });
+        const flowPane = page.locator(".react-flow").first();
+        await expect(flowPane).toBeVisible({ timeout: 10000 });
+        expect(errors, `Console errors: ${errors.join('\n')}`).toEqual([]);
+    });
+});

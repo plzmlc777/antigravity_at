@@ -700,6 +700,113 @@ def transition_history(
     ]
 
 
+@router.post("/{strategy_id}/promote-to-live")
+def promote_to_live(
+    strategy_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """User-initiated promotion from paper to live.
+
+    This is the ONLY manual gate in the entire SISDS pipeline.
+    The strategy MUST be in (paper, waiting_human) to be promoted.
+
+    Transitions: (paper, waiting_human) → (live, pending)
+    The live-monitor or risk-manager then transitions (live, pending) → (live, running)
+    once the actual live session is created.
+
+    SISDS Phase 5 (CIO-20260410-001).
+    """
+    a = db.query(StrategyAudition).filter(
+        StrategyAudition.strategy_id == strategy_id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail=f"audition entry '{strategy_id}' not found")
+
+    if a.stage != "paper" or a.stage_status != "waiting_human":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"cannot promote: strategy is in ({a.stage}, {a.stage_status}), "
+                f"must be in (paper, waiting_human). "
+                f"Only strategies that passed 14-day paper evaluation can be promoted."
+            ),
+        )
+
+    from_stage = a.stage
+    from_status = a.stage_status
+
+    _record_transition(
+        db,
+        strategy_id=strategy_id,
+        from_stage=from_stage,
+        from_status=from_status,
+        to_stage="live",
+        to_status="pending",
+        transitioned_by="user",
+        reason="User approved promotion to live trading",
+        evidence={
+            "paper_evaluation": (a.audition_metadata or {}).get("paper_evaluation"),
+            "sandbox_report_compound": (
+                ((a.audition_metadata or {}).get("sandbox_report") or {}).get("best_monthly_compound")
+            ),
+        },
+    )
+
+    a.stage = "live"
+    a.stage_status = "pending"
+    a.stage_entered_at = datetime.utcnow()
+    a.last_transition_by = "user"
+    a.last_transition_reason = "User approved promotion to live trading"
+
+    db.commit()
+    db.refresh(a)
+    return _serialize(a)
+
+
+@router.post("/{strategy_id}/reject-promotion")
+def reject_promotion(
+    strategy_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """User rejects a paper-passed strategy. Retires it gracefully.
+
+    Transitions: (paper, waiting_human) → (retired, passed)
+    'passed' because the strategy did pass paper — user just chose not to go live.
+    """
+    a = db.query(StrategyAudition).filter(
+        StrategyAudition.strategy_id == strategy_id
+    ).first()
+    if not a:
+        raise HTTPException(status_code=404, detail=f"audition entry '{strategy_id}' not found")
+
+    if a.stage != "paper" or a.stage_status != "waiting_human":
+        raise HTTPException(
+            status_code=400,
+            detail=f"cannot reject: strategy is in ({a.stage}, {a.stage_status}), must be (paper, waiting_human)",
+        )
+
+    _record_transition(
+        db,
+        strategy_id=strategy_id,
+        from_stage=a.stage,
+        from_status=a.stage_status,
+        to_stage="retired",
+        to_status="passed",
+        transitioned_by="user",
+        reason="User rejected live promotion (strategy passed paper but user declined)",
+    )
+
+    a.stage = "retired"
+    a.stage_status = "passed"
+    a.stage_entered_at = datetime.utcnow()
+    a.last_transition_by = "user"
+    a.last_transition_reason = "User rejected live promotion"
+
+    db.commit()
+    db.refresh(a)
+    return _serialize(a)
+
+
 @router.post("/{strategy_id}/resurrect")
 def resurrect_audition(
     strategy_id: str,
