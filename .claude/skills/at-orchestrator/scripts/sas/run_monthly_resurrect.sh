@@ -12,7 +12,9 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="/home/hcpark/antigravity"
+# Resolve project root from this script's location (portable across environments)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 RUNS_DIR="${PROJECT_ROOT}/.claude/skills/at-orchestrator/runs/sas"
 LOCK_FILE="${RUNS_DIR}/.monthly.lock"
 API="http://localhost:8001/api/v1"
