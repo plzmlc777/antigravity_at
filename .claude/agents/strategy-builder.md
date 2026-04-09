@@ -124,6 +124,43 @@ Create `.claude/skills/at-live-signal/scripts/strategies/<strategy_id>.py` (abso
 - Uses multi-level entries (martingale/DCA)? → Inherit from `MartingaleBase`
 - Simple single-entry strategy? → Inherit from `BaseStrategy` directly
 
+### CRITICAL: `_check_entry_trigger` Return Type (MUST READ)
+
+**`_check_entry_trigger` MUST return `Optional[str]`, NOT `bool`.**
+
+Valid returns: `"long"`, `"short"`, `None`
+Invalid returns: `True`, `False` (silently causes zero cycles)
+
+**Why this matters**: `MartingaleBase.on_data` does this comparison:
+```python
+direction = self._check_entry_trigger(data)
+if direction:  # bool True passes this guard
+    if self.position_side != "both" and direction != self.position_side:
+        return  # "True" != "long" → silent early return → ZERO CYCLES
+```
+
+If you return `True`, and `position_side="long"` (the default), the comparison `True != "long"` is `True`, so MartingaleBase silently skips the entry. **You get zero cycles with no error log.** This bug cost one strategy (pair_spread_reversion, 2026-04-09) a full Phase 4.5 debug cycle.
+
+**Correct pattern**:
+```python
+def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+    if long_condition:
+        return "long"
+    if short_condition:
+        return "short"
+    return None
+```
+
+**Wrong pattern (do NOT copy)**:
+```python
+def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:  # ❌ type hint wrong
+    if long_condition:
+        return True  # ❌ value wrong, causes silent zero-cycles
+    return False
+```
+
+This applies in **both interactive and autonomous modes**. `_check_additional_trigger` still returns `bool` (different semantics — it just asks "should we buy another level in the current direction?").
+
 **Complete working example** — `dip_martingale.py` (simplest strategy, use as pattern):
 ```python
 from typing import Dict, Any
@@ -161,11 +198,14 @@ class DipMartingaleStrategy(MartingaleBase):
         self.dip_percent = self.config.get("dip_percent", 1.0)
         self.level_gap_percent = self.config.get("level_gap_percent", 2.0)
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """L1: candle drops dip_percent% from its open. Return 'long'/'short'/None."""
         current_price = data['close']
         candle_open = data.get('open', current_price)
         candle_drop = (candle_open - current_price) / candle_open if candle_open > 0 else 0
-        return candle_drop >= (self.dip_percent / 100)
+        if candle_drop >= (self.dip_percent / 100):
+            return "long"
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         current_price = data['close']
@@ -301,16 +341,17 @@ class RsiMartingaleStrategy(MartingaleBase):
         if direction == "below": return prev >= level and curr < level
         else: return prev <= level and curr > level
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """Return 'long'/'short'/None. RSI oversold → long entry."""
         if self._current_rsi < 0 or self._prev_rsi < 0 or not self._trigger_armed:
-            return False
+            return None
         if self._check_crossover(self._prev_rsi, self._current_rsi, self.trigger_level, self.trigger_direction):
             self._trigger_armed = False
-            return True
-        return False
+            return "long"
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
-        return self._check_entry_trigger(data)  # Same logic with arm/disarm
+        return self._check_entry_trigger(data) is not None  # L2+: mirror L1 logic
 
     @property
     def _log_prefix(self) -> str: return "RsiMartingale"
@@ -405,19 +446,22 @@ class TimeMomentumStrategy(MartingaleBase):
             self._liquidate(current_price)
             self.checked_today = True
 
-    def _check_entry_trigger(self, data: Dict[str, Any]) -> bool:
-        """Snapshot check once per day at start_time + delay_minutes."""
+    def _check_entry_trigger(self, data: Dict[str, Any]) -> Optional[str]:
+        """Snapshot check once per day. Return 'long'/'short'/None."""
         if self.checked_today or self.daily_reference_price is None:
-            return False
+            return None
         current_time = self.context.get_time()
         trigger_time = datetime.combine(current_time.date(), self.start_time) + timedelta(minutes=self.delay_minutes)
         if current_time < trigger_time:
-            return False
+            return None
         self.checked_today = True  # Only one chance per day
         current_price = data['close']
         change = (current_price - self.daily_reference_price) / self.daily_reference_price
-        if self.direction == "fall": return change <= -self.target_percent
-        else: return change >= self.target_percent
+        if self.direction == "fall" and change <= -self.target_percent:
+            return "long"  # fall=dip buy → enter long
+        if self.direction != "fall" and change >= self.target_percent:
+            return "long"  # rise=momentum buy → enter long
+        return None
 
     def _check_additional_trigger(self, data: Dict[str, Any]) -> bool:
         return False  # Single entry (max_buy_count=1)
@@ -561,7 +605,7 @@ self.config.get("initial_capital")            # Starting capital (backtest)
 
 | Method | Required | Called When | Purpose |
 |--------|----------|-------------|---------|
-| `_check_entry_trigger(data) → bool` | **Yes** | No position held (L0) | Return True to open L1 position |
+| `_check_entry_trigger(data) → Optional[str]` | **Yes** | No position held (L0) | Return `"long"` or `"short"` to open L1, `None` to skip. **NEVER return bool** — MartingaleBase compares against `position_side` string, `True != "long"` causes silent no-op. |
 | `_check_additional_trigger(data) → bool` | **Yes** | Position held, below max_buy_count | Return True for L2+ entry |
 | `_initialize_trigger()` | Optional | Once at strategy start | Read config into instance vars |
 | `_on_candle(data)` | Optional | Every candle, before trigger checks | Update indicators, daily resets |
