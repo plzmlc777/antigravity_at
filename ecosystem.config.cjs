@@ -71,6 +71,18 @@ module.exports = {
             cron_restart: "0 */6 * * *"  // every 6 hours
         },
         {
+            // SISDS Phase 6 — live monitor.
+            // CIO-20260410-001. Daily at 15:00 KST (06:00 UTC).
+            // Activates user-approved entries, monitors live strategies for
+            // degradation, enforces 7-day grace period on degraded entries.
+            name: "sas-live-monitor",
+            script: "./.claude/skills/at-orchestrator/scripts/sas/run_live_monitor.sh",
+            interpreter: "bash",
+            cwd: ".",
+            autorestart: false,
+            cron_restart: "0 6 * * *"  // 06:00 UTC = 15:00 KST
+        },
+        {
             // SAS Phase 3 — weekly audition judge.
             // CIO-20260408-015. Every Monday at 10:00 local, audition-judge
             // agent runs a standardized backtest competition on this week's
