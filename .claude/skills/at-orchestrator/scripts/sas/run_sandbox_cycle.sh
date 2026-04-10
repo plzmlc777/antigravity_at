@@ -78,42 +78,28 @@ curl -s -X POST "${API}/strategy-audition/${STRATEGY_ID}/transition" \
     \"reason\": \"sandbox-researcher dispatch starting\"
   }" > /dev/null
 
-# Build prompt with strategy context
-BIRTH_DATA=$(curl -s "${API}/strategy-audition/${STRATEGY_ID}" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-m = d.get('metadata', {})
-birth = m.get('birth_backtest', {})
-schema_fields = m.get('custom_parameter_names', [])
-print(json.dumps({
-    'strategy_id': d.get('strategy_id'),
-    'category': d.get('category'),
-    'birth_backtest': birth,
-    'parameter_schema_fields': schema_fields
-}, ensure_ascii=False))
-" 2>/dev/null || echo '{}')
+# Build prompt via temp file (avoids shell escaping issues with JSON context)
+PROMPT_FILE="${RUNS_DIR}/.sandbox_prompt_${STRATEGY_ID}.txt"
 
-PROMPT=$(cat <<PROMPT_EOF
+cat > "${PROMPT_FILE}" <<PROMPT_EOF
 SAS Sandbox Research (SISDS Phase 3). PM2 cron, no user.
 
 Dispatch Agent(subagent_type="sandbox-researcher") with prompt:
-"Investigate strategy ${STRATEGY_ID}. Follow sandbox-researcher.md full 10-step workflow.
+"Investigate strategy ${STRATEGY_ID} (category: ${CATEGORY}). Follow sandbox-researcher.md full 10-step workflow.
 
-Strategy context:
-${BIRTH_DATA}
-
-Budget: max 100 backtests. Standard conditions: BTCUSDT / 1h / 90d / \$10k / BinanceFutures.
+Budget: max 100 backtests. Standard conditions: BTCUSDT / 1h / 90d / 10000 USD / BinanceFutures.
 Return your full investigation JSON including decision, evidence, hypotheses, and lessons."
 
 After the subagent returns, emit exactly ONE line starting with "SAS_SANDBOX_RESULT:" summarizing the outcome (strategy_id, decision, best_compound, backtests_run).
 PROMPT_EOF
-)
 
-claude -p "${PROMPT}" \
+claude -p "$(cat "${PROMPT_FILE}")" \
   --permission-mode bypassPermissions \
   --model sonnet \
   < /dev/null \
   > "${LOG_FILE}" 2>&1
+
+rm -f "${PROMPT_FILE}"
 
 EXIT_CODE=$?
 echo "[sas-sandbox] finished exit=${EXIT_CODE}"
