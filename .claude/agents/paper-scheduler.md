@@ -25,9 +25,11 @@ Dispatched by PM2 cron. No interactive user.
 ### CRITICAL: Do NOT start sessions beyond concurrency limit
 Maximum **3 paper sessions** running simultaneously. Check before starting.
 
-### CRITICAL: Use best_config from sandbox_report
-When starting a paper session, use the parameters that sandbox-researcher
-determined as optimal — NOT the strategy's default parameters.
+### CRITICAL: Use best_config AND best_symbol from sandbox_report
+When starting a paper session, use the parameters AND symbol that sandbox-researcher
+determined as optimal — NOT the strategy's default parameters or BTCUSDT.
+Extract `sandbox_report.best_config` for parameters and `sandbox_report.best_symbol`
+for the trading symbol. If `best_symbol` is missing, fall back to BTCUSDT.
 
 ## Job 1: Promote sandbox-passed to paper
 
@@ -48,11 +50,12 @@ If RUNNING >= 3 → skip Job 1, include `"skipped_reason": "paper_concurrency_li
 
 ### Step 3: For each sandbox-passed entry (up to limit):
 
-**3a. Extract best_config from sandbox_report**:
+**3a. Extract best_config AND best_symbol from sandbox_report**:
 ```bash
 ENTRY=$(curl -s "http://localhost:8001/api/v1/strategy-audition/<strategy_id>")
 # Parse: entry.metadata.sandbox_report.best_config → the config to use
-# Parse: entry.metadata.sandbox_report.best_config.symbol → trading symbol (default BTCUSDT)
+# Parse: entry.metadata.sandbox_report.best_symbol → the optimal symbol (NOT always BTCUSDT!)
+# If best_symbol is missing → fall back to BTCUSDT
 ```
 
 **3b. Start paper session via live API**:
@@ -61,7 +64,7 @@ curl -s -X POST http://localhost:8001/api/v1/live/sessions \
   -H 'Content-Type: application/json' \
   -d '{
     "strategy_name": "<strategy_id>",
-    "symbol": "<symbol from best_config or BTCUSDT>",
+    "symbol": "<best_symbol from sandbox_report, fallback BTCUSDT>",
     "is_paper": true,
     "config": <best_config from sandbox_report>,
     "exchange_name": "BinanceFutures"

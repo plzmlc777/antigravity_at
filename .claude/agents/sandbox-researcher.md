@@ -107,85 +107,98 @@ If total combinations > 50, use **intelligent sampling**:
 
 If no `defaultOptRange` defined: use sensible defaults (±30% from default value, 3 steps).
 
-### Step 3: Coarse Parameter Sweep
+### Step 3: Symbol Screening (find the best symbol)
 
-Run backtest for each combination in the grid.
+**Load the daily symbol-scout hot candidates list**:
+```bash
+# Find today's or most recent scout file
+SCOUT_FILE=$(ls -t /home/hcpark/auto_trading/.claude/hot_candidates/binance_*.json 2>/dev/null | head -1)
+cat "$SCOUT_FILE"
+```
+
+If no scout file exists, use this **fallback pool** (20 symbols covering large/mid/small/meme):
+```
+BTCUSDT, ETHUSDT, SOLUSDT, BNBUSDT, XRPUSDT,
+AVAXUSDT, DOTUSDT, LINKUSDT, NEARUSDT, ADAUSDT,
+DOGEUSDT, SHIBUSDT, PEPEUSDT, WIFUSDT, ENAUSDT,
+SUIUSDT, ARUSDT, RENDERUSDT, FETUSDT, ONDOUSDT
+```
+
+**Run default config on each symbol** (1 backtest per symbol = ~20 backtests):
+```bash
+for each symbol in pool:
+  curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>/backtest \
+    -H 'Content-Type: application/json' \
+    -d '{"symbol":"<symbol>","interval":"1h","days":90,"initial_capital":10000,"config":<default_config>,"exchange_name":"BinanceFutures"}'
+```
 
 **Standard conditions** (same for all):
-- Symbol: BTCUSDT
 - Interval: 1h
 - Days: 90
 - Capital: $10,000
 - Exchange: BinanceFutures
 
+**Collect per symbol**: `total_return`, `total_cycles`, `monthly_return_compound`.
+**Rank symbols** by `monthly_return_compound` descending.
+
+### Step 4: Analyze Symbol Results + Select Top 3 Symbols
+
+**If ALL symbols yield 0 cycles**: structural issue. Skip to Step 9 (retire).
+**If ALL symbols yield compound < 0**: weak strategy in current regime. Skip to Step 9.
+
+Otherwise, **select top 3 symbols** for parameter optimization.
+Report `best_symbol`, `symbol_ranking` in output.
+
+Note: A strategy might be mediocre on BTC but excellent on DOGE or SOL.
+The goal is to find the best symbol-strategy combination, not just BTC performance.
+
+### Step 5: Parameter Optimization (Top 3 symbols)
+
+For the **top 3 symbols** from Step 4, run parameter grid:
+
+From PARAMETER_SCHEMA, extract `defaultOptRange` for each tunable parameter.
+If total combinations > 15 per symbol, use intelligent sampling (3 values per param).
+
 ```bash
-for each combo in grid:
-  curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>/backtest \
-    -H 'Content-Type: application/json' \
-    -d '{"symbol":"BTCUSDT","interval":"1h","days":90,"initial_capital":10000,"config":<combo>,"exchange_name":"BinanceFutures"}'
+for each symbol in top_3_symbols:
+  for each combo in param_grid:
+    curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>/backtest \
+      -H 'Content-Type: application/json' \
+      -d '{"symbol":"<symbol>","interval":"1h","days":90,"initial_capital":10000,"config":<combo>,"exchange_name":"BinanceFutures"}'
 ```
 
-**Collect per run**: `total_return`, `total_cycles`, `max_drawdown`, `sharpe_ratio`, `win_rate`.
+Budget: ~15 configs × 3 symbols = ~45 backtests.
 
-**Compute**: `monthly_return_compound = ((1 + total_return/100) ** (1/(days/30.4375)) - 1) * 100`
-
-### Step 4: Analyze Coarse Results
-
-Sort by `monthly_return_compound` descending.
-
-**If ALL configs yield 0 cycles**: structural issue. Skip to Step 9 (retire).
-**If ALL configs yield compound < 0**: weak strategy. Skip to Step 9.
-**If top 3 all yield compound < 8%**: marginal. Worth one more try (Step 5).
-**If top 3 include compound ≥ 12%**: promising. Proceed to Step 5.
-
-### Step 5: Fine Tuning (Top 3 only)
-
-For the top 3 configs from Step 4, create a fine grid:
-- For each parameter, ±20% from the best value, 5 steps
-- ~15 more backtests per top config = ~45 total
-
-Pick the **single best config** (highest `monthly_return_compound`).
+Pick the **single best (symbol, config) pair** (highest `monthly_return_compound`).
+This determines both the optimal symbol AND optimal parameters.
 
 ### Step 6: Walk-Forward Validation
 
-Run the best config through 3-split walk-forward:
-- Split 1: first 30 days train, next 30 days test
-- Split 2: first 60 days train, next 30 days test
-- Split 3: Custom — use older historical period if available
+Run the **best (symbol, config) pair** through 3-split walk-forward:
 
 ```bash
-# Split 1: days=60, test on second half
-curl ... -d '{"days":60,...}'  # use from_date/to_date if API supports
-
-# For now, approximate with different date windows
+# Use the best_symbol and best_config from Step 5
 # Split 1: recent 30 days
-curl ... -d '{"days":30,...}'
+curl ... -d '{"symbol":"<best_symbol>","days":30,...}'
 # Split 2: 30-60 days ago
-curl ... -d '{"days":60,...}' (then compare with split 1)
+curl ... -d '{"symbol":"<best_symbol>","days":60,...}' (then compare with split 1)
 # Split 3: 60-90 days ago
-curl ... -d '{"days":90,...}' (full period, compare consistency)
+curl ... -d '{"symbol":"<best_symbol>","days":90,...}' (full period, compare consistency)
 ```
 
 **Overfit check**: if split variance > 50% of mean → overfit suspected.
 Compute: `overfit_ratio = std(split_returns) / mean(split_returns)` (coefficient of variation).
 
-### Step 7: Multi-Symbol Test (optional but recommended)
+### Step 7: Cross-Symbol Bonus Check (optional)
 
-Run best config on at least 1 additional symbol (ETHUSDT) if time/budget allows:
-
-```bash
-curl ... -d '{"symbol":"ETHUSDT","interval":"1h","days":90,...}'
-```
-
-If the strategy uses `get_required_symbols` (multi-symbol), the engine will
-auto-load pair feeds. For single-symbol strategies, this tests generalizability.
+Since Step 3 already tested 20 symbols, check if the **best config** works on
+symbols ranked #2 and #3 from Step 4. This is already available from Step 5 results.
 
 **This step is NOT a promotion gate** — live sessions run 1 symbol + 1 strategy.
-Multi-symbol positive results add +0.1 confidence bonus (see can_promote).
-Record results in `multi_symbol` field regardless of outcome.
+If the strategy performs well on multiple symbols → confidence bonus +0.1.
 
-If backtest budget is tight or data unavailable, skip this step and set
-`multi_symbol_tested: false` in the report. Promotion is still possible.
+Record all symbol results in `symbol_ranking` field. Include `best_symbol` in report
+so paper-scheduler knows which symbol to use for the paper session.
 
 ### Step 8: Diversity Check
 
@@ -261,7 +274,8 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition/<strategy_id>/tra
       "best_monthly_compound": <float>,
       "walkforward_splits": [...],
       "overfit_ratio": <float>,
-      "multi_symbol": {"BTCUSDT": <float>, "ETHUSDT": <float>},
+      "best_symbol": "<symbol with highest compound>",
+      "symbol_ranking": [{"symbol": "X", "compound": N}, ...],
       "diversity_score": <float>,
       "researcher_confidence": <float>,
       "gate_results": {...}
@@ -289,36 +303,41 @@ curl -s -X PATCH http://localhost:8001/api/v1/strategy-audition/<strategy_id> \
     "param1": 1.8,
     "param2": 72
   },
+  "best_symbol": "DOGEUSDT",
+  "symbol_ranking": [
+    {"symbol": "DOGEUSDT", "compound": 19.1},
+    {"symbol": "SOLUSDT", "compound": 14.3},
+    {"symbol": "BTCUSDT", "compound": 5.8}
+  ],
   "evidence": {
-    "coarse_sweep": {
-      "configs_tested": 12,
-      "best_compound": 18.4,
-      "worst_compound": -3.2,
-      "zero_cycle_configs": 0
+    "symbol_screening": {
+      "symbols_tested": 20,
+      "source": "scout_file or fallback_pool",
+      "top_3": ["DOGEUSDT", "SOLUSDT", "BTCUSDT"],
+      "zero_cycle_symbols": 2
     },
-    "fine_tuning": {
-      "configs_tested": 35,
-      "best_compound": 19.1
+    "parameter_optimization": {
+      "symbols_optimized": 3,
+      "configs_per_symbol": 15,
+      "total_backtests": 45,
+      "best_compound": 19.1,
+      "best_symbol": "DOGEUSDT"
     },
     "walkforward": {
+      "symbol": "DOGEUSDT",
       "splits": [15.2, 14.8, 16.1],
       "mean": 15.37,
       "std": 0.55,
       "overfit_ratio": 0.036
     },
-    "multi_symbol": {
-      "BTCUSDT": 19.1,
-      "ETHUSDT": 11.5
-    },
+    "cross_symbol_bonus": true,
     "diversity_score": 0.72
   },
   "gate_results": {
     "exploration_depth": true,
-    "kpi_with_buffer": true,
-    "walkforward_consistency": true,
+    "positive_return": true,
+    "walkforward_mean_positive": true,
     "overfit_check": true,
-    "multi_symbol_tested": true,
-    "multi_symbol_compound": true,
     "diversity": true,
     "researcher_confidence": true,
     "all_passed": true
