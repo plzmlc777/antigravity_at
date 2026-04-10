@@ -216,11 +216,11 @@ def can_promote(report):
         report.backtests_run >= 20,                    # Gate 1: exploration depth
         report.best_monthly_compound > 0,              # Gate 2: positive return (aspirational target: 12%/month)
         mean(report.walkforward_splits) > 0,           # Gate 3: walk-forward mean positive
-        report.overfit_ratio < 0.3,                    # Gate 4: overfit check
+        report.overfit_ratio < 0.5,                    # Gate 4: overfit check (relaxed from 0.3 — bear/flat markets have high split variance)
         report.multi_symbol_tested,                    # Gate 5: at least 1 extra symbol
         report.multi_symbol_compound > -10,            # Gate 6: no catastrophic loss on other symbols
         report.diversity_score >= 0.3,                 # Gate 7: not redundant
-        report.researcher_confidence >= 0.6,           # Gate 8: your honest assessment
+        report.researcher_confidence >= 0.4,           # Gate 8: your honest assessment (relaxed — low confidence still worth audition competition)
     ])
 ```
 

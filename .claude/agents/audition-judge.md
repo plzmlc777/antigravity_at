@@ -113,7 +113,7 @@ For each candidate, apply these filters in order:
 
 1. **Backtest failure**: HTTP != 200 OR JSON parse error → `status=error, reason="backtest_api_failure"`
 2. **Insufficient data**: total_return is `null` or period shorter than `DAYS * 0.8` → `status=error, reason="insufficient_data"`
-3. **Overfit detection**: `overfit_ratio >= 0.3` → `status=eliminated, reason="overfit_detected (ratio={value})"`
+3. **Overfit detection**: `overfit_ratio >= 0.5` → `status=eliminated, reason="overfit_detected (ratio={value})"`
 4. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
 
 > **NOTE**: 12%/month compound is the ASPIRATIONAL TARGET, not a hard filter.
