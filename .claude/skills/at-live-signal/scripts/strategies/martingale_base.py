@@ -1014,7 +1014,7 @@ class MartingaleBase(BaseStrategy):
             leverage = self._get_leverage()
             safety_reserve = available_cash * (self.safety_margin_percent / 100)
             # With leverage, buying power = (cash - reserve) * leverage / price
-            max_affordable = int((available_cash - safety_reserve) * leverage / price)
+            max_affordable = (available_cash - safety_reserve) * leverage / price
             if qty > max_affordable:
                 self.context.log(f"[{self._log_prefix}] CASH GUARD: L{level} qty {qty} → {max_affordable} (cash: {available_cash:,.0f}, lev: {leverage}x)")
                 qty = max_affordable
