@@ -56,7 +56,7 @@ module.exports = {
             interpreter: "bash",
             cwd: ".",
             autorestart: false,
-            cron_restart: "0 1 * * *"  // 01:00 UTC = 10:00 KST (1h after daily generator)
+            cron_restart: "0 */2 * * *"  // every 2 hours — processes ~12 strategies/day
         },
         {
             // SISDS Phase 4 — paper scheduler.
