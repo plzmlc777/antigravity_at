@@ -169,9 +169,9 @@ curl ... -d '{"days":90,...}' (full period, compare consistency)
 **Overfit check**: if split variance > 50% of mean → overfit suspected.
 Compute: `overfit_ratio = std(split_returns) / mean(split_returns)` (coefficient of variation).
 
-### Step 7: Multi-Symbol Test
+### Step 7: Multi-Symbol Test (optional but recommended)
 
-Run best config on at least 1 additional symbol (ETHUSDT):
+Run best config on at least 1 additional symbol (ETHUSDT) if time/budget allows:
 
 ```bash
 curl ... -d '{"symbol":"ETHUSDT","interval":"1h","days":90,...}'
@@ -180,9 +180,12 @@ curl ... -d '{"symbol":"ETHUSDT","interval":"1h","days":90,...}'
 If the strategy uses `get_required_symbols` (multi-symbol), the engine will
 auto-load pair feeds. For single-symbol strategies, this tests generalizability.
 
-**Pass**: ETH compound > -10% (no catastrophic loss — matches Gate 6)
-**Marginal**: ETH compound between -10% and 0% — note in report but don't block
-**Fail**: ETH compound ≤ -10% — severe cross-symbol failure
+**This step is NOT a promotion gate** — live sessions run 1 symbol + 1 strategy.
+Multi-symbol positive results add +0.1 confidence bonus (see can_promote).
+Record results in `multi_symbol` field regardless of outcome.
+
+If backtest budget is tight or data unavailable, skip this step and set
+`multi_symbol_tested: false` in the report. Promotion is still possible.
 
 ### Step 8: Diversity Check
 
@@ -211,17 +214,26 @@ diversity_score = 0.4  (2+ existing in category)
 # NOTE: 12%/month compound is the ASPIRATIONAL TARGET, not a promotion gate.
 # The sandbox gates filter out broken/overfit strategies, not underperformers.
 # Best-of-pool ranking happens at the audition-judge stage.
+#
+# Multi-symbol results are BONUS, not required — live sessions run 1 symbol + 1 strategy.
 def can_promote(report):
-    return all([
+    # --- Required gates (all must pass) ---
+    required = all([
         report.backtests_run >= 20,                    # Gate 1: exploration depth
         report.best_monthly_compound > 0,              # Gate 2: positive return (aspirational target: 12%/month)
         mean(report.walkforward_splits) > 0,           # Gate 3: walk-forward mean positive
-        report.overfit_ratio < 0.5,                    # Gate 4: overfit check (relaxed from 0.3 — bear/flat markets have high split variance)
-        report.multi_symbol_tested,                    # Gate 5: at least 1 extra symbol
-        report.multi_symbol_compound > -10,            # Gate 6: no catastrophic loss on other symbols
-        report.diversity_score >= 0.3,                 # Gate 7: not redundant
-        report.researcher_confidence >= 0.4,           # Gate 8: your honest assessment (relaxed — low confidence still worth audition competition)
+        report.overfit_ratio < 0.5,                    # Gate 4: overfit check
+        report.diversity_score >= 0.3,                 # Gate 5: not redundant
+        report.researcher_confidence >= 0.4,           # Gate 6: your honest assessment
     ])
+
+    # --- Bonus: multi-symbol generalizability (NOT required) ---
+    # If tested on extra symbols and positive → add +0.1 to researcher_confidence
+    # This rewards strategies that generalize, but doesn't block single-symbol winners.
+    if report.multi_symbol_tested and report.multi_symbol_compound > 0:
+        report.researcher_confidence = min(report.researcher_confidence + 0.1, 1.0)
+
+    return required
 ```
 
 Always include these fields in the report for tracking progress toward the aspirational target:
