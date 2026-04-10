@@ -135,8 +135,15 @@ max_drawdown = <from session stats>
 |---|---|---|
 | Duration | >= 14 days | PASS (already checked) |
 | Cycles | >= 5 (relaxed from 10 — paper is still early) | PASS / FAIL |
-| KPI | monthly_compound >= 12.0% | PASS / FAIL |
+| Calibration | `gap < 0.5 AND compound > -5%` (see below) | PASS / FAIL |
 | Drawdown | max_drawdown > -20% | PASS / FAIL |
+
+> **Calibration gate** (replaces hard KPI 12% filter):
+> `calibration_gap = abs(sandbox_predicted - paper_actual) / abs(sandbox_predicted)`
+> - PASS: gap < 0.5 (within 50% of sandbox prediction) AND compound > -5%
+> - FAIL: gap >= 0.5 OR compound <= -5%
+> - If sandbox_predicted is 0 or missing, fall back to: compound > -5%
+> - 12%/month is the ASPIRATIONAL TARGET tracked in calibration records, not a promotion gate.
 
 **If ALL pass** → transition to `(paper, passed)`:
 ```bash

@@ -122,6 +122,21 @@ async def run_backtest_async(
     exchange_name = _detect_exchange_name(symbol, futures)
     p_config = dict(config or {})
 
+    # Multi-symbol support: load extra feeds for pair/hedge strategies
+    extra_feeds = {}
+    try:
+        required_symbols = strategy_class.get_required_symbols(p_config) if hasattr(strategy_class, 'get_required_symbols') else []
+        for extra_sym in required_symbols:
+            if not extra_sym or extra_sym == symbol:
+                continue
+            extra_df = _load_candles(extra_sym, interval, days, from_date, to_date, source=source, futures=futures)
+            if extra_df is not None and not extra_df.empty:
+                extra_feeds[extra_sym] = extra_df.to_dict("records")
+                print(f"  Loaded extra feed: {extra_sym} ({len(extra_feeds[extra_sym])} candles)", file=sys.stderr)
+    except Exception as e:
+        print(f"Warning: failed to load extra feeds: {e}", file=sys.stderr)
+        extra_feeds = {}
+
     engine = WaterfallBacktestEngine(strategy_class, p_config, exchange_name=exchange_name)
     stats = await engine.run_single_backtest(
         config=p_config,
@@ -130,6 +145,7 @@ async def run_backtest_async(
         symbol=symbol,
         optimize_mode=True,  # skip chart/ohlcv resampling — CLI doesn't need them
         rank=1,
+        extra_feeds=extra_feeds if extra_feeds else None,
     )
 
     # Waterfall's _generate_stats already computed: total_return, win_rate, sharpe_ratio,

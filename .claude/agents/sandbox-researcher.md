@@ -180,8 +180,9 @@ curl ... -d '{"symbol":"ETHUSDT","interval":"1h","days":90,...}'
 If the strategy uses `get_required_symbols` (multi-symbol), the engine will
 auto-load pair feeds. For single-symbol strategies, this tests generalizability.
 
-**Pass**: ETH compound ≥ 8% (not as strict as BTC requirement)
-**Fail**: ETH compound < 0 AND BTC-specific pattern detected
+**Pass**: ETH compound > -10% (no catastrophic loss — matches Gate 6)
+**Marginal**: ETH compound between -10% and 0% — note in report but don't block
+**Fail**: ETH compound ≤ -10% — severe cross-symbol failure
 
 ### Step 8: Diversity Check
 
@@ -207,18 +208,25 @@ diversity_score = 0.4  (2+ existing in category)
 **8-Gate Promotion Criteria** (ALL required):
 
 ```python
+# NOTE: 12%/month compound is the ASPIRATIONAL TARGET, not a promotion gate.
+# The sandbox gates filter out broken/overfit strategies, not underperformers.
+# Best-of-pool ranking happens at the audition-judge stage.
 def can_promote(report):
     return all([
         report.backtests_run >= 20,                    # Gate 1: exploration depth
-        report.best_monthly_compound >= 15.0,          # Gate 2: KPI with 3% buffer
-        all(s >= 8 for s in report.walkforward_splits), # Gate 3: walk-forward consistency
+        report.best_monthly_compound > 0,              # Gate 2: positive return (aspirational target: 12%/month)
+        mean(report.walkforward_splits) > 0,           # Gate 3: walk-forward mean positive
         report.overfit_ratio < 0.3,                    # Gate 4: overfit check
         report.multi_symbol_tested,                    # Gate 5: at least 1 extra symbol
-        report.multi_symbol_compound >= 5,             # Gate 6: works on other symbols
+        report.multi_symbol_compound > -10,            # Gate 6: no catastrophic loss on other symbols
         report.diversity_score >= 0.3,                 # Gate 7: not redundant
         report.researcher_confidence >= 0.6,           # Gate 8: your honest assessment
     ])
 ```
+
+Always include these fields in the report for tracking progress toward the aspirational target:
+- `kpi_aspirational_target: 12.0` (fixed constant)
+- `kpi_gap_to_target: 12.0 - best_monthly_compound` (negative = exceeds target)
 
 **If promote**: transition `(sandbox, running) → (sandbox, passed)`
 **If retire**: transition `(sandbox, running) → (retired, failed)`

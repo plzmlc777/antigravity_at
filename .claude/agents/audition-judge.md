@@ -113,9 +113,13 @@ For each candidate, apply these filters in order:
 
 1. **Backtest failure**: HTTP != 200 OR JSON parse error → `status=error, reason="backtest_api_failure"`
 2. **Insufficient data**: total_return is `null` or period shorter than `DAYS * 0.8` → `status=error, reason="insufficient_data"`
-3. **KPI fail**: `monthly_return_compound < 12.0` → `status=eliminated, reason="kpi_below_12 (compound={value}%)"`
-4. **Overfit detection**: `overfit_ratio >= 0.3` → `status=eliminated, reason="overfit_detected (ratio={value})"`
-5. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"` (redundant with filter 3 but explicit)
+3. **Overfit detection**: `overfit_ratio >= 0.3` → `status=eliminated, reason="overfit_detected (ratio={value})"`
+4. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
+
+> **NOTE**: 12%/month compound is the ASPIRATIONAL TARGET, not a hard filter.
+> Strategies with positive return and acceptable overfit enter the shortlist regardless of absolute return level.
+> The best-of-pool ranking (Step 7) selects the winner based on composite score.
+> Include `kpi_aspirational_12pct_met: (compound >= 12.0)` in the winner JSON for tracking.
 
 Candidates that pass ALL filters enter the **shortlist** for ranking.
 
@@ -323,7 +327,7 @@ done
     "rank": 1
   },
   "eliminated": [
-    {"strategy_id": "...", "category": "...", "reason": "kpi_below_12 (compound=8.4%)", "rank": 2},
+    {"strategy_id": "...", "category": "...", "reason": "overfit_detected (ratio=0.42)", "rank": 2},
     {"strategy_id": "...", "category": "...", "reason": "overfit_detected (ratio=0.45)", "rank": 3}
   ],
   "errors": [
