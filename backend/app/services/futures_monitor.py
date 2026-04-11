@@ -42,11 +42,15 @@ class FuturesMonitorService:
 
         self._task: Optional[asyncio.Task] = None
         self._running = False
-        self._poll_interval = 5  # seconds
+        self._poll_interval = 30  # seconds (was 5 — reduced API load)
 
         # Alert dedup: prevent repeat alerts for same level
         self._last_liq_alert_level: Optional[str] = None
         self._last_adl_alert_level: int = 0
+
+        # Funding rate cache (changes only every 8 hours)
+        self._cached_funding_rate: float = 0
+        self._funding_rate_last_fetched: float = 0
 
     async def start(self):
         """Start the monitoring loop as an asyncio task."""
@@ -84,7 +88,14 @@ class FuturesMonitorService:
         """Fetch position data, update cache, and run risk checks."""
         try:
             position = await self.adapter.get_position(self.symbol)
-            funding_rate = await self.adapter.get_funding_rate(self.symbol)
+
+            # Funding rate only changes every 8h — cache for 10 minutes
+            import time
+            now = time.time()
+            if now - self._funding_rate_last_fetched > 600:
+                self._cached_funding_rate = await self.adapter.get_funding_rate(self.symbol)
+                self._funding_rate_last_fetched = now
+            funding_rate = self._cached_funding_rate
 
             # Build futures data cache
             futures_data = {
