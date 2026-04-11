@@ -286,11 +286,13 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
 
         def safe_float(v):
             if not v: return 0.0
-            return float(str(v).replace("+", "").replace("-", ""))
+            s = str(v).replace(",", "").replace("+", "").strip()
+            return float(s) if s else 0.0
 
         def safe_int(v):
             if not v: return 0
-            return int(str(v).replace("+", "").replace("-", ""))
+            s = str(v).replace(",", "").replace("+", "").strip()
+            return int(float(s)) if s else 0
 
         # Use different TR ID based on server type
         is_mock_server = "mockapi" in self.base_url.lower()
