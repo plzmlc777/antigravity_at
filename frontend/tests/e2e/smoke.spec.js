@@ -14,8 +14,8 @@ const ROUTES = {
 // so we expect them to redirect to /login (also a valid render path).
 const AUTH_ROUTES = ['/settings'];
 
-// Pages that should be GONE (no /manual, /strategies, /live, /strategy-lab).
-const DEAD_ROUTES = ['/manual', '/strategies', '/live', '/emergency/manual', '/strategy-lab'];
+// Pages that should be GONE (no /strategies, /live, /strategy-lab).
+const DEAD_ROUTES = ['/strategies', '/live', '/emergency/manual', '/strategy-lab'];
 
 /** Attach console listener that ignores benign noise. */
 function captureConsoleErrors(page) {

@@ -9,6 +9,7 @@ import KnowledgeBase from './views/KnowledgeBase';
 import Audition from './views/Audition';
 import Workflow from './views/Workflow';
 import Calibration from './views/Calibration';
+import ManualTrading from './views/ManualTrading';
 import StatusCard from './components/StatusCard';
 import KpiGoalHeader from './components/KpiGoalHeader';
 import { useState, useEffect } from 'react';
@@ -98,6 +99,7 @@ function AppContent() {
                             <NavLink to="/audition">오디션</NavLink>
                             <NavLink to="/workflow">Workflow</NavLink>
                             <NavLink to="/calibration">CIR</NavLink>
+                            <NavLink to="/manual">수동매매</NavLink>
                             <NavLink to="/settings">Settings</NavLink>
                             {user?.is_admin && <NavLink to="/admin">Admin</NavLink>}
                         </div>
@@ -124,6 +126,7 @@ function AppContent() {
                     <Route path="/audition" element={<Audition />} />
                     <Route path="/workflow" element={<Workflow />} />
                     <Route path="/calibration" element={<Calibration />} />
+                    <Route path="/manual" element={<RequireAuth><ManualTrading /></RequireAuth>} />
                     <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAdmin><AdminView /></RequireAdmin>} />
                 </Routes>
