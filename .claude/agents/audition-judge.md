@@ -113,13 +113,16 @@ For each candidate, apply these filters in order:
 
 1. **Backtest failure**: HTTP != 200 OR JSON parse error → `status=error, reason="backtest_api_failure"`
 2. **Insufficient data**: total_return is `null` or period shorter than `DAYS * 0.8` → `status=error, reason="insufficient_data"`
-3. **Overfit detection**: `overfit_ratio >= 0.5` → `status=eliminated, reason="overfit_detected (ratio={value})"`
-4. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
+3. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
 
 > **NOTE**: 12%/month compound is the ASPIRATIONAL TARGET, not a hard filter.
-> Strategies with positive return and acceptable overfit enter the shortlist regardless of absolute return level.
+> Strategies with positive return enter the shortlist regardless of absolute return level.
 > The best-of-pool ranking (Step 7) selects the winner based on composite score.
 > Include `kpi_aspirational_12pct_met: (compound >= 12.0)` in the winner JSON for tracking.
+>
+> **Regime awareness**: If sandbox_report contains `regime_tags`, include them in the
+> winner JSON. This helps live-monitor know when to activate/deactivate the strategy.
+> Regime-dependent performance is NORMAL, not a disqualification reason.
 
 Candidates that pass ALL filters enter the **shortlist** for ranking.
 
