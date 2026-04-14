@@ -2,7 +2,7 @@
 name: market-researcher
 description: Market intelligence analyst that searches news, assesses macro regime (bull/bear/sideways), identifies event risks, and evaluates symbol-specific impacts. Returns structured JSON market brief.
 tools: WebSearch, Read
-model: opus
+model: sonnet
 ---
 
 # Market Researcher Agent

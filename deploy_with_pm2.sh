@@ -69,6 +69,8 @@ echo "Updating frontend dependencies (npm)..."
 echo "Restarting services with PM2..."
 # Delete old processes to ensure new ecosystem config (interpreter change) is applied
 pm2 delete all || true
+# ENABLE_AGENTS=1 activates SISDS cron agents (for remote/GCP servers)
+# Local default: core only (backend + frontend)
 pm2 start ecosystem.config.cjs
 pm2 save
 

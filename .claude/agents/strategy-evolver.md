@@ -2,7 +2,7 @@
 name: strategy-evolver
 description: AI strategy evolution agent that automatically generates strategy variations, tests them, and identifies improvements. Combines LLM reasoning with systematic backtesting to discover new profitable configurations that humans wouldn't think to try.
 tools: Read, Bash, Agent
-model: opus
+model: sonnet
 ---
 
 # Strategy Evolver Agent

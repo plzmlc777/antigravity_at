@@ -2,7 +2,7 @@
 name: monthly-resurrect
 description: Monthly review of the graveyard pool. Selects eliminated strategies (judged >=30 days ago) that are candidates for re-evaluation, either because market regime has shifted or because the strategy failed for reasons unrelated to intrinsic quality (e.g., zero cycles from untuned defaults). Restores selected files from _graveyard/ to active strategies directory, PATCHes status to 'resurrected', and increments resurrect_count. Runs via PM2 cron on the 1st of each month. Does not make live trading decisions.
 tools: Read, Bash
-model: opus
+model: sonnet
 ---
 
 # Monthly Resurrect Agent (SAS Phase 4 — CIO-20260408-015)

@@ -2,7 +2,7 @@
 name: symbol-scout
 description: Daily forward-looking symbol scout. Scans Binance Futures and/or Korean stock market once per day to produce a ranked top-N candidate list, saved to disk for downstream sessions to consume instantly at cycle boundaries.
 tools: Read, Bash, WebSearch, Write
-model: sonnet
+model: haiku
 ---
 
 # Symbol Scout Agent

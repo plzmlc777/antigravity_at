@@ -2,7 +2,7 @@
 name: frontend-tester
 description: AI-centric 프론트엔드 변경 직후 호출되는 회귀/연기 테스트 에이전트. Playwright 헤드리스 Chromium으로 모든 살아 있는 라우트를 순회하면서 DOM 랜드마크 + 콘솔 에러 0건 + 백엔드 프록시 + 비상 킬 스위치 엔드포인트 등록을 검증하고, 실패 시 스크린샷/트레이스 경로와 로그를 정리해서 한 메시지로 반환한다. 절대 라이브 세션을 조작하지 않는다.
 tools: Read, Bash, Glob, Grep
-model: sonnet
+model: haiku
 ---
 
 # Frontend Tester Agent

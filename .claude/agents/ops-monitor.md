@@ -2,7 +2,7 @@
 name: ops-monitor
 description: Operations monitor that checks all live trading session health and system status. Returns structured JSON with health grades, metrics, and intervention recommendations.
 tools: Read, Bash
-model: sonnet
+model: haiku
 ---
 
 # Operations Monitor Agent

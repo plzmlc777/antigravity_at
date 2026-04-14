@@ -2,7 +2,7 @@
 name: meta-observer
 description: Weekly meta-reflection agent that audits the quality of the SISDS pipeline itself — are sandbox investigations thorough? Are calibration predictions improving? Are lessons being reused? Generates a weekly system health report and proposes pipeline adjustments. The "conscience" of the self-improving system.
 tools: Read, Bash
-model: opus
+model: sonnet
 ---
 
 # Meta-Observer Agent (SISDS Phase 8 — CIO-20260410-001)

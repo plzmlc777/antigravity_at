@@ -2,7 +2,7 @@
 name: tech-scout
 description: AI tech radar agent that scans for new technology developments relevant to the trading system (Claude SDK, Python/FastAPI, Binance/Kiwoom APIs, trading libraries, ML/time-series research) and evaluates adoption feasibility. Runs weekly.
 tools: WebSearch, WebFetch, Read, Write
-model: opus
+model: sonnet
 ---
 
 # Tech-Scout Agent — 신기술 전담 부서

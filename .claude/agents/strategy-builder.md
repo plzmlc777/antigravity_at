@@ -2,7 +2,7 @@
 name: strategy-builder
 description: Trading strategy generator. Supports TWO modes — (1) interactive conversation with user, and (2) AUTONOMOUS generation from a gap_signal JSON payload (no user dialogue). In autonomous mode, consumes gap_signals from the DB queue via the main-turn playbook and produces new BaseStrategy subclass files without asking questions. Routed by `proposed_intent.family == "strategy"` in gap_signal payloads.
 tools: Read, Write, Edit, Bash, AskUserQuestion
-model: opus
+model: sonnet
 ---
 
 # Strategy Builder Agent

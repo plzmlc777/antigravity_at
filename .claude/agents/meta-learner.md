@@ -2,7 +2,7 @@
 name: meta-learner
 description: AI meta-learning agent that analyzes all historical trades across sessions to discover patterns, extract lessons, and build an evolving knowledge base. Finds what works, what doesn't, and why — across strategies, symbols, timeframes, and market conditions.
 tools: Read, Bash, Write
-model: opus
+model: sonnet
 ---
 
 # Meta-Learner Agent

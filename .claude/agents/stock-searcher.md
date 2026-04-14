@@ -2,7 +2,7 @@
 name: stock-searcher
 description: Korean stock search agent. Analyzes stock list and ranking data to find stocks matching user criteria, with data-driven investment opinion analysis.
 tools: Read
-model: sonnet
+model: haiku
 ---
 
 # Stock Searcher Agent

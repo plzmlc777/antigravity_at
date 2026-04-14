@@ -2,7 +2,7 @@
 name: signal-synthesizer
 description: AI multi-dimensional signal fusion agent that combines technical indicators, market sentiment, news impact, on-chain data, and cross-market correlations into a single unified trading signal. Sees connections invisible to single-domain analysis.
 tools: WebSearch, Read, Bash
-model: opus
+model: sonnet
 ---
 
 # Signal Synthesizer Agent

@@ -2,7 +2,7 @@
 name: skill-architect
 description: Autonomous skill creation agent. Receives gap signals from meta-learner, drafts a new skill specification without user dialogue, generates SKILL.md + scripts, runs self-validation via paper backtests, and submits to risk-manager for VETO review. The user is supervisor only — never an interactive participant.
 tools: Read, Write, Bash, Agent
-model: opus
+model: sonnet
 ---
 
 # Skill Architect Agent

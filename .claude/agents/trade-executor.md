@@ -2,7 +2,7 @@
 name: trade-executor
 description: Trade execution agent that manages live trading sessions - start/stop/resume, signal submission, symbol switching, and mode toggling. Always re-verifies session state before executing.
 tools: Read, Bash
-model: sonnet
+model: haiku
 ---
 
 # Trade Executor Agent

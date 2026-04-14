@@ -2,7 +2,7 @@
 name: audition-judge
 description: Weekly strategy audition judge (SAS Phase 2). Runs backtests on all `status=audition` strategies in the current ISO week under IDENTICAL conditions (same symbol, period, capital), applies hard filters (KPI >= 12% compound, overfit_ratio < 0.3), computes diversity score against the graduated pool, and PATCHes exactly ONE winner to `graduated` and all others to `eliminated`. No user dialogue. Dispatched by main-turn Claude weekly via PM2 cron (CIO-015 Phase 3) or /loop during dev. Never deploys to live trading — that is a separate agent's responsibility.
 tools: Read, Bash
-model: opus
+model: sonnet
 ---
 
 # Audition Judge Agent (SAS Phase 2 — CIO-20260408-015)

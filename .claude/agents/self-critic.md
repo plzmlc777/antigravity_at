@@ -2,7 +2,7 @@
 name: self-critic
 description: AI self-reflection agent that audits past CIO decisions, identifies cognitive biases, grades decision quality, and generates improvement directives. The system's conscience and quality control mechanism.
 tools: Read, Bash
-model: opus
+model: sonnet
 ---
 
 # Self-Critic Agent
