@@ -390,3 +390,106 @@ run #1~#3에서 확인된 "첫 그럴듯한 인과 스토리로 정착(confirmat
 강제 체크리스트(D-007/D-016/D-018)에 의해 처음으로 억제됨. 데이터가 부족하면 "모른다"로 답하는
 규율이 실제로 동작함을 확인. 단, 이는 1 데이터포인트 관측이므로 **규칙 효과성 자체도 under_review**.
 다음 런에서 충분한 표본이 쌓였을 때 false-positive suppression이 실제로 작동하는지 재검증 필요.
+
+
+---
+
+## [2026-04-11] 주간 메타-러닝 리뷰 #5 — Full Analysis (2026-04-04 ~ 2026-04-11)
+
+> 분석 범위: 434건 거래, 140 사이클(skill-test-001), 27 사이클(408761bb)
+> 기간: 2026-04-04 ~ 2026-04-10
+> SISDS 상태: W15 CRITICAL
+
+---
+
+## [2026-04-11] D003 업데이트: 야간 21-24시 손실 집중 — 140사이클 대규모 재검증
+- **ID**: D003 (업데이트)
+- **Type**: temporal_pattern
+- **Impact**: critical (medium → critical 승격)
+- **Confidence**: 0.88 (0.72 → 0.88, 표본 4배 증가)
+- **Sample Size**: 140 사이클 (skill-test-001 전체)
+- **Date Range**: 2026-04-05 ~ 2026-04-10
+- **Pattern**: 21-24시(UTC) 시간대가 전체 손실의 90% (10건 중 9건)을 집중. 특히 21시 UTC가 WR=57.1%, Avg=-5.71로 최악. 반면 09-17시(UTC)는 WR 93-100%.
+- **Evidence (140 사이클 재검증)**:
+  - 야간(21-01h): 34사이클, WR=82.4%, Avg=-1.92, 총PnL=-65.28
+  - 주간(09-15h): 60사이클, WR=93.3%, Avg=+0.09, 총PnL=+5.15
+  - 오후(15-21h): 46사이클, WR=95.7%, Avg=+0.52, 총PnL=+23.99
+  - 21시: 7사이클, 3패(WR=57.1%), 총PnL=-39.96 (단일 시간대 최대 손실)
+  - Config 효과: block_entry_hours=[22,23] 적용 후 loss_rate 11.6%→2.8%
+- **Confound Cross-Check**: 요일 통제 후에도 21-24h 손실 집중 유지. independent.
+- **Actionable Rule**: block_entry_hours를 [21,22,23]으로 확장 (현재 [22,23])
+- **Status**: active (강화)
+
+## [2026-04-11] noop/RIVERUSDT 고빈도 소규모 수익 + 저빈도 대규모 손실 구조
+- **ID**: D014
+- **Type**: failure_signature
+- **Impact**: critical
+- **Confidence**: 0.90
+- **Sample Size**: 140 사이클
+- **Date Range**: 2026-04-05 ~ 2026-04-10
+- **Pattern**: noop 전략 PnL 극단적 비대칭. WR=91.4%이지만 Avg Win(+0.64)이 Avg Loss(-11.83)의 1/18. Total PnL = -36.14 (음수). Profit Factor = 0.69. 마틴게일 구조적 위험의 교과서적 사례.
+- **Evidence**:
+  - 128승 / 10패 / 2무, WR=91.4%, Total PnL = -36.14 USDT
+  - Avg Win: +0.64, Max Win: +4.63, Avg Loss: -11.83, Max Loss: -16.93
+  - Profit Factor: 81.98/118.12 = 0.69
+  - 상위 5패 합계: -74.50 USDT (전체 손실의 63%)
+- **Actionable Rule**: noop → rsi_martingale 전환, max_buy_count=2, trailing_stop > 0 유지
+- **Status**: active
+
+## [2026-04-11] 화요일(Tue) 성과 저조 패턴
+- **ID**: D015
+- **Type**: temporal_pattern
+- **Impact**: high
+- **Confidence**: 0.75
+- **Sample Size**: 140 사이클
+- **Date Range**: 2026-04-05 ~ 2026-04-10
+- **Pattern**: 화요일 64거래 중 6패, Total=-51.07 (유일한 대규모 음수 요일). 목(0패, +24.98), 금(0패, +6.45) 대조.
+- **Confound Warning**: 1일(Apr 7) 표본. 시장 이벤트 vs 요일 구조 구별 불가.
+- **Status**: under_review
+
+## [2026-04-11] block_entry config 효과 정량 검증
+- **ID**: D016
+- **Type**: parameter_sensitivity
+- **Impact**: critical
+- **Confidence**: 0.82
+- **Sample Size**: before=69, after=71 사이클
+- **Date Range**: 2026-04-05 ~ 2026-04-10
+- **Pattern**: block_entry_hours=[22,23] + block_entry_weekdays=[2] + cooldown 적용 후 loss_rate 11.6%→2.8%, Total PnL -48.14→+12.00. meta-learning→config→실증 사이클 최초 완성.
+- **Recommendation**: block_entry_hours를 [21,22,23]으로 확장
+- **Status**: active
+
+## [2026-04-11] SISDS 파이프라인 CRITICAL — 전략 생성 0% 통과율
+- **ID**: D017
+- **Type**: anomaly
+- **Impact**: critical
+- **Confidence**: 0.95
+- **Sample Size**: W15 전체 (2건 생성, 0건 통과)
+- **Date Range**: 2026-04-07 ~ 2026-04-11
+- **Pattern**: bollinger_reversion, volume_spike_entry 모두 0건 거래로 eliminated. 공통: trailing_stop=0 또는 entry 조건 과도.
+- **Actionable Rule**: strategy-builder에 trailing_stop > 0 필수 + dry-run 검증 추가
+- **Status**: active
+
+## [2026-04-11] rsi_martingale 408761bb 종합 — 종목별 극심한 편차
+- **ID**: D018
+- **Type**: cross_strategy
+- **Impact**: high
+- **Confidence**: 0.80
+- **Sample Size**: 21 사이클
+- **Date Range**: 2026-03-10 ~ 2026-04-04
+- **Pattern**: 총 +619.83 USDT. AVAXUSDT(+437.50, 71%), 1000PEPEUSDT(+201.35, 32%), SUIUSDT(-54.10, -9%).
+- **Actionable Rule**: WR < 50% 종목(5+ 사이클) 자동 제외
+- **Status**: active
+
+---
+
+## 기존 발견 재검증 (2026-04-11 리뷰 #5)
+
+| ID | 제목 | 재검토 | 상태 변경 |
+|----|------|--------|-----------|
+| D001 | noop 레벨3 손실 | config로 해결됨 | active → resolved |
+| D003 | 야간 손실 | 140cyc 재확인, 21h 확장 권고 | active (강화) |
+| D004 | rsi > noop | noop PnL=-36 vs rsi +620 | active |
+| D005 | 일요일 저조 | 시간대 교란 약화 | under_review |
+| D008 | 수요일 저조 | 화요일이 더 저조 | active → under_review |
+| D012 | 오후 최적 | 46cyc WR=95.7% 재확인 | active |
+| D013 | Post-switch null | 140cyc으로 해소 | resolved |

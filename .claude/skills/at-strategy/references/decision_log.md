@@ -1677,3 +1677,178 @@ D-009는 3주 연속 재발견된 유일한 CRITICAL directive로, "권고 → �
 - **Read-only dashboard 의 가치**. 조작 UI 없이 정보 표시만으로도 "사용자가 감독자, AI 가 운영자" 철학이 명확히 구현됨. 버튼을 추가할 수 있는 유혹이 있지만 절대 추가하지 않는 것이 오히려 product quality 의 증거.
 - **Phase 분할 총평 (CIO-015 전체)**: Phase 1 (인프라) → Phase 2 (결정 로직) → Phase 3 (스케줄링) → Phase 4 (완결 + 보정). 각 Phase 가 독립적으로 value 를 제공하면서도 누적 구조. 이번이 **완전판 설계의 첫 4-phase 전체 완주** 사례. 앞으로 유사 규모 작업의 템플릿으로 사용 가능.
 
+
+---
+
+## [2026-04-11] AUDIT-20260411-005: 주간 의사결정 감사 #5 (04/04~04/11) — SISDS W15 실패 분석 + 인프라 폭주 편향
+
+- **Period audited**: 2026-04-04 ~ 2026-04-11
+- **Decisions reviewed**: 18건 (CIO-20260408-001~015 Phase 1~4, CIO-20260410-001/CIO-017 SISDS Phase 1~9, block_entry 적용, noop 세션 유지)
+- **Overall grade**: C+
+- **Overall assessment**: 이 주간은 시스템 사상 최대 규모의 인프라 구축 주간이었다. SAS Phase 1~4 (CIO-015) + SISDS 9-Phase (CIO-017) 가 모두 실행됨. 프로세스 품질은 양호하나, 핵심 결과물(자동 생성 전략 2개)이 모두 0 trades로 탈락한 것은 **예방 가능했던 설계 결함**이다. trailing_stop=0 기본값이 MartingaleBase에서 사이클 완성을 구조적으로 불가능하게 만든다는 사실은 사전 백테스트 1회로 발견 가능했다. 또한 PM2 프로세스 7개 중 5개가 stopped 상태로 파이프라인이 사실상 정지된 채 방치되고 있다.
+- **Bias detected**: action (인프라 과잉 구축), omission (trailing_stop 검증 누락), overconfidence (Minimum Viable = 안전 가정), anchoring (block_entry_hours=[22,23]에 고착)
+- **Severity**: high (0-trade 전략 실패), medium (PM2 stopped), medium (block_entry 불완전)
+
+### 의사결정 감사 세부
+
+#### DEC-001: bollinger_reversion + volume_spike_entry 자동 생성 (CIO-014, CIO-015 Phase 1)
+- **Process grade**: B (gap_signal → strategy-builder 자율 생성, py_compile+import PASS)
+- **Outcome grade**: F (두 전략 모두 90일 BTCUSDT 1h 백테스트에서 0 trades, 0 return)
+- **Was correct**: No
+- **Root cause analysis**:
+  1. `trailing_start_percent=0, trailing_stop_percent=0` (strategy-builder.md Minimum Viable 규칙)
+  2. MartingaleBase의 `_check_exit` 로직: trailing이 0이면 `max_loss_percent`(기본 5%)만이 유일한 청산 조건
+  3. 진입은 발생할 수 있으나 trailing=0 + 넓은 max_loss=5% 조합이면 포지션이 영원히 열려있거나 드물게만 청산
+  4. 실제로는 진입 조건 자체도 엄격(BB 20/2.0 + volume 2.5x)하여 진입 자체가 0건
+- **Was preventable**: Yes. strategy-builder가 Step 4(파일 생성) 이후 Step 5(py_compile) 전에 "기본 파라미터로 14일 smoke backtest" 1회만 실행했으면 0-trades를 즉시 발견 가능. CIO-015 Phase 4.5에서 Birth Certificate Backtest가 도입되었지만 **이 두 전략은 그 이전에 생성됨**.
+- **Bias**: overconfidence — "Minimum Viable Strategy = 안전하게 실패" 가정이 "아예 거래를 하지 않는 것도 안전한 실패"로 해석됨. 실제로는 0-trades는 실패가 아니라 **기능 결함**.
+
+#### DEC-002: SAS/SISDS 인프라 9+4=13 Phase 연속 구축
+- **Process grade**: A (체계적 Phase 분할, 각 Phase 독립 가치, dry-run 검증)
+- **Outcome grade**: C (인프라는 완성되었으나 첫 실전 결과가 0-trade 탈락. PM2 5/7 stopped)
+- **Was correct**: Partially — 인프라 설계는 양호하나 실행 검증이 부족. meta-observer가 "CRITICAL: pipeline effectively halted since 2026-04-08" 보고.
+- **Bias**: action bias — 7일간 13개 Phase를 연속 구축하면서 "중간 점검 없이 다음 Phase로 진행"하는 패턴. 각 Phase의 dry-run은 수행했으나, Phase 1~4 완료 후 실전 결과(W15 judging)를 기다리지 않고 SISDS Phase 1~9로 즉시 진입.
+
+#### DEC-003: block_entry_hours=[22,23] 설정 (D-002, CIO-20260406-003)
+- **Process grade**: B (야간 손실 데이터 기반 합리적 결정)
+- **Outcome grade**: B- (적용 후 PnL 개선: -48.14 → +12.00, 손실률 11.6% → 2.8%)
+- **Was correct**: Partially
+- **Incomplete coverage**: UTC 21시(KST 06시)가 여전히 손실을 유발하고 있었으나 초기 분석에서 누락. 원인: D-002 분석 시 "KST 22-23시"만 집중하고 UTC hour 분포를 별도 검증하지 않음.
+- **Bias**: anchoring — 최초 분석에서 도출된 [22,23] 범위에 고착. 후속 데이터에서 hour=21 UTC 손실이 관측되었으나 기존 설정을 확장하는 결정이 지연됨.
+
+#### DEC-004: noop 전략 + RIVERUSDT 세션 유지 (skill-test-001)
+- **Process grade**: C
+- **Outcome grade**: D
+- **Was correct**: No — D-003에서 noop 금지, D-009에서 전환 지시, CIO-20260406-003에서 rsi_martingale 전환 완료. 그러나 현재 모니터 API에서 total_cycles=0, equity=494.33 (초기 500 대비 -1.13%). noop에서 rsi_martingale로 전환되었으나 활성 거래가 극히 적은 상태.
+- **Notes**: 전환 자체는 D-009 이행으로 성공. 그러나 전환 후 성과 모니터링이 부재. 모니터 API의 total_cycles=0은 PM2 재시작 후 메모리 카운터 리셋 (알려진 이슈, AUDIT-003에서 규명). equity=494.33은 초기자본 500 대비 소폭 하락이나, DB 실제 사이클 수 대조 없이는 정확한 판정 불가.
+
+### 편향 분석 종합
+
+| 편향 유형 | 감지 | 건수 | 심각도 | 상세 |
+|-----------|------|------|--------|------|
+| Overconfidence | Yes | 2 | HIGH | "Minimum Viable = 안전" 가정으로 trailing_stop=0 허용. 0-trade 결과는 안전이 아니라 기능결함. |
+| Action Bias | Yes | 1 | MEDIUM | 13 Phase 연속 구축, 중간 실전 검증 없이 진행. 인프라 폭주. |
+| Anchoring | Yes | 1 | MEDIUM | block_entry_hours=[22,23]에 고착, UTC 21시 누락. |
+| Omission | Yes | 2 | HIGH | (1) trailing_stop>0 강제 검증 미수행. (2) PM2 5/7 stopped 상태 방치. |
+| Survivorship | Yes | 1 | LOW | 8개 legacy graduated 전략만 seed, 이들의 현재 성과 재검증 없이 graduated 부여. |
+
+### Calibration
+
+- **strategy-builder**: 자율 생성 confidence 미명시 (implicit ~0.70). 실제 결과: 2/2 전략 0-trade 탈락. 실제 성공률 0%. calibration_error: ~0.70 (심각한 과신). 단, 표본 2건으로 통계적 의미는 제한적.
+- **meta-observer**: pipeline health=CRITICAL 보고. 이 평가는 PM2 5/7 stopped + 0% birth pass rate 기반으로 정확한 진단. calibration 양호.
+- **CIO 인프라 결정**: Phase 분할 + dry-run 프로세스는 일관되게 양호. 그러나 "dry-run PASS = 실전 PASS" 가정은 과신. dry-run은 프로토콜 검증이지 전략 품질 검증이 아님.
+
+### PM2 파이프라인 상태 감사
+
+현재 PM2 7개 SAS 관련 프로세스 중 5개가 stopped:
+- sas-daily-generator: stopped (cron 기반, 다음 트리거 대기)
+- sas-sandbox-processor: stopped
+- sas-paper-scheduler: stopped
+- sas-live-monitor: stopped
+- sas-meta-observer: stopped
+- sas-weekly-judge: stopped
+- sas-monthly-resurrect: stopped
+
+**판정**: cron_restart 기반 프로세스는 설계상 stopped가 정상 대기 상태일 수 있음. 그러나 meta-observer가 "pipeline effectively halted since 2026-04-08"로 보고한 것은 daily-generator가 새 전략을 생성하지 못하고 있음을 시사. 두 시점 비교 필요: t0(초기 배포)과 t1(현재)의 SAS 엔트리 수 비교. 현재 audition 엔트리 10개 = Phase 1 seed 시점과 동일. delta=0. pipeline이 신규 전략을 생산하지 못하고 있음이 확인됨.
+
+### 핵심 질문별 분석
+
+**Q1: bollinger_reversion과 volume_spike_entry의 0-trade 실패는 예방 가능했는가?**
+- **답**: Yes. 두 가지 예방 수단이 존재했으나 모두 시점 문제로 적용되지 않음:
+  1. Birth Certificate Backtest (CIO-015 Phase 4.5): 전략 생성 시 즉시 smoke backtest 실행. **두 전략 생성(04/08) 이후에 도입(04/09)**.
+  2. trailing_stop_percent > 0 강제: MartingaleBase의 사이클 완성에 trailing이 필수적이라는 사실이 문서화되지 않았음.
+- **근본 원인**: strategy-builder.md의 "Minimum Viable" 규칙이 trailing_stop=0을 허용. 이는 "위험을 줄이기 위해 기능을 끈다"는 논리이나, trailing이 없으면 포지션 청산 메커니즘 자체가 불완전해지므로 "기능을 끈 것"이 아니라 "핵심 기능을 제거한 것"임.
+
+**Q2: 왜 trailing_stop > 0이 처음부터 강제되지 않았는가?**
+- **답**: strategy-builder.md 설계자(CIO-014)가 trailing을 "선택적 최적화 기능"으로 분류했기 때문. 실제로는 MartingaleBase에서 trailing이 없으면 max_loss_percent가 유일한 청산 트리거이고, 이것만으로는 정상적인 이익 실현이 불가능. **설계 시점의 MartingaleBase 내부 로직에 대한 이해 부족**.
+
+**Q3: hour 21 UTC가 초기 block_entry에 포함되지 않은 이유는?**
+- **답**: D-002 분석은 KST 22-23시(UTC 13-14시)의 야간 손실에 집중. "야간"의 정의가 KST 기준으로 고정되어 있었고 UTC 시간대별 손실 분포를 별도 분석하지 않음. 이후 실전 운영에서 UTC 21시(KST 06시 새벽) 손실이 관측되었으나, 기존 [22,23] 설정에 대한 anchoring으로 확장 결정이 지연.
+
+**Q4: noop 전략의 구조적 Profit Factor < 1.0은 더 일찍 감지되어야 했는가?**
+- **답**: Yes. AUDIT-001(04/06)에서 이미 noop PnL 음수를 지적, D-003에서 noop 금지 지시. 그러나 140 사이클까지 누적된 것은 D-003 이행이 3차 연속 지연(AUDIT-001~003)되었기 때문. CIO-20260406-003에서 최종 전환됨. 감지 자체는 적시였으나 **이행이 구조적으로 느렸음**.
+
+### Improvement Directives (D-023 ~ D-028)
+
+| ID | Date | Target Agent | Directive | Priority | Status | Applied |
+|----|------|--------------|-----------|----------|--------|---------|
+| D-023 | 2026-04-11 | strategy-builder | Minimum Viable Strategy 규칙에 trailing_stop_percent > 0 강제 추가. 기본값 trailing_start=1.0, trailing_stop=0.5 제안. trailing=0은 MartingaleBase에서 사이클 완성 불가능을 유발하므로 "안전한 기본값"이 아니라 "기능 결함 기본값"임. | CRITICAL | open | - |
+| D-024 | 2026-04-11 | strategy-builder | Birth Certificate Backtest(CIO-015 Phase 4.5)를 Step 5(py_compile) 직후 필수 실행. total_cycles=0이면 파라미터 자동 보정(trailing 활성화) 후 재시도 1회. 2차에도 0이면 gap_signal에 "birth_fail" 경고 첨부. | HIGH | open | - |
+| D-025 | 2026-04-11 | cio | 대규모 인프라 구축(3+ Phase 연속) 시 중간 실전 검증 게이트 도입. Phase N 완료 후 최소 1회 실전 cycle 결과 확인 후 Phase N+1 진행. "인프라 폭주" 패턴 방지. | MEDIUM | open | - |
+| D-026 | 2026-04-11 | risk-manager | block_entry_hours 설정 변경 시 UTC 시간대별 손실 분포 전체를 검토할 것. KST 단일 기준 분석 금지. 최소 KST + UTC 이중 검증 필수. | MEDIUM | open | - |
+| D-027 | 2026-04-11 | meta-learner | SISDS pipeline 정지 감지 시 (신규 audition 엔트리 0건이 72시간 이상 지속) 즉시 escalation gap_signal 발행. PM2 stopped 상태가 "cron 대기"인지 "장애"인지 구분하는 로직 필요. | HIGH | open | - |
+| D-028 | 2026-04-11 | self-critic | 이전 감사 지시(D-001~D-022) 중 "open" 상태 잔존 건수 추적. 3주 이상 open 지시는 escalation 대상으로 자동 상향. "권고 → 방치" 패턴의 재발 방지. | MEDIUM | open | - |
+
+### D-020 이행 점검 (이전 감사 지시 검증)
+
+| ID | Priority | 이전 Status | 현재 운영 증거 | 판정 |
+|----|----------|------------|---------------|------|
+| D-001~D-007 | various | applied | CIO-20260406-003 실행, 이후 결정들이 decision_log에 기록됨. | validated |
+| D-008 | HIGH | applied | CIO-20260408-* 시리즈가 Directive Tracker Review 블록 포함. | validated |
+| D-009 | CRITICAL | applied | skill-test-001 strategy_name=rsi_martingale (확인). | validated |
+| D-010~D-018 | various | applied | meta-learner run #4가 D-007/D-016/D-018 자율 준수 확인 (AUDIT-004). | validated |
+| D-019 | HIGH | applied | trade-executor 우회 제한 규칙 cio.md에 반영. 실전 트리거 미발생. | code-validated |
+| D-020 | MEDIUM | open | 이번 감사에서 첫 적용 시도. 검증 기준 "(a) code + (b) runtime trigger + (c) outcome"의 (b) 미충족 건 다수. | partially-validated |
+| D-021~D-022 | HIGH | applied | tech-scout 프롬프트에 Specificity Rule + Architecture Verification Rule 반영. | code-validated |
+
+### Gap Signal Emission (D-019 Step 5)
+
+#### 5a — Dedup check
+기존 gap_signals 5건 확인:
+- GAP-20260408-001~005: 모두 consumed/failed. source: meta-learner(2), cio(2), self-critic(1).
+- 후보 `trailing_stop_enforcer`와 유사한 기존 signal 없음.
+
+#### 5b — Inventory scan
+- `grep -rin "trailing.*enforc\|birth.*certificate\|smoke.*backtest\|zero.*trade.*detect" backend/app/core/ .claude/skills/` → 0 matches for dedicated zero-trade detection primitive.
+- Birth Certificate Backtest는 audition-judge.md Step에 로직으로 존재하나 **재사용 가능 순수 함수가 아님** (에이전트 프롬프트 내 절차).
+
+#### 5c — Composition check
+- 기존 `position_math.py` + `margin_exhaustion.py`는 포지션 수학/청산 계산용. 전략 파라미터 유효성 검증과는 무관.
+- `symbol_score.py`는 종목 점수 계산. 전략 파라미터 검증과 무관.
+- **판정**: 기존 primitive 조합으로 "전략 파라미터 기본값이 거래 활동을 생성할 수 있는지 사전 검증"하는 함수를 구성 불가.
+
+#### 5d — Gate 결과
+1. Inventory: PASS (0 matches)
+2. Sample: FAIL (sample_size=2 — bollinger_reversion + volume_spike_entry. 3건 미만)
+3. Composition: PASS (기존 primitive 조합 불가)
+4. Purity: PASS (입력: 파라미터 dict + 캔들 데이터 → 출력: {tradeable: bool, estimated_trades: int})
+
+**결론**: Gate 2(sample_size) 미달. **emission 보류, draft로 기록**.
+
+### gap_signals_emitted
+(없음 — 모든 게이트 통과 후보 없음)
+
+### gap_signal_drafts
+
+| draft_id | reason_not_emitted | proposed_name | notes |
+|----------|-------------------|---------------|-------|
+| draft-SC-001 | sample_size=2 < 3 (D-019 gate 2 실패) | strategy_param_viability_checker | 전략 기본 파라미터로 N일 backtest 시 최소 거래 건수를 사전 추정하는 pure function. bollinger_reversion + volume_spike_entry 2건에서 동일 패턴(trailing=0 → 0 trades) 관측. 3번째 사례 발생 시 재평가. |
+
+### gap_signals_already_tracked
+(없음)
+
+### M001 수치 검증 적용 결과
+
+- **PM2 stopped 5/7**: 단위=프로세스, 측정창=현재 스냅샷. cron_restart 기반 프로세스는 설계상 실행 후 stopped로 전환되는 것이 정상 동작. 그러나 meta-observer 보고("pipeline halted since 2026-04-08")와 교차 확인 시, daily-generator가 신규 전략을 생성하지 못하고 있음(audition 엔트리 delta=0). 이는 stopped 자체가 문제가 아니라 "cron 트리거 후 실행 결과가 0"인 것이 문제. 인과 검증: sas-daily-generator 로그 확인 필요.
+- **skill-test-001 equity 494.33**: 단위=USDT, 측정창=세션 생성 이후 누적, 기준선=초기자본 500. 이전 측정(AUDIT-004): 526.32. delta=-31.99 USDT. 하락 관측. 단, total_cycles=0(메모리 카운터 리셋, 알려진 이슈)으로 실제 활동량 미확인. DB 사이클 조회로 인과 검증 필요.
+
+### Health Score 산출
+
+| 항목 | 점수 | 근거 |
+|------|------|------|
+| 프로세스 품질 (ASSESS→PLAN→EXECUTE) | 75/100 | Phase 분할, dry-run, decision_log 기록 일관성 양호 |
+| 결과 품질 (outcome) | 30/100 | W15 전략 2/2 탈락, pipeline halted, 실전 가치 산출 0 |
+| 편향 통제 | 45/100 | trailing_stop 과신, 인프라 폭주 action bias, anchoring |
+| 지시 이행률 | 80/100 | D-001~D-022 대부분 applied/validated. 신규 open 6건. |
+| 시스템 건강도 | 40/100 | PM2 5/7 stopped, meta-observer CRITICAL, 신규 전략 생산 0 |
+
+**종합**: (75+30+45+80+40)/5 = **54/100** (Needs Improvement)
+
+- **Health score**: 54/100 (prior AUDIT-004: 68 → -14p 하락)
+- **Trend**: declining (68 → 54)
+- **Status**: open
+
+### 종합 요약
+
+18건 의사결정 감사. 전체 C+ 등급. 인프라 구축 프로세스(A등급)와 실전 결과(F등급) 사이의 극심한 괴리가 이 주간의 핵심 문제. trailing_stop=0 기본값이라는 단일 설계 결함이 첫 자동 생성 전략 2개를 모두 무력화시켰고, 이는 Birth Certificate Backtest(Phase 4.5) 도입 전에 전략이 생성되는 시점 문제로 예방되지 못함. block_entry_hours anchoring과 PM2 pipeline 정지도 잔존 리스크. 6개 개선 지시(D-023~D-028) 생성. D-023(trailing_stop 강제)이 최우선.
+
