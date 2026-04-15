@@ -24,9 +24,9 @@ TARGET_SCRIPT="${2:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Resolve target script path (relative to this script's dir if not absolute)
+# Resolve target script path (relative to cwd, not this script's dir)
 if [[ "${TARGET_SCRIPT}" != /* ]]; then
-  TARGET_SCRIPT="${SCRIPT_DIR}/${TARGET_SCRIPT}"
+  TARGET_SCRIPT="$(pwd)/${TARGET_SCRIPT}"
 fi
 
 if [ ! -f "${TARGET_SCRIPT}" ]; then
@@ -37,41 +37,42 @@ fi
 # Parse cron expression into components
 IFS=' ' read -r CRON_MIN CRON_HOUR CRON_DOM CRON_MON CRON_DOW <<< "${CRON_EXPR}"
 
-# Calculate seconds until next cron match
+# Calculate seconds until next cron match using Python (fast, handles all cases)
 next_sleep_seconds() {
-  local now_epoch
-  now_epoch=$(date -u +%s)
+  python3 -c "
+import time, datetime
 
-  # Try each minute in the next 31 days (max monthly interval)
-  for offset_min in $(seq 1 44640); do
-    local candidate_epoch=$((now_epoch + offset_min * 60))
-    local c_min c_hour c_dom c_mon c_dow
-    c_min=$(date -u -d "@${candidate_epoch}" +%-M)
-    c_hour=$(date -u -d "@${candidate_epoch}" +%-H)
-    c_dom=$(date -u -d "@${candidate_epoch}" +%-d)
-    c_mon=$(date -u -d "@${candidate_epoch}" +%-m)
-    c_dow=$(date -u -d "@${candidate_epoch}" +%w)
+cron_min, cron_hour, cron_dom, cron_mon, cron_dow = '${CRON_EXPR}'.split()
+
+now = datetime.datetime.utcnow()
+# Start from next minute
+candidate = now.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
+
+for _ in range(44640):  # max 31 days
+    m, h, dom, mon, dow = candidate.minute, candidate.hour, candidate.day, candidate.month, candidate.weekday()
+    dow_sun = (dow + 1) % 7  # Python: Mon=0, cron: Sun=0
 
     # Check minute
-    if [[ "${CRON_MIN}" != "*" && "${CRON_MIN}" != "${c_min}" ]]; then continue; fi
+    if cron_min != '*' and int(cron_min) != m: candidate += datetime.timedelta(minutes=1); continue
     # Check hour (support */N)
-    if [[ "${CRON_HOUR}" == *"/"* ]]; then
-      local step="${CRON_HOUR#*/}"
-      if (( c_hour % step != 0 )); then continue; fi
-    elif [[ "${CRON_HOUR}" != "*" && "${CRON_HOUR}" != "${c_hour}" ]]; then continue; fi
+    if cron_hour != '*':
+        if '/' in cron_hour:
+            step = int(cron_hour.split('/')[1])
+            if h % step != 0: candidate += datetime.timedelta(minutes=1); continue
+        elif int(cron_hour) != h: candidate += datetime.timedelta(minutes=1); continue
     # Check day of month
-    if [[ "${CRON_DOM}" != "*" && "${CRON_DOM}" != "${c_dom}" ]]; then continue; fi
+    if cron_dom != '*' and int(cron_dom) != dom: candidate += datetime.timedelta(minutes=1); continue
     # Check month
-    if [[ "${CRON_MON}" != "*" && "${CRON_MON}" != "${c_mon}" ]]; then continue; fi
+    if cron_mon != '*' and int(cron_mon) != mon: candidate += datetime.timedelta(minutes=1); continue
     # Check day of week
-    if [[ "${CRON_DOW}" != "*" && "${CRON_DOW}" != "${c_dow}" ]]; then continue; fi
+    if cron_dow != '*' and int(cron_dow) != dow_sun: candidate += datetime.timedelta(minutes=1); continue
 
-    echo $((candidate_epoch - now_epoch))
-    return 0
-  done
-
-  # Fallback: 1 hour
-  echo 3600
+    delta = int((candidate - now).total_seconds())
+    print(max(delta, 60))
+    break
+else:
+    print(3600)
+"
 }
 
 echo "[sas-loop] wrapper started for: $(basename "${TARGET_SCRIPT}")"
