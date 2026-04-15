@@ -30,78 +30,99 @@ const coreApps = [
     },
 ];
 
+// Loop wrapper keeps processes alive between scheduled runs.
+// Each agent sleeps until its cron schedule, executes, then sleeps again.
+const SAS_WRAPPER = "./.claude/skills/at-orchestrator/scripts/sas/sas_loop_wrapper.sh";
+const SAS_SCRIPTS = "./.claude/skills/at-orchestrator/scripts/sas";
+
 const agentApps = [
     {
         // Phase D — weekly LEARN→EVOLVE→REFLECT cycle.
         name: "at-weekly-cycle",
-        script: "./.claude/skills/at-orchestrator/scripts/run_weekly_cycle.sh",
+        script: SAS_WRAPPER,
+        args: "'7 9 * * 0' ./.claude/skills/at-orchestrator/scripts/run_weekly_cycle.sh",
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "7 9 * * 0"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SAS Phase 3 — daily strategy generator.
+        // SAS Phase 3 — daily strategy generator. 09:00 UTC daily.
         name: "sas-daily-generator",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_daily_generator.sh",
+        script: SAS_WRAPPER,
+        args: `'0 9 * * *' ${SAS_SCRIPTS}/run_daily_generator.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 9 * * *"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SISDS Phase 3 — sandbox researcher processor.
+        // SISDS Phase 3 — sandbox researcher processor. Every 2 hours.
         name: "sas-sandbox-processor",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_sandbox_cycle.sh",
+        script: SAS_WRAPPER,
+        args: `'0 */2 * * *' ${SAS_SCRIPTS}/run_sandbox_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 */2 * * *"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SISDS Phase 4 — paper scheduler.
+        // SISDS Phase 4 — paper scheduler. Every 6 hours.
         name: "sas-paper-scheduler",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_paper_scheduler.sh",
+        script: SAS_WRAPPER,
+        args: `'0 */6 * * *' ${SAS_SCRIPTS}/run_paper_scheduler.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 */6 * * *"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SISDS Phase 6 — live monitor. Daily 15:00 KST.
+        // SISDS Phase 6 — live monitor. Daily 06:00 UTC (15:00 KST).
         name: "sas-live-monitor",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_live_monitor.sh",
+        script: SAS_WRAPPER,
+        args: `'0 6 * * *' ${SAS_SCRIPTS}/run_live_monitor.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 6 * * *"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SISDS Phase 8 — meta-observer. Sunday 13:00 KST.
+        // SISDS Phase 8 — meta-observer. Sunday 04:00 UTC (13:00 KST).
         name: "sas-meta-observer",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_meta_observer.sh",
+        script: SAS_WRAPPER,
+        args: `'0 4 * * 0' ${SAS_SCRIPTS}/run_meta_observer.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 4 * * 0"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SAS Phase 3 — weekly audition judge. Monday 10:00.
+        // SAS Phase 3 — weekly audition judge. Monday 10:00 UTC.
         name: "sas-weekly-judge",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_weekly_judge.sh",
+        script: SAS_WRAPPER,
+        args: `'0 10 * * 1' ${SAS_SCRIPTS}/run_weekly_judge.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 10 * * 1"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     },
     {
-        // SAS Phase 4 — monthly graveyard resurrect. Day 1, 11:00.
+        // SAS Phase 4 — monthly graveyard resurrect. Day 1, 11:00 UTC.
         name: "sas-monthly-resurrect",
-        script: "./.claude/skills/at-orchestrator/scripts/sas/run_monthly_resurrect.sh",
+        script: SAS_WRAPPER,
+        args: `'0 11 1 * *' ${SAS_SCRIPTS}/run_monthly_resurrect.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: false,
-        cron_restart: "0 11 1 * *"
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     }
 ];
 
