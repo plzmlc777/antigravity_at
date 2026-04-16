@@ -48,10 +48,10 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // SAS Phase 3 — daily strategy generator. 09:00 UTC daily.
+        // SAS Phase 3 — daily strategy generator. 00:00 UTC (09:00 KST) daily.
         name: "sas-daily-generator",
         script: SAS_WRAPPER,
-        args: `'0 9 * * *' ${SAS_SCRIPTS}/run_daily_generator.sh`,
+        args: `'0 0 * * *' ${SAS_SCRIPTS}/run_daily_generator.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
