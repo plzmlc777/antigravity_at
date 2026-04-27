@@ -14,6 +14,7 @@ Writes:
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -43,6 +44,149 @@ TG_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "")
 DAILY_STALE_HOURS = int(os.environ.get("SAS_DAILY_STALE_HOURS", "36"))
 
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+
+# Wrapper stdout includes "[sas-daily] log /abs/path/to/file.log" right after each
+# script start — we mine that to read the actual error excerpt.
+RUN_LOG_RE = re.compile(r"\[(?:sas|at)-[\w-]+\] log (\S+\.log)")
+
+# Pattern → prescription. First match wins. Order matters: put more specific
+# patterns before generic ones.
+PRESCRIPTIONS = [
+    {
+        "category": "claude_path",
+        "pattern": re.compile(r"claude: (?:command not found|명령어를 찾을 수 없음)", re.I),
+        "suggestion": (
+            "`claude` CLI not on PATH for the wrapper child shell.\n"
+            "Verify wrapper has the npm-global export:\n"
+            "  grep npm-global ~/auto_trading/.claude/skills/at-orchestrator/scripts/sas/sas_loop_wrapper.sh\n"
+            "If the export line is missing, git pull and `pm2 restart all` on mint."
+        ),
+    },
+    {
+        "category": "claude_auth_expired",
+        "pattern": re.compile(
+            r"(Failed to authenticate.*?401|Invalid authentication credentials|authentication_error)",
+            re.I,
+        ),
+        "suggestion": (
+            "Claude Max-plan OAuth token expired or revoked.\n"
+            "Re-auth interactively (browser OAuth flow):\n"
+            "  ssh -t mint@183.99.228.81 'bash -lc claude'\n"
+            "Type /login if not auto-prompted. Next cron fire works after success."
+        ),
+    },
+    {
+        "category": "db_unreachable",
+        "pattern": re.compile(
+            r"(psql:.*?(connection|connect to server).*?(refused|failed)|could not connect to server)",
+            re.I,
+        ),
+        "suggestion": (
+            "Postgres unreachable.\n"
+            "  systemctl status postgresql --no-pager\n"
+            "If down: sudo systemctl restart postgresql"
+        ),
+    },
+    {
+        "category": "disk_full",
+        "pattern": re.compile(r"No space left on device", re.I),
+        "suggestion": (
+            "Disk full.\n"
+            "  df -h\n"
+            "  du -h --max-depth=1 ~ | sort -hr | head -10\n"
+            "Likely culprits: ~/.pm2/logs, ~/db_backup_*.dump, runs/sas/*.log"
+        ),
+    },
+    {
+        "category": "python_module_missing",
+        "pattern": re.compile(r"(ModuleNotFoundError|No module named ['\"]?[\w.]+['\"]?)", re.I),
+        "suggestion": (
+            "Python module missing — venv not activated or out of sync.\n"
+            "  cd ~/auto_trading/backend && source venv/bin/activate && pip install -r requirements.txt"
+        ),
+    },
+    {
+        "category": "sqlalchemy_stale",
+        "pattern": re.compile(r"StaleDataError|expected to update \d+ row|Multiple rows were found", re.I),
+        "suggestion": (
+            "SQLAlchemy identity-map conflict (session not refreshed).\n"
+            "Daily generator already falls back to direct SQL update; verify backend logs."
+        ),
+    },
+    {
+        "category": "rate_limit",
+        "pattern": re.compile(r"(rate.?limit|429 Too Many Requests|RateLimitError)", re.I),
+        "suggestion": (
+            "Upstream API rate limit (Claude/Binance/Kiwoom).\n"
+            "Wait 5–15 min. If recurring, lower call frequency in the offending script."
+        ),
+    },
+    {
+        "category": "port_in_use",
+        "pattern": re.compile(r"(address already in use|EADDRINUSE|port \d+ is already)", re.I),
+        "suggestion": (
+            "Port conflict.\n"
+            "  lsof -i :8001\n"
+            "Kill the stale process or restart the conflicting service."
+        ),
+    },
+    {
+        "category": "permission_denied",
+        "pattern": re.compile(r"Permission denied", re.I),
+        "suggestion": (
+            "File or directory permission issue.\n"
+            "Inspect the failing path's owner/mode. For runs/sas/* try: chmod 644 / chown mint:mint."
+        ),
+    },
+    {
+        "category": "git_conflict",
+        "pattern": re.compile(r"(Merge conflict|CONFLICT \(content\)|needs merge|cannot pull)", re.I),
+        "suggestion": (
+            "Git pull blocked.\n"
+            "  cd ~/auto_trading && git status\n"
+            "Resolve conflict or `git stash` local changes, then pull."
+        ),
+    },
+]
+
+
+def find_recent_run_log(lines) -> str | None:
+    """Return the most recent run-log path mentioned in wrapper stdout."""
+    last = None
+    for line in lines:
+        m = RUN_LOG_RE.search(line)
+        if m:
+            last = m.group(1)
+    return last
+
+
+def extract_error_excerpt(run_log_path: str | None, max_lines: int = 15, max_chars: int = 1500) -> str | None:
+    """Read the tail of an agent's run log for inclusion in the alert body."""
+    if not run_log_path:
+        return None
+    p = Path(run_log_path)
+    if not p.exists():
+        return None
+    try:
+        text = p.read_text(errors="replace")
+    except Exception:
+        return None
+    lines = [l for l in text.splitlines() if l.strip()]
+    if not lines:
+        return None
+    excerpt = "\n".join(lines[-max_lines:])
+    if len(excerpt) > max_chars:
+        excerpt = excerpt[-max_chars:]
+    return excerpt
+
+
+def match_prescription(text: str) -> dict | None:
+    if not text:
+        return None
+    for p in PRESCRIPTIONS:
+        if p["pattern"].search(text):
+            return p
+    return None
 
 
 def db_query(sql: str) -> str:
@@ -152,8 +296,34 @@ def parse_pm2_log(name: str) -> dict:
                     "ok": False,
                     "exit_code": code,
                     "line": line.strip(),
+                    "run_log_path": find_recent_run_log(window),
                 }
     return {"ok": True, "status": "last_run_clean"}
+
+
+def build_agent_alert(name: str, finding: dict) -> dict:
+    excerpt = extract_error_excerpt(finding.get("run_log_path"))
+    pres = match_prescription(excerpt or finding.get("line", ""))
+
+    parts = [f"Wrapper: {finding['line']}"]
+    if excerpt:
+        parts.append(f"\nLast error excerpt:\n{excerpt}")
+    if pres:
+        parts.append(f"\n💡 Likely cause: {pres['category']}\n{pres['suggestion']}")
+    else:
+        parts.append("\n(no known prescription pattern matched — inspect the run log)")
+
+    body = "\n".join(parts)
+    if len(body) > 3500:  # Telegram hard limit ~4096; leave headroom for title.
+        body = body[:3500] + "\n... (truncated)"
+
+    return {
+        "tag": f"agent_exit:{name}",
+        "title": f"{name} exit={finding['exit_code']}",
+        "body": body,
+        "category": pres["category"] if pres else "unknown",
+        "cooldown_hours": 12,
+    }
 
 
 def check_agent_exit_codes() -> dict:
@@ -163,25 +333,21 @@ def check_agent_exit_codes() -> dict:
         result = parse_pm2_log(name)
         findings[name] = result
         if not result.get("ok") and "exit_code" in result:
-            alerts.append({
-                "tag": f"agent_exit:{name}",
-                "title": f"{name} exit={result['exit_code']}",
-                "body": f"Last cycle failed: {result.get('line', '(no detail)')}",
-                "cooldown_hours": 12,
-            })
+            alerts.append(build_agent_alert(name, result))
     return {"per_agent": findings, "alerts": alerts}
 
 
 def telegram_send(title: str, body: str) -> tuple[bool, str]:
     if not TG_TOKEN or not TG_CHAT:
         return False, "credentials missing"
-    text = f"🚨 *{title}*\n```\n{body}\n```"
+    # No parse_mode — body contains shell snippets / paths that would break
+    # Markdown escaping. Plain text is robust and Telegram still renders newlines.
+    text = f"🚨 {title}\n\n{body}"
     try:
         url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
         data = urllib.parse.urlencode({
             "chat_id": TG_CHAT,
             "text": text,
-            "parse_mode": "Markdown",
             "disable_web_page_preview": "true",
         }).encode()
         with urllib.request.urlopen(url, data=data, timeout=10) as r:
@@ -250,5 +416,39 @@ def main() -> int:
     return 0
 
 
+def run_self_test() -> int:
+    """Verify each known prescription pattern fires on a representative sample."""
+    samples = [
+        ("bash: claude: command not found", "claude_path"),
+        ("claude: 명령어를 찾을 수 없음", "claude_path"),
+        ("Failed to authenticate. API Error: 401 {...authentication_error...}", "claude_auth_expired"),
+        ("psql: error: connection to server at localhost port 5432 failed: Connection refused", "db_unreachable"),
+        ("OSError: [Errno 28] No space left on device", "disk_full"),
+        ("ModuleNotFoundError: No module named 'pandas'", "python_module_missing"),
+        ("sqlalchemy.orm.exc.StaleDataError: UPDATE statement on ...", "sqlalchemy_stale"),
+        ("anthropic.RateLimitError: 429 Too Many Requests", "rate_limit"),
+        ("OSError: [Errno 98] Address already in use", "port_in_use"),
+        ("PermissionError: [Errno 13] Permission denied: '/etc/foo'", "permission_denied"),
+        ("CONFLICT (content): Merge conflict in app/main.py", "git_conflict"),
+        ("absolutely-never-seen-error xyz", None),
+    ]
+    print("Prescription self-test:")
+    failures = 0
+    for sample, expected in samples:
+        m = match_prescription(sample)
+        actual = m["category"] if m else None
+        ok = actual == expected
+        if not ok:
+            failures += 1
+        print(f"  [{'OK' if ok else 'FAIL'}] {sample[:60]:60s} -> {actual} (expected {expected})")
+    if failures:
+        print(f"\n{failures} failure(s).")
+        return 1
+    print("\nAll prescriptions matched expected categories.")
+    return 0
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--test-prescriptions":
+        sys.exit(run_self_test())
     sys.exit(main())
