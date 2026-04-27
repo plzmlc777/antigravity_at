@@ -75,10 +75,15 @@ Pipeline (sequential):
 2. Poll curl 'http://localhost:8001/api/v1/gap-signals?status=pending' and pick the newest signal with proposed_intent.family=='strategy'.
 3. Dispatch Agent(subagent_type="strategy-builder") in autonomous mode with the signal payload. The builder MUST complete the full autonomous workflow:
    a. Step 7.5: register the audition into (birth, pending).
-   b. Run the birth-check backtest (this is the ONLY allowed backtest in this pipeline — do NOT run extra walk-forward / parameter sweeps).
-   c. Based on the birth-check outcome, PATCH the audition's stage so it never stays in 'birth':
-      - If KPI passes the birth gate → transition to (sandbox, pending). This is REQUIRED for sandbox-processor pickup.
-      - If birth-check fails (api error, zero cycles, KPI below floor) → transition to (retired, failed) with a clear reason.
+   b. Step 7.6 birth-check backtest. This is the ONLY allowed backtest in this pipeline.
+      - MUST use exactly `days: 180` on the first call. Do NOT shorten the window.
+      - If first call returns `total_cycles == 0`, retry ONCE with `days: 365` before retiring.
+   c. Apply the Step 7.6 classification table EXACTLY (do not invent new rules):
+      - `total_cycles > 0` AND compound >= 0  → `healthy`        → transition to (sandbox, pending)
+      - `total_cycles > 0` AND compound <  0  → `loss_functional` → transition to (sandbox, pending)  [NOT retired — sandbox-researcher decides]
+      - `total_cycles == 0` after 365d retry  → `zero_cycles`    → transition to (retired, failed)
+      - HTTP != 200 / parse error             → `api_failure`    → transition to (retired, failed)
+   d. KPI thresholds (e.g. 12% monthly) belong to the SANDBOX stage, not birth. Do NOT retire a strategy at birth just because compound is small or negative; that is sandbox-researcher's call.
    The audition MUST exit the 'birth' stage before this script returns.
 4. PATCH /api/v1/gap-signals/<signal_id> status=consumed with the builder's response JSON as the result.
 

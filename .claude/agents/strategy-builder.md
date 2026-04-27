@@ -848,12 +848,18 @@ BIRTH_BT=$(curl -s -X POST http://localhost:8001/api/v1/strategies/<strategy_id>
   -d '{
     "symbol": "BTCUSDT",
     "interval": "1h",
-    "days": 90,
+    "days": 180,
     "initial_capital": 10000,
     "config": {},
     "exchange_name": "BinanceFutures"
   }')
 ```
+
+**Window (`days`) policy** — the value above is **mandatory**, not a hint:
+- ALWAYS use `days: 180` for the first attempt, regardless of the strategy family.
+- DO NOT shorten the window because the strategy "should fire often" or to save time. Long-horizon strategies (Donchian breakout, weekly anchors, ATR channels) need the full 180-day base to produce any signals.
+- If the first attempt returns `total_cycles == 0` (`zero_cycles`), retry **once** with `days: 365` before classifying as `zero_cycles`. Many breakout / dip-buy strategies need a full year for the entry condition to materialize.
+- Only if the 365-day retry also returns 0 cycles should the audition transition to `(retired, failed)` with classification `zero_cycles`.
 
 **Classification rules + State transition** (SISDS Phase 2 — CIO-017):
 
