@@ -123,6 +123,18 @@ const agentApps = [
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
+    },
+    {
+        // Health watchdog — checks audition freshness + per-agent exit codes.
+        // Sends Telegram alerts (TELEGRAM_BOT_TOKEN/CHAT_ID via .env). Every 6h.
+        name: "sas-watchdog",
+        script: SAS_WRAPPER,
+        args: `'0 */6 * * *' ${SAS_SCRIPTS}/run_watchdog.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     }
 ];
 

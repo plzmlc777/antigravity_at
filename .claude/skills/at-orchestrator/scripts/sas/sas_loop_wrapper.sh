@@ -24,6 +24,15 @@ set -uo pipefail
 # inject it here once for every wrapped child.
 export PATH="${HOME}/.npm-global/bin:${PATH}"
 
+# Load project-root .env if present (gitignored). Watchdog and any other child
+# scripts use this for TELEGRAM_* secrets, etc.
+if [ -f "$(pwd)/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$(pwd)/.env"
+  set +a
+fi
+
 CRON_EXPR="${1:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
 TARGET_SCRIPT="${2:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
 
