@@ -19,6 +19,11 @@
 
 set -uo pipefail
 
+# PM2 doesn't source ~/.bashrc/.profile, so npm-global bin (where `claude` lives)
+# is missing from PATH. All SAS scripts shell out to `claude -p ...`, so we must
+# inject it here once for every wrapped child.
+export PATH="${HOME}/.npm-global/bin:${PATH}"
+
 CRON_EXPR="${1:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
 TARGET_SCRIPT="${2:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
 
