@@ -102,19 +102,31 @@ def parse_pm2_log(name: str) -> dict:
     """Inspect last cycle of an agent's pm2 stdout log.
 
     Wrapper writes:
+      [sas-loop] wrapper started for: <script>   (once per PM2 spawn)
       [sas-loop] executing: <script>
       ... (script output) ...
-      [sas-loop] script exited with code N    (only on non-zero)
+      [sas-loop] script exited with code N       (only on non-zero)
       [sas-loop] execution complete, scheduling next run...
       [sas-loop] next run: ...
+
+    We only inspect lines after the most recent "wrapper started" so that
+    pre-restart failures don't keep alerting forever after the bug is fixed.
     """
     out_log = PM2_LOG_DIR / f"{name}-out.log"
     if not out_log.exists():
         return {"ok": False, "reason": "log file missing"}
     try:
-        tail = out_log.read_text(errors="replace").splitlines()[-200:]
+        all_lines = out_log.read_text(errors="replace").splitlines()
     except Exception as e:
         return {"ok": False, "reason": f"read error: {e}"}
+
+    # Cut to the most recent wrapper boot — anything before that belongs to a
+    # previous PM2 incarnation and is irrelevant for current health.
+    boot_idx = -1
+    for i, line in enumerate(all_lines):
+        if "[sas-loop] wrapper started for:" in line:
+            boot_idx = i
+    tail = all_lines[boot_idx + 1:] if boot_idx >= 0 else all_lines[-200:]
 
     # Find the most recent "executing:" line
     last_exec_idx = -1
