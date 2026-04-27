@@ -57,9 +57,12 @@ except Exception as e:
     print(0)
 ")
 
-if [ "${CREATED_TODAY}" -gt "0" ]; then
+if [ "${SAS_BACKFILL_FORCE:-0}" != "1" ] && [ "${CREATED_TODAY}" -gt "0" ]; then
   echo "[sas-daily] ${CREATED_TODAY} entry(ies) already created today (${TODAY_UTC}), skipping"
   exit 0
+fi
+if [ "${SAS_BACKFILL_FORCE:-0}" = "1" ]; then
+  echo "[sas-daily] backfill mode: idempotency check bypassed (${CREATED_TODAY} entries already today)"
 fi
 
 # Build the prompt for main-turn Claude
