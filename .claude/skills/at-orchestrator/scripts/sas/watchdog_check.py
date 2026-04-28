@@ -42,6 +42,8 @@ SAS_AGENTS = [
 TG_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "")
 DAILY_STALE_HOURS = int(os.environ.get("SAS_DAILY_STALE_HOURS", "36"))
+BACKUP_STALE_HOURS = int(os.environ.get("SAS_BACKUP_STALE_HOURS", "30"))
+BACKUP_STATUS_FILE = Path.home() / ".ubuntu_backup_status"
 
 NOW = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
 
@@ -209,6 +211,76 @@ def db_query(sql: str) -> str:
     return res.stdout.strip()
 
 
+def check_backup_freshness() -> dict:
+    """Confirm Ubuntu pull-mode backup is recent enough.
+
+    The Ubuntu host runs sync_from_mint.sh on a daily cron (18:00 UTC).
+    On success it scp's a status line back here. We check:
+      - file exists
+      - first field == 'OK'
+      - timestamp within BACKUP_STALE_HOURS
+    """
+    if not BACKUP_STATUS_FILE.exists():
+        return {
+            "ok": False,
+            "alert": {
+                "tag": "backup_missing",
+                "title": "Ubuntu backup status missing",
+                "body": (
+                    f"~/.ubuntu_backup_status not found on mint. Either the Ubuntu "
+                    f"backup has never run, or the scp-back step failed. "
+                    f"Check ubuntu cron and ~/db_backup/sync.log."
+                ),
+                "cooldown_hours": 24,
+            },
+        }
+    try:
+        line = BACKUP_STATUS_FILE.read_text().strip().splitlines()[0]
+        parts = line.split("|")
+        result, ts = parts[0], parts[1]
+        last = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        delta_h = (NOW - last).total_seconds() / 3600
+    except Exception as e:
+        return {
+            "ok": False,
+            "alert": {
+                "tag": "backup_status_corrupt",
+                "title": "Ubuntu backup status unparseable",
+                "body": f"Failed to parse ~/.ubuntu_backup_status: {e}",
+                "cooldown_hours": 24,
+            },
+        }
+    if result != "OK":
+        return {
+            "ok": False,
+            "result": result,
+            "delta_hours": round(delta_h, 1),
+            "alert": {
+                "tag": "backup_failed",
+                "title": f"Ubuntu backup last result: {result}",
+                "body": f"Last status line: {line}",
+                "cooldown_hours": 24,
+            },
+        }
+    if delta_h > BACKUP_STALE_HOURS:
+        return {
+            "ok": False,
+            "delta_hours": round(delta_h, 1),
+            "alert": {
+                "tag": "backup_stale",
+                "title": f"Ubuntu backup stale ({int(delta_h)}h)",
+                "body": (
+                    f"Last successful backup was {ts} ({int(delta_h)}h ago, "
+                    f"threshold {BACKUP_STALE_HOURS}h). Ubuntu cron may have "
+                    f"failed silently. Check: ssh ubuntu@172.30.1.60 "
+                    f"'tail ~/db_backup/sync.log'"
+                ),
+                "cooldown_hours": 24,
+            },
+        }
+    return {"ok": True, "delta_hours": round(delta_h, 1), "last": ts}
+
+
 def check_audition_freshness() -> dict:
     """Latest audition created_at vs threshold."""
     try:
@@ -370,10 +442,13 @@ def main() -> int:
 
     audition = check_audition_freshness()
     agents = check_agent_exit_codes()
+    backup = check_backup_freshness()
 
     raised = []
     if audition.get("alert"):
         raised.append(audition["alert"])
+    if backup.get("alert"):
+        raised.append(backup["alert"])
     raised.extend(agents.get("alerts", []))
 
     cooldowns = load_cooldowns()
@@ -403,7 +478,7 @@ def main() -> int:
 
     status = {
         "checked_at": NOW.isoformat(),
-        "checks": {"audition": audition, "agents": agents},
+        "checks": {"audition": audition, "backup": backup, "agents": agents},
         "alerts": {
             "raised": [a["tag"] for a in raised],
             "sent": sent,
