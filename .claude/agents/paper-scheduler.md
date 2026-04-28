@@ -58,22 +58,37 @@ ENTRY=$(curl -s "http://localhost:8001/api/v1/strategy-audition/<strategy_id>")
 # If best_symbol is missing → fall back to BTCUSDT
 ```
 
-**3b. Start paper session via live API**:
+**3b. Start paper session via live API** (verified endpoint + schema):
 ```bash
-curl -s -X POST http://localhost:8001/api/v1/live/sessions \
+RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
   -H 'Content-Type: application/json' \
   -d '{
-    "strategy_name": "<strategy_id>",
     "symbol": "<best_symbol from sandbox_report, fallback BTCUSDT>",
+    "strategy_name": "<strategy_id>",
+    "strategy_config": <best_config from sandbox_report>,
     "is_paper": true,
-    "config": <best_config from sandbox_report>,
-    "exchange_name": "BinanceFutures"
-  }'
+    "initial_capital": 10000,
+    "auto_start": true
+  }')
+SESSION_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("session_id",""))')
 ```
 
-**Note**: The exact API shape depends on the live session creation endpoint.
-If `/api/v1/live/sessions` doesn't exist or has a different schema, check
-the Swagger docs at `http://localhost:8001/docs` and adapt.
+**CRITICAL — endpoint and `auto_start` are non-negotiable**:
+- The endpoint is `POST /api/v1/live/start` (NOT `/api/v1/live/sessions`,
+  which returns 405 Method Not Allowed).
+- The request body uses `strategy_config` (NOT `config`) and is shaped
+  per `LiveBotStartRequest` in OpenAPI.
+- **`auto_start: true` is mandatory.** The default is `false`, which
+  inserts the session row with `status=STOPPED` and never starts trading.
+  Two W18 sessions (vwap_reversion, supertrend_breakout) hit exactly this
+  bug — INSERT succeeded, trading never began. Always set `auto_start: true`.
+- After the call, verify the session is RUNNING:
+  ```bash
+  curl -s "http://localhost:8001/api/v1/live/monitor/sessions" | jq '.[] | select(.id=="'"$SESSION_ID"'") | .status'
+  # Expect: "RUNNING"
+  ```
+  If status is not RUNNING, do NOT transition the audition — leave it in
+  `(sandbox, passed)` so the next scheduler cycle retries.
 
 **3c. Record the session link**:
 ```bash
