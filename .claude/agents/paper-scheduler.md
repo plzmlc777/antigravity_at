@@ -31,6 +31,21 @@ determined as optimal — NOT the strategy's default parameters or BTCUSDT.
 Extract `sandbox_report.best_config` for parameters and `sandbox_report.best_symbol`
 for the trading symbol. If `best_symbol` is missing, fall back to BTCUSDT.
 
+### CRITICAL: Authenticate every /live/* call with the service token
+The runner exports `BACKEND_SERVICE_TOKEN` (a JWT minted with the
+backend's SECRET_KEY for the `paper-scheduler@internal` service user).
+**Every call to `/api/v1/live/*` MUST include this header**:
+
+```
+-H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}"
+```
+
+Without it the API returns `401 Could not validate credentials`. The
+service user is also bound to `account_id=3` (BinanceFutures, virtual,
+paper-only), so include `"account_id": 3` in `/live/start` request bodies.
+
+`/api/v1/strategy-audition/*` endpoints do NOT require auth — call them as before.
+
 ## Job 0: Heal stuck paper sessions (run BEFORE Job 1)
 
 A paper-stage audition can end up with `stage_status=running` while its
@@ -48,7 +63,7 @@ For each entry, extract `live_session_id`. If null → skip (legacy entry, no se
 
 ### Step 0b: Check the actual session status
 ```bash
-SESSION=$(curl -s "http://localhost:8001/api/v1/live/monitor/sessions" \
+SESSION=$(curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" "http://localhost:8001/api/v1/live/monitor/sessions" \
   | python3 -c "import sys,json; sid='<live_session_id>'; print(next((s for s in json.load(sys.stdin) if s.get('id')==sid), {}))")
 SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; d=json.load(sys.stdin) if sys.stdin else {}; print(d.get('status','UNKNOWN'))")
 ```
@@ -63,6 +78,7 @@ SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; d=json.load(sys.
 ```bash
 # 1. Restart with a NEW session row (auto_start true is mandatory)
 NEW=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
+  -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
     "symbol": "<paper_symbol from audition_metadata>",
@@ -70,13 +86,14 @@ NEW=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
     "strategy_config": <paper_config from audition_metadata>,
     "is_paper": true,
     "initial_capital": 10000,
-    "auto_start": true
+    "auto_start": true,
+    "account_id": 3
   }')
 NEW_SESSION_ID=$(echo "$NEW" | python3 -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))")
 
 # 2. Verify the new one is RUNNING
 sleep 3
-NEW_STATUS=$(curl -s "http://localhost:8001/api/v1/live/monitor/sessions" \
+NEW_STATUS=$(curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" "http://localhost:8001/api/v1/live/monitor/sessions" \
   | python3 -c "import sys,json; sid='$NEW_SESSION_ID'; print(next((s for s in json.load(sys.stdin) if s.get('id')==sid), {}).get('status','?'))")
 
 # 3. If RUNNING, swap the audition's live_session_id and record the heal
@@ -139,6 +156,7 @@ ENTRY=$(curl -s "http://localhost:8001/api/v1/strategy-audition/<strategy_id>")
 **3b. Start paper session via live API** (verified endpoint + schema):
 ```bash
 RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
+  -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" \
   -H 'Content-Type: application/json' \
   -d '{
     "symbol": "<best_symbol from sandbox_report, fallback BTCUSDT>",
@@ -146,7 +164,8 @@ RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
     "strategy_config": <best_config from sandbox_report>,
     "is_paper": true,
     "initial_capital": 10000,
-    "auto_start": true
+    "auto_start": true,
+    "account_id": 3
   }')
 SESSION_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("session_id",""))')
 ```
@@ -162,7 +181,7 @@ SESSION_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys
   bug — INSERT succeeded, trading never began. Always set `auto_start: true`.
 - After the call, verify the session is RUNNING:
   ```bash
-  curl -s "http://localhost:8001/api/v1/live/monitor/sessions" | jq '.[] | select(.id=="'"$SESSION_ID"'") | .status'
+  curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" "http://localhost:8001/api/v1/live/monitor/sessions" | jq '.[] | select(.id=="'"$SESSION_ID"'") | .status'
   # Expect: "RUNNING"
   ```
   If status is not RUNNING, do NOT transition the audition — leave it in
@@ -259,7 +278,7 @@ This will then wait for user manual promotion (paper/passed → live/pending).
 **If ANY fail** → transition to `(retired, failed)`:
 ```bash
 # Stop the paper session first
-curl -s -X POST "http://localhost:8001/api/v1/live/sessions/<session_id>/stop"
+curl -s -X POST -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" "http://localhost:8001/api/v1/live/stop/<session_id>"
 
 # Then transition
 curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/<strategy_id>/transition" \

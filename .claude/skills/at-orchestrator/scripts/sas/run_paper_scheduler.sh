@@ -12,13 +12,32 @@
 
 set -euo pipefail
 
+# Defensive PATH export (manual triggers without the wrapper).
+export PATH="${HOME}/.npm-global/bin:${PATH}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 RUNS_DIR="${PROJECT_ROOT}/.claude/skills/at-orchestrator/runs/sas"
 LOCK_FILE="${RUNS_DIR}/.paper.lock"
 API="http://localhost:8001/api/v1"
+BACKEND_DIR="${PROJECT_ROOT}/backend"
 
 mkdir -p "${RUNS_DIR}"
+
+# Mint a fresh JWT for the paper-scheduler service user. Agent reads it
+# from BACKEND_SERVICE_TOKEN and includes "Authorization: Bearer ..." on
+# every /live/* and /strategy-audition/* call.
+if [ -d "${BACKEND_DIR}/venv" ] && [ -f "${BACKEND_DIR}/issue_service_token.py" ]; then
+  TOKEN=$(cd "${BACKEND_DIR}" && PYTHONPATH=. ./venv/bin/python3 issue_service_token.py 2>/dev/null || true)
+  if [ -n "${TOKEN}" ]; then
+    export BACKEND_SERVICE_TOKEN="${TOKEN}"
+    echo "[sas-paper] service token issued (len=${#TOKEN})"
+  else
+    echo "[sas-paper] WARN: failed to issue service token — agent will hit 401 on /live/start"
+  fi
+else
+  echo "[sas-paper] WARN: backend venv or issue_service_token.py missing"
+fi
 
 # Single-instance guard
 if [ -f "${LOCK_FILE}" ]; then
