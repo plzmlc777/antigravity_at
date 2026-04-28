@@ -28,7 +28,12 @@ _ALLOWED_STATUSES = {"pending", "consumed", "rejected", "failed"}
 class GapSignalCreate(BaseModel):
     signal_id: str = Field(..., description="Stable external id, e.g. GAP-20260408-001")
     source: str = Field(..., description="Originating agent name")
-    issued_at: datetime
+    # `issued_at` accepted for backward compatibility but ignored — the server
+    # stamps it with utcnow() to prevent LLM-emitted future dates (observed
+    # 2026-W18: GAP-20260428-004 had issued_at 2026-04-29). Set Optional so
+    # callers that omit it succeed; existing callers that send it just have
+    # the value silently overwritten.
+    issued_at: Optional[datetime] = None
     gap_type: str
     evidence: Optional[Dict[str, Any]] = None
     proposed_intent: Optional[Dict[str, Any]] = None
@@ -90,7 +95,8 @@ def create_gap_signal(body: GapSignalCreate, db: Session = Depends(get_db)) -> D
     g = GapSignal(
         signal_id=body.signal_id,
         source=body.source,
-        issued_at=body.issued_at,
+        # Always stamp server-side. Client-supplied issued_at is ignored.
+        issued_at=datetime.utcnow(),
         gap_type=body.gap_type,
         evidence=body.evidence,
         proposed_intent=body.proposed_intent,

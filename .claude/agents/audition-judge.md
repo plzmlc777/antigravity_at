@@ -111,9 +111,29 @@ done
 
 For each candidate, apply these filters in order:
 
-1. **Backtest failure**: HTTP != 200 OR JSON parse error → `status=error, reason="backtest_api_failure"`
-2. **Insufficient data**: total_return is `null` or period shorter than `DAYS * 0.8` → `status=error, reason="insufficient_data"`
-3. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
+1. **Missing prerequisite evidence** (CRITICAL — added 2026-W18 retro):
+   Examine `audition_metadata` returned in Step 2's pool. Reject the candidate
+   if any of the following are missing — the candidate hasn't proven it can
+   even execute, let alone graduate:
+   - `audition_metadata.birth_backtest` is null OR
+   - `audition_metadata.birth_backtest.classification` is `"api_failure"` /
+     `"invalid_response"` / `"zero_cycles"` (i.e. only `"healthy"` and
+     `"loss_functional"` are admissible) OR
+   - `stage` is one of `birth`, `retired`, `legacy` (must have advanced past
+     birth and not be in a terminal/legacy bucket)
+
+   → `status=error, reason="missing_prerequisite_evidence:<which>"`
+
+   **Rationale**: in 2026-W18 a stuck-in-birth audition (`futures_premium_reversion`,
+   id=2) was promoted to `graduated` because the judge had no metadata-presence
+   check. This filter prevents that path. A future strict version may also require
+   `audition_metadata.sandbox_report` or `stage in ["paper", "live"]`, but for now
+   we keep the bar at "birth-check passed and not retired" so newly-promoted
+   candidates that haven't yet finished sandbox can still compete.
+
+2. **Backtest failure**: HTTP != 200 OR JSON parse error → `status=error, reason="backtest_api_failure"`
+3. **Insufficient data**: total_return is `null` or period shorter than `DAYS * 0.8` → `status=error, reason="insufficient_data"`
+4. **Negative return**: `monthly_return_compound < 0` → `status=eliminated, reason="negative_return"`
 
 > **NOTE**: 12%/month compound is the ASPIRATIONAL TARGET, not a hard filter.
 > Strategies with positive return enter the shortlist regardless of absolute return level.
