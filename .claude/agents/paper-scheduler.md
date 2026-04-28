@@ -31,6 +31,84 @@ determined as optimal — NOT the strategy's default parameters or BTCUSDT.
 Extract `sandbox_report.best_config` for parameters and `sandbox_report.best_symbol`
 for the trading symbol. If `best_symbol` is missing, fall back to BTCUSDT.
 
+## Job 0: Heal stuck paper sessions (run BEFORE Job 1)
+
+A paper-stage audition can end up with `stage_status=running` while its
+underlying `live_bot_sessions` row is `STOPPED` — this happens when a
+prior scheduler invocation hit the 405 / `auto_start=false` bug, or
+when a real-time error stopped the session without rolling back the
+audition stage. Detect and re-start before doing anything else.
+
+### Step 0a: Pull all paper-running auditions
+```bash
+curl -s 'http://localhost:8001/api/v1/strategy-audition/by-stage?stage=paper&stage_status=running'
+```
+
+For each entry, extract `live_session_id`. If null → skip (legacy entry, no session to heal).
+
+### Step 0b: Check the actual session status
+```bash
+SESSION=$(curl -s "http://localhost:8001/api/v1/live/monitor/sessions" \
+  | python3 -c "import sys,json; sid='<live_session_id>'; print(next((s for s in json.load(sys.stdin) if s.get('id')==sid), {}))")
+SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; d=json.load(sys.stdin) if sys.stdin else {}; print(d.get('status','UNKNOWN'))")
+```
+
+- If `SESSION_STATUS == "RUNNING"` → healthy, skip to next entry.
+- If `SESSION_STATUS in ["STOPPED", "STARTING", "ERROR", "UNKNOWN"]` for **5+ minutes** → heal.
+
+(The 5-minute grace prevents healing a session that just started and is still initializing.)
+
+### Step 0c: Heal — start a fresh session, swap the audition link
+
+```bash
+# 1. Restart with a NEW session row (auto_start true is mandatory)
+NEW=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "symbol": "<paper_symbol from audition_metadata>",
+    "strategy_name": "<strategy_id>",
+    "strategy_config": <paper_config from audition_metadata>,
+    "is_paper": true,
+    "initial_capital": 10000,
+    "auto_start": true
+  }')
+NEW_SESSION_ID=$(echo "$NEW" | python3 -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))")
+
+# 2. Verify the new one is RUNNING
+sleep 3
+NEW_STATUS=$(curl -s "http://localhost:8001/api/v1/live/monitor/sessions" \
+  | python3 -c "import sys,json; sid='$NEW_SESSION_ID'; print(next((s for s in json.load(sys.stdin) if s.get('id')==sid), {}).get('status','?'))")
+
+# 3. If RUNNING, swap the audition's live_session_id and record the heal
+if [ "$NEW_STATUS" = "RUNNING" ]; then
+  curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" \
+    -H 'Content-Type: application/json' \
+    -d "{
+      \"live_session_id\": \"${NEW_SESSION_ID}\",
+      \"audition_metadata\": {
+        \"paper_session_restarted_at\": \"<ISO8601 now>\",
+        \"paper_session_old_id\": \"<old_live_session_id>\",
+        \"paper_session_heal_reason\": \"old session was ${SESSION_STATUS}\"
+      }
+    }"
+fi
+```
+
+**Anti-loop guard**: count `paper_session_heal_count` in metadata. If it
+reaches 3 for the same audition, do NOT heal again — instead, transition
+to `(retired, failed)` with reason `repeated_heal_failure` so we stop
+burning capital on a strategy that won't stay running. Include the count
+in the JSON output.
+
+### Step 0d: Output
+
+Include a `healed[]` array in the final JSON:
+```json
+"healed": [
+  {"strategy_id": "vwap_reversion", "old_session": "96df...", "new_session": "abc...", "old_status": "STOPPED"}
+]
+```
+
 ## Job 1: Promote sandbox-passed to paper
 
 ### Step 1: Check for sandbox-passed entries
