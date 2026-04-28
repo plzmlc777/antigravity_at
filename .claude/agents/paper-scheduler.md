@@ -68,10 +68,24 @@ SESSION=$(curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" "http://lo
 SESSION_STATUS=$(echo "$SESSION" | python3 -c "import sys,json; d=json.load(sys.stdin) if sys.stdin else {}; print(d.get('status','UNKNOWN'))")
 ```
 
-- If `SESSION_STATUS == "RUNNING"` → healthy, skip to next entry.
+- If `SESSION_STATUS == "RUNNING"` → healthy, **ALWAYS skip — never heal a RUNNING session.** A spurious heal here creates orphaned duplicate sessions because the new session's account differs from the old one and the service user can no longer stop the old one ("Session does not belong to your account").
 - If `SESSION_STATUS in ["STOPPED", "STARTING", "ERROR", "UNKNOWN"]` for **5+ minutes** → heal.
 
 (The 5-minute grace prevents healing a session that just started and is still initializing.)
+
+**Pre-flight verification before any heal**:
+```bash
+# Re-fetch the session right before issuing /live/start to confirm it is
+# still not RUNNING. This guards against TOCTOU races between the initial
+# inspection and the heal call.
+RECHECK=$(curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" \
+  "http://localhost:8001/api/v1/live/monitor/sessions" \
+  | python3 -c "import sys,json; sid='<live_session_id>'; print(next((s for s in json.load(sys.stdin) if s.get('id')==sid), {}).get('status','?'))")
+if [ "$RECHECK" = "RUNNING" ]; then
+  echo "abort heal: session became RUNNING in the meantime"
+  continue   # skip heal for this audition
+fi
+```
 
 ### Step 0c: Heal — start a fresh session, swap the audition link
 
