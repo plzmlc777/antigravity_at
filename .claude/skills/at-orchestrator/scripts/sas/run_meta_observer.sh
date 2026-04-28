@@ -14,6 +14,10 @@
 
 set -uo pipefail
 
+# Defensive PATH export — wrapper does this too, but manual `bash this.sh`
+# invocations (no wrapper) would otherwise hit `claude: command not found`.
+export PATH="${HOME}/.npm-global/bin:${PATH}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 RUNS_DIR="${PROJECT_ROOT}/.claude/skills/at-orchestrator/runs/sas"
