@@ -240,13 +240,15 @@ class BinanceMarketDataService:
                 OHLCV.time_frame == interval
             ).order_by(OHLCV.timestamp.desc()).first()
 
-            if first_record and last_record and not backfill:
+            if first_record and last_record:
                 first_ts_ms = _to_utc_ms(first_record[0])
                 last_ts_ms = _to_utc_ms(last_record[0])
 
-                if first_ts_ms > start_ms:
-                    # Existing data doesn't cover the requested start → need backward fill
-                    # Main loop still does incremental forward from last record (not full re-download)
+                # Trigger backward fill when EITHER the caller passed backfill=True
+                # OR the DB's earliest row is later than the requested window start.
+                # (Original code had `and not backfill` here, which inverted the
+                # intended branch — explicit backfill=True calls silently no-op'd.)
+                if backfill or first_ts_ms > start_ms:
                     need_backfill = True
                     start_ms = last_ts_ms
                     logger.info(f"Need backfill: DB starts at {first_record[0]}, requested from {datetime.utcfromtimestamp(start_ms / 1000)}. Forward from {last_record[0]}")
