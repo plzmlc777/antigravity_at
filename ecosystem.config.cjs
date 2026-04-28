@@ -5,8 +5,10 @@
 // Usage:
 //   pm2 start ecosystem.config.cjs                    # local (core only)
 //   ENABLE_AGENTS=1 pm2 start ecosystem.config.cjs    # remote (core + agents)
+//   ENABLE_RESEARCH=1 pm2 start ecosystem.config.cjs  # core + research collectors
 
 const enableAgents = process.env.ENABLE_AGENTS === '1';
+const enableResearch = process.env.ENABLE_RESEARCH === '1';
 
 const coreApps = [
     {
@@ -138,6 +140,25 @@ const agentApps = [
     }
 ];
 
-module.exports = {
-    apps: enableAgents ? [...coreApps, ...agentApps] : coreApps
-};
+// Research apps — long-lived data collectors used to validate trading theses.
+// Not part of live trading; safe to leave running for weeks/months.
+const researchApps = [
+    {
+        // Cascade research — collects every Binance Futures forced liquidation.
+        // See scripts/cascade_research/README.md
+        name: "at-liq-collector",
+        script: "./backend/venv/bin/python",
+        args: "-u scripts/cascade_research/collect_liquidations.py",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 5000,
+        max_memory_restart: "300M"
+    }
+];
+
+let apps = [...coreApps];
+if (enableAgents) apps = [...apps, ...agentApps];
+if (enableResearch) apps = [...apps, ...researchApps];
+
+module.exports = { apps };
