@@ -6,6 +6,7 @@ import logging
 import re
 import traceback
 import uuid
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from ..db.session import SessionLocal
 from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
@@ -953,6 +954,26 @@ class LiveContext:
                             self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
 
                         self.log(f"FILLED: {p.signal_type} {p.filled_quantity} {p.symbol} @ {p.executed_price} (cash delta: {cash_delta:+,.2f})")
+
+                        # 3b. Persist current_capital so UI/API show realized equity
+                        #     (column was Float-default 0 with no writers — feedback_credentials_in_db
+                        #      diagnosis 2026-04-30 confirmed the dead-column bug.)
+                        try:
+                            sess_row = db.query(LiveBotSession).filter(
+                                LiveBotSession.id == self.session_id
+                            ).first()
+                            if sess_row:
+                                # Recompute from authoritative source: initial + Σ realized_pnl
+                                total_realized = db.query(
+                                    func.coalesce(func.sum(LiveTradeExecution.realized_pnl), 0)
+                                ).filter(
+                                    LiveTradeExecution.session_id == self.session_id,
+                                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                ).scalar() or 0
+                                sess_row.current_capital = (sess_row.initial_capital or 0) + float(total_realized)
+                                db.commit()
+                        except Exception as cap_err:
+                            logger.error(f"current_capital sync failed: {cap_err}")
 
                         # 4. Invoke on_filled callback (for strategy position update)
                         if p.id in self._order_callbacks:

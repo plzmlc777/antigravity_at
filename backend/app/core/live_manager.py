@@ -694,6 +694,7 @@ class LiveManager:
                 strategy_name=strategy_name,
                 strategy_config=strat_config,
                 initial_capital=initial_capital,
+                current_capital=initial_capital,  # equity tracker — updated by SELL fills via context
                 is_paper=is_paper,
                 is_active=True,
                 status=initial_status,
