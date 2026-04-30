@@ -25,12 +25,21 @@ BACKEND_DIR="${PROJECT_ROOT}/backend"
 
 mkdir -p "${RUNS_DIR}"
 
-# Source .env (TELEGRAM_*) — wrapper does this on PM2 path; manual triggers need it too.
+# Source .env (system config only) — wrapper does this on PM2 path; manual triggers need it too.
+# Telegram creds come from DB (exchange_accounts), NOT .env.
 if [ -f "${PROJECT_ROOT}/.env" ]; then
   set -a
   # shellcheck disable=SC1091
   source "${PROJECT_ROOT}/.env"
   set +a
+fi
+
+# Load Telegram creds from DB
+if [ -x "${BACKEND_DIR}/venv/bin/python3" ]; then
+  TG_EXPORTS=$(cd "${BACKEND_DIR}" && PYTHONPATH=. ./venv/bin/python3 "${SCRIPT_DIR}/load_telegram_creds.py" 2>/dev/null || true)
+  if [ -n "${TG_EXPORTS}" ]; then
+    eval "${TG_EXPORTS}"
+  fi
 fi
 
 # Mint service token for /live/* auth (Job 4 needs it; Job 2 also needs it now)

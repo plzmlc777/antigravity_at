@@ -41,8 +41,8 @@ backend's SECRET_KEY for the `paper-scheduler@internal` service user).
 ```
 
 Without it the API returns `401 Could not validate credentials`. The
-service user is also bound to `account_id=3` (BinanceFutures, virtual,
-paper-only), so include `"account_id": 3` in `/live/start` request bodies.
+service user is also bound to `account_id=12` (BinanceFutures, paper),
+so include `"account_id": 12` in `/live/start` request bodies.
 
 `/api/v1/strategy-audition/*` endpoints do NOT require auth — call them as before.
 
@@ -99,9 +99,9 @@ NEW=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
     "strategy_name": "<strategy_id>",
     "strategy_config": <paper_config from audition_metadata>,
     "is_paper": true,
-    "initial_capital": 10000,
+    "initial_capital": 1000,
     "auto_start": true,
-    "account_id": 3
+    "account_id": 12
   }')
 NEW_SESSION_ID=$(echo "$NEW" | python3 -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))")
 
@@ -177,9 +177,9 @@ RESPONSE=$(curl -s -X POST http://localhost:8001/api/v1/live/start \
     "strategy_name": "<strategy_id>",
     "strategy_config": <best_config from sandbox_report>,
     "is_paper": true,
-    "initial_capital": 10000,
+    "initial_capital": 1000,
     "auto_start": true,
-    "account_id": 3
+    "account_id": 12
   }')
 SESSION_ID=$(echo "$RESPONSE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("session_id",""))')
 ```

@@ -24,13 +24,28 @@ set -uo pipefail
 # inject it here once for every wrapped child.
 export PATH="${HOME}/.npm-global/bin:${PATH}"
 
-# Load project-root .env if present (gitignored). Watchdog and any other child
-# scripts use this for TELEGRAM_* secrets, etc.
+# Load project-root .env if present (gitignored).
+# IMPORTANT: .env holds ONLY system config (POSTGRES_*, ports, APP_ENV).
+# Account/exchange credentials (API keys, secrets, telegram tokens) live in
+# the `exchange_accounts` DB table — see memory/feedback_credentials_in_db.md.
 if [ -f "$(pwd)/.env" ]; then
   set -a
   # shellcheck disable=SC1091
   source "$(pwd)/.env"
   set +a
+fi
+
+# Telegram alert credentials are loaded from DB (exchange_accounts), NOT .env.
+# load_telegram_creds.py decrypts the bot token from the first row with
+# telegram_enabled=TRUE and emits `export TELEGRAM_BOT_TOKEN=...` lines.
+# Silent no-op if no row is configured — child scripts treat empty token as
+# "alerts disabled".
+SAS_LOAD_TG="$(pwd)/.claude/skills/at-orchestrator/scripts/sas/load_telegram_creds.py"
+if [ -f "${SAS_LOAD_TG}" ] && [ -x "$(pwd)/backend/venv/bin/python3" ]; then
+  TG_EXPORTS=$(cd "$(pwd)/backend" && PYTHONPATH=. ./venv/bin/python3 "${SAS_LOAD_TG}" 2>/dev/null || true)
+  if [ -n "${TG_EXPORTS}" ]; then
+    eval "${TG_EXPORTS}"
+  fi
 fi
 
 CRON_EXPR="${1:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"

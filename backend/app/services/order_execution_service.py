@@ -59,7 +59,7 @@ class OrderExecutionService:
         self,
         symbol: str,
         side: str,  # "buy" or "sell"
-        quantity: int,
+        quantity: float,  # Float to support fractional crypto (e.g. 0.131 BTC)
         price: float = 0,
         log_to_db: bool = False,
         is_paper: bool = False,
@@ -158,7 +158,7 @@ class OrderExecutionService:
         symbol: str,
         side: str,
         price: float,
-        quantity: int,
+        quantity: float,
         metadata: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Call the exchange adapter to place order"""
@@ -183,7 +183,7 @@ class OrderExecutionService:
         self,
         symbol: str,
         side: str,
-        quantity: int,
+        quantity: float,
         theoretical_price: float,
         is_paper: bool,
         metadata: Dict[str, Any],

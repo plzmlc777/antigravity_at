@@ -26,13 +26,22 @@ STATUS_FILE="${RUNS_DIR}/metaobs_latest.json"
 
 mkdir -p "${RUNS_DIR}"
 
-# Load .env (TELEGRAM_BOT_TOKEN / CHAT_ID) — wrapper already does this when
-# triggered by PM2, but manual `bash run_meta_observer.sh` invocations also need it.
+# Load .env (system config only — POSTGRES_*, ports). Telegram creds come from DB.
 if [ -f "${PROJECT_ROOT}/.env" ]; then
   set -a
   # shellcheck disable=SC1091
   source "${PROJECT_ROOT}/.env"
   set +a
+fi
+
+# Load Telegram creds from DB (exchange_accounts.encrypted_telegram_bot_token)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="${PROJECT_ROOT}/backend"
+if [ -x "${BACKEND_DIR}/venv/bin/python3" ]; then
+  TG_EXPORTS=$(cd "${BACKEND_DIR}" && PYTHONPATH=. ./venv/bin/python3 "${SCRIPT_DIR}/load_telegram_creds.py" 2>/dev/null || true)
+  if [ -n "${TG_EXPORTS}" ]; then
+    eval "${TG_EXPORTS}"
+  fi
 fi
 
 if [ -f "${LOCK_FILE}" ]; then

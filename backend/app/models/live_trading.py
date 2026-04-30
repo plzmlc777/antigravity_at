@@ -122,7 +122,7 @@ class LiveTradeExecution(Base):
     signal_type = Column(String, nullable=False) # BUY / SELL
     signal_timestamp = Column(DateTime, nullable=False) # Chart Time (e.g. 09:00)
     theoretical_price = Column(Float, nullable=False) # Close Price of Signal Candle
-    requested_quantity = Column(Integer, default=0)
+    requested_quantity = Column(Float, default=0.0)  # Float to support fractional crypto qty (e.g. 0.131 BTC)
     
     # 2. Actual Execution
     exchange_order_no = Column(String, index=True, nullable=True)  # Kiwoom 주문번호 (체결 매칭용)
