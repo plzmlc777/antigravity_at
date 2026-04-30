@@ -38,6 +38,22 @@ backend/optimization_results/
 # Database Backups
 backup_*.sql
 *_backup_*.sql
+
+# Env / agent backups
+.env.bak.*
+.agents/skills/**/*.backup-*/
+**/*.backup-*/
+
+# SAS pipeline runtime artifacts
+.claude/skills/at-orchestrator/runs/
+
+# Skill caches resolved from skills-lock.json
+.claude/skills/at-binance-cli/
+.claude/skills/binance/
+
+# Research datasets (3.5GB+, regeneratable from collectors)
+scripts/cascade_research/data/
+scripts/cascade_research/__pycache__/
 db_backup_*.sql
 
 # Temporary Debug Scripts
