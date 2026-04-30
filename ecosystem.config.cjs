@@ -135,6 +135,32 @@ const agentApps = [
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
+    },
+    {
+        // KR — daily EOD paper cycle for 061090 (Mon-Fri 17:00 KST = 08:00 UTC).
+        // Runs incremental backtest on accumulated data, persists per-cycle stats,
+        // checks capital gate (-15% maxDD → DEGRADED). Independent from SAS Binance.
+        name: "kr-paper-cycle",
+        script: SAS_WRAPPER,
+        args: `'0 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // KR — daily dynamic strategy selector (Mon-Fri 18:00 KST = 09:00 UTC).
+        // Evaluates 7-strategy pool over last 30 days, applies hard filters (maxDD<-25%
+        // reject, min_trades=5), persists selection JSON for downstream paper/live use.
+        name: "kr-selector",
+        script: SAS_WRAPPER,
+        args: `'0 9 * * 1-5' ./scripts/kr/run_kr_selector.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     }
 ];
 

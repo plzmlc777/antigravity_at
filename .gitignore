@@ -89,3 +89,6 @@ kis_token_cache.json
 .claude/hot_candidates/
 .claude/strategy_candidates/
 .claude/verification_logs/
+
+# KR paper session state + cycle logs (per-environment, not git-tracked)
+backend/runs/kr_paper/
