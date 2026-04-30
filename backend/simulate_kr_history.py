@@ -112,6 +112,22 @@ ROBUST_ADAPTIVE_POOL = [
     S18ZScoreAdaptive, S25LunchFadeAdaptive,
 ]
 
+# Phase 5 — Robust + Foreign signals 결합 pool
+# 목적: 박스권 phase → S31 (mean reversion), 추세/회복 phase → S33B (외국인 시그널)
+# selector가 환경에 따라 자동 전환할 수 있는지 검증.
+from app.kr_strategy_pool.strategies.s31_1m_variants import S31_1m_PeriodX3
+from app.kr_strategy_pool.strategies.s33_foreign_signal import (
+    S33A_ForeignCum, S33B_BothPositive, S33C_ForeignZScore, S33D_BigBuyersSum,
+)
+
+ROBUST_FOREIGN_POOL = [
+    S31_1m_PeriodX3,         # 박스권 winner (OOS +19.15%)
+    S33B_BothPositive,        # 추세/회복 winner (OOS +8.03%)
+    S33D_BigBuyersSum,        # big buyers signal (OOS +6.30%)
+    S16OptStochasticReversion,  # mean reversion alternative
+    S5OptVwapReversion,       # mean reversion alternative
+]
+
 POOL = FULL_POOL  # 기본 (--pool 인자로 변경 가능)
 
 PARAMS = {
@@ -133,9 +149,9 @@ async def main():
     p.add_argument("--include-selector", action="store_true",
                    help="매일 7-pool selector 평가도 수행 (시간 4-5x 증가)")
     p.add_argument("--pool", default="full",
-                   choices=["full", "quality", "optimized", "robust", "robust_adaptive"],
-                   help="full=30, quality=8, optimized=8, robust=5 OOS-validated, "
-                        "robust_adaptive=5 with vol-adaptive sizing")
+                   choices=["full", "quality", "optimized", "robust", "robust_adaptive", "robust_foreign"],
+                   help="full=30, quality=8, optimized=8, robust=5, robust_adaptive=5, "
+                        "robust_foreign=5 (S31+S33B+S33D+S16+S5 phase-cross alpha)")
     args = p.parse_args()
     if args.pool == "quality":
         pool = QUALITY_POOL
@@ -145,6 +161,8 @@ async def main():
         pool = ROBUST_POOL
     elif args.pool == "robust_adaptive":
         pool = ROBUST_ADAPTIVE_POOL
+    elif args.pool == "robust_foreign":
+        pool = ROBUST_FOREIGN_POOL
     else:
         pool = FULL_POOL
     print(f"Pool: {args.pool} ({len(pool)} strategies)")

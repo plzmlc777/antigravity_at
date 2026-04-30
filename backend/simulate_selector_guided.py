@@ -117,6 +117,23 @@ STRATEGY_BY_NAME["s16_opt_stochastic_adaptive"] = S16StochasticAdaptive
 STRATEGY_BY_NAME["s18_zscore_adaptive"] = S18ZScoreAdaptive
 STRATEGY_BY_NAME["s25_opt_lunch_fade_adaptive"] = S25LunchFadeAdaptive
 
+# Phase 4-5 — confirmation + foreign strategies
+from app.kr_strategy_pool.strategies.s31_robust_confirmation import S31RobustConfirmation
+from app.kr_strategy_pool.strategies.s31_1m_variants import (
+    S31_1m_SamePeriod, S31_1m_PeriodX3, S31_1m_PeriodX5,
+)
+from app.kr_strategy_pool.strategies.s33_foreign_signal import (
+    S33A_ForeignCum, S33B_BothPositive, S33C_ForeignZScore, S33D_BigBuyersSum,
+)
+STRATEGY_BY_NAME["s31_robust_confirmation"] = S31RobustConfirmation
+STRATEGY_BY_NAME["s31_1m_same_period"] = S31_1m_SamePeriod
+STRATEGY_BY_NAME["s31_1m_period_x3"] = S31_1m_PeriodX3
+STRATEGY_BY_NAME["s31_1m_period_x5"] = S31_1m_PeriodX5
+STRATEGY_BY_NAME["s33a_foreign_5d_cum"] = S33A_ForeignCum
+STRATEGY_BY_NAME["s33b_foreign_orgn_both_pos"] = S33B_BothPositive
+STRATEGY_BY_NAME["s33c_foreign_z_score"] = S33C_ForeignZScore
+STRATEGY_BY_NAME["s33d_big_buyers_sum"] = S33D_BigBuyersSum
+
 PARAMS = {
     "bb_period": 25,
     "bb_std": 2.0,
