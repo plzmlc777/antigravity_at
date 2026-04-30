@@ -6,7 +6,8 @@
       "Edit(/.claude/skills/at-binance/**)",
       "Edit(/.claude/skills/at-live-signal/**)",
       "Edit(/.claude/skills/at-symbol-select/**)",
-      "Edit(/.claude/skills/at-orchestrator/**)"
+      "Edit(/.claude/skills/at-orchestrator/**)",
+      "Bash(ssh hcpark@34.64.87.89 \"tail -f /tmp/daily_manual_20260416.log\")"
     ],
     "additionalDirectories": [
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",

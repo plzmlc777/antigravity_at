@@ -6,6 +6,12 @@
       "sourceType": "github",
       "computedHash": "a0fd18e0436dcf31896bd15aff062930c05d28f93bf31c7a93e128168c68f5c6"
     },
+    "binance": {
+      "source": "binance/binance-skills-hub",
+      "sourceType": "github",
+      "skillPath": "skills/binance/binance/SKILL.md",
+      "computedHash": "05df646950f9f44e8284e34e02d465185ce7d6f9ea4fa90a599af6d24428f81c"
+    },
     "derivatives-trading-usds-futures": {
       "source": "binance/binance-skills-hub",
       "sourceType": "github",
