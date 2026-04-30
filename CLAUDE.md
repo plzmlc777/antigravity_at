@@ -56,7 +56,7 @@ PASS 증거 없이 "완료" 보고 금지. 텍스트만 변경 시 생략 가능
 
 ## Reference Docs (필요시 Read)
 
-- `.claude/references/deploy.md` — 서버 배포 (민트/GCP/우분투)
+- `.claude/references/deploy.md` — 서버 배포 (민트/우분투, GCP 삭제됨)
 - `.claude/references/architecture.md` — 시스템 아키텍처 상세
 - `.claude/references/protocols.md` — DB 마이그레이션, 롤백, 버전 릴리즈
 - `.claude/docs/release_protocol.md` — 릴리즈 상세 절차

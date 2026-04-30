@@ -10,76 +10,55 @@
 
 ## Servers
 
-### 민트 서버 (Real: 121.183.229.140)
+### 민트 서버 (Real: 183.99.228.81)
+> 실거래 운영 + SAS 파이프라인. REAL 모드.
+> Claude Code CLI 설치됨 (Max 플랜 인증).
+
 | 항목 | 값 |
 |------|-----|
-| Host | 121.183.229.140 |
+| Host | 183.99.228.81 |
 | User | mint |
 | Path | ~/auto_trading |
+| Mode | REAL |
+| PM2 | at-backend, at-frontend + SAS 에이전트 8개 |
 
 ```bash
 # 라이브 세션 확인
-ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
+ssh mint@183.99.228.81 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
 
 # DB 백업
-ssh mint@121.183.229.140 'PGPASSWORD=antigravity_password pg_dump -U antigravity_user -h localhost antigravity_db > ~/db_backup_$(date +%Y%m%d_%H%M%S).dump && ls -t ~/db_backup*.dump | tail -n +3 | xargs -r rm -v'
+ssh mint@183.99.228.81 'PGPASSWORD=antigravity_password pg_dump -U antigravity_user -h localhost antigravity_db > ~/db_backup_$(date +%Y%m%d_%H%M%S).dump && ls -t ~/db_backup*.dump | tail -n +3 | xargs -r rm -v'
 
 # Quick Deploy
-ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+ssh mint@183.99.228.81 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
 
-# Full Deploy (with migration)
-ssh mint@121.183.229.140 "cd ~/auto_trading && git pull origin master && cd backend && python3 -m migrations.run_migrations && cd .. && pm2 restart at-backend at-frontend"
+# Full Deploy (with SAS agents)
+ssh mint@183.99.228.81 "cd ~/auto_trading && git pull origin master && cd backend && python3 -m migrations.run_migrations && cd .. && ENABLE_AGENTS=1 pm2 restart ecosystem.config.cjs"
 
 # Verify
-ssh mint@121.183.229.140 "curl -s http://localhost:8001/api/v1/system/version"
+ssh mint@183.99.228.81 "curl -s http://localhost:8001/api/v1/system/version"
 
 # 세션 복원 확인
-ssh mint@121.183.229.140 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
+ssh mint@183.99.228.81 'pm2 logs at-backend --lines 30 --nostream 2>&1 | grep -i "restore\|session\|RUNNING"'
 ```
 
-### GCP 서버 (Temp: 34.64.87.89)
-> 민트 서버 이사 기간(~2026-04-24) 임시 운영. REAL 모드.
-> 키움 API 지정단말기 + Binance IP 화이트리스트 등록 완료.
+### 우분투 서버 (Test: 172.30.1.60)
+> 테스트 전용. MOCK 모드. 사설IP (공유기 내부). 실거래 세션 체크 불필요.
 
 | 항목 | 값 |
 |------|-----|
-| Host | 34.64.87.89 |
-| User | hcpark |
-| Path | ~/auto_trading |
-| Branch | master (기본 브랜치 아님, 반드시 master) |
-| Mode | REAL |
-| Spec | 2 vCPU, 4GB RAM (asia-northeast3-a) |
-
-```bash
-# 라이브 세션 확인
-ssh hcpark@34.64.87.89 'PGPASSWORD=antigravity_password psql -U antigravity_user -h localhost antigravity_db -c "SELECT id, symbol, status, is_paper FROM live_bot_sessions WHERE status = '\''RUNNING'\'';"'
-
-# Quick Deploy
-ssh hcpark@34.64.87.89 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
-
-# Full Deploy (with frontend rebuild)
-ssh hcpark@34.64.87.89 "cd ~/auto_trading && git pull origin master && cd frontend && npm run build && cd .. && pm2 restart at-backend at-frontend"
-
-# Verify
-ssh hcpark@34.64.87.89 "curl -s http://localhost:8001/api/v1/status"
-```
-
-### 우분투 서버 (Test: 121.183.229.170)
-> 테스트 전용. MOCK 모드. 실거래 세션 체크 불필요.
-
-| 항목 | 값 |
-|------|-----|
-| Host | 121.183.229.170 |
+| Host | 172.30.1.60 |
 | User | ubuntu |
 | Path | ~/auto_trading |
 | Mode | MOCK |
+| PM2 | at-backend, at-frontend만 |
 
 ```bash
 # Quick Deploy
-ssh ubuntu@121.183.229.170 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
+ssh ubuntu@172.30.1.60 "cd ~/auto_trading && git pull origin master && pm2 restart at-backend at-frontend"
 
 # Verify
-ssh ubuntu@121.183.229.170 "curl -s http://localhost:8001/api/v1/system/version"
+ssh ubuntu@172.30.1.60 "curl -s http://localhost:8001/api/v1/system/version"
 ```
 
 ## Emergency Recovery
