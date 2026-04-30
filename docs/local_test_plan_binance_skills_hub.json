@@ -1,0 +1,391 @@
+{
+  "_meta": {
+    "title": "Local Test Plan — binance-skills-hub Integration",
+    "purpose": "새 세션에서 로컬 환경에 binance-skills-hub를 테스트하기 위한 완전한 정보 패키지. 민트 서버는 절대 건드리지 말 것.",
+    "created_at": "2026-04-29",
+    "creator": "Claude Code (claude-opus-4-7[1m])",
+    "deadline_no_remote_changes_until": "2026-05-11",
+    "deadline_reason": "민트 서버 paper running 3개 (supertrend_breakout, vwap_reversion, obv_trend_follow, 4-27 진입) 평가 14일 완료 시점. 이 시점까지 리모트 시스템 변경 금지.",
+    "scope": "로컬 머신 (WSL2, /home/hcpark/antigravity)에서만 테스트",
+    "tests_to_run": ["test_1_npx_skills_add", "test_2_at_binance_to_binance_cli"]
+  },
+
+  "system_state_snapshot": {
+    "captured_at": "2026-04-29",
+    "host": {
+      "platform": "Linux WSL2 (Ubuntu)",
+      "wsl_version": "6.6.87.2-microsoft-standard-WSL2",
+      "working_directory": "/home/hcpark/antigravity"
+    },
+    "node": {
+      "version": "v20.20.0",
+      "npm_version": "10.8.2",
+      "npx_version": "10.8.2",
+      "npx_path": "/usr/bin/npx",
+      "global_packages": ["@anthropic-ai", "corepack", "npm", "pm2"],
+      "global_root": "/usr/lib/node_modules"
+    },
+    "compatibility_issues": {
+      "CRITICAL_NODE_VERSION_MISMATCH": {
+        "current": "v20.20.0",
+        "required_by_binance_skills_hub": "v22+",
+        "source": "https://github.com/binance/binance-skills-hub README — 'Node.js (version 22 or higher)'",
+        "impact": "npx skills add 명령 실패 가능성 높음. 또는 일부 기능만 동작",
+        "remediation_options": [
+          "Option A: nvm로 Node 22 설치 후 nvm use 22 (시스템 기본은 20 유지)",
+          "Option B: Node 22 글로벌 업그레이드 (위험: 다른 프로젝트 영향)",
+          "Option C: Docker container로 Node 22 환경 분리 테스트",
+          "권장: Option A (영향 최소)"
+        ]
+      }
+    },
+    "binance_cli_already_installed": false,
+    "global_binaries": {
+      "binance-cli": "NOT INSTALLED",
+      "baw": "NOT INSTALLED",
+      "skills": "NOT INSTALLED"
+    },
+    "existing_skills_directory": "/home/hcpark/antigravity/.claude/skills/",
+    "skills_already_present": [
+      {
+        "name": "trading-signal",
+        "origin": "binance-web3 hub (이미 설치됨)",
+        "files": ["SKILL.md (8123 bytes)"],
+        "last_modified": "2026-04-02 19:47",
+        "subdirs": "scripts/, references/, commands/ 모두 없음",
+        "warning": "npx skills add 실행 시 이 파일이 덮어써질 수 있음 (1.1 → 최신)"
+      },
+      {
+        "name": "derivatives-trading-usds-futures",
+        "origin": "binance hub (이미 설치됨)",
+        "warning": "동일하게 덮어쓰기 위험"
+      },
+      {
+        "name": "at-binance",
+        "origin": "본인 자체 스킬",
+        "files": [
+          "SKILL.md (1876 bytes)",
+          "scripts/backtest_binance.py (4405 bytes)",
+          "scripts/live_binance.py (8669 bytes)",
+          "scripts/optimize_binance.py (3170 bytes)"
+        ],
+        "subdirs": ["commands/", "references/", "scripts/"],
+        "last_modified": "2026-04-03 17:29",
+        "execution_pattern": "Python script → 본인 backend (port 8001) API 호출",
+        "warning": "binance-cli와 패러다임 다름. 직접 교체 시 backend 의존성 끊김"
+      }
+    ]
+  },
+
+  "tests": {
+    "test_1_npx_skills_add": {
+      "title": "Test 1: npx skills add https://github.com/binance/binance-skills-hub",
+      "objective": "npx skills add 명령이 실제 어떻게 동작하는지 관찰 — 글로벌 상태 변경 범위, 기존 trading-signal 덮어쓰기 여부, 실패 시 복구 가능성",
+      "risks_being_tested": [
+        "글로벌 npm 상태 변경 (어떤 패키지가 설치되는지)",
+        "기존 trading-signal 스킬 덮어쓰기 여부",
+        "Node 22 미설치 환경에서 실패 양상",
+        "롤백 가능성 (uninstall 명령 존재 여부)"
+      ],
+      "pre_test_checklist": [
+        {
+          "step": 1,
+          "action": "Git checkpoint 생성",
+          "command": "cd /home/hcpark/antigravity && git status && git add -A && git commit -m 'checkpoint: pre binance-skills-hub test'",
+          "verify": "git log -1로 커밋 확인"
+        },
+        {
+          "step": 2,
+          "action": "기존 trading-signal 백업",
+          "command": "cp -r /home/hcpark/antigravity/.claude/skills/trading-signal /home/hcpark/antigravity/.claude/skills/trading-signal.backup-$(date +%Y%m%d-%H%M)",
+          "verify": "ls -la /home/hcpark/antigravity/.claude/skills/trading-signal.backup-*"
+        },
+        {
+          "step": 3,
+          "action": "기존 derivatives-trading-usds-futures 백업",
+          "command": "cp -r /home/hcpark/antigravity/.claude/skills/derivatives-trading-usds-futures /home/hcpark/antigravity/.claude/skills/derivatives-trading-usds-futures.backup-$(date +%Y%m%d-%H%M)"
+        },
+        {
+          "step": 4,
+          "action": "글로벌 npm 상태 스냅샷",
+          "command": "ls /usr/lib/node_modules/ > /tmp/npm_global_before.txt && cat /tmp/npm_global_before.txt"
+        },
+        {
+          "step": 5,
+          "action": "Node 22 설치 (Option A: nvm)",
+          "command": "command -v nvm || curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && source ~/.bashrc && nvm install 22 && nvm use 22 && node --version",
+          "verify": "node --version → v22.x.x",
+          "rollback": "nvm use 20"
+        },
+        {
+          "step": 6,
+          "action": "DB 백업 (안전망)",
+          "command": "PGPASSWORD=$DB_PASSWORD pg_dump -U antigravity_user -h localhost antigravity_db > /tmp/db_backup_pre_test_$(date +%Y%m%d).sql",
+          "note": "로컬 DB가 운영 DB는 아니지만 기록 보존"
+        }
+      ],
+      "execution_steps": [
+        {
+          "step": 1,
+          "action": "npx 동작 관찰 (dry-run 또는 --help)",
+          "command": "npx skills --help 2>&1 || echo 'skills package not yet known to npm'",
+          "expected": "skills 패키지 정보 출력 또는 무엇이 설치될지 미리 보기"
+        },
+        {
+          "step": 2,
+          "action": "본 실행",
+          "command": "npx skills add https://github.com/binance/binance-skills-hub 2>&1 | tee /tmp/npx_skills_add.log",
+          "observe": [
+            "어디에 파일이 생성/복사되는지 (cwd? 글로벌? .claude/skills/?)",
+            "기존 trading-signal/ 덮어쓰기 여부",
+            "에러 메시지 (Node 22 미만이면 실패 가능)",
+            "설치된 패키지 (npm 글로벌 추가 여부)"
+          ]
+        },
+        {
+          "step": 3,
+          "action": "변경 사항 점검",
+          "commands": [
+            "diff -r /home/hcpark/antigravity/.claude/skills/trading-signal /home/hcpark/antigravity/.claude/skills/trading-signal.backup-*",
+            "ls /usr/lib/node_modules/ > /tmp/npm_global_after.txt && diff /tmp/npm_global_before.txt /tmp/npm_global_after.txt",
+            "find /home/hcpark/antigravity/.claude/skills/ -newer /tmp/npm_global_before.txt -type f"
+          ]
+        }
+      ],
+      "success_criteria": [
+        "명령 실행이 (성공/실패에 관계없이) 어떤 동작을 하는지 명확히 관찰됨",
+        "기존 trading-signal 변경 여부 판정",
+        "글로벌 npm 변경 범위 측정",
+        "롤백 절차 검증"
+      ],
+      "rollback_procedure": [
+        "1. 기존 백업 복원: rm -rf .claude/skills/trading-signal && cp -r .claude/skills/trading-signal.backup-* .claude/skills/trading-signal",
+        "2. 글로벌 npm 변경 되돌리기: 새로 추가된 패키지 npm uninstall -g <pkg>",
+        "3. Git reset: git reset --hard HEAD~1 (필요시)",
+        "4. Node 버전 복원: nvm use 20"
+      ],
+      "deliverables": [
+        "/tmp/npx_skills_add.log — 실행 출력 전체",
+        "/tmp/npm_global_diff.txt — 글로벌 npm 변경분",
+        "검증 보고서 (어디에 무엇이 설치되었는지, 위험도 재평가)"
+      ]
+    },
+
+    "test_2_at_binance_to_binance_cli": {
+      "title": "Test 2: at-binance를 binance-cli로 교체 (실험)",
+      "objective": "본인 at-binance 스킬을 binance-cli 기반으로 재작성한 변형 버전을 만들어 동작 비교. 실거래 코드 경로 영향을 정량화.",
+      "scope_warning": "실제 at-binance 스킬을 덮지 않음. 별도 폴더 (.claude/skills/at-binance-cli/) 생성하여 비교만",
+      "current_at_binance": {
+        "path": "/home/hcpark/antigravity/.claude/skills/at-binance/",
+        "commands_in_skill_md": [
+          "/binance-backtest — backtest_binance.py 호출",
+          "/binance-optimize — optimize_binance.py 호출",
+          "/binance-live — live_binance.py 호출"
+        ],
+        "execution_paradigm": "Python subprocess + REST API 호출 (port 8001 본인 backend)",
+        "auth": ".env (Kiwoom 키만 명시적, Binance 키는 DB profile_id 통해 세션별 관리)",
+        "scripts": {
+          "backtest_binance.py": "at-backtest/scripts/backtest.py를 import하여 BinanceFutures 설정으로 wrapping",
+          "live_binance.py": "REST API (/api/v1/live-bot/...) 호출하여 세션 관리",
+          "optimize_binance.py": "at-backtest/scripts/optimize_engine.py로 그리드서치"
+        },
+        "dependencies": [
+          "본인 backend FastAPI app (port 8001)",
+          "at-backtest 스킬 (scripts/backtest.py 등)",
+          "PostgreSQL DB (live_bot_sessions 테이블)"
+        ]
+      },
+      "target_binance_cli_paradigm": {
+        "binary": "binance-cli (binance-skills-hub 메인 CLI)",
+        "execution_paradigm": "글로벌 CLI tool → Binance API 직접 호출",
+        "auth": "환경변수 또는 .env / .openclaw/secrets.env",
+        "commands_count": 23,
+        "key_subcommands": [
+          "spot, futures-coin, futures-usds",
+          "simple-earn, staking, dual-investment",
+          "margin-trading, copy-trading, algo",
+          "wallet, sub-account, convert",
+          "request <METHOD> <URL> [--signed]"
+        ],
+        "safety_gate": "Prod transactions — always ask user to type CONFIRM",
+        "no_backtest": "backtest 기능 없음 — 본인 시스템에서 별도 구현 필요"
+      },
+      "incompatibilities": [
+        {
+          "id": "INCOMPAT-1",
+          "issue": "Backtest 기능 부재",
+          "detail": "binance-cli는 거래 실행만, 백테스트 X. 본인 backtest_binance.py를 단순 교체 불가",
+          "mitigation": "at-binance-cli 변형은 live 부분만 교체, backtest/optimize는 그대로 둠"
+        },
+        {
+          "id": "INCOMPAT-2",
+          "issue": "패러다임 차이",
+          "detail": "본인 system은 backend가 거래 실행 (DB 세션 통합). binance-cli는 CLI가 직접 API 호출",
+          "mitigation": "binance-cli를 CLI subprocess로 호출하되 결과를 backend에 기록하는 wrapper 작성"
+        },
+        {
+          "id": "INCOMPAT-3",
+          "issue": "CONFIRM 게이트",
+          "detail": "binance-cli는 prod 거래 시 사용자 'CONFIRM' 입력 요구 → 자동매매 흐름과 충돌",
+          "mitigation": "테스트 모드에서만 사용, 자동 흐름은 본인 backend 유지"
+        },
+        {
+          "id": "INCOMPAT-4",
+          "issue": "DB 통합 부재",
+          "detail": "binance-cli는 본인 live_bot_sessions 테이블 인지 X",
+          "mitigation": "wrapper에서 명령 실행 후 DB에 수동 기록"
+        }
+      ],
+      "test_design": {
+        "approach": "비파괴 비교 — at-binance 그대로 두고 at-binance-cli 별도 생성",
+        "directory_structure": "/home/hcpark/antigravity/.claude/skills/at-binance-cli/ (새로 생성)",
+        "files_to_create": [
+          "SKILL.md (binance-cli 기반 설명)",
+          "scripts/live_binance_cli.py (binance-cli subprocess 호출 래퍼)",
+          "scripts/wrapper_test.py (격리 테스트 스크립트)"
+        ]
+      },
+      "pre_test_checklist": [
+        {
+          "step": 1,
+          "action": "Test 1 완료 후 binance-cli가 글로벌 설치되었는지 확인",
+          "command": "which binance-cli && binance-cli --help",
+          "if_not_installed": "별도 설치 필요 — README 절차에 따라 npm i -g 또는 npx 사용"
+        },
+        {
+          "step": 2,
+          "action": "테스트용 Binance 계정 (TESTNET) 키 준비",
+          "important": "실거래 메인 키 사용 금지. Binance Futures Testnet 사용",
+          "testnet_url": "https://testnet.binancefuture.com/",
+          "env_setup": ".env에 BINANCE_TESTNET_API_KEY/SECRET 추가 (커밋 X)"
+        },
+        {
+          "step": 3,
+          "action": "at-binance 현재 동작 검증 (baseline)",
+          "command": "python3 .claude/skills/at-binance/scripts/live_binance.py status",
+          "expected": "현재 backend가 응답 (port 8001) 또는 명확한 에러"
+        }
+      ],
+      "execution_steps": [
+        {
+          "step": 1,
+          "action": "at-binance-cli 별도 폴더 생성",
+          "command": "mkdir -p /home/hcpark/antigravity/.claude/skills/at-binance-cli/scripts"
+        },
+        {
+          "step": 2,
+          "action": "Wrapper 스크립트 작성",
+          "purpose": "binance-cli를 subprocess로 호출하되 본인 시스템 인터페이스 유지",
+          "outline": [
+            "기존 at-binance/scripts/live_binance.py와 동일 CLI 인자 받음",
+            "내부적으로 binance-cli 호출",
+            "결과를 본인 DB live_bot_sessions에 기록 (옵션)",
+            "TESTNET 키만 사용 (메인 키 차단)"
+          ]
+        },
+        {
+          "step": 3,
+          "action": "기능별 비교 매트릭스 작성",
+          "tests": [
+            "잔고 조회: at-binance vs at-binance-cli",
+            "테스트 주문 생성: 시장가 / 지정가",
+            "주문 취소",
+            "포지션 조회",
+            "Funding rate 조회",
+            "Order book 조회"
+          ],
+          "outputs": "/tmp/binance_cli_comparison.csv"
+        },
+        {
+          "step": 4,
+          "action": "통합 시나리오 테스트",
+          "scenario": "본인 strategy 시그널 발생 → at-binance-cli wrapper로 주문 실행 (testnet) → DB 기록 → 청산",
+          "verify_with": "Binance testnet UI에서 주문 확인"
+        }
+      ],
+      "success_criteria": [
+        "at-binance와 at-binance-cli 모두 동일한 결과 반환 (잔고, 포지션 등)",
+        "주문 실행 결과가 일치 (체결가, 수수료 ±5% 이내)",
+        "DB 기록이 정확히 동기화됨",
+        "비호환 항목 (백테스트 등) 명확히 식별됨",
+        "본인 backend와의 통합 부담 정량화"
+      ],
+      "rollback_procedure": [
+        "1. at-binance-cli 폴더 삭제: rm -rf .claude/skills/at-binance-cli",
+        "2. 글로벌 binance-cli 제거: npm uninstall -g binance-cli (또는 nvm use 20으로 격리)",
+        "3. .env에 추가한 TESTNET 키 제거",
+        "4. 테스트 데이터 정리: PostgreSQL에서 테스트 세션 row 삭제"
+      ],
+      "deliverables": [
+        "/home/hcpark/antigravity/.claude/skills/at-binance-cli/ — 변형 구현",
+        "/tmp/binance_cli_comparison.csv — 기능별 비교",
+        "보고서 — 교체 가능성 / 비호환 항목 / 작업 추정",
+        "결론: 교체 권장 / 부분 수정 권장 / 폐기 권장"
+      ]
+    }
+  },
+
+  "absolute_dont_dos": [
+    "민트 서버 (183.99.228.81)에 SSH 접속하여 변경",
+    "본인 메인 Binance API 키로 실주문 (TESTNET만 사용)",
+    "git push origin master (로컬 테스트 변경분)",
+    "Mint DB 마이그레이션 실행",
+    "PM2 ecosystem.config.cjs 변경 후 git commit",
+    "기존 trading-signal/derivatives-trading-usds-futures 직접 수정",
+    "at-binance 폴더 직접 수정 (변형은 별도 at-binance-cli/)",
+    "공통 .env 파일에 메인 Binance 키 추가"
+  ],
+
+  "useful_references": {
+    "system_docs": [
+      "/home/hcpark/antigravity/CLAUDE.md",
+      "/home/hcpark/antigravity/.claude/references/deploy.md",
+      "/home/hcpark/antigravity/.claude/references/architecture.md"
+    ],
+    "previous_research": [
+      "/home/hcpark/antigravity/docs/claude_trading_plugins_reference.json — 7개 repo 검증 결과",
+      "/home/hcpark/antigravity/docs/tradermonty_systematic_learnings.md — 시스템 패턴 학습"
+    ],
+    "external_links": {
+      "binance_skills_hub_repo": "https://github.com/binance/binance-skills-hub",
+      "binance_skills_hub_readme": "https://raw.githubusercontent.com/binance/binance-skills-hub/main/README.md",
+      "binance_futures_testnet": "https://testnet.binancefuture.com/",
+      "claude_code_plugins_doc": "https://code.claude.com/docs/en/plugin-marketplaces"
+    }
+  },
+
+  "session_handoff": {
+    "first_actions_for_new_session": [
+      "1. 이 JSON을 Read하여 컨텍스트 파악",
+      "2. CLAUDE.md, .claude/references/deploy.md 한 번 더 읽기 (민트 보호)",
+      "3. system_state_snapshot의 compatibility_issues 우선 해결 (Node 22)",
+      "4. test_1 → test_2 순서로 진행 (test_1이 binance-cli 설치까지 포함)",
+      "5. 각 step의 pre_test_checklist 모두 통과 후에만 execution_steps 진행"
+    ],
+    "questions_user_may_ask": [
+      "지금 어디까지 진행됐나? → 새 세션 시작이므로 처음부터",
+      "위험한가? → Pre-test checklist 따르면 안전",
+      "민트 서버는? → 절대 안 건드림 (deadline 2026-05-11)"
+    ],
+    "context_to_preserve": {
+      "user_korean": true,
+      "user_role": "단독 개발자 (Antigravity 자동매매 시스템)",
+      "communication_style": "간결, 직설적, 한국어",
+      "decision_pattern": "옵션 제시 → user 선택 → 진행"
+    }
+  },
+
+  "post_test_decisions": {
+    "after_test_1": [
+      "(A) npx skills add 안전 → Test 2 진행",
+      "(B) npx skills add 위험 → 수동 git clone + 복사 방식으로 변경",
+      "(C) Node 22 호환 안 됨 → 다른 환경 (Docker) 필요"
+    ],
+    "after_test_2": [
+      "(A) at-binance-cli 우월 → 본인 시스템 부분 교체 검토",
+      "(B) at-binance 유지 + binance-cli 보조 사용",
+      "(C) binance-cli 부적합 → 학습만 하고 본인 시스템 유지"
+    ],
+    "decision_deadline": "2026-05-11 이전 (민트 paper 평가 완료 시점)"
+  }
+}

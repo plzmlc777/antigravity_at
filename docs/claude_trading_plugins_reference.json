@@ -1,0 +1,410 @@
+{
+  "_meta": {
+    "title": "Claude Code Trading Plugins/Skills — Verified Reference",
+    "purpose": "Antigravity 자동매매 시스템 운영자(hcpark) 입장에서 학습/참조/통합 검토용. 모든 항목은 실제 GitHub repo 직접 확인 후 사실만 기록.",
+    "verification_method": "WebFetch direct repository inspection (README + directory listing)",
+    "verified_at": "2026-04-29",
+    "verifier": "Claude Code (claude-opus-4-7[1m])",
+    "next_review_recommended": "2026-07-29 (3개월 후, repo 활성도 변화 추적용)",
+    "navigation": {
+      "by_category": "categories 키 참조",
+      "by_repo": "entries 키 참조 (slug로 인덱싱)",
+      "comparison": "comparison_matrix 키 참조",
+      "what_to_try_first": "recommended_learning_priority 키 참조"
+    }
+  },
+
+  "categories": {
+    "official_exchange": ["binance-skills-hub"],
+    "comprehensive_framework": ["cbt-framework", "claude-trading-skills"],
+    "data_mcp": ["coinpaprika-marketplace", "tradingview-mcp"],
+    "marketplace_aggregator": ["jmanhype-marketplace"],
+    "standalone_app": ["cloddsbot"]
+  },
+
+  "entries": {
+    "binance-skills-hub": {
+      "display_name": "Binance Skills Hub",
+      "github_url": "https://github.com/binance/binance-skills-hub",
+      "category": "official_exchange",
+      "verified": {
+        "official_org": "github.com/binance (Binance the exchange)",
+        "stars": 790,
+        "forks": 147,
+        "commits": 106,
+        "install_command": "npx skills add https://github.com/binance/binance-skills-hub",
+        "node_version_required": "22+",
+        "auth_required": "Binance API key (env vars / .env / .openclaw/secrets.env / agent chat input)",
+        "scope_statement_in_readme": "Not just for Binance products — designed for the entire crypto ecosystem: any agent, any framework, any chain"
+      },
+      "not_verifiable_or_uncertain": {
+        "individual_skill_folder_names": "skills/ 하위 폴더 목록 README에서 직접 확인 안 됨. binance / binance-web3 두 폴더는 일부 검색 결과에서 보였으나 직접 확인 미완료"
+      },
+      "antigravity_relevance": {
+        "score": "★★★★",
+        "reason": "본인 시스템이 Binance 선물 자동매매 → 공식 SDK 비교 가능. 키 인증 패턴, 스킬 구조 참고용 1순위.",
+        "use_case": "본인 at-binance 스킬과 직접 비교, 인증 처리 방식 차용 검토"
+      }
+    },
+
+    "cbt-framework": {
+      "display_name": "CBT Framework (Claude-Backtest-Tool)",
+      "github_url": "https://github.com/Trade-With-Claude/cbt-framework",
+      "category": "comprehensive_framework",
+      "verified": {
+        "stars": 10,
+        "forks": 5,
+        "license": "MIT",
+        "install_command": "npx cbt-framework",
+        "node_version_required": "16+",
+        "python_version_required": "3.8+",
+        "command_count_claimed": 21,
+        "command_count_actual_summed": 22,
+        "command_count_note": "README 자체가 '21'로 표기하지만 분류별 합산은 22 (Setup 5 + Build 6 + Run 5 + Optimize 4 + Deploy 2)",
+        "commands": {
+          "setup": ["/cbt:new", "/cbt:status", "/cbt:help", "/cbt:update", "/cbt:clear"],
+          "build": ["/cbt:discover", "/cbt:research", "/cbt:eda", "/cbt:config", "/cbt:plan", "/cbt:build"],
+          "run_analyze": ["/cbt:run", "/cbt:analyze", "/cbt:deep-analyze", "/cbt:plot", "/cbt:compare"],
+          "optimize_report": ["/cbt:optimize", "/cbt:iterate", "/cbt:observe", "/cbt:report"],
+          "deploy": ["/cbt:live", "/cbt:export"]
+        },
+        "supported_exchanges": ["Bybit", "Binance (spot+futures)", "Kraken", "Hyperliquid"],
+        "engines": "pandas (standard) + Polars/NumPy/Numba (large datasets)",
+        "features_listed_in_readme": [
+          "Walk-forward optimization",
+          "Parameter sweeping",
+          "Paper trading mode with safety guardrails",
+          "Multi-channel notifications (Discord, Telegram, SMS, email)"
+        ]
+      },
+      "not_verifiable_or_uncertain": {
+        "production_readiness": "10⭐ / 5 fork → 커뮤니티 단계. 'production-ready' 자칭이지만 실제 운영 사례 미확인"
+      },
+      "antigravity_relevance": {
+        "score": "★★★★",
+        "reason": "Antigravity 슬래시 커맨드 구조 + 백테스트 워크플로 컨셉 가장 유사. 21개 커맨드 분류법(Setup→Build→Run→Optimize→Deploy)이 SISDS Phase 매핑과 흡사.",
+        "use_case": "본인 슬래시 커맨드 정리 시 명명 규칙 참고. /cbt:iterate 같은 SISDS Phase 자동화 패턴 차용"
+      }
+    },
+
+    "claude-trading-skills": {
+      "display_name": "Claude Trading Skills (tradermonty)",
+      "github_url": "https://github.com/tradermonty/claude-trading-skills",
+      "category": "comprehensive_framework",
+      "verified": {
+        "stars": 1100,
+        "forks": 252,
+        "skill_count_claimed_in_summary": "50+",
+        "skill_count_actually_documented": 45,
+        "skill_count_note": "이전 답변에서 '50+'라고 했으나 README catalog 실제 합산은 45. 마케팅 헤드라인 인용 오류.",
+        "scope_claimed": "US equities only",
+        "scope_actual": "주로 미국 주식. Technical Analyst 스킬은 cryptocurrencies + forex pairs도 분석 명시 → '주식 only' 주장 부정확",
+        "skill_categories": {
+          "market_analysis_research": 9,
+          "economic_earnings_calendars": 2,
+          "strategy_risk_management": 18,
+          "market_timing_bottom_detection": 3,
+          "earnings_momentum_screening": 2,
+          "stock_screening_selection": 8,
+          "skill_quality_automation": 3
+        },
+        "verified_specific_skills": [
+          "Sector Analyst",
+          "Backtest Expert",
+          "VCP Screener",
+          "FinViz Screener",
+          "Stanley Druckenmiller Investment Advisor",
+          "FTD Detector",
+          "PEAD Screener",
+          "Technical Analyst",
+          "Market Breadth Analyzer",
+          "Macro Regime Detector",
+          "Institutional Flow Tracker",
+          "Position Sizer",
+          "Options Strategy Advisor",
+          "Pair Trade Screener",
+          "CANSLIM Stock Screener",
+          "Trader Memory Core",
+          "Skill Idea Miner",
+          "Edge Pipeline Orchestrator",
+          "Edge Signal Aggregator"
+        ],
+        "api_requirements_in_readme": {
+          "FMP_API": "free tier — economic calendars, earnings, institutional data, screeners",
+          "FINVIZ_Elite": "$39.50/month — optional for faster pre-screening",
+          "Alpaca": "free paper — Portfolio Manager requires account + MCP setup",
+          "no_api_skills": "Breadth, technical analysis, bubble detector, backtesting, position sizing, edge pipeline, signal postmortem"
+        },
+        "self_improvement_mechanisms": [
+          "Skill automation loops (daily scoring, weekly mining)",
+          "Deterministic JSON/YAML outputs for pipeline integration",
+          "Trader Memory Core (persistent thesis tracking)",
+          "Skill Idea Miner (mines session logs for new skill candidates)"
+        ]
+      },
+      "antigravity_relevance": {
+        "score": "★★★★★",
+        "reason": "본인 SISDS 파이프라인의 '자율 진화' 컨셉과 가장 유사. Skill Idea Miner / Trader Memory Core / Edge Pipeline Orchestrator는 본인 meta-learner / strategy-evolver / cio 에이전트와 직접 매핑 가능.",
+        "use_case": "본인 시스템에 미국 주식 트랙 추가 시 거의 그대로 차용 가능. 카테고리 분류법(Market Analysis / Strategy & Risk / Screening / Timing) 도입 검토"
+      }
+    },
+
+    "coinpaprika-marketplace": {
+      "display_name": "CoinPaprika + DexPaprika Claude Marketplace",
+      "github_url": "https://github.com/coinpaprika/claude-marketplace",
+      "category": "data_mcp",
+      "verified": {
+        "stars": 6,
+        "forks": 3,
+        "official_provider": "CoinPaprika (commercial crypto data provider)",
+        "free_no_api_key": true,
+        "plugins": {
+          "coinpaprika": {
+            "mcp_tools_count": 29,
+            "agent": "@crypto-analyst (market analysis, price trends, risk assessment)",
+            "skill": "crypto-market-search",
+            "coverage": "12,000+ coins, 350+ exchanges",
+            "rate_limit": "20,000 calls/month"
+          },
+          "dexpaprika": {
+            "mcp_tools_count": 14,
+            "agent": "@defi-data-analyst (DeFi security, honeypot detection, scam identification)",
+            "skills": [
+              "Token Security Analyzer",
+              "Technical Analyzer",
+              "Batch Token Price Lookup",
+              "Trending Pools Analyzer"
+            ],
+            "coverage": "34+ blockchains, 30M+ pools",
+            "rate_limit": "10,000 requests/day"
+          }
+        },
+        "data_types": ["Prices", "OHLCV candlestick", "Liquidity pools", "Contract addresses", "Transaction activity", "Token security metrics"]
+      },
+      "antigravity_relevance": {
+        "score": "★★★",
+        "reason": "본인 시스템은 Binance 직결 데이터 사용 중. 다중 거래소 가격 비교 / DEX/DeFi 데이터 활용 시 즉시 추가 가능한 무료 옵션.",
+        "use_case": "신규 상장 이전 다른 거래소 가격 모니터링, DEX-CEX 차익 탐지, 토큰 보안 사전 검증"
+      }
+    },
+
+    "tradingview-mcp": {
+      "display_name": "TradingView MCP",
+      "github_url": "https://github.com/atilaahmettaner/tradingview-mcp",
+      "category": "data_mcp",
+      "verified": {
+        "stars": 2200,
+        "forks": 485,
+        "license": "MIT",
+        "backtest_strategies": ["RSI", "Bollinger Bands", "MACD", "EMA Cross", "Supertrend", "Donchian Channel"],
+        "indicators_count": "23+",
+        "candlestick_patterns_count": 15,
+        "supported_markets": {
+          "crypto": ["Binance", "KuCoin", "Bybit"],
+          "us_stocks": ["NASDAQ", "NYSE"],
+          "regional": ["EGX (Egypt)", "BIST (Turkish Borsa Istanbul)"]
+        },
+        "extras": [
+          "Reddit sentiment tracking",
+          "Live financial news via RSS",
+          "Multi-symbol screening (20+ filter criteria)",
+          "Yahoo Finance integration (stocks/crypto/ETF/indices/forex)"
+        ]
+      },
+      "claims_with_caveats": {
+        "api_key_requirement": "README의 'None required'는 OpenAI 등 LLM API 키 비교 맥락. Binance/Yahoo Finance 데이터 키 요구 여부는 README에서 명확히 언급 안 됨"
+      },
+      "antigravity_relevance": {
+        "score": "★★★",
+        "reason": "본인 시스템 백테스트 엔진 별도 보유 → 직접 사용 가치는 낮음. 다만 Reddit 센티먼트, 6개 빌트인 전략의 실행 코드는 학습용 가치 있음.",
+        "use_case": "센티먼트 데이터 신호 추가, 본인 전략에 없는 지표(Donchian/Supertrend) 코드 참고"
+      }
+    },
+
+    "jmanhype-marketplace": {
+      "display_name": "Claude Code Plugin Marketplace (jmanhype)",
+      "github_url": "https://github.com/jmanhype/claude-code-plugin-marketplace",
+      "category": "marketplace_aggregator",
+      "verified": {
+        "stars": 27,
+        "forks": 3,
+        "plugin_count_in_header": 19,
+        "plugin_count_in_catalog": 23,
+        "plugin_count_note": "README 헤더는 '19 production-grade plugins', catalog 표는 '23 plugins'로 자체 모순. 실제 catalog 기준 23",
+        "agents_count_claimed": "68+",
+        "trading_plugins": [
+          {
+            "name": "quant-trading-system",
+            "purpose": "Paper and live trading with risk management and LLM integration"
+          },
+          {
+            "name": "tournament-runner",
+            "purpose": "Multi-variant strategy comparison via paper trading tournaments"
+          },
+          {
+            "name": "research-execution-pipeline",
+            "purpose": "Strategy research and backtesting workflow"
+          },
+          {
+            "name": "market-intelligence",
+            "purpose": "Market analysis and data-driven insights for trading decisions"
+          }
+        ],
+        "non_trading_plugins_partial": [
+          "ace-context-engineering",
+          "modular-agentic-dev",
+          "core-dev-suite",
+          "sparc-methodology",
+          "github-automation-suite",
+          "swarm-coordination",
+          "consensus-protocols",
+          "hive-mind-orchestration",
+          "code-safety-monitor",
+          "testing-qa-framework",
+          "safety-compliance"
+        ]
+      },
+      "antigravity_relevance": {
+        "score": "★★",
+        "reason": "트레이딩 4종 + 멀티 에이전트 코디네이션 패턴이 본인 cio/swarm 패턴과 유사. 다만 27⭐로 검증 부족, 코드 품질 미확인.",
+        "use_case": "tournament-runner 컨셉(전략 변형 토너먼트)은 본인 audition-judge 에이전트와 비교 가치 있음"
+      }
+    },
+
+    "cloddsbot": {
+      "display_name": "CloddsBot",
+      "github_url": "https://github.com/alsk1992/CloddsBot",
+      "category": "standalone_app",
+      "verified": {
+        "stars": 193,
+        "forks": 46,
+        "type": "self-hosted standalone app (NOT a Claude Code plugin)",
+        "install_command": "npm install -g clodds --loglevel=error",
+        "built_on": "Claude",
+        "bundled_skills_count": 119,
+        "markets_claimed": "1000+",
+        "supported_markets": {
+          "prediction_markets": ["Polymarket", "Kalshi", "Betfair", "Smarkets", "Drift", "Manifold (data only)", "Metaculus (data only)"],
+          "perpetual_futures": ["Binance", "Bybit", "Hyperliquid", "MEXC", "Drift", "Percolator (Solana)", "Lighter"],
+          "crypto_defi_solana": ["Jupiter", "Raydium", "Orca"],
+          "evm_chains": ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"],
+          "evm_protocols": ["Uniswap V3", "1inch"]
+        },
+        "interfaces": "21 messaging platforms (Telegram, Discord, WebChat, etc.)",
+        "example_command": "/futures long BTCUSDT 0.1 10x",
+        "extra_features": ["Backtesting", "Risk management", "Token launch capabilities", "Built-in WebChat browser interface"]
+      },
+      "antigravity_relevance": {
+        "score": "★★★",
+        "reason": "Antigravity와 가장 직접적인 경쟁/대안. 자율 매매 + 멀티 마켓 + 리스크 관리 컨셉 동일. 다만 한국 주식/Kiwoom 미지원 → 본인 시스템과 차별화 가능 영역 명확.",
+        "use_case": "경쟁 분석. 1000+ markets 커버리지 vs 본인의 BTC + 한국 주식 집중 전략 비교. UX(/futures long ... 자연어 명령) 패턴 참고"
+      }
+    }
+  },
+
+  "comparison_matrix": {
+    "rows": ["binance-skills-hub", "cbt-framework", "claude-trading-skills", "coinpaprika-marketplace", "tradingview-mcp", "jmanhype-marketplace", "cloddsbot"],
+    "columns": {
+      "stars": [790, 10, 1100, 6, 2200, 27, 193],
+      "forks": [147, 5, 252, 3, 485, 3, 46],
+      "type": ["Skills hub", "CLI framework", "Skills collection", "MCP marketplace", "MCP server", "Plugin marketplace", "Standalone app"],
+      "korean_stocks": [false, false, false, false, false, false, false],
+      "us_stocks": [false, false, true, false, true, false, false],
+      "binance_futures": [true, true, false, false, true, true, true],
+      "backtest": [false, true, true, false, true, true, true],
+      "ai_self_improvement": [false, true, true, false, false, false, false],
+      "free": [true, true, true, true, true, true, true],
+      "auth_required": ["Binance API key", "exchange keys for live", "FMP/FINVIZ/Alpaca optional", "none", "exchange-dependent", "varies", "exchange keys for live"]
+    }
+  },
+
+  "discrepancies_found_during_verification": [
+    {
+      "id": "DISC-001",
+      "topic": "tradermonty/claude-trading-skills 스킬 개수",
+      "previous_claim": "50+ 스킬",
+      "actual": "45 스킬 (README catalog 합산)",
+      "severity": "medium",
+      "lesson": "마케팅 헤드라인 숫자 그대로 인용하지 말고 실제 카운트 검증 필요"
+    },
+    {
+      "id": "DISC-002",
+      "topic": "tradermonty 스코프",
+      "previous_claim": "미국 주식 only, 크립토 X",
+      "actual": "주로 주식 + Technical Analyst 스킬은 cryptocurrencies + forex도 분석",
+      "severity": "low",
+      "lesson": "스킬별 README 세부사항까지 확인 필요"
+    },
+    {
+      "id": "DISC-003",
+      "topic": "jmanhype 플러그인 개수",
+      "previous_claim": "19 플러그인",
+      "actual": "README catalog 기준 23 플러그인 (헤더는 19로 표기 — repo 자체 모순)",
+      "severity": "medium",
+      "lesson": "원본 자체 모순이 있으면 양쪽 다 기록"
+    },
+    {
+      "id": "DISC-004",
+      "topic": "TradingView MCP API 키 요구",
+      "previous_claim": "API 키 완전 불필요",
+      "actual": "'None required' 표현은 LLM API 키 비교 맥락. 데이터 소스 키 요구 여부 README 불명확",
+      "severity": "low",
+      "lesson": "원문 인용 시 맥락 함께 확인"
+    }
+  ],
+
+  "recommended_learning_priority": [
+    {
+      "rank": 1,
+      "repo": "claude-trading-skills",
+      "reason": "본인 SISDS 파이프라인의 자율 진화 컨셉과 가장 유사. Skill Idea Miner / Trader Memory Core / Edge Pipeline Orchestrator는 즉시 차용 검토 가치 있음. 1.1K⭐로 커뮤니티 검증도 어느 정도 됐음.",
+      "estimated_review_time": "2~3 시간"
+    },
+    {
+      "rank": 2,
+      "repo": "cbt-framework",
+      "reason": "21 commands 분류법(Setup→Build→Run→Optimize→Deploy)이 본인 슬래시 커맨드 정리 시 참고 가치. /iterate /optimize 같은 자동화 패턴 차용 가능.",
+      "estimated_review_time": "1~2 시간",
+      "caveat": "10⭐로 검증 부족, 실제 코드 품질은 직접 확인 필요"
+    },
+    {
+      "rank": 3,
+      "repo": "binance-skills-hub",
+      "reason": "공식 Binance 운영. 본인 at-binance 스킬과 직접 비교, 인증 처리 방식 학습.",
+      "estimated_review_time": "1 시간"
+    },
+    {
+      "rank": 4,
+      "repo": "coinpaprika-marketplace",
+      "reason": "무료 + API 키 불필요. 즉시 추가 가능. 다중 거래소 가격 모니터링 / DeFi 데이터 활용용.",
+      "estimated_review_time": "30분",
+      "action": "직접 설치해서 사용해볼 가치 있음"
+    },
+    {
+      "rank": 5,
+      "repo": "cloddsbot",
+      "reason": "경쟁 분석용. 본인 시스템의 차별화 포인트 식별에 유용.",
+      "estimated_review_time": "1 시간"
+    },
+    {
+      "rank": 6,
+      "repo": "tradingview-mcp",
+      "reason": "본인 시스템에 백테스트 엔진/지표 충분히 보유 → 직접 활용도 낮음. Reddit 센티먼트 부분만 학습 가치.",
+      "estimated_review_time": "30분"
+    },
+    {
+      "rank": 7,
+      "repo": "jmanhype-marketplace",
+      "reason": "27⭐로 검증 부족. tournament-runner 컨셉만 가볍게 참고.",
+      "estimated_review_time": "20분"
+    }
+  ],
+
+  "open_questions_for_future_review": [
+    "Binance Skills Hub의 skills/ 하위 폴더 전체 목록 (현재 binance/, binance-web3/ 두 개만 추정)",
+    "CBT Framework 실제 paper trading 결과물이 공개된 사례가 있는지",
+    "tradermonty Skill Idea Miner의 자동 생성 스킬 품질 (실제 사용자 피드백)",
+    "jmanhype quant-trading-system 플러그인의 코드 라이선스 / 실거래 안전성",
+    "공식 claude.com/plugins 카탈로그에 향후 등재 가능성 있는 trading 플러그인 모니터링"
+  ]
+}
