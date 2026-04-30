@@ -138,13 +138,31 @@ const agentApps = [
     },
     {
         // KR — daily EOD paper cycle for 061090 (Mon-Fri 17:00 KST = 08:00 UTC).
-        // Runs incremental backtest on accumulated data, persists per-cycle stats,
-        // checks capital gate (-15% maxDD → DEGRADED). Independent from SAS Binance.
+        // Legacy session: S2 BB Reversion baseline (kept for comparison).
         name: "kr-paper-cycle",
         script: SAS_WRAPPER,
         args: `'0 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
+        env: {
+            KR_PAPER_SESSION: "061090_s2_seed"
+        },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // KR — paper cycle for S31 1m_period_x3 (mb=4, ms=1).
+        // OOS-validated winner: +19.15% / Sharpe 5.42 / WinR 87% / maxDD -2.26%.
+        // Runs 5 minutes after the legacy cycle to avoid DB contention.
+        name: "kr-paper-cycle-s31",
+        script: SAS_WRAPPER,
+        args: `'5 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: {
+            KR_PAPER_SESSION: "061090_s31_1m_x3_seed"
+        },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
