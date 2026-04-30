@@ -1,0 +1,29 @@
+Loading BTC + ETH data...
+  Common days: 2311
+Computing rolling β + spread + z-score (90d window)...
+Running rolling cointegration test (ADF)...
+  Cointegrated days (p<0.05): 7.3% of all days
+Running backtest...
+  Trades: 7
+
+======================================================================
+PAIR TRADE — BTC/ETH BACKTEST (2022-2026)
+======================================================================
+  Trades:           7
+  Total Return:     -13.69%
+  CAGR:             -3.54%
+  Win Rate:         0.0%
+  Avg Win:          +0.000%
+  Avg Loss:         -1.956%
+  Profit Factor:    0.00
+  Max Drawdown:     -13.69%
+  Avg Hold:         24.0 days
+  Final Equity:     $8,631
+
+  By exit reason:
+    mean_revert     count=  3  avg=-1.871%
+    stop_loss       count=  4  avg=-2.020%
+
+  By direction:
+    short_spread    count=  5  win=  0.0%  avg=-2.036%
+    long_spread     count=  2  win=  0.0%  avg=-1.756%

@@ -1,0 +1,38 @@
+Loading BTC daily data...
+  Rows: 2311
+Computing indicators...
+Detecting swing pivots (ATR x1.5)...
+  Pivots found: 423 (H=212, L=211)
+Scanning for VCP setups...
+  VCP setups detected: 63
+  In backtest range (>= 2022-01-01): 45
+Running backtest...
+  Executed trades: 9
+
+======================================================================
+VCP BACKTEST RESULT (BTC daily, 2022-01 ~ 2026-04)
+======================================================================
+  Trades:           9
+  Total Return:     +15.03%
+  CAGR:             +3.92%
+  Win Rate:         66.7%
+  Avg Win:          +3.624%
+  Avg Loss:         -2.250%
+  Profit Factor:    3.22
+  Max Drawdown:     -4.53%
+  Sharpe (~):       0.45
+  Avg Hold:         22.3 days
+  Final Equity:     $11,503
+
+  By exit reason:
+    trailing_stop   count=  6  avg=+3.624%
+    stop_loss       count=  3  avg=-2.250%
+
+======================================================================
+BENCHMARK: BUY-AND-HOLD BTC
+======================================================================
+  Total Return:     +61.53%
+  CAGR:             +11.72%
+  Max Drawdown:     -66.89%
+  Sharpe:           0.47
+  Final Equity:     $16,153

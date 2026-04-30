@@ -1,0 +1,33 @@
+Loading BTC daily...
+  VCP setups in range: 45
+  Trades: 8
+
+======================================================================
+BREAKOUT TRADE PLANNER — BACKTEST (BTC daily, 2022-2026)
+======================================================================
+  Rule variant: stop=1% below low, target=2R, max chase=2%
+
+  Trades:           8
+  Total Return:     +1.96%
+  CAGR:             +0.55%
+  Win Rate:         50.0%
+  Avg Win:          +2.717%
+  Avg Loss:         -2.160%
+  Profit Factor:    1.26
+  Avg R-multiple:   +0.27
+  Max Drawdown:     -4.29%
+  Avg Hold:         19.0 days
+  Final Equity:     $10,196
+
+  By exit reason:
+    timeout       count=  1  avg=+0.561%  avg_R=+0.19
+    target_2r     count=  3  avg=+3.436%  avg_R=+2.00
+    stop_loss     count=  4  avg=-2.160%  avg_R=-1.00
+
+======================================================================
+BENCHMARK: BUY-AND-HOLD
+======================================================================
+  Total Return:     +61.53%
+  CAGR:             +11.72%
+  Max Drawdown:     -66.89%
+  Final Equity:     $16,153
