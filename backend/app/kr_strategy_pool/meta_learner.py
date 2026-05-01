@@ -39,19 +39,34 @@ def _load_matrix(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _build_xy(rows: List[Dict[str, Any]]) -> Tuple[np.ndarray, Dict[str, np.ndarray], List[int]]:
-    """Forward-shift: X[k] = env at window k, Y[k] = sharpe at window k+1."""
+def _build_xy(
+    rows: List[Dict[str, Any]],
+    no_trade_min: int = 3,
+    no_trade_penalty: float = -1.0,
+) -> Tuple[np.ndarray, Dict[str, np.ndarray], List[int]]:
+    """Forward-shift: X[k] = env at window k, Y[k] = sharpe at window k+1.
+
+    Strategies with trades < no_trade_min in the target window get their Y
+    replaced with no_trade_penalty. Without this, sharpe=0 for trade-sparse
+    strategies looks safer than truly bad ones (e.g. -1) and the model learns
+    to recommend "do nothing", which is worse than the safety gate's cash-hold
+    on truly poor predictions.
+    """
     if len(rows) < 2:
         raise ValueError("need >=2 windows to forward-shift")
     X = np.array([r["env"] for r in rows[:-1]], dtype=float)
     strategies = sorted(rows[0]["strategies"].keys())
     Y: Dict[str, np.ndarray] = {}
     for s in strategies:
-        Y[s] = np.array(
-            [rows[k + 1]["strategies"].get(s, {}).get("sharpe", 0.0) or 0.0
-             for k in range(len(rows) - 1)],
-            dtype=float,
-        )
+        ys = []
+        for k in range(len(rows) - 1):
+            ent = rows[k + 1]["strategies"].get(s, {})
+            sharpe = ent.get("sharpe", 0.0) or 0.0
+            trades = int(ent.get("trades", 0) or 0)
+            if trades < no_trade_min:
+                sharpe = no_trade_penalty
+            ys.append(sharpe)
+        Y[s] = np.array(ys, dtype=float)
     window_ids = [r["window_id"] for r in rows[:-1]]
     return X, Y, window_ids
 
