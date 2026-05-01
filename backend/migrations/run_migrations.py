@@ -143,10 +143,16 @@ def migration_004_add_account_keepalive_logs():
             return False
 
         print("  [RUN] Creating 'account_keepalive_logs' table...")
+        # NOTE: account_id is a logical reference to exchange_accounts.id but no
+        # FK constraint is declared, because some prod databases (mint) have
+        # exchange_accounts.id without a PRIMARY KEY / UNIQUE constraint, which
+        # would cause `REFERENCES exchange_accounts(id)` to fail. The worker
+        # script always sources account_id from a live ExchangeAccount row, so
+        # referential integrity is enforced at the application layer.
         conn.execute(text("""
             CREATE TABLE account_keepalive_logs (
                 id SERIAL PRIMARY KEY,
-                account_id INTEGER NOT NULL REFERENCES exchange_accounts(id) ON DELETE CASCADE,
+                account_id INTEGER NOT NULL,
                 ping_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 success BOOLEAN NOT NULL,
                 latency_ms INTEGER,
