@@ -197,7 +197,7 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // KR — Weekly meta-learner retrain (Sundays 09:00 KST = 00:00 UTC).
+        // KR — Weekly meta-learner retrain for 061090 (Sundays 09:00 KST = 00:00 UTC).
         // Rebuilds perf_matrix on latest data, retrains LightGBM, atomic-swaps the
         // canonical model path consumed by kr-paper-cycle-meta.
         name: "kr-meta-retrain",
@@ -205,6 +205,74 @@ const agentApps = [
         args: `'0 0 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
         interpreter: "bash",
         cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    // ─── Multi-symbol expansion (2026-05-01): 005930 (Samsung) + 122630 (KODEX leverage) ───
+    // Per-symbol meta_lgbm models; daily paper cycles + weekly retrain.
+    {
+        name: "kr-paper-cycle-s31-005930",
+        script: SAS_WRAPPER,
+        args: `'15 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_PAPER_SESSION: "005930_s31_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        name: "kr-paper-cycle-meta-005930",
+        script: SAS_WRAPPER,
+        args: `'20 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_META_SESSION: "005930_meta_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        name: "kr-paper-cycle-s31-122630",
+        script: SAS_WRAPPER,
+        args: `'25 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_PAPER_SESSION: "122630_s31_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        name: "kr-paper-cycle-meta-122630",
+        script: SAS_WRAPPER,
+        args: `'30 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_META_SESSION: "122630_meta_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        name: "kr-meta-retrain-005930",
+        script: SAS_WRAPPER,
+        args: `'30 0 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_META_RETRAIN_SYMBOL: "005930" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        name: "kr-meta-retrain-122630",
+        script: SAS_WRAPPER,
+        args: `'0 1 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_META_RETRAIN_SYMBOL: "122630" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
