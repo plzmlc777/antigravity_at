@@ -140,6 +140,20 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // Account keepalive — daily 18:00 UTC (= 03:00 KST).
+        // Pings real Kiwoom/Binance accounts via balance-query so Kiwoom OAuth
+        // tokens don't expire from inactivity. Worker writes account_keepalive_logs
+        // and sends Telegram alert on hard failure; agent layers anomaly detection.
+        name: "account-keepalive",
+        script: SAS_WRAPPER,
+        args: `'0 18 * * *' ${SAS_SCRIPTS}/run_account_keepalive.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // KR — daily EOD paper cycle for 061090 (Mon-Fri 17:00 KST = 08:00 UTC).
         // Legacy session: S2 BB Reversion baseline (kept for comparison).
         name: "kr-paper-cycle",

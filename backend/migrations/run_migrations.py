@@ -132,12 +132,45 @@ def migration_003_add_watchlist_and_settings():
         return added_any
 
 
+def migration_004_add_account_keepalive_logs():
+    """Create account_keepalive_logs table (daily ping results for real exchange accounts)."""
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = inspector.get_table_names()
+
+        if 'account_keepalive_logs' in existing:
+            print("  [SKIP] 'account_keepalive_logs' table already exists")
+            return False
+
+        print("  [RUN] Creating 'account_keepalive_logs' table...")
+        conn.execute(text("""
+            CREATE TABLE account_keepalive_logs (
+                id SERIAL PRIMARY KEY,
+                account_id INTEGER NOT NULL REFERENCES exchange_accounts(id) ON DELETE CASCADE,
+                ping_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                success BOOLEAN NOT NULL,
+                latency_ms INTEGER,
+                cash_summary JSONB,
+                holdings_count INTEGER,
+                error_msg TEXT
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX ix_keepalive_account_ping
+            ON account_keepalive_logs (account_id, ping_at DESC)
+        """))
+        conn.commit()
+        print("  [OK] Created 'account_keepalive_logs' table + index")
+        return True
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
         ("001_add_environment_field", migration_001_add_environment_field),
         ("002_add_last_selected_strategy", migration_002_add_last_selected_strategy),
         ("003_add_watchlist_and_settings", migration_003_add_watchlist_and_settings),
+        ("004_add_account_keepalive_logs", migration_004_add_account_keepalive_logs),
     ]
 
     print("=" * 50)
