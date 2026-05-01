@@ -7,6 +7,9 @@
 //   ENABLE_AGENTS=1 pm2 start ecosystem.config.cjs    # remote (core + agents)
 
 const enableAgents = process.env.ENABLE_AGENTS === '1';
+// Crypto Meta-Strategy paper cycles — held back until 30-day acceptance gate result.
+// Enable explicitly when crypto pool reaches profitability (post pool redesign).
+const enableCryptoMeta = process.env.ENABLE_CRYPTO_META === '1';
 
 const coreApps = [
     {
@@ -257,9 +260,88 @@ const agentApps = [
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
+    },
+];
+
+// Crypto Meta-Strategy MoE (held back: enable via ENABLE_CRYPTO_META=1).
+// Walk-forward eval (post leak fix 2026-05-01) shows BTC -5.3%/mo, ETH -6.3%/mo,
+// SOL -9.3%/mo. Pool not yet profitable for these symbols — held until pool
+// redesign or per-symbol strategy discovery completes.
+const cryptoApps = [
+    {
+        // Crypto Meta paper cycle for BTCUSDT — daily 00:30 UTC (post UTC-day boundary).
+        name: "crypto-paper-cycle-meta-btcusdt",
+        script: SAS_WRAPPER,
+        args: `'30 0 * * *' ./scripts/crypto/run_crypto_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_SESSION: "BTCUSDT_meta_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Crypto Meta paper cycle for ETHUSDT — 00:35 UTC (5min after BTC).
+        name: "crypto-paper-cycle-meta-ethusdt",
+        script: SAS_WRAPPER,
+        args: `'35 0 * * *' ./scripts/crypto/run_crypto_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_SESSION: "ETHUSDT_meta_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Crypto Meta paper cycle for SOLUSDT — 00:40 UTC.
+        name: "crypto-paper-cycle-meta-solusdt",
+        script: SAS_WRAPPER,
+        args: `'40 0 * * *' ./scripts/crypto/run_crypto_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_SESSION: "SOLUSDT_meta_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Weekly retrain — BTCUSDT (Sundays 02:00 UTC).
+        name: "crypto-meta-retrain-btcusdt",
+        script: SAS_WRAPPER,
+        args: `'0 2 * * 0' ./scripts/crypto/run_crypto_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_RETRAIN_SYMBOL: "BTCUSDT" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Weekly retrain — ETHUSDT (Sundays 02:30 UTC).
+        name: "crypto-meta-retrain-ethusdt",
+        script: SAS_WRAPPER,
+        args: `'30 2 * * 0' ./scripts/crypto/run_crypto_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_RETRAIN_SYMBOL: "ETHUSDT" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Weekly retrain — SOLUSDT (Sundays 03:00 UTC).
+        name: "crypto-meta-retrain-solusdt",
+        script: SAS_WRAPPER,
+        args: `'0 3 * * 0' ./scripts/crypto/run_crypto_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { CRYPTO_META_RETRAIN_SYMBOL: "SOLUSDT" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     }
 ];
 
-module.exports = {
-    apps: enableAgents ? [...coreApps, ...agentApps] : coreApps
-};
+let allApps = enableAgents ? [...coreApps, ...agentApps] : coreApps;
+if (enableCryptoMeta) allApps = [...allApps, ...cryptoApps];
+module.exports = { apps: allApps };

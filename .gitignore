@@ -92,3 +92,8 @@ kis_token_cache.json
 
 # KR paper session state + cycle logs (per-environment, not git-tracked)
 backend/runs/kr_paper/
+
+# Crypto paper / experimental runs — same per-environment policy
+backend/runs/crypto_paper/
+backend/runs/mldirect/
+backend/runs/pmt/
