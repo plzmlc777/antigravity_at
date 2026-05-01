@@ -41,16 +41,15 @@ def _load_matrix(path: Path) -> List[Dict[str, Any]]:
 
 def _build_xy(
     rows: List[Dict[str, Any]],
-    no_trade_min: int = 3,
+    no_trade_min: int = 0,
     no_trade_penalty: float = -1.0,
 ) -> Tuple[np.ndarray, Dict[str, np.ndarray], List[int]]:
     """Forward-shift: X[k] = env at window k, Y[k] = sharpe at window k+1.
 
-    Strategies with trades < no_trade_min in the target window get their Y
-    replaced with no_trade_penalty. Without this, sharpe=0 for trade-sparse
-    strategies looks safer than truly bad ones (e.g. -1) and the model learns
-    to recommend "do nothing", which is worse than the safety gate's cash-hold
-    on truly poor predictions.
+    Optional zero-trade penalty (no_trade_min > 0) replaces Y with
+    no_trade_penalty when the target window had fewer than no_trade_min trades.
+    Default OFF — universal penalty hurts trade-rich symbols. Only enable for
+    symbols where the strategy pool produces many idle (sharpe=0) windows.
     """
     if len(rows) < 2:
         raise ValueError("need >=2 windows to forward-shift")
