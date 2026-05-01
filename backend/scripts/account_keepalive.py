@@ -35,6 +35,11 @@ from sqlalchemy import text  # noqa: E402
 from app.core import security  # noqa: E402
 from app.core.telegram_service import TelegramNotificationService  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
+# Import User before Account so the relationship('User') back-ref on
+# ExchangeAccount.user resolves at mapper-configure time. Standalone scripts
+# don't import the FastAPI app graph, so the User class would otherwise be
+# unknown and the first ExchangeAccount query would raise InvalidRequestError.
+from app.models.user import User  # noqa: E402,F401
 from app.models.account import ExchangeAccount  # noqa: E402
 
 PER_ACCOUNT_TIMEOUT_SEC = 30
@@ -84,7 +89,21 @@ def _build_adapter(account: ExchangeAccount):
 
 
 async def _ping_account(account: ExchangeAccount) -> dict:
-    """Run one balance call and return a structured result dict."""
+    """Run one balance call and return a structured result dict.
+
+    Auth failure must surface as `success=False`. The adapter `get_balance()`
+    methods swallow exceptions and return zero-balance dicts on failure, so
+    we route through endpoints that raise instead:
+
+    - Binance / BinanceFutures: use `test_connection()` from BinanceBaseAdapter,
+      which calls the signed account endpoint and raises BinanceAPIError on
+      `-2015 Invalid API-key/IP` and similar auth failures. It also returns a
+      cash + holdings_count summary, so we don't need a second call.
+    - Kiwoom: call `_ensure_token()` and verify `access_token` is populated
+      afterward. The token manager logs but doesn't raise on failure, so a
+      None access_token after this call means the credentials were rejected.
+      Once the token is good, the swallowing `get_balance()` is safe to use.
+    """
     started = time.monotonic()
     result = {
         "account_id": account.id,
@@ -99,25 +118,37 @@ async def _ping_account(account: ExchangeAccount) -> dict:
 
     try:
         adapter = _build_adapter(account)
-        balance = await asyncio.wait_for(
-            adapter.get_balance(), timeout=PER_ACCOUNT_TIMEOUT_SEC
-        )
+
+        if account.exchange_name == "Kiwoom":
+            await asyncio.wait_for(
+                adapter._ensure_token(), timeout=PER_ACCOUNT_TIMEOUT_SEC
+            )
+            if not adapter.access_token:
+                raise RuntimeError(
+                    "kiwoom token issuance failed (invalid app_key/secret or server rejection)"
+                )
+            balance = await asyncio.wait_for(
+                adapter.get_balance(), timeout=PER_ACCOUNT_TIMEOUT_SEC
+            )
+            cash = balance.get("cash") or {}
+            holdings = balance.get("holdings") or {}
+            cash_summary = {k: float(v) for k, v in cash.items() if v}
+            holdings_count = len(holdings)
+        else:
+            # Binance / BinanceFutures — test_connection raises on auth failure
+            summary = await asyncio.wait_for(
+                adapter.test_connection(), timeout=PER_ACCOUNT_TIMEOUT_SEC
+            )
+            cash = summary.get("cash") or {}
+            cash_summary = {k: float(v) for k, v in cash.items() if v}
+            holdings_count = int(summary.get("holdings_count", 0))
+
         latency_ms = int((time.monotonic() - started) * 1000)
-
-        cash = balance.get("cash") or {}
-        holdings = balance.get("holdings") or {}
-
-        # Detect adapter-internal swallowed errors:
-        # Kiwoom returns {"cash":{"KRW":0},"holdings":{}} on auth failure;
-        # Binance does the same with USDT. Treat "all-zero, no holdings" as
-        # suspicious BUT only fail loudly if the adapter logged an error
-        # (caller can't see those logs from here, so just record it).
-        cash_summary = {k: float(v) for k, v in cash.items() if v}
         result.update({
             "success": True,
             "latency_ms": latency_ms,
             "cash_summary": cash_summary,
-            "holdings_count": len(holdings),
+            "holdings_count": holdings_count,
         })
     except asyncio.TimeoutError:
         result["error"] = f"timeout after {PER_ACCOUNT_TIMEOUT_SEC}s"
