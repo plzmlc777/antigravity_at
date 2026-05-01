@@ -179,6 +179,35 @@ const agentApps = [
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
+    },
+    {
+        // KR — Meta-Strategy MoE paper cycle (Mon-Fri 17:10 KST = 08:10 UTC).
+        // Phase 5 wire-in: env_encoder + meta_lgbm picks 1 of 12 strategies + safety gates.
+        // Runs 10 minutes after kr-paper-cycle-s31 to avoid DB contention.
+        name: "kr-paper-cycle-meta",
+        script: SAS_WRAPPER,
+        args: `'10 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: {
+            KR_META_SESSION: "061090_meta_seed"
+        },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // KR — Weekly meta-learner retrain (Sundays 09:00 KST = 00:00 UTC).
+        // Rebuilds perf_matrix on latest data, retrains LightGBM, atomic-swaps the
+        // canonical model path consumed by kr-paper-cycle-meta.
+        name: "kr-meta-retrain",
+        script: SAS_WRAPPER,
+        args: `'0 0 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
     }
 ];
 

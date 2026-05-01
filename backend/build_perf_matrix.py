@@ -30,19 +30,20 @@ from app.kr_strategy_pool.strategies.s41_bb_trend_5m1h import S41_BB_Trend_5m1h
 from app.kr_strategy_pool.strategies.s42_rsi_macd_1m import S42_RSI_MACD_1m
 from app.kr_strategy_pool.strategies.s43_donchian_atr_1m1h import S43_Donchian_ATR_1m1h
 from app.kr_strategy_pool.strategies.s44_ema_time_1m1h import S44_EMA_Time_1m1h
-from app.kr_strategy_pool.strategies.s45_macd_donchian_5m1d import S45_MACD_Donchian_5m1d
 from app.kr_strategy_pool.strategies.s46_triple_vote_1m5m1h import S46_TripleVote_1m5m1h
 from app.kr_strategy_pool.strategies.s47_bb_volume_5m import S47_BB_Volume_5m
-from app.kr_strategy_pool.strategies.s48_macd_atr_1h import S48_MACD_ATR_1h
 from app.kr_strategy_pool.strategies.s49_vwap_lunch_1m5m import S49_VWAP_Lunch_1m5m
 from app.kr_strategy_pool.strategies.s50_supertrend_adx_1m1h import S50_Supertrend_ADX_1m1h
 from app.kr_strategy_pool.strategies.s51_williams_volume_5m import S51_Williams_Volume_5m
+from app.kr_strategy_pool.strategies.s52_natr_low_revert_5m import S52_NATR_Low_Revert_5m
+from app.kr_strategy_pool.strategies.s53_volume_breakout_1m1h import S53_Volume_Breakout_1m1h
 
 POOL = [
     S40_VWAP_ATR_1m5m, S41_BB_Trend_5m1h, S42_RSI_MACD_1m,
-    S43_Donchian_ATR_1m1h, S44_EMA_Time_1m1h, S45_MACD_Donchian_5m1d,
-    S46_TripleVote_1m5m1h, S47_BB_Volume_5m, S48_MACD_ATR_1h,
+    S43_Donchian_ATR_1m1h, S44_EMA_Time_1m1h,
+    S46_TripleVote_1m5m1h, S47_BB_Volume_5m,
     S49_VWAP_Lunch_1m5m, S50_Supertrend_ADX_1m1h, S51_Williams_Volume_5m,
+    S52_NATR_Low_Revert_5m, S53_Volume_Breakout_1m1h,
 ]
 
 
