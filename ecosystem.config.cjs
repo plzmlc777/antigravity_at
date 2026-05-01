@@ -212,23 +212,15 @@ const agentApps = [
     // ─── Multi-symbol expansion (2026-05-01): 005930 (Samsung) + 122630 (KODEX leverage) ───
     // Per-symbol meta_lgbm models; daily paper cycles + weekly retrain.
     {
+        // 005930 baseline only — meta-strategy held back; pool/symbol mismatch
+        // (top-1 acc 0% on walk-forward CV; oracle +602 shows potential but
+        // current 12-strategy pool doesn't fit blue-chip Samsung).
         name: "kr-paper-cycle-s31-005930",
         script: SAS_WRAPPER,
         args: `'15 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
         env: { KR_PAPER_SESSION: "005930_s31_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        name: "kr-paper-cycle-meta-005930",
-        script: SAS_WRAPPER,
-        args: `'20 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_META_SESSION: "005930_meta_seed" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
@@ -251,17 +243,6 @@ const agentApps = [
         interpreter: "bash",
         cwd: ".",
         env: { KR_META_SESSION: "122630_meta_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        name: "kr-meta-retrain-005930",
-        script: SAS_WRAPPER,
-        args: `'30 0 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_META_RETRAIN_SYMBOL: "005930" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
