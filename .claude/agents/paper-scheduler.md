@@ -150,12 +150,36 @@ curl -s 'http://localhost:8001/api/v1/strategy-audition/by-stage?stage=sandbox&s
 If empty → skip Job 1.
 
 ### Step 2: Check paper concurrency
+
+**CRITICAL (2026-05-02)**: Use `live_bot_sessions` as the **ground truth**, not audition rows. Audition rows can drift to "running" while the actual engine session is dead/missing (e.g., backend restart dropped session, strategy class missing from registry). Counting only audition rows over-reports concurrency and blocks legitimate promotions.
+
 ```bash
-# Count currently running paper sessions
-RUNNING=$(curl -s 'http://localhost:8001/api/v1/strategy-audition/by-stage?stage=paper&stage_status=running' | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+# (a) Audition view (drift-prone — for cross-check only)
+AUDITION_PAPER_RUNNING=$(curl -s 'http://localhost:8001/api/v1/strategy-audition/by-stage?stage=paper&stage_status=running' \
+  | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
+
+# (b) live_bot_sessions ground truth (what actually consumes engine capacity)
+LIVE_PAPER_RUNNING=$(curl -s -H "Authorization: Bearer ${BACKEND_SERVICE_TOKEN}" \
+  "http://localhost:8001/api/v1/live/monitor/sessions" \
+  | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+ss = d.get('sessions', []) if isinstance(d, dict) else d
+print(sum(1 for s in ss if s.get('is_paper') and s.get('status') == 'RUNNING'))
+")
+
+# Authoritative: the live_bot_sessions count
+RUNNING=${LIVE_PAPER_RUNNING}
+
+# Drift detection (informational — log only, do NOT block on this)
+if [ "${AUDITION_PAPER_RUNNING}" != "${LIVE_PAPER_RUNNING}" ]; then
+  echo "[paper-scheduler] DRIFT: audition_paper_running=${AUDITION_PAPER_RUNNING} but live_bot_sessions_RUNNING=${LIVE_PAPER_RUNNING}. Job 0 should reconcile."
+fi
 ```
 
-If RUNNING >= 3 → skip Job 1, include `"skipped_reason": "paper_concurrency_limit"` in output.
+If `RUNNING >= 3` → skip Job 1, include `"skipped_reason": "paper_concurrency_limit", "ground_truth": "live_bot_sessions"` in output.
+
+**Why ground-truth matters**: audition_id=21 (cmf_money_flow) and 2 others were cited as "3/3 active" by paper-scheduler on 2026-05-02 09:01 KST, but `live_bot_sessions` had 0 RUNNING paper sessions. Promotion was blocked unnecessarily. Counting live_bot_sessions directly avoids this.
 
 ### Step 3: For each sandbox-passed entry (up to limit):
 
@@ -346,6 +370,12 @@ curl -s -X PATCH "http://localhost:8001/api/v1/strategy-audition/<strategy_id>" 
     "candidates": 2,
     "promoted": 1,
     "skipped_concurrency": 1,
+    "concurrency_observed": {
+      "audition_paper_running": 3,
+      "live_bot_sessions_running_paper": 1,
+      "ground_truth_used": "live_bot_sessions",
+      "drift_detected": true
+    },
     "details": [
       {"strategy_id": "xxx", "action": "started_paper", "session_id": "uuid", "config_used": {...}},
       {"strategy_id": "yyy", "action": "skipped", "reason": "concurrency_limit"}
