@@ -170,6 +170,52 @@ def migration_004_add_account_keepalive_logs():
         return True
 
 
+def migration_005_add_investor_flow_daily():
+    """Create investor_flow_daily table — per-symbol daily net flow by investor type
+    (Kiwoom ka10059 source). Unit: 백만원 (KRW million)."""
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = inspector.get_table_names()
+        if 'investor_flow_daily' in existing:
+            print("  [SKIP] 'investor_flow_daily' table already exists")
+            return False
+
+        print("  [RUN] Creating 'investor_flow_daily' table...")
+        conn.execute(text("""
+            CREATE TABLE investor_flow_daily (
+                id SERIAL PRIMARY KEY,
+                symbol VARCHAR(20) NOT NULL,
+                date DATE NOT NULL,
+                close_price BIGINT,
+                acc_trade_value BIGINT,
+                individual_net BIGINT,
+                foreign_net BIGINT,
+                institutional_net BIGINT,
+                fin_inv_net BIGINT,
+                insurance_net BIGINT,
+                trust_net BIGINT,
+                etc_fin_net BIGINT,
+                bank_net BIGINT,
+                pension_net BIGINT,
+                private_fund_net BIGINT,
+                govt_net BIGINT,
+                corp_net BIGINT,
+                natfor_net BIGINT,
+                unit VARCHAR(20) DEFAULT '백만원',
+                source VARCHAR(50) DEFAULT 'kiwoom_ka10059',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uix_investor_flow_symbol_date UNIQUE (symbol, date)
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX ix_investor_flow_symbol_date
+            ON investor_flow_daily (symbol, date DESC)
+        """))
+        conn.commit()
+        print("  [OK] Created 'investor_flow_daily' table + index")
+        return True
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
@@ -177,6 +223,7 @@ def run_all_migrations():
         ("002_add_last_selected_strategy", migration_002_add_last_selected_strategy),
         ("003_add_watchlist_and_settings", migration_003_add_watchlist_and_settings),
         ("004_add_account_keepalive_logs", migration_004_add_account_keepalive_logs),
+        ("005_add_investor_flow_daily", migration_005_add_investor_flow_daily),
     ]
 
     print("=" * 50)

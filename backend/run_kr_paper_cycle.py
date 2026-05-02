@@ -36,6 +36,8 @@ from app.kr_strategy_pool.strategies.s31_1m_variants import (
 from app.kr_strategy_pool.strategies.s31_adaptive_confirmation import (
     S31AdaptiveConfirmation,
 )
+from app.kr_strategy_pool.strategies.s60_instflow_consensus import S60_InstFlowConsensus
+from app.kr_strategy_pool.strategies.s61_frgn_trend_leverage import S61_FrgnTrendLeverage
 from app.kr_strategy_pool.strategies_optimized import (
     S2OptBBReversion, S5OptVwapReversion, S16OptStochasticReversion,
 )
@@ -52,6 +54,8 @@ STRATEGY_REGISTRY: dict[str, Type[KrStrategyBase]] = {
     "s31_1m_period_x3": S31_1m_PeriodX3,
     "s31_1m_period_x5": S31_1m_PeriodX5,
     "s31_adaptive_confirmation": S31AdaptiveConfirmation,
+    "s60_instflow_consensus": S60_InstFlowConsensus,
+    "s61_frgn_trend_leverage": S61_FrgnTrendLeverage,
 }
 
 
