@@ -832,6 +832,28 @@ curl -s -X POST http://localhost:8001/api/v1/strategy-audition \
 "audition_category": "mean_reversion"
 ```
 
+### Step 7.5b: Backtest Capability Gap Check (added 2026-05-02)
+
+**Purpose**: Reject strategies that depend on data the backtest engine cannot supply, BEFORE wasting a birth-check round + audition slot.
+
+**Background**: SAS pipeline observed repeat retires (audition id=18 dual_funding_spread_arb, id=24 funding_sentiment_reversal) for the identical reason: *"BinanceFutures backtest context does not provide funding_rate data; get_futures_data returns empty"*. Both ate a daily-generator slot + birth-check 180d/365d retry only to retire structurally.
+
+**Unsupported data sources** (do NOT generate strategies that depend on these):
+- `funding_rate` — Binance Futures funding history is not in `get_futures_data` output
+- `on_chain_metrics` — no on-chain feed integrated (active addresses, glassnode, etc.)
+- `order_book_depth` — only OHLCV is backtested, no L2/L3 book
+- `liquidation_feed` — Binance forced liquidation stream is real-time only, no historical backfill
+- `options_greeks` — no options data integrated
+- `social_sentiment` — Twitter/Reddit feeds not integrated
+- `news_event_feed` — no structured news event timestamps in backtest
+
+If the proposed strategy idea **inherently** requires any of the above, REJECT during ideation:
+- Set Step 8 JSON: `"created": false, "rejection_reason": "backtest_capability_gap", "missing_data": "<source>"`
+- Do NOT register an audition entry, do NOT run birth-check
+- Patch the consuming gap_signal status to `rejected` with the same reason
+
+**Allowed**: strategies that use OHLCV-derivable signals (volume profile, ATR, custom indicators computable from candles) even if conceptually similar to a rejected idea. E.g., "high-volume dump reversal" is allowed (volume from candles); "funding rate flip reversal" is rejected (requires unsupported feed).
+
 ### Step 7.6: Birth Certificate Backtest (CIO-20260408-015 Phase 4.5)
 
 After audition registration, run a single smoke-test backtest to verify that the newly generated strategy at least executes without crashing. This is a **birth certificate** — proof that the strategy is minimally functional — NOT a judgment. The authoritative evaluation happens in the weekly audition-judge cycle on Monday.
@@ -873,23 +895,27 @@ This step does TWO things:
 | `total_return` missing or `null` | `invalid_response` | `(birth, pending) → (retired, failed)` |
 | `total_cycles > 0` AND compound >= 0 | `healthy` | `(birth, pending) → (sandbox, pending)` ✅ |
 | `total_cycles > 0` AND compound < 0 | `loss_functional` | `(birth, pending) → (sandbox, pending)` ✅ |
-| **`total_cycles == 0`** | **`zero_cycles`** | **`(birth, pending) → (retired, failed)`** |
+| `total_cycles == 0` AND `category in {pattern, technical}` | `zero_cycles_pattern_protected` | `(birth, pending) → (sandbox, pending)` ✅ (parameter-sensitive — sandbox sweep) |
+| **`total_cycles == 0` (other categories)** | **`zero_cycles`** | **`(birth, pending) → (retired, failed)`** |
 
-**Key principle (SISDS Phase 2)**:
+**Key principle (SISDS Phase 2 + 2026-05-02 pattern-protection)**:
 - **healthy** and **loss_functional** both enter `(sandbox, pending)` — Sandbox-researcher will investigate deeper
-- **zero_cycles** → `(retired, failed)` — structural failure, no sandbox slot wasted
+- **zero_cycles_pattern_protected** → `(sandbox, pending)` — pattern/technical strategies are highly parameter-sensitive. Default 1-config birth-check often misses valid configurations. Give sandbox-researcher a chance to find a working parameter set via 20-symbol screen + parameter sweep. If sandbox also fails → sandbox-researcher retires it (deeper evidence).
+- **zero_cycles (other categories)** → `(retired, failed)` — non-pattern strategies should fire on default config; 0 cycles indicates structural failure.
 - **api_failure / invalid_response** → `(retired, failed)` — infrastructure issue
+
+**Why pattern-protection?** Audition id=23 (head_shoulders_reversal, category=pattern) was retired 2026-05-01 with 0 cycles on 180d+365d. H&S pattern recognition is extremely parameter-sensitive (lookback_candles, shoulder_tolerance_pct, neckline_break_pct, head_shoulder_ratio_min). A default config may miss valid patterns that exist with looser tolerances. Sandbox-researcher's 48-backtest parameter sweep is the appropriate stage to discover viable configs.
 
 **Transition via /transition API** (not PATCH — explicit audit trail):
 ```bash
-# For healthy or loss_functional → promote to sandbox
+# For healthy / loss_functional / zero_cycles_pattern_protected → promote to sandbox
 curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/<strategy_id>/transition" \
   -H 'Content-Type: application/json' \
   -d '{
     "to_stage": "sandbox",
     "to_status": "pending",
     "transitioned_by": "strategy-builder",
-    "reason": "birth backtest <classification>: <total_cycles> cycles, compound <X>%",
+    "reason": "birth backtest <classification>: <total_cycles> cycles, compound <X>% [+ for zero_cycles_pattern_protected: pattern/technical strategy with parameter sensitivity — sandbox sweep required]",
     "evidence": {
       "birth_backtest": {
         "executed_at": "<ISO8601>",
@@ -899,7 +925,7 @@ curl -s -X POST "http://localhost:8001/api/v1/strategy-audition/<strategy_id>/tr
         "total_return": <float>,
         "monthly_return_compound": <float>,
         "max_drawdown": <float>,
-        "classification": "healthy | loss_functional"
+        "classification": "healthy | loss_functional | zero_cycles_pattern_protected"
       }
     }
   }'
