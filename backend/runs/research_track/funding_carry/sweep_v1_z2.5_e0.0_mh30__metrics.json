@@ -1,0 +1,73 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_v1_z2.5_e0.0_mh30",
+  "evaluated_at": "2026-05-04T11:45:16.591937+00:00",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "COMPUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.0,
+    "max_hold": 30,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.0,
+    "tag": "sweep_v1_z2.5_e0.0_mh30"
+  },
+  "aggregate": {
+    "spec_name": "sweep_v1_z2.5_e0.0_mh30",
+    "n_symbols": 2,
+    "alpha_pct_mean": 23.09,
+    "alpha_pct_median": 23.09,
+    "alpha_pos_count": 2,
+    "sharpe_mean": -0.776,
+    "sharpe_pos_count": 0,
+    "mdd_mean": 52.04,
+    "wr_mean": 32.29,
+    "trades_total": 34,
+    "trades_per_symbol_mean": 17.0,
+    "funding_share_mean": -0.48
+  },
+  "per_symbol": [
+    {
+      "n_trades": 16,
+      "alpha_pct": 17.45,
+      "total_return_pct": -41.08,
+      "buy_hold_pct": -58.53,
+      "sharpe_ann": -1.363,
+      "max_dd_pct": 51.48,
+      "win_rate_pct": 31.25,
+      "profit_factor": 0.419,
+      "avg_funding_per_trade_pct": -0.0323,
+      "funding_share_of_pnl": 0.011,
+      "oos_days": 355,
+      "exit_reasons": {
+        "time": 6,
+        "sl": 10
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 18,
+      "alpha_pct": 28.74,
+      "total_return_pct": -23.65,
+      "buy_hold_pct": -52.39,
+      "sharpe_ann": -0.189,
+      "max_dd_pct": 52.6,
+      "win_rate_pct": 33.33,
+      "profit_factor": 0.89,
+      "avg_funding_per_trade_pct": 0.5892,
+      "funding_share_of_pnl": -0.972,
+      "oos_days": 355,
+      "exit_reasons": {
+        "sl": 11,
+        "time": 7
+      },
+      "symbol": "COMPUSDT"
+    }
+  ]
+}

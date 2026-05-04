@@ -1,0 +1,259 @@
+{
+  "paradigm": "mean_reversion",
+  "phase": "R-1_PoC",
+  "spec_name": "all14_1h_z2.0_lb48",
+  "evaluated_at": "2026-05-04T10:19:35.274222+00:00",
+  "config": {
+    "lookback": 48,
+    "entry_z": 2.0,
+    "max_hold": 48,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "train_frac": 0.5,
+    "capital": 1000000.0
+  },
+  "aggregate": {
+    "spec_name": "all14_1h_z2.0_lb48",
+    "n_symbols": 14,
+    "alpha_pct_mean": 28.58,
+    "alpha_pct_median": 21.66,
+    "alpha_pos_count": 10,
+    "sharpe_ann_mean": -0.473,
+    "sharpe_pos_count": 5,
+    "mdd_mean": 49.56,
+    "wr_mean": 37.42,
+    "trades_total": 3558,
+    "trades_per_symbol_mean": 254.1
+  },
+  "per_symbol": [
+    {
+      "n_trades": 253,
+      "alpha_pct": 45.84,
+      "total_return_pct": 13.9,
+      "buy_hold_pct": -31.94,
+      "sharpe_ann": 0.49,
+      "max_dd_pct": 40.01,
+      "win_rate_pct": 41.9,
+      "profit_factor": 1.074,
+      "oos_days": 396,
+      "exit_reasons": {
+        "mean": 106,
+        "sl": 146,
+        "time": 1
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 237,
+      "alpha_pct": -11.79,
+      "total_return_pct": -60.18,
+      "buy_hold_pct": -48.39,
+      "sharpe_ann": -1.97,
+      "max_dd_pct": 66.69,
+      "win_rate_pct": 32.91,
+      "profit_factor": 0.747,
+      "oos_days": 398,
+      "exit_reasons": {
+        "sl": 159,
+        "mean": 78
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 264,
+      "alpha_pct": 24.92,
+      "total_return_pct": -28.59,
+      "buy_hold_pct": -53.51,
+      "sharpe_ann": -0.443,
+      "max_dd_pct": 50.77,
+      "win_rate_pct": 34.09,
+      "profit_factor": 0.938,
+      "oos_days": 398,
+      "exit_reasons": {
+        "mean": 90,
+        "sl": 172,
+        "time": 2
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 241,
+      "alpha_pct": -1.07,
+      "total_return_pct": -47.11,
+      "buy_hold_pct": -46.05,
+      "sharpe_ann": -1.252,
+      "max_dd_pct": 54.08,
+      "win_rate_pct": 34.44,
+      "profit_factor": 0.834,
+      "oos_days": 382,
+      "exit_reasons": {
+        "mean": 83,
+        "sl": 158
+      },
+      "symbol": "DOGEUSDT"
+    },
+    {
+      "n_trades": 250,
+      "alpha_pct": 147.66,
+      "total_return_pct": 102.32,
+      "buy_hold_pct": -45.34,
+      "sharpe_ann": 1.515,
+      "max_dd_pct": 26.78,
+      "win_rate_pct": 40.4,
+      "profit_factor": 1.274,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 101,
+        "sl": 147,
+        "time": 2
+      },
+      "symbol": "UNIUSDT"
+    },
+    {
+      "n_trades": 247,
+      "alpha_pct": 18.41,
+      "total_return_pct": -47.18,
+      "buy_hold_pct": -65.59,
+      "sharpe_ann": -1.051,
+      "max_dd_pct": 59.1,
+      "win_rate_pct": 29.55,
+      "profit_factor": 0.854,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 173,
+        "mean": 73,
+        "time": 1
+      },
+      "symbol": "PYTHUSDT"
+    },
+    {
+      "n_trades": 233,
+      "alpha_pct": 95.09,
+      "total_return_pct": 28.79,
+      "buy_hold_pct": -66.3,
+      "sharpe_ann": 0.833,
+      "max_dd_pct": 23.63,
+      "win_rate_pct": 50.21,
+      "profit_factor": 1.133,
+      "oos_days": 395,
+      "exit_reasons": {
+        "sl": 116,
+        "mean": 117
+      },
+      "symbol": "TONUSDT"
+    },
+    {
+      "n_trades": 272,
+      "alpha_pct": 27.03,
+      "total_return_pct": -28.86,
+      "buy_hold_pct": -55.88,
+      "sharpe_ann": -0.483,
+      "max_dd_pct": 51.43,
+      "win_rate_pct": 37.87,
+      "profit_factor": 0.933,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 169,
+        "mean": 103
+      },
+      "symbol": "ICPUSDT"
+    },
+    {
+      "n_trades": 244,
+      "alpha_pct": 1.64,
+      "total_return_pct": -46.99,
+      "buy_hold_pct": -48.63,
+      "sharpe_ann": -1.505,
+      "max_dd_pct": 57.73,
+      "win_rate_pct": 41.8,
+      "profit_factor": 0.807,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 102,
+        "sl": 142
+      },
+      "symbol": "ETCUSDT"
+    },
+    {
+      "n_trades": 275,
+      "alpha_pct": -1.82,
+      "total_return_pct": -63.65,
+      "buy_hold_pct": -61.83,
+      "sharpe_ann": -1.789,
+      "max_dd_pct": 68.33,
+      "win_rate_pct": 29.82,
+      "profit_factor": 0.776,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 193,
+        "mean": 82
+      },
+      "symbol": "JUPUSDT"
+    },
+    {
+      "n_trades": 251,
+      "alpha_pct": 65.48,
+      "total_return_pct": 24.39,
+      "buy_hold_pct": -41.08,
+      "sharpe_ann": 0.675,
+      "max_dd_pct": 34.76,
+      "win_rate_pct": 43.43,
+      "profit_factor": 1.107,
+      "oos_days": 398,
+      "exit_reasons": {
+        "sl": 142,
+        "mean": 109
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 273,
+      "alpha_pct": 58.51,
+      "total_return_pct": -10.29,
+      "buy_hold_pct": -68.79,
+      "sharpe_ann": 0.05,
+      "max_dd_pct": 55.67,
+      "win_rate_pct": 33.33,
+      "profit_factor": 1.007,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 182,
+        "mean": 91
+      },
+      "symbol": "WLDUSDT"
+    },
+    {
+      "n_trades": 267,
+      "alpha_pct": 3.23,
+      "total_return_pct": -54.02,
+      "buy_hold_pct": -57.25,
+      "sharpe_ann": -1.337,
+      "max_dd_pct": 62.16,
+      "win_rate_pct": 31.09,
+      "profit_factor": 0.825,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 183,
+        "mean": 83,
+        "time": 1
+      },
+      "symbol": "LDOUSDT"
+    },
+    {
+      "n_trades": 251,
+      "alpha_pct": -72.95,
+      "total_return_pct": -21.13,
+      "buy_hold_pct": 51.83,
+      "sharpe_ann": -0.351,
+      "max_dd_pct": 42.77,
+      "win_rate_pct": 43.03,
+      "profit_factor": 0.949,
+      "oos_days": 398,
+      "exit_reasons": {
+        "mean": 108,
+        "sl": 143
+      },
+      "symbol": "1000LUNCUSDT"
+    }
+  ]
+}

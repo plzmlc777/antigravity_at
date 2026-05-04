@@ -1,0 +1,4 @@
+symbol,n_trades,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,avg_funding_per_trade_pct,funding_share_of_pnl,oos_days
+AXSUSDT,38,148.62,87.0,-61.63,1.48,14.45,63.16,2.531,0.5461,0.281,355
+HBARUSDT,19,107.68,49.15,-58.53,1.865,9.57,68.42,3.057,0.0092,0.004,355
+COMPUSDT,28,118.43,66.03,-52.39,1.674,5.47,53.57,2.748,0.2502,0.124,355

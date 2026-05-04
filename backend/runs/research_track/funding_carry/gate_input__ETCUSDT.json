@@ -1,0 +1,15 @@
+{
+  "symbol": "ETCUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "ETCUSDT_z2.5_lb30_mh15_full1y",
+  "alpha_pct": 73.36,
+  "sharpe_ann": 0.693,
+  "max_dd_pct": 14.86,
+  "win_rate_pct": 57.69,
+  "profit_factor": 1.53,
+  "perm_p": 0.015,
+  "wf_positive_folds": 4,
+  "wf_total_folds": 6,
+  "n_trades": 26,
+  "oos_days": 355
+}

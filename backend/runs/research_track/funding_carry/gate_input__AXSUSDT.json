@@ -1,0 +1,15 @@
+{
+  "symbol": "AXSUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "AXSUSDT_z2.5_lb30_mh15_full1y",
+  "alpha_pct": 137.97,
+  "sharpe_ann": 1.349,
+  "max_dd_pct": 13.8,
+  "win_rate_pct": 63.16,
+  "profit_factor": 2.24,
+  "perm_p": 0.0,
+  "wf_positive_folds": 6,
+  "wf_total_folds": 6,
+  "n_trades": 38,
+  "oos_days": 355
+}

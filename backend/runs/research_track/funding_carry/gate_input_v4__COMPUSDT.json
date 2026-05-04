@@ -1,0 +1,15 @@
+{
+  "symbol": "COMPUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "COMPUSDT_funding_carry_v4",
+  "alpha_pct": 118.43,
+  "sharpe_ann": 1.674,
+  "max_dd_pct": 5.47,
+  "win_rate_pct": 53.57,
+  "profit_factor": 2.748,
+  "perm_p": 0.0,
+  "wf_positive_folds": 5,
+  "wf_total_folds": 6,
+  "n_trades": 28,
+  "oos_days": 355
+}

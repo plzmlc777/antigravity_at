@@ -1,0 +1,148 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "6sym_z2.0_lb30_mh15",
+  "evaluated_at": "2026-05-04T11:27:36.409726+00:00",
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "DOGEUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.0,
+    "exit_z": 0.5,
+    "max_hold": 15,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": null
+  },
+  "aggregate": {
+    "spec_name": "6sym_z2.0_lb30_mh15",
+    "n_symbols": 6,
+    "alpha_pct_mean": 29.89,
+    "alpha_pct_median": 28.18,
+    "alpha_pos_count": 6,
+    "sharpe_mean": -0.765,
+    "sharpe_pos_count": 2,
+    "mdd_mean": 14.67,
+    "wr_mean": 43.55,
+    "trades_total": 100,
+    "trades_per_symbol_mean": 16.7,
+    "funding_share_mean": -0.018
+  },
+  "per_symbol": [
+    {
+      "n_trades": 18,
+      "alpha_pct": 17.25,
+      "total_return_pct": -7.6,
+      "buy_hold_pct": -24.86,
+      "sharpe_ann": -1.01,
+      "max_dd_pct": 13.01,
+      "win_rate_pct": 27.78,
+      "profit_factor": 0.618,
+      "avg_funding_per_trade_pct": 0.0047,
+      "funding_share_of_pnl": -0.011,
+      "oos_days": 174,
+      "exit_reasons": {
+        "mean": 17,
+        "sl": 1
+      },
+      "symbol": "BTCUSDT"
+    },
+    {
+      "n_trades": 19,
+      "alpha_pct": 30.09,
+      "total_return_pct": 0.34,
+      "buy_hold_pct": -29.75,
+      "sharpe_ann": 0.145,
+      "max_dd_pct": 10.68,
+      "win_rate_pct": 47.37,
+      "profit_factor": 1.064,
+      "avg_funding_per_trade_pct": 0.0006,
+      "funding_share_of_pnl": 0.007,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 18,
+        "sl": 1
+      },
+      "symbol": "ETHUSDT"
+    },
+    {
+      "n_trades": 14,
+      "alpha_pct": 24.03,
+      "total_return_pct": -21.93,
+      "buy_hold_pct": -45.96,
+      "sharpe_ann": -2.488,
+      "max_dd_pct": 24.83,
+      "win_rate_pct": 35.71,
+      "profit_factor": 0.31,
+      "avg_funding_per_trade_pct": 0.0193,
+      "funding_share_of_pnl": -0.011,
+      "oos_days": 177,
+      "exit_reasons": {
+        "mean": 11,
+        "sl": 3
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 19,
+      "alpha_pct": 37.69,
+      "total_return_pct": -4.35,
+      "buy_hold_pct": -42.04,
+      "sharpe_ann": -0.226,
+      "max_dd_pct": 12.14,
+      "win_rate_pct": 42.11,
+      "profit_factor": 0.896,
+      "avg_funding_per_trade_pct": 0.0164,
+      "funding_share_of_pnl": -0.108,
+      "oos_days": 177,
+      "exit_reasons": {
+        "sl": 1,
+        "mean": 18
+      },
+      "symbol": "AVAXUSDT"
+    },
+    {
+      "n_trades": 18,
+      "alpha_pct": 26.26,
+      "total_return_pct": -16.7,
+      "buy_hold_pct": -42.95,
+      "sharpe_ann": -2.094,
+      "max_dd_pct": 19.61,
+      "win_rate_pct": 50.0,
+      "profit_factor": 0.364,
+      "avg_funding_per_trade_pct": -0.0034,
+      "funding_share_of_pnl": 0.003,
+      "oos_days": 173,
+      "exit_reasons": {
+        "sl": 3,
+        "mean": 15
+      },
+      "symbol": "LINKUSDT"
+    },
+    {
+      "n_trades": 12,
+      "alpha_pct": 44.02,
+      "total_return_pct": 8.22,
+      "buy_hold_pct": -35.81,
+      "sharpe_ann": 1.085,
+      "max_dd_pct": 7.76,
+      "win_rate_pct": 58.33,
+      "profit_factor": 1.811,
+      "avg_funding_per_trade_pct": 0.0075,
+      "funding_share_of_pnl": 0.011,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 12
+      },
+      "symbol": "DOGEUSDT"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "COMPUSDT_funding_carry_paper_seed_proposal",
+  "symbol": "COMPUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F. funding rate z-score reversal v4. R-3 robustness PASS (perm p=0.000, WF 5/6). Paper 풀 COMP_T+O+P (alpha -4) 압도. n_trades 28 < 30 cutoff borderline.",
+  "strategy_type": "funding_carry",
+  "strategy_kwargs": {
+    "lookback_funding_periods": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold_funding_periods": 7,
+    "sl_pct": 0.03
+  },
+  "data_source": "binance_funding_rate table",
+  "evaluation_freq": "every 8h funding period",
+  "research_lineage": {
+    "paradigm": "funding_carry",
+    "spec_variant": "v4",
+    "metrics_summary": {
+      "alpha_pct": 118.43,
+      "sharpe_ann": 1.674,
+      "max_dd_pct": 5.47,
+      "win_rate_pct": 53.57,
+      "profit_factor": 2.748,
+      "n_trades": 28,
+      "perm_p": 0.000,
+      "wf_positive_folds": 5,
+      "wf_total_folds": 6,
+      "oos_days": 355
+    }
+  },
+  "approval_required": "user_explicit_approval"
+}

@@ -1,0 +1,15 @@
+{
+  "symbol": "COMPUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "COMPUSDT_z2.5_lb30_mh15_full1y",
+  "alpha_pct": 92.16,
+  "sharpe_ann": 1.186,
+  "max_dd_pct": 10.34,
+  "win_rate_pct": 51.85,
+  "profit_factor": 2.003,
+  "perm_p": 0.0,
+  "wf_positive_folds": 5,
+  "wf_total_folds": 6,
+  "n_trades": 27,
+  "oos_days": 355
+}

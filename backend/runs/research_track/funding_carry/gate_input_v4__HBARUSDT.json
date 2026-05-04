@@ -1,0 +1,15 @@
+{
+  "symbol": "HBARUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "HBARUSDT_funding_carry_v4",
+  "alpha_pct": 107.68,
+  "sharpe_ann": 1.865,
+  "max_dd_pct": 9.57,
+  "win_rate_pct": 68.42,
+  "profit_factor": 3.057,
+  "perm_p": 0.0,
+  "wf_positive_folds": 5,
+  "wf_total_folds": 6,
+  "n_trades": 19,
+  "oos_days": 355
+}

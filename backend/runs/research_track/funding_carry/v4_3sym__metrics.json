@@ -1,0 +1,95 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "v4_3sym",
+  "evaluated_at": "2026-05-04T11:45:45.192223+00:00",
+  "config": {
+    "symbols": [
+      "AXSUSDT",
+      "HBARUSDT",
+      "COMPUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold": 7,
+    "sl_pct": 0.03,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.0,
+    "tag": "v4_3sym"
+  },
+  "aggregate": {
+    "spec_name": "v4_3sym",
+    "n_symbols": 3,
+    "alpha_pct_mean": 124.91,
+    "alpha_pct_median": 118.43,
+    "alpha_pos_count": 3,
+    "sharpe_mean": 1.673,
+    "sharpe_pos_count": 3,
+    "mdd_mean": 9.83,
+    "wr_mean": 61.72,
+    "trades_total": 85,
+    "trades_per_symbol_mean": 28.3,
+    "funding_share_mean": 0.136
+  },
+  "per_symbol": [
+    {
+      "n_trades": 38,
+      "alpha_pct": 148.62,
+      "total_return_pct": 87.0,
+      "buy_hold_pct": -61.63,
+      "sharpe_ann": 1.48,
+      "max_dd_pct": 14.45,
+      "win_rate_pct": 63.16,
+      "profit_factor": 2.531,
+      "avg_funding_per_trade_pct": 0.5461,
+      "funding_share_of_pnl": 0.281,
+      "oos_days": 355,
+      "exit_reasons": {
+        "sl": 5,
+        "mean": 29,
+        "time": 4
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 19,
+      "alpha_pct": 107.68,
+      "total_return_pct": 49.15,
+      "buy_hold_pct": -58.53,
+      "sharpe_ann": 1.865,
+      "max_dd_pct": 9.57,
+      "win_rate_pct": 68.42,
+      "profit_factor": 3.057,
+      "avg_funding_per_trade_pct": 0.0092,
+      "funding_share_of_pnl": 0.004,
+      "oos_days": 355,
+      "exit_reasons": {
+        "mean": 15,
+        "sl": 2,
+        "time": 2
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 28,
+      "alpha_pct": 118.43,
+      "total_return_pct": 66.03,
+      "buy_hold_pct": -52.39,
+      "sharpe_ann": 1.674,
+      "max_dd_pct": 5.47,
+      "win_rate_pct": 53.57,
+      "profit_factor": 2.748,
+      "avg_funding_per_trade_pct": 0.2502,
+      "funding_share_of_pnl": 0.124,
+      "oos_days": 355,
+      "exit_reasons": {
+        "mean": 22,
+        "time": 3,
+        "sl": 3
+      },
+      "symbol": "COMPUSDT"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "fullyr_HBARUSDT_z2.5",
+  "evaluated_at": "2026-05-04T11:36:06.496120+00:00",
+  "config": {
+    "symbols": [
+      "HBARUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold": 15,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.0,
+    "tag": "fullyr_HBARUSDT_z2.5"
+  },
+  "aggregate": {
+    "spec_name": "fullyr_HBARUSDT_z2.5",
+    "n_symbols": 1,
+    "alpha_pct_mean": 97.24,
+    "alpha_pct_median": 97.24,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.499,
+    "sharpe_pos_count": 1,
+    "mdd_mean": 8.17,
+    "wr_mean": 68.42,
+    "trades_total": 19,
+    "trades_per_symbol_mean": 19.0,
+    "funding_share_mean": 0.005
+  },
+  "per_symbol": [
+    {
+      "n_trades": 19,
+      "alpha_pct": 97.24,
+      "total_return_pct": 38.71,
+      "buy_hold_pct": -58.53,
+      "sharpe_ann": 1.499,
+      "max_dd_pct": 8.17,
+      "win_rate_pct": 68.42,
+      "profit_factor": 2.578,
+      "avg_funding_per_trade_pct": 0.0085,
+      "funding_share_of_pnl": 0.005,
+      "oos_days": 355,
+      "exit_reasons": {
+        "mean": 18,
+        "sl": 1
+      },
+      "symbol": "HBARUSDT"
+    }
+  ]
+}

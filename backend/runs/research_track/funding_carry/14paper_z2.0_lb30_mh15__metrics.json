@@ -1,0 +1,301 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "14paper_z2.0_lb30_mh15",
+  "evaluated_at": "2026-05-04T11:31:22.154458+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "HBARUSDT",
+      "AXSUSDT",
+      "DOGEUSDT",
+      "UNIUSDT",
+      "PYTHUSDT",
+      "TONUSDT",
+      "ICPUSDT",
+      "ETCUSDT",
+      "JUPUSDT",
+      "COMPUSDT",
+      "WLDUSDT",
+      "LDOUSDT",
+      "1000LUNCUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.0,
+    "exit_z": 0.5,
+    "max_hold": 15,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "14paper_z2.0_lb30_mh15"
+  },
+  "aggregate": {
+    "spec_name": "14paper_z2.0_lb30_mh15",
+    "n_symbols": 14,
+    "alpha_pct_mean": 38.18,
+    "alpha_pct_median": 41.86,
+    "alpha_pos_count": 13,
+    "sharpe_mean": -0.266,
+    "sharpe_pos_count": 7,
+    "mdd_mean": 19.15,
+    "wr_mean": 47.96,
+    "trades_total": 325,
+    "trades_per_symbol_mean": 23.2,
+    "funding_share_mean": 0.07
+  },
+  "per_symbol": [
+    {
+      "n_trades": 14,
+      "alpha_pct": 24.03,
+      "total_return_pct": -21.93,
+      "buy_hold_pct": -45.96,
+      "sharpe_ann": -2.488,
+      "max_dd_pct": 24.83,
+      "win_rate_pct": 35.71,
+      "profit_factor": 0.31,
+      "avg_funding_per_trade_pct": 0.0193,
+      "funding_share_of_pnl": -0.011,
+      "oos_days": 177,
+      "exit_reasons": {
+        "mean": 11,
+        "sl": 3
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 17,
+      "alpha_pct": 68.79,
+      "total_return_pct": 19.05,
+      "buy_hold_pct": -49.74,
+      "sharpe_ann": 1.592,
+      "max_dd_pct": 12.53,
+      "win_rate_pct": 64.71,
+      "profit_factor": 2.07,
+      "avg_funding_per_trade_pct": 0.0064,
+      "funding_share_of_pnl": 0.006,
+      "oos_days": 177,
+      "exit_reasons": {
+        "mean": 16,
+        "sl": 1
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 20,
+      "alpha_pct": 80.56,
+      "total_return_pct": 50.57,
+      "buy_hold_pct": -29.99,
+      "sharpe_ann": 2.912,
+      "max_dd_pct": 12.02,
+      "win_rate_pct": 70.0,
+      "profit_factor": 2.741,
+      "avg_funding_per_trade_pct": 1.2856,
+      "funding_share_of_pnl": 0.57,
+      "oos_days": 105,
+      "exit_reasons": {
+        "mean": 15,
+        "sl": 4,
+        "time": 1
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 12,
+      "alpha_pct": 44.02,
+      "total_return_pct": 8.22,
+      "buy_hold_pct": -35.81,
+      "sharpe_ann": 1.085,
+      "max_dd_pct": 7.76,
+      "win_rate_pct": 58.33,
+      "profit_factor": 1.811,
+      "avg_funding_per_trade_pct": 0.0075,
+      "funding_share_of_pnl": 0.011,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 12
+      },
+      "symbol": "DOGEUSDT"
+    },
+    {
+      "n_trades": 19,
+      "alpha_pct": 34.67,
+      "total_return_pct": -9.15,
+      "buy_hold_pct": -43.82,
+      "sharpe_ann": -0.565,
+      "max_dd_pct": 17.91,
+      "win_rate_pct": 42.11,
+      "profit_factor": 0.734,
+      "avg_funding_per_trade_pct": -0.0071,
+      "funding_share_of_pnl": 0.017,
+      "oos_days": 176,
+      "exit_reasons": {
+        "sl": 1,
+        "mean": 18
+      },
+      "symbol": "UNIUSDT"
+    },
+    {
+      "n_trades": 44,
+      "alpha_pct": 43.87,
+      "total_return_pct": -6.98,
+      "buy_hold_pct": -50.84,
+      "sharpe_ann": -0.153,
+      "max_dd_pct": 29.23,
+      "win_rate_pct": 50.0,
+      "profit_factor": 0.959,
+      "avg_funding_per_trade_pct": 0.0111,
+      "funding_share_of_pnl": -0.157,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 38,
+        "sl": 6
+      },
+      "symbol": "PYTHUSDT"
+    },
+    {
+      "n_trades": 46,
+      "alpha_pct": 11.1,
+      "total_return_pct": -22.31,
+      "buy_hold_pct": -33.42,
+      "sharpe_ann": -1.898,
+      "max_dd_pct": 28.11,
+      "win_rate_pct": 45.65,
+      "profit_factor": 0.576,
+      "avg_funding_per_trade_pct": 0.0141,
+      "funding_share_of_pnl": -0.028,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 43,
+        "sl": 3
+      },
+      "symbol": "TONUSDT"
+    },
+    {
+      "n_trades": 17,
+      "alpha_pct": 38.06,
+      "total_return_pct": -24.14,
+      "buy_hold_pct": -62.2,
+      "sharpe_ann": -3.438,
+      "max_dd_pct": 27.73,
+      "win_rate_pct": 35.29,
+      "profit_factor": 0.221,
+      "avg_funding_per_trade_pct": 0.1256,
+      "funding_share_of_pnl": -0.08,
+      "oos_days": 174,
+      "exit_reasons": {
+        "sl": 3,
+        "mean": 14
+      },
+      "symbol": "ICPUSDT"
+    },
+    {
+      "n_trades": 19,
+      "alpha_pct": 50.31,
+      "total_return_pct": 3.53,
+      "buy_hold_pct": -46.78,
+      "sharpe_ann": 0.386,
+      "max_dd_pct": 10.33,
+      "win_rate_pct": 57.89,
+      "profit_factor": 1.193,
+      "avg_funding_per_trade_pct": 0.0037,
+      "funding_share_of_pnl": 0.013,
+      "oos_days": 176,
+      "exit_reasons": {
+        "sl": 3,
+        "mean": 15,
+        "time": 1
+      },
+      "symbol": "ETCUSDT"
+    },
+    {
+      "n_trades": 38,
+      "alpha_pct": 27.29,
+      "total_return_pct": -23.71,
+      "buy_hold_pct": -51.0,
+      "sharpe_ann": -1.7,
+      "max_dd_pct": 32.7,
+      "win_rate_pct": 36.84,
+      "profit_factor": 0.615,
+      "avg_funding_per_trade_pct": 0.025,
+      "funding_share_of_pnl": -0.038,
+      "oos_days": 174,
+      "exit_reasons": {
+        "mean": 34,
+        "sl": 4
+      },
+      "symbol": "JUPUSDT"
+    },
+    {
+      "n_trades": 22,
+      "alpha_pct": 39.86,
+      "total_return_pct": 8.02,
+      "buy_hold_pct": -31.84,
+      "sharpe_ann": 0.572,
+      "max_dd_pct": 14.38,
+      "win_rate_pct": 54.55,
+      "profit_factor": 1.276,
+      "avg_funding_per_trade_pct": 0.3907,
+      "funding_share_of_pnl": 0.726,
+      "oos_days": 171,
+      "exit_reasons": {
+        "mean": 22
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 16,
+      "alpha_pct": 51.45,
+      "total_return_pct": -19.72,
+      "buy_hold_pct": -71.17,
+      "sharpe_ann": -2.045,
+      "max_dd_pct": 24.35,
+      "win_rate_pct": 37.5,
+      "profit_factor": 0.394,
+      "avg_funding_per_trade_pct": 0.0788,
+      "funding_share_of_pnl": -0.061,
+      "oos_days": 177,
+      "exit_reasons": {
+        "mean": 13,
+        "sl": 3
+      },
+      "symbol": "WLDUSDT"
+    },
+    {
+      "n_trades": 21,
+      "alpha_pct": 64.48,
+      "total_return_pct": 10.94,
+      "buy_hold_pct": -53.55,
+      "sharpe_ann": 0.776,
+      "max_dd_pct": 12.62,
+      "win_rate_pct": 42.86,
+      "profit_factor": 1.422,
+      "avg_funding_per_trade_pct": -0.003,
+      "funding_share_of_pnl": -0.005,
+      "oos_days": 176,
+      "exit_reasons": {
+        "mean": 18,
+        "sl": 3
+      },
+      "symbol": "LDOUSDT"
+    },
+    {
+      "n_trades": 20,
+      "alpha_pct": -43.91,
+      "total_return_pct": 100.77,
+      "buy_hold_pct": 144.68,
+      "sharpe_ann": 1.246,
+      "max_dd_pct": 13.53,
+      "win_rate_pct": 40.0,
+      "profit_factor": 4.319,
+      "avg_funding_per_trade_pct": 0.1232,
+      "funding_share_of_pnl": 0.02,
+      "oos_days": 175,
+      "exit_reasons": {
+        "mean": 19,
+        "sl": 1
+      },
+      "symbol": "1000LUNCUSDT"
+    }
+  ]
+}

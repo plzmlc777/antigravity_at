@@ -1,0 +1,55 @@
+{
+  "paradigm": "funding_carry",
+  "phase": "R-1_PoC",
+  "spec_name": "fullyr_ETCUSDT_z2.5",
+  "evaluated_at": "2026-05-04T11:36:08.391400+00:00",
+  "config": {
+    "symbols": [
+      "ETCUSDT"
+    ],
+    "lookback": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold": 15,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.0,
+    "tag": "fullyr_ETCUSDT_z2.5"
+  },
+  "aggregate": {
+    "spec_name": "fullyr_ETCUSDT_z2.5",
+    "n_symbols": 1,
+    "alpha_pct_mean": 73.36,
+    "alpha_pct_median": 73.36,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.693,
+    "sharpe_pos_count": 1,
+    "mdd_mean": 14.86,
+    "wr_mean": 57.69,
+    "trades_total": 26,
+    "trades_per_symbol_mean": 26.0,
+    "funding_share_mean": 0.005
+  },
+  "per_symbol": [
+    {
+      "n_trades": 26,
+      "alpha_pct": 73.36,
+      "total_return_pct": 15.92,
+      "buy_hold_pct": -57.43,
+      "sharpe_ann": 0.693,
+      "max_dd_pct": 14.86,
+      "win_rate_pct": 57.69,
+      "profit_factor": 1.53,
+      "avg_funding_per_trade_pct": 0.0033,
+      "funding_share_of_pnl": 0.005,
+      "oos_days": 355,
+      "exit_reasons": {
+        "sl": 4,
+        "mean": 21,
+        "time": 1
+      },
+      "symbol": "ETCUSDT"
+    }
+  ]
+}

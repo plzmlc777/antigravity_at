@@ -1,0 +1,15 @@
+{
+  "symbol": "HBARUSDT",
+  "paradigm": "funding_carry",
+  "spec_name": "HBARUSDT_z2.5_lb30_mh15_full1y",
+  "alpha_pct": 97.24,
+  "sharpe_ann": 1.499,
+  "max_dd_pct": 8.17,
+  "win_rate_pct": 68.42,
+  "profit_factor": 2.578,
+  "perm_p": 0.0,
+  "wf_positive_folds": 5,
+  "wf_total_folds": 6,
+  "n_trades": 19,
+  "oos_days": 355
+}

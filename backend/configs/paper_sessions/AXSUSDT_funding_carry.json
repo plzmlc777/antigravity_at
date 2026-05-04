@@ -1,0 +1,28 @@
+{
+  "name": "AXSUSDT_funding_carry_paper_seed",
+  "symbol": "AXSUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F (paradigm-agnostic elite gate). funding_carry paradigm v4. R-3 robustness PASS (perm p=0.000, WF 6/6). Trade-sim baseline alpha 148.62 / sharpe 1.48 / mdd 14.45 / wr 63.16 / pf 2.531. Paper 풀 AXS_V (alpha 82) 모든 metric 압도. R-4 gate 6/8 통과 (alpha cutoff 99.1% 도달). User-approved seed (research_track_master.md §5-B).",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_funding_zscore", "kwargs": {"lookback": 30}}
+    ],
+    "composer": {
+      "type": "negation_passthrough",
+      "kwargs": {"feature_col": "bnfz_zscore", "scale": 1.0}
+    },
+    "policy": {
+      "type": "funding_reversal",
+      "kwargs": {
+        "entry_threshold": 2.5,
+        "exit_threshold": 0.5,
+        "sl_pct": 0.03,
+        "max_hold_bars": 14
+      }
+    },
+    "config": {"eval_freq_minutes": 240, "forward_bars": 14}
+  }
+}

@@ -1,0 +1,264 @@
+{
+  "paradigm": "mean_reversion",
+  "phase": "R-1_PoC",
+  "spec_name": "all14_1h_z2.5_lb24",
+  "evaluated_at": "2026-05-04T10:19:10.315124+00:00",
+  "config": {
+    "lookback": 24,
+    "entry_z": 2.5,
+    "max_hold": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "train_frac": 0.5,
+    "capital": 1000000.0
+  },
+  "aggregate": {
+    "spec_name": "all14_1h_z2.5_lb24",
+    "n_symbols": 14,
+    "alpha_pct_mean": 19.14,
+    "alpha_pct_median": 22.7,
+    "alpha_pos_count": 13,
+    "sharpe_ann_mean": -0.753,
+    "sharpe_pos_count": 2,
+    "mdd_mean": 43.86,
+    "wr_mean": 41.79,
+    "trades_total": 2865,
+    "trades_per_symbol_mean": 204.6
+  },
+  "per_symbol": [
+    {
+      "n_trades": 203,
+      "alpha_pct": 2.02,
+      "total_return_pct": -30.9,
+      "buy_hold_pct": -32.93,
+      "sharpe_ann": -0.982,
+      "max_dd_pct": 44.68,
+      "win_rate_pct": 47.29,
+      "profit_factor": 0.855,
+      "oos_days": 397,
+      "exit_reasons": {
+        "mean": 97,
+        "sl": 106
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 194,
+      "alpha_pct": 3.02,
+      "total_return_pct": -45.49,
+      "buy_hold_pct": -48.51,
+      "sharpe_ann": -1.539,
+      "max_dd_pct": 53.47,
+      "win_rate_pct": 39.18,
+      "profit_factor": 0.769,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 113,
+        "mean": 79,
+        "time": 2
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 208,
+      "alpha_pct": 41.31,
+      "total_return_pct": -11.37,
+      "buy_hold_pct": -52.68,
+      "sharpe_ann": -0.119,
+      "max_dd_pct": 47.68,
+      "win_rate_pct": 42.79,
+      "profit_factor": 0.981,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 119,
+        "mean": 89
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 219,
+      "alpha_pct": 24.95,
+      "total_return_pct": -23.68,
+      "buy_hold_pct": -48.62,
+      "sharpe_ann": -0.566,
+      "max_dd_pct": 31.93,
+      "win_rate_pct": 42.92,
+      "profit_factor": 0.918,
+      "oos_days": 383,
+      "exit_reasons": {
+        "sl": 119,
+        "time": 6,
+        "mean": 94
+      },
+      "symbol": "DOGEUSDT"
+    },
+    {
+      "n_trades": 222,
+      "alpha_pct": 14.79,
+      "total_return_pct": -31.37,
+      "buy_hold_pct": -46.15,
+      "sharpe_ann": -0.685,
+      "max_dd_pct": 37.02,
+      "win_rate_pct": 38.29,
+      "profit_factor": 0.892,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 88,
+        "sl": 130,
+        "time": 4
+      },
+      "symbol": "UNIUSDT"
+    },
+    {
+      "n_trades": 199,
+      "alpha_pct": 18.3,
+      "total_return_pct": -47.37,
+      "buy_hold_pct": -65.67,
+      "sharpe_ann": -1.459,
+      "max_dd_pct": 56.32,
+      "win_rate_pct": 33.17,
+      "profit_factor": 0.788,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 129,
+        "mean": 67,
+        "time": 3
+      },
+      "symbol": "PYTHUSDT"
+    },
+    {
+      "n_trades": 182,
+      "alpha_pct": 58.42,
+      "total_return_pct": -7.81,
+      "buy_hold_pct": -66.23,
+      "sharpe_ann": -0.118,
+      "max_dd_pct": 29.13,
+      "win_rate_pct": 50.0,
+      "profit_factor": 0.98,
+      "oos_days": 395,
+      "exit_reasons": {
+        "sl": 84,
+        "mean": 94,
+        "time": 4
+      },
+      "symbol": "TONUSDT"
+    },
+    {
+      "n_trades": 202,
+      "alpha_pct": 54.08,
+      "total_return_pct": -2.09,
+      "buy_hold_pct": -56.17,
+      "sharpe_ann": 0.101,
+      "max_dd_pct": 38.79,
+      "win_rate_pct": 48.51,
+      "profit_factor": 1.017,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 98,
+        "sl": 103,
+        "time": 1
+      },
+      "symbol": "ICPUSDT"
+    },
+    {
+      "n_trades": 214,
+      "alpha_pct": 26.02,
+      "total_return_pct": -22.84,
+      "buy_hold_pct": -48.86,
+      "sharpe_ann": -0.559,
+      "max_dd_pct": 37.73,
+      "win_rate_pct": 46.26,
+      "profit_factor": 0.914,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 100,
+        "sl": 112,
+        "time": 2
+      },
+      "symbol": "ETCUSDT"
+    },
+    {
+      "n_trades": 202,
+      "alpha_pct": 7.06,
+      "total_return_pct": -54.01,
+      "buy_hold_pct": -61.07,
+      "sharpe_ann": -1.926,
+      "max_dd_pct": 54.74,
+      "win_rate_pct": 35.64,
+      "profit_factor": 0.736,
+      "oos_days": 399,
+      "exit_reasons": {
+        "sl": 130,
+        "mean": 72
+      },
+      "symbol": "JUPUSDT"
+    },
+    {
+      "n_trades": 197,
+      "alpha_pct": 65.13,
+      "total_return_pct": 24.7,
+      "buy_hold_pct": -40.43,
+      "sharpe_ann": 0.734,
+      "max_dd_pct": 31.51,
+      "win_rate_pct": 47.21,
+      "profit_factor": 1.136,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 95,
+        "sl": 102
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 218,
+      "alpha_pct": 28.55,
+      "total_return_pct": -40.45,
+      "buy_hold_pct": -69.0,
+      "sharpe_ann": -1.048,
+      "max_dd_pct": 52.95,
+      "win_rate_pct": 35.32,
+      "profit_factor": 0.85,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 77,
+        "sl": 140,
+        "time": 1
+      },
+      "symbol": "WLDUSDT"
+    },
+    {
+      "n_trades": 204,
+      "alpha_pct": 20.44,
+      "total_return_pct": -37.16,
+      "buy_hold_pct": -57.6,
+      "sharpe_ann": -0.99,
+      "max_dd_pct": 49.22,
+      "win_rate_pct": 37.25,
+      "profit_factor": 0.851,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 76,
+        "sl": 127,
+        "time": 1
+      },
+      "symbol": "LDOUSDT"
+    },
+    {
+      "n_trades": 201,
+      "alpha_pct": -96.11,
+      "total_return_pct": -42.77,
+      "buy_hold_pct": 53.34,
+      "sharpe_ann": -1.38,
+      "max_dd_pct": 48.85,
+      "win_rate_pct": 41.29,
+      "profit_factor": 0.787,
+      "oos_days": 399,
+      "exit_reasons": {
+        "mean": 86,
+        "sl": 111,
+        "time": 4
+      },
+      "symbol": "1000LUNCUSDT"
+    }
+  ]
+}

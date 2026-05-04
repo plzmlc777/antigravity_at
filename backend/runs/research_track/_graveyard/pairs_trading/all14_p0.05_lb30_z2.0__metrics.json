@@ -1,0 +1,262 @@
+{
+  "paradigm": "pairs_trading",
+  "phase": "R-1_PoC",
+  "spec_name": "all14_p0.05_lb30_z2.0",
+  "evaluated_at": "2026-05-04T11:02:24.800874+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "HBARUSDT",
+      "AXSUSDT",
+      "DOGEUSDT",
+      "UNIUSDT",
+      "PYTHUSDT",
+      "TONUSDT",
+      "ICPUSDT",
+      "ETCUSDT",
+      "JUPUSDT",
+      "COMPUSDT",
+      "WLDUSDT",
+      "LDOUSDT",
+      "1000LUNCUSDT"
+    ],
+    "coint_p": 0.05,
+    "beta_min": 0.1,
+    "beta_max": 10.0,
+    "lookback": 30,
+    "entry_z": 2.0,
+    "exit_z": 0.0,
+    "max_hold": 20,
+    "sl_pct": 0.1,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": null
+  },
+  "aggregate": {
+    "spec_name": "all14_p0.05_lb30_z2.0",
+    "n_pairs": 13,
+    "n_trades_total": 296,
+    "trades_per_pair_mean": 22.8,
+    "total_return_mean": -13.44,
+    "total_return_median": -13.37,
+    "total_return_pos_count": 4,
+    "sharpe_mean": 0.029,
+    "sharpe_pos_count": 7,
+    "mdd_mean": 51.51,
+    "wr_mean": 53.41,
+    "pf_mean_finite": 1.032,
+    "best_pair": "PYTHUSDT/JUPUSDT",
+    "best_pair_return": 61.02,
+    "best_pair_sharpe": 0.684
+  },
+  "per_pair": [
+    {
+      "n_trades": 22,
+      "total_return_pct": -69.34,
+      "sharpe_ann": -0.976,
+      "max_dd_pct": 72.06,
+      "win_rate_pct": 36.36,
+      "profit_factor": 0.506,
+      "exit_reasons": {
+        "mean": 7,
+        "sl": 14,
+        "time": 1
+      },
+      "pair": "JUPUSDT/WLDUSDT",
+      "coint_p": 0.00426,
+      "beta": 0.213
+    },
+    {
+      "n_trades": 26,
+      "total_return_pct": NaN,
+      "sharpe_ann": 0.0,
+      "max_dd_pct": NaN,
+      "win_rate_pct": 50.0,
+      "profit_factor": 0.721,
+      "exit_reasons": {
+        "sl": 11,
+        "mean": 11,
+        "time": 4
+      },
+      "pair": "SOLUSDT/COMPUSDT",
+      "coint_p": 0.01573,
+      "beta": 0.419
+    },
+    {
+      "n_trades": 24,
+      "total_return_pct": 30.21,
+      "sharpe_ann": 0.513,
+      "max_dd_pct": 39.78,
+      "win_rate_pct": 58.33,
+      "profit_factor": 1.418,
+      "exit_reasons": {
+        "time": 2,
+        "mean": 15,
+        "sl": 7
+      },
+      "pair": "AXSUSDT/WLDUSDT",
+      "coint_p": 0.01715,
+      "beta": 0.473
+    },
+    {
+      "n_trades": 22,
+      "total_return_pct": -19.99,
+      "sharpe_ann": -0.033,
+      "max_dd_pct": 61.9,
+      "win_rate_pct": 45.45,
+      "profit_factor": 0.978,
+      "exit_reasons": {
+        "mean": 10,
+        "sl": 10,
+        "time": 2
+      },
+      "pair": "JUPUSDT/1000LUNCUSDT",
+      "coint_p": 0.01941,
+      "beta": 0.481
+    },
+    {
+      "n_trades": 20,
+      "total_return_pct": -19.6,
+      "sharpe_ann": 0.012,
+      "max_dd_pct": 43.53,
+      "win_rate_pct": 55.0,
+      "profit_factor": 1.01,
+      "exit_reasons": {
+        "mean": 11,
+        "sl": 8,
+        "time": 1
+      },
+      "pair": "AXSUSDT/JUPUSDT",
+      "coint_p": 0.02104,
+      "beta": 0.78
+    },
+    {
+      "n_trades": 19,
+      "total_return_pct": -93.4,
+      "sharpe_ann": -0.222,
+      "max_dd_pct": 97.49,
+      "win_rate_pct": 63.16,
+      "profit_factor": 0.798,
+      "exit_reasons": {
+        "sl": 7,
+        "mean": 11,
+        "time": 1
+      },
+      "pair": "PYTHUSDT/ICPUSDT",
+      "coint_p": 0.02279,
+      "beta": 1.363
+    },
+    {
+      "n_trades": 24,
+      "total_return_pct": 61.02,
+      "sharpe_ann": 0.684,
+      "max_dd_pct": 33.09,
+      "win_rate_pct": 62.5,
+      "profit_factor": 1.598,
+      "exit_reasons": {
+        "sl": 9,
+        "mean": 14,
+        "time": 1
+      },
+      "pair": "PYTHUSDT/JUPUSDT",
+      "coint_p": 0.02286,
+      "beta": 1.13
+    },
+    {
+      "n_trades": 22,
+      "total_return_pct": -4.33,
+      "sharpe_ann": 0.055,
+      "max_dd_pct": 34.07,
+      "win_rate_pct": 59.09,
+      "profit_factor": 1.043,
+      "exit_reasons": {
+        "mean": 12,
+        "sl": 5,
+        "time": 5
+      },
+      "pair": "ETCUSDT/LDOUSDT",
+      "coint_p": 0.02538,
+      "beta": 0.53
+    },
+    {
+      "n_trades": 23,
+      "total_return_pct": -7.13,
+      "sharpe_ann": 0.178,
+      "max_dd_pct": 41.24,
+      "win_rate_pct": 47.83,
+      "profit_factor": 1.149,
+      "exit_reasons": {
+        "time": 3,
+        "sl": 10,
+        "mean": 10
+      },
+      "pair": "ICPUSDT/JUPUSDT",
+      "coint_p": 0.02543,
+      "beta": 0.765
+    },
+    {
+      "n_trades": 24,
+      "total_return_pct": 11.89,
+      "sharpe_ann": 0.336,
+      "max_dd_pct": 40.39,
+      "win_rate_pct": 62.5,
+      "profit_factor": 1.256,
+      "exit_reasons": {
+        "mean": 15,
+        "sl": 9
+      },
+      "pair": "SOLUSDT/UNIUSDT",
+      "coint_p": 0.03125,
+      "beta": 0.439
+    },
+    {
+      "n_trades": 23,
+      "total_return_pct": -50.35,
+      "sharpe_ann": -0.523,
+      "max_dd_pct": 59.95,
+      "win_rate_pct": 47.83,
+      "profit_factor": 0.678,
+      "exit_reasons": {
+        "sl": 9,
+        "mean": 11,
+        "time": 3
+      },
+      "pair": "ICPUSDT/WLDUSDT",
+      "coint_p": 0.03418,
+      "beta": 0.412
+    },
+    {
+      "n_trades": 21,
+      "total_return_pct": -23.78,
+      "sharpe_ann": -0.084,
+      "max_dd_pct": 45.82,
+      "win_rate_pct": 52.38,
+      "profit_factor": 0.939,
+      "exit_reasons": {
+        "sl": 8,
+        "time": 2,
+        "mean": 11
+      },
+      "pair": "AXSUSDT/ICPUSDT",
+      "coint_p": 0.04337,
+      "beta": 1.034
+    },
+    {
+      "n_trades": 26,
+      "total_return_pct": 23.57,
+      "sharpe_ann": 0.431,
+      "max_dd_pct": 48.81,
+      "win_rate_pct": 53.85,
+      "profit_factor": 1.316,
+      "exit_reasons": {
+        "mean": 14,
+        "sl": 11,
+        "time": 1
+      },
+      "pair": "JUPUSDT/LDOUSDT",
+      "coint_p": 0.04828,
+      "beta": 0.266
+    }
+  ]
+}

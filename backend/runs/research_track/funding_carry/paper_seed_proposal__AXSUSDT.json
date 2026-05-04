@@ -1,0 +1,45 @@
+{
+  "name": "AXSUSDT_funding_carry_paper_seed_proposal",
+  "symbol": "AXSUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F (paradigm-agnostic elite gate). funding rate z-score reversal paradigm v4. R-3 robustness PASS (perm p=0.000, WF 6/6). Paper 풀 AXS_V (alpha 82, sharpe 0.64, mdd 54, wr 34, pf 1.18) 모든 metric 압도. R-4 gate 6/8 PASS (alpha 148.6 vs 150 cutoff = 99.1% / sharpe 1.48 vs 2.0 / oos 355 vs 365 미달).",
+  "strategy_type": "funding_carry",
+  "strategy_kwargs": {
+    "lookback_funding_periods": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold_funding_periods": 7,
+    "sl_pct": 0.03
+  },
+  "data_source": "binance_funding_rate table (8h periods, 4h for some symbols)",
+  "evaluation_freq": "every 8h funding period (matches Binance funding cycle)",
+  "implementation_status": {
+    "code_required": [
+      "BinanceFundingZScoreSource (composer source)",
+      "Or funding_carry BaseStrategy subclass",
+      "PM2 cron entry: every 8h or daily aware of funding times"
+    ],
+    "current_code": "scripts/poc_funding_carry.py + scripts/poc_funding_carry_r3.py"
+  },
+  "research_lineage": {
+    "paradigm": "funding_carry",
+    "phase_completed": ["R-1", "R-2", "R-3", "R-4"],
+    "spec_variant": "v4 (z=2.5 / exit=0.5 / mh=7 / sl=0.03)",
+    "metrics_source": "runs/research_track/funding_carry/gate_input_v4__AXSUSDT.json",
+    "metrics_summary": {
+      "alpha_pct": 148.62,
+      "sharpe_ann": 1.48,
+      "max_dd_pct": 14.45,
+      "win_rate_pct": 63.16,
+      "profit_factor": 2.531,
+      "n_trades": 38,
+      "perm_p": 0.000,
+      "wf_positive_folds": 6,
+      "wf_total_folds": 6,
+      "oos_days": 355
+    }
+  },
+  "approval_required": "user_explicit_approval (research_track_master.md §5-B)"
+}

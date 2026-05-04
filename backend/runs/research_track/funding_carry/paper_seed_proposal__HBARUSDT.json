@@ -1,0 +1,35 @@
+{
+  "name": "HBARUSDT_funding_carry_paper_seed_proposal",
+  "symbol": "HBARUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F. funding rate z-score reversal v4. R-3 robustness PASS (perm p=0.000, WF 5/6). Paper 풀 HBAR_S+P (alpha 454 — best in pool) 비교 시 alpha는 낮으나 sharpe 1.87 (HBAR_S+P 2.41와 비교 가능 수준) + 본질적 직교 (funding은 source 도메인과 무관).",
+  "strategy_type": "funding_carry",
+  "strategy_kwargs": {
+    "lookback_funding_periods": 30,
+    "entry_z": 2.5,
+    "exit_z": 0.5,
+    "max_hold_funding_periods": 7,
+    "sl_pct": 0.03
+  },
+  "data_source": "binance_funding_rate table",
+  "evaluation_freq": "every 8h funding period",
+  "research_lineage": {
+    "paradigm": "funding_carry",
+    "spec_variant": "v4",
+    "metrics_summary": {
+      "alpha_pct": 107.68,
+      "sharpe_ann": 1.865,
+      "max_dd_pct": 9.57,
+      "win_rate_pct": 68.42,
+      "profit_factor": 3.057,
+      "n_trades": 19,
+      "perm_p": 0.000,
+      "wf_positive_folds": 5,
+      "wf_total_folds": 6,
+      "oos_days": 355
+    }
+  },
+  "approval_required": "user_explicit_approval"
+}
