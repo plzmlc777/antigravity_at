@@ -1,0 +1,2 @@
+symbol,n_trades,n_long_attempts,n_short_attempts,n_units,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,bias_max_abs_bps,bias_mean_abs_bps,oos_days,tod_unit
+SOLUSDT,869,42,827,24,-29.49,-62.98,-33.49,-1.841,65.25,44.07,0.84,6.589,3.286,397,hour

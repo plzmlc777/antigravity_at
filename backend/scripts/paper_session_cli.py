@@ -74,6 +74,52 @@ def load_1m(symbol: str, days: int = 800) -> pd.DataFrame:
         db.close()
 
 
+FUNDING_DISPERSION_UNIVERSE = [
+    "HBARUSDT", "AXSUSDT", "COMPUSDT", "DOGEUSDT", "LDOUSDT",
+    "SOLUSDT", "AVAXUSDT", "LINKUSDT", "UNIUSDT", "ETCUSDT",
+    "WLDUSDT", "JUPUSDT", "PYTHUSDT", "TONUSDT",
+]
+
+
+def load_binance_funding_universe(universe: list[str], days: int = 400) -> pd.DataFrame:
+    """Fetch funding_rate for each symbol → return wide df: index=funding_time
+    (rounded to 1h to align across slight ms drift), columns=symbols, values=
+    funding_rate (float). Inner join on common periods.
+
+    Returns empty DataFrame if no symbols have data.
+    """
+    db = SessionLocal()
+    try:
+        start = datetime.now() - timedelta(days=days)
+        frames = []
+        for sym in universe:
+            sql = text(
+                "SELECT funding_time, funding_rate FROM binance_funding_rate "
+                "WHERE symbol = :sym AND funding_time >= :start "
+                "ORDER BY funding_time"
+            )
+            rows = db.execute(sql, {"sym": sym, "start": start}).fetchall()
+            if not rows:
+                log.warning("No funding rate for %s — skipping in universe", sym)
+                continue
+            df = pd.DataFrame(rows, columns=["funding_time", "funding_rate"])
+            df["funding_time"] = pd.to_datetime(df["funding_time"]).round("h")
+            df["funding_rate"] = pd.to_numeric(df["funding_rate"])
+            df = df.set_index("funding_time").sort_index()
+            df = df[~df.index.duplicated(keep="last")]
+            frames.append(df["funding_rate"].rename(sym))
+        if not frames:
+            return pd.DataFrame()
+        wide = pd.concat(frames, axis=1).sort_index()
+        wide = wide.dropna(how="any")
+        return wide
+    except Exception as exc:
+        log.warning("load_binance_funding_universe failed: %s", exc)
+        return pd.DataFrame()
+    finally:
+        db.close()
+
+
 def load_binance_funding(symbol: str, days: int = 400) -> pd.DataFrame:
     """Fetch all stored funding rate rows for symbol within last `days`.
     Returns empty DataFrame if table missing or no rows."""
@@ -191,6 +237,21 @@ def build_runtime_bundle(symbol: str, eval_freq_minutes: int, sources_used: list
                 bundle.binance_funding_df = funding_df
             else:
                 log.warning("bn_funding_zscore requested but no funding rows for %s", symbol)
+
+    if "bn_funding_dispersion" in sources_used:
+        wide = load_binance_funding_universe(FUNDING_DISPERSION_UNIVERSE)
+        if len(wide) and symbol in wide.columns:
+            bundle.binance_funding_universe_df = wide
+        else:
+            log.warning("bn_funding_dispersion requested but universe load failed or %s missing", symbol)
+
+    if "bn_cross_lead_lag" in sources_used:
+        # Default leader BTCUSDT — could be parameterized via kwargs in future
+        try:
+            leader_1m = load_1m("BTCUSDT")
+            bundle.leader_ohlcv_eval = resample_ohlcv(leader_1m, eval_tf)
+        except Exception as exc:
+            log.warning("bn_cross_lead_lag requested but BTC ohlcv load failed: %s", exc)
 
     # Binance native sources sharing 5min metrics joblib
     needs_metrics_5m = any(s in sources_used for s in (

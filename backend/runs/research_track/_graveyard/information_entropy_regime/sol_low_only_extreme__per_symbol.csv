@@ -1,0 +1,2 @@
+symbol,n_trades,n_low_entries,n_high_entries,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days,entropy_q10,entropy_q50,entropy_q90
+SOLUSDT,326,326,0,15.37,-12.07,-27.44,-0.242,31.05,46.32,0.965,389,1.238,1.568,1.824

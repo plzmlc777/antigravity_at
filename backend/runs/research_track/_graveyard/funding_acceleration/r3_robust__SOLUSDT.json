@@ -1,0 +1,34 @@
+{
+  "symbol": "SOLUSDT",
+  "paradigm": "funding_acceleration",
+  "phase": "R-3_robustness",
+  "config": {
+    "lookback": 30,
+    "entry_z": 2.0,
+    "exit_z": 0.5,
+    "max_hold": 15,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T11:40:18.890066+00:00",
+  "real_metrics": {
+    "n_trades": 18,
+    "alpha_pct": 57.16,
+    "total_return_pct": 11.21,
+    "buy_hold_pct": -45.96,
+    "sharpe_ann": 1.125,
+    "max_dd_pct": 14.53,
+    "win_rate_pct": 61.11,
+    "profit_factor": 1.633,
+    "oos_days": 177
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 57.16,
+    "random_alpha_mean": 39.961,
+    "random_alpha_std": 12.74,
+    "perm_p": 0.105
+  }
+}

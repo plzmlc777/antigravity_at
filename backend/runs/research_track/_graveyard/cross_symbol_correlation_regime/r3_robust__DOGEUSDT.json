@@ -1,0 +1,41 @@
+{
+  "symbol": "DOGEUSDT",
+  "paradigm": "cross_symbol_correlation_regime",
+  "phase": "R-3_robustness",
+  "config": {
+    "hi_thresh": 0.9,
+    "lo_thresh": 0.5,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "fade",
+    "regime_filter": "hi_only"
+  },
+  "evaluated_at": "2026-05-05T07:47:36.219661+00:00",
+  "real_metrics": {
+    "symbol": "DOGEUSDT",
+    "n_trades": 102,
+    "n_hi_entries": 102,
+    "n_lo_entries": 0,
+    "alpha_pct": 56.28,
+    "hi_alpha_sum": 75.35,
+    "lo_alpha_sum": 0.0,
+    "total_return_pct": 10.03,
+    "buy_hold_pct": -46.25,
+    "sharpe_ann": 0.556,
+    "max_dd_pct": 57.08,
+    "win_rate_pct": 45.1,
+    "profit_factor": 1.584,
+    "oos_days": 380
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 56.28,
+    "random_alpha_mean": -19.029,
+    "random_alpha_std": 110.54,
+    "perm_p": 0.225
+  }
+}

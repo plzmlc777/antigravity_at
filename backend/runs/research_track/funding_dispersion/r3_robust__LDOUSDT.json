@@ -1,0 +1,41 @@
+{
+  "symbol": "LDOUSDT",
+  "paradigm": "funding_dispersion",
+  "phase": "R-3_robustness",
+  "config": {
+    "entry_z": 1.0,
+    "exit_z": 0.2,
+    "max_hold": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T08:19:44.336468+00:00",
+  "real_metrics": {
+    "symbol": "LDOUSDT",
+    "n_trades": 22,
+    "alpha_pct": 65.32,
+    "total_return_pct": 7.16,
+    "buy_hold_pct": -58.17,
+    "sharpe_ann": 0.664,
+    "max_dd_pct": 9.29,
+    "win_rate_pct": 54.55,
+    "profit_factor": 1.305,
+    "avg_funding_per_trade_pct": 0.0068,
+    "funding_share_of_pnl": 0.018,
+    "oos_days": 181,
+    "exit_reasons": {
+      "mean": 11,
+      "time": 9,
+      "sl": 2
+    }
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 65.32,
+    "random_alpha_mean": 19.844,
+    "random_alpha_std": 60.133,
+    "perm_p": 0.2
+  }
+}

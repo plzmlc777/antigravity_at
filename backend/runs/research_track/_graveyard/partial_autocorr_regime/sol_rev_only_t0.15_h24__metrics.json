@@ -1,0 +1,50 @@
+{
+  "paradigm": "partial_autocorr_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "sol_rev_only_t0.15_h24",
+  "evaluated_at": "2026-05-05T08:51:44.748892+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "pacf_window": 288,
+    "trend_thresh": 0.15,
+    "rev_thresh": 0.15,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "regime_filter": "rev_only",
+    "tag": "sol_rev_only_t0.15_h24"
+  },
+  "aggregate": {
+    "spec_name": "sol_rev_only_t0.15_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": 33.91,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.196,
+    "sharpe_pos_count": 1,
+    "trades_total": 189
+  },
+  "per_symbol": [
+    {
+      "n_trades": 189,
+      "n_trend_entries": 0,
+      "n_rev_entries": 189,
+      "alpha_pct": 33.91,
+      "total_return_pct": 1.11,
+      "buy_hold_pct": -32.8,
+      "sharpe_ann": 0.196,
+      "max_dd_pct": 21.07,
+      "win_rate_pct": 50.26,
+      "profit_factor": 1.07,
+      "oos_days": 397,
+      "pacf2_q10": -0.107,
+      "pacf2_q50": -0.013,
+      "pacf2_q90": 0.083,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

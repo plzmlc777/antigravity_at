@@ -1,0 +1,31 @@
+{
+  "name": "ETCUSDT_funding_dispersion_paper_seed",
+  "symbol": "ETCUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 6번째 R-5 시드. funding_dispersion paradigm — 14종 universe funding_rate cross-section z-score reversal at each 8h boundary. R-3 perm_p=0.0000 (200/200, random_mean 22 vs real 138, 6× ratio). Trade-sim baseline alpha 138.00 / sharpe 3.504 / mdd 6.07 / wr 70.27 / pf 3.723 / 37 trades. R-4 gate 7/9 통과 (alpha 92%만 미달 + WF 미실행). 시드된 5 sessions(HBAR/AXS/COMP funding_carry + LINK/UNI autocorr_regime) 모두 sharpe/mdd/wr/PF 동시 압도. funding_carry(per-symbol time-series z) + autocorr_regime(price autocorr)와 paradigm-orthogonal. ETC paradigm-special — 동일 spec로 다른 13종 sharpe mean -0.07 (per-symbol 1:1 fit). User-approved 2026-05-05.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_funding_dispersion", "kwargs": {
+        "target_symbol": "ETCUSDT",
+        "entry_z": 0.8
+      }}
+    ],
+    "composer": {
+      "type": "negation_passthrough",
+      "kwargs": {"feature_col": "bnfd_xs_z", "scale": 1.0}
+    },
+    "policy": {
+      "type": "funding_reversal",
+      "kwargs": {
+        "entry_threshold": 0.8,
+        "exit_threshold": 0.1,
+        "sl_pct": 0.05,
+        "max_hold_bars": 12
+      }
+    },
+    "config": {"eval_freq_minutes": 240, "forward_bars": 12}
+  }
+}

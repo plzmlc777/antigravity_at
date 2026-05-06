@@ -1,0 +1,64 @@
+{
+  "paradigm": "funding_dispersion",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_baseline",
+  "evaluated_at": "2026-05-05T08:17:39.246618+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "universe": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "UNIUSDT",
+      "ETCUSDT",
+      "WLDUSDT",
+      "JUPUSDT",
+      "PYTHUSDT",
+      "TONUSDT"
+    ],
+    "entry_z": 1.5,
+    "exit_z": 0.3,
+    "max_hold": 9,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_baseline"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_baseline",
+    "n_symbols": 1,
+    "alpha_pct_mean": 53.76,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -0.043,
+    "sharpe_pos_count": 0,
+    "trades_total": 10
+  },
+  "per_symbol": [
+    {
+      "symbol": "SOLUSDT",
+      "n_trades": 10,
+      "alpha_pct": 53.76,
+      "total_return_pct": -1.35,
+      "buy_hold_pct": -55.11,
+      "sharpe_ann": -0.043,
+      "max_dd_pct": 12.03,
+      "win_rate_pct": 60.0,
+      "profit_factor": 0.975,
+      "avg_funding_per_trade_pct": 0.058,
+      "funding_share_of_pnl": -1.34,
+      "oos_days": 181,
+      "exit_reasons": {
+        "mean": 9,
+        "sl": 1
+      }
+    }
+  ]
+}

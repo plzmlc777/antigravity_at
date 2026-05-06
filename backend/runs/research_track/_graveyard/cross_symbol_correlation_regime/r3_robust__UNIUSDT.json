@@ -1,0 +1,41 @@
+{
+  "symbol": "UNIUSDT",
+  "paradigm": "cross_symbol_correlation_regime",
+  "phase": "R-3_robustness",
+  "config": {
+    "hi_thresh": 0.9,
+    "lo_thresh": 0.5,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "fade",
+    "regime_filter": "hi_only"
+  },
+  "evaluated_at": "2026-05-05T07:40:58.360893+00:00",
+  "real_metrics": {
+    "symbol": "UNIUSDT",
+    "n_trades": 101,
+    "n_hi_entries": 101,
+    "n_lo_entries": 0,
+    "alpha_pct": 49.65,
+    "hi_alpha_sum": 87.21,
+    "lo_alpha_sum": 0.0,
+    "total_return_pct": 0.67,
+    "buy_hold_pct": -48.98,
+    "sharpe_ann": 0.558,
+    "max_dd_pct": 61.09,
+    "win_rate_pct": 48.51,
+    "profit_factor": 1.645,
+    "oos_days": 380
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 49.65,
+    "random_alpha_mean": 19.412,
+    "random_alpha_std": 72.647,
+    "perm_p": 0.395
+  }
+}

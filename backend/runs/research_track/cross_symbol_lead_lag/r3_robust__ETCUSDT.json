@@ -1,0 +1,35 @@
+{
+  "symbol": "ETCUSDT",
+  "paradigm": "cross_symbol_lead_lag",
+  "phase": "R-3_robustness",
+  "config": {
+    "lead_lookback": 1,
+    "lead_thresh": 0.005,
+    "follow_ratio": 0.5,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "leader": "BTCUSDT"
+  },
+  "evaluated_at": "2026-05-05T13:02:27.882679+00:00",
+  "real_metrics": {
+    "n_trades": 82,
+    "alpha_pct": 90.83,
+    "total_return_pct": 42.3,
+    "buy_hold_pct": -48.53,
+    "sharpe_ann": 1.198,
+    "max_dd_pct": 6.5,
+    "win_rate_pct": 52.44,
+    "profit_factor": 2.42,
+    "oos_days": 398
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 90.83,
+    "random_alpha_mean": -16.623,
+    "random_alpha_std": 60.904,
+    "perm_p": 0.0
+  }
+}

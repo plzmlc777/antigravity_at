@@ -1,0 +1,67 @@
+{
+  "paradigm": "cross_symbol_correlation_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_follow_hi_only",
+  "evaluated_at": "2026-05-05T07:22:11.203115+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "universe": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "UNIUSDT",
+      "ETCUSDT"
+    ],
+    "corr_window": 288,
+    "hi_thresh": 0.85,
+    "lo_thresh": 0.555,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "follow",
+    "regime_filter": "hi_only",
+    "tag": "r1_sol_follow_hi_only"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_follow_hi_only",
+    "n_symbols": 1,
+    "alpha_pct_mean": -36.31,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -3.531,
+    "sharpe_pos_count": 0,
+    "hi_alpha_mean": -124.08,
+    "lo_alpha_mean": 0.0,
+    "trades_total": 574,
+    "avg_corr_global_mean": 0.715,
+    "avg_corr_global_q10": 0.555,
+    "avg_corr_global_q90": 0.85
+  },
+  "per_symbol": [
+    {
+      "symbol": "SOLUSDT",
+      "n_trades": 574,
+      "n_hi_entries": 574,
+      "n_lo_entries": 0,
+      "alpha_pct": -36.31,
+      "hi_alpha_sum": -124.08,
+      "lo_alpha_sum": 0.0,
+      "total_return_pct": -72.78,
+      "buy_hold_pct": -36.47,
+      "sharpe_ann": -3.531,
+      "max_dd_pct": 74.81,
+      "win_rate_pct": 42.51,
+      "profit_factor": 0.672,
+      "oos_days": 380
+    }
+  ]
+}

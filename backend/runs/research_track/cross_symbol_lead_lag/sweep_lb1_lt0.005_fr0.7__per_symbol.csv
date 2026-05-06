@@ -1,0 +1,3 @@
+symbol,n_trades,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+DOGEUSDT,78,60.55,12.45,-48.1,0.835,11.63,48.72,1.33,383
+ETCUSDT,155,84.81,36.28,-48.53,1.037,15.59,50.97,1.625,398

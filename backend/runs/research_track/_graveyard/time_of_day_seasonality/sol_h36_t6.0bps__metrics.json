@@ -1,0 +1,49 @@
+{
+  "paradigm": "time_of_day_seasonality",
+  "phase": "R-1_PoC",
+  "spec_name": "sol_h36_t6.0bps",
+  "evaluated_at": "2026-05-05T08:41:37.493480+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "fwd_bars": 12,
+    "hold_bars": 36,
+    "entry_thresh_bps": 6.0,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tod_unit": "hour",
+    "tag": "sol_h36_t6.0bps"
+  },
+  "aggregate": {
+    "spec_name": "sol_h36_t6.0bps",
+    "n_symbols": 1,
+    "alpha_pct_mean": -29.49,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.841,
+    "sharpe_pos_count": 0,
+    "trades_total": 869
+  },
+  "per_symbol": [
+    {
+      "n_trades": 869,
+      "n_long_attempts": 42,
+      "n_short_attempts": 827,
+      "n_units": 24,
+      "alpha_pct": -29.49,
+      "total_return_pct": -62.98,
+      "buy_hold_pct": -33.49,
+      "sharpe_ann": -1.841,
+      "max_dd_pct": 65.25,
+      "win_rate_pct": 44.07,
+      "profit_factor": 0.84,
+      "oos_days": 397,
+      "bias_max_abs_bps": 6.589,
+      "bias_mean_abs_bps": 3.286,
+      "tod_unit": "hour",
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

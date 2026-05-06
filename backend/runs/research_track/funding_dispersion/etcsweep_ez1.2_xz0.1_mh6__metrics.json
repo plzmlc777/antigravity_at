@@ -1,0 +1,65 @@
+{
+  "paradigm": "funding_dispersion",
+  "phase": "R-1_PoC",
+  "spec_name": "etcsweep_ez1.2_xz0.1_mh6",
+  "evaluated_at": "2026-05-05T08:21:15.612137+00:00",
+  "config": {
+    "symbols": [
+      "ETCUSDT"
+    ],
+    "universe": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "UNIUSDT",
+      "ETCUSDT",
+      "WLDUSDT",
+      "JUPUSDT",
+      "PYTHUSDT",
+      "TONUSDT"
+    ],
+    "entry_z": 1.2,
+    "exit_z": 0.1,
+    "max_hold": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "etcsweep_ez1.2_xz0.1_mh6"
+  },
+  "aggregate": {
+    "spec_name": "etcsweep_ez1.2_xz0.1_mh6",
+    "n_symbols": 1,
+    "alpha_pct_mean": 67.75,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.299,
+    "sharpe_pos_count": 1,
+    "trades_total": 15
+  },
+  "per_symbol": [
+    {
+      "symbol": "ETCUSDT",
+      "n_trades": 15,
+      "alpha_pct": 67.75,
+      "total_return_pct": 19.41,
+      "buy_hold_pct": -48.34,
+      "sharpe_ann": 1.299,
+      "max_dd_pct": 11.39,
+      "win_rate_pct": 60.0,
+      "profit_factor": 2.119,
+      "avg_funding_per_trade_pct": 0.02,
+      "funding_share_of_pnl": 0.015,
+      "oos_days": 181,
+      "exit_reasons": {
+        "mean": 4,
+        "time": 9,
+        "sl": 2
+      }
+    }
+  ]
+}

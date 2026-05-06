@@ -1,0 +1,52 @@
+{
+  "paradigm": "information_entropy_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "sol_high_only_extreme",
+  "evaluated_at": "2026-05-05T09:42:23.585512+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "entropy_window": 288,
+    "n_bins": 10,
+    "pct_window": 8640,
+    "p_low": 0.2,
+    "p_high": 0.9,
+    "dir_lookback": 12,
+    "hold_bars": 48,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "regime_filter": "high_only",
+    "tag": "sol_high_only_extreme"
+  },
+  "aggregate": {
+    "spec_name": "sol_high_only_extreme",
+    "n_symbols": 1,
+    "alpha_pct_mean": -0.71,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.013,
+    "sharpe_pos_count": 0,
+    "trades_total": 355
+  },
+  "per_symbol": [
+    {
+      "n_trades": 355,
+      "n_low_entries": 0,
+      "n_high_entries": 356,
+      "alpha_pct": -0.71,
+      "total_return_pct": -28.14,
+      "buy_hold_pct": -27.44,
+      "sharpe_ann": -1.013,
+      "max_dd_pct": 35.32,
+      "win_rate_pct": 47.32,
+      "profit_factor": 0.863,
+      "oos_days": 389,
+      "entropy_q10": 1.238,
+      "entropy_q50": 1.568,
+      "entropy_q90": 1.824,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

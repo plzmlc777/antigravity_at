@@ -1,0 +1,2 @@
+symbol,n_trades,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,avg_funding_per_trade_pct,funding_share_of_pnl,oos_days
+SOLUSDT,29,51.42,-3.69,-55.11,-0.206,14.04,44.83,0.925,0.026,-0.31,181

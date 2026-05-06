@@ -217,6 +217,42 @@ def _build_bn_funding_zscore(kwargs: dict, runtime: dict) -> SignalSource:
     )
 
 
+@register_source("bn_autocorr_regime")
+def _build_bn_autocorr_regime(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceAutocorrRegimeSource
+    return BinanceAutocorrRegimeSource(**(kwargs or {}))
+
+
+@register_source("bn_funding_dispersion")
+def _build_bn_funding_dispersion(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceFundingDispersionSource
+    universe_df = runtime.get("binance_funding_universe_df")
+    if universe_df is None:
+        raise KeyError("runtime_data['binance_funding_universe_df'] required for bn_funding_dispersion")
+    target = kwargs.get("target_symbol") or runtime.get("symbol")
+    if not target:
+        raise KeyError("bn_funding_dispersion needs target_symbol in kwargs or runtime['symbol']")
+    return BinanceFundingDispersionSource(
+        funding_universe_df=universe_df,
+        target_symbol=target,
+        entry_z=float(kwargs.get("entry_z", 0.8)),
+    )
+
+
+@register_source("bn_cross_lead_lag")
+def _build_bn_cross_lead_lag(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceCrossLeaderLagSource
+    leader = runtime.get("leader_ohlcv_eval")
+    if leader is None:
+        raise KeyError("runtime_data['leader_ohlcv_eval'] required for bn_cross_lead_lag")
+    return BinanceCrossLeaderLagSource(
+        leader_ohlcv_eval=leader,
+        lead_lookback=int(kwargs.get("lead_lookback", 1)),
+        lead_thresh=float(kwargs.get("lead_thresh", 0.005)),
+        follow_ratio=float(kwargs.get("follow_ratio", 0.5)),
+    )
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter
@@ -235,6 +271,12 @@ def _build_xgb(kwargs: dict) -> Composer:
 def _build_negation_passthrough(kwargs: dict) -> Composer:
     from .composers import NegationPassthroughComposer
     return NegationPassthroughComposer(**(kwargs or {}))
+
+
+@register_composer("passthrough")
+def _build_passthrough(kwargs: dict) -> Composer:
+    from .composers import PassthroughComposer
+    return PassthroughComposer(**(kwargs or {}))
 
 
 @register_policy("long_only_threshold")

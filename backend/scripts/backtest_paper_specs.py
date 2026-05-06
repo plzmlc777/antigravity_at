@@ -110,6 +110,28 @@ def load_runtime(symbol: str) -> dict:
             runtime["binance_funding_df"] = df
     except Exception:
         pass  # tolerate missing table — only matters if spec actually requests it
+
+    # binance funding rate UNIVERSE wide (for bn_funding_dispersion source)
+    try:
+        from app.db.session import SessionLocal
+        from sqlalchemy import text as _text
+        from scripts.paper_session_cli import (
+            FUNDING_DISPERSION_UNIVERSE,
+            load_binance_funding_universe,
+        )
+        wide = load_binance_funding_universe(FUNDING_DISPERSION_UNIVERSE)
+        if len(wide):
+            runtime["binance_funding_universe_df"] = wide
+    except Exception:
+        pass  # only matters if spec requests bn_funding_dispersion
+
+    # leader symbol 5m ohlcv (for bn_cross_lead_lag source — default BTCUSDT)
+    try:
+        leader_eval = load_ohlcv_eval("BTCUSDT")
+        if leader_eval is not None and len(leader_eval) > 0:
+            runtime["leader_ohlcv_eval"] = leader_eval
+    except Exception:
+        pass  # only matters if spec requests bn_cross_lead_lag
     return runtime
 
 

@@ -1,0 +1,2 @@
+symbol,n_trades,n_trend_entries,n_rev_entries,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days,pacf2_q10,pacf2_q50,pacf2_q90
+SOLUSDT,1240,1240,0,-31.15,-63.96,-32.8,-2.302,67.77,44.6,0.83,397,-0.107,-0.013,0.083

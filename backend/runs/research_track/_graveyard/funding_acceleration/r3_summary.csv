@@ -1,0 +1,4 @@
+symbol,alpha_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,n_trades,perm_p,perm_random_mean
+COMPUSDT,54.12,1.524,8.63,50.0,1.916,20,0.095,31.24
+SOLUSDT,57.16,1.125,14.53,61.11,1.633,18,0.105,39.961
+ETCUSDT,57.94,1.012,10.62,63.16,1.588,19,0.165,46.034

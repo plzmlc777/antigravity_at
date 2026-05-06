@@ -1,0 +1,57 @@
+{
+  "paradigm": "cross_symbol_lead_lag",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_lb3_lt0.005_fr0.3",
+  "evaluated_at": "2026-05-05T13:08:09.199104+00:00",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "ETCUSDT"
+    ],
+    "leader": "BTCUSDT",
+    "lead_lookback": 3,
+    "lead_thresh": 0.005,
+    "follow_ratio": 0.3,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "sweep_lb3_lt0.005_fr0.3"
+  },
+  "aggregate": {
+    "spec_name": "sweep_lb3_lt0.005_fr0.3",
+    "n_symbols": 2,
+    "alpha_pct_mean": 35.89,
+    "alpha_pos_count": 2,
+    "sharpe_mean": -0.75,
+    "sharpe_pos_count": 0,
+    "trades_total": 340
+  },
+  "per_symbol": [
+    {
+      "n_trades": 113,
+      "alpha_pct": 35.03,
+      "total_return_pct": -13.02,
+      "buy_hold_pct": -48.05,
+      "sharpe_ann": -0.875,
+      "max_dd_pct": 14.72,
+      "win_rate_pct": 40.71,
+      "profit_factor": 0.77,
+      "oos_days": 383,
+      "symbol": "DOGEUSDT"
+    },
+    {
+      "n_trades": 227,
+      "alpha_pct": 36.74,
+      "total_return_pct": -11.83,
+      "buy_hold_pct": -48.57,
+      "sharpe_ann": -0.626,
+      "max_dd_pct": 27.86,
+      "win_rate_pct": 45.37,
+      "profit_factor": 0.883,
+      "oos_days": 398,
+      "symbol": "ETCUSDT"
+    }
+  ]
+}

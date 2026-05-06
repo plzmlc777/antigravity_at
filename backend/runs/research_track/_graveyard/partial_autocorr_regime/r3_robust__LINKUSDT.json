@@ -1,0 +1,41 @@
+{
+  "symbol": "LINKUSDT",
+  "paradigm": "partial_autocorr_regime",
+  "phase": "R-3_robustness",
+  "config": {
+    "pacf_window": 288,
+    "trend_thresh": 0.15,
+    "rev_thresh": 0.15,
+    "dir_lookback": 12,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "regime_filter": "rev_only",
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T09:17:26.722206+00:00",
+  "real_metrics": {
+    "n_trades": 116,
+    "n_trend_entries": 0,
+    "n_rev_entries": 116,
+    "alpha_pct": 40.94,
+    "total_return_pct": 2.37,
+    "buy_hold_pct": -38.57,
+    "sharpe_ann": 0.474,
+    "max_dd_pct": 64.99,
+    "win_rate_pct": 50.0,
+    "profit_factor": 1.385,
+    "oos_days": 383,
+    "pacf2_q10": -0.11,
+    "pacf2_q50": -0.012,
+    "pacf2_q90": 0.091
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 40.94,
+    "random_alpha_mean": 3.791,
+    "random_alpha_std": 78.644,
+    "perm_p": 0.395
+  }
+}

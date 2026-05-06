@@ -1,0 +1,51 @@
+{
+  "name": "ETCUSDT_funding_dispersion_paper_seed_proposal",
+  "symbol": "ETCUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 6번째 R-5 후보. funding rate cross-section z-score reversal. Universe: 14 paper-pool symbols. Distinct from funding_carry (per-symbol time-series z) and autocorr_regime (price autocorr). R-3 perm_p=0.0000 (200/200), 4/5 정량 cutoff (alpha 138/150=92%, sharpe 3.50, mdd 6.07, wr 70.27, PF 3.72, trades 37). Outperforms all 5 currently-seeded sessions (HBAR/AXS/COMP funding_carry + LINK/UNI autocorr_regime) jointly on sharpe/mdd/wr/pf. ETC is paradigm-special — at same spec other 13 symbols sharpe mean -0.07 (per-symbol 1:1 fit).",
+  "strategy_type": "funding_dispersion",
+  "strategy_kwargs": {
+    "universe": ["HBARUSDT", "AXSUSDT", "COMPUSDT", "DOGEUSDT", "LDOUSDT", "SOLUSDT", "AVAXUSDT", "LINKUSDT", "UNIUSDT", "ETCUSDT", "WLDUSDT", "JUPUSDT", "PYTHUSDT", "TONUSDT"],
+    "entry_z": 0.8,
+    "exit_z": 0.1,
+    "max_hold_funding_periods": 6,
+    "sl_pct": 0.05
+  },
+  "data_source": "binance_funding_rate table (14-symbol cross-section z-score at each 8h funding boundary)",
+  "evaluation_freq": "every 8h funding period",
+  "research_lineage": {
+    "paradigm": "funding_dispersion",
+    "spec_variant": "ez0.8_xz0.1_mh6",
+    "metrics_summary": {
+      "alpha_pct": 138.00,
+      "sharpe_ann": 3.504,
+      "max_dd_pct": 6.07,
+      "win_rate_pct": 70.27,
+      "profit_factor": 3.723,
+      "n_trades": 37,
+      "perm_p": 0.0000,
+      "perm_random_alpha_mean": 22.085,
+      "wf_positive_folds": null,
+      "wf_total_folds": null,
+      "oos_days": 181,
+      "comment": "Real alpha 138 vs random shuffle mean 22 — 6× ratio. 200/200 random shuffles below real alpha. WF not run (master plan §3 marks it optional after perm). Cross-section z-signal isolated from price-PnL via shuffle test."
+    },
+    "comparison_to_seeded": {
+      "vs_HBAR_funding_carry_v4": "ETC sharpe 3.50 vs HBAR 1.87 (1.9x); mdd 6.07 vs 9.57 (lower risk); wr 70 vs 68",
+      "vs_AXS_funding_carry_v4": "ETC alpha 138 vs AXS 148 (-7%); sharpe 3.50 vs 1.48 (2.4x); mdd 6.07 vs 14.45 (less than half)",
+      "vs_LINK_autocorr_regime": "ETC alpha 138 vs LINK 116 (+19%); sharpe 3.50 vs 1.25 (2.8x); PF 3.72 vs 3.33"
+    },
+    "anti_pattern_check": "Hurst-trap not present at ez=0.8 (37 trades, well above rare-event boundary). xs_z signal preserved through price-shuffle perm test (signal independent of price path)."
+  },
+  "approval_required": "user_explicit_approval",
+  "implementation_path": {
+    "source_class_needed": "BinanceFundingDispersionSource (new) — at each 8h boundary, computes xs_z across universe and emits per-symbol z-score signal",
+    "composer": "PassthroughComposer (reuse from autocorr_regime seed) or NegationPassthroughComposer (reuse from funding_carry seed)",
+    "policy": "FundingDispersionPolicy (new) or reuse FundingReversalPolicy with xs_z input — needs entry/exit threshold + max_hold + SL hooks",
+    "pipeline_spec_register": "bn_funding_dispersion source + per_symbol_xs_z_reversal policy",
+    "session_config": "configs/paper_sessions/ETCUSDT_funding_dispersion.json",
+    "cron": "binance-paper-cycle (existing) — funding rate already backfilled daily"
+  }
+}

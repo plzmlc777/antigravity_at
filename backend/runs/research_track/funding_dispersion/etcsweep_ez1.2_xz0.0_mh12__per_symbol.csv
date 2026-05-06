@@ -1,0 +1,2 @@
+symbol,n_trades,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,avg_funding_per_trade_pct,funding_share_of_pnl,oos_days
+ETCUSDT,12,43.35,-4.99,-48.34,-0.194,21.68,41.67,0.902,0.0355,-0.142,181

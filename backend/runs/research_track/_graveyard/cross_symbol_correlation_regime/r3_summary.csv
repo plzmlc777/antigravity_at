@@ -1,0 +1,4 @@
+symbol,alpha_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,n_trades,perm_p,perm_random_mean
+LDOUSDT,91.28,0.749,69.22,52.38,2.046,105,0.17,34.205
+UNIUSDT,49.65,0.558,61.09,48.51,1.645,101,0.395,19.412
+DOGEUSDT,56.28,0.556,57.08,45.1,1.584,102,0.225,-19.029

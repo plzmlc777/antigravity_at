@@ -1,0 +1,4 @@
+symbol,alpha_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,n_trades,perm_p,perm_random_mean
+ETCUSDT,94.03,0.774,22.85,48.23,1.553,141,0.025,18.306
+UNIUSDT,78.81,0.725,61.8,52.31,1.737,130,0.105,-9.352
+LINKUSDT,40.94,0.474,64.99,50.0,1.385,116,0.395,3.791

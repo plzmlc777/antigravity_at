@@ -20,6 +20,9 @@ from .binance_event_detector_source import BinanceEventDetectorSource
 from .binance_mtf_alignment_source import BinanceMTFAlignmentSource
 from .binance_cascade_reversal_source import BinanceCascadeReversalSource
 from .binance_funding_zscore_source import BinanceFundingZScoreSource
+from .binance_autocorr_regime_source import BinanceAutocorrRegimeSource
+from .binance_funding_dispersion_source import BinanceFundingDispersionSource
+from .binance_cross_lead_lag_source import BinanceCrossLeaderLagSource
 
 __all__ = [
     "PatternSource",
@@ -38,4 +41,7 @@ __all__ = [
     "BinanceMTFAlignmentSource",
     "BinanceCascadeReversalSource",
     "BinanceFundingZScoreSource",
+    "BinanceAutocorrRegimeSource",
+    "BinanceFundingDispersionSource",
+    "BinanceCrossLeaderLagSource",
 ]

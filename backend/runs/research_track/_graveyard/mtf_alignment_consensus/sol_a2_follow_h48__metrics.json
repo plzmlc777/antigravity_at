@@ -1,0 +1,51 @@
+{
+  "paradigm": "mtf_alignment_consensus",
+  "phase": "R-1_PoC",
+  "spec_name": "sol_a2_follow_h48",
+  "evaluated_at": "2026-05-06T00:16:51.500743+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "min_align": 2,
+    "hold_bars": 48,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "follow",
+    "tag": "sol_a2_follow_h48"
+  },
+  "aggregate": {
+    "spec_name": "sol_a2_follow_h48",
+    "n_symbols": 1,
+    "alpha_pct_mean": -52.44,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -2.074,
+    "sharpe_pos_count": 0,
+    "trades_total": 2421
+  },
+  "per_symbol": [
+    {
+      "n_trades": 2421,
+      "alpha_pct": -52.44,
+      "total_return_pct": -86.02,
+      "buy_hold_pct": -33.58,
+      "sharpe_ann": -2.074,
+      "max_dd_pct": 90.05,
+      "win_rate_pct": 44.61,
+      "profit_factor": 0.889,
+      "oos_days": 397,
+      "align_dist": {
+        "1": 34621,
+        "-1": 34087,
+        "3": 22042,
+        "-3": 21345,
+        "0": 936,
+        "-2": 731,
+        "2": 725
+      },
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

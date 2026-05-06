@@ -1,0 +1,51 @@
+{
+  "paradigm": "mtf_alignment_consensus",
+  "phase": "R-1_PoC",
+  "spec_name": "sol_a2_fade_h24",
+  "evaluated_at": "2026-05-06T00:17:06.908655+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "min_align": 2,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "fade",
+    "tag": "sol_a2_fade_h24"
+  },
+  "aggregate": {
+    "spec_name": "sol_a2_fade_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": -65.61,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -5.101,
+    "sharpe_pos_count": 0,
+    "trades_total": 4466
+  },
+  "per_symbol": [
+    {
+      "n_trades": 4466,
+      "alpha_pct": -65.61,
+      "total_return_pct": -99.19,
+      "buy_hold_pct": -33.58,
+      "sharpe_ann": -5.101,
+      "max_dd_pct": 99.24,
+      "win_rate_pct": 46.69,
+      "profit_factor": 0.783,
+      "oos_days": 397,
+      "align_dist": {
+        "1": 34621,
+        "-1": 34087,
+        "3": 22042,
+        "-3": 21345,
+        "0": 936,
+        "-2": 731,
+        "2": 725
+      },
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

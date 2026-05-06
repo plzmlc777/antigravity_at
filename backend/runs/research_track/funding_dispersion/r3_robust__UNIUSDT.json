@@ -1,0 +1,41 @@
+{
+  "symbol": "UNIUSDT",
+  "paradigm": "funding_dispersion",
+  "phase": "R-3_robustness",
+  "config": {
+    "entry_z": 1.0,
+    "exit_z": 0.2,
+    "max_hold": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T08:19:43.908511+00:00",
+  "real_metrics": {
+    "symbol": "UNIUSDT",
+    "n_trades": 31,
+    "alpha_pct": 69.89,
+    "total_return_pct": 24.96,
+    "buy_hold_pct": -44.93,
+    "sharpe_ann": 1.31,
+    "max_dd_pct": 16.19,
+    "win_rate_pct": 51.61,
+    "profit_factor": 1.575,
+    "avg_funding_per_trade_pct": 0.0126,
+    "funding_share_of_pnl": 0.015,
+    "oos_days": 181,
+    "exit_reasons": {
+      "time": 16,
+      "mean": 13,
+      "sl": 2
+    }
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 69.89,
+    "random_alpha_mean": 8.321,
+    "random_alpha_std": 66.503,
+    "perm_p": 0.16
+  }
+}

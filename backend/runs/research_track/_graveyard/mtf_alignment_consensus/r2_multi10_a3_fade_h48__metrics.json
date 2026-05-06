@@ -1,0 +1,249 @@
+{
+  "paradigm": "mtf_alignment_consensus",
+  "phase": "R-1_PoC",
+  "spec_name": "r2_multi10_a3_fade_h48",
+  "evaluated_at": "2026-05-06T00:18:57.071855+00:00",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "UNIUSDT",
+      "ETCUSDT"
+    ],
+    "min_align": 3,
+    "hold_bars": 48,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "direction": "fade",
+    "tag": "r2_multi10_a3_fade_h48"
+  },
+  "aggregate": {
+    "spec_name": "r2_multi10_a3_fade_h48",
+    "n_symbols": 10,
+    "alpha_pct_mean": -47.55,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.621,
+    "sharpe_pos_count": 0,
+    "trades_total": 25223
+  },
+  "per_symbol": [
+    {
+      "n_trades": 2520,
+      "alpha_pct": -47.31,
+      "total_return_pct": -95.63,
+      "buy_hold_pct": -48.32,
+      "sharpe_ann": -1.804,
+      "max_dd_pct": 97.96,
+      "win_rate_pct": 45.52,
+      "profit_factor": 0.865,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 34726,
+        "1": 33484,
+        "-3": 23393,
+        "3": 21342,
+        "0": 743,
+        "-2": 733,
+        "2": 612
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 2669,
+      "alpha_pct": -44.85,
+      "total_return_pct": -98.64,
+      "buy_hold_pct": -53.79,
+      "sharpe_ann": -2.123,
+      "max_dd_pct": 99.24,
+      "win_rate_pct": 45.49,
+      "profit_factor": 0.859,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 30808,
+        "1": 29565,
+        "-3": 21396,
+        "3": 19312,
+        "0": 5038,
+        "-2": 4752,
+        "2": 4162
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 2526,
+      "alpha_pct": -52.54,
+      "total_return_pct": -95.36,
+      "buy_hold_pct": -42.83,
+      "sharpe_ann": -1.298,
+      "max_dd_pct": 95.74,
+      "win_rate_pct": 48.3,
+      "profit_factor": 0.894,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 32189,
+        "1": 31543,
+        "-3": 21853,
+        "3": 20500,
+        "0": 3258,
+        "-2": 2908,
+        "2": 2782
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 2445,
+      "alpha_pct": -48.4,
+      "total_return_pct": -97.49,
+      "buy_hold_pct": -49.08,
+      "sharpe_ann": -1.731,
+      "max_dd_pct": 98.01,
+      "win_rate_pct": 45.97,
+      "profit_factor": 0.848,
+      "oos_days": 383,
+      "align_dist": {
+        "-1": 33536,
+        "1": 33012,
+        "-3": 21347,
+        "3": 20771,
+        "0": 650,
+        "-2": 563,
+        "2": 555
+      },
+      "symbol": "DOGEUSDT"
+    },
+    {
+      "n_trades": 2691,
+      "alpha_pct": -38.64,
+      "total_return_pct": -99.18,
+      "buy_hold_pct": -60.54,
+      "sharpe_ann": -1.314,
+      "max_dd_pct": 99.42,
+      "win_rate_pct": 46.79,
+      "profit_factor": 0.872,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 34456,
+        "1": 33378,
+        "-3": 22524,
+        "3": 20891,
+        "0": 1483,
+        "-2": 1346,
+        "2": 1099
+      },
+      "symbol": "LDOUSDT"
+    },
+    {
+      "n_trades": 2472,
+      "alpha_pct": -56.23,
+      "total_return_pct": -89.81,
+      "buy_hold_pct": -33.58,
+      "sharpe_ann": -2.189,
+      "max_dd_pct": 93.7,
+      "win_rate_pct": 47.37,
+      "profit_factor": 0.876,
+      "oos_days": 397,
+      "align_dist": {
+        "1": 34621,
+        "-1": 34087,
+        "3": 22042,
+        "-3": 21345,
+        "0": 936,
+        "-2": 731,
+        "2": 725
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 2391,
+      "alpha_pct": -39.0,
+      "total_return_pct": -91.94,
+      "buy_hold_pct": -52.94,
+      "sharpe_ann": -0.721,
+      "max_dd_pct": 93.52,
+      "win_rate_pct": 47.26,
+      "profit_factor": 0.923,
+      "oos_days": 377,
+      "align_dist": {
+        "-1": 32944,
+        "1": 32182,
+        "-3": 21650,
+        "3": 20083,
+        "0": 658,
+        "-2": 577,
+        "2": 555
+      },
+      "symbol": "AVAXUSDT"
+    },
+    {
+      "n_trades": 2430,
+      "alpha_pct": -52.04,
+      "total_return_pct": -90.5,
+      "buy_hold_pct": -38.46,
+      "sharpe_ann": -1.086,
+      "max_dd_pct": 92.0,
+      "win_rate_pct": 48.15,
+      "profit_factor": 0.909,
+      "oos_days": 383,
+      "align_dist": {
+        "-1": 33230,
+        "1": 32732,
+        "-3": 21576,
+        "3": 20960,
+        "0": 684,
+        "2": 660,
+        "-2": 594
+      },
+      "symbol": "LINKUSDT"
+    },
+    {
+      "n_trades": 2619,
+      "alpha_pct": -50.54,
+      "total_return_pct": -97.98,
+      "buy_hold_pct": -47.44,
+      "sharpe_ann": -1.406,
+      "max_dd_pct": 98.16,
+      "win_rate_pct": 47.42,
+      "profit_factor": 0.876,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 34273,
+        "1": 33081,
+        "-3": 22509,
+        "3": 20725,
+        "0": 1684,
+        "-2": 1543,
+        "2": 1362
+      },
+      "symbol": "UNIUSDT"
+    },
+    {
+      "n_trades": 2460,
+      "alpha_pct": -45.91,
+      "total_return_pct": -96.33,
+      "buy_hold_pct": -50.41,
+      "sharpe_ann": -2.538,
+      "max_dd_pct": 96.34,
+      "win_rate_pct": 46.02,
+      "profit_factor": 0.819,
+      "oos_days": 399,
+      "align_dist": {
+        "-1": 34949,
+        "1": 34081,
+        "-3": 22741,
+        "3": 21019,
+        "0": 874,
+        "-2": 807,
+        "2": 706
+      },
+      "symbol": "ETCUSDT"
+    }
+  ]
+}
