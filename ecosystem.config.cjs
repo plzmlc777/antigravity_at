@@ -25,10 +25,10 @@ const coreApps = [
     {
         name: "at-frontend",
         script: "npm",
-        args: "run preview -- --host 0.0.0.0",
+        args: "run dev -- --host 0.0.0.0",
         cwd: "./frontend",
         env: {
-            NODE_ENV: "production"
+            NODE_ENV: "development"
         }
     },
 ];
