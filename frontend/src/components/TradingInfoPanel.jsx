@@ -32,7 +32,7 @@ const TradingInfoPanel = ({ currentSymbol, setSavedSymbols, accountId }) => {
     const { data: price } = useQuery({
         queryKey: ['price', currentSymbol],
         queryFn: () => getPrice(currentSymbol),
-        refetchInterval: 30000,
+        refetchInterval: 5000,
         enabled: !!currentSymbol
     });
 
@@ -40,7 +40,7 @@ const TradingInfoPanel = ({ currentSymbol, setSavedSymbols, accountId }) => {
     const { data: balance } = useQuery({
         queryKey: ['balance', 'account', accountId],
         queryFn: () => getBalanceForAccount(accountId),
-        refetchInterval: 30000,
+        refetchInterval: 10000,
         enabled: !!accountId
     });
 

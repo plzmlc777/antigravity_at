@@ -31,10 +31,10 @@ const AutoTrading = () => {
         }
     };
 
-    // Poll bot status every 10 seconds
+    // Poll bot status every 1 second
     useEffect(() => {
         fetchBots();
-        const timer = setInterval(fetchBots, 10000);
+        const timer = setInterval(fetchBots, 1000);
         return () => clearInterval(timer);
     }, []);
 
