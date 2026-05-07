@@ -1,0 +1,30 @@
+{
+  "name": "SOLUSDT_S+T+B_paper_seed",
+  "symbol": "SOLUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed. Robustness 5/5 PERFECT. SmartMoney(top trader L/S cumulative) + TakerFlow(aggressor flow) + BookDepth(orderbook imbalance). Long-short, fwd=5d, +63 alpha (1y OOS, fee included).",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "bn_smart_money", "kwargs": {}},
+      {"type": "bn_taker_flow", "kwargs": {}},
+      {"type": "bn_book_depth", "kwargs": {}}
+    ],
+    "composer": {"type": "lgbm", "kwargs": {}},
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

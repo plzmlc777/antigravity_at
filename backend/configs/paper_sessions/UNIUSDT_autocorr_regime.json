@@ -1,0 +1,35 @@
+{
+  "name": "UNIUSDT_autocorr_regime_paper_seed",
+  "symbol": "UNIUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F. autocorr_regime paradigm. R-3 robustness PASS (perm p=0.000, n=200). Trade-sim baseline alpha 120.27 / sharpe 1.100 / mdd 8.90 / wr 53.41 / pf 2.697 (rev_only). R-4 gate 5/8 통과 (mdd ✅ wr ≥50 ✅ PF ≥2.0 ✅ perm 0.000 ✅, alpha 120/150=80%, sharpe 1.10/2.0=55%). 본 트랙 두 번째 R-5 시드. funding_carry와 직교한 신호. User-approved 2026-05-04.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_autocorr_regime", "kwargs": {
+        "autocorr_window": 288,
+        "lag": 1,
+        "rev_thresh": 0.20,
+        "trend_thresh": 0.20,
+        "dir_lookback": 12,
+        "regime_filter": "rev_only"
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnar_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.02,
+        "tp_pct": 1.0,
+        "max_hold_bars": 24
+      }
+    },
+    "config": {"eval_freq_minutes": 5, "forward_bars": 24}
+  }
+}

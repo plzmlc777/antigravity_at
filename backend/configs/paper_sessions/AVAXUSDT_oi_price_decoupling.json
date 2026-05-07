@@ -1,0 +1,32 @@
+{
+  "name": "AVAXUSDT_oi_price_decoupling_paper_seed",
+  "symbol": "AVAXUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 21번째 paradigm시도. oi_price_decoupling paradigm `confirm` mode (price+OI 같은 부호 extreme z → trend confirmation follow). R-3 perm test n=100 → perm_p=0.0000 (random_mean 1.14, random_max 68.88, real 145.65 = 6.7σ above random). Trade-sim baseline alpha 145.65 / sharpe 1.73 / mdd 27.9 / wr 49.32 / pf 1.257 / 523 trades / OOS 365 days. R-4 gate 4-5/9 (alpha 97% / sharpe 87% / mdd ✅ borderline / wr 99% / pf 63% — funding_carry/autocorr_regime 시드 path 동급). 데이터: backend/runs/microstructure/AVAXUSDT_full_metrics.joblib (open_interest 컬럼, 5m granularity, 2y backfill from data.binance.vision). 5/5 perm 후보 검증됨 (UNI confirm 4.8σ + AXS/LINK/HBAR invert_decouple 3.7~5.2σ). Day 30 검증 후 추가 시드(UNI/LINK) 결정 예정. User-approved 2026-05-06.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_oi_price_decoupling", "kwargs": {
+        "mode": "confirm",
+        "zwin": 288,
+        "entry_z": 2.0
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnoid_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.02,
+        "tp_pct": 1.0,
+        "max_hold_bars": 24
+      }
+    },
+    "config": {"eval_freq_minutes": 5, "forward_bars": 24}
+  }
+}

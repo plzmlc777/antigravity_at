@@ -1,0 +1,28 @@
+{
+  "name": "AXSUSDT_V_paper_seed",
+  "symbol": "AXSUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed. Robustness 5/5 PERFECT. EventDetector(5min vol/OI/taker spike events) Native Binance paradigm. Long-short, fwd=10d. Single-source decisive — 5min event-driven dynamics.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "bn_event_detector", "kwargs": {}}
+    ],
+    "composer": {"type": "lgbm", "kwargs": {}},
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 10
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 10}
+  }
+}

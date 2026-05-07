@@ -1,0 +1,29 @@
+{
+  "name": "HBARUSDT_S+P_paper_seed",
+  "symbol": "HBARUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed. Robustness 5/5 PERFECT. SmartMoney(top trader L/S) + Premium Index(spot-futures basis). Long-short, fwd=10d. KR-style pure pair, sign 56.6% but all 5 robustness diagnostics pass.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "bn_smart_money", "kwargs": {}},
+      {"type": "bn_premium", "kwargs": {}}
+    ],
+    "composer": {"type": "lgbm", "kwargs": {}},
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 10
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 10}
+  }
+}

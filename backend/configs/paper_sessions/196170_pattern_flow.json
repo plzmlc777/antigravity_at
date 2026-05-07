@@ -1,0 +1,28 @@
+{
+  "name": "196170_pattern_flow_prod",
+  "symbol": "196170",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.00015,
+  "notes": "Phase 6 production seed — 196170 downside-protection alpha (007210 카테고리). BH OOS -8.35% 약세 종목에서 모델 +20.25% (+28.60pts alpha). sign 40% p=0.035 (역신호 패턴), trade_sim long-only로 약세장 보수적 진입 → 양수 수익. WR 60%, MDD 31.7%, trades=20",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "kr_flow", "kwargs": {"symbol": "196170"}}
+    ],
+    "composer": {"type": "lgbm", "kwargs": {}},
+    "policy": {
+      "type": "long_only_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.04,
+        "tp_pct": 0.10,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "122630_pattern_flow_prod",
+  "symbol": "122630",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.00015,
+  "notes": "Phase 6 production seed — 122630 OOS sharpe 2.20, PF 2.21, +30pts alpha vs BH",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "kr_flow", "kwargs": {"symbol": "122630"}}
+    ],
+    "composer": {"type": "lgbm", "kwargs": {}},
+    "policy": {
+      "type": "long_only_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.04,
+        "tp_pct": 0.10,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

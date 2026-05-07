@@ -1,0 +1,28 @@
+{
+  "name": "196170_pattern_flow_xgb",
+  "symbol": "196170",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.00015,
+  "notes": "Challenger N2: composer substitution LGBM->XGBoost. Ablation OOS: alpha +28.60 (LGBM) -> +35.57 (XGB), +6.97pts improvement.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "market_state", "kwargs": {}},
+      {"type": "regime", "kwargs": {"daily_preset": true}},
+      {"type": "pattern", "kwargs": {"pattern_lookback_bars": 5}},
+      {"type": "kr_flow", "kwargs": {"symbol": "196170"}}
+    ],
+    "composer": {"type": "xgb", "kwargs": {}},
+    "policy": {
+      "type": "long_only_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.04,
+        "tp_pct": 0.10,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

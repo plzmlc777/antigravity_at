@@ -1,0 +1,33 @@
+{
+  "name": "SOLUSDT_wick_reversal_multibar_paper_seed",
+  "symbol": "SOLUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 52번째 paradigm. wick_reversal_multibar Q3 #4 (intra-bar OHLC SHAPE asymmetry rolling 2-bar avg + prior_ret JOINT, 5m granularity). R-3 perm n=200 (shuffle high/low pair preserve open/close) → SOLUSDT perm_p=0.0000 sigma 4.49σ (random_mean 15.66 / std 10.30 / max 49.34 vs real 61.94). Trade-sim baseline alpha 61.94 / sharpe 1.41 / mdd 11.2 / wr 51.6 / pf 1.45 / 122 trades / OOS 184d. Multi-symbol perm: AVAX 3.16σ borderline / DOGE 1.94σ / HBAR 1.30σ — 1/4 multi-symbol consistency = §3-C single-symbol-fit reservation. Diversity check: SOL은 premium_index_zscore (premium 1d) 시드 — wick_reversal_multibar는 intra-bar OHLC 5m 도메인 (다른 도메인 + 다른 timeframe) → diversity ✓. User-approved single-symbol seed 2026-05-06 (Q3 큐 첫 4σ+ POSITIVE, NEW dimension 입증). 데이터: ohlcv 1m → 5m resample (DB 표준 load).",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_wick_reversal_multibar", "kwargs": {
+        "n_bars": 2,
+        "wick_thresh": 0.35,
+        "prior_lookback": 12,
+        "prior_move_pct": 0.03
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnwrm_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.02,
+        "tp_pct": 1.0,
+        "max_hold_bars": 12
+      }
+    },
+    "config": {"eval_freq_minutes": 5, "forward_bars": 12}
+  }
+}

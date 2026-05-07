@@ -1,0 +1,31 @@
+{
+  "name": "AVAXUSDT_premium_velocity_zscore_paper_seed",
+  "symbol": "AVAXUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 42번째 paradigm. premium_velocity_zscore follow mode (premium 1d 1차 derivative). R-3 perm n=200 → perm_p=0.000 (real 365.86 vs random 6.86σ ABOVE) ← 큐 최강 신호. R-2 baseline alpha 365.86 / sharpe 2.42 / mdd 46.6 / wr 64.0 / PF 2.25 / 50 trades / OOS 363d. R-4 strict 5/5 (alpha 244% / sharpe 142% / mdd ✅ / wr ✅ / PF 50%) + perm 6.86σ. **Diversity 평가**: AVAX는 oi_price_decoupling (시드 6.7σ confirm mode)로 microstructure 도메인 시드 — premium velocity는 다른 도메인 + 다른 timeframe (5m → 1d) → diversity ✓. User-approved 2026-05-06 옵션 A (AVAX/HBAR 2종, SOL 제외 §3-G family).",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_premium_velocity_zscore", "kwargs": {
+        "zwin": 30,
+        "entry_z": 1.0
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnpvz_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.05,
+        "tp_pct": 1.0,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

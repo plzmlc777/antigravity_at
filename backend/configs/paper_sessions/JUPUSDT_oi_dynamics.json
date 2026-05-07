@@ -1,0 +1,50 @@
+{
+  "name": "JUPUSDT_O_paper_seed",
+  "symbol": "JUPUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed. Robustness 4/5. Single-source O (OIDynamics) decisive. JUP alpha +118, simplest spec in pool.",
+  "pipeline_spec": {
+    "sources": [
+      {
+        "type": "market_state",
+        "kwargs": {}
+      },
+      {
+        "type": "regime",
+        "kwargs": {
+          "daily_preset": true
+        }
+      },
+      {
+        "type": "pattern",
+        "kwargs": {
+          "pattern_lookback_bars": 5
+        }
+      },
+      {
+        "type": "bn_oi_dynamics",
+        "kwargs": {}
+      }
+    ],
+    "composer": {
+      "type": "lgbm",
+      "kwargs": {}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 10
+      }
+    },
+    "config": {
+      "eval_freq_minutes": 1440,
+      "forward_bars": 10
+    }
+  }
+}

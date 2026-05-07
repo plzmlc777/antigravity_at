@@ -1,0 +1,31 @@
+{
+  "name": "DOGEUSDT_premium_index_zscore_paper_seed",
+  "symbol": "DOGEUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track 트랙 F 24번째 paradigm 시도, **track 최강 성과**. premium_index_zscore paradigm `follow` mode (daily premium z-score 극단 → momentum 따라가기). R-3 perm test n=200 → perm_p=0.0000 (random_mean 30.6, random_max 178, real 348.17 = 9.0σ above random — 트랙 최강 perm σ). Trade-sim baseline (PoC R-3 follow z=2.0 h=5): alpha 348.17 / sharpe 3.15 / mdd 8.8 / wr 76.5 / pf 11.762 / 17 trades / OOS 395 days. R-4 gate **5/5 strict cutoff PASS** (alpha 232% / sharpe 158% / mdd ✅ / wr ✅ / PF ✅), robustness 3/4 (perm 0.000 ✅ / vol N/A ✅ / WF skipped / n_trades 17 < 30 — daily granularity 본질). Gate score **8/9** (auto-PASS criterion 9/9에서 1점 부족, n_trades cutoff은 5m/8h paradigm 기준이라 1d paradigm에 부적합). 데이터: backend/runs/premium_index/DOGEUSDT_premium.joblib (1d kline, 800 days, data.binance.vision archive). funding_carry(8h settled clamped)와 직교 — premium은 1d real-time raw basis. User-approved 2026-05-06 옵션 B (3종 시드 DOGE+SOL+LDO).",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_premium_index_zscore", "kwargs": {
+        "zwin": 30,
+        "entry_z": 2.0
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnpiz_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.05,
+        "tp_pct": 1.0,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {"eval_freq_minutes": 1440, "forward_bars": 5}
+  }
+}

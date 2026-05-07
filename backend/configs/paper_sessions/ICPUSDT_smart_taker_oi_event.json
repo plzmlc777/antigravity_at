@@ -1,0 +1,62 @@
+{
+  "name": "ICPUSDT_S+T+O+V_paper_seed",
+  "symbol": "ICPUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed. Robustness 4/5. KR + Native hybrid (S+T+O+V). ICP alpha +315 (vf), fwd=5d.",
+  "pipeline_spec": {
+    "sources": [
+      {
+        "type": "market_state",
+        "kwargs": {}
+      },
+      {
+        "type": "regime",
+        "kwargs": {
+          "daily_preset": true
+        }
+      },
+      {
+        "type": "pattern",
+        "kwargs": {
+          "pattern_lookback_bars": 5
+        }
+      },
+      {
+        "type": "bn_smart_money",
+        "kwargs": {}
+      },
+      {
+        "type": "bn_taker_flow",
+        "kwargs": {}
+      },
+      {
+        "type": "bn_oi_dynamics",
+        "kwargs": {}
+      },
+      {
+        "type": "bn_event_detector",
+        "kwargs": {}
+      }
+    ],
+    "composer": {
+      "type": "lgbm",
+      "kwargs": {}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 5
+      }
+    },
+    "config": {
+      "eval_freq_minutes": 1440,
+      "forward_bars": 5
+    }
+  }
+}

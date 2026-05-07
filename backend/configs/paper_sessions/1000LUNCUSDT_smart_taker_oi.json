@@ -1,0 +1,58 @@
+{
+  "name": "1000LUNCUSDT_S+T+O_paper_seed",
+  "symbol": "1000LUNCUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Binance Phase 1 paper seed (BORDERLINE 3/5). KR triple S+T+O. 1000LUNC fwd=10d, weak signal.",
+  "pipeline_spec": {
+    "sources": [
+      {
+        "type": "market_state",
+        "kwargs": {}
+      },
+      {
+        "type": "regime",
+        "kwargs": {
+          "daily_preset": true
+        }
+      },
+      {
+        "type": "pattern",
+        "kwargs": {
+          "pattern_lookback_bars": 5
+        }
+      },
+      {
+        "type": "bn_smart_money",
+        "kwargs": {}
+      },
+      {
+        "type": "bn_taker_flow",
+        "kwargs": {}
+      },
+      {
+        "type": "bn_oi_dynamics",
+        "kwargs": {}
+      }
+    ],
+    "composer": {
+      "type": "lgbm",
+      "kwargs": {}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.005,
+        "sl_pct": 0.06,
+        "tp_pct": 0.15,
+        "max_hold_bars": 10
+      }
+    },
+    "config": {
+      "eval_freq_minutes": 1440,
+      "forward_bars": 10
+    }
+  }
+}
