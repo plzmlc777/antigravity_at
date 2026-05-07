@@ -1,0 +1,1 @@
+"""Volume-based pattern detectors."""

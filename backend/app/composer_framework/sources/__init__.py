@@ -23,6 +23,10 @@ from .binance_funding_zscore_source import BinanceFundingZScoreSource
 from .binance_autocorr_regime_source import BinanceAutocorrRegimeSource
 from .binance_funding_dispersion_source import BinanceFundingDispersionSource
 from .binance_cross_lead_lag_source import BinanceCrossLeaderLagSource
+from .binance_oi_price_decoupling_source import BinanceOIPriceDecouplingSource
+from .binance_premium_index_zscore_source import BinancePremiumIndexZScoreSource
+from .binance_premium_velocity_zscore_source import BinancePremiumVelocityZScoreSource
+from .binance_wick_reversal_multibar_source import BinanceWickReversalMultibarSource
 
 __all__ = [
     "PatternSource",
@@ -44,4 +48,8 @@ __all__ = [
     "BinanceAutocorrRegimeSource",
     "BinanceFundingDispersionSource",
     "BinanceCrossLeaderLagSource",
+    "BinanceOIPriceDecouplingSource",
+    "BinancePremiumIndexZScoreSource",
+    "BinancePremiumVelocityZScoreSource",
+    "BinanceWickReversalMultibarSource",
 ]

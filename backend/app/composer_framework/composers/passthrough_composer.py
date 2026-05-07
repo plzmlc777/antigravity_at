@@ -53,3 +53,40 @@ class NegationPassthroughComposer(Composer):
 
     def feature_importances(self):
         return None
+
+
+class PassthroughComposer(Composer):
+    """Pass-through composer (no negation). Predicts feature_col directly.
+
+    Designed for `autocorr_regime`: BinanceAutocorrRegimeSource emits a discrete
+    `bnar_signal` in {-1, 0, +1} where +1 = LONG signal, -1 = SHORT signal.
+    The policy reads prediction sign directly:
+      - prediction > +entry_threshold → enter LONG
+      - prediction < -entry_threshold → enter SHORT
+
+    Use with `long_short_threshold` (entry_threshold=0.5) or
+    `funding_reversal` (entry_threshold=0.5, exit_threshold=0).
+    """
+
+    def __init__(self, feature_col: str = "bnar_signal", scale: float = 1.0) -> None:
+        self.feature_col = feature_col
+        self.scale = float(scale)
+        self._fitted = True
+
+    def fit(self, features: pd.DataFrame, target: pd.Series) -> None:
+        self._fitted = True
+
+    def predict(self, features: pd.DataFrame) -> np.ndarray:
+        if self.feature_col not in features.columns:
+            candidates = [c for c in features.columns if c.startswith(self.feature_col)]
+            if not candidates:
+                return np.zeros(len(features))
+            col = candidates[0]
+        else:
+            col = self.feature_col
+        z = features[col].astype(float).values
+        z = np.where(np.isnan(z), 0.0, z)
+        return self.scale * z
+
+    def feature_importances(self):
+        return None

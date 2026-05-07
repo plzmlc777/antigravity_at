@@ -253,6 +253,57 @@ def _build_bn_cross_lead_lag(kwargs: dict, runtime: dict) -> SignalSource:
     )
 
 
+@register_source("bn_oi_price_decoupling")
+def _build_bn_oi_price_decoupling(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceOIPriceDecouplingSource
+    metrics = runtime.get("binance_metrics_5m")
+    if metrics is None:
+        raise KeyError("runtime_data['binance_metrics_5m'] required for bn_oi_price_decoupling")
+    return BinanceOIPriceDecouplingSource(
+        metrics_5m=metrics,
+        mode=str(kwargs.get("mode", "confirm")),
+        zwin=int(kwargs.get("zwin", 288)),
+        entry_z=float(kwargs.get("entry_z", 2.0)),
+    )
+
+
+@register_source("bn_premium_index_zscore")
+def _build_bn_premium_index_zscore(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinancePremiumIndexZScoreSource
+    premium = runtime.get("premium_df")
+    if premium is None:
+        raise KeyError("runtime_data['premium_df'] required for bn_premium_index_zscore")
+    return BinancePremiumIndexZScoreSource(
+        premium_df=premium,
+        zwin=int(kwargs.get("zwin", 30)),
+        entry_z=float(kwargs.get("entry_z", 2.0)),
+    )
+
+
+@register_source("bn_premium_velocity_zscore")
+def _build_bn_premium_velocity_zscore(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinancePremiumVelocityZScoreSource
+    premium = runtime.get("premium_df")
+    if premium is None:
+        raise KeyError("runtime_data['premium_df'] required for bn_premium_velocity_zscore")
+    return BinancePremiumVelocityZScoreSource(
+        premium_df=premium,
+        zwin=int(kwargs.get("zwin", 30)),
+        entry_z=float(kwargs.get("entry_z", 1.0)),
+    )
+
+
+@register_source("bn_wick_reversal_multibar")
+def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceWickReversalMultibarSource
+    return BinanceWickReversalMultibarSource(
+        n_bars=int(kwargs.get("n_bars", 2)),
+        wick_thresh=float(kwargs.get("wick_thresh", 0.35)),
+        prior_lookback=int(kwargs.get("prior_lookback", 12)),
+        prior_move_pct=float(kwargs.get("prior_move_pct", 0.03)),
+    )
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter
