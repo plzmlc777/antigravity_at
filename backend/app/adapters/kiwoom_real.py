@@ -721,9 +721,10 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
             )
             return []
 
-    async def get_daily_candles(self, symbol: str) -> list:
+    async def get_daily_candles(self, symbol: str, base_dt: str = None) -> list:
         """
-        Fetch daily candles using ka10081 (Stock Daily Chart)
+        Fetch daily candles using ka10081 (Stock Daily Chart).
+        base_dt: YYYYMMDD anchor date (required by Kiwoom). Defaults to today.
         """
         await self._ensure_token()
         token = self.access_token
@@ -733,9 +734,10 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
         url = f"{self.base_url}/api/dostk/chart"
         headers = self._get_auth_headers(tr_id="ka10081")
         headers["content-type"] = "application/json;charset=UTF-8"
-        
+
         payload = {
             "stk_cd": symbol,
+            "base_dt": base_dt or datetime.now().strftime("%Y%m%d"),
             "upd_stkpc_tp": "1" # Adjusted Price
         }
 
@@ -761,12 +763,12 @@ class KiwoomRealAdapter(ExchangeInterface, KiwoomBaseAdapter):
                 else:
                     return []
 
-            output = data.get("stk_day_pole_chart_qry", [])
+            output = data.get("stk_dt_pole_chart_qry", [])
 
             candles = []
             for item in output:
                 try:
-                    ts = item.get("stk_dt") # YYYYMMDD
+                    ts = item.get("dt") # YYYYMMDD
 
                     c = abs(int(item.get("cur_prc", 0)))
                     o = abs(int(item.get("open_pric", 0)))
