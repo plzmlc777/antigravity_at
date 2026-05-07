@@ -303,6 +303,54 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    // ─── Composer framework (Phase 6, 2026-05-02) ───
+    // Pattern + KR investor flow + LightGBM combination, validated OOS:
+    //   122630 sharpe 2.20 PF 2.21 +30pts vs BH
+    //   007210 sign 62.9% p=0.005 +23pts (downside protection)
+    //   055550 sign 65.0% p=0.001
+    // Sessions live under runs/paper_sessions/{session_id}/.
+    // Add new sessions via `paper_session_cli create --spec <json>` — this entry
+    // automatically picks them up via `run --all`.
+    {
+        // Daily KR investor flow backfill (ka10059) for composer paper symbols.
+        // 16:30 KST (07:30 UTC) Mon-Fri. Runs ~1 hour after market close,
+        // before composer-paper-cycle reads the data.
+        name: "composer-flow-backfill",
+        script: SAS_WRAPPER,
+        args: `'30 7 * * 1-5' ./scripts/kr/run_composer_flow_backfill.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { COMPOSER_FLOW_SYMBOLS: "122630,007210,055550" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Composer paper cycle — runs paper_session_cli run --all.
+        // 16:50 KST (07:50 UTC) Mon-Fri, 20 minutes after flow-backfill.
+        name: "composer-paper-cycle",
+        script: SAS_WRAPPER,
+        args: `'50 7 * * 1-5' ./scripts/kr/run_composer_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Binance Phase 1 paper cycle — daily 00:30 UTC (09:30 KST).
+        // 24/7 perpetual futures, UTC-day boundary. Runs all active paper
+        // sessions; KR sessions skip if data not fresh, Binance sessions advance.
+        // Initial seeds: SOL S+T+B, HBAR S+P, AXS V (all 5/5 PERFECT robustness).
+        name: "binance-paper-cycle",
+        script: SAS_WRAPPER,
+        args: `'30 0 * * *' ./scripts/binance/run_binance_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
 ];
 
 // Crypto Meta-Strategy MoE (held back: enable via ENABLE_CRYPTO_META=1).

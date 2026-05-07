@@ -216,6 +216,108 @@ def migration_005_add_investor_flow_daily():
         return True
 
 
+def migration_006_add_binance_funding_oi():
+    """Create binance_funding_rate + binance_open_interest_hist tables.
+
+    - funding_rate: 8h granularity, public API /fapi/v1/fundingRate
+      → up to 1y backfill in ~3 requests/symbol (1000 records limit)
+    - open_interest_hist: configurable interval (5m/15m/1h/4h/1d),
+      public API /futures/data/openInterestHist (last 30 days only)
+    """
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = inspector.get_table_names()
+        added_any = False
+
+        if 'binance_funding_rate' not in existing:
+            print("  [RUN] Creating 'binance_funding_rate' table...")
+            conn.execute(text("""
+                CREATE TABLE binance_funding_rate (
+                    symbol VARCHAR(20) NOT NULL,
+                    funding_time TIMESTAMP NOT NULL,
+                    funding_rate DECIMAL(20, 10),
+                    mark_price DECIMAL(20, 8),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (symbol, funding_time)
+                )
+            """))
+            conn.execute(text("""
+                CREATE INDEX ix_funding_symbol_time
+                ON binance_funding_rate (symbol, funding_time DESC)
+            """))
+            added_any = True
+            print("  [OK] Created 'binance_funding_rate' + index")
+        else:
+            print("  [SKIP] 'binance_funding_rate' already exists")
+
+        if 'binance_open_interest_hist' not in existing:
+            print("  [RUN] Creating 'binance_open_interest_hist' table...")
+            conn.execute(text("""
+                CREATE TABLE binance_open_interest_hist (
+                    symbol VARCHAR(20) NOT NULL,
+                    timestamp TIMESTAMP NOT NULL,
+                    interval_str VARCHAR(8) NOT NULL,
+                    sum_open_interest DECIMAL(30, 8),
+                    sum_open_interest_value DECIMAL(30, 8),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (symbol, timestamp, interval_str)
+                )
+            """))
+            conn.execute(text("""
+                CREATE INDEX ix_oi_symbol_time
+                ON binance_open_interest_hist (symbol, timestamp DESC)
+            """))
+            added_any = True
+            print("  [OK] Created 'binance_open_interest_hist' + index")
+        else:
+            print("  [SKIP] 'binance_open_interest_hist' already exists")
+
+        if added_any:
+            conn.commit()
+        return added_any
+
+
+def migration_007_add_binance_positioning_metric():
+    """Create binance_positioning_metric table for LSR + taker buy/sell.
+
+    Unified table for:
+      - top_long_short_account: /futures/data/topLongShortAccountRatio
+      - top_long_short_position: /futures/data/topLongShortPositionRatio
+      - global_long_short_account: /futures/data/globalLongShortAccountRatio
+      - taker_buy_sell: /futures/data/takerlongshortRatio
+
+    Public API, last 30 days only via REST → daily forward-collection cron.
+    """
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        existing = inspector.get_table_names()
+        if 'binance_positioning_metric' in existing:
+            print("  [SKIP] 'binance_positioning_metric' already exists")
+            return False
+
+        print("  [RUN] Creating 'binance_positioning_metric' table...")
+        conn.execute(text("""
+            CREATE TABLE binance_positioning_metric (
+                symbol VARCHAR(20) NOT NULL,
+                timestamp TIMESTAMP NOT NULL,
+                period VARCHAR(8) NOT NULL,
+                metric_type VARCHAR(32) NOT NULL,
+                ratio DECIMAL(20, 10),
+                component_a DECIMAL(30, 8),
+                component_b DECIMAL(30, 8),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (symbol, timestamp, period, metric_type)
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX ix_bpm_symbol_metric_period
+            ON binance_positioning_metric (symbol, metric_type, period, timestamp DESC)
+        """))
+        conn.commit()
+        print("  [OK] Created 'binance_positioning_metric' + index")
+        return True
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
@@ -224,6 +326,8 @@ def run_all_migrations():
         ("003_add_watchlist_and_settings", migration_003_add_watchlist_and_settings),
         ("004_add_account_keepalive_logs", migration_004_add_account_keepalive_logs),
         ("005_add_investor_flow_daily", migration_005_add_investor_flow_daily),
+        ("006_add_binance_funding_oi", migration_006_add_binance_funding_oi),
+        ("007_add_binance_positioning_metric", migration_007_add_binance_positioning_metric),
     ]
 
     print("=" * 50)

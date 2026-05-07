@@ -66,39 +66,56 @@ fi
 # Parse cron expression into components
 IFS=' ' read -r CRON_MIN CRON_HOUR CRON_DOM CRON_MON CRON_DOW <<< "${CRON_EXPR}"
 
-# Calculate seconds until next cron match using Python (fast, handles all cases)
+# Calculate seconds until next cron match using Python.
+# Supports: '*'  '5'  '*/N'  'a-b'  'a,b,c'  combinations of comma+range
+# (e.g. '1-5'  '0,15,30,45'  '1-3,5')
 next_sleep_seconds() {
   python3 -c "
-import time, datetime
+import datetime
 
 cron_min, cron_hour, cron_dom, cron_mon, cron_dow = '${CRON_EXPR}'.split()
 
+def parse_field(expr, lo, hi):
+    if expr == '*':
+        return set(range(lo, hi + 1))
+    out = set()
+    for chunk in expr.split(','):
+        if chunk == '*':
+            out.update(range(lo, hi + 1))
+        elif '/' in chunk:
+            base, step = chunk.split('/', 1)
+            base_set = parse_field(base if base else '*', lo, hi)
+            step = int(step)
+            for v in sorted(base_set):
+                if (v - lo) % step == 0:
+                    out.add(v)
+        elif '-' in chunk:
+            a, b = chunk.split('-', 1)
+            out.update(range(int(a), int(b) + 1))
+        else:
+            out.add(int(chunk))
+    return out
+
+mins  = parse_field(cron_min,  0, 59)
+hours = parse_field(cron_hour, 0, 23)
+doms  = parse_field(cron_dom,  1, 31)
+mons  = parse_field(cron_mon,  1, 12)
+dows  = parse_field(cron_dow,  0, 7)  # 0 and 7 both = Sunday
+
 now = datetime.datetime.utcnow()
-# Start from next minute
 candidate = now.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
 
-for _ in range(44640):  # max 31 days
-    m, h, dom, mon, dow = candidate.minute, candidate.hour, candidate.day, candidate.month, candidate.weekday()
-    dow_sun = (dow + 1) % 7  # Python: Mon=0, cron: Sun=0
-
-    # Check minute
-    if cron_min != '*' and int(cron_min) != m: candidate += datetime.timedelta(minutes=1); continue
-    # Check hour (support */N)
-    if cron_hour != '*':
-        if '/' in cron_hour:
-            step = int(cron_hour.split('/')[1])
-            if h % step != 0: candidate += datetime.timedelta(minutes=1); continue
-        elif int(cron_hour) != h: candidate += datetime.timedelta(minutes=1); continue
-    # Check day of month
-    if cron_dom != '*' and int(cron_dom) != dom: candidate += datetime.timedelta(minutes=1); continue
-    # Check month
-    if cron_mon != '*' and int(cron_mon) != mon: candidate += datetime.timedelta(minutes=1); continue
-    # Check day of week
-    if cron_dow != '*' and int(cron_dow) != dow_sun: candidate += datetime.timedelta(minutes=1); continue
-
-    delta = int((candidate - now).total_seconds())
-    print(max(delta, 60))
-    break
+for _ in range(44640):  # max 31 days look-ahead
+    dow_sun = (candidate.weekday() + 1) % 7  # Python: Mon=0, cron: Sun=0
+    if (candidate.minute in mins and
+        candidate.hour in hours and
+        candidate.day in doms and
+        candidate.month in mons and
+        (dow_sun in dows or (dow_sun == 0 and 7 in dows))):
+        delta = int((candidate - now).total_seconds())
+        print(max(delta, 60))
+        break
+    candidate += datetime.timedelta(minutes=1)
 else:
     print(3600)
 "

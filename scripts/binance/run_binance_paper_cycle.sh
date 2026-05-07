@@ -35,6 +35,25 @@ PYTHONPATH=. python3 fetch_binance_metrics.py \
   --symbols SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT \
   --source funding --funding-days 7 2>&1 | tail -40 | tee -a "${LOG_FILE}"
 
+# Forward-collection of positioning metrics for future paradigm research
+# (research_track_master.md option A — added 2026-05-04). Binance REST caps
+# at 30 days backward; we collect the latest 2-day window daily (overlap
+# = idempotent via ON CONFLICT). Metrics:
+#   - binance_positioning_metric: top_long_short_account / position,
+#     global_long_short_account, taker_buy_sell
+#   - binance_open_interest_hist: OI at 5m granularity
+# Initial 30d backfill 2026-05-04. From here, daily forward-collection
+# accumulates → ~60d data by 2026-06-03 (funding_carry Day 30) → enables
+# OI dynamics + LSR positioning paradigms.
+echo "[binance-paper] positioning + OI 5m forward-collection..." | tee -a "${LOG_FILE}"
+POS_SYMBOLS="SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,AVAXUSDT,LINKUSDT"
+PYTHONPATH=. python3 fetch_binance_metrics.py \
+  --symbols "${POS_SYMBOLS}" \
+  --source positioning --period 5m --positioning-days 2 2>&1 | tail -80 | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 fetch_binance_metrics.py \
+  --symbols "${POS_SYMBOLS}" \
+  --source oi --oi-period 5m --positioning-days 2 2>&1 | tail -30 | tee -a "${LOG_FILE}"
+
 PYTHONPATH=. python3 -m scripts.paper_session_cli run --all 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
