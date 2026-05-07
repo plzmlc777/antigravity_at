@@ -1,0 +1,54 @@
+{
+  "paradigm": "skewness_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_oneside_rev_0.05_1.01_72",
+  "evaluated_at": "2026-05-05T01:04:53.977967+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "skew_window": 60,
+    "regime_window": 8640,
+    "skew_low_pctl": 0.05,
+    "skew_high_pctl": 1.01,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "reverse_sign": false,
+    "tag": "sweep_oneside_rev_0.05_1.01_72"
+  },
+  "aggregate": {
+    "spec_name": "sweep_oneside_rev_0.05_1.01_72",
+    "n_symbols": 1,
+    "direction": "rev",
+    "alpha_pct_mean": 26.45,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.053,
+    "sharpe_pos_count": 1,
+    "mdd_mean": 36.48,
+    "wr_mean": 48.78,
+    "trades_total": 287
+  },
+  "per_symbol": [
+    {
+      "n_trades": 287,
+      "n_long": 287,
+      "n_short": 0,
+      "alpha_pct": 26.45,
+      "total_return_pct": -8.32,
+      "buy_hold_pct": -34.77,
+      "sharpe_ann": 0.053,
+      "max_dd_pct": 36.48,
+      "win_rate_pct": 48.78,
+      "profit_factor": 1.01,
+      "oos_days": 382,
+      "exit_reasons": {
+        "time": 214,
+        "sl": 73
+      },
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

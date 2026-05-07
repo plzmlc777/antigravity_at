@@ -1,0 +1,46 @@
+{
+  "paradigm": "weekend_drift_premium",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "LDOUSDT",
+      "AXSUSDT",
+      "DOGEUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "entry_dow": 4,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 9,
+    "n_long_entries": 3,
+    "n_short_entries": 6,
+    "alpha_pct": 115.6,
+    "total_return_pct": 64.75,
+    "buy_hold_pct": -50.85,
+    "sharpe_ann": 1.538,
+    "max_dd_pct": 14.67,
+    "win_rate_pct": 66.67,
+    "profit_factor": 3.527,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 115.6,
+    "random_alpha_mean": 51.218,
+    "random_alpha_std": 25.101,
+    "random_alpha_max": 135.1,
+    "perm_p": 0.02
+  },
+  "evaluated_at": "2026-05-06T03:54:55.876536+00:00"
+}

@@ -1,0 +1,2 @@
+symbol,n_trades,n_long_entries,n_short_entries,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+SOLUSDT,2014,1024,991,-51.54,-84.43,-32.89,-3.122,86.76,46.47,0.78,397

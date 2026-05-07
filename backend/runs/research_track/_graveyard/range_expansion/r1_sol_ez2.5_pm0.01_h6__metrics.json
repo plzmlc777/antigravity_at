@@ -1,0 +1,46 @@
+{
+  "paradigm": "range_expansion",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_ez2.5_pm0.01_h6",
+  "evaluated_at": "2026-05-06T11:01:51.999461+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "range_zwin": 288,
+    "entry_z": 2.5,
+    "prior_lookback": 12,
+    "prior_move_pct": 0.01,
+    "hold_bars": 6,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_ez2.5_pm0.01_h6"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_ez2.5_pm0.01_h6",
+    "n_symbols": 1,
+    "alpha_pct_mean": -9.21,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -0.944,
+    "sharpe_pos_count": 0,
+    "trades_total": 648
+  },
+  "per_symbol": [
+    {
+      "n_trades": 648,
+      "n_long_entries": 319,
+      "n_short_entries": 329,
+      "alpha_pct": -9.21,
+      "total_return_pct": -42.07,
+      "buy_hold_pct": -32.87,
+      "sharpe_ann": -0.944,
+      "max_dd_pct": 51.38,
+      "win_rate_pct": 48.77,
+      "profit_factor": 0.856,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "paradigm": "range_expansion",
+  "symbol": "SOLUSDT",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "DOGEUSDT"
+    ],
+    "range_zwin": 288,
+    "entry_z": 2.5,
+    "prior_lookback": 12,
+    "prior_move_pct": 0.03,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 103,
+    "n_long_entries": 58,
+    "n_short_entries": 45,
+    "alpha_pct": 41.68,
+    "total_return_pct": 8.82,
+    "buy_hold_pct": -32.87,
+    "sharpe_ann": 0.382,
+    "max_dd_pct": 30.48,
+    "win_rate_pct": 51.46,
+    "profit_factor": 1.162,
+    "oos_days": 397
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 41.68,
+    "random_alpha_mean": 32.83,
+    "random_alpha_std": 0.0,
+    "random_alpha_max": 32.83,
+    "perm_p": 0.0
+  },
+  "sigma": 8850.0,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T11:14:44.715380+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "paradigm": "oi_change_acceleration_squeeze",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "follow_accel",
+  "config": {
+    "symbols": [
+      "ETCUSDT",
+      "LINKUSDT",
+      "SOLUSDT",
+      "LDOUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow_accel",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 42,
+    "n_long_entries": 21,
+    "n_short_entries": 21,
+    "alpha_pct": 94.67,
+    "total_return_pct": 51.55,
+    "buy_hold_pct": -43.13,
+    "sharpe_ann": 1.073,
+    "max_dd_pct": 33.9,
+    "win_rate_pct": 52.38,
+    "profit_factor": 1.51,
+    "oos_days": 368
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 94.67,
+    "random_alpha_mean": 25.707,
+    "random_alpha_std": 41.499,
+    "random_alpha_max": 166.31,
+    "perm_p": 0.075
+  },
+  "sigma": 1.66,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:25:34.460427+00:00"
+}

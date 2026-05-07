@@ -1,0 +1,2 @@
+symbol,n_trades,n_type_a,n_type_b,alpha_pct,type_a_alpha,type_b_alpha,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+UNIUSDT,122,62,60,5.02,-20.31,-16.28,-31.7,-36.72,-2.054,31.7,40.16,0.607,390

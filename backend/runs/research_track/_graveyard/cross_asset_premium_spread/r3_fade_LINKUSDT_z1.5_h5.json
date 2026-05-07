@@ -1,0 +1,46 @@
+{
+  "paradigm": "cross_asset_premium_spread",
+  "phase": "R-3_robustness",
+  "symbol": "LINKUSDT",
+  "mode": "fade",
+  "config": {
+    "symbols": [
+      "ETCUSDT",
+      "LINKUSDT",
+      "AVAXUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 34,
+    "n_long_entries": 19,
+    "n_short_entries": 15,
+    "alpha_pct": 161.13,
+    "total_return_pct": 129.62,
+    "buy_hold_pct": -31.51,
+    "sharpe_ann": 1.894,
+    "max_dd_pct": 23.36,
+    "win_rate_pct": 61.76,
+    "profit_factor": 2.251,
+    "oos_days": 355
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 161.13,
+    "random_alpha_mean": 78.65,
+    "random_alpha_std": 56.397,
+    "random_alpha_max": 330.37,
+    "perm_p": 0.08
+  },
+  "sigma": 1.46,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T04:20:41.106878+00:00"
+}

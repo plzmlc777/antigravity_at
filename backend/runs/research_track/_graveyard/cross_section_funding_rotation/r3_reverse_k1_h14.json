@@ -1,0 +1,52 @@
+{
+  "paradigm": "cross_section_funding_rotation",
+  "phase": "R-3_robustness",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "AXSUSDT",
+      "BTCUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "ETCUSDT",
+      "ETHUSDT",
+      "HBARUSDT",
+      "ICPUSDT",
+      "LDOUSDT",
+      "LINKUSDT",
+      "SOLUSDT",
+      "UNIUSDT",
+      "WLDUSDT"
+    ],
+    "freq": "1D",
+    "top_k": 1,
+    "hold_periods": 14,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "reverse",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 12,
+    "alpha_pct": 168.85,
+    "total_return_pct": 120.07,
+    "buy_hold_pct": -48.78,
+    "sharpe_ann": 1.729,
+    "max_dd_pct": 5.43,
+    "win_rate_pct": 75.0,
+    "profit_factor": 7.87,
+    "oos_days": 167,
+    "n_symbols": 14
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 168.85,
+    "random_alpha_mean": 48.879,
+    "random_alpha_std": 39.881,
+    "random_alpha_max": 233.41,
+    "perm_p": 0.015
+  },
+  "sigma": 3.01,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:05:18.270393+00:00"
+}

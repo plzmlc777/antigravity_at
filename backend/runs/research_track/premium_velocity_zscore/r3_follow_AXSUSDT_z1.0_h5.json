@@ -1,0 +1,48 @@
+{
+  "paradigm": "premium_velocity_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "AXSUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "LDOUSDT",
+      "LINKUSDT",
+      "DOGEUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 54,
+    "n_long_entries": 23,
+    "n_short_entries": 31,
+    "alpha_pct": -43.68,
+    "total_return_pct": -86.25,
+    "buy_hold_pct": -42.57,
+    "sharpe_ann": -1.87,
+    "max_dd_pct": 94.52,
+    "win_rate_pct": 42.59,
+    "profit_factor": 0.51,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": -43.68,
+    "random_alpha_mean": 25.938,
+    "random_alpha_std": 62.111,
+    "random_alpha_max": 256.71,
+    "perm_p": 0.985
+  },
+  "sigma": -1.12,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:32:50.776160+00:00"
+}

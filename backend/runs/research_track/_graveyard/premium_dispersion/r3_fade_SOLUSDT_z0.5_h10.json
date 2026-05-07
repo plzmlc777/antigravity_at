@@ -1,0 +1,41 @@
+{
+  "paradigm": "premium_dispersion",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "fade",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "SOLUSDT"
+    ],
+    "entry_z": 0.5,
+    "hold_days": 10,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 43,
+    "n_long_entries": 32,
+    "n_short_entries": 12,
+    "alpha_pct": 122.49,
+    "total_return_pct": 89.28,
+    "buy_hold_pct": -33.2,
+    "sharpe_ann": 1.192,
+    "max_dd_pct": 40.2,
+    "win_rate_pct": 48.84,
+    "profit_factor": 1.583,
+    "oos_days": 397
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 122.49,
+    "random_alpha_mean": 90.008,
+    "random_alpha_std": 103.422,
+    "random_alpha_max": 715.94,
+    "perm_p": 0.275
+  },
+  "evaluated_at": "2026-05-06T02:59:15.241767+00:00"
+}

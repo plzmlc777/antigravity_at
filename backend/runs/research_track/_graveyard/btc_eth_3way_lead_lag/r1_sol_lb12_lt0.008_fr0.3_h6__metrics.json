@@ -1,0 +1,45 @@
+{
+  "paradigm": "btc_eth_3way_lead_lag",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_lb12_lt0.008_fr0.3_h6",
+  "evaluated_at": "2026-05-06T12:39:33.178921+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "lead_lookback": 12,
+    "lead_thresh": 0.008,
+    "follow_ratio": 0.3,
+    "hold_bars": 6,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_lb12_lt0.008_fr0.3_h6"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_lb12_lt0.008_fr0.3_h6",
+    "n_symbols": 1,
+    "alpha_pct_mean": 35.6,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.315,
+    "sharpe_pos_count": 1,
+    "trades_total": 62
+  },
+  "per_symbol": [
+    {
+      "n_trades": 62,
+      "n_long_entries": 37,
+      "n_short_entries": 25,
+      "alpha_pct": 35.6,
+      "total_return_pct": 2.17,
+      "buy_hold_pct": -33.43,
+      "sharpe_ann": 0.315,
+      "max_dd_pct": 6.53,
+      "win_rate_pct": 37.1,
+      "profit_factor": 1.124,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

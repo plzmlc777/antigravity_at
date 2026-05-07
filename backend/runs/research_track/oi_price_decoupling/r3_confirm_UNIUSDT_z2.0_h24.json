@@ -1,0 +1,44 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-3_robustness",
+  "symbol": "UNIUSDT",
+  "mode": "confirm",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "confirm",
+    "n_iter_perm": 100
+  },
+  "real": {
+    "n_trades": 522,
+    "n_type_a": 243,
+    "n_type_b": 279,
+    "alpha_pct": 101.12,
+    "type_a_alpha": 0.0,
+    "type_b_alpha": 0.0,
+    "total_return_pct": 64.39,
+    "buy_hold_pct": -36.72,
+    "sharpe_ann": 1.188,
+    "max_dd_pct": 41.11,
+    "win_rate_pct": 48.66,
+    "profit_factor": 1.186,
+    "oos_days": 390
+  },
+  "perm": {
+    "n_iter": 100,
+    "real_alpha_pct": 101.12,
+    "random_alpha_mean": 0.022,
+    "random_alpha_std": 20.94,
+    "random_alpha_max": 67.02,
+    "perm_p": 0.0
+  },
+  "evaluated_at": "2026-05-06T01:04:58.836513+00:00"
+}

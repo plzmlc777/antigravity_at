@@ -1,0 +1,45 @@
+{
+  "paradigm": "top_global_lsr_divergence",
+  "phase": "R-1_PoC",
+  "spec_name": "ft_z1.0_h48",
+  "evaluated_at": "2026-05-06T01:38:02.772566+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 1.0,
+    "hold_bars": 48,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow_top",
+    "tag": "ft_z1.0_h48"
+  },
+  "aggregate": {
+    "spec_name": "ft_z1.0_h48",
+    "n_symbols": 1,
+    "alpha_pct_mean": -24.62,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -0.829,
+    "sharpe_pos_count": 0,
+    "trades_total": 1916
+  },
+  "per_symbol": [
+    {
+      "n_trades": 1916,
+      "n_long_entries": 942,
+      "n_short_entries": 974,
+      "alpha_pct": -24.62,
+      "total_return_pct": -57.67,
+      "buy_hold_pct": -33.05,
+      "sharpe_ann": -0.829,
+      "max_dd_pct": 77.37,
+      "win_rate_pct": 46.4,
+      "profit_factor": 0.947,
+      "oos_days": 393,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

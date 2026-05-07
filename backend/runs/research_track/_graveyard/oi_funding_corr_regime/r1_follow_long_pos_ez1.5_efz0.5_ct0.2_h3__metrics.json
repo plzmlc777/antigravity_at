@@ -1,0 +1,48 @@
+{
+  "paradigm": "oi_funding_corr_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_follow_long_pos_ez1.5_efz0.5_ct0.2_h3",
+  "evaluated_at": "2026-05-06T06:38:06.574944+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "corr_win": 30,
+    "entry_z": 1.5,
+    "entry_z_fund": 0.5,
+    "regime_thresh": 0.2,
+    "hold_periods": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow_long_pos",
+    "tag": "r1_follow_long_pos_ez1.5_efz0.5_ct0.2_h3"
+  },
+  "aggregate": {
+    "spec_name": "r1_follow_long_pos_ez1.5_efz0.5_ct0.2_h3",
+    "n_symbols": 1,
+    "alpha_pct_mean": 37.61,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -1.869,
+    "sharpe_pos_count": 0,
+    "trades_total": 8
+  },
+  "per_symbol": [
+    {
+      "n_trades": 8,
+      "n_aligned_pos": 4,
+      "n_aligned_neg": 4,
+      "alpha_pct": 37.61,
+      "total_return_pct": -10.53,
+      "buy_hold_pct": -48.14,
+      "sharpe_ann": -1.869,
+      "max_dd_pct": 11.17,
+      "win_rate_pct": 25.0,
+      "profit_factor": 0.309,
+      "oos_days": 178,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

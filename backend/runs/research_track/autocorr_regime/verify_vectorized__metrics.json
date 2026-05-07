@@ -1,0 +1,51 @@
+{
+  "paradigm": "autocorr_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "verify_vectorized",
+  "evaluated_at": "2026-05-05T01:50:48.805641+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "autocorr_window": 288,
+    "lag": 1,
+    "trend_thresh": 0.2,
+    "rev_thresh": 0.2,
+    "dir_lookback": 12,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "verify_vectorized"
+  },
+  "aggregate": {
+    "spec_name": "verify_vectorized",
+    "n_symbols": 1,
+    "alpha_pct_mean": 30.91,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -0.008,
+    "sharpe_pos_count": 0,
+    "trend_alpha_mean": 14.95,
+    "rev_alpha_mean": -15.1,
+    "trades_total": 65
+  },
+  "per_symbol": [
+    {
+      "n_trades": 65,
+      "n_trend_entries": 16,
+      "n_rev_entries": 49,
+      "alpha_pct": 30.91,
+      "trend_alpha_sum": 14.95,
+      "rev_alpha_sum": -15.1,
+      "total_return_pct": -1.9,
+      "buy_hold_pct": -32.8,
+      "sharpe_ann": -0.008,
+      "max_dd_pct": 17.98,
+      "win_rate_pct": 46.15,
+      "profit_factor": 0.997,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

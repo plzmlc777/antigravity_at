@@ -1,0 +1,6 @@
+symbol,n_trades,n_flips_test,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+COMPUSDT,0,0,32.12,0.0,-32.12,0.0,0.0,0.0,0.0,181
+LINKUSDT,0,0,46.47,0.0,-46.47,0.0,0.0,0.0,0.0,181
+LDOUSDT,0,0,53.87,0.0,-53.87,0.0,0.0,0.0,0.0,181
+SOLUSDT,0,0,54.79,0.0,-54.79,0.0,0.0,0.0,0.0,181
+AVAXUSDT,2,2,56.26,5.32,-50.95,1.177,0.54,50.0,10.837,181

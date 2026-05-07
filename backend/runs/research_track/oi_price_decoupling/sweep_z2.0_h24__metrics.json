@@ -1,0 +1,48 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_z2.0_h24",
+  "evaluated_at": "2026-05-06T00:55:54.583040+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "sweep_z2.0_h24"
+  },
+  "aggregate": {
+    "spec_name": "sweep_z2.0_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": 23.29,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -0.075,
+    "sharpe_pos_count": 0,
+    "type_a_alpha_mean": -11.63,
+    "type_b_alpha_mean": 9.36,
+    "trades_total": 419
+  },
+  "per_symbol": [
+    {
+      "n_trades": 419,
+      "n_type_a": 274,
+      "n_type_b": 146,
+      "alpha_pct": 23.29,
+      "type_a_alpha": -11.63,
+      "type_b_alpha": 9.36,
+      "total_return_pct": -6.27,
+      "buy_hold_pct": -29.56,
+      "sharpe_ann": -0.075,
+      "max_dd_pct": 30.48,
+      "win_rate_pct": 49.88,
+      "profit_factor": 0.989,
+      "oos_days": 390,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

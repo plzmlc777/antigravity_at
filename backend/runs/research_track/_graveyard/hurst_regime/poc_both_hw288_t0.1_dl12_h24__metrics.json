@@ -1,0 +1,49 @@
+{
+  "paradigm": "hurst_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "poc_both_hw288_t0.1_dl12_h24",
+  "evaluated_at": "2026-05-05T02:39:40.113220+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "hurst_window": 288,
+    "hurst_thresh": 0.1,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "regime_filter": "both",
+    "max_bars": 50000,
+    "tag": null
+  },
+  "aggregate": {
+    "spec_name": "poc_both_hw288_t0.1_dl12_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": -10.52,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -2.624,
+    "sharpe_pos_count": 0,
+    "trades_total": 475
+  },
+  "per_symbol": [
+    {
+      "n_trades": 475,
+      "n_trend_entries": 473,
+      "n_rev_entries": 2,
+      "alpha_pct": -10.52,
+      "trend_alpha_sum": -28.2,
+      "rev_alpha_sum": -0.79,
+      "total_return_pct": -27.07,
+      "buy_hold_pct": -16.55,
+      "sharpe_ann": -2.624,
+      "max_dd_pct": 29.5,
+      "win_rate_pct": 46.32,
+      "profit_factor": 0.847,
+      "oos_days": 86,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

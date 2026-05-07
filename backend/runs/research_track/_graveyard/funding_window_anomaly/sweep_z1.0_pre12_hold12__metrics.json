@@ -1,0 +1,52 @@
+{
+  "paradigm": "funding_window_anomaly",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_z1.0_pre12_hold12",
+  "evaluated_at": "2026-05-04T13:13:19.426261+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "pre_bars": 12,
+    "hold_bars": 12,
+    "lookback": 90,
+    "entry_z": 1.0,
+    "sl_pct": 0.03,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "sweep_z1.0_pre12_hold12"
+  },
+  "aggregate": {
+    "spec_name": "sweep_z1.0_pre12_hold12",
+    "n_symbols": 1,
+    "alpha_pct_mean": -8.27,
+    "alpha_pct_median": -8.27,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -3.486,
+    "sharpe_pos_count": 0,
+    "mdd_mean": 46.21,
+    "wr_mean": 45.11,
+    "trades_total": 266,
+    "trades_per_symbol_mean": 266.0
+  },
+  "per_symbol": [
+    {
+      "n_trades": 266,
+      "n_boundaries_test": 1148,
+      "alpha_pct": -8.27,
+      "total_return_pct": -43.88,
+      "buy_hold_pct": -35.61,
+      "sharpe_ann": -3.486,
+      "max_dd_pct": 46.21,
+      "win_rate_pct": 45.11,
+      "profit_factor": 0.544,
+      "oos_days": 382,
+      "exit_reasons": {
+        "time": 261,
+        "sl": 5
+      },
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

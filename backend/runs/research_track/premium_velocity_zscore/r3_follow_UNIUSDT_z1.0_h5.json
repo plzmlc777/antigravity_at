@@ -1,0 +1,46 @@
+{
+  "paradigm": "premium_velocity_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "UNIUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "UNIUSDT",
+      "SOLUSDT",
+      "ETCUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 51,
+    "n_long_entries": 24,
+    "n_short_entries": 28,
+    "alpha_pct": 287.4,
+    "total_return_pct": 245.66,
+    "buy_hold_pct": -41.74,
+    "sharpe_ann": 1.81,
+    "max_dd_pct": 30.01,
+    "win_rate_pct": 54.9,
+    "profit_factor": 2.018,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 287.4,
+    "random_alpha_mean": 32.784,
+    "random_alpha_std": 71.955,
+    "random_alpha_max": 375.24,
+    "perm_p": 0.015
+  },
+  "sigma": 3.54,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:31:58.614895+00:00"
+}

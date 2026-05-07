@@ -1,0 +1,2 @@
+symbol,n_trades,n_aligned_pos,n_aligned_neg,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+SOLUSDT,5,2,3,54.38,6.24,-48.14,2.355,1.11,60.0,6.544,178

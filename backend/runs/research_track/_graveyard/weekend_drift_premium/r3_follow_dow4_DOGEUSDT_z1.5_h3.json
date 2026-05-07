@@ -1,0 +1,46 @@
+{
+  "paradigm": "weekend_drift_premium",
+  "phase": "R-3_robustness",
+  "symbol": "DOGEUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "LDOUSDT",
+      "AXSUSDT",
+      "DOGEUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "entry_dow": 4,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 5,
+    "n_long_entries": 2,
+    "n_short_entries": 3,
+    "alpha_pct": 84.95,
+    "total_return_pct": 39.13,
+    "buy_hold_pct": -45.82,
+    "sharpe_ann": 2.487,
+    "max_dd_pct": 0.0,
+    "win_rate_pct": 100.0,
+    "profit_factor": "inf",
+    "oos_days": 369
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 84.95,
+    "random_alpha_mean": 46.589,
+    "random_alpha_std": 20.462,
+    "random_alpha_max": 144.87,
+    "perm_p": 0.04
+  },
+  "evaluated_at": "2026-05-06T03:55:05.693484+00:00"
+}

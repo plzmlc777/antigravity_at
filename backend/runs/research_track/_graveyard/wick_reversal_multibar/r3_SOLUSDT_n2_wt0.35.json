@@ -1,0 +1,42 @@
+{
+  "paradigm": "wick_reversal_multibar",
+  "symbol": "SOLUSDT",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "n_bars": 2,
+    "wick_thresh": 0.35,
+    "prior_lookback": 12,
+    "prior_move_pct": 0.03,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 122,
+    "n_long_entries": 64,
+    "n_short_entries": 58,
+    "alpha_pct": 61.94,
+    "total_return_pct": 28.51,
+    "buy_hold_pct": -33.43,
+    "sharpe_ann": 1.414,
+    "max_dd_pct": 11.21,
+    "win_rate_pct": 51.64,
+    "profit_factor": 1.446,
+    "oos_days": 397
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 61.94,
+    "random_alpha_mean": 15.662,
+    "random_alpha_std": 10.302,
+    "random_alpha_max": 49.34,
+    "perm_p": 0.0
+  },
+  "sigma": 4.49,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T09:27:13.742039+00:00"
+}

@@ -1,0 +1,44 @@
+{
+  "paradigm": "cross_section_funding_rotation",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_k1_h14_reverse",
+  "evaluated_at": "2026-05-06T04:54:19.925129+00:00",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "AXSUSDT",
+      "BTCUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "ETCUSDT",
+      "ETHUSDT",
+      "HBARUSDT",
+      "ICPUSDT",
+      "LDOUSDT",
+      "LINKUSDT",
+      "SOLUSDT",
+      "UNIUSDT",
+      "WLDUSDT"
+    ],
+    "freq": "1D",
+    "top_k": 1,
+    "hold_periods": 14,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "reverse",
+    "tag": "r1_k1_h14_reverse"
+  },
+  "result": {
+    "n_trades": 12,
+    "alpha_pct": 168.85,
+    "total_return_pct": 120.07,
+    "buy_hold_pct": -48.78,
+    "sharpe_ann": 1.729,
+    "max_dd_pct": 5.43,
+    "win_rate_pct": 75.0,
+    "profit_factor": 7.87,
+    "oos_days": 167,
+    "n_symbols": 14
+  }
+}

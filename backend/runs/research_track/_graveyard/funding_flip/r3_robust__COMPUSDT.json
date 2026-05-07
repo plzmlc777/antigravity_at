@@ -1,0 +1,78 @@
+{
+  "symbol": "COMPUSDT",
+  "paradigm": "funding_flip",
+  "phase": "R-3_robustness",
+  "config": {
+    "magnitude": 0.0001,
+    "hold_periods": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "reverse_sign": true,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-04T14:19:26.813589+00:00",
+  "real_metrics_oos": {
+    "n_trades": 37,
+    "n_flips_test": 67,
+    "alpha_pct": 78.0,
+    "total_return_pct": 45.89,
+    "buy_hold_pct": -32.12,
+    "sharpe_ann": 1.562,
+    "max_dd_pct": 22.72,
+    "win_rate_pct": 48.65,
+    "profit_factor": 1.75,
+    "oos_days": 181
+  },
+  "full_metrics": {
+    "n_trades": 70,
+    "n_flips_test": 130,
+    "alpha_pct": 31.01,
+    "total_return_pct": -11.28,
+    "buy_hold_pct": -42.29,
+    "sharpe_ann": 0.037,
+    "max_dd_pct": 44.22,
+    "win_rate_pct": 44.29,
+    "profit_factor": 1.012,
+    "oos_days": 364
+  },
+  "walk_forward": {
+    "n_folds": 6,
+    "positive_folds": 0,
+    "folds": [
+      {
+        "fold": 1,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 2,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 3,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 4,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 5,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 6,
+        "error": "too few periods (184)"
+      }
+    ]
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 78.0,
+    "random_alpha_mean": 30.115,
+    "random_alpha_std": 56.404,
+    "random_alpha_q05": -37.242,
+    "random_alpha_q95": 117.277,
+    "perm_p": 0.17
+  }
+}

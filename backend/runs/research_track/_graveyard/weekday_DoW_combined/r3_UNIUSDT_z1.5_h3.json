@@ -1,0 +1,50 @@
+{
+  "paradigm": "weekday_DoW_combined",
+  "phase": "R-3_robustness",
+  "symbol": "UNIUSDT",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "SOLUSDT",
+      "LDOUSDT",
+      "AVAXUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "allowed_dows": [
+      3,
+      4,
+      5
+    ],
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 18,
+    "n_long_entries": 8,
+    "n_short_entries": 11,
+    "alpha_pct": 121.57,
+    "total_return_pct": 82.81,
+    "buy_hold_pct": -38.76,
+    "sharpe_ann": 1.801,
+    "max_dd_pct": 21.59,
+    "win_rate_pct": 72.22,
+    "profit_factor": 3.153,
+    "oos_days": 385
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 121.57,
+    "random_alpha_mean": 39.097,
+    "random_alpha_std": 40.735,
+    "random_alpha_max": 202.95,
+    "perm_p": 0.045
+  },
+  "sigma": 2.02,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T06:05:19.605229+00:00"
+}

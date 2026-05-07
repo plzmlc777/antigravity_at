@@ -1,0 +1,45 @@
+{
+  "paradigm": "premium_volatility_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_ez2.0_fade",
+  "evaluated_at": "2026-05-06T04:12:34.335073+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade",
+    "tag": "r1_sol_ez2.0_fade"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_ez2.0_fade",
+    "n_symbols": 1,
+    "alpha_pct_mean": -19.18,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -2.221,
+    "sharpe_pos_count": 0,
+    "trades_total": 21
+  },
+  "per_symbol": [
+    {
+      "n_trades": 21,
+      "n_long_entries": 21,
+      "n_short_entries": 0,
+      "alpha_pct": -19.18,
+      "total_return_pct": -56.34,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": -2.221,
+      "max_dd_pct": 60.11,
+      "win_rate_pct": 19.05,
+      "profit_factor": 0.328,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-1_PoC",
+  "spec_name": "test_confirm_LINKUSDT",
+  "evaluated_at": "2026-05-06T01:06:03.508184+00:00",
+  "config": {
+    "symbols": [
+      "LINKUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "confirm",
+    "tag": "test_confirm_LINKUSDT"
+  },
+  "aggregate": {
+    "spec_name": "test_confirm_LINKUSDT",
+    "n_symbols": 1,
+    "alpha_pct_mean": 11.7,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -0.849,
+    "sharpe_pos_count": 0,
+    "type_a_alpha_mean": 0.0,
+    "type_b_alpha_mean": 0.0,
+    "trades_total": 467
+  },
+  "per_symbol": [
+    {
+      "n_trades": 467,
+      "n_type_a": 193,
+      "n_type_b": 274,
+      "alpha_pct": 11.7,
+      "type_a_alpha": 0.0,
+      "type_b_alpha": 0.0,
+      "total_return_pct": -32.29,
+      "buy_hold_pct": -43.99,
+      "sharpe_ann": -0.849,
+      "max_dd_pct": 45.64,
+      "win_rate_pct": 43.04,
+      "profit_factor": 0.89,
+      "oos_days": 371,
+      "symbol": "LINKUSDT"
+    }
+  ]
+}

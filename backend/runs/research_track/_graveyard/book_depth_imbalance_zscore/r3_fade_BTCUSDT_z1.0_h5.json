@@ -1,0 +1,45 @@
+{
+  "paradigm": "book_depth_imbalance_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "BTCUSDT",
+  "mode": "fade",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "ETHUSDT",
+      "BTCUSDT",
+      "DOGEUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade",
+    "feature": "imbalance_mean",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 23,
+    "n_long_entries": 16,
+    "n_short_entries": 8,
+    "alpha_pct": 24.15,
+    "total_return_pct": 5.97,
+    "buy_hold_pct": -18.19,
+    "sharpe_ann": 0.515,
+    "max_dd_pct": 24.52,
+    "win_rate_pct": 60.87,
+    "profit_factor": 1.239,
+    "oos_days": 167
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 24.15,
+    "random_alpha_mean": 12.228,
+    "random_alpha_std": 23.03,
+    "random_alpha_max": 88.44,
+    "perm_p": 0.275
+  },
+  "evaluated_at": "2026-05-06T02:50:16.609746+00:00"
+}

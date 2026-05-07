@@ -1,0 +1,46 @@
+{
+  "paradigm": "weekend_drift_premium",
+  "phase": "R-3_robustness",
+  "symbol": "UNIUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "LDOUSDT",
+      "AXSUSDT",
+      "DOGEUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "entry_dow": 4,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 7,
+    "n_long_entries": 2,
+    "n_short_entries": 5,
+    "alpha_pct": 91.82,
+    "total_return_pct": 53.06,
+    "buy_hold_pct": -38.76,
+    "sharpe_ann": 2.152,
+    "max_dd_pct": 1.55,
+    "win_rate_pct": 85.71,
+    "profit_factor": 30.345,
+    "oos_days": 385
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 91.82,
+    "random_alpha_mean": 37.251,
+    "random_alpha_std": 19.854,
+    "random_alpha_max": 107.7,
+    "perm_p": 0.015
+  },
+  "evaluated_at": "2026-05-06T03:55:10.996928+00:00"
+}

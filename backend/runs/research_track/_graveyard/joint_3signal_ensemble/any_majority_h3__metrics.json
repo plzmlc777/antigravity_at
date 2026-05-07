@@ -1,0 +1,46 @@
+{
+  "paradigm": "joint_3signal_ensemble",
+  "phase": "R-1_PoC",
+  "spec_name": "any_majority_h3",
+  "evaluated_at": "2026-05-06T03:06:45.448104+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "vote": "any_majority",
+    "premium_z": 2.0,
+    "oi_z": 2.0,
+    "funding_z": 2.5,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "any_majority_h3"
+  },
+  "aggregate": {
+    "spec_name": "any_majority_h3",
+    "n_symbols": 1,
+    "alpha_pct_mean": -20.65,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -0.678,
+    "sharpe_pos_count": 0,
+    "trades_total": 132
+  },
+  "per_symbol": [
+    {
+      "n_trades": 132,
+      "n_long_entries": 54,
+      "n_short_entries": 78,
+      "alpha_pct": -20.65,
+      "total_return_pct": -53.12,
+      "buy_hold_pct": -32.47,
+      "sharpe_ann": -0.678,
+      "max_dd_pct": 64.95,
+      "win_rate_pct": 44.7,
+      "profit_factor": 0.86,
+      "oos_days": 398,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

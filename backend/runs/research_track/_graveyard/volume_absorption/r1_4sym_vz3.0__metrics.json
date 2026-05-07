@@ -1,0 +1,104 @@
+{
+  "paradigm": "volume_absorption",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_4sym_vz3.0",
+  "evaluated_at": "2026-05-04T14:15:22.755201+00:00",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "AVAXUSDT"
+    ],
+    "lookback": 288,
+    "prior_bars": 12,
+    "vol_z": 3.0,
+    "body_ratio": 0.3,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "reverse_sign": false,
+    "tag": "r1_4sym_vz3.0"
+  },
+  "aggregate": {
+    "spec_name": "r1_4sym_vz3.0",
+    "n_symbols": 4,
+    "alpha_pct_mean": 14.5,
+    "alpha_pct_median": 14.8,
+    "alpha_pos_count": 2,
+    "sharpe_mean": -1.339,
+    "sharpe_pos_count": 1,
+    "mdd_mean": 44.31,
+    "wr_mean": 47.94,
+    "trades_total": 2079,
+    "trades_per_symbol_mean": 519.8
+  },
+  "per_symbol": [
+    {
+      "n_trades": 561,
+      "alpha_pct": -1.48,
+      "total_return_pct": -49.69,
+      "buy_hold_pct": -48.22,
+      "sharpe_ann": -2.281,
+      "max_dd_pct": 52.48,
+      "win_rate_pct": 44.39,
+      "profit_factor": 0.751,
+      "oos_days": 398,
+      "exit_reasons": {
+        "time": 517,
+        "sl": 44
+      },
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 555,
+      "alpha_pct": -9.64,
+      "total_return_pct": -61.8,
+      "buy_hold_pct": -52.15,
+      "sharpe_ann": -2.262,
+      "max_dd_pct": 68.71,
+      "win_rate_pct": 48.29,
+      "profit_factor": 0.742,
+      "oos_days": 398,
+      "exit_reasons": {
+        "time": 474,
+        "sl": 81
+      },
+      "symbol": "AXSUSDT"
+    },
+    {
+      "n_trades": 530,
+      "alpha_pct": 38.03,
+      "total_return_pct": -2.45,
+      "buy_hold_pct": -40.48,
+      "sharpe_ann": 0.076,
+      "max_dd_pct": 28.87,
+      "win_rate_pct": 51.51,
+      "profit_factor": 1.011,
+      "oos_days": 398,
+      "exit_reasons": {
+        "time": 495,
+        "sl": 35
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 433,
+      "alpha_pct": 31.08,
+      "total_return_pct": -21.53,
+      "buy_hold_pct": -52.61,
+      "sharpe_ann": -0.887,
+      "max_dd_pct": 27.19,
+      "win_rate_pct": 47.58,
+      "profit_factor": 0.89,
+      "oos_days": 380,
+      "exit_reasons": {
+        "time": 400,
+        "sl": 33
+      },
+      "symbol": "AVAXUSDT"
+    }
+  ]
+}

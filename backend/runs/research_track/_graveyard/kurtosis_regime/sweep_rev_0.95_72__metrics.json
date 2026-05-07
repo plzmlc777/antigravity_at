@@ -1,0 +1,50 @@
+{
+  "paradigm": "kurtosis_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_rev_0.95_72",
+  "evaluated_at": "2026-05-05T01:36:24.178321+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "kurt_window": 60,
+    "regime_window": 8640,
+    "kurt_high_pctl": 0.95,
+    "dir_lookback": 24,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "reverse_sign": true,
+    "tag": "sweep_rev_0.95_72"
+  },
+  "aggregate": {
+    "spec_name": "sweep_rev_0.95_72",
+    "n_symbols": 1,
+    "direction": "rev",
+    "alpha_pct_mean": 34.78,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.219,
+    "sharpe_pos_count": 1,
+    "mdd_mean": 29.3,
+    "wr_mean": 46.43,
+    "trades_total": 252
+  },
+  "per_symbol": [
+    {
+      "n_trades": 252,
+      "n_long": 114,
+      "n_short": 138,
+      "alpha_pct": 34.78,
+      "total_return_pct": 0.01,
+      "buy_hold_pct": -34.77,
+      "sharpe_ann": 0.219,
+      "max_dd_pct": 29.3,
+      "win_rate_pct": 46.43,
+      "profit_factor": 1.046,
+      "oos_days": 382,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

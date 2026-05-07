@@ -1,0 +1,45 @@
+{
+  "paradigm": "joint_3signal_ensemble",
+  "phase": "R-3_robustness",
+  "symbol": "DOGEUSDT",
+  "vote": "require_2",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "LDOUSDT",
+      "COMPUSDT",
+      "AVAXUSDT"
+    ],
+    "vote": "require_2",
+    "premium_z": 2.0,
+    "oi_z": 2.0,
+    "funding_z": 2.5,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 15,
+    "n_long_entries": 10,
+    "n_short_entries": 5,
+    "alpha_pct": 309.02,
+    "total_return_pct": 260.35,
+    "buy_hold_pct": -48.67,
+    "sharpe_ann": 2.851,
+    "max_dd_pct": 8.83,
+    "win_rate_pct": 86.67,
+    "profit_factor": 14.46,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 309.02,
+    "random_alpha_mean": 46.248,
+    "random_alpha_std": 27.344,
+    "random_alpha_max": 175.36,
+    "perm_p": 0.0
+  },
+  "evaluated_at": "2026-05-06T03:10:38.816863+00:00"
+}

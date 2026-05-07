@@ -1,0 +1,44 @@
+{
+  "paradigm": "cross_section_funding_rotation",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_k1_h14_carry",
+  "evaluated_at": "2026-05-06T04:53:34.249972+00:00",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "AXSUSDT",
+      "BTCUSDT",
+      "COMPUSDT",
+      "DOGEUSDT",
+      "ETCUSDT",
+      "ETHUSDT",
+      "HBARUSDT",
+      "ICPUSDT",
+      "LDOUSDT",
+      "LINKUSDT",
+      "SOLUSDT",
+      "UNIUSDT",
+      "WLDUSDT"
+    ],
+    "freq": "1D",
+    "top_k": 1,
+    "hold_periods": 14,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "carry",
+    "tag": "r1_k1_h14_carry"
+  },
+  "result": {
+    "n_trades": 12,
+    "alpha_pct": -43.72,
+    "total_return_pct": -92.5,
+    "buy_hold_pct": -48.78,
+    "sharpe_ann": -1.76,
+    "max_dd_pct": 93.15,
+    "win_rate_pct": 25.0,
+    "profit_factor": 0.122,
+    "oos_days": 167,
+    "n_symbols": 14
+  }
+}

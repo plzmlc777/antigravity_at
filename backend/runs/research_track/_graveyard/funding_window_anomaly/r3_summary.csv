@@ -1,0 +1,6 @@
+symbol,alpha_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,n_trades,wf_positive_folds,wf_total_folds,perm_p,perm_random_mean
+COMPUSDT,78.82,2.301,5.98,65.0,3.068,40,5,6,0.095,-0.886
+AVAXUSDT,66.22,1.139,6.17,55.26,1.611,38,4,6,0.365,33.078
+SOLUSDT,39.53,0.495,6.66,55.88,1.25,34,4,6,0.24,-10.123
+LINKUSDT,39.31,0.32,8.99,57.14,1.136,42,5,6,0.385,3.916
+UNIUSDT,42.88,0.376,10.8,48.72,1.177,39,4,6,0.36,-11.016

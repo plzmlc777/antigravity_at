@@ -1,0 +1,45 @@
+{
+  "paradigm": "wick_reversal",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_wt0.6_pl12_pm0.03_h12",
+  "evaluated_at": "2026-05-06T06:56:39.888495+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "wick_thresh": 0.6,
+    "prior_lookback": 12,
+    "prior_move_pct": 0.03,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_wt0.6_pl12_pm0.03_h12"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_wt0.6_pl12_pm0.03_h12",
+    "n_symbols": 1,
+    "alpha_pct_mean": 45.49,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.91,
+    "sharpe_pos_count": 1,
+    "trades_total": 59
+  },
+  "per_symbol": [
+    {
+      "n_trades": 59,
+      "n_long_entries": 34,
+      "n_short_entries": 25,
+      "alpha_pct": 45.49,
+      "total_return_pct": 12.06,
+      "buy_hold_pct": -33.43,
+      "sharpe_ann": 0.91,
+      "max_dd_pct": 10.31,
+      "win_rate_pct": 47.46,
+      "profit_factor": 1.449,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

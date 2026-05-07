@@ -1,0 +1,44 @@
+{
+  "paradigm": "premium_index_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 13,
+    "n_long_entries": 4,
+    "n_short_entries": 9,
+    "alpha_pct": 290.07,
+    "total_return_pct": 239.22,
+    "buy_hold_pct": -50.85,
+    "sharpe_ann": 2.659,
+    "max_dd_pct": 6.01,
+    "win_rate_pct": 76.92,
+    "profit_factor": 12.001,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 290.07,
+    "random_alpha_mean": 43.738,
+    "random_alpha_std": 43.526,
+    "random_alpha_max": 254.97,
+    "perm_p": 0.0
+  },
+  "evaluated_at": "2026-05-06T02:35:21.152256+00:00"
+}

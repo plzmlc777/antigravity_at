@@ -1,0 +1,100 @@
+{
+  "paradigm": "hurst_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "r2_trend_t0.20",
+  "evaluated_at": "2026-05-05T03:17:08.879580+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "HBARUSDT",
+      "COMPUSDT",
+      "LINKUSDT"
+    ],
+    "hurst_window": 288,
+    "hurst_thresh": 0.2,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "regime_filter": "trend_only",
+    "max_bars": 0,
+    "tag": "r2_trend_t0.20"
+  },
+  "aggregate": {
+    "spec_name": "r2_trend_t0.20",
+    "n_symbols": 4,
+    "alpha_pct_mean": 18.7,
+    "alpha_pos_count": 3,
+    "sharpe_mean": -1.007,
+    "sharpe_pos_count": 0,
+    "trades_total": 517
+  },
+  "per_symbol": [
+    {
+      "n_trades": 145,
+      "n_trend_entries": 145,
+      "n_rev_entries": 0,
+      "alpha_pct": 21.7,
+      "trend_alpha_sum": -11.16,
+      "rev_alpha_sum": 0.0,
+      "total_return_pct": -11.13,
+      "buy_hold_pct": -32.83,
+      "sharpe_ann": -0.941,
+      "max_dd_pct": 18.55,
+      "win_rate_pct": 44.83,
+      "profit_factor": 0.797,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 151,
+      "n_trend_entries": 151,
+      "n_rev_entries": 0,
+      "alpha_pct": 41.65,
+      "trend_alpha_sum": -6.21,
+      "rev_alpha_sum": 0.0,
+      "total_return_pct": -6.84,
+      "buy_hold_pct": -48.48,
+      "sharpe_ann": -0.449,
+      "max_dd_pct": 17.08,
+      "win_rate_pct": 44.37,
+      "profit_factor": 0.903,
+      "oos_days": 399,
+      "symbol": "HBARUSDT"
+    },
+    {
+      "n_trades": 104,
+      "n_trend_entries": 104,
+      "n_rev_entries": 0,
+      "alpha_pct": -18.53,
+      "trend_alpha_sum": -79.77,
+      "rev_alpha_sum": 0.0,
+      "total_return_pct": -58.93,
+      "buy_hold_pct": -40.4,
+      "sharpe_ann": -1.971,
+      "max_dd_pct": 64.43,
+      "win_rate_pct": 40.38,
+      "profit_factor": 0.353,
+      "oos_days": 399,
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 117,
+      "n_trend_entries": 117,
+      "n_rev_entries": 0,
+      "alpha_pct": 30.0,
+      "trend_alpha_sum": -8.18,
+      "rev_alpha_sum": 0.0,
+      "total_return_pct": -8.51,
+      "buy_hold_pct": -38.51,
+      "sharpe_ann": -0.668,
+      "max_dd_pct": 13.96,
+      "win_rate_pct": 47.01,
+      "profit_factor": 0.843,
+      "oos_days": 383,
+      "symbol": "LINKUSDT"
+    }
+  ]
+}

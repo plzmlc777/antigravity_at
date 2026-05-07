@@ -1,0 +1,47 @@
+{
+  "paradigm": "bid_ask_concentration_regime",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "fade",
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "DOGEUSDT",
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 3,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 10,
+    "n_long_entries": 6,
+    "n_short_entries": 4,
+    "alpha_pct": 46.54,
+    "total_return_pct": 6.87,
+    "buy_hold_pct": -39.67,
+    "sharpe_ann": 0.707,
+    "max_dd_pct": 9.28,
+    "win_rate_pct": 70.0,
+    "profit_factor": 1.449,
+    "oos_days": 168
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 46.54,
+    "random_alpha_mean": 39.667,
+    "random_alpha_std": 11.469,
+    "random_alpha_max": 77.69,
+    "perm_p": 0.28
+  },
+  "sigma": 0.6,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:55:52.805584+00:00"
+}

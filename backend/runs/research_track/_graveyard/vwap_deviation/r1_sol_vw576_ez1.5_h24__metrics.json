@@ -1,0 +1,45 @@
+{
+  "paradigm": "vwap_deviation",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_vw576_ez1.5_h24",
+  "evaluated_at": "2026-05-06T11:38:33.843600+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "vwap_window": 576,
+    "zwin": 288,
+    "entry_z": 1.5,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_vw576_ez1.5_h24"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_vw576_ez1.5_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": -54.09,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -2.452,
+    "sharpe_pos_count": 0,
+    "trades_total": 2435
+  },
+  "per_symbol": [
+    {
+      "n_trades": 2435,
+      "n_long_entries": 1235,
+      "n_short_entries": 1201,
+      "alpha_pct": -54.09,
+      "total_return_pct": -87.06,
+      "buy_hold_pct": -32.97,
+      "sharpe_ann": -2.452,
+      "max_dd_pct": 88.88,
+      "win_rate_pct": 47.72,
+      "profit_factor": 0.847,
+      "oos_days": 396,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

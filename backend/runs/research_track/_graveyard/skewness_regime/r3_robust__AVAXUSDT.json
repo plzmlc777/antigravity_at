@@ -1,0 +1,42 @@
+{
+  "symbol": "AVAXUSDT",
+  "paradigm": "skewness_regime",
+  "phase": "R-3_robustness",
+  "config": {
+    "skew_window": 60,
+    "regime_window": 8640,
+    "skew_low_pctl": -0.01,
+    "skew_high_pctl": 0.95,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "reverse_sign": true,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T01:25:11.549833+00:00",
+  "real_metrics": {
+    "n_trades": 274,
+    "n_long": 274,
+    "n_short": 0,
+    "alpha_pct": 64.31,
+    "total_return_pct": 9.51,
+    "buy_hold_pct": -54.81,
+    "sharpe_ann": 0.425,
+    "max_dd_pct": 28.71,
+    "win_rate_pct": 46.35,
+    "profit_factor": 1.069,
+    "oos_days": 366,
+    "exit_reasons": {
+      "time": 197,
+      "sl": 77
+    }
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 64.31,
+    "random_alpha_mean": 19.417,
+    "random_alpha_std": 62.811,
+    "perm_p": 0.18
+  }
+}

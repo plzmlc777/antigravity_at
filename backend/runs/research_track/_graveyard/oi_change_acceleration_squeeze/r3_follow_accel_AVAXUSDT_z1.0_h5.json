@@ -1,0 +1,45 @@
+{
+  "paradigm": "oi_change_acceleration_squeeze",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "mode": "follow_accel",
+  "config": {
+    "symbols": [
+      "UNIUSDT",
+      "AVAXUSDT",
+      "DOGEUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow_accel",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 45,
+    "n_long_entries": 24,
+    "n_short_entries": 22,
+    "alpha_pct": 35.88,
+    "total_return_pct": -19.2,
+    "buy_hold_pct": -55.07,
+    "sharpe_ann": -0.043,
+    "max_dd_pct": 48.44,
+    "win_rate_pct": 44.44,
+    "profit_factor": 0.985,
+    "oos_days": 348
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 35.88,
+    "random_alpha_mean": 21.075,
+    "random_alpha_std": 37.897,
+    "random_alpha_max": 163.31,
+    "perm_p": 0.26
+  },
+  "sigma": 0.39,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:26:19.252874+00:00"
+}

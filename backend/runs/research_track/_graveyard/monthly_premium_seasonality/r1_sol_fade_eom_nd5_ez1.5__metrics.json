@@ -1,0 +1,46 @@
+{
+  "paradigm": "monthly_premium_seasonality",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_fade_eom_nd5_ez1.5",
+  "evaluated_at": "2026-05-06T04:41:08.852835+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "n_days": 5,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade_eom",
+    "tag": "r1_sol_fade_eom_nd5_ez1.5"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_fade_eom_nd5_ez1.5",
+    "n_symbols": 1,
+    "alpha_pct_mean": 20.32,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -0.926,
+    "sharpe_pos_count": 0,
+    "trades_total": 6
+  },
+  "per_symbol": [
+    {
+      "n_trades": 6,
+      "n_long_entries": 5,
+      "n_short_entries": 1,
+      "alpha_pct": 20.32,
+      "total_return_pct": -16.84,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": -0.926,
+      "max_dd_pct": 21.21,
+      "win_rate_pct": 33.33,
+      "profit_factor": 0.396,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

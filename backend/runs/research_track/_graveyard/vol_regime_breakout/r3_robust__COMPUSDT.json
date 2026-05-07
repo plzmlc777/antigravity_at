@@ -1,0 +1,40 @@
+{
+  "symbol": "COMPUSDT",
+  "paradigm": "vol_regime_breakout",
+  "phase": "R-3_robustness",
+  "config": {
+    "vol_window": 288,
+    "regime_window": 8640,
+    "vol_pctl": 0.1,
+    "breakout_lookback": 72,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "reverse_sign": true,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T00:42:26.779989+00:00",
+  "real_metrics": {
+    "n_trades": 179,
+    "alpha_pct": 65.3,
+    "total_return_pct": 21.98,
+    "buy_hold_pct": -43.32,
+    "sharpe_ann": 1.121,
+    "max_dd_pct": 13.24,
+    "win_rate_pct": 53.63,
+    "profit_factor": 1.247,
+    "oos_days": 384,
+    "exit_reasons": {
+      "time": 157,
+      "sl": 22
+    }
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 65.3,
+    "random_alpha_mean": -15.657,
+    "random_alpha_std": 103.311,
+    "perm_p": 0.135
+  }
+}

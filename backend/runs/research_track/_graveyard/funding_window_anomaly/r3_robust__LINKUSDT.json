@@ -1,0 +1,113 @@
+{
+  "symbol": "LINKUSDT",
+  "paradigm": "funding_window_anomaly",
+  "phase": "R-3_robustness",
+  "config": {
+    "pre_bars": 24,
+    "hold_bars": 12,
+    "lookback": 90,
+    "entry_z": 2.5,
+    "sl_pct": 0.03,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-04T13:32:08.011973+00:00",
+  "real_metrics": {
+    "n_trades": 42,
+    "n_boundaries_test": 1106,
+    "alpha_pct": 39.31,
+    "total_return_pct": 2.81,
+    "buy_hold_pct": -36.51,
+    "sharpe_ann": 0.32,
+    "max_dd_pct": 8.99,
+    "win_rate_pct": 57.14,
+    "profit_factor": 1.136,
+    "oos_days": 368,
+    "exit_reasons": {
+      "time": 40,
+      "sl": 2
+    }
+  },
+  "walk_forward": {
+    "n_folds": 6,
+    "positive_folds": 5,
+    "folds": [
+      {
+        "fold": 1,
+        "start": "2024-02-25 22:50:00",
+        "end": "2024-07-02 19:05:00",
+        "n_bars": 36820,
+        "alpha_pct": 23.76,
+        "sharpe_ann": -1.295,
+        "n_trades": 9,
+        "max_dd_pct": 5.34,
+        "positive": "True"
+      },
+      {
+        "fold": 2,
+        "start": "2024-06-15 10:30:00",
+        "end": "2024-11-07 15:25:00",
+        "n_bars": 41820,
+        "alpha_pct": 6.56,
+        "sharpe_ann": -1.504,
+        "n_trades": 15,
+        "max_dd_pct": 7.76,
+        "positive": "True"
+      },
+      {
+        "fold": 3,
+        "start": "2024-10-21 06:50:00",
+        "end": "2025-03-15 11:45:00",
+        "n_bars": 41820,
+        "alpha_pct": 1.26,
+        "sharpe_ann": -1.363,
+        "n_trades": 8,
+        "max_dd_pct": 6.7,
+        "positive": "True"
+      },
+      {
+        "fold": 4,
+        "start": "2025-02-26 03:10:00",
+        "end": "2025-07-21 08:05:00",
+        "n_bars": 41820,
+        "alpha_pct": -30.94,
+        "sharpe_ann": 1.474,
+        "n_trades": 14,
+        "max_dd_pct": 3.97,
+        "positive": "False"
+      },
+      {
+        "fold": 5,
+        "start": "2025-07-03 23:30:00",
+        "end": "2025-11-26 04:25:00",
+        "n_bars": 41820,
+        "alpha_pct": 18.69,
+        "sharpe_ann": 0.138,
+        "n_trades": 16,
+        "max_dd_pct": 8.21,
+        "positive": "True"
+      },
+      {
+        "fold": 6,
+        "start": "2025-11-08 19:50:00",
+        "end": "2026-04-03 00:45:00",
+        "n_bars": 41820,
+        "alpha_pct": 32.59,
+        "sharpe_ann": -2.597,
+        "n_trades": 10,
+        "max_dd_pct": 5.26,
+        "positive": "True"
+      }
+    ]
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 39.31,
+    "random_alpha_mean": 3.916,
+    "random_alpha_std": 72.793,
+    "random_alpha_q05": -150.633,
+    "random_alpha_q95": 78.534,
+    "perm_p": 0.385
+  }
+}

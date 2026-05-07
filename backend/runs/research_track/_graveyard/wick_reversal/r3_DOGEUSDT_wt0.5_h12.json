@@ -1,0 +1,45 @@
+{
+  "paradigm": "wick_reversal",
+  "phase": "R-3_robustness",
+  "symbol": "DOGEUSDT",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "AVAXUSDT",
+      "DOGEUSDT",
+      "HBARUSDT"
+    ],
+    "wick_thresh": 0.5,
+    "prior_lookback": 12,
+    "prior_move_pct": 0.03,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 137,
+    "n_long_entries": 71,
+    "n_short_entries": 66,
+    "alpha_pct": 63.76,
+    "total_return_pct": 15.7,
+    "buy_hold_pct": -48.06,
+    "sharpe_ann": 0.818,
+    "max_dd_pct": 12.76,
+    "win_rate_pct": 53.28,
+    "profit_factor": 1.224,
+    "oos_days": 383
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 63.76,
+    "random_alpha_mean": 20.42,
+    "random_alpha_std": 28.713,
+    "random_alpha_max": 86.39,
+    "perm_p": 0.055
+  },
+  "sigma": 1.51,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T07:24:15.812804+00:00"
+}

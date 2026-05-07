@@ -1,0 +1,4 @@
+symbol,alpha_oos,sharpe_oos,alpha_full,sharpe_full,mdd_full,wr_full,pf_full,trades_full,wf_pos,wf_total,perm_p,perm_random_mean
+LINKUSDT,91.61,1.885,157.29,1.84,19.62,54.65,1.712,86,0,6,0.125,49.119
+COMPUSDT,78.0,1.562,31.01,0.037,44.22,44.29,1.012,70,0,6,0.17,30.115
+HBARUSDT,55.66,0.416,76.9,0.703,38.35,47.06,1.198,102,0,6,0.315,44.294

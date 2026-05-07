@@ -1,0 +1,44 @@
+{
+  "paradigm": "funding_premium_spread_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "fade",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "ETCUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 20,
+    "n_long_entries": 15,
+    "n_short_entries": 6,
+    "alpha_pct": 46.64,
+    "total_return_pct": 7.74,
+    "buy_hold_pct": -38.9,
+    "sharpe_ann": 0.587,
+    "max_dd_pct": 14.64,
+    "win_rate_pct": 55.0,
+    "profit_factor": 1.28,
+    "oos_days": 152
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 46.64,
+    "random_alpha_mean": -0.393,
+    "random_alpha_std": 15.183,
+    "random_alpha_max": 63.03,
+    "perm_p": 0.005
+  },
+  "sigma": 3.1,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:18:04.665401+00:00"
+}

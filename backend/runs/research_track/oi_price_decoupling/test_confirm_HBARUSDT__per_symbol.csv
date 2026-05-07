@@ -1,0 +1,2 @@
+symbol,n_trades,n_type_a,n_type_b,alpha_pct,type_a_alpha,type_b_alpha,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+HBARUSDT,421,184,237,20.36,0.0,0.0,-26.56,-46.92,-0.69,34.57,42.28,0.9,387

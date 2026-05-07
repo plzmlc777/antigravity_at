@@ -1,0 +1,49 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-1_PoC",
+  "spec_name": "test_invdec_UNIUSDT",
+  "evaluated_at": "2026-05-06T01:06:15.214143+00:00",
+  "config": {
+    "symbols": [
+      "UNIUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.5,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "invert_decouple",
+    "tag": "test_invdec_UNIUSDT"
+  },
+  "aggregate": {
+    "spec_name": "test_invdec_UNIUSDT",
+    "n_symbols": 1,
+    "alpha_pct_mean": 5.02,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -2.054,
+    "sharpe_pos_count": 0,
+    "type_a_alpha_mean": -20.31,
+    "type_b_alpha_mean": -16.28,
+    "trades_total": 122
+  },
+  "per_symbol": [
+    {
+      "n_trades": 122,
+      "n_type_a": 62,
+      "n_type_b": 60,
+      "alpha_pct": 5.02,
+      "type_a_alpha": -20.31,
+      "type_b_alpha": -16.28,
+      "total_return_pct": -31.7,
+      "buy_hold_pct": -36.72,
+      "sharpe_ann": -2.054,
+      "max_dd_pct": 31.7,
+      "win_rate_pct": 40.16,
+      "profit_factor": 0.607,
+      "oos_days": 390,
+      "symbol": "UNIUSDT"
+    }
+  ]
+}

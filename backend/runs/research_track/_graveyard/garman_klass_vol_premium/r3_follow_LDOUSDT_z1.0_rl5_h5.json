@@ -1,0 +1,46 @@
+{
+  "paradigm": "garman_klass_vol_premium",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "UNIUSDT",
+      "LDOUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 5,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 31,
+    "n_long_entries": 16,
+    "n_short_entries": 15,
+    "alpha_pct": 84.89,
+    "total_return_pct": 34.04,
+    "buy_hold_pct": -50.85,
+    "sharpe_ann": 0.712,
+    "max_dd_pct": 46.08,
+    "win_rate_pct": 45.16,
+    "profit_factor": 1.382,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 84.89,
+    "random_alpha_mean": 28.897,
+    "random_alpha_std": 42.692,
+    "random_alpha_max": 241.33,
+    "perm_p": 0.115
+  },
+  "sigma": 1.31,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:49:49.009107+00:00"
+}

@@ -1,0 +1,53 @@
+{
+  "paradigm": "volume_absorption",
+  "phase": "R-1_PoC",
+  "spec_name": "continuation_baseline",
+  "evaluated_at": "2026-05-04T14:14:35.923226+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "lookback": 288,
+    "prior_bars": 12,
+    "vol_z": 2.5,
+    "body_ratio": 0.3,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "reverse_sign": true,
+    "tag": "continuation_baseline"
+  },
+  "aggregate": {
+    "spec_name": "continuation_baseline",
+    "n_symbols": 1,
+    "alpha_pct_mean": -1.45,
+    "alpha_pct_median": -1.45,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.393,
+    "sharpe_pos_count": 0,
+    "mdd_mean": 40.15,
+    "wr_mean": 44.52,
+    "trades_total": 593,
+    "trades_per_symbol_mean": 593.0
+  },
+  "per_symbol": [
+    {
+      "n_trades": 593,
+      "alpha_pct": -1.45,
+      "total_return_pct": -34.32,
+      "buy_hold_pct": -32.87,
+      "sharpe_ann": -1.393,
+      "max_dd_pct": 40.15,
+      "win_rate_pct": 44.52,
+      "profit_factor": 0.849,
+      "oos_days": 397,
+      "exit_reasons": {
+        "time": 560,
+        "sl": 33
+      },
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

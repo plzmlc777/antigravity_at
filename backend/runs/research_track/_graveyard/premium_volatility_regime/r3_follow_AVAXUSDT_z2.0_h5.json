@@ -1,0 +1,46 @@
+{
+  "paradigm": "premium_volatility_regime",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "LDOUSDT",
+      "AVAXUSDT",
+      "LINKUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 14,
+    "n_long_entries": 2,
+    "n_short_entries": 13,
+    "alpha_pct": 70.47,
+    "total_return_pct": 19.63,
+    "buy_hold_pct": -50.84,
+    "sharpe_ann": 0.665,
+    "max_dd_pct": 21.53,
+    "win_rate_pct": 50.0,
+    "profit_factor": 1.53,
+    "oos_days": 363
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 70.47,
+    "random_alpha_mean": 49.781,
+    "random_alpha_std": 32.709,
+    "random_alpha_max": 159.62,
+    "perm_p": 0.24
+  },
+  "sigma": 0.63,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T04:15:35.637649+00:00"
+}

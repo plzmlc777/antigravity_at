@@ -1,0 +1,46 @@
+{
+  "paradigm": "premium_volatility_regime",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "LDOUSDT",
+      "AVAXUSDT",
+      "LINKUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 22,
+    "n_long_entries": 2,
+    "n_short_entries": 20,
+    "alpha_pct": 85.24,
+    "total_return_pct": 34.39,
+    "buy_hold_pct": -50.85,
+    "sharpe_ann": 0.789,
+    "max_dd_pct": 33.44,
+    "win_rate_pct": 54.55,
+    "profit_factor": 1.501,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 85.24,
+    "random_alpha_mean": 44.045,
+    "random_alpha_std": 38.436,
+    "random_alpha_max": 211.65,
+    "perm_p": 0.14
+  },
+  "sigma": 1.07,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T04:15:30.961544+00:00"
+}

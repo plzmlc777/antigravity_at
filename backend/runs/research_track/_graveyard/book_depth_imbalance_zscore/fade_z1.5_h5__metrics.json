@@ -1,0 +1,46 @@
+{
+  "paradigm": "book_depth_imbalance_zscore",
+  "phase": "R-1_PoC",
+  "spec_name": "fade_z1.5_h5",
+  "evaluated_at": "2026-05-06T02:48:14.328179+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade",
+    "feature": "imbalance_mean",
+    "tag": "fade_z1.5_h5"
+  },
+  "aggregate": {
+    "spec_name": "fade_z1.5_h5",
+    "n_symbols": 1,
+    "alpha_pct_mean": 24.41,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -1.004,
+    "sharpe_pos_count": 0,
+    "trades_total": 14
+  },
+  "per_symbol": [
+    {
+      "n_trades": 14,
+      "n_long_entries": 8,
+      "n_short_entries": 6,
+      "alpha_pct": 24.41,
+      "total_return_pct": -15.26,
+      "buy_hold_pct": -39.67,
+      "sharpe_ann": -1.004,
+      "max_dd_pct": 27.67,
+      "win_rate_pct": 42.86,
+      "profit_factor": 0.655,
+      "oos_days": 168,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "paradigm": "monthly_premium_seasonality",
+  "phase": "R-3_robustness",
+  "symbol": "DOGEUSDT",
+  "mode": "follow_eom",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "DOGEUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 0.5,
+    "n_days": 7,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow_eom",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 25,
+    "n_long_entries": 11,
+    "n_short_entries": 14,
+    "alpha_pct": 74.35,
+    "total_return_pct": 28.53,
+    "buy_hold_pct": -45.82,
+    "sharpe_ann": 0.965,
+    "max_dd_pct": 10.26,
+    "win_rate_pct": 52.0,
+    "profit_factor": 1.733,
+    "oos_days": 369
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 74.35,
+    "random_alpha_mean": 52.446,
+    "random_alpha_std": 29.539,
+    "random_alpha_max": 177.38,
+    "perm_p": 0.205
+  },
+  "sigma": 0.74,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T04:44:18.650851+00:00"
+}

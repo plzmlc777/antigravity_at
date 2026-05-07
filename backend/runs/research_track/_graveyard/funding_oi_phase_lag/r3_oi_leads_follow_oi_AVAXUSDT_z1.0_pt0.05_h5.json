@@ -1,0 +1,52 @@
+{
+  "paradigm": "funding_oi_phase_lag",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "mode": "oi_leads_follow_oi",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "UNIUSDT",
+      "LINKUSDT",
+      "AVAXUSDT"
+    ],
+    "zwin": 30,
+    "corr_win": 30,
+    "entry_z": 1.0,
+    "phase_thresh": 0.05,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "oi_leads_follow_oi",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 12,
+    "n_long_entries": 5,
+    "n_short_entries": 7,
+    "alpha_pct": 55.79,
+    "total_return_pct": 16.23,
+    "buy_hold_pct": -39.55,
+    "sharpe_ann": 1.068,
+    "max_dd_pct": 17.4,
+    "win_rate_pct": 58.33,
+    "profit_factor": 1.528,
+    "oos_days": 137,
+    "phase_pos_pct": 87.3,
+    "phase_neg_pct": 12.7,
+    "phase_mean": 0.2634,
+    "phase_std": 0.1999
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 55.79,
+    "random_alpha_mean": 46.555,
+    "random_alpha_std": 17.19,
+    "random_alpha_max": 99.73,
+    "perm_p": 0.28
+  },
+  "sigma": 0.54,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T04:37:46.477323+00:00"
+}

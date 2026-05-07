@@ -1,0 +1,45 @@
+{
+  "paradigm": "premium_oi_joint_filter",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_pez2.0_oiz1.0",
+  "evaluated_at": "2026-05-06T05:59:06.029324+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "prem_entry_z": 2.0,
+    "oi_min_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_pez2.0_oiz1.0"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_pez2.0_oiz1.0",
+    "n_symbols": 1,
+    "alpha_pct_mean": 12.85,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -1.957,
+    "sharpe_pos_count": 0,
+    "trades_total": 6
+  },
+  "per_symbol": [
+    {
+      "n_trades": 6,
+      "n_long_entries": 5,
+      "n_short_entries": 1,
+      "alpha_pct": 12.85,
+      "total_return_pct": -22.29,
+      "buy_hold_pct": -35.14,
+      "sharpe_ann": -1.957,
+      "max_dd_pct": 25.45,
+      "win_rate_pct": 16.67,
+      "profit_factor": 0.149,
+      "oos_days": 382,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

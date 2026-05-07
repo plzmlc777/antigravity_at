@@ -1,0 +1,2 @@
+symbol,n_trades,n_pos_xcorr,n_neg_xcorr,alpha_pct,pos_alpha_sum,neg_alpha_sum,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+SOLUSDT,133,86,47,9.48,-14.93,-10.56,-23.32,-32.8,-1.681,26.1,40.6,0.648,397

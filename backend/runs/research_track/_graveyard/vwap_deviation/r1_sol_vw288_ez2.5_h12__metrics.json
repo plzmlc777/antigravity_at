@@ -1,0 +1,45 @@
+{
+  "paradigm": "vwap_deviation",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_vw288_ez2.5_h12",
+  "evaluated_at": "2026-05-06T11:37:48.012554+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "vwap_window": 288,
+    "zwin": 288,
+    "entry_z": 2.5,
+    "hold_bars": 12,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_vw288_ez2.5_h12"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_vw288_ez2.5_h12",
+    "n_symbols": 1,
+    "alpha_pct_mean": -28.96,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.716,
+    "sharpe_pos_count": 0,
+    "trades_total": 917
+  },
+  "per_symbol": [
+    {
+      "n_trades": 917,
+      "n_long_entries": 447,
+      "n_short_entries": 471,
+      "alpha_pct": -28.96,
+      "total_return_pct": -61.64,
+      "buy_hold_pct": -32.67,
+      "sharpe_ann": -1.716,
+      "max_dd_pct": 65.59,
+      "win_rate_pct": 47.76,
+      "profit_factor": 0.796,
+      "oos_days": 396,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

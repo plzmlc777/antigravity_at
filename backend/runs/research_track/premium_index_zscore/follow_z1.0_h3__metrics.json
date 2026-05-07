@@ -1,0 +1,45 @@
+{
+  "paradigm": "premium_index_zscore",
+  "phase": "R-1_PoC",
+  "spec_name": "follow_z1.0_h3",
+  "evaluated_at": "2026-05-06T02:31:43.590135+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow",
+    "tag": "follow_z1.0_h3"
+  },
+  "aggregate": {
+    "spec_name": "follow_z1.0_h3",
+    "n_symbols": 1,
+    "alpha_pct_mean": 138.0,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.471,
+    "sharpe_pos_count": 1,
+    "trades_total": 60
+  },
+  "per_symbol": [
+    {
+      "n_trades": 60,
+      "n_long_entries": 34,
+      "n_short_entries": 26,
+      "alpha_pct": 138.0,
+      "total_return_pct": 100.84,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": 1.471,
+      "max_dd_pct": 33.63,
+      "win_rate_pct": 58.33,
+      "profit_factor": 1.628,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+symbol,n_trades,n_trend_entries,n_rev_entries,alpha_pct,trend_alpha_sum,rev_alpha_sum,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+SOLUSDT,2,0,2,15.76,0.0,-0.79,-0.79,-16.55,-1.958,0.81,50.0,0.025,86

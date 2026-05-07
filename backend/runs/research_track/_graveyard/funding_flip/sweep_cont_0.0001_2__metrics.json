@@ -1,0 +1,103 @@
+{
+  "paradigm": "funding_flip",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep_cont_0.0001_2",
+  "evaluated_at": "2026-05-04T14:18:00.258566+00:00",
+  "config": {
+    "symbols": [
+      "COMPUSDT",
+      "LINKUSDT",
+      "LDOUSDT",
+      "SOLUSDT",
+      "AVAXUSDT"
+    ],
+    "magnitude": 0.0001,
+    "hold_periods": 2,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "reverse_sign": true,
+    "tag": "sweep_cont_0.0001_2"
+  },
+  "aggregate": {
+    "spec_name": "sweep_cont_0.0001_2",
+    "n_symbols": 5,
+    "direction": "cont",
+    "alpha_pct_mean": 41.94,
+    "alpha_pos_count": 5,
+    "sharpe_mean": -0.212,
+    "sharpe_pos_count": 2,
+    "mdd_mean": 23.96,
+    "wr_mean": 47.92,
+    "trades_total": 352,
+    "trades_per_symbol_mean": 70.4
+  },
+  "per_symbol": [
+    {
+      "n_trades": 53,
+      "n_flips_test": 67,
+      "alpha_pct": 59.72,
+      "total_return_pct": 27.6,
+      "buy_hold_pct": -32.12,
+      "sharpe_ann": 1.419,
+      "max_dd_pct": 14.81,
+      "win_rate_pct": 50.94,
+      "profit_factor": 1.511,
+      "oos_days": 181,
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 71,
+      "n_flips_test": 92,
+      "alpha_pct": 43.87,
+      "total_return_pct": -2.6,
+      "buy_hold_pct": -46.47,
+      "sharpe_ann": 0.047,
+      "max_dd_pct": 21.18,
+      "win_rate_pct": 42.25,
+      "profit_factor": 1.011,
+      "oos_days": 181,
+      "symbol": "LINKUSDT"
+    },
+    {
+      "n_trades": 55,
+      "n_flips_test": 73,
+      "alpha_pct": 44.76,
+      "total_return_pct": -9.11,
+      "buy_hold_pct": -53.87,
+      "sharpe_ann": -0.323,
+      "max_dd_pct": 22.44,
+      "win_rate_pct": 52.73,
+      "profit_factor": 0.921,
+      "oos_days": 181,
+      "symbol": "LDOUSDT"
+    },
+    {
+      "n_trades": 76,
+      "n_flips_test": 90,
+      "alpha_pct": 29.86,
+      "total_return_pct": -24.92,
+      "buy_hold_pct": -54.79,
+      "sharpe_ann": -1.425,
+      "max_dd_pct": 35.66,
+      "win_rate_pct": 42.11,
+      "profit_factor": 0.733,
+      "oos_days": 181,
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 97,
+      "n_flips_test": 127,
+      "alpha_pct": 31.5,
+      "total_return_pct": -19.45,
+      "buy_hold_pct": -50.95,
+      "sharpe_ann": -0.777,
+      "max_dd_pct": 25.73,
+      "win_rate_pct": 51.55,
+      "profit_factor": 0.867,
+      "oos_days": 181,
+      "symbol": "AVAXUSDT"
+    }
+  ]
+}

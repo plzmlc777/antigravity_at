@@ -1,0 +1,106 @@
+{
+  "paradigm": "funding_window_anomaly",
+  "phase": "R-1_PoC",
+  "spec_name": "sweep2_z1.5_pre24_hold12_lb45",
+  "evaluated_at": "2026-05-04T13:17:21.525185+00:00",
+  "config": {
+    "symbols": [
+      "COMPUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "ETCUSDT"
+    ],
+    "pre_bars": 24,
+    "hold_bars": 12,
+    "lookback": 45,
+    "entry_z": 1.5,
+    "sl_pct": 0.03,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "sweep2_z1.5_pre24_hold12_lb45"
+  },
+  "aggregate": {
+    "spec_name": "sweep2_z1.5_pre24_hold12_lb45",
+    "n_symbols": 4,
+    "alpha_pct_mean": 50.89,
+    "alpha_pct_median": 51.47,
+    "alpha_pos_count": 4,
+    "sharpe_mean": 0.318,
+    "sharpe_pos_count": 3,
+    "mdd_mean": 12.06,
+    "wr_mean": 54.6,
+    "trades_total": 577,
+    "trades_per_symbol_mean": 144.2
+  },
+  "per_symbol": [
+    {
+      "n_trades": 146,
+      "n_boundaries_test": 1176,
+      "alpha_pct": 68.39,
+      "total_return_pct": 21.39,
+      "buy_hold_pct": -47.01,
+      "sharpe_ann": 1.183,
+      "max_dd_pct": 8.6,
+      "win_rate_pct": 56.16,
+      "profit_factor": 1.37,
+      "oos_days": 391,
+      "exit_reasons": {
+        "time": 143,
+        "sl": 3
+      },
+      "symbol": "COMPUSDT"
+    },
+    {
+      "n_trades": 158,
+      "n_boundaries_test": 1170,
+      "alpha_pct": 32.25,
+      "total_return_pct": 1.97,
+      "buy_hold_pct": -30.28,
+      "sharpe_ann": 0.204,
+      "max_dd_pct": 13.96,
+      "win_rate_pct": 53.8,
+      "profit_factor": 1.047,
+      "oos_days": 389,
+      "exit_reasons": {
+        "time": 156,
+        "sl": 2
+      },
+      "symbol": "SOLUSDT"
+    },
+    {
+      "n_trades": 136,
+      "n_boundaries_test": 1098,
+      "alpha_pct": 60.14,
+      "total_return_pct": 0.19,
+      "buy_hold_pct": -59.96,
+      "sharpe_ann": 0.088,
+      "max_dd_pct": 13.45,
+      "win_rate_pct": 55.15,
+      "profit_factor": 1.021,
+      "oos_days": 373,
+      "exit_reasons": {
+        "time": 131,
+        "sl": 5
+      },
+      "symbol": "AVAXUSDT"
+    },
+    {
+      "n_trades": 137,
+      "n_boundaries_test": 1178,
+      "alpha_pct": 42.79,
+      "total_return_pct": -3.63,
+      "buy_hold_pct": -46.42,
+      "sharpe_ann": -0.202,
+      "max_dd_pct": 12.24,
+      "win_rate_pct": 53.28,
+      "profit_factor": 0.951,
+      "oos_days": 392,
+      "exit_reasons": {
+        "time": 134,
+        "sl": 3
+      },
+      "symbol": "ETCUSDT"
+    }
+  ]
+}

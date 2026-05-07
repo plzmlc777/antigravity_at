@@ -1,0 +1,50 @@
+{
+  "paradigm": "weekday_DoW_combined",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "SOLUSDT",
+      "LDOUSDT",
+      "AVAXUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "allowed_dows": [
+      3,
+      4,
+      5
+    ],
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 21,
+    "n_long_entries": 7,
+    "n_short_entries": 14,
+    "alpha_pct": 176.81,
+    "total_return_pct": 125.96,
+    "buy_hold_pct": -50.84,
+    "sharpe_ann": 2.674,
+    "max_dd_pct": 11.0,
+    "win_rate_pct": 71.43,
+    "profit_factor": 4.64,
+    "oos_days": 363
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 176.81,
+    "random_alpha_mean": 49.175,
+    "random_alpha_std": 29.484,
+    "random_alpha_max": 145.45,
+    "perm_p": 0.0
+  },
+  "sigma": 4.33,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T06:05:14.093605+00:00"
+}

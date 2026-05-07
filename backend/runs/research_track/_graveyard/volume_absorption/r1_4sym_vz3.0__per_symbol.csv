@@ -1,0 +1,5 @@
+symbol,n_trades,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+HBARUSDT,561,-1.48,-49.69,-48.22,-2.281,52.48,44.39,0.751,398
+AXSUSDT,555,-9.64,-61.8,-52.15,-2.262,68.71,48.29,0.742,398
+COMPUSDT,530,38.03,-2.45,-40.48,0.076,28.87,51.51,1.011,398
+AVAXUSDT,433,31.08,-21.53,-52.61,-0.887,27.19,47.58,0.89,380

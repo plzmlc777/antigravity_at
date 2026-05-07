@@ -1,0 +1,46 @@
+{
+  "paradigm": "garman_klass_vol_premium",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_follow_ez2.0_rl3",
+  "evaluated_at": "2026-05-06T05:47:26.112032+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 3,
+    "entry_z": 2.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow",
+    "tag": "r1_sol_follow_ez2.0_rl3"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_follow_ez2.0_rl3",
+    "n_symbols": 1,
+    "alpha_pct_mean": 106.69,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.488,
+    "sharpe_pos_count": 1,
+    "trades_total": 19
+  },
+  "per_symbol": [
+    {
+      "n_trades": 19,
+      "n_long_entries": 8,
+      "n_short_entries": 11,
+      "alpha_pct": 106.69,
+      "total_return_pct": 69.53,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": 1.488,
+      "max_dd_pct": 18.83,
+      "win_rate_pct": 57.89,
+      "profit_factor": 2.303,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

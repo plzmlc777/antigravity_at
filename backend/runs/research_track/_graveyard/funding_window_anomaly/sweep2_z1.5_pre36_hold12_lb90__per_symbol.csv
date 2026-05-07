@@ -1,0 +1,5 @@
+symbol,n_trades,n_boundaries_test,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+COMPUSDT,116,1154,81.61,38.03,-43.58,1.996,6.33,62.07,1.767,384
+SOLUSDT,126,1148,29.16,-6.45,-35.61,-0.483,15.67,50.0,0.888,382
+AVAXUSDT,122,1076,59.03,3.02,-56.01,0.276,14.32,55.74,1.071,366
+ETCUSDT,118,1155,44.64,0.71,-43.93,0.116,12.48,56.78,1.03,384

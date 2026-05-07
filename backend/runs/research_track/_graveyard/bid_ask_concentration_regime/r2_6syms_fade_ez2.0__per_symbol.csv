@@ -1,0 +1,7 @@
+symbol,n_trades,n_long_entries,n_short_entries,alpha_pct,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+LINKUSDT,10,6,4,70.33,20.63,-49.7,1.299,22.04,70.0,1.903,153
+AVAXUSDT,7,3,5,40.52,-12.69,-53.21,-0.69,15.76,42.86,0.675,153
+SOLUSDT,10,6,4,46.54,6.87,-39.67,0.707,9.28,70.0,1.449,168
+DOGEUSDT,6,1,5,59.13,7.39,-51.74,0.733,8.33,66.67,1.624,153
+BTCUSDT,6,5,1,32.68,14.49,-18.19,3.179,1.4,66.67,8.153,167
+ETHUSDT,6,6,0,56.14,28.27,-27.87,2.511,7.04,83.33,4.755,167

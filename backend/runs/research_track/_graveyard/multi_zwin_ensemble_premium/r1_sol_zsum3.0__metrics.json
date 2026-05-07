@@ -1,0 +1,48 @@
+{
+  "paradigm": "multi_zwin_ensemble_premium",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_zsum3.0",
+  "evaluated_at": "2026-05-06T06:08:51.650823+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwins": [
+      15,
+      30,
+      60
+    ],
+    "z_sum_thresh": 3.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": "r1_sol_zsum3.0"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_zsum3.0",
+    "n_symbols": 1,
+    "alpha_pct_mean": 156.57,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.622,
+    "sharpe_pos_count": 1,
+    "trades_total": 46
+  },
+  "per_symbol": [
+    {
+      "n_trades": 46,
+      "n_long_entries": 25,
+      "n_short_entries": 21,
+      "alpha_pct": 156.57,
+      "total_return_pct": 112.76,
+      "buy_hold_pct": -43.81,
+      "sharpe_ann": 1.622,
+      "max_dd_pct": 28.87,
+      "win_rate_pct": 63.04,
+      "profit_factor": 1.837,
+      "oos_days": 368,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

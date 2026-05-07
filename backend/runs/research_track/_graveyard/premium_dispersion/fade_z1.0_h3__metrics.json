@@ -1,0 +1,44 @@
+{
+  "paradigm": "premium_dispersion",
+  "phase": "R-1_PoC",
+  "spec_name": "fade_z1.0_h3",
+  "evaluated_at": "2026-05-06T02:55:27.426015+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "entry_z": 1.0,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade",
+    "tag": "fade_z1.0_h3"
+  },
+  "aggregate": {
+    "spec_name": "fade_z1.0_h3",
+    "n_symbols": 1,
+    "alpha_pct_mean": 43.21,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.415,
+    "sharpe_pos_count": 1,
+    "trades_total": 44
+  },
+  "per_symbol": [
+    {
+      "n_trades": 44,
+      "n_long_entries": 36,
+      "n_short_entries": 8,
+      "alpha_pct": 43.21,
+      "total_return_pct": 10.01,
+      "buy_hold_pct": -33.2,
+      "sharpe_ann": 0.415,
+      "max_dd_pct": 28.05,
+      "win_rate_pct": 52.27,
+      "profit_factor": 1.17,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

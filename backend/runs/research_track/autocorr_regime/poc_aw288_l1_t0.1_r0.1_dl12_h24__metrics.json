@@ -1,0 +1,51 @@
+{
+  "paradigm": "autocorr_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "poc_aw288_l1_t0.1_r0.1_dl12_h24",
+  "evaluated_at": "2026-05-05T01:42:38.456220+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "autocorr_window": 288,
+    "lag": 1,
+    "trend_thresh": 0.1,
+    "rev_thresh": 0.1,
+    "dir_lookback": 12,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "tag": null
+  },
+  "aggregate": {
+    "spec_name": "poc_aw288_l1_t0.1_r0.1_dl12_h24",
+    "n_symbols": 1,
+    "alpha_pct_mean": -14.43,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -1.211,
+    "sharpe_pos_count": 0,
+    "trend_alpha_mean": -18.81,
+    "rev_alpha_mean": -35.84,
+    "trades_total": 1357
+  },
+  "per_symbol": [
+    {
+      "n_trades": 1357,
+      "n_trend_entries": 337,
+      "n_rev_entries": 1020,
+      "alpha_pct": -14.43,
+      "trend_alpha_sum": -18.81,
+      "rev_alpha_sum": -35.84,
+      "total_return_pct": -47.26,
+      "buy_hold_pct": -32.83,
+      "sharpe_ann": -1.211,
+      "max_dd_pct": 47.3,
+      "win_rate_pct": 44.73,
+      "profit_factor": 0.907,
+      "oos_days": 397,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

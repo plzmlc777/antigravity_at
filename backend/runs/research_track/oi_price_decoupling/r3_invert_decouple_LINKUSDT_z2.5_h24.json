@@ -1,0 +1,45 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-3_robustness",
+  "symbol": "LINKUSDT",
+  "mode": "invert_decouple",
+  "config": {
+    "symbols": [
+      "LINKUSDT",
+      "AXSUSDT",
+      "HBARUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.5,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "invert_decouple",
+    "n_iter_perm": 100
+  },
+  "real": {
+    "n_trades": 159,
+    "n_type_a": 94,
+    "n_type_b": 65,
+    "alpha_pct": 71.21,
+    "type_a_alpha": 20.89,
+    "type_b_alpha": 5.67,
+    "total_return_pct": 27.22,
+    "buy_hold_pct": -43.99,
+    "sharpe_ann": 1.172,
+    "max_dd_pct": 16.28,
+    "win_rate_pct": 48.43,
+    "profit_factor": 1.319,
+    "oos_days": 371
+  },
+  "perm": {
+    "n_iter": 100,
+    "real_alpha_pct": 71.21,
+    "random_alpha_mean": 0.789,
+    "random_alpha_std": 13.539,
+    "random_alpha_max": 46.81,
+    "perm_p": 0.0
+  },
+  "evaluated_at": "2026-05-06T01:03:45.702565+00:00"
+}

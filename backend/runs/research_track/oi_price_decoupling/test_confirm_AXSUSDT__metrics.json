@@ -1,0 +1,49 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "phase": "R-1_PoC",
+  "spec_name": "test_confirm_AXSUSDT",
+  "evaluated_at": "2026-05-06T01:05:57.748586+00:00",
+  "config": {
+    "symbols": [
+      "AXSUSDT"
+    ],
+    "zwin": 288,
+    "entry_z": 2.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "confirm",
+    "tag": "test_confirm_AXSUSDT"
+  },
+  "aggregate": {
+    "spec_name": "test_confirm_AXSUSDT",
+    "n_symbols": 1,
+    "alpha_pct_mean": 92.79,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.912,
+    "sharpe_pos_count": 1,
+    "type_a_alpha_mean": 0.0,
+    "type_b_alpha_mean": 0.0,
+    "trades_total": 387
+  },
+  "per_symbol": [
+    {
+      "n_trades": 387,
+      "n_type_a": 176,
+      "n_type_b": 211,
+      "alpha_pct": 92.79,
+      "type_a_alpha": 0.0,
+      "type_b_alpha": 0.0,
+      "total_return_pct": 43.17,
+      "buy_hold_pct": -49.62,
+      "sharpe_ann": 0.912,
+      "max_dd_pct": 27.48,
+      "win_rate_pct": 45.48,
+      "profit_factor": 1.173,
+      "oos_days": 393,
+      "symbol": "AXSUSDT"
+    }
+  ]
+}

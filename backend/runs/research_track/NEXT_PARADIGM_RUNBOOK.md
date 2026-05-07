@@ -1,4 +1,4 @@
-# Research Track — Next Paradigm Runbook (2026-05-06 — mtf_alignment_consensus 20번째 graveyard, cross-TF momentum at 5m FALSE)
+# Research Track — Next Paradigm Runbook (2026-05-06 — **Q2 16/16 + Q3 #1-9 graveyard, 8 시드** (#4 wick_reversal_multibar SOL R-5 single-symbol exception seed) — 57 paradigms)
 
 > **본 문서 목적**: 새 Claude Code 세션이 컨텍스트 잃지 않고 다음 paradigm을 즉시 시도할 수 있도록 self-contained 운영 가이드.
 >
@@ -14,252 +14,294 @@
 | 항목 | 값 |
 |---|---|
 | **현 시점** | 2026-05-06 |
-| **시도 완료 paradigms** | 24 (20 graveyard + **4 시드** + 1 데이터 누적 중) |
-| **시드된 paradigms** | `funding_carry` (HBAR/AXS/COMP), `autocorr_regime` (LINK/UNI), `funding_dispersion` (ETC), `cross_symbol_lead_lag` (DOGE ⭐) |
-| **최근 폐기 (2026-05-06)** | `mtf_alignment_consensus` — 5m crypto에서 cross-TF momentum 가설 catastrophic FAIL (alpha 0/10, mdd 90-100%) |
-| **2개 도메인 saturation** | Funding 5 시도(2/5) + Cross-section price/vol 3 시도(1/3) — 두 도메인 모두 saturated. Cross-TF (5m) 도 추가됨 |
-| **다음 마일스톤** | 2026-05-11 Day 7 (5종) + 2026-05-12 Day 7 (ETC + DOGE), 2026-06-03/06-04 Day 30 |
-| **외부 비용 후보** | 모두 제거됨 (Glassnode/Claude API/NewsAPI 등) |
-| **다음 paradigm 추천** | `time_of_day_seasonality` (1순위, funding_dispersion R-5 결정 후) |
+| **시도 완료 paradigms** | **57** (49 graveyard + **8 시드** ⭐ + 1 데이터 누적 중) — Q2 16/16 + Q3 #1-9 graveyard. **Q3 #4 wick_reversal_multibar SOL 4.49σ R-5 single-symbol exception seed 2026-05-06**. 8 antipatterns + distribution-moment saturated. |
+| **2026-Q2 큐 outcome** | **1 R-5 시드** (#10 premium_velocity AVAX+HBAR) + **2 POSITIVE graveyards** (#14 calendar concentration, #6 inversion) + 13 graveyards (§3-G family/filter, §3-A rare-event) |
+| **2026-Q3 큐 outcome (진행 중)** | Q3 #1 oi_funding_corr_regime §3-D graveyard (random_mean 55-85% real). **Q3 #2 wick_reversal POSITIVE 3σ borderline** (intra-bar OHLC wick shape **NEW dimension**, R-2 10/10 alpha mean +58.36, R-3 SOL 3.34σ + AVAX 2.99σ perm_p=0.0 — 4σ 미달 but 0/200 random beat real). |
+| **시드된 paradigms** | `funding_carry` (HBAR/AXS/COMP), `autocorr_regime` (LINK/UNI), `funding_dispersion` (ETC), `cross_symbol_lead_lag` (DOGE), `oi_price_decoupling` (AVAX), `premium_index_zscore` (DOGE/SOL/LDO), `premium_velocity_zscore` (AVAX/HBAR), **`wick_reversal_multibar` (SOL ⭐ NEW single-symbol exception)** |
+| **최근 시드 (2026-05-06)** | **`wick_reversal_multibar` 1종** (single-symbol exception 사용자 승인): SOL 99107ad5-edd (alpha 61.94/sharpe 1.41/PF 1.45/perm **4.49σ**, intra-bar OHLC SHAPE 5m **NEW dimension**, §3-C 1/4 multi-symbol). Diversity: SOL은 premium_index_zscore 시드 (premium 1d 도메인), wick_reversal_multibar는 intra-bar OHLC 5m (다른 도메인 + 다른 timeframe). |
+| **데이터 도메인 status** | (1) **OHLCV 1m** 14+ 종 1-2y, (2) **funding rate 8h** 18 종 1y, (3) **microstructure joblib 5m** 800일 14종 (OI/LSR/TBS), (4) **premium_index joblib 1d** 800일 14종, (5) **book_depth joblib 1d** 365일 6 종. |
+| **모든 도메인 saturation 결정** | premium 1d (5 paradigm 모두 weak), funding 1y (5 paradigm), OI 5m (1 시드 + acceleration weak), book_depth 365d (rare-event 한계), cross-section price/vol (3 graveyard) |
+| **다음 마일스톤** | 2026-05-11 Day 7 (5종 시드), 2026-05-13 Day 7 (premium 5종 + premium_velocity 2종), **2026-06-05 Day 30 검증 (총 13 sessions: 시드 7 paradigms 누적)** |
+| **다음 paradigm 후보** | (자세히는 §2 참조) **새 차원 도메인** 위주: liquidation events, multi-domain ensemble voting, intraday cycles (5m), HMM regime detection, microstructure 5m × premium 1d cross-TF |
 
 ---
 
 ## 1. 새 세션 시작 시 Context Load 순서
 
 ```bash
-# 1. 본 runbook (이 문서)
+# 1. 본 runbook (이 문서) — 전체 status
 Read /home/hcpark/antigravity/backend/runs/research_track/NEXT_PARADIGM_RUNBOOK.md
 
-# 2. paradigm 진행 인덱스
+# 2. paradigm 진행 인덱스 (각 paradigm 결과 상세)
 Read /home/hcpark/antigravity/backend/runs/research_track/INDEX.md
 
-# 3. 트랙 마스터 plan
+# 3. 큐 완료 요약 (이전 16 paradigms outcome)
+Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q2.md
+
+# 4. 트랙 마스터 plan
 Read /home/hcpark/antigravity/.claude/plans/research_track_master.md
 
-# 4. 시드 sessions 운영 상태
-cd backend && ./venv/bin/python -m scripts.paper_session_cli status
-./venv/bin/python -m scripts.milestone_check --research-only
+# 5. 시드 sessions 운영 상태 확인
+cd /home/hcpark/antigravity/backend && source venv/bin/activate
+python3 -m scripts.paper_session_cli status
+python3 -m scripts.milestone_check
 ```
 
 ---
 
-## 2. 다음 paradigm 후보 (ranked, 외부 비용 0)
+## 2. 다음 paradigm 후보 — Round 2 (PARADIGM_QUEUE_2026Q3)
 
-### 2-A. 즉시 시도 가능 (1y OHLCV + funding rate 사용)
+**시간 비용 0 + premium 도메인 saturation 회피 + 새 차원 발굴**.
 
-| Rank | 후보 | 차원 | 직교성 | sparsity 위험 | 추천도 |
+### 2-A0. NEW DIMENSION proven exists — 향후 우선 시도 (Q3 #2 lesson, 2026-05-06)
+
+| Rank | 후보 | 근거 | 추천도 |
+|---|---|---|---|
+| ~~0~~ | ~~`wick_reversal_volume_filter`~~ | **Q3 #3 graveyard 2026-05-06**: §3-H monotonic degradation 3rd confirm | ✗ |
+| ~~0~~ | ~~`wick_reversal_multi_bar`~~ | **Q3 #4 graveyard 2026-05-06**: SOL 4.49σ PASS ⭐ but 1/4 multi-symbol consistency = §3-C single-symbol-fit. multi-bar averaging은 clean-signal sym에서만 작동 | POSITIVE single-sym ✗ R-5 |
+| **0** | `wick_reversal_aggtrades` | aggTrades backfill (BTC 17mo 이미 있음, 14 paper-pool 종 backfill 필요) 후 trade-level liquidation proxy 정확도 향상 | ⭐⭐⭐ (truly new domain) |
+
+### 2-A. 새 raw data 도메인 (최우선)
+
+| Rank | 후보 | 차원 | 데이터 | §3 위험 | 추천도 |
 |---|---|---|---|---|---|
-| ~~~~ | ~~`cross_symbol_correlation_regime`~~ | ~~14종 cross-correlation matrix~~ | (2026-05-05 폐기 — perm_p 0.170/0.395/0.225 FAIL) | ~~낮음~~ | 🪦 |
-| ✅ | ~~`funding_dispersion`~~ ETC | 14종 funding rate cross-section z-score | (2026-05-05 R-5 시드 완료 — d2640960-52b) | n/a | 시드 완료 |
-| ~~~~ | ~~`time_of_day_seasonality`~~ | ~~Asian/EU/US 세션 hour bias~~ | (2026-05-05 폐기 — R-2 sharpe pos 1/10, in-sample optimization 안티패턴 §3-F) | ~~낮음~~ | 🪦 |
-| ~~~~ | ~~`partial_autocorr_regime`~~ (lag-2 PACF) | ~~autocorr family 확장~~ | (2026-05-05 폐기 — ETC perm 0.025 PASS but 4/9 gate, lag-1 시드의 weak residual. **family-extension 안티패턴 §3-G**) | ~~낮음~~ | 🪦 |
-| ~~~~ | ~~`information_entropy_regime`~~ | ~~Shannon entropy of binned returns~~ | (2026-05-05 폐기 — LDO perm 0.060 borderline FAIL, entropy ≈ log(vol) Gaussian dominance) | ~~낮음~~ | 🪦 |
-| ~~~~ | ~~`vol_of_vol_regime`~~ | ~~vol 변동성 (2차 도함수)~~ | (vol_regime_breakout/skewness/entropy 모두 graveyard — moments family 전체 weak-signal cluster, **family-extension 안티패턴 §3-G**으로 시도 권장 안됨) | ~~낮음~~ | ⊘ skipped |
-| ~~~~ | ~~`cross_symbol_lead_lag`~~ | ~~BTC leader → alt catch-up~~ | (2026-05-05 폐기 — BTC 1m coverage 5개월만, §3-B variant. ETH leader 1y full sharpe 1/10) | ~~중~~ | 🪦 |
-| ⏸ | `funding_oi_divergence` | funding rate × OI 결합 | OI 데이터 30일치만 backfill (1y 부족) — paradigm 보류, OI 1y backfill 또는 positioning 60d 누적(2026-07-03) 후 시도 | 낮음 (dense) | ⏸ 데이터 대기 |
-| ⏸ | `cross_symbol_transfer_entropy` | symbol_i → symbol_j information flow at lag k | 강 직교, but compute heavy. BTC dependency 시 §3-B variant 위험 — ETH/alt만 사용 가능 | 중 (compute) | ⭐⭐ |
-| ~~~~ | ~~`funding_acceleration`~~ | ~~funding rate Δ (1차 도함수)~~ | (2026-05-05 폐기 — COMP perm 0.095 fail, §3-G 2nd confirmation. funding 도메인 saturation) | ~~낮음~~ | 🪦 |
-| ~~~~ | ~~`cross_symbol_dispersion_breakout`~~ | ~~cross-section vol regime~~ | (2026-05-05 폐기 — alpha 0/10 catastrophic fail. Cross-section price/vol family saturated) | ~~중~~ | 🪦 |
-| **1** | `BTC backfill 후 lead_lag 재시도` | 1y BTCUSDT 1m backfill 후 §3-B variant 회피하고 재시도 | 강 (이미 결과 패턴 봤음, BTC leader가 진짜 신호 있는지 1y로 검증) | 데이터 backfill 시간 비용 (Binance API 1y klines fetch) | ⭐⭐ |
-| **2** | `realized_skew_intraday` | intraday hourly realized return skewness aggregation | 직교 (skewness graveyard는 instantaneous, 본 paradigm은 hourly cycle) but §3-G family-extension 우려 | 낮음 | ⭐ |
-| **3** | OI 1y backfill (별도 task) | OI 1d 또는 5m 1y backfill via Binance API → funding_oi_divergence 진행 가능 | 강 (새 데이터 도메인) | 데이터 backfill | ⭐⭐⭐ |
+| **1** | `liquidation_cascade_event` | Binance liquidation API 1y backfill 후 large liq 후 reversal | 새 도메인 (강력 직교) | 데이터 backfill 필요 (Binance liquidation REST endpoint), §3-A rare event | ⭐⭐⭐ |
+| **2** | `taker_buy_volume_5m_zscore` | 5m taker_buy_volume / total_volume rolling z, momentum signal | microstructure joblib (taker_buy_sell_ratio 다른 컬럼) | §3-G TBS family (graveyard 23) but volume-normalized 다른 차원 | ⭐⭐ |
+| **3** | `realized_vol_regime_5m` | 5m return rolling 288-bar realized vol z, vol regime change 후 momentum | OHLCV 1m → 5m | §3-G vol_regime_breakout family (graveyard) but 5m granularity 다름 | ⭐⭐ |
+| **4** | `funding_premium_oi_4signal_majority` | 4-signal voting (joint_3signal_ensemble의 4-signal 확장) | 시드 paradigm 4개 결합 | §3-G strong (joint_3signal POSITIVE 였지만 R-5 SKIP) | ⭐⭐ |
+| **5** | `intraday_premium_cycle` | hour-of-day premium z bias map (5m premium aggregation 필요) | premium 5m backfill 또는 minute aggregation | §3-F calendar (time_of_day graveyard family) but premium-specific | ⭐ |
 
-### 2-B. 데이터 누적 대기 (~2026-07-03 시작 가능)
+### 2-B. 새 차원 derived signal (premium/funding/OI 도메인 외)
 
-- **`positioning_dynamics` (3-I)**: OI 5m + LSR + taker 60일치 누적 후 R-1 가능. Forward-collection 진행 중 (`fetch_binance_metrics.py` daily cron).
+| Rank | 후보 | 차원 | 추천도 |
+|---|---|---|---|
+| ~~6~~ | ~~`oi_funding_correlation_regime_5m`~~ | **Q3 #1 graveyard 2026-05-06**: §3-D random_mean 55-85% of real, §3-J two-seeded-fade-joint antipattern | ✗ |
+| **7** | `microstructure_smartmoney_consensus` | top_position_LSR / global_account_LSR ratio 변화, retail-vs-smart positioning regime | ⭐ (top_global_lsr_divergence graveyard 22, but combined ratio 새 metric) |
+| **8** | `oi_premium_5m_decoupling` | OI 5m + premium 5m (backfill 필요) joint at 5m granularity | ⭐⭐ (oi_price_decoupling 5m 시드의 premium analog) |
 
-### 2-C. 시간 비용 큼 (자체 수집)
+### 2-C. 새 통계적 접근
 
-- `3-F RL 정책 학습`: 14종 OHLCV 사용, 매우 어려움
-- `3-G L2 Microstructure deep`: websocket 자체 수집 1주+
+| Rank | 후보 | 차원 | 추천도 |
+|---|---|---|---|
+| **9** | `hmm_regime_premium` | Hidden Markov Model 2-3 state regime detection on premium series | ⭐⭐ (regime detection 본격 ML) |
+| **10** | `kalman_filter_premium_innovation` | Kalman filter residual extreme as signal | ⭐ |
+| **11** | `wavelet_premium_decomposition` | wavelet 다중 scale premium signal extraction | ⭐ (compute heavy) |
+| **12** | `change_point_detection_premium` | structural break detection (CUSUM/Bayesian) on premium series | ⭐⭐ |
 
-### 2-D. 제거된 후보 (외부 비용 발생)
+### 2-D. 데이터 누적 대기
 
-- ~~3-C On-chain native~~ (Glassnode/CryptoQuant 월 $30-150)
-- ~~3-D Sentiment + LLM~~ (NewsAPI/Claude API 외부 비용)
+- `positioning_dynamics` (3-I): 60일 누적 후 R-1, **2026-07-03 시작 예정**.
+- 추가 backfill 가치 큰 후보: book_depth 2y (현재 365d), funding 2y (현재 1y) — 큐 #6/#12/#16 재시도 가치 있음.
 
----
+### 2-E. 영구 제거 (saturation 결론)
 
-## 3. Anti-patterns — 자동 graveyard 조건
-
-새 paradigm 시도 시 다음 패턴 감지 시 **즉시 graveyard**, 더 시간 투입 금지.
-
-### 3-A. Rare-event paradigm (Hurst trap)
-
-**증상**: extreme threshold로 7-15 trades에서 sharpe 1.5+ 매력적 → threshold 낮추면 sharpe 음수
-**검증 방법**: R-1 PoC sweep에서 threshold lowering → sharpe 유지하지 못하면 small-sample 우연
-**예시 graveyard**: `hurst_regime` (10 trades sharpe 2.24 → 145 trades sharpe -0.94), `return_volume_xcorr` (7 trades sharpe 1.63 → 2534 trades sharpe -4.13)
-
-### 3-B. Truncation 편향 (max-bars trap + data-coverage asymmetry variant)
-
-**증상**: `--max-bars 50000`로 PoC 빨리 → 매력적, 전체 데이터로 검증하면 정반대
-**검증 방법**: **항상 full data로 1차 검증 필수**. truncation은 절대 사용 금지
-**예시 graveyard**: `hurst_regime` truncated 50k sharpe 2.24 → full 230k sharpe -0.94
-
-**Variant: data-coverage asymmetry (2026-05-05 NEW)**
-**증상**: 여러 symbol/data source의 inner-join이 짧은 source의 coverage로 silently truncate. 명시적 max-bars 안 써도 truncation 발생
-**검증 방법**: paradigm 시작 전 모든 사용 symbol/source의 timestamp coverage 확인. min(coverage)이 1y 미달이면 paradigm 보류 또는 backfill 우선
-**예시 graveyard**: `cross_symbol_lead_lag` BTC leader 사용 시 BTCUSDT 1m 5개월(200k)만 → ETH/alt 1y와 inner-join → OOS 73 days만. sharpe 1.39 매력적이었으나 ETH leader 1y full data로 sharpe 1/10 만 → §3-B variant 명확
-
-### 3-C. Single-moment 안티패턴 (3차 local optimum 확인)
-
-**증상**: 1차/2차/4차 모멘트 paradigm은 모두 perm test fail
-**3차(skewness)가 OHLCV 통계 paradigm의 local optimum** (perm_p 0.060) — 더 이상 시도 무의미
-**예시 graveyard**: `mean_reversion`, `vol_regime_breakout`, `kurtosis_regime`
-
-### 3-D. ML on flattened OHLCV (3 graveyard 확인)
-
-**증상**: 단순 lgbm/xgb로 raw 1m OHLCV → 모두 overfit graveyard
-**예시 graveyard**: `ai_native_raw_1m`, `multi_symbol_portfolio`, `cross_asset_meta`
-
-### 3-E. Multi-symbol consistency ≠ robustness (4 graveyard 확인)
-
-**증상**: 10-14종 R-2에서 alpha pos N/N + sharpe pos N/N (systematic-looking) but R-3 perm test fails
-**검증 방법**: alpha 10/10 양수 + sharpe 10/10 양수도 perm_p ≤ 0.05 필수. multi-symbol 일관성은 robustness가 아니라 OOS 약세장 fade의 downside-protection artifact일 수 있음
-**예시 graveyard**: `funding_window_anomaly` (perm 0.095), `vol_regime_breakout` (0.115-0.135), `funding_flip` (0.125+), `cross_symbol_correlation_regime` (0.17-0.40)
-
-### 3-F. In-sample optimization paradigm (1 graveyard 확인, 2026-05-05 NEW)
-
-**증상**: train period에서 bias map / parameter set 추정 후 OOS 적용 → multiple-testing inflation으로 R-1/R-2 즉시 실패
-**검증 방법**: 만약 paradigm 설계가 "train에서 best parameter 선정 → test에서 적용" 패턴이면 즉시 회피. 시드된 3 paradigm (funding_carry, autocorr_regime, funding_dispersion) 모두 **데이터 자체에 내재된 신호** (rolling z-score, lagged autocorr, cross-section z) — 추정된 parameter 없음
-**예시 graveyard**: `time_of_day_seasonality` (R-1 SOL 16 sweeps 모두 sharpe<0, R-2 sharpe pos 1/10)
-**범위**: time-of-day, day-of-week, calendar event, 종목별 best parameter 추정 등 모든 table-lookup paradigm 적용 안됨
-
-### 3-G. Family-extension paradigm (1 graveyard 확인, 2026-05-05 NEW)
-
-**증상**: 시드된 paradigm의 family 내 next-order extension (lag-1 → lag-2/3 PACF; mean → variance → skew → kurt; rolling z → z² → z³) 시도 시 weak residual signal로 cutoff 미달
-**검증 방법**: paradigm이 시드된 paradigm의 "변형" 또는 "확장"인지 검토. 같은 statistical family 안의 다음 차수는 첫 항이 잡은 dominant effect 빼고 남는 잔여 → 약함. **새 차원**(cross-section vs time-series; price vs funding vs OI; 분포 모양 vs 분포 spread vs 분포 transform)이 진짜 직교
-**예시 graveyard**: `partial_autocorr_regime` (lag-2 PACF after autocorr_regime lag-1 시드: ETC perm 0.025 PASS but Hard Gate 4/9, autocorr LINK 시드 5/8 vs 약 70% magnitude). 모멘트 family에서도 동일: skewness 0.060 → kurtosis R-2 fail (kurt이 skew의 weak extension)
-**범위**: lag-3+ PACF, 5차 이상 모멘트, rolling z의 power-transform, 시드된 source의 다른 timeframe 변형 등 동일 family 확장은 권장 안됨
+- ~~premium 도메인 추가 paradigm~~: vol/calendar/spread/ensemble/derivative 모두 graveyard. 시드된 premium_index_zscore + premium_velocity_zscore가 95%+ 정보 capture.
+- ~~funding 도메인 단순 z 변환~~: 5 paradigm 시도, 2 시드(carry/dispersion) + 3 graveyard. 추가 derivation은 §3-G.
+- ~~cross-section price/vol~~: 3 graveyard. BTC dominance/systemic이 individual prediction 신호 압도.
+- ~~simple AND/correlation filter on seeded signals~~: filter mechanism antitpattern (§3-G).
 
 ---
 
-## 4. Paradigm 표준 워크플로 (R-1 → R-5)
+## 3. Anti-patterns — 자동 graveyard 조건 (큐 16개에서 강화 확인)
 
-### Phase R-1: PoC (1 종목)
+### 3-A. Rare-event (small sample trap)
+**증상**: extreme threshold로 7-15 trades sharpe 1.5+ → threshold 낮추면 sharpe 음수
+**예시**: hurst_regime (10 trades sharpe 2.24 → 145 trades sharpe -0.94), book_depth_concentration #12 (6 trades BTC sharpe 3.18 → R-3 1.41σ FAIL)
 
-**스크립트**: `backend/scripts/poc_<paradigm_name>.py` (기존 paradigm script template으로 사용 가능)
-- 좋은 template: `scripts/poc_autocorr_regime.py` (rolling correlation 기반)
-- 좋은 template: `scripts/poc_funding_carry.py` (funding rate 기반)
+### 3-B. Truncation bias (max-bars trap)
+**증상**: `--max-bars 50000` PoC 매력적 → full data 정반대
+**규칙**: max-bars 절대 사용 금지
 
-**실행**:
-```bash
-cd backend && ./venv/bin/python -m scripts.poc_<name> --symbols SOLUSDT
+### 3-C. Single-symbol fit
+**증상**: 1 symbol PASS perm 4σ+, 다른 symbols all <2σ
+**예시**: oi_change_acceleration_squeeze #9 ETC 3.98σ outlier (5/7 random), funding_premium_spread_zscore #8 SOL 3.10σ + ETC 0.08σ
+
+### 3-D. Directional bias (bear/bull OOS)
+**증상**: random_mean이 real alpha의 50%+ — random shuffle도 양수 alpha 자주 생성
+**예시**: premium_volatility_regime #1 random_mean 31-40 vs real 88, cross_asset_premium_spread #2 AVAX/UNI random > real
+
+### 3-E. Multi-symbol weak (paradigm-level fail)
+**증상**: alpha pos 5/14 미만 OR sharpe pos 5/14 미만
+**예시**: cross_symbol_correlation_regime, time_of_day_seasonality, cross_section_dispersion_breakout
+
+### 3-F. In-sample optimization (calendar bias)
+**예시**: monthly_premium_seasonality #5, weekday_DoW_combined #14 (POSITIVE but §3-G)
+
+### 3-G. Family extension (가장 흔한, 큐에서 9건)
+**증상**: 시드 paradigm의 derived metric/transformation/filter — perm σ가 component보다 항상 약함
+**예시**: 
+- premium-vol family (#1 range / #7 range_med / #11 GK) all graveyard
+- premium calendar (#5 monthly / #14 DoW) §3-G strong
+- premium ensemble (#15 multi-zwin) — single zwin이 우월
+- premium spread (#8 fund-prem) — single-symbol fit
+- derivatives 위계 (#9 OI 2nd derivative — outlier only)
+- filter mechanism (#3 corr / #4 phase / #13 joint AND) — voting POSITIVE only
+
+### 3-H. Filter mechanism antipattern (큐 신규 lesson)
+**증상**: 시드 component에 filter 적용 → trade 줄이고 alpha quality 개선 marginal
+**규칙**: simple AND/correlation filter는 항상 약화. voting (joint_3signal_ensemble = POSITIVE)만 marginal value 가능.
+
+### 3-H. Filter mechanism antipattern — STRENGTHENED (Q3 #3 신규 강화, 2026-05-06)
+**3rd confirmation** (premium_oi_corr / premium_oi_joint / wick_reversal_volume): even on NEW dimension, AND-filter MONOTONICALLY degrades signal. Higher selectivity → worse sharpe. wick_reversal vt=0~2.0 sweep: 1.62 → -0.07.
+**규칙 강화**: AND filter on seeded paradigm component → 95%+ degradation 확률. R-1 sweep으로 즉시 확인 가능 (3 min fail-fast). Voting (majority of 3+ signals) 만 marginal value 가능 (joint_3signal_ensemble POSITIVE/SKIP).
+
+### 3-N. Multi-source N-way AND agreement filter degrades (Q3 #8 신규 lesson, 2026-05-06)
+**증상**: 2-way seeded paradigm (cross_symbol_lead_lag DOGE 1.83σ) 에 3rd source agreement filter (BTC + ETH 둘 다 같은 방향) 추가 → R-2 alpha 10/10이지만 sharpe 3/10 (cutoff 4/10 아래), mean -0.68.
+**원인**: 두 leader 모두 NEW (seeded fade 아님)이라 §3-J/§3-H 회피된다고 봤지만, 단순 N-way AND agreement도 trade 수 narrowing으로만 작동, per-trade alpha quality 개선 없음.
+**규칙**: AND-agreement 구조는 §3-L wick_reversal binary AND 같은 essential discriminator일 때만 유효 (bounded asymmetric metric × heavy-tailed). 단순 N-way leader confirmation은 항상 약화. **Voting (3-of-3 majority of independent signals)**만 marginal value 가능. cross_symbol_lead_lag 같은 이미 작동하는 2-way에 3rd source 추가하지 말 것.
+
+### 3-M. Reference-price deviation = trend artifact (Q3 #7 신규 lesson, 2026-05-06)
+**증상**: VWAP/SMA/EWMA reference-price deviation z-score → R-2 alpha 10/10이지만 R-3 perm test에서 random shuffle (volume/weighting) 이 real alpha와 같거나 더 높음 (AXS sigma **-0.43σ**, random_mean > real).
+**원인**: rolling 24h reference price와 close 강한 상관, deviation은 본질적으로 "price above its rolling average?" trend signal. Volume weighting의 added info 미미. Permutation이 trend signal 그대로 보존.
+**규칙**: Reference-price aggregation paradigms (VWAP, EWMA, smoothed average) deviation z 는 mostly trend-following alpha이고 reference-specific orthogonal info 거의 없음. Volume info 추출하려면 **timing-dependent**: volume burst at intra-bar event, volume × price asymmetric flow, anomalous volume bursts (binary threshold).
+
+### 3-L. Continuous-multiplicative-composite without strict gates (Q3 #6 신규 lesson, 2026-05-06)
+**증상**: bounded asymmetric metric (e.g. wick_imbalance ∈ [-1, +1]) × heavy-tailed metric (e.g. prior_ret) → continuous composite z-score → R-1 catastrophic (0/36 PASS, MDD 70-85%, 5-10x trade count vs binary equivalent).
+**원인**: composite은 product, wick_imbalance가 거의 0인 약한 신호도 prior_ret heavy-tail에 곱해지면 z extreme 발화. 방향 sign(wick) noise-dominated.
+**규칙**: 이전 §3-H에서 "AND filter는 항상 약화"라고 했지만 정확히는 **AND filter on seeded signal은 약화**. Wick paradigm처럼 **bounded × heavy-tailed product**에서는 binary AND gate가 essential noise discriminator. Continuous composite로 binary gate 대체 시도 권장 안 됨.
+
+### 3-K. Intra-bar MAGNITUDE-only directional fail (Q3 #5 lesson, 2026-05-06)
+**증상**: 5m HIGH-LOW range (vol shock magnitude) + prior_ret 방향 logic → R-2 alpha pos 8/10이지만 **MDD catastrophic 50-77%**, sharpe Q3 #2 wick 대비 4-5x 약함.
+**원인**: intra-bar MAGNITUDE는 vol shock 일어났음을 표시하지만, direction은 prior_ret에 100% 의존 → noise-driven prior_ret signal에 weakness 그대로 노출, MDD wipe out.
+**규칙**: intra-bar dimension에서 directional info 추출하려면 **SHAPE asymmetry 필요** (wick_reversal Q3 #2 POSITIVE 3σ). Pure magnitude shock paradigm 시도 권장 안 됨.
+
+### 3-J. Two-seeded-fade-joint antipattern (Q3 #1 신규 lesson, 2026-05-06)
+**증상**: 시드된 두 fade signal (e.g. funding_carry × oi_price_decoupling) 결합 → R-2 매우 강함 (10/10 alpha pos), R-3 perm test에서 random_mean이 real의 55-85% → §3-D 결정적 FAIL.
+**원인**: 두 fade가 모두 자체적으로 trade-able이면, 결합은 단지 trade 수 narrowing이지 orthogonal alpha 추가 아님. permutation 한 컴포넌트 부수면 다른 컴포넌트가 alpha 대부분 회수.
+**예시**: oi_funding_corr_regime (Q3 #1, R-3 0.73~-0.23σ).
+**규칙**: 시드된 두 fade signal joint/corr filter 시도 권장 안 됨. 적어도 한 컴포넌트는 NEW (시드 안 됨) 이어야 의미 있는 interaction term.
+
+### 3-I. Derivatives 위계 (큐 신규 lesson)
+- 0차 (level): premium_index_zscore DOGE **9.0σ** 시드
+- 1차 (velocity): premium_velocity_zscore AVAX **6.86σ** 시드 ✓
+- 1차 (decoupling): oi_price_decoupling AVAX **6.7σ** 시드 ✓
+- 2차 (acceleration): oi_change_acceleration ETC **3.98σ outlier** graveyard ✗
+**규칙**: 2차 이상 derivative 시도 권장 안 됨
+
+---
+
+## 4. fail-fast 결정 트리 (큐에서 검증된 fast path)
+
+```
+R-1 SOL alpha+sharpe ≥ 0?
+├─ NO → graveyard 즉시
+└─ YES → R-2 multi-symbol (10 paper-pool 종)
+        ├─ alpha pos < 6/10 OR sharpe pos < 4/10 → graveyard (§3-E weak)
+        └─ alpha pos ≥ 6/10 → R-3 perm n=200 top 4 candidates
+                ├─ random_mean이 real의 50%+ → §3-D 의심, R-3 fail probable
+                ├─ best perm σ < 2σ → graveyard
+                ├─ 2-4σ → §3-G note + graveyard
+                └─ ≥ 4σ AND multi-symbol consistency → R-5 candidate (사용자 승인 게이트)
 ```
 
-**PASS criterion**: alpha 양수 + sharpe 양수 → R-2 진행. Borderline 시 hyperparameter sweep 1회.
+**Diversity check before R-5**:
+- 4σ+ PASS 종목이 이미 다른 paradigm으로 시드됐다면 §3-G family 의심
+- 같은 도메인 시드 → §3-G strong (보통 R-5 SKIP)
+- 다른 도메인 시드 → R-5 후보 가치 (premium_velocity AVAX 6.86σ + HBAR 5.25σ 패턴)
 
-### Phase R-2: Multi-symbol (10~14 종목)
+---
+
+## 5. 현재 paper sessions 상태 (2026-05-06)
+
+### 시드된 13 paper sessions (7 paradigms)
+
+| Paradigm | Session | Symbol | baseline | Day 7 milestone | Day 30 milestone |
+|---|---|---|---|---|---|
+| funding_carry | 472fafc0-65a | HBAR | alpha 107.7/sharpe 1.87 | 2026-05-11 | 2026-06-03 |
+| funding_carry | accc65a5-e27 | AXS | alpha 148.6/sharpe 1.48 | 2026-05-11 | 2026-06-03 |
+| funding_carry | f4c8ee87-a76 | COMP | alpha 118.4/sharpe 1.67 | 2026-05-11 | 2026-06-03 |
+| autocorr_regime | 694e4f47-369 | LINK | alpha 116.2/sharpe 1.25 | 2026-05-11 | 2026-06-03 |
+| autocorr_regime | 469a7a29-9be | UNI | alpha 120.3/sharpe 1.10 | 2026-05-11 | 2026-06-03 |
+| funding_dispersion | d2640960-52b | ETC | alpha 138.0/sharpe 3.50 | 2026-05-12 | 2026-06-04 |
+| cross_symbol_lead_lag | b5041367-5a6 | DOGE | alpha 69.8/sharpe 1.83 | 2026-05-12 | 2026-06-04 |
+| oi_price_decoupling | 2555033d-308 | AVAX | alpha 145.7/sharpe 1.73 | 2026-05-13 | 2026-06-05 |
+| premium_index_zscore | 07934d53-b9d | DOGE | alpha **348.2**/sharpe **3.15** track 최강 | 2026-05-13 | 2026-06-05 |
+| premium_index_zscore | f99ca950-931 | SOL | alpha 166.5/sharpe 2.62 | 2026-05-13 | 2026-06-05 |
+| premium_index_zscore | a2f423ae-2ce | LDO | alpha 290.1/sharpe 2.66 | 2026-05-13 | 2026-06-05 |
+| **premium_velocity_zscore** | **e4bff252-84a** | **AVAX** | **alpha 365.9/sharpe 2.42** 큐 첫 break-through | **2026-05-13** | **2026-06-05** |
+| **premium_velocity_zscore** | **8d70b971-0ec** | **HBAR** | **alpha 279.3/sharpe 2.14** | **2026-05-13** | **2026-06-05** |
+| **wick_reversal_multibar** ⭐ | **99107ad5-edd** | **SOL** | **alpha 61.94/sharpe 1.41/perm 4.49σ** Q3 첫 4σ+ POSITIVE NEW dim, single-symbol exception | **2026-05-13** | **2026-06-05** |
+
+---
+
+## 6. 새 paradigm 시도 절차
 
 ```bash
-./venv/bin/python -m scripts.poc_<name> --symbols HBARUSDT AXSUSDT COMPUSDT DOGEUSDT LDOUSDT SOLUSDT AVAXUSDT LINKUSDT UNIUSDT ETCUSDT --tag r2_best
+# 0. 사용자 의도 확인
+# - "다음 paradigm 진행" → §2 후보 중 §3-G/§3-A 위험 가장 낮은 것 자동 선택
+# - "{paradigm 이름} 시도" → 명시 후보 진행
+
+# 1. PoC 스크립트 작성 (premium_velocity_zscore 템플릿 사용)
+cd /home/hcpark/antigravity/backend
+cp scripts/poc_premium_velocity_zscore.py scripts/poc_<new_name>.py
+cp scripts/poc_premium_velocity_zscore_r3.py scripts/poc_<new_name>_r3.py
+# 가설/데이터/신호 부분만 수정 (simulate 함수 재사용)
+
+# 2. 빠른 검증 (fail-fast)
+source venv/bin/activate
+python3 -m py_compile scripts/poc_<new_name>.py scripts/poc_<new_name>_r3.py
+
+# 3. R-1 SOL sweep
+python3 -m scripts.poc_<new_name> --symbols SOLUSDT --tag r1_sol_sweep
+# alpha+sharpe ≥ 0 확인 → R-2, 음수면 graveyard
+
+# 4. R-2 10 paper-pool 종
+python3 -m scripts.poc_<new_name> --symbols HBARUSDT AXSUSDT COMPUSDT LINKUSDT UNIUSDT ETCUSDT LDOUSDT AVAXUSDT SOLUSDT DOGEUSDT --tag r2
+
+# 5. R-3 perm n=200 top 4 candidates
+python3 -m scripts.poc_<new_name>_r3 --symbols TOP1 TOP2 TOP3 TOP4 --n-iter-perm 200
+
+# 6. 결과 처리:
+#    - 4σ+ AND diversity OK → R-5 candidate, 사용자 승인 대기
+#    - 2-4σ → §3-G note + graveyard
+#    - <2σ → graveyard
+#    - 결과 _graveyard/<paradigm>/ 으로 이동
+
+# 7. 모든 tracking docs 동기화:
+#    - INDEX.md (마지막 갱신 + graveyard table 행 추가)
+#    - 메모리 project_paradigm_queue_2026q2.md (또는 새 q3 큐 만들 때 새 메모리)
 ```
-
-**PASS criterion**: 종목 중 ≥ 1 spec이 cutoff 5/5 후보면 R-3 진행. 그렇지 않으면 graveyard.
-
-### Phase R-3: Robustness (perm test n=200)
-
-**스크립트**: `backend/scripts/poc_<name>_r3.py` (template: `poc_autocorr_regime_r3.py`)
-
-**필수 진단**:
-1. Permutation test (n=200): shuffle 후 random alpha distribution 측정 → perm_p
-2. Walk-forward 6-fold (선택, multi-period robustness)
-
-**PASS criterion**: **perm_p ≤ 0.05 (필수)**. 0.05 < perm_p < 0.10 borderline은 사용자 결정.
-
-### Phase R-4: Elite Gate Evaluation
-
-**Hard cutoff (5개 모두 AND)**:
-- alpha ≥ +150 (1y trade-sim)
-- sharpe ≥ 2.0
-- max_dd ≤ 28%
-- win_rate ≥ 50%
-- profit_factor ≥ 2.0
-
-**Robustness (4개 모두 AND)**:
-- perm_p ≤ 0.05
-- WF folds ≥ 5/6 양수
-- vol filter 미의존
-- n_trades ≥ 30
-
-**자동 PASS** (5/5 + 4/4) → R-5 진행. **사용자 승인 게이트** (5/8 이상 + perm_p=0.000 robust) → R-5 conditional.
-
-### Phase R-5: Paper Seed (사용자 명시적 승인 필수)
-
-**작업**:
-1. Source class 작성 (`app/composer_framework/sources/<name>_source.py`)
-2. Composer 신규 또는 재사용 (`composers/passthrough_composer.py` 등)
-3. Policy 신규 또는 재사용 (`long_short_threshold` / `funding_reversal`)
-4. `pipeline_spec.py`에 register
-5. `configs/paper_sessions/<symbol>_<paradigm>.json` 작성
-6. `paper_session_cli create`로 session 생성
-7. `paper_session_cli run --id <id>`로 dry-run 검증
-8. `runs/research_track/INDEX.md` + `master_plan` + memory 갱신
-9. `scripts/milestone_check.py` `BASELINE_METRICS` dict에 entry 추가
-
-**자동 통합**: cron `binance-paper-cycle`이 다음 09:30 KST에 자동 picks-up. PM2 재시작 불요.
 
 ---
 
-## 5. 기존 시드 운영 점검
+## 7. R-5 시드 절차 (4σ+ + diversity OK 시)
 
 ```bash
-# 5 시드 sessions Day 7/14/30 자동 점검
-cd backend && ./venv/bin/python -m scripts.milestone_check --research-only
+# 1. composer source 작성 (premium_velocity_zscore_source 템플릿)
+# app/composer_framework/sources/binance_<new>_source.py
 
-# 전체 paper 풀 상태
-./venv/bin/python -m scripts.paper_session_cli status
+# 2. pipeline_spec 등록
+# app/composer_framework/pipeline_spec.py @register_source 추가
 
-# 특정 session 상세
-./venv/bin/python -m scripts.paper_session_cli show --id <session_id>
+# 3. sources/__init__.py export 추가
+
+# 4. paper_session_cli premium_df load condition 확장 (해당하는 경우)
+
+# 5. session JSON 작성
+# configs/paper_sessions/{SYMBOL}_<paradigm>.json
+
+# 6. session 생성
+python3 -m scripts.paper_session_cli create --spec configs/paper_sessions/{SYMBOL}_<paradigm>.json
+
+# 7. dry-run validate
+python3 -m scripts.paper_session_cli run --id <session_id>
+
+# 8. milestone_check 등록
+# scripts/milestone_check.py: RESEARCH_TRACK_SEEDS + BASELINE_METRICS
+
+# 9. INDEX.md 시드 sessions table 업데이트
 ```
 
-**baseline 참조**: `backend/runs/research_track/milestone_baselines.md`
+---
+
+## 8. References
+
+- **Master plan**: `.claude/plans/research_track_master.md`
+- **이전 큐 완료 결과**: `backend/runs/research_track/PARADIGM_QUEUE_2026Q2.md`
+- **인덱스**: `backend/runs/research_track/INDEX.md`
+- **시드 PoC scripts (template)**: `backend/scripts/poc_premium_velocity_zscore.py` (+ r3)
+- **시드 source (template)**: `backend/app/composer_framework/sources/binance_premium_velocity_zscore_source.py`
 
 ---
 
-## 6. 산출물 위치
-
-| 데이터 | 경로 |
-|---|---|
-| 본 runbook | `backend/runs/research_track/NEXT_PARADIGM_RUNBOOK.md` |
-| Paradigm 인덱스 | `backend/runs/research_track/INDEX.md` |
-| 트랙 마스터 plan | `.claude/plans/research_track_master.md` |
-| Milestone baselines | `backend/runs/research_track/milestone_baselines.md` |
-| Milestone check 스크립트 | `backend/scripts/milestone_check.py` |
-| Paradigm PoC 스크립트 | `backend/scripts/poc_<paradigm>.py` |
-| R-3 robustness 스크립트 | `backend/scripts/poc_<paradigm>_r3.py` |
-| Paper seed spec | `backend/configs/paper_sessions/<spec>.json` |
-| Source class | `backend/app/composer_framework/sources/<source>.py` |
-| Graveyard | `backend/runs/research_track/_graveyard/<paradigm>/` |
-
----
-
-## 7. 시드된 paradigm baseline (참조용)
-
-### funding_carry (perm_p = 0.000)
-- HBARUSDT: alpha 107.68 / sharpe 1.87 / PF 3.06 / mdd 9.6 / wr 68.4
-- AXSUSDT: alpha 148.62 / sharpe 1.48 / PF 2.53 / mdd 14.5 / wr 63.2
-- COMPUSDT: alpha 118.43 / sharpe 1.67 / PF 2.75 / mdd 5.5 / wr 53.6
-
-### autocorr_regime (perm_p = 0.000, rev_only)
-- LINKUSDT: alpha 116.18 / sharpe 1.25 / PF 3.33 / mdd 9.4 / wr 55.6
-- UNIUSDT: alpha 120.27 / sharpe 1.10 / PF 2.70 / mdd 8.9 / wr 53.4
-
----
-
-## 8. 새 paradigm 시작 시 자기 점검 체크리스트
-
-작업 전 다음 5가지 점검 후 진행:
-
-- [ ] Anti-pattern 회피? (rare-event / truncation / single-moment / ML-flatten)
-- [ ] 1y OHLCV + funding rate로 즉시 가능? (외부 비용 0)
-- [ ] 모든 graveyard와 직교? (단순 변종 아님)
-- [ ] dense signal? (n_trades ≥ 30 자연스럽게 달성 가능)
-- [ ] 사용자가 승인한 후보 리스트 (§2-A)에 있음?
-
-5가지 모두 ✅이면 R-1 PoC 진행. 하나라도 ❌면 paradigm 재고려.
-
----
-
-**END** — 본 문서로 새 세션이 다음 paradigm 시도부터 paper 시드까지 즉시 진행 가능.
+**END** — 본 runbook으로 새 세션은 Round 2 paradigm 발굴 (큐 Q3) 진행 가능.

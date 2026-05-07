@@ -1,0 +1,46 @@
+{
+  "paradigm": "garman_klass_vol_premium",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_fade_ez1.0_rl5",
+  "evaluated_at": "2026-05-06T05:47:38.785821+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 5,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade",
+    "tag": "r1_sol_fade_ez1.0_rl5"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_fade_ez1.0_rl5",
+    "n_symbols": 1,
+    "alpha_pct_mean": -22.73,
+    "alpha_pos_count": 0,
+    "sharpe_mean": -2.116,
+    "sharpe_pos_count": 0,
+    "trades_total": 33
+  },
+  "per_symbol": [
+    {
+      "n_trades": 33,
+      "n_long_entries": 15,
+      "n_short_entries": 18,
+      "alpha_pct": -22.73,
+      "total_return_pct": -59.89,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": -2.116,
+      "max_dd_pct": 59.89,
+      "win_rate_pct": 36.36,
+      "profit_factor": 0.427,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

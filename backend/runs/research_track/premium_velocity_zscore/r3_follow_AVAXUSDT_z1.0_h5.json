@@ -1,0 +1,46 @@
+{
+  "paradigm": "premium_velocity_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "AVAXUSDT",
+      "UNIUSDT",
+      "SOLUSDT",
+      "ETCUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 50,
+    "n_long_entries": 26,
+    "n_short_entries": 24,
+    "alpha_pct": 365.86,
+    "total_return_pct": 315.02,
+    "buy_hold_pct": -50.84,
+    "sharpe_ann": 2.422,
+    "max_dd_pct": 46.58,
+    "win_rate_pct": 64.0,
+    "profit_factor": 2.248,
+    "oos_days": 363
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 365.86,
+    "random_alpha_mean": 28.082,
+    "random_alpha_std": 49.259,
+    "random_alpha_max": 268.17,
+    "perm_p": 0.0
+  },
+  "sigma": 6.86,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T05:31:53.670945+00:00"
+}

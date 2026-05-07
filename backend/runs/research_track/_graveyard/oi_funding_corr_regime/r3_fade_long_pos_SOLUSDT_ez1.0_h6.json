@@ -1,0 +1,49 @@
+{
+  "paradigm": "oi_funding_corr_regime",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "fade_long_pos",
+  "config": {
+    "symbols": [
+      "DOGEUSDT",
+      "SOLUSDT",
+      "UNIUSDT",
+      "HBARUSDT"
+    ],
+    "zwin": 30,
+    "corr_win": 30,
+    "entry_z": 1.0,
+    "entry_z_fund": 0.5,
+    "regime_thresh": 0.0,
+    "hold_periods": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "fade_long_pos",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 21,
+    "n_aligned_pos": 14,
+    "n_aligned_neg": 7,
+    "alpha_pct": 75.95,
+    "total_return_pct": 27.81,
+    "buy_hold_pct": -48.14,
+    "sharpe_ann": 2.508,
+    "max_dd_pct": 5.3,
+    "win_rate_pct": 66.67,
+    "profit_factor": 2.903,
+    "oos_days": 178
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 75.95,
+    "random_alpha_mean": 60.111,
+    "random_alpha_std": 24.252,
+    "random_alpha_max": 131.01,
+    "perm_p": 0.24
+  },
+  "sigma": 0.65,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T06:43:21.483583+00:00"
+}

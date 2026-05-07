@@ -1,0 +1,46 @@
+{
+  "paradigm": "weekend_drift_premium",
+  "phase": "R-1_PoC",
+  "spec_name": "fade_z2.0_h2",
+  "evaluated_at": "2026-05-06T03:51:13.600401+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 2.0,
+    "hold_days": 2,
+    "entry_dow": 4,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "fade",
+    "tag": "fade_z2.0_h2"
+  },
+  "aggregate": {
+    "spec_name": "fade_z2.0_h2",
+    "n_symbols": 1,
+    "alpha_pct_mean": 18.88,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -1.075,
+    "sharpe_pos_count": 0,
+    "trades_total": 5
+  },
+  "per_symbol": [
+    {
+      "n_trades": 5,
+      "n_long_entries": 4,
+      "n_short_entries": 1,
+      "alpha_pct": 18.88,
+      "total_return_pct": -18.28,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": -1.075,
+      "max_dd_pct": 22.62,
+      "win_rate_pct": 40.0,
+      "profit_factor": 0.23,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

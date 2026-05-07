@@ -1,0 +1,46 @@
+{
+  "paradigm": "monthly_premium_seasonality",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_follow_eom_nd7_ez0.5",
+  "evaluated_at": "2026-05-06T04:41:50.707804+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 0.5,
+    "n_days": 7,
+    "hold_days": 3,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow_eom",
+    "tag": "r1_sol_follow_eom_nd7_ez0.5"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_follow_eom_nd7_ez0.5",
+    "n_symbols": 1,
+    "alpha_pct_mean": 88.21,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 1.37,
+    "sharpe_pos_count": 1,
+    "trades_total": 26
+  },
+  "per_symbol": [
+    {
+      "n_trades": 26,
+      "n_long_entries": 11,
+      "n_short_entries": 15,
+      "alpha_pct": 88.21,
+      "total_return_pct": 51.05,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": 1.37,
+      "max_dd_pct": 23.6,
+      "win_rate_pct": 50.0,
+      "profit_factor": 2.05,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

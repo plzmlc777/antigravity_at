@@ -1,0 +1,46 @@
+{
+  "paradigm": "weekend_drift_premium",
+  "phase": "R-1_PoC",
+  "spec_name": "dow6_follow_z15_h3",
+  "evaluated_at": "2026-05-06T03:52:51.132907+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 3,
+    "entry_dow": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow",
+    "tag": "dow6_follow_z15_h3"
+  },
+  "aggregate": {
+    "spec_name": "dow6_follow_z15_h3",
+    "n_symbols": 1,
+    "alpha_pct_mean": 16.15,
+    "alpha_pos_count": 1,
+    "sharpe_mean": -1.466,
+    "sharpe_pos_count": 0,
+    "trades_total": 8
+  },
+  "per_symbol": [
+    {
+      "n_trades": 8,
+      "n_long_entries": 4,
+      "n_short_entries": 4,
+      "alpha_pct": 16.15,
+      "total_return_pct": -21.01,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": -1.466,
+      "max_dd_pct": 21.01,
+      "win_rate_pct": 12.5,
+      "profit_factor": 0.244,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

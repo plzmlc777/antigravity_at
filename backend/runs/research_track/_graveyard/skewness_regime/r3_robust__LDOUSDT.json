@@ -1,0 +1,42 @@
+{
+  "symbol": "LDOUSDT",
+  "paradigm": "skewness_regime",
+  "phase": "R-3_robustness",
+  "config": {
+    "skew_window": 60,
+    "regime_window": 8640,
+    "skew_low_pctl": -0.01,
+    "skew_high_pctl": 0.95,
+    "hold_bars": 72,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "reverse_sign": true,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-05T01:19:30.107132+00:00",
+  "real_metrics": {
+    "n_trades": 273,
+    "n_long": 273,
+    "n_short": 0,
+    "alpha_pct": 79.83,
+    "total_return_pct": 29.91,
+    "buy_hold_pct": -49.91,
+    "sharpe_ann": 0.797,
+    "max_dd_pct": 32.61,
+    "win_rate_pct": 50.18,
+    "profit_factor": 1.143,
+    "oos_days": 384,
+    "exit_reasons": {
+      "sl": 90,
+      "time": 183
+    }
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 79.83,
+    "random_alpha_mean": 18.277,
+    "random_alpha_std": 69.599,
+    "perm_p": 0.125
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "paradigm": "premium_volatility_regime",
+  "phase": "R-1_PoC",
+  "spec_name": "r1_sol_ez1.5_follow",
+  "evaluated_at": "2026-05-06T04:12:42.812743+00:00",
+  "config": {
+    "symbols": [
+      "SOLUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.5,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "train_frac": 0.5,
+    "mode": "follow",
+    "tag": "r1_sol_ez1.5_follow"
+  },
+  "aggregate": {
+    "spec_name": "r1_sol_ez1.5_follow",
+    "n_symbols": 1,
+    "alpha_pct_mean": 67.24,
+    "alpha_pos_count": 1,
+    "sharpe_mean": 0.855,
+    "sharpe_pos_count": 1,
+    "trades_total": 28
+  },
+  "per_symbol": [
+    {
+      "n_trades": 28,
+      "n_long_entries": 0,
+      "n_short_entries": 28,
+      "alpha_pct": 67.24,
+      "total_return_pct": 30.08,
+      "buy_hold_pct": -37.16,
+      "sharpe_ann": 0.855,
+      "max_dd_pct": 17.4,
+      "win_rate_pct": 53.57,
+      "profit_factor": 1.503,
+      "oos_days": 383,
+      "symbol": "SOLUSDT"
+    }
+  ]
+}

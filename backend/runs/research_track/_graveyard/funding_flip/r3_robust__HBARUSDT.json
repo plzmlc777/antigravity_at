@@ -1,0 +1,78 @@
+{
+  "symbol": "HBARUSDT",
+  "paradigm": "funding_flip",
+  "phase": "R-3_robustness",
+  "config": {
+    "magnitude": 0.0001,
+    "hold_periods": 6,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "reverse_sign": true,
+    "train_frac": 0.5
+  },
+  "evaluated_at": "2026-05-04T14:19:27.588005+00:00",
+  "real_metrics_oos": {
+    "n_trades": 59,
+    "n_flips_test": 109,
+    "alpha_pct": 55.66,
+    "total_return_pct": 4.37,
+    "buy_hold_pct": -51.29,
+    "sharpe_ann": 0.416,
+    "max_dd_pct": 38.35,
+    "win_rate_pct": 47.46,
+    "profit_factor": 1.098,
+    "oos_days": 181
+  },
+  "full_metrics": {
+    "n_trades": 102,
+    "n_flips_test": 191,
+    "alpha_pct": 76.9,
+    "total_return_pct": 27.43,
+    "buy_hold_pct": -49.47,
+    "sharpe_ann": 0.703,
+    "max_dd_pct": 38.35,
+    "win_rate_pct": 47.06,
+    "profit_factor": 1.198,
+    "oos_days": 364
+  },
+  "walk_forward": {
+    "n_folds": 6,
+    "positive_folds": 0,
+    "folds": [
+      {
+        "fold": 1,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 2,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 3,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 4,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 5,
+        "error": "too few periods (181)"
+      },
+      {
+        "fold": 6,
+        "error": "too few periods (184)"
+      }
+    ]
+  },
+  "permutation": {
+    "n_iter": 200,
+    "real_alpha_pct": 55.66,
+    "random_alpha_mean": 44.294,
+    "random_alpha_std": 32.234,
+    "random_alpha_q05": 4.475,
+    "random_alpha_q95": 101.743,
+    "perm_p": 0.315
+  }
+}

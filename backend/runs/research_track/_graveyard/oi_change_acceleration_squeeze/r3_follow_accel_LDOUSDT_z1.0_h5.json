@@ -1,0 +1,46 @@
+{
+  "paradigm": "oi_change_acceleration_squeeze",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow_accel",
+  "config": {
+    "symbols": [
+      "ETCUSDT",
+      "LINKUSDT",
+      "SOLUSDT",
+      "LDOUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow_accel",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 47,
+    "n_long_entries": 27,
+    "n_short_entries": 20,
+    "alpha_pct": 76.69,
+    "total_return_pct": 21.2,
+    "buy_hold_pct": -55.49,
+    "sharpe_ann": 0.626,
+    "max_dd_pct": 56.55,
+    "win_rate_pct": 42.55,
+    "profit_factor": 1.247,
+    "oos_days": 369
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 76.69,
+    "random_alpha_mean": 30.724,
+    "random_alpha_std": 62.026,
+    "random_alpha_max": 452.99,
+    "perm_p": 0.13
+  },
+  "sigma": 0.74,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:25:39.371646+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "paradigm": "garman_klass_vol_premium",
+  "phase": "R-3_robustness",
+  "symbol": "SOLUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "UNIUSDT",
+      "LDOUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 5,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 27,
+    "n_long_entries": 15,
+    "n_short_entries": 12,
+    "alpha_pct": 190.26,
+    "total_return_pct": 153.1,
+    "buy_hold_pct": -37.16,
+    "sharpe_ann": 2.654,
+    "max_dd_pct": 13.07,
+    "win_rate_pct": 62.96,
+    "profit_factor": 3.52,
+    "oos_days": 383
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 190.26,
+    "random_alpha_mean": 30.044,
+    "random_alpha_std": 29.694,
+    "random_alpha_max": 124.46,
+    "perm_p": 0.0
+  },
+  "sigma": 5.4,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T05:49:38.848015+00:00"
+}

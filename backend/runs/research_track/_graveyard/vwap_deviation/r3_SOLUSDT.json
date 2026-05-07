@@ -1,0 +1,43 @@
+{
+  "paradigm": "vwap_deviation",
+  "symbol": "SOLUSDT",
+  "config": {
+    "symbols": [
+      "AXSUSDT",
+      "SOLUSDT"
+    ],
+    "vwap_window": 144,
+    "zwin": 288,
+    "entry_z": 3.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 273,
+    "n_long_entries": 142,
+    "n_short_entries": 132,
+    "alpha_pct": 48.04,
+    "total_return_pct": 14.64,
+    "buy_hold_pct": -33.39,
+    "sharpe_ann": 0.622,
+    "max_dd_pct": 13.88,
+    "win_rate_pct": 46.89,
+    "profit_factor": 1.117,
+    "oos_days": 396
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 48.04,
+    "random_alpha_mean": 33.196,
+    "random_alpha_std": 6.562,
+    "random_alpha_max": 49.28,
+    "perm_p": 0.015
+  },
+  "sigma": 2.26,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T12:00:06.219765+00:00"
+}

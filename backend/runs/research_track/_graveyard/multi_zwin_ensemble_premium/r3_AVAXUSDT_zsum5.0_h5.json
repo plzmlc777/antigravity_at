@@ -1,0 +1,47 @@
+{
+  "paradigm": "multi_zwin_ensemble_premium",
+  "phase": "R-3_robustness",
+  "symbol": "AVAXUSDT",
+  "config": {
+    "symbols": [
+      "LDOUSDT",
+      "AVAXUSDT",
+      "SOLUSDT"
+    ],
+    "zwins": [
+      15,
+      30,
+      60
+    ],
+    "z_sum_thresh": 5.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 21,
+    "n_long_entries": 8,
+    "n_short_entries": 13,
+    "alpha_pct": 137.11,
+    "total_return_pct": 82.04,
+    "buy_hold_pct": -55.07,
+    "sharpe_ann": 1.644,
+    "max_dd_pct": 11.24,
+    "win_rate_pct": 61.9,
+    "profit_factor": 2.259,
+    "oos_days": 348
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 137.11,
+    "random_alpha_mean": 35.528,
+    "random_alpha_std": 37.388,
+    "random_alpha_max": 172.54,
+    "perm_p": 0.02
+  },
+  "sigma": 2.72,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T06:10:54.441772+00:00"
+}

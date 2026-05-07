@@ -1,0 +1,5 @@
+symbol,n_trades,n_trend_entries,n_rev_entries,alpha_pct,trend_alpha_sum,rev_alpha_sum,total_return_pct,buy_hold_pct,sharpe_ann,max_dd_pct,win_rate_pct,profit_factor,oos_days
+SOLUSDT,145,145,0,21.7,-11.16,0.0,-11.13,-32.83,-0.941,18.55,44.83,0.797,397
+HBARUSDT,151,151,0,41.65,-6.21,0.0,-6.84,-48.48,-0.449,17.08,44.37,0.903,399
+COMPUSDT,104,104,0,-18.53,-79.77,0.0,-58.93,-40.4,-1.971,64.43,40.38,0.353,399
+LINKUSDT,117,117,0,30.0,-8.18,0.0,-8.51,-38.51,-0.668,13.96,47.01,0.843,383

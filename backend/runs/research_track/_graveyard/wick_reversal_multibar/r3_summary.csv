@@ -1,0 +1,4 @@
+symbol,real_alpha,perm_p,sigma,verdict,random_mean,random_std
+AVAXUSDT,66.24,0.0,3.16,FAIL,1.13,20.631
+DOGEUSDT,73.48,0.025,1.94,FAIL,20.757,27.179
+HBARUSDT,56.31,0.09,1.3,FAIL,28.494,21.436

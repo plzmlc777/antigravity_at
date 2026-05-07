@@ -1,0 +1,47 @@
+{
+  "paradigm": "premium_intraday_range_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "LDOUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "SOLUSDT",
+      "LDOUSDT",
+      "DOGEUSDT",
+      "UNIUSDT"
+    ],
+    "zwin": 30,
+    "ret_lookback": 5,
+    "entry_z": 1.5,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 22,
+    "n_long_entries": 12,
+    "n_short_entries": 10,
+    "alpha_pct": 98.37,
+    "total_return_pct": 41.15,
+    "buy_hold_pct": -57.22,
+    "sharpe_ann": 0.859,
+    "max_dd_pct": 24.51,
+    "win_rate_pct": 50.0,
+    "profit_factor": 1.577,
+    "oos_days": 370
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 98.37,
+    "random_alpha_mean": 37.353,
+    "random_alpha_std": 35.267,
+    "random_alpha_max": 157.73,
+    "perm_p": 0.085
+  },
+  "sigma": 1.73,
+  "verdict": "FAIL",
+  "evaluated_at": "2026-05-06T05:12:40.891908+00:00"
+}

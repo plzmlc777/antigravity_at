@@ -1,0 +1,48 @@
+{
+  "paradigm": "premium_velocity_zscore",
+  "phase": "R-3_robustness",
+  "symbol": "HBARUSDT",
+  "mode": "follow",
+  "config": {
+    "symbols": [
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "LDOUSDT",
+      "LINKUSDT",
+      "DOGEUSDT"
+    ],
+    "zwin": 30,
+    "entry_z": 1.0,
+    "hold_days": 5,
+    "sl_pct": 0.05,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0,
+    "mode": "follow",
+    "n_iter_perm": 200
+  },
+  "real": {
+    "n_trades": 52,
+    "n_long_entries": 23,
+    "n_short_entries": 29,
+    "alpha_pct": 279.34,
+    "total_return_pct": 229.13,
+    "buy_hold_pct": -50.2,
+    "sharpe_ann": 2.143,
+    "max_dd_pct": 25.81,
+    "win_rate_pct": 61.54,
+    "profit_factor": 2.29,
+    "oos_days": 384
+  },
+  "perm": {
+    "n_iter": 200,
+    "real_alpha_pct": 279.34,
+    "random_alpha_mean": 34.52,
+    "random_alpha_std": 46.651,
+    "random_alpha_max": 241.15,
+    "perm_p": 0.0
+  },
+  "sigma": 5.25,
+  "verdict": "PASS",
+  "evaluated_at": "2026-05-06T05:32:45.917569+00:00"
+}

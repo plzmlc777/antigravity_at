@@ -1,0 +1,57 @@
+{
+  "paradigm": "oi_price_decoupling",
+  "symbol": "AVAXUSDT",
+  "mode": "confirm",
+  "spec_name": "AVAXUSDT_oi_price_decoupling_paper_seed",
+  "evaluated_at": "2026-05-06",
+  "phase": "R-5_proposal_pending_user_approval",
+  "rule": {
+    "description": "Confirm mode: enter LONG when price↑ + OI↑ both at extreme z; SHORT when price↓ + OI↓ both at extreme z. Hold 24×5min=2h, SL 2%, fee 0.04%.",
+    "data_window_5m_zscore": 288,
+    "entry_z": 2.0,
+    "hold_bars": 24,
+    "sl_pct": 0.02,
+    "fee_rate": 0.0004,
+    "capital": 1000000.0
+  },
+  "real_backtest_oos_1y": {
+    "alpha_pct": 145.65,
+    "sharpe_ann": 1.73,
+    "max_dd_pct": 27.9,
+    "win_rate_pct": 49.32,
+    "profit_factor": 1.257,
+    "n_trades": 523,
+    "oos_days": 365,
+    "buy_hold_pct": -53.83
+  },
+  "robustness": {
+    "perm_p": 0.0000,
+    "perm_n_iter": 100,
+    "random_alpha_mean": 1.14,
+    "random_alpha_std": 21.55,
+    "random_alpha_max": 68.88,
+    "real_above_random_mean_sigma": 6.7
+  },
+  "gate_score": "4-5/9",
+  "comparable_seeded": [
+    "autocorr_regime LINKUSDT (5/8)",
+    "funding_carry HBAR/COMP (5/8)",
+    "cross_symbol_lead_lag DOGEUSDT (6/9)"
+  ],
+  "data_source": {
+    "ohlcv_1m": "DB ohlcv table → resample 5m",
+    "open_interest_5m": "backend/runs/microstructure/AVAXUSDT_full_metrics.joblib (open_interest col, 5m granularity, 2y+ history)",
+    "data_freshness": "joblib needs daily refresh OR forward-collect via fetch_binance_metrics.py daily cron"
+  },
+  "implementation_required": {
+    "source_class": "BinanceOIPriceDecouplingSource (NEW) — load close + open_interest 5m, compute joint z-score, emit signal {-1,0,+1}",
+    "composer": "PassthroughComposer (existing)",
+    "policy": "LongShortThresholdPolicy (existing) with entry=0.5, sl=0.02, tp=1.0, max_hold=24",
+    "pipeline_register": "bn_oi_price_decoupling source in pipeline_spec.py",
+    "session_cli_runtime": "load OI joblib + close 5m + bundle inject (similar to bn_funding_dispersion pattern)",
+    "config_paper_session": "configs/paper_sessions/AVAXUSDT_oi_price_decoupling.json",
+    "milestone_check_baseline": "Add to BASELINE_METRICS dict in scripts/milestone_check.py"
+  },
+  "user_approval_required": true,
+  "user_approval_rationale": "Hard cutoff 1/5 strict (alpha 97%, sharpe 87%, wr 99% borderline). Robustness 3/4. Same gate score as autocorr_regime/funding_carry path which also required user explicit approval. Seeding decision is user's per research_track_master.md §5-B."
+}
