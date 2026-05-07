@@ -97,3 +97,17 @@ backend/runs/kr_paper/
 backend/runs/crypto_paper/
 backend/runs/mldirect/
 backend/runs/pmt/
+
+# Research artifacts (joblib/csv binary outputs — regeneratable, not source)
+backend/runs/binance_grid_search*.csv
+backend/runs/paper_spec_backtest.csv
+backend/runs/book_depth/
+backend/runs/microstructure/
+backend/runs/premium_index/
+backend/runs/regime/
+backend/runs/symbol_profile/
+backend/runs/pattern_scanner/
+backend/runs/pattern_ml/
+backend/runs/pattern_fitness/
+backend/runs/pattern_composer/
+backend/runs/composer_framework/
