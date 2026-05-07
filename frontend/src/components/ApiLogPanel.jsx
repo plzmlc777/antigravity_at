@@ -24,8 +24,8 @@ const ApiLogPanel = () => {
             <div className="bg-black/20 border border-white/10 rounded-xl p-4 h-[300px] overflow-y-auto font-mono text-xs space-y-2 scrollbar-thin scrollbar-thumb-white/10">
                 {logs.length === 0 && <div className="text-gray-500 text-center py-4">Waiting for requests...</div>}
 
-                {logs.map((log) => (
-                    <div key={log.id + log.timestamp} className={`flex items-start gap-2 pb-2 border-b border-white/5 ${log.isError ? 'text-red-400' : 'text-gray-300'}`}>
+                {logs.map((log, idx) => (
+                    <div key={`${log.id}-${idx}`} className={`flex items-start gap-2 pb-2 border-b border-white/5 ${log.isError ? 'text-red-400' : 'text-gray-300'}`}>
                         <span className="text-gray-600 min-w-[60px]">{log.timestamp}</span>
                         <div className="flex-1">
                             <div className="flex items-center gap-2">

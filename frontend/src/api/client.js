@@ -15,9 +15,16 @@ const api = axios.create({
 let _isRedirecting = false;
 export const resetRedirectFlag = () => { _isRedirecting = false; };
 
+// Monotonic counter — Date.now() collides when multiple polls fire in the
+// same millisecond, producing duplicate React keys in ApiLogPanel and a
+// flood of "two children with the same key" warnings (1500+ in <2 min on
+// /manual page, leaking to console buffer).
+let _logIdCounter = 0;
+const nextLogId = () => `${Date.now()}_${++_logIdCounter}`;
+
 // Request Interceptor
 api.interceptors.request.use((config) => {
-    const logId = Date.now();
+    const logId = nextLogId();
     config.metadata = { logId, startTime: Date.now() };
 
     getLogger().publish({
@@ -42,7 +49,7 @@ api.interceptors.response.use(
         const duration = startTime ? Date.now() - startTime : 0;
 
         getLogger().publish({
-            id: logId || Date.now(),
+            id: logId || nextLogId(),
             type: 'res',
             method: response.config.method.toUpperCase(),
             url: response.config.url,
@@ -55,7 +62,7 @@ api.interceptors.response.use(
     },
     (error) => {
         const { config, response } = error;
-        const logId = config?.metadata?.logId || Date.now();
+        const logId = config?.metadata?.logId || nextLogId();
 
         getLogger().publish({
             id: logId,
