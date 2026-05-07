@@ -42,6 +42,18 @@ export default defineConfig(({ mode }) => {
                     ws: true,
                 }
             }
+        },
+        preview: {
+            port: parseInt(env.FRONTEND_PORT) || 5173,
+            strictPort: true,
+            proxy: {
+                '/api': {
+                    target: `http://127.0.0.1:${env.BACKEND_PORT || 8001}`,
+                    changeOrigin: true,
+                    secure: false,
+                    ws: true,
+                }
+            }
         }
     }
 })
