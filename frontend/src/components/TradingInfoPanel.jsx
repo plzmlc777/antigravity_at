@@ -44,17 +44,23 @@ const TradingInfoPanel = ({ currentSymbol, setSavedSymbols, accountId }) => {
         enabled: !!accountId
     });
 
-    // Auto-update name in saved list if fetched from API and setSavedSymbols is provided
+    // Auto-update name in saved list once when fetched from API.
+    // Dependencies are narrowed to symbol+name (not full price object) so polling
+    // re-fetches with identical values don't re-fire the effect. The setter also
+    // returns prev unchanged when no name fill-in is needed, which lets the
+    // WatchlistContext skip the debounced PUT /watchlist write.
     useEffect(() => {
-        if (price?.symbol && price?.name && setSavedSymbols) {
-            setSavedSymbols(prev => prev.map(item => {
-                if (item.code === price.symbol && !item.name) {
-                    return { ...item, name: price.name };
-                }
-                return item;
-            }));
-        }
-    }, [price, setSavedSymbols]);
+        if (!price?.symbol || !price?.name || !setSavedSymbols) return;
+        setSavedSymbols(prev => {
+            const target = prev.find(item => item.code === price.symbol);
+            if (!target || target.name) return prev;
+            return prev.map(item =>
+                item.code === price.symbol && !item.name
+                    ? { ...item, name: price.name }
+                    : item
+            );
+        });
+    }, [price?.symbol, price?.name, setSavedSymbols]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

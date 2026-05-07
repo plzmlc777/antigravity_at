@@ -143,7 +143,12 @@ export const WatchlistProvider = ({ children }) => {
         // Handle both array and function updater
         setSavedSymbolsState(prev => {
             const newSymbols = typeof symbols === 'function' ? symbols(prev) : symbols;
-            saveToDB(currentSymbol, newSymbols);
+            // Skip persistence when nothing actually changed (callers may return
+            // prev to signal a no-op). Avoids debounced PUT /watchlist on every
+            // poll that re-fires the no-op functional update.
+            if (newSymbols !== prev) {
+                saveToDB(currentSymbol, newSymbols);
+            }
             return newSymbols;
         });
     }, [currentSymbol, saveToDB]);
