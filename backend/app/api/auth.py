@@ -47,11 +47,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
 
-    # Single session enforcement disabled: single-user system (plzmlc + paper-scheduler).
-    # Previously caused reload ping-pong on /manual when same user logged in from
-    # two windows/tabs — every poll's token sid mismatched the latest active_session_id,
-    # forcing /login redirect and React app re-init every 5–10 min.
-    # Token validity is still enforced by JWT signature + expiration above.
+    # Single session enforcement: reject if session_id doesn't match
+    # If DB has active_session_id set, token MUST have matching sid (legacy tokens without sid are also rejected)
+    if user.active_session_id and token_session_id != user.active_session_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired: logged in from another device",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return user
 
