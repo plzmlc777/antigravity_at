@@ -26,6 +26,13 @@ export default defineConfig(({ mode }) => {
             '__APP_VERSION__': JSON.stringify(pkg.version),
             '__COMMIT_HASH__': JSON.stringify(commitHash),
         },
+        // Strip console.* and debugger from production bundle.
+        // Dev mode keeps them for debugging. Without this, every polled API
+        // call leaks an object into Chrome's console buffer (no GC), eating
+        // browser memory over time.
+        esbuild: {
+            drop: mode === 'production' ? ['console', 'debugger'] : [],
+        },
         resolve: {
             alias: {
                 "@": path.resolve(__dirname, "./src"),
