@@ -46,6 +46,21 @@ RESEARCH_TRACK_SEEDS = {
     "cross_symbol_lead_lag": [
         "b5041367-5a6",   # DOGEUSDT
     ],
+    "oi_price_decoupling": [
+        "2555033d-308",   # AVAXUSDT (confirm mode, microstructure joblib OI)
+    ],
+    "premium_index_zscore": [
+        "07934d53-b9d",   # DOGEUSDT (follow mode, daily premium z>2)
+        "f99ca950-931",   # SOLUSDT
+        "a2f423ae-2ce",   # LDOUSDT
+    ],
+    "premium_velocity_zscore": [
+        "e4bff252-84a",   # AVAXUSDT (follow mode, daily premium 1차 derivative z>1)
+        "8d70b971-0ec",   # HBARUSDT
+    ],
+    "wick_reversal_multibar": [
+        "99107ad5-edd",   # SOLUSDT (intra-bar OHLC SHAPE 5m, 4.49σ single-symbol seed)
+    ],
 }
 
 # Backtest baseline metrics (from R-3 robustness, embedded in spec.notes)
@@ -61,6 +76,17 @@ BASELINE_METRICS = {
     "d2640960-52b": {"alpha": 138.00, "sharpe": 3.50, "pf": 3.72, "trades_1y": 37, "perm_p": 0.000},
     # cross_symbol_lead_lag (resurrected from 18th graveyard via BTC 1y backfill)
     "b5041367-5a6": {"alpha": 69.79, "sharpe": 1.83, "pf": 3.03, "trades_1y": 34, "perm_p": 0.005},
+    # oi_price_decoupling (21st paradigm, AVAX confirm mode, perm_p=0.000 6.7σ)
+    "2555033d-308": {"alpha": 145.65, "sharpe": 1.73, "pf": 1.26, "trades_1y": 523, "perm_p": 0.000},
+    # premium_index_zscore (24th paradigm, follow mode z=2.0 h=5, daily granularity)
+    "07934d53-b9d": {"alpha": 348.17, "sharpe": 3.15, "pf": 11.76, "trades_1y": 17, "perm_p": 0.000},  # DOGE 9.0σ
+    "f99ca950-931": {"alpha": 166.52, "sharpe": 2.62, "pf": 6.31, "trades_1y": 17, "perm_p": 0.000},   # SOL 5.4σ
+    "a2f423ae-2ce": {"alpha": 290.07, "sharpe": 2.66, "pf": 12.00, "trades_1y": 13, "perm_p": 0.000},  # LDO 5.7σ
+    # premium_velocity_zscore (42nd paradigm, queue 첫 break-through, follow ez=1.0 h=5 daily)
+    "e4bff252-84a": {"alpha": 365.86, "sharpe": 2.42, "pf": 2.25, "trades_1y": 50, "perm_p": 0.000},  # AVAX 6.86σ
+    "8d70b971-0ec": {"alpha": 279.34, "sharpe": 2.143, "pf": 2.29, "trades_1y": 52, "perm_p": 0.000}, # HBAR 5.25σ
+    # wick_reversal_multibar (52nd paradigm Q3 #4, intra-bar OHLC SHAPE 5m, n=2/wt=0.35/h=12)
+    "99107ad5-edd": {"alpha": 61.94, "sharpe": 1.41, "pf": 1.45, "trades_1y": 244, "perm_p": 0.000},  # SOL 4.49σ single-symbol
 }
 
 

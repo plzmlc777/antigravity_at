@@ -257,6 +257,7 @@ def build_runtime_bundle(symbol: str, eval_freq_minutes: int, sources_used: list
     needs_metrics_5m = any(s in sources_used for s in (
         "bn_smart_money", "bn_taker_flow", "bn_oi_dynamics",
         "bn_event_detector", "bn_cascade_reversal",
+        "bn_oi_price_decoupling",
     ))
     if needs_metrics_5m and bundle.binance_metrics_5m is None:
         m = ROOT / "runs" / "microstructure" / f"{symbol}_full_metrics.joblib"
@@ -272,12 +273,12 @@ def build_runtime_bundle(symbol: str, eval_freq_minutes: int, sources_used: list
         else:
             log.warning("bn_book_depth requested but joblib missing for %s", symbol)
 
-    if "bn_premium" in sources_used:
+    if "bn_premium" in sources_used or "bn_premium_index_zscore" in sources_used or "bn_premium_velocity_zscore" in sources_used:
         prem_path = ROOT / "runs" / "premium_index" / f"{symbol}_premium.joblib"
         if prem_path.exists():
             bundle.premium_df = joblib.load(prem_path)
         else:
-            log.warning("bn_premium requested but joblib missing for %s", symbol)
+            log.warning("premium joblib missing for %s", symbol)
 
     if "bn_cross_eth" in sources_used:
         # Load ETH eval ohlcv via 1m DB → resample
