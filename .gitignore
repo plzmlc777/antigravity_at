@@ -98,6 +98,10 @@ backend/runs/crypto_paper/
 backend/runs/mldirect/
 backend/runs/pmt/
 
+# Live paper session state (per-environment, not git-tracked).
+# DB (live_bot_sessions) + jsonl files are the authoritative store.
+backend/runs/paper_sessions/
+
 # Research artifacts (joblib/csv binary outputs — regeneratable, not source)
 backend/runs/binance_grid_search*.csv
 backend/runs/paper_spec_backtest.csv
