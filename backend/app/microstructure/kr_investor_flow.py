@@ -40,15 +40,14 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import text
 
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, db_scope
 
 logger = logging.getLogger(__name__)
 
 
 def fetch_investor_flow(symbol: str) -> pd.DataFrame:
     """Pull all rows for `symbol` from investor_flow_daily, indexed by date."""
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         sql = text("""
             SELECT date, close_price, acc_trade_value,
                    individual_net, foreign_net, institutional_net,
@@ -60,8 +59,6 @@ def fetch_investor_flow(symbol: str) -> pd.DataFrame:
             ORDER BY date ASC
         """)
         rows = db.execute(sql, {"sym": symbol}).fetchall()
-    finally:
-        db.close()
     if not rows:
         return pd.DataFrame()
     cols = ["date", "close_price", "acc_trade_value",

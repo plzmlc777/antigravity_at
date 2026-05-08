@@ -92,48 +92,44 @@ class AISymbolSelectionService:
         backtest_results: list = None,
     ):
         """Save AI symbol selection result to DB for history tracking."""
-        from ..db.session import SessionLocal
+        from ..db.session import db_scope
         from ..models.live_trading import AISymbolHistory
         from sqlalchemy import func
 
         try:
-            db = SessionLocal()
+            with db_scope() as db:
+                # Dedup: skip if same session+action+old+new was saved within last 60 seconds
+                cutoff = datetime.now() - timedelta(seconds=60)
+                existing = db.query(AISymbolHistory).filter(
+                    AISymbolHistory.session_id == session_id,
+                    AISymbolHistory.action == action,
+                    AISymbolHistory.old_symbol == old_symbol,
+                    AISymbolHistory.new_symbol == new_symbol,
+                    AISymbolHistory.created_at >= cutoff,
+                ).first()
+                if existing:
+                    logger.info(f"[AISymbol] History dedup: {session_id[:8]} {action} "
+                                f"{old_symbol} -> {new_symbol or '(kept)'} (skipped, recent duplicate)")
+                    return
 
-            # Dedup: skip if same session+action+old+new was saved within last 60 seconds
-            cutoff = datetime.now() - timedelta(seconds=60)
-            existing = db.query(AISymbolHistory).filter(
-                AISymbolHistory.session_id == session_id,
-                AISymbolHistory.action == action,
-                AISymbolHistory.old_symbol == old_symbol,
-                AISymbolHistory.new_symbol == new_symbol,
-                AISymbolHistory.created_at >= cutoff,
-            ).first()
-            if existing:
-                logger.info(f"[AISymbol] History dedup: {session_id[:8]} {action} "
-                            f"{old_symbol} -> {new_symbol or '(kept)'} (skipped, recent duplicate)")
-                db.close()
-                return
-
-            record = AISymbolHistory(
-                session_id=session_id,
-                group_id=group_id,
-                action=action,
-                old_symbol=old_symbol,
-                old_symbol_name=old_symbol_name,
-                new_symbol=new_symbol,
-                new_symbol_name=new_symbol_name,
-                search_conditions=search_conditions,
-                evaluation_reason=evaluation_reason,
-                backtest_results=backtest_results,
-            )
-            db.add(record)
-            db.commit()
-            logger.info(f"[AISymbol] History saved: {session_id[:8]} {action} "
-                        f"{old_symbol} -> {new_symbol or '(kept)'}")
+                record = AISymbolHistory(
+                    session_id=session_id,
+                    group_id=group_id,
+                    action=action,
+                    old_symbol=old_symbol,
+                    old_symbol_name=old_symbol_name,
+                    new_symbol=new_symbol,
+                    new_symbol_name=new_symbol_name,
+                    search_conditions=search_conditions,
+                    evaluation_reason=evaluation_reason,
+                    backtest_results=backtest_results,
+                )
+                db.add(record)
+                db.commit()
+                logger.info(f"[AISymbol] History saved: {session_id[:8]} {action} "
+                            f"{old_symbol} -> {new_symbol or '(kept)'}")
         except Exception as e:
             logger.error(f"[AISymbol] Failed to save history: {e}")
-        finally:
-            db.close()
 
     async def run_pipeline(
         self,
@@ -551,21 +547,18 @@ class AISymbolSelectionService:
         restart simultaneously (neither is RUNNING yet, so without STOPPED inclusion
         they can't see each other's symbols).
         """
-        from ..db.session import SessionLocal
+        from ..db.session import db_scope
         from ..models.live_trading import LiveBotSession
 
         _exclude = exclude_ids or set()
 
         def _query():
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 sessions = db.query(LiveBotSession).filter(
                     LiveBotSession.group_id == group_id,
                     LiveBotSession.is_active == True,
                 ).all()
                 return {s.symbol for s in sessions if s.symbol and s.id not in _exclude}
-            finally:
-                db.close()
 
         return await asyncio.get_event_loop().run_in_executor(None, _query)
 

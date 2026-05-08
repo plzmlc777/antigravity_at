@@ -6,7 +6,7 @@ import logging
 import traceback
 from typing import Optional, Dict, Any
 from datetime import datetime
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 from ..models.live_trading import TradingErrorLog, ErrorType, ErrorSeverity
 
 logger = logging.getLogger(__name__)
@@ -80,40 +80,37 @@ class TradingErrorLogger:
             logger.info(log_msg)
 
         # 2. Save to database
-        db = SessionLocal()
         try:
-            stack_trace = None
-            if exception:
-                stack_trace = ''.join(traceback.format_exception(
-                    type(exception), exception, exception.__traceback__
-                ))
+            with db_scope() as db:
+                stack_trace = None
+                if exception:
+                    stack_trace = ''.join(traceback.format_exception(
+                        type(exception), exception, exception.__traceback__
+                    ))
 
-            error_log = TradingErrorLog(
-                session_id=session_id,
-                symbol=symbol,
-                error_type=error_type.value,
-                severity=severity.value,
-                error_message=message,
-                stack_trace=stack_trace,
-                context_data=context,
-                source_file=source_file,
-                source_function=source_function,
-                created_at=datetime.utcnow()
-            )
+                error_log = TradingErrorLog(
+                    session_id=session_id,
+                    symbol=symbol,
+                    error_type=error_type.value,
+                    severity=severity.value,
+                    error_message=message,
+                    stack_trace=stack_trace,
+                    context_data=context,
+                    source_file=source_file,
+                    source_function=source_function,
+                    created_at=datetime.utcnow()
+                )
 
-            db.add(error_log)
-            db.commit()
-            db.refresh(error_log)
+                db.add(error_log)
+                db.commit()
+                db.refresh(error_log)
 
-            return error_log.id
+                return error_log.id
 
         except Exception as db_err:
             # If we can't log to DB, at least log the failure
             logger.error(f"Failed to save error to database: {db_err}")
-            db.rollback()
             return None
-        finally:
-            db.close()
 
     def log_order_error(
         self,
@@ -230,73 +227,69 @@ class TradingErrorLogger:
         Returns:
             List of error log records
         """
-        db = SessionLocal()
         try:
-            query = db.query(TradingErrorLog)
+            with db_scope() as db:
+                query = db.query(TradingErrorLog)
 
-            if session_id:
-                query = query.filter(TradingErrorLog.session_id == session_id)
-            if error_type:
-                query = query.filter(TradingErrorLog.error_type == error_type.value)
-            if severity:
-                query = query.filter(TradingErrorLog.severity == severity.value)
+                if session_id:
+                    query = query.filter(TradingErrorLog.session_id == session_id)
+                if error_type:
+                    query = query.filter(TradingErrorLog.error_type == error_type.value)
+                if severity:
+                    query = query.filter(TradingErrorLog.severity == severity.value)
 
-            errors = query.order_by(TradingErrorLog.created_at.desc()).limit(limit).all()
+                errors = query.order_by(TradingErrorLog.created_at.desc()).limit(limit).all()
 
-            return [{
-                "id": e.id,
-                "session_id": e.session_id,
-                "symbol": e.symbol,
-                "error_type": e.error_type,
-                "severity": e.severity,
-                "error_message": e.error_message,
-                "context_data": e.context_data,
-                "source_function": e.source_function,
-                "is_resolved": e.is_resolved,
-                "created_at": e.created_at.isoformat() if e.created_at else None,
-            } for e in errors]
+                return [{
+                    "id": e.id,
+                    "session_id": e.session_id,
+                    "symbol": e.symbol,
+                    "error_type": e.error_type,
+                    "severity": e.severity,
+                    "error_message": e.error_message,
+                    "context_data": e.context_data,
+                    "source_function": e.source_function,
+                    "is_resolved": e.is_resolved,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                } for e in errors]
 
         except Exception as e:
             logger.error(f"Failed to fetch errors: {e}")
             return []
-        finally:
-            db.close()
 
     def get_error_stats(self, hours: int = 24) -> Dict[str, Any]:
         """Get error statistics for the last N hours."""
         from datetime import timedelta
 
-        db = SessionLocal()
         try:
-            cutoff = datetime.utcnow() - timedelta(hours=hours)
+            with db_scope() as db:
+                cutoff = datetime.utcnow() - timedelta(hours=hours)
 
-            errors = db.query(TradingErrorLog).filter(
-                TradingErrorLog.created_at >= cutoff
-            ).all()
+                errors = db.query(TradingErrorLog).filter(
+                    TradingErrorLog.created_at >= cutoff
+                ).all()
 
-            stats = {
-                "total": len(errors),
-                "by_type": {},
-                "by_severity": {},
-                "unresolved": 0
-            }
+                stats = {
+                    "total": len(errors),
+                    "by_type": {},
+                    "by_severity": {},
+                    "unresolved": 0
+                }
 
-            for e in errors:
-                # By type
-                stats["by_type"][e.error_type] = stats["by_type"].get(e.error_type, 0) + 1
-                # By severity
-                stats["by_severity"][e.severity] = stats["by_severity"].get(e.severity, 0) + 1
-                # Unresolved count
-                if not e.is_resolved:
-                    stats["unresolved"] += 1
+                for e in errors:
+                    # By type
+                    stats["by_type"][e.error_type] = stats["by_type"].get(e.error_type, 0) + 1
+                    # By severity
+                    stats["by_severity"][e.severity] = stats["by_severity"].get(e.severity, 0) + 1
+                    # Unresolved count
+                    if not e.is_resolved:
+                        stats["unresolved"] += 1
 
-            return stats
+                return stats
 
         except Exception as e:
             logger.error(f"Failed to get error stats: {e}")
             return {"total": 0, "by_type": {}, "by_severity": {}, "unresolved": 0}
-        finally:
-            db.close()
 
 
 # Global singleton instance

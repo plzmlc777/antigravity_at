@@ -126,10 +126,9 @@ class TrendPredictor:
 
     @staticmethod
     def _fetch_recent(symbol: str, timeframe: str, limit: int = 200) -> Optional[pd.DataFrame]:
-        from ..db.session import SessionLocal
+        from ..db.session import db_scope
         from ..models.ohlcv import OHLCV
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             # Try exact timeframe first
             rows = db.query(OHLCV).filter(
                 OHLCV.symbol == symbol,
@@ -162,8 +161,6 @@ class TrendPredictor:
             df.sort_values('timestamp', inplace=True)
             df.reset_index(drop=True, inplace=True)
             return df
-        finally:
-            db.close()
 
     @staticmethod
     def _tf_to_minutes(tf: str) -> int:

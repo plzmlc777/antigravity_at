@@ -1094,10 +1094,9 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
         # Server-side auto-save to DB (same as regular optimization)
         if tab_id and HEAVY_OPTIMIZATION_TASKS[task_id]["status"] == "completed":
             try:
-                from ..db.session import SessionLocal
+                from ..db.session import db_scope
                 from ..models.strategy_result import StrategyAnalysisResult
-                db = SessionLocal()
-                try:
+                with db_scope() as db:
                     # Format top 50 results for DB storage using centralized serializer
                     from ..core.stats_serializer import serialize_backtest_stats
 
@@ -1140,8 +1139,6 @@ def _heavy_optimize_background_task(task_id: str, run_args: List, strategy_id: s
                     db.execute(stmt)
                     db.commit()
                     logger.info(f"[Heavy Optimization] Auto-saved {len(sorted_top)} results to DB (tab_id={tab_id})")
-                finally:
-                    db.close()
             except Exception as save_err:
                 logger.error(f"[Heavy Optimization] Failed to auto-save to DB: {save_err}")
 

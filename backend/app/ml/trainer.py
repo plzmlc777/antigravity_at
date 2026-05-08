@@ -36,10 +36,9 @@ class TrendTrainer:
         self.metadata = {}
 
     def _load_ohlcv(self, days: int = 90) -> pd.DataFrame:
-        from ..db.session import SessionLocal
+        from ..db.session import db_scope
         from ..models.ohlcv import OHLCV
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             since = datetime.utcnow() - timedelta(days=days)
 
             # Try exact timeframe first
@@ -77,8 +76,6 @@ class TrendTrainer:
             } for r in rows_1m]
             df = pd.DataFrame(data)
             return self._resample(df, self.timeframe)
-        finally:
-            db.close()
 
     @staticmethod
     def _resample(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:

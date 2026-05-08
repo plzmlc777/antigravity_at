@@ -3,7 +3,7 @@ import logging
 from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 from ..models.condition import ConditionalOrder, ConditionType, ConditionStatus
 from ..adapters.kiwoom_real import KiwoomRealAdapter
 
@@ -45,8 +45,7 @@ class ConditionWatcher:
 
     async def _check_conditions(self):
         # Create a fresh DB session for each check cycle
-        db: Session = SessionLocal()
-        try:
+        with db_scope() as db:
             # 1. Fetch ALL Pending conditions
             pending_orders = db.query(ConditionalOrder).filter(
                 ConditionalOrder.status == ConditionStatus.PENDING
@@ -57,12 +56,9 @@ class ConditionWatcher:
 
             # Group by symbol to optimize API calls (if adapter supports multi-price fetch)
             # Currently KiwoomRealAdapter fetches one by one usually, but let's iterate.
-            
+
             for cond in pending_orders:
                 await self._process_condition(db, cond)
-
-        finally:
-            db.close()
 
     async def _process_condition(self, db: Session, cond: ConditionalOrder):
         try:

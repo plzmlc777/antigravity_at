@@ -19,7 +19,7 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 
 logger = logging.getLogger("AnalysisScheduler")
 
@@ -139,51 +139,49 @@ class AnalysisScheduler:
 
     async def _check_due_schedules(self):
         """Find and execute due schedules."""
-        db: Session = SessionLocal()
         try:
-            now_utc = datetime.utcnow()
+            with db_scope() as db:
+                now_utc = datetime.utcnow()
 
-            # Find enabled schedules that are due
-            rows = db.execute(text("""
-                SELECT id, user_id, account_id, schedule_type, schedule_time,
-                       schedule_day, target_sessions, next_run_at
-                FROM ai_analysis_schedules
-                WHERE enabled = TRUE AND next_run_at IS NOT NULL AND next_run_at <= :now
-            """), {"now": now_utc}).fetchall()
+                # Find enabled schedules that are due
+                rows = db.execute(text("""
+                    SELECT id, user_id, account_id, schedule_type, schedule_time,
+                           schedule_day, target_sessions, next_run_at
+                    FROM ai_analysis_schedules
+                    WHERE enabled = TRUE AND next_run_at IS NOT NULL AND next_run_at <= :now
+                """), {"now": now_utc}).fetchall()
 
-            if not rows:
-                return
+                if not rows:
+                    return
 
-            for row in rows:
-                schedule_id = row[0]
-                user_id = row[1]
-                account_id = row[2]
-                schedule_type = row[3]
-                schedule_time = row[4]
-                schedule_day = row[5]
-                target_sessions = row[6]
-                next_run_at = row[7]
+                for row in rows:
+                    schedule_id = row[0]
+                    user_id = row[1]
+                    account_id = row[2]
+                    schedule_type = row[3]
+                    schedule_time = row[4]
+                    schedule_day = row[5]
+                    target_sessions = row[6]
+                    next_run_at = row[7]
 
-                logger.info(f"Running scheduled analysis: schedule={schedule_id}, user={user_id}")
+                    logger.info(f"Running scheduled analysis: schedule={schedule_id}, user={user_id}")
 
-                try:
-                    await self._run_schedule(db, schedule_id, user_id, account_id, target_sessions)
-                except Exception as e:
-                    logger.error(f"Schedule {schedule_id} failed: {e}", exc_info=True)
+                    try:
+                        await self._run_schedule(db, schedule_id, user_id, account_id, target_sessions)
+                    except Exception as e:
+                        logger.error(f"Schedule {schedule_id} failed: {e}", exc_info=True)
 
-                # Update last_run_at and compute next_run_at
-                new_next = self._compute_next_run(schedule_type, schedule_time, schedule_day)
-                db.execute(text("""
-                    UPDATE ai_analysis_schedules
-                    SET last_run_at = :now, next_run_at = :next_run, updated_at = :now
-                    WHERE id = :sid
-                """), {"now": now_utc, "next_run": new_next, "sid": schedule_id})
-                db.commit()
+                    # Update last_run_at and compute next_run_at
+                    new_next = self._compute_next_run(schedule_type, schedule_time, schedule_day)
+                    db.execute(text("""
+                        UPDATE ai_analysis_schedules
+                        SET last_run_at = :now, next_run_at = :next_run, updated_at = :now
+                        WHERE id = :sid
+                    """), {"now": now_utc, "next_run": new_next, "sid": schedule_id})
+                    db.commit()
 
         except Exception as e:
             logger.error(f"Error checking schedules: {e}", exc_info=True)
-        finally:
-            db.close()
 
     async def _run_schedule(self, db: Session, schedule_id: str, user_id: int, account_id: Optional[int], target_sessions):
         """Execute analysis for all target sessions of a schedule."""
@@ -686,63 +684,61 @@ class AnalysisScheduler:
 
     async def run_manual_analysis(self, session_id: str, user_id: int) -> Dict:
         """Run analysis manually (triggered from API)."""
-        db: Session = SessionLocal()
         try:
-            # Get session info
-            row = db.execute(text("""
-                SELECT id, symbol, strategy_name, strategy_config, is_paper, account_id
-                FROM live_bot_sessions
-                WHERE id = :sid
-            """), {"sid": session_id}).fetchone()
+            with db_scope() as db:
+                # Get session info
+                row = db.execute(text("""
+                    SELECT id, symbol, strategy_name, strategy_config, is_paper, account_id
+                    FROM live_bot_sessions
+                    WHERE id = :sid
+                """), {"sid": session_id}).fetchone()
 
-            if not row:
-                return {"error": "Session not found"}
+                if not row:
+                    return {"error": "Session not found"}
 
-            session_info = {
-                "id": row[0], "symbol": row[1], "strategy_name": row[2],
-                "strategy_config": row[3], "is_paper": row[4], "account_id": row[5]
-            }
+                session_info = {
+                    "id": row[0], "symbol": row[1], "strategy_name": row[2],
+                    "strategy_config": row[3], "is_paper": row[4], "account_id": row[5]
+                }
 
-            # Create report with manual type
-            from ..models.live_trading import generate_uuid
-            report_id = generate_uuid()
+                # Create report with manual type
+                from ..models.live_trading import generate_uuid
+                report_id = generate_uuid()
 
-            db.execute(text("""
-                INSERT INTO ai_analysis_reports
-                    (id, user_id, session_id, symbol, strategy_name,
-                     report_type, status, strategy_config, created_at)
-                VALUES
-                    (:id, :user_id, :session_id, :symbol, :strategy_name,
-                     'manual', 'running', :config, :now)
-            """), {
-                "id": report_id, "user_id": user_id,
-                "session_id": session_id, "symbol": row[1], "strategy_name": row[2],
-                "config": json.dumps(session_info["strategy_config"] or {}),
-                "now": datetime.utcnow()
-            })
-            db.commit()
+                db.execute(text("""
+                    INSERT INTO ai_analysis_reports
+                        (id, user_id, session_id, symbol, strategy_name,
+                         report_type, status, strategy_config, created_at)
+                    VALUES
+                        (:id, :user_id, :session_id, :symbol, :strategy_name,
+                         'manual', 'running', :config, :now)
+                """), {
+                    "id": report_id, "user_id": user_id,
+                    "session_id": session_id, "symbol": row[1], "strategy_name": row[2],
+                    "config": json.dumps(session_info["strategy_config"] or {}),
+                    "now": datetime.utcnow()
+                })
+                db.commit()
 
-            # Run analysis (same pipeline as scheduled)
-            await self._analyze_session_with_report(db, report_id, user_id, session_info)
+                # Run analysis (same pipeline as scheduled)
+                await self._analyze_session_with_report(db, report_id, user_id, session_info)
 
-            # Fetch completed report
-            report = db.execute(text("""
-                SELECT id, status, grade, ai_analysis, error_message, created_at, completed_at
-                FROM ai_analysis_reports WHERE id = :rid
-            """), {"rid": report_id}).fetchone()
+                # Fetch completed report
+                report = db.execute(text("""
+                    SELECT id, status, grade, ai_analysis, error_message, created_at, completed_at
+                    FROM ai_analysis_reports WHERE id = :rid
+                """), {"rid": report_id}).fetchone()
 
-            return {
-                "report_id": report[0],
-                "status": report[1],
-                "grade": report[2],
-                "error": report[4],
-            }
+                return {
+                    "report_id": report[0],
+                    "status": report[1],
+                    "grade": report[2],
+                    "error": report[4],
+                }
 
         except Exception as e:
             logger.error(f"Manual analysis failed: {e}", exc_info=True)
             return {"error": str(e)}
-        finally:
-            db.close()
 
     async def _analyze_session_with_report(self, db: Session, report_id: str, user_id: int, session_info: Dict):
         """Run analysis for a session with an existing report record."""

@@ -217,10 +217,9 @@ class FuturesMonitorService:
             message += "\n\n\U0001f6d1 <b>Immediate action required!</b>"
 
         try:
-            from ..db.session import SessionLocal
+            from ..db.session import db_scope
             from ..core.telegram_service import send_telegram_notification
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 await send_telegram_notification(
                     db=db, user_id=self._user_id,
                     notification_type="error",
@@ -230,8 +229,6 @@ class FuturesMonitorService:
                     symbol=self.symbol,
                     strategy_name=self._strategy_name
                 )
-            finally:
-                db.close()
         except Exception as e:
             logger.error(f"Failed to send liquidation alert: {e}")
 
@@ -244,10 +241,9 @@ class FuturesMonitorService:
         bar = "\u2588" * adl + "\u2591" * (5 - adl)
 
         try:
-            from ..db.session import SessionLocal
+            from ..db.session import db_scope
             from ..core.telegram_service import send_telegram_notification
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 await send_telegram_notification(
                     db=db, user_id=self._user_id,
                     notification_type="error",
@@ -257,8 +253,6 @@ class FuturesMonitorService:
                     symbol=self.symbol,
                     strategy_name=self._strategy_name
                 )
-            finally:
-                db.close()
         except Exception as e:
             logger.error(f"Failed to send ADL alert: {e}")
 
