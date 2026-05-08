@@ -8,7 +8,7 @@ import traceback
 import uuid
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 from ..models.live_trading import LiveTradeExecution, LiveBotSession, ExecutionStatus, ErrorType, SessionStatus
 from ..models.new_orders import StockOrder, OrderSide, OrderType
 from ..core.exchange_interface import ExchangeInterface
@@ -148,47 +148,47 @@ class LiveContext:
         PnL = Sum of (Sold Value) - Sum of (Bought Value) + (Current Holding Value)
         If symbol is provided, only include executions for that symbol.
         """
-        db = SessionLocal()
         try:
-            query = db.query(LiveTradeExecution).filter(
-                LiveTradeExecution.session_id == self.session_id,
-                LiveTradeExecution.status == ExecutionStatus.FILLED
-            )
-            if symbol:
-                query = query.filter(LiveTradeExecution.symbol == symbol)
-            executions = query.all()
-            
-            total_bought_cost = 0.0
-            total_sold_value = 0.0
-            current_qty = 0.0
-            
-            for ex in executions:
-                val = (ex.executed_price or 0.0) * (ex.filled_quantity or 0.0)
-                if ex.signal_type == Signal.BUY:
-                    total_bought_cost += val
-                    current_qty += (ex.filled_quantity or 0.0)
-                elif ex.signal_type == Signal.SELL:
-                    total_sold_value += val
-                    current_qty -= (ex.filled_quantity or 0.0)
-            
-            # Unrealized part of current holding
-            current_price = self.get_current_price(executions[0].symbol if executions else "")
-
-            # If current_price is 0 (market closed/unavailable), use average purchase price
-            # This prevents showing large negative PnL when price data is unavailable
-            if current_price == 0 and current_qty > 0 and total_bought_cost > 0:
-                # Calculate average purchase price from remaining holdings
-                total_bought_qty = sum(
-                    (ex.filled_quantity or 0.0) for ex in executions if ex.signal_type == Signal.BUY
+            with db_scope() as db:
+                query = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == self.session_id,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED
                 )
-                if total_bought_qty > 0:
-                    avg_price = total_bought_cost / total_bought_qty
-                    current_price = avg_price
+                if symbol:
+                    query = query.filter(LiveTradeExecution.symbol == symbol)
+                executions = query.all()
 
-            unrealized_value = current_qty * current_price
+                total_bought_cost = 0.0
+                total_sold_value = 0.0
+                current_qty = 0.0
 
-            return total_sold_value + unrealized_value - total_bought_cost
-            
+                for ex in executions:
+                    val = (ex.executed_price or 0.0) * (ex.filled_quantity or 0.0)
+                    if ex.signal_type == Signal.BUY:
+                        total_bought_cost += val
+                        current_qty += (ex.filled_quantity or 0.0)
+                    elif ex.signal_type == Signal.SELL:
+                        total_sold_value += val
+                        current_qty -= (ex.filled_quantity or 0.0)
+
+                # Unrealized part of current holding
+                current_price = self.get_current_price(executions[0].symbol if executions else "")
+
+                # If current_price is 0 (market closed/unavailable), use average purchase price
+                # This prevents showing large negative PnL when price data is unavailable
+                if current_price == 0 and current_qty > 0 and total_bought_cost > 0:
+                    # Calculate average purchase price from remaining holdings
+                    total_bought_qty = sum(
+                        (ex.filled_quantity or 0.0) for ex in executions if ex.signal_type == Signal.BUY
+                    )
+                    if total_bought_qty > 0:
+                        avg_price = total_bought_cost / total_bought_qty
+                        current_price = avg_price
+
+                unrealized_value = current_qty * current_price
+
+                return total_sold_value + unrealized_value - total_bought_cost
+
         except Exception as e:
             logger.error(f"PnL Calculation Error: {e}")
             error_logger.log_error(
@@ -199,8 +199,6 @@ class LiveContext:
                 source_function="calculate_pnl"
             )
             return 0.0
-        finally:
-            db.close()
 
     def get_trade_stats(self, symbol: str = None) -> Dict[str, Any]:
         """
@@ -209,15 +207,15 @@ class LiveContext:
         If symbol is provided, only include executions for that symbol
         (used after AI symbol switch to show only current symbol's stats).
         """
-        db = SessionLocal()
         try:
-            query = db.query(LiveTradeExecution).filter(
-                LiveTradeExecution.session_id == self.session_id,
-                LiveTradeExecution.status == ExecutionStatus.FILLED
-            )
-            if symbol:
-                query = query.filter(LiveTradeExecution.symbol == symbol)
-            executions = query.order_by(LiveTradeExecution.signal_timestamp).all()
+            with db_scope() as db:
+                query = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == self.session_id,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED
+                )
+                if symbol:
+                    query = query.filter(LiveTradeExecution.symbol == symbol)
+                executions = query.order_by(LiveTradeExecution.signal_timestamp).all()
 
             stats = {
                 Mode.PAPER: {"trades": 0, "buys": 0, "sells": 0, "cycles": 0, "realized_pnl": 0.0},
@@ -348,8 +346,6 @@ class LiveContext:
                 source_function="get_trade_stats"
             )
             return {Mode.PAPER: {}, Mode.REAL: {}}
-        finally:
-            db.close()
 
     @property
     def holdings(self) -> Dict[str, int]:
@@ -592,60 +588,60 @@ class LiveContext:
             self.log(f"ORDER BLOCKED (paused): {side.value} {quantity} {symbol}")
             return {"status": "failed", "reason": "orders_paused"}
 
-        db: Session = SessionLocal()
         try:
-            current_price = self.get_current_price(symbol)
-            exec_price = price if price > 0 else current_price
+            with db_scope() as db:
+                current_price = self.get_current_price(symbol)
+                exec_price = price if price > 0 else current_price
 
-            # 1. Create & Validate Order Object
-            order = StockOrder(
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                price=exec_price if price > 0 else None,
-                order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
-            )
-            order.validate()
+                # 1. Create & Validate Order Object
+                order = StockOrder(
+                    symbol=symbol,
+                    side=side,
+                    quantity=quantity,
+                    price=exec_price if price > 0 else None,
+                    order_type=OrderType.LIMIT if price > 0 else OrderType.MARKET
+                )
+                order.validate()
 
-            # 2. Pre-Execution DB Record
-            db_exec = LiveTradeExecution(
-                session_id=self.session_id,
-                symbol=symbol,
-                signal_type=side.value,
-                signal_timestamp=self.get_time(),
-                theoretical_price=current_price,
-                requested_quantity=quantity,
-                status=ExecutionStatus.PENDING,
-                is_paper=self._is_paper,
-                trade_metadata=metadata,
-                config_snapshot=self._config_snapshot  # 전략 파라미터 스냅샷
-            )
-            db.add(db_exec)
-            db.commit() # Save ID
-            db.refresh(db_exec)
+                # 2. Pre-Execution DB Record
+                db_exec = LiveTradeExecution(
+                    session_id=self.session_id,
+                    symbol=symbol,
+                    signal_type=side.value,
+                    signal_timestamp=self.get_time(),
+                    theoretical_price=current_price,
+                    requested_quantity=quantity,
+                    status=ExecutionStatus.PENDING,
+                    is_paper=self._is_paper,
+                    trade_metadata=metadata,
+                    config_snapshot=self._config_snapshot  # 전략 파라미터 스냅샷
+                )
+                db.add(db_exec)
+                db.commit() # Save ID
+                db.refresh(db_exec)
 
-            self.log(f"SIGNAL: {side.value} {quantity} {symbol} @ {exec_price}")
+                self.log(f"SIGNAL: {side.value} {quantity} {symbol} @ {exec_price}")
 
-            # 3. Store callback for invocation after fill (in process_queue)
-            if on_filled:
-                self._order_callbacks[db_exec.id] = on_filled
+                # 3. Store callback for invocation after fill (in process_queue)
+                if on_filled:
+                    self._order_callbacks[db_exec.id] = on_filled
 
-            self.log(f"Queued Order: {side.value} {symbol}")
+                self.log(f"Queued Order: {side.value} {symbol}")
 
-            # Return a "Receipt" (Trade Dict) immediately
-            trade_receipt = {
-                "type": side.value.lower(),
-                "symbol": symbol,
-                "price": exec_price,
-                "quantity": quantity,
-                "time": self.get_time().isoformat(),
-                "order_id": db_exec.id, # Internal DB ID
-                "status": "queued",
-                "metadata": metadata or {}
-            }
-            self.trades.append(trade_receipt)
-            return trade_receipt
-            
+                # Return a "Receipt" (Trade Dict) immediately
+                trade_receipt = {
+                    "type": side.value.lower(),
+                    "symbol": symbol,
+                    "price": exec_price,
+                    "quantity": quantity,
+                    "time": self.get_time().isoformat(),
+                    "order_id": db_exec.id, # Internal DB ID
+                    "status": "queued",
+                    "metadata": metadata or {}
+                }
+                self.trades.append(trade_receipt)
+                return trade_receipt
+
         except Exception as e:
             self.log(f"ORDER ERROR: {e}")
             error_logger.log_order_error(
@@ -656,8 +652,6 @@ class LiveContext:
                 context={"side": side.value, "quantity": quantity, "price": price}
             )
             return {"status": "failed", "reason": str(e)}
-        finally:
-            db.close()
 
     @property
     def is_futures(self) -> bool:
@@ -680,14 +674,12 @@ class LiveContext:
                 return lev
         # Fallback: read from DB session config (important during _restore_trades_from_db)
         try:
-            db = SessionLocal()
-            session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
-            if session and session.strategy_config:
-                config_lev = (session.strategy_config or {}).get("leverage", 1)
-                if config_lev and int(config_lev) > 0:
-                    db.close()
-                    return int(config_lev)
-            db.close()
+            with db_scope() as db:
+                session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
+                if session and session.strategy_config:
+                    config_lev = (session.strategy_config or {}).get("leverage", 1)
+                    if config_lev and int(config_lev) > 0:
+                        return int(config_lev)
         except Exception:
             pass
         return 1
@@ -724,12 +716,12 @@ class LiveContext:
 
     def _restore_trades_from_db(self):
         """Restore in-memory trades list from DB on session recovery."""
-        db = SessionLocal()
         try:
-            executions = db.query(LiveTradeExecution).filter(
-                LiveTradeExecution.session_id == self.session_id,
-                LiveTradeExecution.status == ExecutionStatus.FILLED
-            ).order_by(LiveTradeExecution.signal_timestamp).all()
+            with db_scope() as db:
+                executions = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == self.session_id,
+                    LiveTradeExecution.status == ExecutionStatus.FILLED
+                ).order_by(LiveTradeExecution.signal_timestamp).all()
 
             for ex in executions:
                 trade = {
@@ -773,8 +765,6 @@ class LiveContext:
                 exception=e,
                 source_function="_restore_trades_from_db"
             )
-        finally:
-            db.close()
 
     def _sync_balance(self):
         pass
@@ -829,18 +819,19 @@ class LiveContext:
             return
 
         # First, get list of pending execution IDs (lightweight query)
-        db_query: Session = SessionLocal()
-        try:
+        with db_scope() as db_query:
             pending_ids = [
                 p.id for p in db_query.query(LiveTradeExecution.id).filter(
                     LiveTradeExecution.session_id == self.session_id,
                     LiveTradeExecution.status == ExecutionStatus.PENDING
                 ).all()
             ]
-        finally:
-            db_query.close()
 
         # Process each order in its own isolated transaction
+        # NOTE: SessionLocal() retained here — function body is 250 lines with
+        # nested try/except and explicit commit/rollback that doesn't refactor
+        # cleanly into a `with` block without massive re-indent. Connection
+        # close is guaranteed by existing finally (line 1278).
         for execution_id in pending_ids:
             db: Session = SessionLocal()
             try:
