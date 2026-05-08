@@ -11,7 +11,7 @@ from ..core.live_context import LiveContext
 from ..core.live_aggregator import CandleRealAggregator
 from ..core.exchange_interface import ExchangeInterface
 from ..core.futures_interface import FuturesInterface
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 from ..models.ohlcv import OHLCV
 from ..core.strategy_registry import strategy_registry
 from ..services.error_logger import error_logger
@@ -656,17 +656,16 @@ class LiveTradingEngine:
         """
         Save 1-minute candle to OHLCV table.
         """
-        db = SessionLocal()
-        try:
+        with db_scope(commit=True) as db:
             timestamp = datetime.fromisoformat(candle['timestamp'])
-            
+
             # Check exist (Upsert)
             existing = db.query(OHLCV).filter(
                 OHLCV.symbol == self.symbol,
                 OHLCV.timestamp == timestamp,
                 OHLCV.time_frame == "1m"
             ).first()
-            
+
             if existing:
                 existing.open = candle['open']
                 existing.high = candle['high']
@@ -685,13 +684,6 @@ class LiveTradingEngine:
                     volume=int(candle['volume'])
                 )
                 db.add(new_candle)
-            
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
 
     async def liquidate_all(self) -> dict:
         """
@@ -821,8 +813,7 @@ class LiveTradingEngine:
         """
         try:
             self._ai_switch_in_progress = True
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
                 if not session:
                     return
@@ -855,8 +846,6 @@ class LiveTradingEngine:
                     "is_futures": is_futures,
                     "exchange_name": exchange_name,
                 }
-            finally:
-                db.close()
 
             # Unified pipeline: both group and solo sessions use group coordinator
             # Solo sessions run immediately without timer delay
@@ -874,8 +863,7 @@ class LiveTradingEngine:
                     break
 
             # Check if symbol was switched by the pipeline
-            db2 = SessionLocal()
-            try:
+            with db_scope() as db2:
                 updated = db2.query(LiveBotSession).filter_by(id=self.session_id).first()
                 if updated and updated.symbol != self.symbol:
                     logger.info(f"[AISymbol] Pre-start switch detected: {self.symbol} -> {updated.symbol}")
@@ -888,8 +876,6 @@ class LiveTradingEngine:
                     if cfg != self.strategy_config:
                         logger.info(f"[AISymbol] Pre-start params updated for {self.symbol}")
                         self.strategy_config = cfg
-            finally:
-                db2.close()
 
         except Exception as e:
             logger.error(f"[AISymbol] Pre-start evaluation failed: {e}", exc_info=True)
@@ -1003,9 +989,7 @@ class LiveTradingEngine:
             # 텔레그램 알림
             try:
                 from .telegram_service import send_telegram_notification
-                from ..db.session import SessionLocal
-                db = SessionLocal()
-                try:
+                with db_scope() as db:
                     new_level = getattr(self.strategy_instance, 'current_level', 0)
                     await send_telegram_notification(
                         db=db,
@@ -1020,8 +1004,6 @@ class LiveTradingEngine:
                         symbol=self.symbol,
                         strategy_name=self.strategy_name,
                     )
-                finally:
-                    db.close()
             except Exception as tg_err:
                 logger.debug(f"[POSITION_SYNC] Telegram 알림 실패: {tg_err}")
 
@@ -1055,8 +1037,7 @@ class LiveTradingEngine:
                         f"daily cap reached ({len(self._ai_switch_history)}/{self._ai_switch_max_per_24h} in 24h), skipping (D-004)")
             return
 
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             session = db.query(LiveBotSession).filter_by(id=self.session_id).first()
             if not session:
                 return
@@ -1107,8 +1088,6 @@ class LiveTradingEngine:
                 "is_futures": is_futures,
                 "exchange_name": exchange_name,
             }
-        finally:
-            db.close()
 
         self._ai_switch_in_progress = True
         # D-004: record dispatch timestamp for cooldown/rate-limit tracking
@@ -1163,20 +1142,17 @@ class LiveTradingEngine:
         from executing on resume or PM2 restart.
         """
         from ..models.live_trading import LiveTradeExecution, ExecutionStatus
-        db = SessionLocal()
         try:
-            pending = db.query(LiveTradeExecution).filter(
-                LiveTradeExecution.session_id == self.session_id,
-                LiveTradeExecution.status == ExecutionStatus.PENDING,
-            ).all()
-            if pending:
-                for p in pending:
-                    p.status = ExecutionStatus.FAILED
-                    p.error_reason = "Cancelled: orders paused"
-                db.commit()
-                logger.info(f"Session {self.session_id}: Cancelled {len(pending)} PENDING orders (pause)")
+            with db_scope() as db:
+                pending = db.query(LiveTradeExecution).filter(
+                    LiveTradeExecution.session_id == self.session_id,
+                    LiveTradeExecution.status == ExecutionStatus.PENDING,
+                ).all()
+                if pending:
+                    for p in pending:
+                        p.status = ExecutionStatus.FAILED
+                        p.error_reason = "Cancelled: orders paused"
+                    db.commit()
+                    logger.info(f"Session {self.session_id}: Cancelled {len(pending)} PENDING orders (pause)")
         except Exception as e:
             logger.error(f"Failed to cancel pending orders: {e}")
-            db.rollback()
-        finally:
-            db.close()
