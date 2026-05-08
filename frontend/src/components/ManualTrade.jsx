@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import OrderProgress from './OrderProgress';
 import OutstandingOrders from './OutstandingOrders';
 import WatchList from './WatchList';
+import PriceWarningModal from './PriceWarningModal';
 import { useManualTrade } from '../hooks/useManualTrade';
 
 const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelectedAccountId }) => {
+    const selectedExchange = accounts.find(a => a.id === selectedAccountId)?.exchange_name;
     const {
         symbol, setSymbol,
         price, setPrice,
@@ -33,8 +35,13 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
         outstandingOrders, fetchOutstanding, handleCancelOrder, isLoadingOrders,
 
         // Watch List Exports
-        watchOrders, fetchWatchOrders, handleCancelWatchOrder, isLoadingWatchOrders
-    } = useManualTrade(defaultSymbol, { selectedAccountId });
+        watchOrders, fetchWatchOrders, handleCancelWatchOrder, isLoadingWatchOrders,
+
+        // Price warning gate
+        priceWarning, confirmPriceWarning, cancelPriceWarning,
+
+        priceFetchState
+    } = useManualTrade(defaultSymbol, { selectedAccountId, selectedExchange });
 
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [activeTab, setActiveTab] = useState('instant'); // 'instant', 'watch', 'watchlist', 'outstanding'
@@ -101,10 +108,26 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm text-gray-400 mb-1 flex justify-between">
-                                Symbol
-                                <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer hover:text-blue-300" onClick={fetchPrice}>
-                                    {currentPrice !== null ? `${currentPrice.toLocaleString()} KRW` : 'Get Price'} ↻
+                            <label className="block text-sm text-gray-400 mb-1 flex justify-between items-center">
+                                <span>Symbol</span>
+                                <span
+                                    className={`text-xs font-mono flex items-center gap-1 cursor-pointer transition-colors ${
+                                        priceFetchState.status === 'error' ? 'text-red-400 hover:text-red-300' :
+                                            priceFetchState.status === 'loading' ? 'text-gray-400' :
+                                                'text-blue-400 hover:text-blue-300'
+                                    }`}
+                                    onClick={fetchPrice}
+                                    title={priceFetchState.error || ''}
+                                >
+                                    {priceFetchState.status === 'loading' ? (
+                                        <>조회 중... <span className="animate-spin">↻</span></>
+                                    ) : priceFetchState.status === 'error' ? (
+                                        <>⚠ {priceFetchState.error} ↻</>
+                                    ) : currentPrice !== null ? (
+                                        <>{currentPrice.toLocaleString()} KRW ↻</>
+                                    ) : (
+                                        <>Get Price ↻</>
+                                    )}
                                 </span>
                             </label>
                             <input
@@ -306,10 +329,26 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
                 <form onSubmit={handleWatchSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm text-gray-400 mb-1 flex justify-between">
-                                Symbol
-                                <span className="text-xs text-blue-400 font-mono flex items-center gap-1 cursor-pointer hover:text-blue-300" onClick={fetchPrice}>
-                                    {currentPrice !== null ? `${currentPrice.toLocaleString()} KRW` : 'Get Price'} ↻
+                            <label className="block text-sm text-gray-400 mb-1 flex justify-between items-center">
+                                <span>Symbol</span>
+                                <span
+                                    className={`text-xs font-mono flex items-center gap-1 cursor-pointer transition-colors ${
+                                        priceFetchState.status === 'error' ? 'text-red-400 hover:text-red-300' :
+                                            priceFetchState.status === 'loading' ? 'text-gray-400' :
+                                                'text-blue-400 hover:text-blue-300'
+                                    }`}
+                                    onClick={fetchPrice}
+                                    title={priceFetchState.error || ''}
+                                >
+                                    {priceFetchState.status === 'loading' ? (
+                                        <>조회 중... <span className="animate-spin">↻</span></>
+                                    ) : priceFetchState.status === 'error' ? (
+                                        <>⚠ {priceFetchState.error} ↻</>
+                                    ) : currentPrice !== null ? (
+                                        <>{currentPrice.toLocaleString()} KRW ↻</>
+                                    ) : (
+                                        <>Get Price ↻</>
+                                    )}
                                 </span>
                             </label>
                             <input
@@ -514,6 +553,13 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
                     />
                 </div>
             )}
+
+            <PriceWarningModal
+                isOpen={!!priceWarning}
+                warning={priceWarning}
+                onConfirm={confirmPriceWarning}
+                onCancel={cancelPriceWarning}
+            />
         </div >
     );
 };

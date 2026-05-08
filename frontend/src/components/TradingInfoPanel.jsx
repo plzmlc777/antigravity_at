@@ -1,6 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getStatus, getPrice, getBalanceForAccount } from '../api/client';
+
+const MAX_FAILURE_STREAK = 3;
+const PRICE_POLL_MS = 15000;
+const BALANCE_POLL_MS = 15000;
+const STATUS_POLL_MS = 30000;
 
 const InfoCard = ({ title, value, subtext, type = 'neutral' }) => {
     const colors = {
@@ -21,46 +26,72 @@ const InfoCard = ({ title, value, subtext, type = 'neutral' }) => {
 
 const TradingInfoPanel = ({ currentSymbol, setSavedSymbols, accountId }) => {
 
+    // Failure streak counters — pause polling after N consecutive failures
+    const [priceFailureStreak, setPriceFailureStreak] = useState(0);
+    const [balanceFailureStreak, setBalanceFailureStreak] = useState(0);
+
+    // Reset streaks on symbol/account change so user gets a fresh attempt
+    useEffect(() => { setPriceFailureStreak(0); }, [currentSymbol]);
+    useEffect(() => { setBalanceFailureStreak(0); }, [accountId]);
+
     // Status Query
     const { data: status } = useQuery({
         queryKey: ['status'],
         queryFn: getStatus,
-        refetchInterval: 30000
+        refetchInterval: STATUS_POLL_MS,
+        retry: 1,
+        staleTime: 10000,
     });
 
     // Price Query
-    const { data: price } = useQuery({
+    const priceQuery = useQuery({
         queryKey: ['price', currentSymbol],
         queryFn: () => getPrice(currentSymbol),
-        refetchInterval: 5000,
-        enabled: !!currentSymbol
+        enabled: !!currentSymbol && !!accountId,
+        staleTime: 5000,
+        retry: 1,
+        refetchInterval: priceFailureStreak >= MAX_FAILURE_STREAK ? false : PRICE_POLL_MS,
     });
+    const price = priceQuery.data;
+
+    useEffect(() => {
+        if (priceQuery.isSuccess) setPriceFailureStreak(0);
+    }, [priceQuery.dataUpdatedAt, priceQuery.isSuccess]);
+
+    useEffect(() => {
+        if (priceQuery.isError) setPriceFailureStreak(c => c + 1);
+    }, [priceQuery.errorUpdatedAt, priceQuery.isError]);
 
     // Balance Query - per-account
-    const { data: balance } = useQuery({
+    const balanceQuery = useQuery({
         queryKey: ['balance', 'account', accountId],
         queryFn: () => getBalanceForAccount(accountId),
-        refetchInterval: 10000,
-        enabled: !!accountId
+        enabled: !!accountId,
+        staleTime: 5000,
+        retry: 1,
+        refetchInterval: balanceFailureStreak >= MAX_FAILURE_STREAK ? false : BALANCE_POLL_MS,
     });
+    const balance = balanceQuery.data;
 
-    // Auto-update name in saved list once when fetched from API.
-    // Dependencies are narrowed to symbol+name (not full price object) so polling
-    // re-fetches with identical values don't re-fire the effect. The setter also
-    // returns prev unchanged when no name fill-in is needed, which lets the
-    // WatchlistContext skip the debounced PUT /watchlist write.
     useEffect(() => {
-        if (!price?.symbol || !price?.name || !setSavedSymbols) return;
-        setSavedSymbols(prev => {
-            const target = prev.find(item => item.code === price.symbol);
-            if (!target || target.name) return prev;
-            return prev.map(item =>
-                item.code === price.symbol && !item.name
-                    ? { ...item, name: price.name }
-                    : item
-            );
-        });
-    }, [price?.symbol, price?.name, setSavedSymbols]);
+        if (balanceQuery.isSuccess) setBalanceFailureStreak(0);
+    }, [balanceQuery.dataUpdatedAt, balanceQuery.isSuccess]);
+
+    useEffect(() => {
+        if (balanceQuery.isError) setBalanceFailureStreak(c => c + 1);
+    }, [balanceQuery.errorUpdatedAt, balanceQuery.isError]);
+
+    // Auto-update name in saved list if fetched from API and setSavedSymbols is provided
+    useEffect(() => {
+        if (price?.symbol && price?.name && setSavedSymbols) {
+            setSavedSymbols(prev => prev.map(item => {
+                if (item.code === price.symbol && !item.name) {
+                    return { ...item, name: price.name };
+                }
+                return item;
+            }));
+        }
+    }, [price, setSavedSymbols]);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -9,7 +9,7 @@ import {
     cancelConditionalOrder, // New
 } from '../api/client';
 
-export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
+export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExchange } = {}) => {
     // ... (Existing State) ...
     const [symbol, setSymbol] = useState(defaultSymbol || '');
     useEffect(() => {
@@ -52,8 +52,36 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
     const [outstandingOrders, setOutstandingOrders] = useState([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+    const [priceWarning, setPriceWarning] = useState(null);
+    const [priceFetchState, setPriceFetchState] = useState({ status: 'idle', error: null });
+
     const abortControllerRef = useRef(null);
     const simulationTimeoutsRef = useRef([]);
+
+    const computePriceWarning = (refPrice) => {
+        if (priceType !== 'limit') return null;
+        if (refPrice == null || refPrice <= 0) return null;
+        const inputPrice = parseFloat(price);
+        if (!isFinite(inputPrice) || inputPrice <= 0) return null;
+
+        const deviation = (inputPrice - refPrice) / refPrice;
+        const lossDeviation = orderType === 'buy' ? deviation : -deviation;
+        if (lossDeviation <= 0) return null;
+
+        const isBinance = (selectedExchange || '').toLowerCase().includes('binance');
+        const warnPct = isBinance ? 0.01 : 0.03;
+        const hardPct = isBinance ? 0.05 : 0.10;
+
+        if (lossDeviation < warnPct) return null;
+        const severity = lossDeviation >= hardPct ? 'hard' : 'soft';
+        return {
+            orderType,
+            currentPrice: refPrice,
+            inputPrice,
+            deviationPct: deviation * 100,
+            severity,
+        };
+    };
 
     const handleCancel = (e) => {
         if (e) e.preventDefault();
@@ -66,8 +94,7 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
         setOrderStatus('cancelled');
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const executeOrder = async () => {
         setOrderStatus('processing');
         setErrorMessage(null);
         setOrderDetails(null);
@@ -121,6 +148,29 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
         } finally {
             abortControllerRef.current = null;
         }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (priceType === 'limit') {
+            const fresh = await fetchPrice();
+            const ref = (typeof fresh === 'number' && fresh > 0) ? fresh : currentPrice;
+            const warning = computePriceWarning(ref);
+            if (warning) {
+                setPriceWarning(warning);
+                return;
+            }
+        }
+        await executeOrder();
+    };
+
+    const confirmPriceWarning = async () => {
+        setPriceWarning(null);
+        await executeOrder();
+    };
+
+    const cancelPriceWarning = () => {
+        setPriceWarning(null);
     };
 
     const handleWatchSubmit = async (e) => {
@@ -223,17 +273,28 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
     };
 
     const fetchPrice = async () => {
-        if (!symbol) return;
+        if (!symbol) return null;
+        setPriceFetchState({ status: 'loading', error: null });
         try {
             const data = await getPrice(symbol);
-            if (data && typeof data.price === 'number') {
+            if (data && typeof data.price === 'number' && data.price > 0) {
                 setCurrentPrice(data.price);
+                setPriceFetchState({ status: 'success', error: null });
                 return data.price;
             }
+            setCurrentPrice(null);
+            setPriceFetchState({ status: 'error', error: '가격 데이터 없음 (종목 코드 확인)' });
+            return null;
         } catch (e) {
             setCurrentPrice(null);
+            const isTimeout = e.code === 'ECONNABORTED' || /timeout/i.test(e.message || '');
+            const detail = e.response?.data?.detail || e.message || '조회 실패';
+            setPriceFetchState({
+                status: 'error',
+                error: isTimeout ? '서버 응답 지연 (재시도)' : detail
+            });
+            return null;
         }
-        return null;
     };
 
     const resetStatus = () => setOrderStatus('idle');
@@ -275,6 +336,12 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId } = {}) => {
         outstandingOrders,
         fetchOutstanding,
         handleCancelOrder,
-        isLoadingOrders
+        isLoadingOrders,
+
+        priceWarning,
+        confirmPriceWarning,
+        cancelPriceWarning,
+
+        priceFetchState
     };
 };

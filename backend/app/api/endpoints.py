@@ -153,10 +153,10 @@ async def get_price(symbol: str, adapter: ExchangeInterface = Depends(get_exchan
     # Returns { "symbol": "...", "price": 100, "name": "Samsung" }
     current_time = time.time()
     
-    # 1. Check Cache (TTL 1.0s)
+    # 1. Check Cache (TTL 5.0s — manual trading UX, reduces Kiwoom load)
     if symbol in PRICE_CACHE:
         entry = PRICE_CACHE[symbol]
-        if current_time - entry['ts'] < 1.0:
+        if current_time - entry['ts'] < 5.0:
             return entry['data']
 
     # 2. Fetch Real
