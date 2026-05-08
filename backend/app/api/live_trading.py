@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from ..core.live_manager import live_manager
-from ..db.session import get_db
+from ..db.session import get_db, db_scope
 from ..core.user_context import UserAccountContext, get_user_context
 from ..core.config import DEFAULT_INITIAL_CAPITAL
 from ..core.constants import Signal, Side, Level, AiMode, Mode
@@ -43,15 +43,11 @@ async def emergency_kill_switch(
     if not ctx.user_id:
         raise HTTPException(status_code=401, detail="Login required")
 
-    from ..db.session import SessionLocal
     from ..models.live_session import LiveBotSession, SessionStatus
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         before = db.query(LiveBotSession).filter(
             LiveBotSession.status == SessionStatus.RUNNING
         ).count()
-    finally:
-        db.close()
 
     try:
         await live_manager.stop_all_sessions()
@@ -59,13 +55,10 @@ async def emergency_kill_switch(
         logger.error(f"emergency_kill_switch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         after = db.query(LiveBotSession).filter(
             LiveBotSession.status == SessionStatus.RUNNING
         ).count()
-    finally:
-        db.close()
 
     logger.warning(f"EMERGENCY KILL SWITCH triggered by user {ctx.user_id}: {before} → {after} running sessions")
     return {
@@ -186,9 +179,7 @@ async def check_session_positions(
         raise HTTPException(status_code=400, detail="No active account selected")
 
     from ..models.live_trading import LiveBotSession, SessionStatus
-    from ..db.session import SessionLocal
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         if session_ids:
             # Check only specified sessions (selected group)
             sid_list = [s.strip() for s in session_ids.split(",") if s.strip()]
@@ -214,8 +205,6 @@ async def check_session_positions(
                 }
 
         return {"has_position": False}
-    finally:
-        db.close()
 
 @router.post("/stop/{session_id}")
 async def stop_live_bot(
@@ -1800,11 +1789,9 @@ async def get_parameter_version(version_id: str):
     """
     Get a specific parameter version by ID.
     """
-    from ..db.session import SessionLocal
     from ..models.live_trading import StrategyParameterVersion
 
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         version = db.query(StrategyParameterVersion).filter(
             StrategyParameterVersion.id == version_id
         ).first()
@@ -1825,8 +1812,6 @@ async def get_parameter_version(version_id: str):
             "created_at": version.created_at.isoformat() if version.created_at else None,
             "updated_at": version.updated_at.isoformat() if version.updated_at else None,
         }
-    finally:
-        db.close()
 
 
 @router.put("/parameter-versions/{version_id}")
@@ -1834,53 +1819,51 @@ async def update_parameter_version(version_id: str, req: ParameterVersionUpdate)
     """
     Update a parameter version (name, description, or params).
     """
-    from ..db.session import SessionLocal
     from ..models.live_trading import StrategyParameterVersion
 
-    db = SessionLocal()
     try:
-        version = db.query(StrategyParameterVersion).filter(
-            StrategyParameterVersion.id == version_id
-        ).first()
+        with db_scope() as db:
+            version = db.query(StrategyParameterVersion).filter(
+                StrategyParameterVersion.id == version_id
+            ).first()
 
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
+            if not version:
+                raise HTTPException(status_code=404, detail="Version not found")
 
-        if req.version_name is not None:
-            version.version_name = req.version_name
-        if req.description is not None:
-            version.description = req.description
-        if req.params is not None:
-            version.params = req.params
-            version.config_hash = _create_config_hash({"params": req.params})
-        if req.is_default is not None:
-            if req.is_default:
-                # Unset other defaults
-                db.query(StrategyParameterVersion).filter(
-                    StrategyParameterVersion.strategy_id == version.strategy_id,
-                    StrategyParameterVersion.id != version_id,
-                    StrategyParameterVersion.is_default == True
-                ).update({"is_default": False})
-            version.is_default = req.is_default
+            if req.version_name is not None:
+                version.version_name = req.version_name
+            if req.description is not None:
+                version.description = req.description
+            if req.params is not None:
+                version.params = req.params
+                version.config_hash = _create_config_hash({"params": req.params})
+            if req.is_default is not None:
+                if req.is_default:
+                    # Unset other defaults
+                    db.query(StrategyParameterVersion).filter(
+                        StrategyParameterVersion.strategy_id == version.strategy_id,
+                        StrategyParameterVersion.id != version_id,
+                        StrategyParameterVersion.is_default == True
+                    ).update({"is_default": False})
+                version.is_default = req.is_default
 
-        db.commit()
-        db.refresh(version)
+            db.commit()
+            db.refresh(version)
 
-        return {
-            "status": "success",
-            "message": f"Version '{version.version_name}' updated",
-            "data": {
-                "id": version.id,
-                "version_name": version.version_name,
-                "config_hash": version.config_hash,
-                "updated_at": version.updated_at.isoformat() if version.updated_at else None,
+            return {
+                "status": "success",
+                "message": f"Version '{version.version_name}' updated",
+                "data": {
+                    "id": version.id,
+                    "version_name": version.version_name,
+                    "config_hash": version.config_hash,
+                    "updated_at": version.updated_at.isoformat() if version.updated_at else None,
+                }
             }
-        }
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
 
 
 @router.delete("/parameter-versions/{version_id}")
@@ -1889,62 +1872,58 @@ async def delete_parameter_version(version_id: str, hard_delete: bool = False):
     Delete a parameter version (soft delete by default).
     Cannot delete versions currently active in running live sessions.
     """
-    from ..db.session import SessionLocal
     from ..models.live_trading import StrategyParameterVersion, LiveBotSession, SessionStatus
 
-    db = SessionLocal()
     try:
-        version = db.query(StrategyParameterVersion).filter(
-            StrategyParameterVersion.id == version_id
-        ).first()
+        with db_scope() as db:
+            version = db.query(StrategyParameterVersion).filter(
+                StrategyParameterVersion.id == version_id
+            ).first()
 
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
+            if not version:
+                raise HTTPException(status_code=404, detail="Version not found")
 
-        # Check if this version is currently being used in any active session
-        if version.config_hash:
-            # Find running sessions with matching strategy_id and symbol
-            active_sessions_query = db.query(LiveBotSession).filter(
-                LiveBotSession.status == SessionStatus.RUNNING,
-                LiveBotSession.strategy_name == version.strategy_id,
-            )
-            if version.symbol:
-                active_sessions_query = active_sessions_query.filter(
-                    LiveBotSession.symbol == version.symbol
+            # Check if this version is currently being used in any active session
+            if version.config_hash:
+                # Find running sessions with matching strategy_id and symbol
+                active_sessions_query = db.query(LiveBotSession).filter(
+                    LiveBotSession.status == SessionStatus.RUNNING,
+                    LiveBotSession.strategy_name == version.strategy_id,
                 )
-            else:
-                active_sessions_query = active_sessions_query.filter(
-                    LiveBotSession.symbol.is_(None)
-                )
-
-            active_sessions = active_sessions_query.all()
-
-            # Check if any active session has matching config_hash
-            for session in active_sessions:
-                session_config_hash = _create_config_hash(session.strategy_config)
-                if session_config_hash == version.config_hash:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Cannot delete '{version.version_name}' - it is currently being used in an active live session."
+                if version.symbol:
+                    active_sessions_query = active_sessions_query.filter(
+                        LiveBotSession.symbol == version.symbol
+                    )
+                else:
+                    active_sessions_query = active_sessions_query.filter(
+                        LiveBotSession.symbol.is_(None)
                     )
 
-        if hard_delete:
-            db.delete(version)
-            message = f"Version '{version.version_name}' permanently deleted"
-        else:
-            version.is_active = False
-            message = f"Version '{version.version_name}' archived"
+                active_sessions = active_sessions_query.all()
 
-        db.commit()
+                # Check if any active session has matching config_hash
+                for session in active_sessions:
+                    session_config_hash = _create_config_hash(session.strategy_config)
+                    if session_config_hash == version.config_hash:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Cannot delete '{version.version_name}' - it is currently being used in an active live session."
+                        )
 
-        return {"status": "success", "message": message}
+            if hard_delete:
+                db.delete(version)
+                message = f"Version '{version.version_name}' permanently deleted"
+            else:
+                version.is_active = False
+                message = f"Version '{version.version_name}' archived"
+
+            db.commit()
+
+            return {"status": "success", "message": message}
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
 
 
 @router.post("/parameter-versions/{version_id}/restore")
@@ -1953,11 +1932,9 @@ async def restore_parameter_version(version_id: str):
     Restore a parameter version - returns the params to be applied.
     The frontend should use these params to update the strategy configuration.
     """
-    from ..db.session import SessionLocal
     from ..models.live_trading import StrategyParameterVersion
 
-    db = SessionLocal()
-    try:
+    with db_scope() as db:
         version = db.query(StrategyParameterVersion).filter(
             StrategyParameterVersion.id == version_id
         ).first()
@@ -1976,8 +1953,6 @@ async def restore_parameter_version(version_id: str):
                 "config_hash": version.config_hash,
             }
         }
-    finally:
-        db.close()
 
 
 @router.post("/parameter-versions/{version_id}/update-stats")
