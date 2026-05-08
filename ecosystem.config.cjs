@@ -154,6 +154,20 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // Daily safety restart of at-backend + at-frontend at 03:30 KST (18:30 UTC).
+        // Defends against SQLAlchemy connection pool drift over multi-day uptime
+        // (incident 2026-05-08: pool exhaustion → /system/version /auth/token timeouts).
+        // Live sessions (paper) auto-resume on backend startup.
+        name: "daily-backend-restart",
+        script: SAS_WRAPPER,
+        args: `'30 18 * * *' ./scripts/maintenance/daily_backend_restart.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // KR — daily EOD paper cycle for 061090 (Mon-Fri 17:00 KST = 08:00 UTC).
         // Legacy session: S2 BB Reversion baseline (kept for comparison).
         name: "kr-paper-cycle",

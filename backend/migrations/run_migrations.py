@@ -318,6 +318,31 @@ def migration_007_add_binance_positioning_metric():
         return True
 
 
+def migration_008_add_lte_session_filled_index():
+    """Add composite index on live_trade_executions (session_id, status, signal_timestamp).
+
+    Speeds up get_trade_stats() query — was full-scan due to no session_id index.
+    Critical for hot-path called every cycle/heartbeat by 4+ live sessions.
+    """
+    with engine.connect() as conn:
+        existing = conn.execute(text("""
+            SELECT indexname FROM pg_indexes
+            WHERE tablename = 'live_trade_executions' AND indexname = 'idx_lte_session_filled'
+        """)).fetchone()
+        if existing:
+            print("  [SKIP] 'idx_lte_session_filled' already exists")
+            return False
+
+        print("  [RUN] Creating composite index on live_trade_executions...")
+        conn.execute(text("""
+            CREATE INDEX idx_lte_session_filled
+            ON live_trade_executions (session_id, status, signal_timestamp)
+        """))
+        conn.commit()
+        print("  [OK] Created idx_lte_session_filled")
+        return True
+
+
 def run_all_migrations():
     """Run all migrations in order"""
     migrations = [
@@ -328,6 +353,7 @@ def run_all_migrations():
         ("005_add_investor_flow_daily", migration_005_add_investor_flow_daily),
         ("006_add_binance_funding_oi", migration_006_add_binance_funding_oi),
         ("007_add_binance_positioning_metric", migration_007_add_binance_positioning_metric),
+        ("008_add_lte_session_filled_index", migration_008_add_lte_session_filled_index),
     ]
 
     print("=" * 50)
