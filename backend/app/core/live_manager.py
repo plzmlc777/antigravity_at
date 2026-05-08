@@ -14,7 +14,7 @@ from ..adapters.factory import create_adapter
 from ..core.exchange_interface import ExchangeInterface
 from ..core.config import settings
 from ..core.constants import Signal, AiMode
-from ..db.session import SessionLocal
+from ..db.session import SessionLocal, db_scope
 from ..models.live_trading import LiveBotSession, SessionStatus, ErrorType, ErrorSeverity
 from ..models.strategy_config import StrategyConfig
 from ..core.market_data_router import market_data_router
@@ -166,8 +166,7 @@ class LiveManager:
         """
         from ..models.account import ExchangeAccount
 
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             if account_id:
                 target_account_id = account_id
             else:
@@ -181,17 +180,15 @@ class LiveManager:
                 logger.warning("LiveManager: No active account found in DB. Using default adapter.")
                 return False
 
-            # Use the new adapter pool mechanism
-            try:
-                adapter = await self.get_or_create_adapter(target_account_id)
-                self._primary_account_id = target_account_id
-                logger.info(f"LiveManager: Primary adapter set to account_id={target_account_id}")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to create adapter for account {target_account_id}: {e}")
-                return False
-        finally:
-            db.close()
+        # Use the new adapter pool mechanism (outside DB scope — adapter creation is async)
+        try:
+            adapter = await self.get_or_create_adapter(target_account_id)
+            self._primary_account_id = target_account_id
+            logger.info(f"LiveManager: Primary adapter set to account_id={target_account_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create adapter for account {target_account_id}: {e}")
+            return False
 
     async def on_account_changed(self, account_id: int = None):
         """
@@ -255,14 +252,11 @@ class LiveManager:
         sessions_by_account: Dict[int, int] = {}
         for session_id, engine in self.engines.items():
             # Determine account_id from DB
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 sess = db.query(LiveBotSession).filter_by(id=session_id).first()
                 if sess:
                     acc_id = sess.account_id
                     sessions_by_account[acc_id] = sessions_by_account.get(acc_id, 0) + 1
-            finally:
-                db.close()
 
         if sessions_by_account:
             logger.info(f"LiveManager: Active sessions by account: {sessions_by_account}")
@@ -685,8 +679,7 @@ class LiveManager:
 
         # 1. DB Record - status depends on auto_start
         initial_status = SessionStatus.RUNNING if auto_start else SessionStatus.STOPPED
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = LiveBotSession(
                 id=session_id,
                 account_id=account_id,  # 계좌 ID 저장
@@ -711,9 +704,6 @@ class LiveManager:
             )
             db.add(sess)
             db.commit()
-        except Exception as e:
-            db.close()
-            raise e
 
         # If auto_start is False, just return session_id without starting engine
         if not auto_start:
@@ -866,8 +856,7 @@ class LiveManager:
             del self.engines[session_id]
 
         # Update DB & unregister from exclusive group
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess:
                 sess.status = SessionStatus.STOPPED
@@ -878,8 +867,6 @@ class LiveManager:
                 cfg = sess.strategy_config or {}
                 if cfg.get("execution_mode") == "exclusive":
                     self.unregister_exclusive_session(sess.account_id, session_id)
-        finally:
-            db.close()
 
     async def switch_session_symbol(self, session_id: str, new_symbol: str, new_symbol_name: str = None, optimized_params: dict = None):
         """
@@ -895,8 +882,7 @@ class LiveManager:
             old_symbol = old_engine.symbol
 
         # 2. Update DB: change symbol, keep session RUNNING
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if not sess:
                 logger.error(f"[AISymbol] Session {session_id} not found")
@@ -952,8 +938,6 @@ class LiveManager:
             sess.ai_awaiting_cycle = True  # Block re-trigger until next cycle completes
             db.commit()
             account_id = sess.account_id
-        finally:
-            db.close()
 
         # 3. Create new engine with same session ID
         try:
@@ -988,8 +972,7 @@ class LiveManager:
             raise ValueError(f"Session {session_id} not in running engines")
 
         # 1. Update DB
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if not sess:
                 raise ValueError(f"Session {session_id} not found")
@@ -1000,8 +983,6 @@ class LiveManager:
             sess.strategy_config = cfg
             db.commit()
             logger.info(f"[ParamUpdate] DB updated for {session_id[:8]}: {list(new_params.keys())}")
-        finally:
-            db.close()
 
         # 2. Re-initialize strategy instance (preserve context, aggregator, history)
         try:
@@ -1069,17 +1050,14 @@ class LiveManager:
         # 1. Update running engine
         if session_id in self.engines:
             self.engines[session_id].toggle_orders(enabled)
-            
+
         # 2. Update DB
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess:
                 sess.orders_enabled = enabled
                 db.commit()
                 logger.info(f"Session {session_id}: Orders {'Enabled' if enabled else 'Disabled'} (DB Updated)")
-        finally:
-            db.close()
 
     async def toggle_mode(self, session_id: str, is_paper: bool):
         """
@@ -1090,47 +1068,42 @@ class LiveManager:
             self.engines[session_id].toggle_mode(is_paper)
 
         # 2. Update DB
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess:
                 sess.is_paper = is_paper
                 db.commit()
                 logger.info(f"Session {session_id}: Mode set to {'PAPER' if is_paper else 'REAL'} (DB Updated)")
-        finally:
-            db.close()
 
     async def toggle_mode_group(self, group_id: str, is_paper: bool) -> dict:
         """
         Atomically toggle Paper/Real mode for ALL sessions in a group.
         All-or-nothing: if any DB update fails, the entire transaction rolls back.
         """
-        db = SessionLocal()
-        try:
-            sessions = db.query(LiveBotSession).filter_by(group_id=group_id).all()
-            if not sessions:
-                raise ValueError(f"No sessions found for group_id={group_id}")
+        with db_scope() as db:
+            try:
+                sessions = db.query(LiveBotSession).filter_by(group_id=group_id).all()
+                if not sessions:
+                    raise ValueError(f"No sessions found for group_id={group_id}")
 
-            # 1. Update DB atomically (single transaction)
-            session_ids = []
-            for sess in sessions:
-                sess.is_paper = is_paper
-                session_ids.append(sess.id)
-            db.commit()
+                # 1. Update DB atomically (single transaction)
+                session_ids = []
+                for sess in sessions:
+                    sess.is_paper = is_paper
+                    session_ids.append(sess.id)
+                db.commit()
+            except Exception:
+                db.rollback()
+                raise
 
-            # 2. Update running engines (best-effort after DB commit)
-            for sid in session_ids:
-                if sid in self.engines:
-                    self.engines[sid].toggle_mode(is_paper)
+        # 2. Update running engines (best-effort after DB commit)
+        for sid in session_ids:
+            if sid in self.engines:
+                self.engines[sid].toggle_mode(is_paper)
 
-            mode_str = 'PAPER' if is_paper else 'REAL'
-            logger.info(f"Group {group_id}: All {len(session_ids)} sessions set to {mode_str}")
-            return {"session_ids": session_ids, "count": len(session_ids)}
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+        mode_str = 'PAPER' if is_paper else 'REAL'
+        logger.info(f"Group {group_id}: All {len(session_ids)} sessions set to {mode_str}")
+        return {"session_ids": session_ids, "count": len(session_ids)}
 
     async def toggle_tick_execution(self, session_id: str, mode: str):
         """
@@ -1142,8 +1115,7 @@ class LiveManager:
             self.engines[session_id].toggle_tick_execution(mode)
 
         # 2. Update DB (strategy_config JSON)
-        db = SessionLocal()
-        try:
+        with db_scope() as db:
             sess = db.query(LiveBotSession).filter_by(id=session_id).first()
             if sess and sess.strategy_config:
                 config = dict(sess.strategy_config)
@@ -1151,8 +1123,6 @@ class LiveManager:
                 sess.strategy_config = config
                 db.commit()
                 logger.info(f"Session {session_id}: tick_execution set to '{mode}' (DB Updated)")
-        finally:
-            db.close()
 
     async def liquidate_session(self, session_id: str, auto_stop: bool = True) -> dict:
         """
@@ -1187,26 +1157,20 @@ class LiveManager:
             targets = [session_id]
         elif account_ids is not None:
             # Phase 5: Filter by multiple account IDs (Session Switcher)
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 sessions = db.query(LiveBotSession).filter(
                     LiveBotSession.account_id.in_(account_ids),
                     LiveBotSession.is_active == True
                 ).all()
                 targets = [s.id for s in sessions if s.id in self.engines]
-            finally:
-                db.close()
         elif account_id is not None:
             # Filter sessions by account_id from DB
-            db = SessionLocal()
-            try:
+            with db_scope() as db:
                 sessions = db.query(LiveBotSession).filter(
                     LiveBotSession.account_id == account_id,
                     LiveBotSession.is_active == True
                 ).all()
                 targets = [s.id for s in sessions if s.id in self.engines]
-            finally:
-                db.close()
         else:
             targets = list(self.engines.keys())
 
@@ -1457,9 +1421,8 @@ class LiveManager:
         force=True: bypass position check (used by START flow to clean up old sessions)
         force=False: respect position check (used by STOP button)
         """
-        db = SessionLocal()
         stopped_count = 0
-        try:
+        with db_scope() as db:
             # Find all RUNNING sessions for this account
             running_sessions = db.query(LiveBotSession).filter(
                 LiveBotSession.account_id == account_id,
@@ -1481,9 +1444,7 @@ class LiveManager:
                     sess.error_log = f"Failed to stop: {e}"
                     db.commit()
 
-            return stopped_count
-        finally:
-            db.close()
+        return stopped_count
 
     async def cleanup_for_logout(self, user_id: int):
         """
