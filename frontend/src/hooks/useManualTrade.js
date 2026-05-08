@@ -54,6 +54,7 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
 
     const [priceWarning, setPriceWarning] = useState(null);
     const [priceFetchState, setPriceFetchState] = useState({ status: 'idle', error: null });
+    const [orderError, setOrderError] = useState(null);
 
     const abortControllerRef = useRef(null);
     const simulationTimeoutsRef = useRef([]);
@@ -98,9 +99,24 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
         setOrderStatus('processing');
         setErrorMessage(null);
         setOrderDetails(null);
+        setOrderError(null);
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
+
+        const payload = {
+            symbol: symbol,
+            order_type: orderType,
+            price_type: priceType,
+            price: priceType === 'market' ? 0 : parseFloat(price),
+            mode: mode,
+            quantity: mode === 'quantity' ? parseFloat(value) : null,
+            amount: mode === 'amount' ? parseFloat(value) : null,
+            percent: (mode === 'percent_cash' || mode === 'percent_holding') ? parseFloat(value) / 100 : null,
+            stop_loss: stopLoss.enabled ? stopLoss.percent : undefined,
+            take_profit: takeProfit.enabled ? takeProfit.percent : undefined,
+            account_id: selectedAccountId || undefined
+        };
 
         try {
             await new Promise(r => {
@@ -108,20 +124,6 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
                 simulationTimeoutsRef.current.push(id);
             });
             if (controller.signal.aborted) return;
-
-            const payload = {
-                symbol: symbol,
-                order_type: orderType,
-                price_type: priceType,
-                price: priceType === 'market' ? 0 : parseFloat(price),
-                mode: mode,
-                quantity: mode === 'quantity' ? parseFloat(value) : null,
-                amount: mode === 'amount' ? parseFloat(value) : null,
-                percent: (mode === 'percent_cash' || mode === 'percent_holding') ? parseFloat(value) / 100 : null,
-                stop_loss: stopLoss.enabled ? stopLoss.percent : undefined,
-                take_profit: takeProfit.enabled ? takeProfit.percent : undefined,
-                account_id: selectedAccountId || undefined
-            };
 
             const data = await placeManualOrder(payload, { signal: controller.signal });
             if (!data) throw new Error("No response data");
@@ -142,7 +144,13 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
             if (error.name === 'CanceledError' || error.name === 'AbortError') {
                 setOrderStatus('cancelled');
             } else {
-                setErrorMessage(error.response?.data?.detail || error.message || 'Order failed');
+                const detail = error.response?.data?.detail || error.message || 'Order failed';
+                setErrorMessage(detail);
+                setOrderError({
+                    message: detail,
+                    statusCode: error.response?.status,
+                    requestPayload: payload
+                });
                 setOrderStatus('error');
             }
         } finally {
@@ -178,20 +186,21 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
         setOrderStatus('processing');
         setErrorMessage(null);
         setOrderDetails(null);
+        setOrderError(null);
+
+        const payload = {
+            symbol: symbol,
+            condition_type: conditionType,
+            trigger_price: parseFloat(triggerPrice),
+            order_type: watchOrderType,
+            price_type: 'market',
+            mode: mode,
+            quantity: mode === 'quantity' ? parseFloat(value) : null,
+            amount: mode === 'amount' ? parseFloat(value) : null,
+            trailing_percent: conditionType === 'TRAILING_STOP' ? parseFloat(trailingPercent) / 100 : null
+        };
 
         try {
-            const payload = {
-                symbol: symbol,
-                condition_type: conditionType,
-                trigger_price: parseFloat(triggerPrice),
-                order_type: watchOrderType,
-                price_type: 'market',
-                mode: mode,
-                quantity: mode === 'quantity' ? parseFloat(value) : null,
-                amount: mode === 'amount' ? parseFloat(value) : null,
-                trailing_percent: conditionType === 'TRAILING_STOP' ? parseFloat(trailingPercent) / 100 : null
-            };
-
             const data = await placeConditionalOrder(payload);
             setOrderDetails({ message: data.message, id: data.id || 'N/A' });
             setOrderStatus('success');
@@ -200,7 +209,13 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
             fetchWatchOrders();
 
         } catch (error) {
-            setErrorMessage(error.response?.data?.detail || error.message || 'Watch Order Failed');
+            const detail = error.response?.data?.detail || error.message || 'Watch Order Failed';
+            setErrorMessage(detail);
+            setOrderError({
+                message: detail,
+                statusCode: error.response?.status,
+                requestPayload: payload
+            });
             setOrderStatus('error');
         }
     };
@@ -342,6 +357,9 @@ export const useManualTrade = (defaultSymbol, { selectedAccountId, selectedExcha
         confirmPriceWarning,
         cancelPriceWarning,
 
-        priceFetchState
+        priceFetchState,
+
+        orderError,
+        dismissOrderError: () => setOrderError(null)
     };
 };

@@ -3,6 +3,7 @@ import OrderProgress from './OrderProgress';
 import OutstandingOrders from './OutstandingOrders';
 import WatchList from './WatchList';
 import PriceWarningModal from './PriceWarningModal';
+import OrderErrorModal from './OrderErrorModal';
 import { useManualTrade } from '../hooks/useManualTrade';
 
 const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelectedAccountId }) => {
@@ -40,7 +41,10 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
         // Price warning gate
         priceWarning, confirmPriceWarning, cancelPriceWarning,
 
-        priceFetchState
+        priceFetchState,
+
+        // Order error modal
+        orderError, dismissOrderError
     } = useManualTrade(defaultSymbol, { selectedAccountId, selectedExchange });
 
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -559,6 +563,12 @@ const ManualTrade = ({ defaultSymbol, accounts = [], selectedAccountId, setSelec
                 warning={priceWarning}
                 onConfirm={confirmPriceWarning}
                 onCancel={cancelPriceWarning}
+            />
+
+            <OrderErrorModal
+                isOpen={!!orderError}
+                error={orderError}
+                onClose={dismissOrderError}
             />
         </div >
     );
