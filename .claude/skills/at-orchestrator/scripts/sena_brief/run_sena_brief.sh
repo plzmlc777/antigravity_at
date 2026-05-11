@@ -15,9 +15,11 @@
 
 set -uo pipefail
 
-MODE="${1:-}"
+# Mode is provided via env var SENA_BRIEF_MODE (set by PM2 ecosystem entry),
+# or as the first positional arg for manual invocation.
+MODE="${SENA_BRIEF_MODE:-${1:-}}"
 if [ "${MODE}" != "pre" ] && [ "${MODE}" != "post" ]; then
-  echo "[sena-brief] usage: $0 <pre|post>"
+  echo "[sena-brief] usage: SENA_BRIEF_MODE=<pre|post> $0  OR  $0 <pre|post>"
   exit 2
 fi
 

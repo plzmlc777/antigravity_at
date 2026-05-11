@@ -294,14 +294,16 @@ const agentApps = [
     },
     // ─── Sena Technology (061090) daily Telegram brief ───
     // Aggregates Naver quote/news/discussion + OpenDART disclosures into a
-    // single Markdown message. Two firings per trading day.
+    // single Markdown message. Mode (pre|post) passed via env (sas_loop_wrapper
+    // parses cron + script only — see wrapper note).
     {
         // Pre-market brief — KST 08:30 (= UTC 23:30 Sun-Thu = KST Mon-Fri).
         name: "sena-brief-premarket",
         script: SAS_WRAPPER,
-        args: `'30 23 * * 0-4' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh pre`,
+        args: `'30 23 * * 0-4' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh`,
         interpreter: "bash",
         cwd: ".",
+        env: { SENA_BRIEF_MODE: "pre" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
@@ -310,9 +312,10 @@ const agentApps = [
         // Post-market brief — KST 16:30 (= UTC 07:30 Mon-Fri).
         name: "sena-brief-postmarket",
         script: SAS_WRAPPER,
-        args: `'30 7 * * 1-5' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh post`,
+        args: `'30 7 * * 1-5' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh`,
         interpreter: "bash",
         cwd: ".",
+        env: { SENA_BRIEF_MODE: "post" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
