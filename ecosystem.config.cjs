@@ -39,106 +39,13 @@ const SAS_WRAPPER = "./.claude/skills/at-orchestrator/scripts/sas/sas_loop_wrapp
 const SAS_SCRIPTS = "./.claude/skills/at-orchestrator/scripts/sas";
 
 const agentApps = [
-    {
-        // Phase D — weekly LEARN→EVOLVE→REFLECT cycle.
-        name: "at-weekly-cycle",
-        script: SAS_WRAPPER,
-        args: "'7 9 * * 0' ./.claude/skills/at-orchestrator/scripts/run_weekly_cycle.sh",
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SAS Phase 3 — daily strategy generator. 23:00 UTC (08:00 KST next day) daily.
-        name: "sas-daily-generator",
-        script: SAS_WRAPPER,
-        args: `'0 23 * * *' ${SAS_SCRIPTS}/run_daily_generator.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SISDS Phase 3 — sandbox researcher processor. Every 2 hours.
-        name: "sas-sandbox-processor",
-        script: SAS_WRAPPER,
-        args: `'0 */2 * * *' ${SAS_SCRIPTS}/run_sandbox_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SISDS Phase 4 — paper scheduler. Every 6 hours.
-        name: "sas-paper-scheduler",
-        script: SAS_WRAPPER,
-        args: `'0 */6 * * *' ${SAS_SCRIPTS}/run_paper_scheduler.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SISDS Phase 6 — live monitor. Daily 06:00 UTC (15:00 KST).
-        name: "sas-live-monitor",
-        script: SAS_WRAPPER,
-        args: `'0 6 * * *' ${SAS_SCRIPTS}/run_live_monitor.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SISDS Phase 8 — meta-observer. Sunday 04:00 UTC (13:00 KST).
-        name: "sas-meta-observer",
-        script: SAS_WRAPPER,
-        args: `'0 4 * * 0' ${SAS_SCRIPTS}/run_meta_observer.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SAS Phase 3 — weekly audition judge. Monday 10:00 UTC.
-        name: "sas-weekly-judge",
-        script: SAS_WRAPPER,
-        args: `'0 10 * * 1' ${SAS_SCRIPTS}/run_weekly_judge.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // SAS Phase 4 — monthly graveyard resurrect. Day 1, 11:00 UTC.
-        name: "sas-monthly-resurrect",
-        script: SAS_WRAPPER,
-        args: `'0 11 1 * *' ${SAS_SCRIPTS}/run_monthly_resurrect.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // Health watchdog — checks audition freshness + per-agent exit codes.
-        // Sends Telegram alerts (TELEGRAM_BOT_TOKEN/CHAT_ID via .env). Every 6h.
-        name: "sas-watchdog",
-        script: SAS_WRAPPER,
-        args: `'0 */6 * * *' ${SAS_SCRIPTS}/run_watchdog.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
+    // ─── SAS / SISDS autonomous pipeline DECOMMISSIONED 2026-05-11 ───
+    // After 33 days of operation: W18 winner KPI 0.0331%/mo (vs 12% gate),
+    // paper sessions PnL ≈ 0%, judge ignored sandbox best_config (obv_trend_follow
+    // 18.29% candidate eliminated), .py files vanished mid-pipeline. 9 agent
+    // entries removed: at-weekly-cycle, sas-daily-generator, sas-sandbox-processor,
+    // sas-paper-scheduler, sas-live-monitor, sas-meta-observer, sas-weekly-judge,
+    // sas-monthly-resurrect, sas-watchdog. account-keepalive kept (different track).
     {
         // Account keepalive — daily 18:00 UTC (= 03:00 KST).
         // Pings real Kiwoom/Binance accounts via balance-query so Kiwoom OAuth
