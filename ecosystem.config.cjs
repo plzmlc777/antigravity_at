@@ -292,6 +292,31 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    // ─── Sena Technology (061090) daily Telegram brief ───
+    // Aggregates Naver quote/news/discussion + OpenDART disclosures into a
+    // single Markdown message. Two firings per trading day.
+    {
+        // Pre-market brief — KST 08:30 (= UTC 23:30 Sun-Thu = KST Mon-Fri).
+        name: "sena-brief-premarket",
+        script: SAS_WRAPPER,
+        args: `'30 23 * * 0-4' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh pre`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Post-market brief — KST 16:30 (= UTC 07:30 Mon-Fri).
+        name: "sena-brief-postmarket",
+        script: SAS_WRAPPER,
+        args: `'30 7 * * 1-5' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh post`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
 ];
 
 // Crypto Meta-Strategy MoE (held back: enable via ENABLE_CRYPTO_META=1).
