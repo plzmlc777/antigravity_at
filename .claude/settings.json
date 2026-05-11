@@ -7,7 +7,9 @@
       "Edit(/.claude/skills/at-live-signal/**)",
       "Edit(/.claude/skills/at-symbol-select/**)",
       "Edit(/.claude/skills/at-orchestrator/**)",
-      "Bash(ssh hcpark@34.64.87.89 \"tail -f /tmp/daily_manual_20260416.log\")"
+      "Bash(ssh hcpark@34.64.87.89 \"tail -f /tmp/daily_manual_20260416.log\")",
+      "Bash(mkdir -p /home/hcpark/antigravity/.claude/skills/at-orchestrator/scripts/sena_brief)",
+      "Bash(mkdir -p /home/hcpark/antigravity/.claude/skills/at-orchestrator/runs/sena_brief)"
     ],
     "additionalDirectories": [
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
