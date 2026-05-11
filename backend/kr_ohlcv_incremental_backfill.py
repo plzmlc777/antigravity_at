@@ -58,7 +58,14 @@ async def fetch_pages(token, base_url, symbol: str, max_pages: int, stop_before)
         resp = await _rate_limited_post(
             f"{base_url}/api/dostk/chart", headers=headers, json=body, timeout=15.0
         )
-        items = resp.get("stk_min_pole_chart_qry", []) or []
+        if resp.status_code != 200:
+            print(f"  [{symbol}/p{page}] HTTP {resp.status_code}: {resp.text[:200]}")
+            break
+        rj = resp.json()
+        if rj.get("return_code") != 0:
+            print(f"  [{symbol}/p{page}] API err: {rj.get('return_msg')}")
+            break
+        items = rj.get("stk_min_pole_chart_qry", []) or []
         if not items:
             print(f"  [{symbol}/p{page}] no items, stop")
             break
@@ -94,9 +101,8 @@ async def fetch_pages(token, base_url, symbol: str, max_pages: int, stop_before)
             print(f"  [{symbol}] reached stop_before, halt")
             break
 
-        header = resp.get("header", {})
-        cont_yn = header.get("cont-yn", "N")
-        cont_key = header.get("next-key", "")
+        cont_yn = resp.headers.get("cont-yn", "N")
+        cont_key = resp.headers.get("next-key", "")
         if cont_yn != "Y" or not cont_key:
             print(f"  [{symbol}] no more pages (cont-yn={cont_yn})")
             break
