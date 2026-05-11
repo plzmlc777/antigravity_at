@@ -112,15 +112,22 @@ async def main():
     print(f"Symbols: {symbols} max_pages={args.max_pages}")
 
     db = SessionLocal()
-    acct = db.query(ExchangeAccount).filter(ExchangeAccount.broker == "kiwoom").first()
+    acct = (
+        db.query(ExchangeAccount)
+        .filter(ExchangeAccount.exchange_name.ilike("%kiwoom%"))
+        .filter(ExchangeAccount.is_disabled == False)
+        .filter(ExchangeAccount.environment == "real")
+        .order_by(ExchangeAccount.id.desc())
+        .first()
+    )
     if not acct:
         print("ERROR: no kiwoom ExchangeAccount", file=sys.stderr)
         sys.exit(1)
-    api_key = security.decrypt_secret(acct.api_key_enc)
-    api_secret = security.decrypt_secret(acct.api_secret_enc)
-    env = env_from_string(acct.env)
+    api_key = security.decrypt_key(acct.encrypted_access_key)
+    api_secret = security.decrypt_key(acct.encrypted_secret_key)
+    env = env_from_string(acct.environment or "real")
     base_url = get_api_url(env)
-    print(f"EA: {acct.name}  URL: {base_url}")
+    print(f"EA: {acct.account_name}  URL: {base_url}")
 
     http = HttpClientManager.get_client()
     tm = KiwoomTokenManager(api_key=api_key, api_secret=api_secret, env=env)
