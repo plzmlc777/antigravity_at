@@ -233,6 +233,23 @@ const agentApps = [
     // Add new sessions via `paper_session_cli create --spec <json>` — this entry
     // automatically picks them up via `run --all`.
     {
+        // Daily KR 1m OHLCV backfill (ka10080). 16:00 KST (07:00 UTC) Mon-Fri.
+        // Runs 30 min after market close, BEFORE composer-flow-backfill and
+        // the KR paper cycles so candle data is fresh. Idempotent: only
+        // inserts rows newer than the table's current max per symbol.
+        // Without this, ohlcv stalls and S60/S61/meta sessions fail with
+        // "No data for X from <start_date>".
+        name: "kr-ohlcv-backfill",
+        script: SAS_WRAPPER,
+        args: `'0 7 * * 1-5' ./scripts/kr/run_kr_ohlcv_backfill.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_OHLCV_SYMBOLS: "005930,061090,122630,000660,007210,055550,196170" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // Daily KR investor flow backfill (ka10059). 16:30 KST (07:30 UTC) Mon-Fri.
         // Runs ~1 hour after market close, before composer-paper-cycle and the
         // KR per-symbol paper cycles read the data. Symbols cover BOTH the
