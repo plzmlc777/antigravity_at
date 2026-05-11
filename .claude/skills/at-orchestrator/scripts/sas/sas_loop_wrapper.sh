@@ -48,8 +48,18 @@ if [ -f "${SAS_LOAD_TG}" ] && [ -x "$(pwd)/backend/venv/bin/python3" ]; then
   fi
 fi
 
-CRON_EXPR="${1:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
-TARGET_SCRIPT="${2:?Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>}"
+# PM2's `args` field is space-tokenized, so the single quotes around the cron
+# expression in ecosystem.config.cjs (e.g. `'0 8 * * 1-5' ./script.sh`) are
+# stripped and the wrapper receives 6 positionals: 5 cron parts + script path.
+# When invoked manually with proper quoting, it gets 2 positionals (cron, script).
+# Handle both shapes: the LAST positional is always the script; everything
+# before it is the cron expression.
+if [ $# -lt 2 ]; then
+  echo "Usage: sas_loop_wrapper.sh '<cron_expr>' <script.sh>" >&2
+  exit 1
+fi
+TARGET_SCRIPT="${!#}"
+CRON_EXPR="${*:1:$#-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
