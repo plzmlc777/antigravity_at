@@ -41,7 +41,7 @@ def _to_int(v):
         return 0
 
 
-async def fetch_pages(http, token, base_url, symbol: str, max_pages: int, stop_before):
+async def fetch_pages(token, base_url, symbol: str, max_pages: int, stop_before):
     """Fetch ka10080 pages newest-first until we go below stop_before."""
     rows = []
     cont_yn = "N"
@@ -55,8 +55,10 @@ async def fetch_pages(http, token, base_url, symbol: str, max_pages: int, stop_b
             "next-key": cont_key,
             "api-id": "ka10080",
         }
-        resp = await _rate_limited_post(http, f"{base_url}/api/dostk/chart", headers, body)
-        items = resp.get("body", {}).get("stk_min_pole_chart_qry", []) or []
+        resp = await _rate_limited_post(
+            f"{base_url}/api/dostk/chart", headers=headers, json=body, timeout=15.0
+        )
+        items = resp.get("stk_min_pole_chart_qry", []) or []
         if not items:
             print(f"  [{symbol}/p{page}] no items, stop")
             break
@@ -129,9 +131,12 @@ async def main():
     base_url = get_api_url(env)
     print(f"EA: {acct.account_name}  URL: {base_url}")
 
-    http = HttpClientManager.get_client()
-    tm = KiwoomTokenManager(api_key=api_key, api_secret=api_secret, env=env)
-    token = await tm.get_token()
+    HttpClientManager.get_instance()
+    tm = KiwoomTokenManager.get_instance()
+    token = await tm.get_token(api_key, api_secret, base_url)
+    if not token:
+        print("ERROR: token issue", file=sys.stderr)
+        sys.exit(1)
     print(f"Token OK (len={len(token)})")
 
     total_inserted = 0
@@ -142,7 +147,7 @@ async def main():
         ).scalar()
         print(f"\n=== {sym} === current max={cur_max}")
 
-        rows = await fetch_pages(http, token, base_url, sym, args.max_pages, cur_max)
+        rows = await fetch_pages(token, base_url, sym, args.max_pages, cur_max)
         if not rows:
             print(f"  {sym}: nothing new")
             continue
