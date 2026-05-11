@@ -1,7 +1,7 @@
 {
     "name": "auto-trading-frontend",
     "private": true,
-    "version": "1.5.70.16",
+    "version": "1.5.70.17",
     "type": "module",
     "scripts": {
         "dev": "vite",
