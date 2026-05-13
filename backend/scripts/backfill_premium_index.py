@@ -72,40 +72,66 @@ def main() -> int:
     p.add_argument("--end-date", default=None)
     p.add_argument("--parallel", type=int, default=16)
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "premium_index"))
+    p.add_argument("--refresh", action="store_true",
+                   help="Incremental: read existing joblib, fetch only days after its last date, merge")
     args = p.parse_args()
 
     out_dir = Path(args.out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     end_date = (datetime.utcnow() - timedelta(days=1)).date() if args.end_date is None \
         else datetime.strptime(args.end_date, "%Y-%m-%d").date()
     start_date = end_date - timedelta(days=args.days - 1)
-    log.info("Range: %s ~ %s (%d days)", start_date, end_date, args.days)
+    log.info("Range: %s ~ %s (%d days, refresh=%s)", start_date, end_date, args.days, args.refresh)
 
     syms = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
     target_days = [start_date + timedelta(days=i) for i in range(args.days)]
 
     for sym in syms:
         out_path = out_dir / f"{sym}_premium.joblib"
+
+        existing = None
+        days_to_fetch = target_days
         if out_path.exists():
-            log.info("[%s] skip — exists", sym)
-            continue
+            if not args.refresh:
+                log.info("[%s] skip — exists (use --refresh for incremental)", sym)
+                continue
+            try:
+                existing = joblib.load(out_path)
+                last_existing = existing.index.max().date()
+                days_to_fetch = [d for d in target_days if d > last_existing]
+                if not days_to_fetch:
+                    log.info("[%s] up-to-date (last %s) — skip", sym, last_existing)
+                    continue
+                log.info("[%s] incremental: %d new days from %s",
+                         sym, len(days_to_fetch), days_to_fetch[0])
+            except Exception as e:
+                log.warning("[%s] existing unreadable (%s) — full rebuild", sym, e)
+                existing = None
+                days_to_fetch = target_days
+
         t0 = time.time()
         frames = []
         session = requests.Session()
         with ThreadPoolExecutor(max_workers=args.parallel) as ex:
-            futs = {ex.submit(_fetch, sym, d, session): d for d in target_days}
+            futs = {ex.submit(_fetch, sym, d, session): d for d in days_to_fetch}
             for f in as_completed(futs):
                 df = f.result()
                 if df is not None and not df.empty:
                     frames.append(df)
         if not frames:
-            log.warning("[%s] empty result", sym)
+            log.warning("[%s] no new data fetched", sym)
             continue
         out = pd.concat(frames).sort_values("open_time").reset_index(drop=True)
         out["timestamp"] = pd.to_datetime(out["open_time"].astype("int64"), unit="ms")
         out = out.set_index("timestamp")[["open", "high", "low", "close", "count"]].astype(float)
+
+        if existing is not None and len(existing) > 0:
+            out = pd.concat([existing, out]).sort_index()
+            out = out[~out.index.duplicated(keep="last")]
+
         joblib.dump(out, out_path, compress=3)
+        elapsed = time.time() - t0
         log.info("[%s] saved %d rows in %.1fs (range %s ~ %s) → %s",
-                 sym, len(out), out.index[0].date(), out.index[-1].date(), elapsed := time.time()-t0, out_path)
+                 sym, len(out), out.index[0].date(), out.index[-1].date(), elapsed, out_path)
     return 0
 
 

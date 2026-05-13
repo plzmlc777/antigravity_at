@@ -295,11 +295,30 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // Binance paradigm-source joblib refresh — 02:15 UTC (11:15 KST).
+        // Incremental refresh of premium_index/*.joblib (premium_index_zscore,
+        // premium_velocity_zscore) and microstructure/*_full_metrics.joblib
+        // (oi_price_decoupling). Sources read these joblibs at session
+        // evaluation; without daily refresh, z-scores are computed from stale
+        // history → pred=0 indefinitely even with fresh ohlcv (incident
+        // 2026-05-13: 6 paradigm sessions stuck at pred=0 because joblibs
+        // were last updated 2026-05-03/04).
+        name: "binance-joblib-refresh",
+        script: SAS_WRAPPER,
+        args: `'15 2 * * *' ./scripts/binance/run_binance_joblib_refresh.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // Binance Phase 1 paper cycle — daily 02:30 UTC (11:30 KST).
         // Moved from 00:30 UTC on 2026-05-13 so binance-ohlcv-backfill (02:00
-        // UTC) can land fresh 1m candles first. 24/7 perpetual futures, UTC-day
-        // boundary. Runs all active paper sessions; KR sessions skip if data
-        // not fresh, Binance sessions advance.
+        // UTC) and binance-joblib-refresh (02:15 UTC) can land fresh data
+        // first. 24/7 perpetual futures, UTC-day boundary. Runs all active
+        // paper sessions; KR sessions skip if data not fresh, Binance sessions
+        // advance.
         // Initial seeds: SOL S+T+B, HBAR S+P, AXS V (all 5/5 PERFECT robustness).
         name: "binance-paper-cycle",
         script: SAS_WRAPPER,
