@@ -180,9 +180,6 @@ def main() -> int:
         finally:
             db.close()
         log.info("[%s] before: %s rows in DB", sym, f"{n_before:,}")
-        if n_before > args.days * 1000:
-            log.info("[%s] already has plenty of data, skipping download", sym)
-            continue
 
         t0 = time.time()
         df = download_klines_range(sym, start_date, end_date, parallel=args.parallel)

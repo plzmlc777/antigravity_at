@@ -279,13 +279,31 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // Binance Phase 1 paper cycle — daily 00:30 UTC (09:30 KST).
-        // 24/7 perpetual futures, UTC-day boundary. Runs all active paper
-        // sessions; KR sessions skip if data not fresh, Binance sessions advance.
+        // Binance 1m OHLCV daily incremental backfill — 02:00 UTC (11:00 KST).
+        // Pulls last 3 days from data.binance.vision archive (idempotent ON
+        // CONFLICT). Without this, ohlcv stalls at initial-backfill cutoff and
+        // paper paradigm sessions iterate the same bar forever (incident
+        // 2026-05-13: 14 paradigm sessions cycles=18 vs uniq_ts=1). Runs 30
+        // minutes before binance-paper-cycle so the cycle sees fresh candles.
+        name: "binance-ohlcv-backfill",
+        script: SAS_WRAPPER,
+        args: `'0 2 * * *' ./scripts/binance/run_binance_ohlcv_backfill.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Binance Phase 1 paper cycle — daily 02:30 UTC (11:30 KST).
+        // Moved from 00:30 UTC on 2026-05-13 so binance-ohlcv-backfill (02:00
+        // UTC) can land fresh 1m candles first. 24/7 perpetual futures, UTC-day
+        // boundary. Runs all active paper sessions; KR sessions skip if data
+        // not fresh, Binance sessions advance.
         // Initial seeds: SOL S+T+B, HBAR S+P, AXS V (all 5/5 PERFECT robustness).
         name: "binance-paper-cycle",
         script: SAS_WRAPPER,
-        args: `'30 0 * * *' ./scripts/binance/run_binance_paper_cycle.sh`,
+        args: `'30 2 * * *' ./scripts/binance/run_binance_paper_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
