@@ -36,8 +36,24 @@
       "updated_at": "2026-05-13T12:35:51+00:00",
       "graveyard_reason": "R-1 PoC: 16 symbols 1543 events. H1 pre-drift t-stat mean 0.44 (no symbol |t|>2). H4 trade strategy all-Sharpe negative (mean -5.61 ann). Signal exists at H2 level for HBAR/DOGE (t -2.26/-2.15) but rediscovers funding_carry direction; 8 bps round-trip fee floor kills capacity. metrics: backend/runs/research_track/funding_boundary/poc__metrics.json",
       "seed_spec": null
+    },
+    "weekend_mean_reversion": {
+      "name": "weekend_mean_reversion",
+      "hypothesis": "Crypto perpetuals show systematic mean reversion from Friday close to Monday open due to lower weekend liquidity and retail-dominated weekend flow. Friday close to Monday open return is negatively correlated with prior week trend (Friday close vs 5-day MA). Effect intensifies when weekend volume is below 30d median.",
+      "data_dependencies": [
+        "ohlcv 1m (full 187-symbol universe)",
+        " BTCUSDT 500d for regime"
+      ],
+      "current_phase": "R-1",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-13T12:39:06+00:00",
+      "updated_at": "2026-05-13T12:39:06+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T12:35:51+00:00"
+  "updated_at": "2026-05-13T12:39:06+00:00"
 }
