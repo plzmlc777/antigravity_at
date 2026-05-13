@@ -78,16 +78,31 @@
       ],
       "current_phase": "R-2",
       "metrics_files": {
-        "R-2": "backend/runs/research_track/listing_volume_cliff/r2__metrics.json"
+        "R-2": "backend/runs/research_track/listing_volume_cliff/r2__metrics.json",
+        "R-2-bis": "backend/runs/research_track/listing_volume_cliff/r2bis_early_exit_metrics.json (pending mint execution)"
       },
       "gate_evals": {},
       "type": "E",
       "created_at": "2026-05-13T13:11:01+00:00",
-      "updated_at": "2026-05-13T13:20:10+00:00",
+      "updated_at": "2026-05-13T22:50:00+00:00",
       "graveyard_reason": null,
-      "seed_spec": null
+      "seed_spec": null,
+      "r2_bis_variant": {
+        "name": "lifecycle_early_exit_d14",
+        "summary": "Exit-modifier variant of lifecycle_pump_decay: same Day 1 short, hold to Day 30 EXCEPT if vol_cliff (mean(vol[7:14])/vol[0]) >= threshold at Day 14, exit at Day 14 close. Infrastructure: bn_lifecycle_decay_early_exit source + lifecycle_decay_early_exit policy + lifecycle_session_spawner --policy=both (parallel A/B seed alongside baseline).",
+        "implementation_status": "code complete + local dry-run validated 2026-05-13",
+        "backtest_status": "R-2-bis script exists (backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py); needs mint execution — local DB missing 170 listing cohort OHLCV.",
+        "default_threshold": 0.40,
+        "check_day": 14,
+        "files": [
+          "backend/app/composer_framework/sources/binance_lifecycle_decay_early_exit_source.py",
+          "backend/app/composer_framework/policy.py:LifecycleDecayEarlyExitPolicy",
+          "backend/scripts/research/lifecycle_session_spawner.py (--policy=both default)",
+          "backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py"
+        ]
+      }
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T13:20:10+00:00"
+  "updated_at": "2026-05-13T22:50:00+00:00"
 }

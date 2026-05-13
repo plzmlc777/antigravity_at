@@ -137,6 +137,60 @@ class LongShortThresholdPolicy(TradingPolicy):
         return Action.hold()
 
 
+class LifecycleDecayEarlyExitPolicy(TradingPolicy):
+    """Lifecycle short paradigm with vol-cliff-gated early exit.
+
+    Pair with `bn_lifecycle_decay_early_exit` source (or any source that
+    emits prediction ∈ {-1.0, +1.0}). Unlike LongShortThresholdPolicy this
+    policy EVALUATES the prediction even while in position — a +exit_signal
+    triggers an early flat-out.
+
+    State machine:
+      flat  + prediction <= -entry_threshold     → enter_short
+      short + prediction >= +exit_signal_thresh  → exit (decay invalidated)
+      short + bars_held >= max_hold_bars         → exit (time stop)
+      else                                       → hold
+
+    Long-side intentionally disabled — the lifecycle paradigm only shorts.
+    A persistent +signal after exit (source emits +1.0 across the entire
+    post-checkday window) is benign: flat + positive prediction does NOT
+    trigger any long entry.
+    """
+
+    def __init__(
+        self,
+        *,
+        entry_threshold: float = 0.5,
+        exit_signal_threshold: float = 0.5,
+        sl_pct: float = 0.50,
+        tp_pct: float = 1.0,
+        max_hold_bars: int = 30,
+    ) -> None:
+        self.entry_threshold = float(entry_threshold)
+        self.exit_signal_threshold = float(exit_signal_threshold)
+        self.sl_pct = float(sl_pct)
+        self.tp_pct = float(tp_pct)
+        self.max_hold_bars = int(max_hold_bars)
+
+    def decide(self, c: PolicyContext) -> Action:
+        if c.in_position and c.side == "short":
+            if c.bars_held >= self.max_hold_bars:
+                return Action.exit_("time")
+            if not np.isnan(c.prediction) and c.prediction >= self.exit_signal_threshold:
+                return Action.exit_("vol_cliff_invalidated")
+            return Action.hold()
+        if c.in_position and c.side == "long":
+            return Action.exit_("policy_no_long")
+        if not c.in_position and not np.isnan(c.prediction):
+            if c.prediction <= -self.entry_threshold:
+                return Action(
+                    kind="enter_short",
+                    sl_price=c.open_price * (1 + self.sl_pct),
+                    tp_price=c.open_price * (1 - self.tp_pct) if self.tp_pct < 1.0 else 0.0,
+                )
+        return Action.hold()
+
+
 class FundingReversalPolicy(TradingPolicy):
     """Mean-reversal policy designed for funding-rate z-score signals.
 

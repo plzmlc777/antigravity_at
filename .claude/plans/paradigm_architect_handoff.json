@@ -1,12 +1,12 @@
 {
   "_meta": {
-    "title": "paradigm-architect handoff — Phase A complete, Phase B + next paradigm decisions pending",
+    "title": "paradigm-architect handoff — Phase A complete + Option B (early-exit variant) infrastructure done, R-2-bis backtest pending mint execution",
     "snapshot_date": "2026-05-13",
-    "snapshot_time_kst": "22:30",
-    "session_summary": "Built paradigm-architect agent infrastructure (eval_research_gate + INDEX state machine + agent spec). Tested 5 paradigms through full R-1 to R-5 pipeline. 1 R-4 PASS (lifecycle_pump_decay) seeded to paper. 1 R-2 PASS (listing_volume_cliff) awaiting R-3 decision. 3 graveyard with detailed reasons. Set up daily auto-spawn cron for new listings.",
+    "snapshot_time_kst": "23:00",
+    "session_summary": "Phase A: paradigm-architect agent infrastructure done. 5 paradigms tested R-1 → R-5. lifecycle_pump_decay R-4 PASS → R-5 seeded (AIGENSYNUSDT). 3 graveyard. listing_volume_cliff R-2 PASS pending R-3. Option B (this session, 2026-05-13 22:30–23:00 KST): built parallel early-exit variant infrastructure — new source + policy + spawner extension + R-2-bis backtest script. Local code validated; mint execution pending for R-2-bis numerical edge measurement.",
     "primary_user_goal": "쉬지 않고 계속 새 paradigm 발굴 + 인생 바꾸는 alpha 추구. Quality > Quantity.",
-    "next_session_resume_target": "Direction 3 Phase B (autonomous cron + hypothesis queue), or new paradigm hypothesis, or R-3 deepen of listing_volume_cliff",
-    "git_head_at_snapshot": "4b5c8620"
+    "next_session_resume_target": "Deploy Option B code to mint + run R-2-bis to measure early-exit edge + decide whether to enable --policy=both in PM2 cron. After that: Phase B autonomous cron OR new paradigm hypothesis.",
+    "git_head_at_snapshot": "4b5c8620 (pre-Option-B; commit pending)"
   },
 
   "infrastructure_state": {
@@ -31,6 +31,40 @@
       "lifecycle_spawner_cli": "backend/scripts/research/lifecycle_session_spawner.py",
       "lifecycle_spawner_wrapper": "scripts/research/run_lifecycle_spawner.sh",
       "orchestrator_patch": "backend/app/composer_framework/orchestrator.py — passthrough composer bypasses 30-bar minimum"
+    },
+    "option_B_early_exit_infrastructure": {
+      "_added": "2026-05-13 (this session)",
+      "_summary": "Parallel variant. AIGENSYNUSDT baseline session preserved untouched. From next eligible listing onwards, spawner can seed BOTH baseline AND early_exit sessions side-by-side for A/B comparison. Currently NOT enabled in PM2 cron — spawner default is --policy=both but cron command uses default args; require either change to cron command or explicit user enable.",
+      "files_added": {
+        "source": "backend/app/composer_framework/sources/binance_lifecycle_decay_early_exit_source.py",
+        "source_registered_as": "bn_lifecycle_decay_early_exit",
+        "policy_class": "backend/app/composer_framework/policy.py:LifecycleDecayEarlyExitPolicy",
+        "policy_registered_as": "lifecycle_decay_early_exit",
+        "spawner_extended": "backend/scripts/research/lifecycle_session_spawner.py — --policy=baseline|early_exit|both flag (default=both), --early-exit-check-day {7,14}, --early-exit-vc-threshold (default 0.40)",
+        "r2_bis_script": "backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py"
+      },
+      "design_choices": {
+        "signal_encoding": "Source emits +1.0 from check_day onwards when vol_cliff >= threshold (decay invalidated), -1.0 elsewhere. Policy interprets: flat+pred≤-0.5 enter_short, short+pred≥+0.5 exit, short+bars_held≥30 time-stop.",
+        "off_by_one_handling": "check_day=14 means Day 14 close cycle = ohlcv_eval.iloc[13]; source uses iloc[check_day-1:] for +1.0 marking — first +1 lands on Day 14 close, persists across later cycles to survive a missed cron tick.",
+        "default_threshold": "0.40 (R-2 plateau heuristic — vol_cliff>=0.40 cohort is 'pump continuing/not abandoned' regime where decay logic likely fails)",
+        "default_check_day": "14 (matches R-2 vol_cliff metric exactly: mean(vol[7:14])/vol[0]). Day 7 partial mode available but uses weaker proxy."
+      },
+      "validation_state": {
+        "py_compile": "PASS (all 5 modified/created files)",
+        "spec_validate": "PASS — pipeline.build_pipeline reconstructs correctly",
+        "synthetic_source_test": "PASS — decay-confirmed cohort emits all -1.0; decay-invalidated cohort emits -1.0 Days 1-13 then +1.0 from Day 14 onward",
+        "spawner_dry_run": "PASS — --policy=both writes 2 distinct spec files per symbol; --policy=early_exit alone writes 1; existence-check distinguishes variants by 'earlyexit' name suffix",
+        "r2_bis_backtest": "BLOCKED locally — local DB lacks 170-listing OHLCV cohort. Script ready to run on mint where the data lives."
+      },
+      "pending_actions_for_next_session": [
+        "Commit Option B code (4 files modified, 2 files new)",
+        "Push to remote OR scp to mint",
+        "ssh mint@183.99.228.81 'cd ~/auto_trading && git pull && cd backend && source venv/bin/activate && python3 -m scripts.research.listing_volume_cliff_r2_bis_early_exit'",
+        "Read backend/runs/research_track/listing_volume_cliff/r2bis_early_exit_metrics.json — examine threshold_grid_results for best threshold (uplift_median_pct > 0, win_rate not eroded)",
+        "Decide: if R-2-bis shows positive edge → enable --policy=both in PM2 cron (lifecycle-spawner-daily). If marginal/negative → keep variant inactive but available."
+      ],
+      "expected_uplift_per_handoff": "median +21.6 → +25~30%, win 58 → 65%+ (subject to R-2-bis confirmation)",
+      "rollback_path": "Variant disabled by default — does NOT affect AIGENSYNUSDT baseline session OR existing cron schedule. To fully disable variant: delete spec files or set --policy=baseline."
     }
   },
 

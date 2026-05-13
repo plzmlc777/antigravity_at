@@ -31,6 +31,7 @@ from .composer import Composer
 from .pipeline import Pipeline, PipelineConfig
 from .policy import (
     FundingReversalPolicy,
+    LifecycleDecayEarlyExitPolicy,
     LongOnlyThresholdPolicy,
     LongShortThresholdPolicy,
     TradingPolicy,
@@ -310,6 +311,15 @@ def _build_bn_lifecycle_decay(kwargs: dict, runtime: dict) -> SignalSource:
     return BinanceLifecycleDecaySource()
 
 
+@register_source("bn_lifecycle_decay_early_exit")
+def _build_bn_lifecycle_decay_early_exit(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceLifecycleDecayEarlyExitSource
+    return BinanceLifecycleDecayEarlyExitSource(
+        check_day=int(kwargs.get("check_day", 14)),
+        vol_cliff_hi_threshold=float(kwargs.get("vol_cliff_hi_threshold", 0.40)),
+    )
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter
@@ -349,6 +359,11 @@ def _build_long_short(kwargs: dict) -> TradingPolicy:
 @register_policy("funding_reversal")
 def _build_funding_reversal(kwargs: dict) -> TradingPolicy:
     return FundingReversalPolicy(**kwargs) if kwargs else FundingReversalPolicy()
+
+
+@register_policy("lifecycle_decay_early_exit")
+def _build_lifecycle_decay_early_exit(kwargs: dict) -> TradingPolicy:
+    return LifecycleDecayEarlyExitPolicy(**kwargs) if kwargs else LifecycleDecayEarlyExitPolicy()
 
 
 # ─────────────────────────────────────────────────── public API ───

@@ -28,6 +28,7 @@ from .binance_premium_index_zscore_source import BinancePremiumIndexZScoreSource
 from .binance_premium_velocity_zscore_source import BinancePremiumVelocityZScoreSource
 from .binance_wick_reversal_multibar_source import BinanceWickReversalMultibarSource
 from .binance_lifecycle_decay_source import BinanceLifecycleDecaySource
+from .binance_lifecycle_decay_early_exit_source import BinanceLifecycleDecayEarlyExitSource
 
 __all__ = [
     "PatternSource",
@@ -54,4 +55,5 @@ __all__ = [
     "BinancePremiumVelocityZScoreSource",
     "BinanceWickReversalMultibarSource",
     "BinanceLifecycleDecaySource",
+    "BinanceLifecycleDecayEarlyExitSource",
 ]
