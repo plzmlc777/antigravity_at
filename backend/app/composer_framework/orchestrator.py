@@ -71,8 +71,15 @@ class PaperOrchestrator:
             raise ValueError(f"Cannot run cycle on {session.status} session")
 
         df_eval = bundle.ohlcv_eval
-        if len(df_eval) < 30:
-            raise ValueError(f"Need at least 30 eval bars, got {len(df_eval)}")
+        # No-fit composers (passthrough variants) need at least 2 eval bars
+        # for forward-return target. ML composers need a longer training
+        # window. Branch on composer type instead of a one-size-fits-all.
+        from .composers import PassthroughComposer, NegationPassthroughComposer
+        spec_composer_type = session.pipeline_spec.get("composer", {}).get("type", "")
+        is_no_fit_composer = spec_composer_type in ("passthrough", "negation_passthrough")
+        min_eval_bars = 2 if is_no_fit_composer else 30
+        if len(df_eval) < min_eval_bars:
+            raise ValueError(f"Need at least {min_eval_bars} eval bars, got {len(df_eval)}")
 
         # Build runtime data dict for Pipeline construction
         runtime_data = {
@@ -119,12 +126,21 @@ class PaperOrchestrator:
         # state to reuse. last_fit_ts is kept as an audit field; the
         # refit_interval policy now only governs WHETHER we use a longer or
         # shorter training window (future enhancement), not whether to fit.
-        train_df = feat.dropna(subset=[pipeline.config.target_col])
-        if len(train_df) < 30:
-            logger.warning("Session %s: too few training samples (%d)", session.session_id, len(train_df))
-            return self._record_no_op(session, feat, "insufficient_train")
-        pipeline.fit(train_df)
-        session.last_fit_ts = datetime.utcnow().isoformat(timespec="seconds")
+        # Skip insufficient_train check for no-fit composers — their fit()
+        # is a no-op and they don't need a training window.
+        if is_no_fit_composer:
+            try:
+                pipeline.fit(feat.iloc[:0])  # no-op for passthrough
+            except Exception:
+                pass
+            session.last_fit_ts = datetime.utcnow().isoformat(timespec="seconds")
+        else:
+            train_df = feat.dropna(subset=[pipeline.config.target_col])
+            if len(train_df) < 30:
+                logger.warning("Session %s: too few training samples (%d)", session.session_id, len(train_df))
+                return self._record_no_op(session, feat, "insufficient_train")
+            pipeline.fit(train_df)
+            session.last_fit_ts = datetime.utcnow().isoformat(timespec="seconds")
 
         # Predict for the LATEST bar
         latest = feat.iloc[[-1]]
