@@ -78,16 +78,16 @@
       ],
       "current_phase": "R-2",
       "metrics_files": {
-        "R-2": "backend/runs/research_track/listing_volume_cliff/poc__metrics.json"
+        "R-2": "backend/runs/research_track/listing_volume_cliff/r2__metrics.json"
       },
       "gate_evals": {},
       "type": "E",
       "created_at": "2026-05-13T13:11:01+00:00",
-      "updated_at": "2026-05-13T13:11:01+00:00",
+      "updated_at": "2026-05-13T13:20:10+00:00",
       "graveyard_reason": null,
       "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T13:11:01+00:00"
+  "updated_at": "2026-05-13T13:20:10+00:00"
 }
