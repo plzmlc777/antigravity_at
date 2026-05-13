@@ -304,6 +304,12 @@ def _build_bn_wick_reversal_multibar(kwargs: dict, runtime: dict) -> SignalSourc
     )
 
 
+@register_source("bn_lifecycle_decay")
+def _build_bn_lifecycle_decay(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceLifecycleDecaySource
+    return BinanceLifecycleDecaySource()
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter
