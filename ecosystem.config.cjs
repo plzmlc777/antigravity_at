@@ -329,6 +329,26 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    {
+        // Lifecycle paper session auto-spawner — daily 03:00 UTC (12:00 KST).
+        // Detects new Binance Futures USDT perpetual listings (age 1-14d, not
+        // tokenized stocks/commodities) and auto-creates per-listing PaperSession
+        // for the lifecycle_pump_decay paradigm (paradigm-architect R-4 PASS:
+        // median +21.6%/trade, σ=6.8). Runs AFTER binance-paper-cycle so newly
+        // spawned sessions appear on next day's cycle. Idempotent — re-runs same
+        // day produce 0 spawns when sessions already exist.
+        // Backfills 35d of 1m ohlcv per new symbol via backfill_ohlcv_archive,
+        // writes spec JSON to backend/configs/paper_sessions/lifecycle/, then
+        // creates session via paper_session_cli.
+        name: "lifecycle-spawner-daily",
+        script: SAS_WRAPPER,
+        args: `'0 3 * * *' ./scripts/research/run_lifecycle_spawner.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
     // ─── Sena Technology (061090) daily Telegram brief ───
     // Aggregates Naver quote/news/discussion + OpenDART disclosures into a
     // single Markdown message. Mode (pre|post) passed via env (sas_loop_wrapper
