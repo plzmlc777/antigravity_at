@@ -68,8 +68,26 @@
       "updated_at": "2026-05-13T12:59:53+00:00",
       "graveyard_reason": "R-1 PoC n=161 cohort. Base trade (entry=60min,hold=180min) median +0.53% mean -2.58% t -1.55. Permutation sigma = -0.04 — listing-anchored entry NO BETTER than random entry in [60,1200] min range. Pump-conditional shows OPPOSITE: high-pump (>=+20% in 60min, n=21) median -4.57% (momentum continuation, not fade). All 12 (entry,hold) grid cells negative mean. Conclusion: lifecycle_pump_decay mechanism (slow price-discovery fade) operates on daily timescale, NOT intraday. metrics: backend/runs/research_track/listing_pump_first60min/poc__metrics.json",
       "seed_spec": null
+    },
+    "listing_volume_cliff": {
+      "name": "listing_volume_cliff",
+      "hypothesis": "Listings whose Day 7-14 volume drops below 30% of Day 1 volume (abandoned by traders) decay disproportionately in days 14-30. Filter for lifecycle_pump_decay AND standalone D14 short variant.",
+      "data_dependencies": [
+        "ohlcv 1m",
+        " listing_dates.json"
+      ],
+      "current_phase": "R-2",
+      "metrics_files": {
+        "R-2": "backend/runs/research_track/listing_volume_cliff/poc__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-13T13:11:01+00:00",
+      "updated_at": "2026-05-13T13:11:01+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T12:59:53+00:00"
+  "updated_at": "2026-05-13T13:11:01+00:00"
 }
