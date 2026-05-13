@@ -1,0 +1,271 @@
+{
+  "config": {
+    "pump_threshold": 0.3,
+    "sl_level": 0.5,
+    "hold_days": 30,
+    "fee_round_trip": 0.0008,
+    "perm_n": 200,
+    "bootstrap_n": 1000,
+    "seed": 42
+  },
+  "cohort_summary": {
+    "n_total": 167,
+    "n_pumped": 70,
+    "n_not_pumped": 97,
+    "n_sl_hit": 62,
+    "n_time_exit": 105,
+    "mean_hold_days": 21.4
+  },
+  "all_cohort_short_30d_ret_net": {
+    "n": 167,
+    "mean_pct": 7.31,
+    "median_pct": 21.61,
+    "std_pct": 48.13,
+    "t_stat": 1.96,
+    "win_rate_positive": 0.581,
+    "p25_pct": -50.08,
+    "p75_pct": 51.84,
+    "max_pct": 90.47,
+    "min_pct": -50.08
+  },
+  "pumped_short_30d_ret_net": {
+    "n": 70,
+    "mean_pct": 5.07,
+    "median_pct": 21.44,
+    "std_pct": 51.03,
+    "t_stat": 0.83,
+    "win_rate_positive": 0.543,
+    "p25_pct": -50.08,
+    "p75_pct": 54.7,
+    "max_pct": 90.47,
+    "min_pct": -50.08
+  },
+  "not_pumped_short_30d_ret_net": {
+    "n": 97,
+    "mean_pct": 8.93,
+    "median_pct": 21.61,
+    "std_pct": 46.13,
+    "t_stat": 1.91,
+    "win_rate_positive": 0.608,
+    "p25_pct": -50.08,
+    "p75_pct": 49.83,
+    "max_pct": 80.43,
+    "min_pct": -50.08
+  },
+  "all_bootstrap_ci_95": {
+    "median_ci_lo_pct": 3.27,
+    "median_ci_hi_pct": 31.52,
+    "mean_ci_lo_pct": -0.3,
+    "mean_ci_hi_pct": 14.16
+  },
+  "pumped_bootstrap_ci_95": {
+    "median_ci_lo_pct": -50.08,
+    "median_ci_hi_pct": 37.62,
+    "mean_ci_lo_pct": -6.44,
+    "mean_ci_hi_pct": 16.46
+  },
+  "quarterly_folds": {
+    "2025Q2": {
+      "n": 25,
+      "mean_pct": 18.91,
+      "median_pct": 31.38,
+      "win_rate_positive": 0.76
+    },
+    "2025Q3": {
+      "n": 66,
+      "mean_pct": -5.03,
+      "median_pct": -3.52,
+      "win_rate_positive": 0.485
+    },
+    "2025Q4": {
+      "n": 49,
+      "mean_pct": 17.99,
+      "median_pct": 39.34,
+      "win_rate_positive": 0.653
+    },
+    "2026Q1": {
+      "n": 26,
+      "mean_pct": 9.58,
+      "median_pct": 4.8,
+      "win_rate_positive": 0.538
+    },
+    "2026Q2": {
+      "n": 1,
+      "mean_pct": -50.08,
+      "median_pct": -50.08,
+      "win_rate_positive": 0.0
+    }
+  },
+  "permutation_test": {
+    "actual_median_pct": 21.61,
+    "null_median_mean_pct": -0.6,
+    "null_median_std_pct": 3.26,
+    "null_n_draws": 200,
+    "p_value_one_sided": 0.0,
+    "sigma": 6.8
+  },
+  "top_15_winners": [
+    {
+      "symbol": "MMTUSDT",
+      "listing_date": "2025-11-04",
+      "day1_high_ret": 16.98305555555556,
+      "ret_net": 0.9046937492831747,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "XANUSDT",
+      "listing_date": "2025-09-29",
+      "day1_high_ret": 1.0056153846153846,
+      "ret_net": 0.8416425179042593,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ZKCUSDT",
+      "listing_date": "2025-09-15",
+      "day1_high_ret": 0.12748607796340505,
+      "ret_net": 0.8043462737561392,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ZAMAUSDT",
+      "listing_date": "2026-01-09",
+      "day1_high_ret": 0.13839959738298946,
+      "ret_net": 0.7738938775510203,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "MIRAUSDT",
+      "listing_date": "2025-09-26",
+      "day1_high_ret": 0.3647816750178956,
+      "ret_net": 0.759441633106513,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "METUSDT",
+      "listing_date": "2025-10-11",
+      "day1_high_ret": 0.1399999999999999,
+      "ret_net": 0.7506762842085212,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "HOLOUSDT",
+      "listing_date": "2025-09-11",
+      "day1_high_ret": 0.21126760563380276,
+      "ret_net": 0.7211943880854738,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "4USDT",
+      "listing_date": "2025-10-08",
+      "day1_high_ret": 0.4255045871559633,
+      "ret_net": 0.7097144125992023,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ALLOUSDT",
+      "listing_date": "2025-11-11",
+      "day1_high_ret": 0.0,
+      "ret_net": 0.7088704249783175,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "2ZUSDT",
+      "listing_date": "2025-10-02",
+      "day1_high_ret": 0.331442105263158,
+      "ret_net": 0.695475695689323,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ENSOUSDT",
+      "listing_date": "2025-10-14",
+      "day1_high_ret": 0.07091561938958701,
+      "ret_net": 0.6948521739130434,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "CLOUSDT",
+      "listing_date": "2025-10-14",
+      "day1_high_ret": 2.3220555555555555,
+      "ret_net": 0.6907689826048323,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "RECALLUSDT",
+      "listing_date": "2025-10-15",
+      "day1_high_ret": 0.8586956521739129,
+      "ret_net": 0.6883049928433106,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ZBTUSDT",
+      "listing_date": "2025-10-17",
+      "day1_high_ret": 0.0,
+      "ret_net": 0.6833469308844853,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "EDENUSDT",
+      "listing_date": "2025-09-30",
+      "day1_high_ret": 0.0,
+      "ret_net": 0.6747199198195941,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    }
+  ],
+  "bottom_5_losers": [
+    {
+      "symbol": "TAGUSDT",
+      "listing_date": "2025-07-25",
+      "day1_high_ret": 0.14455942301661961,
+      "ret_net": -0.5008000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 14
+    },
+    {
+      "symbol": "UBUSDT",
+      "listing_date": "2025-09-12",
+      "day1_high_ret": 0.7939018798716184,
+      "ret_net": -0.5008000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 1
+    },
+    {
+      "symbol": "TRADOORUSDT",
+      "listing_date": "2025-09-19",
+      "day1_high_ret": 0.29586206896551737,
+      "ret_net": -0.5008000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 2
+    },
+    {
+      "symbol": "XPLUSDT",
+      "listing_date": "2025-08-22",
+      "day1_high_ret": 0.3873809523809524,
+      "ret_net": -0.5008000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 9
+    },
+    {
+      "symbol": "ZORAUSDT",
+      "listing_date": "2025-07-25",
+      "day1_high_ret": 0.11483578708946762,
+      "ret_net": -0.5008000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 1
+    }
+  ]
+}

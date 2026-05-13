@@ -1,0 +1,3404 @@
+{
+  "0GUSDT": {
+    "base": "0G",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-17",
+    "onboard_ts_ms": 1758123900000
+  },
+  "1000000BOBUSDT": {
+    "base": "1000000BOB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-05",
+    "onboard_ts_ms": 1749112200000
+  },
+  "1000000MOGUSDT": {
+    "base": "1000000MOG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-07",
+    "onboard_ts_ms": 1730982600000
+  },
+  "1000BONKUSDT": {
+    "base": "1000BONK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-22",
+    "onboard_ts_ms": 1700661600000
+  },
+  "1000CATUSDT": {
+    "base": "1000CAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-21",
+    "onboard_ts_ms": 1729513800000
+  },
+  "1000CHEEMSUSDT": {
+    "base": "1000CHEEMS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-25",
+    "onboard_ts_ms": 1732535100000
+  },
+  "1000FLOKIUSDT": {
+    "base": "1000FLOKI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-05-06",
+    "onboard_ts_ms": 1683331200000
+  },
+  "1000LUNCUSDT": {
+    "base": "1000LUNC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-09-08",
+    "onboard_ts_ms": 1662620400000
+  },
+  "1000PEPEUSDT": {
+    "base": "1000PEPE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-05-05",
+    "onboard_ts_ms": 1683244800000
+  },
+  "1000RATSUSDT": {
+    "base": "1000RATS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-15",
+    "onboard_ts_ms": 1702648800000
+  },
+  "1000SATSUSDT": {
+    "base": "1000SATS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-12",
+    "onboard_ts_ms": 1702389600000
+  },
+  "1000SHIBUSDT": {
+    "base": "1000SHIB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-05-10",
+    "onboard_ts_ms": 1620630000000
+  },
+  "1000XECUSDT": {
+    "base": "1000XEC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-09-16",
+    "onboard_ts_ms": 1631775600000
+  },
+  "1INCHUSDT": {
+    "base": "1INCH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2020-12-25",
+    "onboard_ts_ms": 1608879600000
+  },
+  "1MBABYDOGEUSDT": {
+    "base": "1MBABYDOGE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-16",
+    "onboard_ts_ms": 1726486500000
+  },
+  "2ZUSDT": {
+    "base": "2Z",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-02",
+    "onboard_ts_ms": 1759408200000
+  },
+  "4USDT": {
+    "base": "4",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-08",
+    "onboard_ts_ms": 1759923000000
+  },
+  "AAPLUSDT": {
+    "base": "AAPL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-06",
+    "onboard_ts_ms": 1775483400000
+  },
+  "AAVEUSDT": {
+    "base": "AAVE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ACEUSDT": {
+    "base": "ACE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-18",
+    "onboard_ts_ms": 1702893600000
+  },
+  "ACHUSDT": {
+    "base": "ACH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-21",
+    "onboard_ts_ms": 1676962800000
+  },
+  "ACTUSDT": {
+    "base": "ACT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-11",
+    "onboard_ts_ms": 1731327300000
+  },
+  "ACUUSDT": {
+    "base": "ACU",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-21",
+    "onboard_ts_ms": 1768999500000
+  },
+  "ACXUSDT": {
+    "base": "ACX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-06",
+    "onboard_ts_ms": 1733497200000
+  },
+  "ADAUSDT": {
+    "base": "ADA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "AERGOUSDT": {
+    "base": "AERGO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-16",
+    "onboard_ts_ms": 1744801200000
+  },
+  "AEROUSDT": {
+    "base": "AERO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-04",
+    "onboard_ts_ms": 1733321700000
+  },
+  "AEVOUSDT": {
+    "base": "AEVO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-13",
+    "onboard_ts_ms": 1710336600000
+  },
+  "AGLDUSDT": {
+    "base": "AGLD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-07-29",
+    "onboard_ts_ms": 1690597800000
+  },
+  "AGTUSDT": {
+    "base": "AGT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-20",
+    "onboard_ts_ms": 1747737000000
+  },
+  "AIAUSDT": {
+    "base": "AIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-20",
+    "onboard_ts_ms": 1768907700000
+  },
+  "AIGENSYNUSDT": {
+    "base": "AIGENSYN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-04-29",
+    "onboard_ts_ms": 1777472100000
+  },
+  "AINUSDT": {
+    "base": "AIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-10",
+    "onboard_ts_ms": 1752144300000
+  },
+  "AIOTUSDT": {
+    "base": "AIOT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-30",
+    "onboard_ts_ms": 1746016200000
+  },
+  "AIOUSDT": {
+    "base": "AIO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-13",
+    "onboard_ts_ms": 1755084600000
+  },
+  "AIXBTUSDT": {
+    "base": "AIXBT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-20",
+    "onboard_ts_ms": 1734719400000
+  },
+  "AKEUSDT": {
+    "base": "AKE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-26",
+    "onboard_ts_ms": 1758889800000
+  },
+  "AKTUSDT": {
+    "base": "AKT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-18",
+    "onboard_ts_ms": 1731929400000
+  },
+  "ALCHUSDT": {
+    "base": "ALCH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-07",
+    "onboard_ts_ms": 1736250300000
+  },
+  "ALGOUSDT": {
+    "base": "ALGO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ALICEUSDT": {
+    "base": "ALICE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-15",
+    "onboard_ts_ms": 1615791600000
+  },
+  "ALLOUSDT": {
+    "base": "ALLO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-11",
+    "onboard_ts_ms": 1762869600000
+  },
+  "ALLUSDT": {
+    "base": "ALL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-06",
+    "onboard_ts_ms": 1754470800000
+  },
+  "ALPINEUSDT": {
+    "base": "ALPINE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-06",
+    "onboard_ts_ms": 1746524700000
+  },
+  "ALTUSDT": {
+    "base": "ALT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-25",
+    "onboard_ts_ms": 1706191200000
+  },
+  "AMDUSDT": {
+    "base": "AMD",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-06",
+    "onboard_ts_ms": 1778074200000
+  },
+  "AMZNUSDT": {
+    "base": "AMZN",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-09",
+    "onboard_ts_ms": 1770648000000
+  },
+  "ANIMEUSDT": {
+    "base": "ANIME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-23",
+    "onboard_ts_ms": 1737651600000
+  },
+  "ANKRUSDT": {
+    "base": "ANKR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-01-25",
+    "onboard_ts_ms": 1611558000000
+  },
+  "APEUSDT": {
+    "base": "APE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-03-17",
+    "onboard_ts_ms": 1647500400000
+  },
+  "API3USDT": {
+    "base": "API3",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-02-21",
+    "onboard_ts_ms": 1645426800000
+  },
+  "APRUSDT": {
+    "base": "APR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-23",
+    "onboard_ts_ms": 1761215400000
+  },
+  "APTUSDT": {
+    "base": "APT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-10-18",
+    "onboard_ts_ms": 1666076400000
+  },
+  "ARBUSDT": {
+    "base": "ARB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-23",
+    "onboard_ts_ms": 1679554800000
+  },
+  "ARCUSDT": {
+    "base": "ARC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-17",
+    "onboard_ts_ms": 1737118800000
+  },
+  "ARIAUSDT": {
+    "base": "ARIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-03",
+    "onboard_ts_ms": 1756897200000
+  },
+  "ARKMUSDT": {
+    "base": "ARKM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-07-28",
+    "onboard_ts_ms": 1690512300000
+  },
+  "ARKUSDT": {
+    "base": "ARK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-09-19",
+    "onboard_ts_ms": 1695133800000
+  },
+  "ARPAUSDT": {
+    "base": "ARPA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-10-18",
+    "onboard_ts_ms": 1634540400000
+  },
+  "ARUSDT": {
+    "base": "AR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-09-28",
+    "onboard_ts_ms": 1632812400000
+  },
+  "ASRUSDT": {
+    "base": "ASR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-06",
+    "onboard_ts_ms": 1746523800000
+  },
+  "ASTERUSDT": {
+    "base": "ASTER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-19",
+    "onboard_ts_ms": 1758283200000
+  },
+  "ASTRUSDT": {
+    "base": "ASTR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-13",
+    "onboard_ts_ms": 1676271600000
+  },
+  "ATAUSDT": {
+    "base": "ATA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-08-30",
+    "onboard_ts_ms": 1630306800000
+  },
+  "ATHUSDT": {
+    "base": "ATH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-02",
+    "onboard_ts_ms": 1743608700000
+  },
+  "ATOMUSDT": {
+    "base": "ATOM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ATUSDT": {
+    "base": "AT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-29",
+    "onboard_ts_ms": 1761737400000
+  },
+  "AUCTIONUSDT": {
+    "base": "AUCTION",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-15",
+    "onboard_ts_ms": 1702645200000
+  },
+  "AUSDT": {
+    "base": "A",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-28",
+    "onboard_ts_ms": 1748419200000
+  },
+  "AVAAIUSDT": {
+    "base": "AVAAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-17",
+    "onboard_ts_ms": 1737119700000
+  },
+  "AVAUSDT": {
+    "base": "AVA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-13",
+    "onboard_ts_ms": 1734094800000
+  },
+  "AVAXUSDT": {
+    "base": "AVAX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "AVGOUSDT": {
+    "base": "AVGO",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-20",
+    "onboard_ts_ms": 1776692400000
+  },
+  "AVNTUSDT": {
+    "base": "AVNT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-09",
+    "onboard_ts_ms": 1757430000000
+  },
+  "AWEUSDT": {
+    "base": "AWE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-21",
+    "onboard_ts_ms": 1747814400000
+  },
+  "AXLUSDT": {
+    "base": "AXL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-01",
+    "onboard_ts_ms": 1709307000000
+  },
+  "AXSUSDT": {
+    "base": "AXS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "AZTECUSDT": {
+    "base": "AZTEC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-02-11",
+    "onboard_ts_ms": 1770784200000
+  },
+  "B2USDT": {
+    "base": "B2",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-06",
+    "onboard_ts_ms": 1746538200000
+  },
+  "BABAUSDT": {
+    "base": "BABA",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-20",
+    "onboard_ts_ms": 1776693000000
+  },
+  "BABYUSDT": {
+    "base": "BABY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-05",
+    "onboard_ts_ms": 1743859800000
+  },
+  "BANANAS31USDT": {
+    "base": "BANANAS31",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-22",
+    "onboard_ts_ms": 1742634900000
+  },
+  "BANANAUSDT": {
+    "base": "BANANA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-15",
+    "onboard_ts_ms": 1723687200000
+  },
+  "BANDUSDT": {
+    "base": "BAND",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BANKUSDT": {
+    "base": "BANK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-18",
+    "onboard_ts_ms": 1745001000000
+  },
+  "BANUSDT": {
+    "base": "BAN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-18",
+    "onboard_ts_ms": 1731929400000
+  },
+  "BARDUSDT": {
+    "base": "BARD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-18",
+    "onboard_ts_ms": 1758193200000
+  },
+  "BASEDUSDT": {
+    "base": "BASED",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-30",
+    "onboard_ts_ms": 1774864800000
+  },
+  "BASUSDT": {
+    "base": "BAS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-26",
+    "onboard_ts_ms": 1756215000000
+  },
+  "BATUSDT": {
+    "base": "BAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BBUSDT": {
+    "base": "BB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-05-13",
+    "onboard_ts_ms": 1715603400000
+  },
+  "BCHUSDT": {
+    "base": "BCH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BEAMXUSDT": {
+    "base": "BEAMX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-17",
+    "onboard_ts_ms": 1700227800000
+  },
+  "BEATUSDT": {
+    "base": "BEAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-12",
+    "onboard_ts_ms": 1762949700000
+  },
+  "BELUSDT": {
+    "base": "BEL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BERAUSDT": {
+    "base": "BERA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-06",
+    "onboard_ts_ms": 1738854000000
+  },
+  "BICOUSDT": {
+    "base": "BICO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-09-28",
+    "onboard_ts_ms": 1695904200000
+  },
+  "BIGTIMEUSDT": {
+    "base": "BIGTIME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-12",
+    "onboard_ts_ms": 1697121000000
+  },
+  "BILLUSDT": {
+    "base": "BILL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-05-07",
+    "onboard_ts_ms": 1778141700000
+  },
+  "BIOUSDT": {
+    "base": "BIO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-03",
+    "onboard_ts_ms": 1735906500000
+  },
+  "BIRBUSDT": {
+    "base": "BIRB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-29",
+    "onboard_ts_ms": 1769663700000
+  },
+  "BLESSUSDT": {
+    "base": "BLESS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-23",
+    "onboard_ts_ms": 1758619800000
+  },
+  "BLUAIUSDT": {
+    "base": "BLUAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-21",
+    "onboard_ts_ms": 1761046200000
+  },
+  "BLURUSDT": {
+    "base": "BLUR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-04-27",
+    "onboard_ts_ms": 1682553600000
+  },
+  "BMTUSDT": {
+    "base": "BMT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-17",
+    "onboard_ts_ms": 1742218200000
+  },
+  "BNBUSDT": {
+    "base": "BNB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BNTUSDT": {
+    "base": "BNT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-08-10",
+    "onboard_ts_ms": 1691668800000
+  },
+  "BOMEUSDT": {
+    "base": "BOME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-16",
+    "onboard_ts_ms": 1710592200000
+  },
+  "BRETTUSDT": {
+    "base": "BRETT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-20",
+    "onboard_ts_ms": 1724150100000
+  },
+  "BREVUSDT": {
+    "base": "BREV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-30",
+    "onboard_ts_ms": 1767091500000
+  },
+  "BROCCOLI714USDT": {
+    "base": "BROCCOLI714",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-21",
+    "onboard_ts_ms": 1742547600000
+  },
+  "BROCCOLIF3BUSDT": {
+    "base": "BROCCOLIF3B",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-21",
+    "onboard_ts_ms": 1742548500000
+  },
+  "BRUSDT": {
+    "base": "BR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-21",
+    "onboard_ts_ms": 1742561100000
+  },
+  "BSBUSDT": {
+    "base": "BSB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-25",
+    "onboard_ts_ms": 1774439100000
+  },
+  "BSVUSDT": {
+    "base": "BSV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-20",
+    "onboard_ts_ms": 1697805000000
+  },
+  "BTCDOMUSDT": {
+    "base": "BTCDOM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-06-17",
+    "onboard_ts_ms": 1623913200000
+  },
+  "BTCUSDT": {
+    "base": "BTC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "BTCUSDT_260626": {
+    "base": "BTC",
+    "contract_type": "CURRENT_QUARTER",
+    "onboard_date": "2025-12-26",
+    "onboard_ts_ms": 1766736000000
+  },
+  "BTCUSDT_260925": {
+    "base": "BTC",
+    "contract_type": "NEXT_QUARTER",
+    "onboard_date": "2026-03-27",
+    "onboard_ts_ms": 1774598400000
+  },
+  "BTRUSDT": {
+    "base": "BTR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-27",
+    "onboard_ts_ms": 1756290600000
+  },
+  "BULLAUSDT": {
+    "base": "BULLA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-04",
+    "onboard_ts_ms": 1751619600000
+  },
+  "BUSDT": {
+    "base": "B",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-22",
+    "onboard_ts_ms": 1747931400000
+  },
+  "BZUSDT": {
+    "base": "BZ",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-01",
+    "onboard_ts_ms": 1775034600000
+  },
+  "C98USDT": {
+    "base": "C98",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-08-23",
+    "onboard_ts_ms": 1629702000000
+  },
+  "CAKEUSDT": {
+    "base": "CAKE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-02",
+    "onboard_ts_ms": 1698929100000
+  },
+  "CARVUSDT": {
+    "base": "CARV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-07",
+    "onboard_ts_ms": 1754585100000
+  },
+  "CATIUSDT": {
+    "base": "CATI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-20",
+    "onboard_ts_ms": 1726831800000
+  },
+  "CCUSDT": {
+    "base": "CC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-31",
+    "onboard_ts_ms": 1761912000000
+  },
+  "CELOUSDT": {
+    "base": "CELO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-09-26",
+    "onboard_ts_ms": 1632639600000
+  },
+  "CELRUSDT": {
+    "base": "CELR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-29",
+    "onboard_ts_ms": 1617001200000
+  },
+  "CETUSUSDT": {
+    "base": "CETUS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-06",
+    "onboard_ts_ms": 1730901600000
+  },
+  "CFGUSDT": {
+    "base": "CFG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-16",
+    "onboard_ts_ms": 1773666000000
+  },
+  "CFXUSDT": {
+    "base": "CFX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-19",
+    "onboard_ts_ms": 1676790000000
+  },
+  "CGPTUSDT": {
+    "base": "CGPT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-20",
+    "onboard_ts_ms": 1734722100000
+  },
+  "CHILLGUYUSDT": {
+    "base": "CHILLGUY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-27",
+    "onboard_ts_ms": 1732718700000
+  },
+  "CHIPUSDT": {
+    "base": "CHIP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-04-16",
+    "onboard_ts_ms": 1776323700000
+  },
+  "CHRUSDT": {
+    "base": "CHR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-12",
+    "onboard_ts_ms": 1615532400000
+  },
+  "CHZUSDT": {
+    "base": "CHZ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-01-21",
+    "onboard_ts_ms": 1611212400000
+  },
+  "CKBUSDT": {
+    "base": "CKB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-27",
+    "onboard_ts_ms": 1677481200000
+  },
+  "CLANKERUSDT": {
+    "base": "CLANKER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-12",
+    "onboard_ts_ms": 1762948800000
+  },
+  "CLOUSDT": {
+    "base": "CLO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-14",
+    "onboard_ts_ms": 1760441400000
+  },
+  "CLUSDT": {
+    "base": "CL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-01",
+    "onboard_ts_ms": 1775034000000
+  },
+  "COAIUSDT": {
+    "base": "COAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-25",
+    "onboard_ts_ms": 1758785400000
+  },
+  "COINUSDT": {
+    "base": "COIN",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-09",
+    "onboard_ts_ms": 1770649200000
+  },
+  "COLLECTUSDT": {
+    "base": "COLLECT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-31",
+    "onboard_ts_ms": 1767186900000
+  },
+  "COMPUSDT": {
+    "base": "COMP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "COOKIEUSDT": {
+    "base": "COOKIE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-07",
+    "onboard_ts_ms": 1736249400000
+  },
+  "COPPERUSDT": {
+    "base": "COPPER",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-06",
+    "onboard_ts_ms": 1772787600000
+  },
+  "COSUSDT": {
+    "base": "COS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-30",
+    "onboard_ts_ms": 1727701200000
+  },
+  "COTIUSDT": {
+    "base": "COTI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-09",
+    "onboard_ts_ms": 1615273200000
+  },
+  "COWUSDT": {
+    "base": "COW",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-06",
+    "onboard_ts_ms": 1730899800000
+  },
+  "CRCLUSDT": {
+    "base": "CRCL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-09",
+    "onboard_ts_ms": 1770648600000
+  },
+  "CROSSUSDT": {
+    "base": "CROSS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-10",
+    "onboard_ts_ms": 1752143400000
+  },
+  "CRVUSDT": {
+    "base": "CRV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "CTKUSDT": {
+    "base": "CTK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-30",
+    "onboard_ts_ms": 1746008100000
+  },
+  "CTSIUSDT": {
+    "base": "CTSI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-10-25",
+    "onboard_ts_ms": 1635145200000
+  },
+  "CUSDT": {
+    "base": "C",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-15",
+    "onboard_ts_ms": 1752570000000
+  },
+  "CVCUSDT": {
+    "base": "CVC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-16",
+    "onboard_ts_ms": 1747384200000
+  },
+  "CVXUSDT": {
+    "base": "CVX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-23",
+    "onboard_ts_ms": 1753270200000
+  },
+  "CYBERUSDT": {
+    "base": "CYBER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-08-21",
+    "onboard_ts_ms": 1692619200000
+  },
+  "CYSUSDT": {
+    "base": "CYS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-12",
+    "onboard_ts_ms": 1765537200000
+  },
+  "DASHUSDT": {
+    "base": "DASH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "DEEPUSDT": {
+    "base": "DEEP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-22",
+    "onboard_ts_ms": 1745310600000
+  },
+  "DEXEUSDT": {
+    "base": "DEXE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-24",
+    "onboard_ts_ms": 1735039800000
+  },
+  "DIAUSDT": {
+    "base": "DIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-02",
+    "onboard_ts_ms": 1727872200000
+  },
+  "DODOXUSDT": {
+    "base": "DODOX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-08-08",
+    "onboard_ts_ms": 1691496000000
+  },
+  "DOGEUSDT": {
+    "base": "DOGE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "DOGSUSDT": {
+    "base": "DOGS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-26",
+    "onboard_ts_ms": 1724675400000
+  },
+  "DOLOUSDT": {
+    "base": "DOLO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-01",
+    "onboard_ts_ms": 1746068400000
+  },
+  "DOODUSDT": {
+    "base": "DOOD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-09",
+    "onboard_ts_ms": 1746797400000
+  },
+  "DOTUSDT": {
+    "base": "DOT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "DRIFTUSDT": {
+    "base": "DRIFT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-08",
+    "onboard_ts_ms": 1731081600000
+  },
+  "DUSDT": {
+    "base": "D",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-09",
+    "onboard_ts_ms": 1736416800000
+  },
+  "DUSKUSDT": {
+    "base": "DUSK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-01-06",
+    "onboard_ts_ms": 1641452400000
+  },
+  "DYDXUSDT": {
+    "base": "DYDX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-09-09",
+    "onboard_ts_ms": 1631170800000
+  },
+  "DYMUSDT": {
+    "base": "DYM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-07",
+    "onboard_ts_ms": 1707289200000
+  },
+  "EDENUSDT": {
+    "base": "EDEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-30",
+    "onboard_ts_ms": 1759230000000
+  },
+  "EDGEUSDT": {
+    "base": "EDGE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-19",
+    "onboard_ts_ms": 1773928800000
+  },
+  "EDUUSDT": {
+    "base": "EDU",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-04-28",
+    "onboard_ts_ms": 1682640000000
+  },
+  "EGLDUSDT": {
+    "base": "EGLD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "EIGENUSDT": {
+    "base": "EIGEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-01",
+    "onboard_ts_ms": 1727762400000
+  },
+  "ELSAUSDT": {
+    "base": "ELSA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-22",
+    "onboard_ts_ms": 1769066700000
+  },
+  "ENAUSDT": {
+    "base": "ENA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-02",
+    "onboard_ts_ms": 1712061000000
+  },
+  "ENJUSDT": {
+    "base": "ENJ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ENSOUSDT": {
+    "base": "ENSO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-14",
+    "onboard_ts_ms": 1760432400000
+  },
+  "ENSUSDT": {
+    "base": "ENS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-11-29",
+    "onboard_ts_ms": 1638169200000
+  },
+  "EPICUSDT": {
+    "base": "EPIC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-13",
+    "onboard_ts_ms": 1741852800000
+  },
+  "ERAUSDT": {
+    "base": "ERA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-17",
+    "onboard_ts_ms": 1752759000000
+  },
+  "ESPORTSUSDT": {
+    "base": "ESPORTS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-29",
+    "onboard_ts_ms": 1753783200000
+  },
+  "ESPUSDT": {
+    "base": "ESP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-02-10",
+    "onboard_ts_ms": 1770711000000
+  },
+  "ETCUSDT": {
+    "base": "ETC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ETHFIUSDT": {
+    "base": "ETHFI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-18",
+    "onboard_ts_ms": 1710775800000
+  },
+  "ETHUSDT": {
+    "base": "ETH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ETHUSDT_260626": {
+    "base": "ETH",
+    "contract_type": "CURRENT_QUARTER",
+    "onboard_date": "2025-12-26",
+    "onboard_ts_ms": 1766736000000
+  },
+  "ETHUSDT_260925": {
+    "base": "ETH",
+    "contract_type": "NEXT_QUARTER",
+    "onboard_date": "2026-03-27",
+    "onboard_ts_ms": 1774598400000
+  },
+  "ETHWUSDT": {
+    "base": "ETHW",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-28",
+    "onboard_ts_ms": 1701174600000
+  },
+  "EULUSDT": {
+    "base": "EUL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-13",
+    "onboard_ts_ms": 1760365800000
+  },
+  "EVAAUSDT": {
+    "base": "EVAA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-03",
+    "onboard_ts_ms": 1759487400000
+  },
+  "EWJUSDT": {
+    "base": "EWJ",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-19",
+    "onboard_ts_ms": 1773927000000
+  },
+  "EWYUSDT": {
+    "base": "EWY",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-16",
+    "onboard_ts_ms": 1773667800000
+  },
+  "FARTCOINUSDT": {
+    "base": "FARTCOIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-20",
+    "onboard_ts_ms": 1734720300000
+  },
+  "FETUSDT": {
+    "base": "FET",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-01-15",
+    "onboard_ts_ms": 1673766000000
+  },
+  "FFUSDT": {
+    "base": "FF",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-29",
+    "onboard_ts_ms": 1759150800000
+  },
+  "FHEUSDT": {
+    "base": "FHE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-12",
+    "onboard_ts_ms": 1744470000000
+  },
+  "FIDAUSDT": {
+    "base": "FIDA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-19",
+    "onboard_ts_ms": 1726749000000
+  },
+  "FIGHTUSDT": {
+    "base": "FIGHT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-23",
+    "onboard_ts_ms": 1769170500000
+  },
+  "FILUSDT": {
+    "base": "FIL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "FLOCKUSDT": {
+    "base": "FLOCK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-09",
+    "onboard_ts_ms": 1757400300000
+  },
+  "FLOWUSDT": {
+    "base": "FLOW",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-02-09",
+    "onboard_ts_ms": 1644390000000
+  },
+  "FLUIDUSDT": {
+    "base": "FLUID",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-24",
+    "onboard_ts_ms": 1758708900000
+  },
+  "FLUXUSDT": {
+    "base": "FLUX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-03",
+    "onboard_ts_ms": 1725346800000
+  },
+  "FOGOUSDT": {
+    "base": "FOGO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-10",
+    "onboard_ts_ms": 1768053600000
+  },
+  "FOLKSUSDT": {
+    "base": "FOLKS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-06",
+    "onboard_ts_ms": 1762432200000
+  },
+  "FORMUSDT": {
+    "base": "FORM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-19",
+    "onboard_ts_ms": 1742371200000
+  },
+  "FRAXUSDT": {
+    "base": "FRAX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-15",
+    "onboard_ts_ms": 1768464000000
+  },
+  "FUSDT": {
+    "base": "F",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-18",
+    "onboard_ts_ms": 1750250700000
+  },
+  "GALAUSDT": {
+    "base": "GALA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-09-17",
+    "onboard_ts_ms": 1631862000000
+  },
+  "GASUSDT": {
+    "base": "GAS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-25",
+    "onboard_ts_ms": 1698201900000
+  },
+  "GENIUSUSDT": {
+    "base": "GENIUS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-04-16",
+    "onboard_ts_ms": 1776310200000
+  },
+  "GIGGLEUSDT": {
+    "base": "GIGGLE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-09",
+    "onboard_ts_ms": 1760003100000
+  },
+  "GLMUSDT": {
+    "base": "GLM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-22",
+    "onboard_ts_ms": 1708596000000
+  },
+  "GMTUSDT": {
+    "base": "GMT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-03-14",
+    "onboard_ts_ms": 1647241200000
+  },
+  "GMXUSDT": {
+    "base": "GMX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-16",
+    "onboard_ts_ms": 1676530800000
+  },
+  "GOATUSDT": {
+    "base": "GOAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-24",
+    "onboard_ts_ms": 1729776600000
+  },
+  "GOOGLUSDT": {
+    "base": "GOOGL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-26",
+    "onboard_ts_ms": 1774536600000
+  },
+  "GPSUSDT": {
+    "base": "GPS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-17",
+    "onboard_ts_ms": 1739811600000
+  },
+  "GRASSUSDT": {
+    "base": "GRASS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-08",
+    "onboard_ts_ms": 1731079800000
+  },
+  "GRIFFAINUSDT": {
+    "base": "GRIFFAIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-02",
+    "onboard_ts_ms": 1735824600000
+  },
+  "GRTUSDT": {
+    "base": "GRT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2020-12-18",
+    "onboard_ts_ms": 1608274800000
+  },
+  "GTCUSDT": {
+    "base": "GTC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-15",
+    "onboard_ts_ms": 1615791600000
+  },
+  "GUAUSDT": {
+    "base": "GUA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-21",
+    "onboard_ts_ms": 1766312100000
+  },
+  "GUNUSDT": {
+    "base": "GUN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-31",
+    "onboard_ts_ms": 1743426000000
+  },
+  "GUSDT": {
+    "base": "G",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-15",
+    "onboard_ts_ms": 1723725000000
+  },
+  "GWEIUSDT": {
+    "base": "GWEI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-29",
+    "onboard_ts_ms": 1769664600000
+  },
+  "HAEDALUSDT": {
+    "base": "HAEDAL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-01",
+    "onboard_ts_ms": 1746069300000
+  },
+  "HANAUSDT": {
+    "base": "HANA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-26",
+    "onboard_ts_ms": 1758886200000
+  },
+  "HBARUSDT": {
+    "base": "HBAR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-17",
+    "onboard_ts_ms": 1615964400000
+  },
+  "HEIUSDT": {
+    "base": "HEI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-13",
+    "onboard_ts_ms": 1739437200000
+  },
+  "HEMIUSDT": {
+    "base": "HEMI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-29",
+    "onboard_ts_ms": 1756441800000
+  },
+  "HFTUSDT": {
+    "base": "HFT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-04-05",
+    "onboard_ts_ms": 1680652800000
+  },
+  "HIGHUSDT": {
+    "base": "HIGH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-03",
+    "onboard_ts_ms": 1675407600000
+  },
+  "HIVEUSDT": {
+    "base": "HIVE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-23",
+    "onboard_ts_ms": 1734953400000
+  },
+  "HMSTRUSDT": {
+    "base": "HMSTR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-26",
+    "onboard_ts_ms": 1727353800000
+  },
+  "HOLOUSDT": {
+    "base": "HOLO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-11",
+    "onboard_ts_ms": 1757592000000
+  },
+  "HOMEUSDT": {
+    "base": "HOME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-10",
+    "onboard_ts_ms": 1749555000000
+  },
+  "HOODUSDT": {
+    "base": "HOOD",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-02",
+    "onboard_ts_ms": 1770043500000
+  },
+  "HOTUSDT": {
+    "base": "HOT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-30",
+    "onboard_ts_ms": 1617087600000
+  },
+  "HUMAUSDT": {
+    "base": "HUMA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-26",
+    "onboard_ts_ms": 1748264400000
+  },
+  "HUSDT": {
+    "base": "H",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-25",
+    "onboard_ts_ms": 1750843800000
+  },
+  "HYPERUSDT": {
+    "base": "HYPER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-22",
+    "onboard_ts_ms": 1745326800000
+  },
+  "HYPEUSDT": {
+    "base": "HYPE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-30",
+    "onboard_ts_ms": 1748601000000
+  },
+  "ICNTUSDT": {
+    "base": "ICNT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-03",
+    "onboard_ts_ms": 1751547600000
+  },
+  "ICPUSDT": {
+    "base": "ICP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-07-30",
+    "onboard_ts_ms": 1627628400000
+  },
+  "ICXUSDT": {
+    "base": "ICX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "IDOLUSDT": {
+    "base": "IDOL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-04",
+    "onboard_ts_ms": 1751620500000
+  },
+  "IDUSDT": {
+    "base": "ID",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-23",
+    "onboard_ts_ms": 1679529600000
+  },
+  "ILVUSDT": {
+    "base": "ILV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-10",
+    "onboard_ts_ms": 1699633800000
+  },
+  "IMXUSDT": {
+    "base": "IMX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-02-10",
+    "onboard_ts_ms": 1644476400000
+  },
+  "INITUSDT": {
+    "base": "INIT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-16",
+    "onboard_ts_ms": 1744785000000
+  },
+  "INJUSDT": {
+    "base": "INJ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-08-16",
+    "onboard_ts_ms": 1660633200000
+  },
+  "INTCUSDT": {
+    "base": "INTC",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-02",
+    "onboard_ts_ms": 1770042600000
+  },
+  "INUSDT": {
+    "base": "IN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-07",
+    "onboard_ts_ms": 1754562600000
+  },
+  "INXUSDT": {
+    "base": "INX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-30",
+    "onboard_ts_ms": 1769799600000
+  },
+  "IOSTUSDT": {
+    "base": "IOST",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "IOTAUSDT": {
+    "base": "IOTA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "IOTXUSDT": {
+    "base": "IOTX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-08-11",
+    "onboard_ts_ms": 1628665200000
+  },
+  "IOUSDT": {
+    "base": "IO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-06-11",
+    "onboard_ts_ms": 1718114400000
+  },
+  "IPUSDT": {
+    "base": "IP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-13",
+    "onboard_ts_ms": 1739466000000
+  },
+  "IRYSUSDT": {
+    "base": "IRYS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-26",
+    "onboard_ts_ms": 1764172800000
+  },
+  "JASMYUSDT": {
+    "base": "JASMY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-04-19",
+    "onboard_ts_ms": 1650351600000
+  },
+  "JCTUSDT": {
+    "base": "JCT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-10",
+    "onboard_ts_ms": 1762770600000
+  },
+  "JELLYJELLYUSDT": {
+    "base": "JELLYJELLY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-26",
+    "onboard_ts_ms": 1743004800000
+  },
+  "JOEUSDT": {
+    "base": "JOE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-28",
+    "onboard_ts_ms": 1679961600000
+  },
+  "JSTUSDT": {
+    "base": "JST",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-28",
+    "onboard_ts_ms": 1745832600000
+  },
+  "JTOUSDT": {
+    "base": "JTO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-08",
+    "onboard_ts_ms": 1702029600000
+  },
+  "JUPUSDT": {
+    "base": "JUP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-31",
+    "onboard_ts_ms": 1706725800000
+  },
+  "KAIAUSDT": {
+    "base": "KAIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-04",
+    "onboard_ts_ms": 1733320800000
+  },
+  "KAITOUSDT": {
+    "base": "KAITO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-20",
+    "onboard_ts_ms": 1740056400000
+  },
+  "KASUSDT": {
+    "base": "KAS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-17",
+    "onboard_ts_ms": 1700186400000
+  },
+  "KATUSDT": {
+    "base": "KAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-02",
+    "onboard_ts_ms": 1772427600000
+  },
+  "KAVAUSDT": {
+    "base": "KAVA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "KERNELUSDT": {
+    "base": "KERNEL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-14",
+    "onboard_ts_ms": 1744632000000
+  },
+  "KGENUSDT": {
+    "base": "KGEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-07",
+    "onboard_ts_ms": 1759847400000
+  },
+  "KITEUSDT": {
+    "base": "KITE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-29",
+    "onboard_ts_ms": 1761733800000
+  },
+  "KMNOUSDT": {
+    "base": "KMNO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-20",
+    "onboard_ts_ms": 1734721200000
+  },
+  "KNCUSDT": {
+    "base": "KNC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "KOMAUSDT": {
+    "base": "KOMA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-10",
+    "onboard_ts_ms": 1733832900000
+  },
+  "KSMUSDT": {
+    "base": "KSM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "LABUSDT": {
+    "base": "LAB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-17",
+    "onboard_ts_ms": 1760711400000
+  },
+  "LAUSDT": {
+    "base": "LA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-05",
+    "onboard_ts_ms": 1749114000000
+  },
+  "LAYERUSDT": {
+    "base": "LAYER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-11",
+    "onboard_ts_ms": 1739288700000
+  },
+  "LDOUSDT": {
+    "base": "LDO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-09-21",
+    "onboard_ts_ms": 1663743600000
+  },
+  "LIGHTUSDT": {
+    "base": "LIGHT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-27",
+    "onboard_ts_ms": 1758972600000
+  },
+  "LINEAUSDT": {
+    "base": "LINEA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-01",
+    "onboard_ts_ms": 1756715400000
+  },
+  "LINKUSDT": {
+    "base": "LINK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "LISTAUSDT": {
+    "base": "LISTA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-06-20",
+    "onboard_ts_ms": 1718886600000
+  },
+  "LITUSDT": {
+    "base": "LIT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-23",
+    "onboard_ts_ms": 1766511000000
+  },
+  "LPTUSDT": {
+    "base": "LPT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-11-10",
+    "onboard_ts_ms": 1636527600000
+  },
+  "LQTYUSDT": {
+    "base": "LQTY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-08",
+    "onboard_ts_ms": 1678258800000
+  },
+  "LSKUSDT": {
+    "base": "LSK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-25",
+    "onboard_ts_ms": 1706192100000
+  },
+  "LTCUSDT": {
+    "base": "LTC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "LUMIAUSDT": {
+    "base": "LUMIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-18",
+    "onboard_ts_ms": 1734521400000
+  },
+  "LUNA2USDT": {
+    "base": "LUNA2",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-09-09",
+    "onboard_ts_ms": 1662706800000
+  },
+  "LYNUSDT": {
+    "base": "LYN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-06",
+    "onboard_ts_ms": 1759735800000
+  },
+  "MAGICUSDT": {
+    "base": "MAGIC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-01-23",
+    "onboard_ts_ms": 1674457200000
+  },
+  "MAGMAUSDT": {
+    "base": "MAGMA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-31",
+    "onboard_ts_ms": 1767187800000
+  },
+  "MANAUSDT": {
+    "base": "MANA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-14",
+    "onboard_ts_ms": 1615705200000
+  },
+  "MANTAUSDT": {
+    "base": "MANTA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-18",
+    "onboard_ts_ms": 1705586400000
+  },
+  "MANTRAUSDT": {
+    "base": "MANTRA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-04",
+    "onboard_ts_ms": 1772611200000
+  },
+  "MASKUSDT": {
+    "base": "MASK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-07-16",
+    "onboard_ts_ms": 1626418800000
+  },
+  "MAVIAUSDT": {
+    "base": "MAVIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-26",
+    "onboard_ts_ms": 1743005700000
+  },
+  "MAVUSDT": {
+    "base": "MAV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-06-29",
+    "onboard_ts_ms": 1688040000000
+  },
+  "MBOXUSDT": {
+    "base": "MBOX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-28",
+    "onboard_ts_ms": 1724837400000
+  },
+  "MEGAUSDT": {
+    "base": "MEGA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-30",
+    "onboard_ts_ms": 1769775300000
+  },
+  "MELANIAUSDT": {
+    "base": "MELANIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-20",
+    "onboard_ts_ms": 1737365400000
+  },
+  "MEMEUSDT": {
+    "base": "MEME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-03",
+    "onboard_ts_ms": 1699012800000
+  },
+  "MERLUSDT": {
+    "base": "MERL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-29",
+    "onboard_ts_ms": 1748507400000
+  },
+  "METAUSDT": {
+    "base": "META",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-26",
+    "onboard_ts_ms": 1774535400000
+  },
+  "METISUSDT": {
+    "base": "METIS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-12",
+    "onboard_ts_ms": 1710232200000
+  },
+  "METUSDT": {
+    "base": "MET",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-11",
+    "onboard_ts_ms": 1760185800000
+  },
+  "MEUSDT": {
+    "base": "ME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-10",
+    "onboard_ts_ms": 1733850000000
+  },
+  "MEWUSDT": {
+    "base": "MEW",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-06-17",
+    "onboard_ts_ms": 1718632800000
+  },
+  "MINAUSDT": {
+    "base": "MINA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-03",
+    "onboard_ts_ms": 1675407600000
+  },
+  "MIRAUSDT": {
+    "base": "MIRA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-26",
+    "onboard_ts_ms": 1758888000000
+  },
+  "MITOUSDT": {
+    "base": "MITO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-28",
+    "onboard_ts_ms": 1756391400000
+  },
+  "MLNUSDT": {
+    "base": "MLN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-31",
+    "onboard_ts_ms": 1743410700000
+  },
+  "MMTUSDT": {
+    "base": "MMT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-04",
+    "onboard_ts_ms": 1762257600000
+  },
+  "MOCAUSDT": {
+    "base": "MOCA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-16",
+    "onboard_ts_ms": 1734348600000
+  },
+  "MONUSDT": {
+    "base": "MON",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-10",
+    "onboard_ts_ms": 1760080500000
+  },
+  "MOODENGUSDT": {
+    "base": "MOODENG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-25",
+    "onboard_ts_ms": 1729850400000
+  },
+  "MORPHOUSDT": {
+    "base": "MORPHO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-27",
+    "onboard_ts_ms": 1732717800000
+  },
+  "MOVEUSDT": {
+    "base": "MOVE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-09",
+    "onboard_ts_ms": 1733752800000
+  },
+  "MOVRUSDT": {
+    "base": "MOVR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-26",
+    "onboard_ts_ms": 1703593800000
+  },
+  "MSFTUSDT": {
+    "base": "MSFT",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-20",
+    "onboard_ts_ms": 1776691800000
+  },
+  "MSTRUSDT": {
+    "base": "MSTR",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-09",
+    "onboard_ts_ms": 1770647400000
+  },
+  "MTLUSDT": {
+    "base": "MTL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-31",
+    "onboard_ts_ms": 1617174000000
+  },
+  "MUBARAKUSDT": {
+    "base": "MUBARAK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-17",
+    "onboard_ts_ms": 1742219100000
+  },
+  "MUSDT": {
+    "base": "M",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-07",
+    "onboard_ts_ms": 1751880600000
+  },
+  "MUUSDT": {
+    "base": "MU",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-07",
+    "onboard_ts_ms": 1775568600000
+  },
+  "MYXUSDT": {
+    "base": "MYX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-18",
+    "onboard_ts_ms": 1750249800000
+  },
+  "NAORISUSDT": {
+    "base": "NAORIS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-31",
+    "onboard_ts_ms": 1753965000000
+  },
+  "NATGASUSDT": {
+    "base": "NATGAS",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-01",
+    "onboard_ts_ms": 1775035200000
+  },
+  "NEARUSDT": {
+    "base": "NEAR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "NEIROUSDT": {
+    "base": "NEIRO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-16",
+    "onboard_ts_ms": 1726486200000
+  },
+  "NEOUSDT": {
+    "base": "NEO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "NEWTUSDT": {
+    "base": "NEWT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-19",
+    "onboard_ts_ms": 1750343400000
+  },
+  "NFPUSDT": {
+    "base": "NFP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-12-27",
+    "onboard_ts_ms": 1703680200000
+  },
+  "NIGHTUSDT": {
+    "base": "NIGHT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-10",
+    "onboard_ts_ms": 1765364400000
+  },
+  "NILUSDT": {
+    "base": "NIL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-24",
+    "onboard_ts_ms": 1742821200000
+  },
+  "NMRUSDT": {
+    "base": "NMR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-06-22",
+    "onboard_ts_ms": 1687435200000
+  },
+  "NOMUSDT": {
+    "base": "NOM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-01",
+    "onboard_ts_ms": 1759305600000
+  },
+  "NOTUSDT": {
+    "base": "NOT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-05-16",
+    "onboard_ts_ms": 1715868000000
+  },
+  "NVDAUSDT": {
+    "base": "NVDA",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-26",
+    "onboard_ts_ms": 1774536000000
+  },
+  "NXPCUSDT": {
+    "base": "NXPC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-15",
+    "onboard_ts_ms": 1747290600000
+  },
+  "OGNUSDT": {
+    "base": "OGN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-31",
+    "onboard_ts_ms": 1617174000000
+  },
+  "OGUSDT": {
+    "base": "OG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-12",
+    "onboard_ts_ms": 1747040400000
+  },
+  "ONDOUSDT": {
+    "base": "ONDO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-20",
+    "onboard_ts_ms": 1705755600000
+  },
+  "ONEUSDT": {
+    "base": "ONE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-03-17",
+    "onboard_ts_ms": 1615964400000
+  },
+  "ONGUSDT": {
+    "base": "ONG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-27",
+    "onboard_ts_ms": 1701090000000
+  },
+  "ONTUSDT": {
+    "base": "ONT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ONUSDT": {
+    "base": "ON",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-24",
+    "onboard_ts_ms": 1761294600000
+  },
+  "OPENUSDT": {
+    "base": "OPEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-08",
+    "onboard_ts_ms": 1757336400000
+  },
+  "OPGUSDT": {
+    "base": "OPG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-04-22",
+    "onboard_ts_ms": 1776871800000
+  },
+  "OPNUSDT": {
+    "base": "OPN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-02-21",
+    "onboard_ts_ms": 1771686000000
+  },
+  "OPUSDT": {
+    "base": "OP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-06-01",
+    "onboard_ts_ms": 1654066800000
+  },
+  "ORCAUSDT": {
+    "base": "ORCA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-06",
+    "onboard_ts_ms": 1733497200000
+  },
+  "ORDERUSDT": {
+    "base": "ORDER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-26",
+    "onboard_ts_ms": 1758890700000
+  },
+  "ORDIUSDT": {
+    "base": "ORDI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-07",
+    "onboard_ts_ms": 1699360200000
+  },
+  "PARTIUSDT": {
+    "base": "PARTI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-25",
+    "onboard_ts_ms": 1742907600000
+  },
+  "PAXGUSDT": {
+    "base": "PAXG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-27",
+    "onboard_ts_ms": 1743071400000
+  },
+  "PAYPUSDT": {
+    "base": "PAYP",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-03-23",
+    "onboard_ts_ms": 1774276200000
+  },
+  "PENDLEUSDT": {
+    "base": "PENDLE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-07-28",
+    "onboard_ts_ms": 1690511400000
+  },
+  "PENGUUSDT": {
+    "base": "PENGU",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-17",
+    "onboard_ts_ms": 1734452100000
+  },
+  "PEOPLEUSDT": {
+    "base": "PEOPLE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-12-23",
+    "onboard_ts_ms": 1640242800000
+  },
+  "PHAUSDT": {
+    "base": "PHA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-30",
+    "onboard_ts_ms": 1735558200000
+  },
+  "PHBUSDT": {
+    "base": "PHB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-15",
+    "onboard_ts_ms": 1676444400000
+  },
+  "PIEVERSEUSDT": {
+    "base": "PIEVERSE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-14",
+    "onboard_ts_ms": 1763119800000
+  },
+  "PIPPINUSDT": {
+    "base": "PIPPIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-24",
+    "onboard_ts_ms": 1737713700000
+  },
+  "PIXELUSDT": {
+    "base": "PIXEL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-19",
+    "onboard_ts_ms": 1708354800000
+  },
+  "PLAYUSDT": {
+    "base": "PLAY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-31",
+    "onboard_ts_ms": 1753954200000
+  },
+  "PLTRUSDT": {
+    "base": "PLTR",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-02-09",
+    "onboard_ts_ms": 1770649800000
+  },
+  "PLUMEUSDT": {
+    "base": "PLUME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-21",
+    "onboard_ts_ms": 1742562000000
+  },
+  "PNUTUSDT": {
+    "base": "PNUT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-11",
+    "onboard_ts_ms": 1731327300000
+  },
+  "POLUSDT": {
+    "base": "POL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-13",
+    "onboard_ts_ms": 1726229700000
+  },
+  "POLYXUSDT": {
+    "base": "POLYX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-25",
+    "onboard_ts_ms": 1698201000000
+  },
+  "POPCATUSDT": {
+    "base": "POPCAT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-22",
+    "onboard_ts_ms": 1724331600000
+  },
+  "PORTALUSDT": {
+    "base": "PORTAL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-29",
+    "onboard_ts_ms": 1709218800000
+  },
+  "POWERUSDT": {
+    "base": "POWER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-06",
+    "onboard_ts_ms": 1765011600000
+  },
+  "POWRUSDT": {
+    "base": "POWR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-27",
+    "onboard_ts_ms": 1698373800000
+  },
+  "PRLUSDT": {
+    "base": "PRL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-04-01",
+    "onboard_ts_ms": 1775039400000
+  },
+  "PROMPTUSDT": {
+    "base": "PROMPT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-11",
+    "onboard_ts_ms": 1744353000000
+  },
+  "PROMUSDT": {
+    "base": "PROM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-15",
+    "onboard_ts_ms": 1736944200000
+  },
+  "PROVEUSDT": {
+    "base": "PROVE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-05",
+    "onboard_ts_ms": 1754413200000
+  },
+  "PTBUSDT": {
+    "base": "PTB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-03",
+    "onboard_ts_ms": 1756902600000
+  },
+  "PUMPBTCUSDT": {
+    "base": "PUMPBTC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-13",
+    "onboard_ts_ms": 1749808800000
+  },
+  "PUMPUSDT": {
+    "base": "PUMP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-10",
+    "onboard_ts_ms": 1752132600000
+  },
+  "PUNDIXUSDT": {
+    "base": "PUNDIX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-30",
+    "onboard_ts_ms": 1746007200000
+  },
+  "PYTHUSDT": {
+    "base": "PYTH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-22",
+    "onboard_ts_ms": 1700663400000
+  },
+  "QCOMUSDT": {
+    "base": "QCOM",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-06",
+    "onboard_ts_ms": 1778074500000
+  },
+  "QNTUSDT": {
+    "base": "QNT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-10-18",
+    "onboard_ts_ms": 1666076400000
+  },
+  "QQQUSDT": {
+    "base": "QQQ",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-06",
+    "onboard_ts_ms": 1775482200000
+  },
+  "QTUMUSDT": {
+    "base": "QTUM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "QUSDT": {
+    "base": "Q",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-02",
+    "onboard_ts_ms": 1756798200000
+  },
+  "RAREUSDT": {
+    "base": "RARE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-15",
+    "onboard_ts_ms": 1723726800000
+  },
+  "RAVEUSDT": {
+    "base": "RAVE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-14",
+    "onboard_ts_ms": 1765726200000
+  },
+  "RAYSOLUSDT": {
+    "base": "RAYSOL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-10",
+    "onboard_ts_ms": 1733832000000
+  },
+  "RECALLUSDT": {
+    "base": "RECALL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-15",
+    "onboard_ts_ms": 1760531400000
+  },
+  "REDUSDT": {
+    "base": "RED",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-06",
+    "onboard_ts_ms": 1741276800000
+  },
+  "RENDERUSDT": {
+    "base": "RENDER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-07-26",
+    "onboard_ts_ms": 1721988000000
+  },
+  "RESOLVUSDT": {
+    "base": "RESOLV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-10",
+    "onboard_ts_ms": 1749562200000
+  },
+  "REZUSDT": {
+    "base": "REZ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-30",
+    "onboard_ts_ms": 1714485600000
+  },
+  "RIFUSDT": {
+    "base": "RIF",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-21",
+    "onboard_ts_ms": 1697891400000
+  },
+  "RIVERUSDT": {
+    "base": "RIVER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-17",
+    "onboard_ts_ms": 1760712300000
+  },
+  "RLCUSDT": {
+    "base": "RLC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ROBOUSDT": {
+    "base": "ROBO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-02-27",
+    "onboard_ts_ms": 1772181900000
+  },
+  "RONINUSDT": {
+    "base": "RONIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-06",
+    "onboard_ts_ms": 1707193800000
+  },
+  "ROSEUSDT": {
+    "base": "ROSE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-12-31",
+    "onboard_ts_ms": 1640934000000
+  },
+  "RPLUSDT": {
+    "base": "RPL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-09-09",
+    "onboard_ts_ms": 1725885000000
+  },
+  "RSRUSDT": {
+    "base": "RSR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "RUNEUSDT": {
+    "base": "RUNE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "RVNUSDT": {
+    "base": "RVN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-02-23",
+    "onboard_ts_ms": 1614063600000
+  },
+  "SAFEUSDT": {
+    "base": "SAFE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-25",
+    "onboard_ts_ms": 1729859400000
+  },
+  "SAGAUSDT": {
+    "base": "SAGA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-09",
+    "onboard_ts_ms": 1712658600000
+  },
+  "SAHARAUSDT": {
+    "base": "SAHARA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-26",
+    "onboard_ts_ms": 1750939200000
+  },
+  "SANDUSDT": {
+    "base": "SAND",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-01-18",
+    "onboard_ts_ms": 1610953200000
+  },
+  "SANTOSUSDT": {
+    "base": "SANTOS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-28",
+    "onboard_ts_ms": 1730124000000
+  },
+  "SAPIENUSDT": {
+    "base": "SAPIEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-20",
+    "onboard_ts_ms": 1755711000000
+  },
+  "SCRTUSDT": {
+    "base": "SCRT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-21",
+    "onboard_ts_ms": 1732188600000
+  },
+  "SCRUSDT": {
+    "base": "SCR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-10-22",
+    "onboard_ts_ms": 1729591200000
+  },
+  "SEIUSDT": {
+    "base": "SEI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-08-17",
+    "onboard_ts_ms": 1692239400000
+  },
+  "SENTUSDT": {
+    "base": "SENT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-14",
+    "onboard_ts_ms": 1763124300000
+  },
+  "SFPUSDT": {
+    "base": "SFP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2021-02-24",
+    "onboard_ts_ms": 1614150000000
+  },
+  "SHELLUSDT": {
+    "base": "SHELL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-17",
+    "onboard_ts_ms": 1739812500000
+  },
+  "SIGNUSDT": {
+    "base": "SIGN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-28",
+    "onboard_ts_ms": 1745838000000
+  },
+  "SIRENUSDT": {
+    "base": "SIREN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-22",
+    "onboard_ts_ms": 1742634000000
+  },
+  "SKLUSDT": {
+    "base": "SKL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2020-08-24",
+    "onboard_ts_ms": 1598252400000
+  },
+  "SKRUSDT": {
+    "base": "SKR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-22",
+    "onboard_ts_ms": 1769078700000
+  },
+  "SKYAIUSDT": {
+    "base": "SKYAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-13",
+    "onboard_ts_ms": 1747129500000
+  },
+  "SKYUSDT": {
+    "base": "SKY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-09",
+    "onboard_ts_ms": 1757401200000
+  },
+  "SLPUSDT": {
+    "base": "SLP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-23",
+    "onboard_ts_ms": 1753271100000
+  },
+  "SNDKUSDT": {
+    "base": "SNDK",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-07",
+    "onboard_ts_ms": 1775569200000
+  },
+  "SNXUSDT": {
+    "base": "SNX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "SOLUSDT": {
+    "base": "SOL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "SOLVUSDT": {
+    "base": "SOLV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-17",
+    "onboard_ts_ms": 1737116100000
+  },
+  "SOMIUSDT": {
+    "base": "SOMI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-25",
+    "onboard_ts_ms": 1756114200000
+  },
+  "SONICUSDT": {
+    "base": "SONIC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-08",
+    "onboard_ts_ms": 1736319600000
+  },
+  "SOONUSDT": {
+    "base": "SOON",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-23",
+    "onboard_ts_ms": 1747989000000
+  },
+  "SOPHUSDT": {
+    "base": "SOPH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-28",
+    "onboard_ts_ms": 1748437200000
+  },
+  "SPACEUSDT": {
+    "base": "SPACE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-23",
+    "onboard_ts_ms": 1769168700000
+  },
+  "SPELLUSDT": {
+    "base": "SPELL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-09-05",
+    "onboard_ts_ms": 1662361200000
+  },
+  "SPKUSDT": {
+    "base": "SPK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-17",
+    "onboard_ts_ms": 1750150800000
+  },
+  "SPORTFUNUSDT": {
+    "base": "SPORTFUN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-16",
+    "onboard_ts_ms": 1768571100000
+  },
+  "SPXUSDT": {
+    "base": "SPX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-10",
+    "onboard_ts_ms": 1733834700000
+  },
+  "SPYUSDT": {
+    "base": "SPY",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-06",
+    "onboard_ts_ms": 1775482800000
+  },
+  "SQDUSDT": {
+    "base": "SQD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-11",
+    "onboard_ts_ms": 1749645900000
+  },
+  "SSVUSDT": {
+    "base": "SSV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-23",
+    "onboard_ts_ms": 1677135600000
+  },
+  "STABLEUSDT": {
+    "base": "STABLE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-06",
+    "onboard_ts_ms": 1762430400000
+  },
+  "STBLUSDT": {
+    "base": "STBL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-17",
+    "onboard_ts_ms": 1758087900000
+  },
+  "STEEMUSDT": {
+    "base": "STEEM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-08",
+    "onboard_ts_ms": 1699453800000
+  },
+  "STGUSDT": {
+    "base": "STG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-08-24",
+    "onboard_ts_ms": 1661324400000
+  },
+  "STORJUSDT": {
+    "base": "STORJ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "STOUSDT": {
+    "base": "STO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-12",
+    "onboard_ts_ms": 1744469100000
+  },
+  "STRKUSDT": {
+    "base": "STRK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-20",
+    "onboard_ts_ms": 1708448400000
+  },
+  "STXUSDT": {
+    "base": "STX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-02-20",
+    "onboard_ts_ms": 1676876400000
+  },
+  "SUIUSDT": {
+    "base": "SUI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-05-03",
+    "onboard_ts_ms": 1683072000000
+  },
+  "SUNUSDT": {
+    "base": "SUN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-22",
+    "onboard_ts_ms": 1724331900000
+  },
+  "SUPERUSDT": {
+    "base": "SUPER",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-26",
+    "onboard_ts_ms": 1701003600000
+  },
+  "SUSDT": {
+    "base": "S",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-16",
+    "onboard_ts_ms": 1737021600000
+  },
+  "SUSHIUSDT": {
+    "base": "SUSHI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "SWARMSUSDT": {
+    "base": "SWARMS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-07",
+    "onboard_ts_ms": 1736252100000
+  },
+  "SXTUSDT": {
+    "base": "SXT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-02",
+    "onboard_ts_ms": 1746174600000
+  },
+  "SYNUSDT": {
+    "base": "SYN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-16",
+    "onboard_ts_ms": 1723811400000
+  },
+  "SYRUPUSDT": {
+    "base": "SYRUP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-05-07",
+    "onboard_ts_ms": 1746606600000
+  },
+  "SYSUSDT": {
+    "base": "SYS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-08-19",
+    "onboard_ts_ms": 1724070600000
+  },
+  "TACUSDT": {
+    "base": "TAC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-15",
+    "onboard_ts_ms": 1752575400000
+  },
+  "TAGUSDT": {
+    "base": "TAG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-25",
+    "onboard_ts_ms": 1753442100000
+  },
+  "TAIKOUSDT": {
+    "base": "TAIKO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-06-11",
+    "onboard_ts_ms": 1749645000000
+  },
+  "TAKEUSDT": {
+    "base": "TAKE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-03",
+    "onboard_ts_ms": 1756898100000
+  },
+  "TAOUSDT": {
+    "base": "TAO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-11",
+    "onboard_ts_ms": 1712845800000
+  },
+  "TAUSDT": {
+    "base": "TA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-21",
+    "onboard_ts_ms": 1753083000000
+  },
+  "THETAUSDT": {
+    "base": "THETA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "THEUSDT": {
+    "base": "THE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-11-27",
+    "onboard_ts_ms": 1732709700000
+  },
+  "TIAUSDT": {
+    "base": "TIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-31",
+    "onboard_ts_ms": 1698769800000
+  },
+  "TLMUSDT": {
+    "base": "TLM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-29",
+    "onboard_ts_ms": 1680048000000
+  },
+  "TNSRUSDT": {
+    "base": "TNSR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-08",
+    "onboard_ts_ms": 1712595600000
+  },
+  "TONUSDT": {
+    "base": "TON",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-01",
+    "onboard_ts_ms": 1709296200000
+  },
+  "TOSHIUSDT": {
+    "base": "TOSHI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-17",
+    "onboard_ts_ms": 1758087000000
+  },
+  "TOWNSUSDT": {
+    "base": "TOWNS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-05",
+    "onboard_ts_ms": 1754404200000
+  },
+  "TRADOORUSDT": {
+    "base": "TRADOOR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-19",
+    "onboard_ts_ms": 1758285000000
+  },
+  "TRBUSDT": {
+    "base": "TRB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "TREEUSDT": {
+    "base": "TREE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-29",
+    "onboard_ts_ms": 1753797600000
+  },
+  "TRIAUSDT": {
+    "base": "TRIA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-02-06",
+    "onboard_ts_ms": 1770380100000
+  },
+  "TRUMPUSDT": {
+    "base": "TRUMP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-18",
+    "onboard_ts_ms": 1737205200000
+  },
+  "TRUSTUSDT": {
+    "base": "TRUST",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-05",
+    "onboard_ts_ms": 1762335000000
+  },
+  "TRUTHUSDT": {
+    "base": "TRUTH",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-01",
+    "onboard_ts_ms": 1759321800000
+  },
+  "TRXUSDT": {
+    "base": "TRX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "TSLAUSDT": {
+    "base": "TSLA",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-01-28",
+    "onboard_ts_ms": 1769610600000
+  },
+  "TSMUSDT": {
+    "base": "TSM",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-04-06",
+    "onboard_ts_ms": 1775484000000
+  },
+  "TSTUSDT": {
+    "base": "TST",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-02-09",
+    "onboard_ts_ms": 1739106000000
+  },
+  "TURBOUSDT": {
+    "base": "TURBO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-05-30",
+    "onboard_ts_ms": 1717083000000
+  },
+  "TURTLEUSDT": {
+    "base": "TURTLE",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-22",
+    "onboard_ts_ms": 1761145200000
+  },
+  "TUSDT": {
+    "base": "T",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-01-31",
+    "onboard_ts_ms": 1675148400000
+  },
+  "TUTUSDT": {
+    "base": "TUT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-20",
+    "onboard_ts_ms": 1742461200000
+  },
+  "TWTUSDT": {
+    "base": "TWT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-03",
+    "onboard_ts_ms": 1699021800000
+  },
+  "UAIUSDT": {
+    "base": "UAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-11-06",
+    "onboard_ts_ms": 1762428600000
+  },
+  "UBUSDT": {
+    "base": "UB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-12",
+    "onboard_ts_ms": 1757673000000
+  },
+  "UMAUSDT": {
+    "base": "UMA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-05-09",
+    "onboard_ts_ms": 1683590400000
+  },
+  "UNIUSDT": {
+    "base": "UNI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "USARUSDT": {
+    "base": "USAR",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-06",
+    "onboard_ts_ms": 1778074800000
+  },
+  "USDCUSDT": {
+    "base": "USDC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-03-12",
+    "onboard_ts_ms": 1678579200000
+  },
+  "USELESSUSDT": {
+    "base": "USELESS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-15",
+    "onboard_ts_ms": 1755260100000
+  },
+  "USTCUSDT": {
+    "base": "USTC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-11-27",
+    "onboard_ts_ms": 1701088200000
+  },
+  "USUALUSDT": {
+    "base": "USUAL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-18",
+    "onboard_ts_ms": 1734526800000
+  },
+  "USUSDT": {
+    "base": "US",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-12",
+    "onboard_ts_ms": 1765536300000
+  },
+  "VANAUSDT": {
+    "base": "VANA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-16",
+    "onboard_ts_ms": 1734355800000
+  },
+  "VANRYUSDT": {
+    "base": "VANRY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-03-13",
+    "onboard_ts_ms": 1710351000000
+  },
+  "VELODROMEUSDT": {
+    "base": "VELODROME",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-13",
+    "onboard_ts_ms": 1734106500000
+  },
+  "VELVETUSDT": {
+    "base": "VELVET",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-15",
+    "onboard_ts_ms": 1752570900000
+  },
+  "VETUSDT": {
+    "base": "VET",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "VICUSDT": {
+    "base": "VIC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-12",
+    "onboard_ts_ms": 1741798800000
+  },
+  "VIRTUALUSDT": {
+    "base": "VIRTUAL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-12-10",
+    "onboard_ts_ms": 1733833800000
+  },
+  "VTHOUSDT": {
+    "base": "VTHO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-22",
+    "onboard_ts_ms": 1737538200000
+  },
+  "VVVUSDT": {
+    "base": "VVV",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-29",
+    "onboard_ts_ms": 1738138500000
+  },
+  "WALUSDT": {
+    "base": "WAL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-03-27",
+    "onboard_ts_ms": 1743089400000
+  },
+  "WAXPUSDT": {
+    "base": "WAXP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-10-18",
+    "onboard_ts_ms": 1697640300000
+  },
+  "WCTUSDT": {
+    "base": "WCT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-04-15",
+    "onboard_ts_ms": 1744714800000
+  },
+  "WETUSDT": {
+    "base": "WET",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-10",
+    "onboard_ts_ms": 1765350000000
+  },
+  "WIFUSDT": {
+    "base": "WIF",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-18",
+    "onboard_ts_ms": 1705587300000
+  },
+  "WLDUSDT": {
+    "base": "WLD",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-07-24",
+    "onboard_ts_ms": 1690200000000
+  },
+  "WLFIUSDT": {
+    "base": "WLFI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-23",
+    "onboard_ts_ms": 1755937800000
+  },
+  "WOOUSDT": {
+    "base": "WOO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2022-04-07",
+    "onboard_ts_ms": 1649314800000
+  },
+  "WUSDT": {
+    "base": "W",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-04-03",
+    "onboard_ts_ms": 1712158200000
+  },
+  "XAGUSDT": {
+    "base": "XAG",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-01-07",
+    "onboard_ts_ms": 1767780000000
+  },
+  "XAIUSDT": {
+    "base": "XAI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-01-09",
+    "onboard_ts_ms": 1704808800000
+  },
+  "XANUSDT": {
+    "base": "XAN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-29",
+    "onboard_ts_ms": 1759141800000
+  },
+  "XAUTUSDT": {
+    "base": "XAUT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-26",
+    "onboard_ts_ms": 1774533600000
+  },
+  "XAUUSDT": {
+    "base": "XAU",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2025-12-11",
+    "onboard_ts_ms": 1765440300000
+  },
+  "XLMUSDT": {
+    "base": "XLM",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "XMRUSDT": {
+    "base": "XMR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "XNYUSDT": {
+    "base": "XNY",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-13",
+    "onboard_ts_ms": 1755085500000
+  },
+  "XPDUSDT": {
+    "base": "XPD",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-01-30",
+    "onboard_ts_ms": 1769768100000
+  },
+  "XPINUSDT": {
+    "base": "XPIN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-12",
+    "onboard_ts_ms": 1757664000000
+  },
+  "XPLUSDT": {
+    "base": "XPL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-08-22",
+    "onboard_ts_ms": 1755855000000
+  },
+  "XPTUSDT": {
+    "base": "XPT",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-01-30",
+    "onboard_ts_ms": 1769767200000
+  },
+  "XRPUSDT": {
+    "base": "XRP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "XTZUSDT": {
+    "base": "XTZ",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "XVGUSDT": {
+    "base": "XVG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-07-05",
+    "onboard_ts_ms": 1688558400000
+  },
+  "XVSUSDT": {
+    "base": "XVS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-04-12",
+    "onboard_ts_ms": 1681257600000
+  },
+  "YBUSDT": {
+    "base": "YB",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-10",
+    "onboard_ts_ms": 1760107500000
+  },
+  "YFIUSDT": {
+    "base": "YFI",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "YGGUSDT": {
+    "base": "YGG",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2023-08-05",
+    "onboard_ts_ms": 1691206200000
+  },
+  "ZAMAUSDT": {
+    "base": "ZAMA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-09",
+    "onboard_ts_ms": 1767949200000
+  },
+  "ZBTUSDT": {
+    "base": "ZBT",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-17",
+    "onboard_ts_ms": 1760700600000
+  },
+  "ZECUSDT": {
+    "base": "ZEC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ZENUSDT": {
+    "base": "ZEN",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ZEREBROUSDT": {
+    "base": "ZEREBRO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-01-02",
+    "onboard_ts_ms": 1735826400000
+  },
+  "ZETAUSDT": {
+    "base": "ZETA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-02-02",
+    "onboard_ts_ms": 1706862600000
+  },
+  "ZILUSDT": {
+    "base": "ZIL",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "ZKCUSDT": {
+    "base": "ZKC",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-09-15",
+    "onboard_ts_ms": 1757944800000
+  },
+  "ZKPUSDT": {
+    "base": "ZKP",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-12-21",
+    "onboard_ts_ms": 1766311200000
+  },
+  "ZKUSDT": {
+    "base": "ZK",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-06-17",
+    "onboard_ts_ms": 1718622000000
+  },
+  "ZORAUSDT": {
+    "base": "ZORA",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-07-25",
+    "onboard_ts_ms": 1753441200000
+  },
+  "ZROUSDT": {
+    "base": "ZRO",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2024-06-20",
+    "onboard_ts_ms": 1718893800000
+  },
+  "ZRXUSDT": {
+    "base": "ZRX",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2019-09-25",
+    "onboard_ts_ms": 1569398400000
+  },
+  "\u5e01\u5b89\u4eba\u751fUSDT": {
+    "base": "\u5e01\u5b89\u4eba\u751f",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2025-10-20",
+    "onboard_ts_ms": 1760958000000
+  },
+  "\u6211\u8e0f\u9a6c\u6765\u4e86USDT": {
+    "base": "\u6211\u8e0f\u9a6c\u6765\u4e86",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-01-21",
+    "onboard_ts_ms": 1769005800000
+  },
+  "\u9f99\u867eUSDT": {
+    "base": "\u9f99\u867e",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-03-11",
+    "onboard_ts_ms": 1773228600000
+  }
+}

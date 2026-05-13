@@ -1,0 +1,343 @@
+{
+  "hyp_b_pump_decay": {
+    "n_total": 42,
+    "n_pumped": 12,
+    "n_not_pumped": 30,
+    "pumped_day1_high_ret_pct": {
+      "n": 12,
+      "mean": 72.3,
+      "median": 72.06,
+      "std": 31.28,
+      "t_stat_vs_zero": 8.01,
+      "win_rate_negative": 0.0
+    },
+    "pumped_fwd_7d_ret_pct": {
+      "n": 12,
+      "mean": 23.36,
+      "median": -21.26,
+      "std": 145.41,
+      "t_stat_vs_zero": 0.56,
+      "win_rate_negative": 0.667
+    },
+    "pumped_fwd_30d_ret_pct": {
+      "n": 12,
+      "mean": -12.1,
+      "median": -33.5,
+      "std": 59.84,
+      "t_stat_vs_zero": -0.7,
+      "win_rate_negative": 0.75
+    },
+    "not_pumped_fwd_7d_ret_pct": {
+      "n": 30,
+      "mean": -7.95,
+      "median": -19.8,
+      "std": 55.28,
+      "t_stat_vs_zero": -0.79,
+      "win_rate_negative": 0.767
+    },
+    "not_pumped_fwd_30d_ret_pct": {
+      "n": 30,
+      "mean": -7.12,
+      "median": -20.63,
+      "std": 69.53,
+      "t_stat_vs_zero": -0.56,
+      "win_rate_negative": 0.6
+    },
+    "rows": [
+      {
+        "symbol": "AIAUSDT",
+        "listing_date": "2026-01-20",
+        "age_days": 113,
+        "day1_high_ret": 1.2339357429718878,
+        "day1_close_ret": 0.23785140562249008,
+        "fwd_7d_ret": 4.814745721469706,
+        "fwd_30d_ret": 1.0459891313164085,
+        "pumped": true
+      },
+      {
+        "symbol": "OPNUSDT",
+        "listing_date": "2026-02-21",
+        "age_days": 81,
+        "day1_high_ret": 1.2254545454545456,
+        "day1_close_ret": 0.9524242424242422,
+        "fwd_7d_ret": -0.26975011640540125,
+        "fwd_30d_ret": -0.6284339593357131,
+        "pumped": true
+      },
+      {
+        "symbol": "EDGEUSDT",
+        "listing_date": "2026-03-19",
+        "age_days": 55,
+        "day1_high_ret": 1.026086956521739,
+        "day1_close_ret": 0.81768115942029,
+        "fwd_7d_ret": 0.04353372667836064,
+        "fwd_30d_ret": 1.1082761919948974,
+        "pumped": true
+      },
+      {
+        "symbol": "MANTRAUSDT",
+        "listing_date": "2026-03-04",
+        "age_days": 70,
+        "day1_high_ret": 0.8405498281786943,
+        "day1_close_ret": 0.6329896907216495,
+        "fwd_7d_ret": -0.2967171717171717,
+        "fwd_30d_ret": -0.547979797979798,
+        "pumped": true
+      },
+      {
+        "symbol": "IRYSUSDT",
+        "listing_date": "2025-11-26",
+        "age_days": 168,
+        "day1_high_ret": 0.7390312499999998,
+        "day1_close_ret": 0.45515624999999993,
+        "fwd_7d_ret": -0.30346827015999145,
+        "fwd_30d_ret": -0.3597122302158273,
+        "pumped": true
+      },
+      {
+        "symbol": "SENTUSDT",
+        "listing_date": "2025-11-14",
+        "age_days": 180,
+        "day1_high_ret": 0.7272727272727273,
+        "day1_close_ret": 0.17272727272727284,
+        "fwd_7d_ret": -0.3362790697674418,
+        "fwd_30d_ret": -0.3027906976744186,
+        "pumped": true
+      },
+      {
+        "symbol": "COLLECTUSDT",
+        "listing_date": "2025-12-31",
+        "age_days": 133,
+        "day1_high_ret": 0.7140125173852572,
+        "day1_close_ret": 0.4933936022253129,
+        "fwd_7d_ret": -0.019324796274738154,
+        "fwd_30d_ret": -0.4235157159487777,
+        "pumped": true
+      },
+      {
+        "symbol": "FRAXUSDT",
+        "listing_date": "2026-01-15",
+        "age_days": 118,
+        "day1_high_ret": 0.5528885751264856,
+        "day1_close_ret": 0.10012942699141081,
+        "fwd_7d_ret": 0.06951871657753994,
+        "fwd_30d_ret": -0.3103743315508022,
+        "pumped": true
+      },
+      {
+        "symbol": "POWERUSDT",
+        "listing_date": "2025-12-06",
+        "age_days": 158,
+        "day1_high_ret": 0.5173486351691963,
+        "day1_close_ret": 0.22614897838794445,
+        "fwd_7d_ret": 0.04111266620013998,
+        "fwd_30d_ret": 0.12849895031490566,
+        "pumped": true
+      },
+      {
+        "symbol": "KATUSDT",
+        "listing_date": "2026-03-02",
+        "age_days": 72,
+        "day1_high_ret": 0.41333333333333355,
+        "day1_close_ret": 0.14088888888888884,
+        "fwd_7d_ret": -0.5001947798987145,
+        "fwd_30d_ret": -0.6084924035839501,
+        "pumped": true
+      },
+      {
+        "symbol": "WETUSDT",
+        "listing_date": "2025-12-10",
+        "age_days": 154,
+        "day1_high_ret": 0.3512976431779342,
+        "day1_close_ret": 0.1542863956122571,
+        "fwd_7d_ret": -0.2846813345728748,
+        "fwd_30d_ret": -0.45043556106462834,
+        "pumped": true
+      },
+      {
+        "symbol": "NIGHTUSDT",
+        "listing_date": "2025-12-10",
+        "age_days": 154,
+        "day1_high_ret": 0.3342449103615921,
+        "day1_close_ret": 0.1283804314797934,
+        "fwd_7d_ret": -0.15551366635249775,
+        "fwd_30d_ret": -0.10259862663255692,
+        "pumped": true
+      },
+      {
+        "symbol": "GWEIUSDT",
+        "listing_date": "2026-01-29",
+        "age_days": 104,
+        "day1_high_ret": 0.28715498938428885,
+        "day1_close_ret": 0.18142250530785575,
+        "fwd_7d_ret": -0.32004223200646953,
+        "fwd_30d_ret": 0.040075478479647764,
+        "pumped": false
+      },
+      {
+        "symbol": "PIEVERSEUSDT",
+        "listing_date": "2025-11-14",
+        "age_days": 180,
+        "day1_high_ret": 0.28277483833039385,
+        "day1_close_ret": -0.2245737801293357,
+        "fwd_7d_ret": 1.8817285822592877,
+        "fwd_30d_ret": 2.3593631539044733,
+        "pumped": false
+      },
+      {
+        "symbol": "ACUUSDT",
+        "listing_date": "2026-01-21",
+        "age_days": 112,
+        "day1_high_ret": 0.27705035971223,
+        "day1_close_ret": -0.06784172661870513,
+        "fwd_7d_ret": 0.6765454966427416,
+        "fwd_30d_ret": -0.13305549124025617,
+        "pumped": false
+      },
+      {
+        "symbol": "BSBUSDT",
+        "listing_date": "2026-03-25",
+        "age_days": 49,
+        "day1_high_ret": 0.2644832805834596,
+        "day1_close_ret": 0.1532957203797991,
+        "fwd_7d_ret": 0.3811001073857536,
+        "fwd_30d_ret": 1.7141152607087462,
+        "pumped": false
+      },
+      {
+        "symbol": "ZKPUSDT",
+        "listing_date": "2025-12-21",
+        "age_days": 143,
+        "day1_high_ret": 0.23359264497878351,
+        "day1_close_ret": 0.1451202263083451,
+        "fwd_7d_ret": -0.10394021739130443,
+        "fwd_30d_ret": -0.32516057312252966,
+        "pumped": false
+      },
+      {
+        "symbol": "ROBOUSDT",
+        "listing_date": "2026-02-27",
+        "age_days": 75,
+        "day1_high_ret": 0.23308270676691745,
+        "day1_close_ret": 0.12113617376775276,
+        "fwd_7d_ret": -0.004222553402881135,
+        "fwd_30d_ret": -0.42598112270243416,
+        "pumped": false
+      },
+      {
+        "symbol": "CFGUSDT",
+        "listing_date": "2026-03-16",
+        "age_days": 58,
+        "day1_high_ret": 0.23184079601990026,
+        "day1_close_ret": -0.08507462686567169,
+        "fwd_7d_ret": -0.2876563349646547,
+        "fwd_30d_ret": 0.09679173463839041,
+        "pumped": false
+      },
+      {
+        "symbol": "SKRUSDT",
+        "listing_date": "2026-01-22",
+        "age_days": 111,
+        "day1_high_ret": 0.22165750915750926,
+        "day1_close_ret": -0.02369505494505486,
+        "fwd_7d_ret": -0.5945597373666316,
+        "fwd_30d_ret": -0.5495134247860243,
+        "pumped": false
+      }
+    ]
+  },
+  "hyp_a_atr_compression": {
+    "n_triggers": 32,
+    "n_symbols_with_trigger": 9,
+    "signed_fwd_ret_mean_pct": 1.141,
+    "signed_fwd_ret_median_pct": 0.165,
+    "signed_fwd_ret_std_pct": 19.943,
+    "signed_fwd_ret_t_stat": 0.32,
+    "win_rate": 0.531,
+    "pnl_after_fee_sharpe_per_trigger": 0.053,
+    "top_5_triggers": [
+      {
+        "symbol": "CYSUSDT",
+        "trigger_date": "2026-04-10",
+        "day_age": 119,
+        "direction": 1,
+        "fwd_ret": 0.8374193548387097,
+        "signed_fwd_ret": 0.8374193548387097
+      },
+      {
+        "symbol": "PIEVERSEUSDT",
+        "trigger_date": "2026-04-13",
+        "day_age": 150,
+        "direction": 1,
+        "fwd_ret": 0.44246543238809477,
+        "signed_fwd_ret": 0.44246543238809477
+      },
+      {
+        "symbol": "IRYSUSDT",
+        "trigger_date": "2026-04-09",
+        "day_age": 134,
+        "direction": 1,
+        "fwd_ret": 0.12520661157024793,
+        "signed_fwd_ret": 0.12520661157024793
+      },
+      {
+        "symbol": "ZKPUSDT",
+        "trigger_date": "2026-04-24",
+        "day_age": 124,
+        "direction": 1,
+        "fwd_ret": 0.11617889268972514,
+        "signed_fwd_ret": 0.11617889268972514
+      },
+      {
+        "symbol": "WETUSDT",
+        "trigger_date": "2026-04-12",
+        "day_age": 123,
+        "direction": 1,
+        "fwd_ret": 0.1077919566898684,
+        "signed_fwd_ret": 0.1077919566898684
+      }
+    ],
+    "bottom_5_triggers": [
+      {
+        "symbol": "AIAUSDT",
+        "trigger_date": "2026-03-29",
+        "day_age": 68,
+        "direction": 1,
+        "fwd_ret": -0.34143733067160986,
+        "signed_fwd_ret": -0.34143733067160986
+      },
+      {
+        "symbol": "POWERUSDT",
+        "trigger_date": "2026-04-17",
+        "day_age": 132,
+        "direction": 1,
+        "fwd_ret": -0.23167024320457785,
+        "signed_fwd_ret": -0.23167024320457785
+      },
+      {
+        "symbol": "PIEVERSEUSDT",
+        "trigger_date": "2026-04-12",
+        "day_age": 149,
+        "direction": -1,
+        "fwd_ret": 0.16950780312124847,
+        "signed_fwd_ret": -0.16950780312124847
+      },
+      {
+        "symbol": "AIAUSDT",
+        "trigger_date": "2026-03-19",
+        "day_age": 58,
+        "direction": 1,
+        "fwd_ret": -0.1421810103351685,
+        "signed_fwd_ret": -0.1421810103351685
+      },
+      {
+        "symbol": "SENTUSDT",
+        "trigger_date": "2026-03-30",
+        "day_age": 136,
+        "direction": 1,
+        "fwd_ret": -0.1380417335473515,
+        "signed_fwd_ret": -0.1380417335473515
+      }
+    ]
+  }
+}

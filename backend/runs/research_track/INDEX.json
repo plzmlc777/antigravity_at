@@ -1,0 +1,43 @@
+{
+  "paradigms": {
+    "lifecycle_pump_decay": {
+      "name": "lifecycle_pump_decay",
+      "hypothesis": "Newly listed Binance Futures USDT perpetuals systematically decay 20-30% in first 30 days from Day 1 close. Short Day 1 close, exit Day 30 OR SL +50%.",
+      "data_dependencies": [
+        "ohlcv 1m (Binance Futures archive)",
+        " listing_dates.json (exchangeInfo onboardDate)"
+      ],
+      "current_phase": "R-4",
+      "metrics_files": {
+        "R-2": "backend/runs/research_track/lifecycle_phase/r2__metrics.json",
+        "R-3": "backend/runs/research_track/lifecycle_phase/r3__metrics.json"
+      },
+      "gate_evals": {
+        "R-2": "runs/research_track/lifecycle_phase/gate_eval__r2.md"
+      },
+      "type": "E",
+      "created_at": "2026-05-13T12:34:52+00:00",
+      "updated_at": "2026-05-13T12:35:51+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "funding_boundary_revertion": {
+      "name": "funding_boundary_revertion",
+      "hypothesis": "30 min before Binance funding payment (00:00/08:00/16:00 UTC), funding payer unwinding creates systematic price drift opposite to funding sign; post-boundary reversion. Trade post-boundary in funding direction.",
+      "data_dependencies": [
+        "binance_funding_rate DB",
+        " ohlcv 1m"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-13T12:35:51+00:00",
+      "updated_at": "2026-05-13T12:35:51+00:00",
+      "graveyard_reason": "R-1 PoC: 16 symbols 1543 events. H1 pre-drift t-stat mean 0.44 (no symbol |t|>2). H4 trade strategy all-Sharpe negative (mean -5.61 ann). Signal exists at H2 level for HBAR/DOGE (t -2.26/-2.15) but rediscovers funding_carry direction; 8 bps round-trip fee floor kills capacity. metrics: backend/runs/research_track/funding_boundary/poc__metrics.json",
+      "seed_spec": null
+    }
+  },
+  "schema_version": 1,
+  "updated_at": "2026-05-13T12:35:51+00:00"
+}
