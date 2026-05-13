@@ -1,0 +1,211 @@
+{
+  "_meta": {
+    "title": "paradigm-architect handoff — Phase A complete, Phase B + next paradigm decisions pending",
+    "snapshot_date": "2026-05-13",
+    "snapshot_time_kst": "22:30",
+    "session_summary": "Built paradigm-architect agent infrastructure (eval_research_gate + INDEX state machine + agent spec). Tested 5 paradigms through full R-1 to R-5 pipeline. 1 R-4 PASS (lifecycle_pump_decay) seeded to paper. 1 R-2 PASS (listing_volume_cliff) awaiting R-3 decision. 3 graveyard with detailed reasons. Set up daily auto-spawn cron for new listings.",
+    "primary_user_goal": "쉬지 않고 계속 새 paradigm 발굴 + 인생 바꾸는 alpha 추구. Quality > Quantity.",
+    "next_session_resume_target": "Direction 3 Phase B (autonomous cron + hypothesis queue), or new paradigm hypothesis, or R-3 deepen of listing_volume_cliff",
+    "git_head_at_snapshot": "4b5c8620"
+  },
+
+  "infrastructure_state": {
+    "pm2_cron_jobs_running_on_mint": {
+      "00:00 UTC": "(none) — historical schedule pre-2026-05-13",
+      "02:00 UTC": "binance-ohlcv-backfill — 18 syms 1m candles fresh (incl. BTC/ETH leaders)",
+      "02:15 UTC": "binance-joblib-refresh — premium_index + microstructure joblib incremental",
+      "02:30 UTC": "binance-paper-cycle — paper_session_cli run --all (all active sessions)",
+      "03:00 UTC": "lifecycle-spawner-daily — auto-spawn new listing paper sessions (★ new this session)",
+      "02:00 UTC (KST 11:00)": "kr-ohlcv-backfill (existing)",
+      "07:30 UTC, 07:50 UTC, 08:00 UTC etc.": "KR paper cycles (existing, paper-pool sessions)"
+    },
+    "paradigm_architect_components": {
+      "eval_gate_evaluator": "backend/scripts/research/eval_research_gate.py",
+      "paradigm_index_cli": "backend/scripts/research/paradigm_index.py",
+      "agent_spec": ".claude/agents/paradigm-architect.md",
+      "index_json": "backend/runs/research_track/INDEX.json"
+    },
+    "paper_seed_infrastructure": {
+      "lifecycle_source": "backend/app/composer_framework/sources/binance_lifecycle_decay_source.py",
+      "lifecycle_source_registered": "backend/app/composer_framework/pipeline_spec.py @register_source('bn_lifecycle_decay')",
+      "lifecycle_spawner_cli": "backend/scripts/research/lifecycle_session_spawner.py",
+      "lifecycle_spawner_wrapper": "scripts/research/run_lifecycle_spawner.sh",
+      "orchestrator_patch": "backend/app/composer_framework/orchestrator.py — passthrough composer bypasses 30-bar minimum"
+    }
+  },
+
+  "active_paper_sessions": [
+    {
+      "session_id": "5caea724-d6a",
+      "name": "lifecycle_AIGENSYNUSDT_2026-04-29",
+      "symbol": "AIGENSYNUSDT",
+      "spec": "short Day 1 close, exit Day 30 close OR SL +50%",
+      "current_state_at_snapshot": "enter_short executed, equity ≈ +12.2% paper gain",
+      "expected_exit": "2026-05-29 (Day 30) OR SL hit",
+      "paradigm": "lifecycle_pump_decay"
+    }
+  ],
+
+  "paradigm_index_state": {
+    "lifecycle_pump_decay": {
+      "phase": "R-4",
+      "type": "E",
+      "summary": "Newly listed Binance Futures USDT perpetuals decay 20-30% in first 30 days. Short Day 1 close, hold 30d. n=167, median +21.6%/trade, win 58.1%, perm σ=6.8 / p=0.000, bootstrap median CI [+3.3%, +31.5%].",
+      "metrics_files": {
+        "R-2": "backend/runs/research_track/lifecycle_phase/r2__metrics.json",
+        "R-3": "backend/runs/research_track/lifecycle_phase/r3__metrics.json"
+      },
+      "gate_eval": "backend/runs/research_track/lifecycle_phase/gate_eval__r2.md",
+      "r5_seeded": true,
+      "seed_sessions": ["5caea724-d6a (AIGENSYNUSDT)"],
+      "expected_alpha_per_trade_pct": 21.6,
+      "expected_annual_return_pct": 200,
+      "known_weakness": "2025Q3 anomaly (median -3.5% in that quarter) — possibly fixed by vol_cliff filter"
+    },
+    "listing_volume_cliff": {
+      "phase": "R-2",
+      "type": "E",
+      "summary": "vol_cliff = mean(daily_vol[7:14]) / day1_vol. When < 0.30 ('abandoned' listing), lifecycle short paradigm amplifies dramatically: median +21.6%→+34.9%, win 58→69%. Quarterly stability 4/4 positive (fixes baseline 2025Q3 weakness).",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/listing_volume_cliff/poc__metrics.json",
+        "R-2": "backend/runs/research_track/listing_volume_cliff/r2__metrics.json"
+      },
+      "r2_key_findings": {
+        "amplifier_perm_sigma": 1.67,
+        "amplifier_perm_p": 0.000,
+        "forecaster_r_squared": 0.035,
+        "forecaster_verdict": "Day 1 entry via Day 1-3 feature forecast NOT viable. Need Day 7+ direct vol_cliff observation.",
+        "plateau_cells_count": 19,
+        "best_tradeable_spec": {
+          "entry_day": 7,
+          "vol_cliff_threshold": 0.30,
+          "hold_until": "Day 30",
+          "n_in_cohort": 83,
+          "median_pct": 21.0,
+          "win_rate": 0.68,
+          "expected_annual_pct": 360
+        },
+        "best_retrospective_spec": {
+          "entry_day": 1,
+          "vol_cliff_threshold": 0.25,
+          "median_pct": 35.44,
+          "win_rate": 0.71,
+          "note": "Day 1 entry not tradeable in real-time without forecaster"
+        }
+      },
+      "promotion_decision_pending": "R-3 (regime conditional + walk-forward) or R-5 (seed Day 7 variant + hybrid policy)"
+    },
+    "funding_boundary_revertion": {
+      "phase": "graveyard",
+      "type": "E",
+      "graveyard_reason": "R-1: 1543 events; H1 t-stat mean 0.44 (no sig); H4 trade strategy all-Sharpe negative (mean -5.61 ann); 8 bps fee floor kills capacity"
+    },
+    "listing_pump_first60min": {
+      "phase": "graveyard",
+      "type": "E",
+      "graveyard_reason": "R-1: 161 listing cohort; permutation σ = -0.04 (anchored entry no better than random); pump-conditional shows momentum continuation not fade; all 12 (entry,hold) grid cells negative mean. lifecycle decay is days-scale not hours-scale."
+    },
+    "weekend_mean_reversion": {
+      "phase": "graveyard",
+      "type": "E",
+      "graveyard_reason": "R-1: 5891 Fri→Mon events on 182 symbols; corr -0.023, perm p=0.024 marginal; trade strategy ann_sharpe -0.22; ~3 bps effect << 8 bps fee floor"
+    }
+  },
+
+  "meta_pattern_observed": {
+    "graveyard_common_cause": "fee floor (8bps round-trip on Binance Futures kills sub-bp paradigms)",
+    "successful_pattern": "Multi-day hold (≥7 days) + structurally unhedged supply shock (new listings — supply is freshly minted, not arbitraged)",
+    "rejected_pattern": "Intraday MR or boundary front-running — modern 24/7 MM has commoditized these",
+    "next_paradigm_filter": "Hypotheses should target hold ≥ 5 days, capacity ≥ 3× fee, structural rather than statistical anomaly"
+  },
+
+  "next_steps_decision_tree": {
+    "option_A_observe": {
+      "label": "관망 모드",
+      "scope": "30일 누적 자동 사이클 결과 확인. 2026-05-29경 AIGENSYNUSDT 만기 결과 + 그 사이 spawn된 추가 sessions 검증.",
+      "actions_required_from_user": "none",
+      "expected_value": "정량 검증 데이터 누적"
+    },
+    "option_B_volume_cliff_policy_variant": {
+      "label": "vol_cliff Day 7 exit policy variant 개발",
+      "scope": "기존 lifecycle 세션이 Day 7 시점에서 vol_cliff_partial 평가 → 높으면 early exit. 새 policy class (e.g., LifecycleDecayWithEarlyExitPolicy) 작성 + paper session spec 수정.",
+      "estimated_hours": 2.5,
+      "expected_uplift": "median +21.6→+25~30%, win 58→65%+ (R-2 hybrid 추정)",
+      "blocking": "현 PM2 사이클이 30일 결과 확인 전 변경하면 비교 baseline 손상. 권장 시점: Phase A 검증 끝난 후 (1~2개월 뒤)."
+    },
+    "option_C_new_paradigm_hypothesis": {
+      "label": "architect로 다른 가설 시도",
+      "candidates_ranked_by_promise": [
+        {
+          "name": "token_unlock_pre_event_short",
+          "hypothesis": "Public unlock cliff date 7d 전 short 진입, 7d 후 close. unlocks.app 스크래핑 필요.",
+          "data_cost": "medium (external scraping)",
+          "expected_alpha_pct": 10,
+          "novelty": "high (event × supply shock × external calendar)"
+        },
+        {
+          "name": "btc_dominance_alt_rotation",
+          "hypothesis": "BTC dominance 30d 변화율 → 24~72h 후 alt basket rotation",
+          "data_cost": "low (yfinance / 자체 다종목 가격으로 BTC.D 근사)",
+          "expected_alpha_pct": 8,
+          "novelty": "high (cross-asset macro)"
+        },
+        {
+          "name": "lifecycle_long_tail_60_180d",
+          "hypothesis": "lifecycle 30d decay 이후 종목의 행동 — pump decay 끝난 점에서 mean reversion bounce 또는 dead drift?",
+          "data_cost": "0 (existing ohlcv)",
+          "expected_alpha_pct": 5,
+          "novelty": "medium (lifecycle variant)"
+        }
+      ]
+    },
+    "option_D_phase_B_autonomous": {
+      "label": "Phase B — architect 자율 cron + 가설 queue",
+      "scope": "queue.json 작성, weekly cron 등록, LLM 가설 자동 생성기 추가, 자동 perm/bootstrap 게이트 강화, expected_alpha_bps < 2x fee 자동 graveyard 룰",
+      "estimated_hours": 5,
+      "blocking": "interactive mode가 더 강력하다는 패턴 관찰됨 (사용자 직관 paradigm 우선) — Phase B는 자율 발굴 가속용으로 deferred 권장"
+    },
+    "option_E_r3_listing_volume_cliff": {
+      "label": "listing_volume_cliff R-3 robustness",
+      "scope": "regime conditional (BTC trend at listing date), walk-forward fold (반기별), 멀티 threshold sweet-spot 확정. R-2의 19 plateau cells 중 강건한 1~3개 선정.",
+      "estimated_hours": 2,
+      "next_step_after_r3_pass": "R-5 seed — Day 7 vol_cliff filtered session 추가 (별도 spec)"
+    }
+  },
+
+  "user_recommended_next_action_at_snapshot": "Direction 3 Phase B 또는 새 가설(option C 후보)에서 사용자 직감 hypothesis 추가",
+
+  "key_files_for_new_session": {
+    "must_read_first": [
+      ".claude/plans/paradigm_architect_handoff.json (this file)",
+      ".claude/agents/paradigm-architect.md",
+      ".claude/plans/research_track_master.md",
+      "backend/runs/research_track/INDEX.json"
+    ],
+    "reference_paradigm_pattern": [
+      "backend/scripts/research/lifecycle_phase_poc.py (R-1 template)",
+      "backend/scripts/research/lifecycle_phase_r2.py (R-2 template)",
+      "backend/scripts/research/lifecycle_phase_r3.py (R-3 template)",
+      "backend/scripts/research/listing_volume_cliff_poc.py (R-1 amplifier pattern)",
+      "backend/scripts/research/listing_volume_cliff_r2.py (R-2 grid + forecaster pattern)"
+    ],
+    "paper_seed_pattern": [
+      "backend/app/composer_framework/sources/binance_lifecycle_decay_source.py",
+      "backend/scripts/research/lifecycle_session_spawner.py",
+      "backend/configs/paper_sessions/lifecycle/AIGENSYNUSDT_lifecycle_2026-04-29.json (example spec)"
+    ]
+  },
+
+  "current_paradigm_pool_dna_matrix": {
+    "live_paper_paradigms_8": "funding_carry, funding_dispersion, autocorr_regime, wick_reversal_multibar, cross_lead_lag, oi_price_decoupling, premium_index_zscore, premium_velocity_zscore",
+    "common_dna": "rolling z-score / threshold crossing on price-derivative time series, single symbol, 5min-1day hold",
+    "newly_added_lifecycle": "EVENT-trigger × DAYS-scale × CROSS-SECTION cohort × structural supply shock (orthogonal DNA — adds diversity to ensemble)"
+  },
+
+  "open_questions_for_future_sessions": [
+    "Day 7 vol_cliff partial observation 정확도? 6 daily bars 만으로 충분한 신뢰?",
+    "Listing decay paradigm 운영 6개월 후 ensemble Sharpe 측정 — uncorrelated 확인?",
+    "Tokenized stocks/commodities (AAPL/SPY/XAU) cohort에 lifecycle 적용 시 동일 패턴 나타나는가?",
+    "Symbol delisting 이벤트 (반대 방향) — delisting 발표 시 long 가능?"
+  ]
+}
