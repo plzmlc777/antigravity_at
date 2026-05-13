@@ -52,8 +52,24 @@
       "updated_at": "2026-05-13T12:49:13+00:00",
       "graveyard_reason": "R-1 PoC n=5891 Friday-Monday events on 182 symbols. Hyp A pure MR corr -0.023 (t -1.77, perm_p 0.024 marginal). Hyp B volume-conditional: low-vol corr -0.107 (n=2187) vs high-vol +0.005 — effect exists but sub-fee. Hyp C quarterly split 3/6 negative-3/6 positive (regime instability). Hyp D naive trade ann_sharpe -0.22 win 46.6% — unprofitable after 8bps fee. Effect size ~3bps << fee floor. Possible 24/7 MM arbitrage. metrics: backend/runs/research_track/weekend_mr/poc__metrics.json",
       "seed_spec": null
+    },
+    "listing_pump_first60min": {
+      "name": "listing_pump_first60min",
+      "hypothesis": "Newly listed Binance Futures perpetuals exhibit Day-1 intraday pump-then-fade pattern. Short at minute-60 close, exit at hour-4 close.",
+      "data_dependencies": [
+        "ohlcv 1m",
+        " listing_dates.json"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-13T12:59:53+00:00",
+      "updated_at": "2026-05-13T12:59:53+00:00",
+      "graveyard_reason": "R-1 PoC n=161 cohort. Base trade (entry=60min,hold=180min) median +0.53% mean -2.58% t -1.55. Permutation sigma = -0.04 — listing-anchored entry NO BETTER than random entry in [60,1200] min range. Pump-conditional shows OPPOSITE: high-pump (>=+20% in 60min, n=21) median -4.57% (momentum continuation, not fade). All 12 (entry,hold) grid cells negative mean. Conclusion: lifecycle_pump_decay mechanism (slow price-discovery fade) operates on daily timescale, NOT intraday. metrics: backend/runs/research_track/listing_pump_first60min/poc__metrics.json",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T12:49:13+00:00"
+  "updated_at": "2026-05-13T12:59:53+00:00"
 }
