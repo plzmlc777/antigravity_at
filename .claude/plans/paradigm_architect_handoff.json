@@ -54,17 +54,26 @@
         "spec_validate": "PASS — pipeline.build_pipeline reconstructs correctly",
         "synthetic_source_test": "PASS — decay-confirmed cohort emits all -1.0; decay-invalidated cohort emits -1.0 Days 1-13 then +1.0 from Day 14 onward",
         "spawner_dry_run": "PASS — --policy=both writes 2 distinct spec files per symbol; --policy=early_exit alone writes 1; existence-check distinguishes variants by 'earlyexit' name suffix",
-        "r2_bis_backtest": "BLOCKED locally — local DB lacks 170-listing OHLCV cohort. Script ready to run on mint where the data lives."
+        "r2_bis_backtest": "EXECUTED on mint 2026-05-13 23:00 KST. Output: backend/runs/research_track/listing_volume_cliff/r2bis_early_exit_metrics.json. Conclusion: positive edge confirmed."
       },
-      "pending_actions_for_next_session": [
-        "Commit Option B code (4 files modified, 2 files new)",
-        "Push to remote OR scp to mint",
-        "ssh mint@183.99.228.81 'cd ~/auto_trading && git pull && cd backend && source venv/bin/activate && python3 -m scripts.research.listing_volume_cliff_r2_bis_early_exit'",
-        "Read backend/runs/research_track/listing_volume_cliff/r2bis_early_exit_metrics.json — examine threshold_grid_results for best threshold (uplift_median_pct > 0, win_rate not eroded)",
-        "Decide: if R-2-bis shows positive edge → enable --policy=both in PM2 cron (lifecycle-spawner-daily). If marginal/negative → keep variant inactive but available."
-      ],
-      "expected_uplift_per_handoff": "median +21.6 → +25~30%, win 58 → 65%+ (subject to R-2-bis confirmation)",
-      "rollback_path": "Variant disabled by default — does NOT affect AIGENSYNUSDT baseline session OR existing cron schedule. To fully disable variant: delete spec files or set --policy=baseline."
+      "r2_bis_results_summary": {
+        "baseline_hold30": "n=162 mean=6.47% median=21.50% win=0.568 t=1.70",
+        "best_threshold": 0.40,
+        "best_threshold_full_cohort": "n=162 mean=7.88% (Δ+1.41) median=21.50% (Δ0) win=0.593 (Δ+2.5pp) t=2.13 — t-stat crosses significance",
+        "best_threshold_invalidated_subcohort_63_listings": {
+          "hold30_baseline": "mean=-7.47% median=-50.08% (SL hit dominated) win=0.444",
+          "day14_early_exit": "mean=-3.84% median=+1.67% win=0.508",
+          "per_trade_rescue_avg": "+3.63 percentage points on the 63 invalidated trades"
+        },
+        "key_insight": "median is unchanged because median trade lies in the confirmed-decay cohort (unaffected). Real edge is left-tail risk reduction — avoids -50% SL hits on 'pump continuing' listings. Handoff's earlier prediction of +25-30% median was over-optimistic; reality is t-stat improvement + win rate +2.5pp + tail-risk truncation.",
+        "all_thresholds_uplift_mean_pct": {
+          "0.30": 1.23, "0.35": 0.69, "0.40": 1.41, "0.50": 0.41, "0.70": -0.06
+        }
+      },
+      "decision_at_snapshot": "POSITIVE EDGE CONFIRMED at threshold 0.40. Code deployed to mint. PM2 cron ACTIVATED 2026-05-13 22:56 KST: wrapper now passes --policy=both --early-exit-check-day 14 --early-exit-vc-threshold 0.40. Next firing 2026-05-14 12:00 KST (= 03:00 UTC).",
+      "cron_activation_commit": "885f6645 (feat(lifecycle): enable --policy=both in PM2 cron wrapper)",
+      "note_aigensyn_edge_case": "AIGENSYNUSDT age=14d at activation, age=15d at next cron firing. The early_exit variant will NOT auto-spawn for AIGENSYNUSDT (past entry window). AIGENSYNUSDT baseline session continues uninterrupted as Phase A reference. First clean A/B pair will be the next eligible new listing.",
+      "rollback_path": "To disable: edit scripts/research/run_lifecycle_spawner.sh and change --policy both → --policy baseline, then pm2 restart lifecycle-spawner-daily on mint. Existing early_exit sessions (if any) continue independently until time-stop. Does NOT affect baseline sessions."
     }
   },
 
