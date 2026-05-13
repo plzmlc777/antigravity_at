@@ -33,8 +33,10 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
-# Symbols match binance-paper-cycle positioning/funding lists (paper-pool universe).
-SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT,AVAXUSDT,LINKUSDT}"
+# Paper-pool universe (14 alts) + BTCUSDT/ETHUSDT used as cross-symbol leaders
+# (bn_cross_lead_lag / bn_cross_eth sources). Without BTC/ETH fresh, leader
+# bars stall and cross paradigms emit pred=0 indefinitely.
+SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT,AVAXUSDT,LINKUSDT}"
 DAYS="${BINANCE_OHLCV_DAYS:-3}"
 
 echo "[binance-ohlcv] symbols=${SYMBOLS} days=${DAYS}" | tee -a "${LOG_FILE}"

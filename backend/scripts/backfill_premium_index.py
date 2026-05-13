@@ -131,7 +131,7 @@ def main() -> int:
         joblib.dump(out, out_path, compress=3)
         elapsed = time.time() - t0
         log.info("[%s] saved %d rows in %.1fs (range %s ~ %s) → %s",
-                 sym, len(out), out.index[0].date(), out.index[-1].date(), elapsed, out_path)
+                 sym, len(out), elapsed, out.index[0].date(), out.index[-1].date(), out_path)
     return 0
 
 
