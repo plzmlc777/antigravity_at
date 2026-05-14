@@ -134,3 +134,121 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 ---
 
 **END** — 큐 Q3는 새 raw data 도메인 + 새 통계적 접근 위주.
+
+---
+
+## 6. 2026-05-14 Mid-Q3 Update — Lessons + 2024 백필 통합
+
+> **목적**: 2026-05-14 burst (8 graveyard + 3 infrastructure + 1 R-5 시드)에서 얻은 lessons + 2024 OHLCV 백필 환경 변경을 Q3 큐에 반영.
+
+### 6.1 환경 변경 사항 (Q3 §1 candidates 시작 전 mandatory baseline)
+
+| 자원 | 이전 | 2026-05-14 이후 |
+|---|---|---|
+| OHLCV 1m 14 syms | 380일 (2025-04~2026-05) | **2.4년 (2024-01~2026-05)**, 9.7M rows 추가 |
+| OHLCV joblib cache | 없음 | `backend/runs/ohlcv_cache/{SYM}_1m.joblib` × 14 (~250MB), 3-5s load/sym |
+| Perm test 인프라 | inline ad-hoc (fee drag trap 위험) | `scripts/research/_perm_utils.py` (fee_aware/block_perm/bootstrap_ci) **의무 사용** |
+| Gate evaluator | `evaluate_e()` legacy only | `evaluate_e_new()` for `_perm_utils` schema, 자동 detect |
+| Funding rate DB | 1y (2025-05~) | **변화 없음** — funding 도메인 paradigm은 별도 백필 필요 |
+| Premium joblib | 1y | **변화 없음** — premium 도메인은 별도 백필 필요 |
+| Microstructure joblib | 5m × 1.5yr | **변화 없음** — OI/LSR/taker 도메인은 별도 백필 |
+
+→ **OHLCV-only paradigm은 sample 1.7x 즉시 활용 가능**. Funding/premium/OI 기반은 별도 백필 필요.
+
+### 6.2 R-1/R-3 mandatory checklist (5 lessons 통합)
+
+1. **`_perm_utils` 의무 사용** — fee_aware_perm_test + bootstrap_ci. perm_p_two_sided + null_mean_t 반드시 보고.
+2. **Three-gate strict** (R-1 pass): `signal_t_excess ≥ 2.0` AND `ci_lower > 0` AND `perm_p_two_sided ≤ 0.10`. legacy `|t|≥2 OR perm_p≤0.10` deprecated.
+3. **Sign-conditional H5 split 의무** — unsigned hypothesis는 즉시 BTC sign 또는 가설 신호 sign으로 split하여 sub-paradigm 잠재성 검토.
+4. **Vol regime stratify (R-3)** — best cell를 BTC 30d vol regime (p25/p50/p75/p90)별로 stratify. 한 regime이라도 강하게 음수면 sub-paradigm 후보 또는 graveyard 사유.
+5. **OHLCV joblib cache 사용** — DB ORDER BY 13min vs cache 30s. R-3 ≥ 2 alts 사용 시 의무.
+6. **LOCAL execution 우회 방지** — paradigm-architect agent 호출 시 prompt에 explicit `mint@183.99.228.81` 명시. 호출 후 BTCUSDT 1m count 확인 (= 1,241,280 expected).
+7. **Mechanical vs Substantive verdict** — quarter denominator artifact 인지. 측정 가능한 모든 quarter PASS면 substantive PASS로 인정 가능.
+
+### 6.3 Fee Floor 사전 추정 룰 (새)
+
+R-1 호출 전 다음 검증:
+- Expected gross |return| per trigger event ≥ **16 bp** (= 2 × 8 bp fee + buffer)
+- 추정 방식: mechanism의 absolute size estimate × hit rate
+- 미달 시 발의 보류 (skewness/btc_rv_recovery graveyard pattern 회피)
+
+### 6.4 Q3 §1 candidates 재분류 (Tier system)
+
+기존 12 candidates + 2026-05-14 lessons 적용:
+
+#### Tier 1 — 즉시 시도 가치 매우 높음
+
+**NEW A. `btc_rv_spike_HIGHVOL_down_alt_short_240m`** (paradigm 69 mirror SHORT)
+- 가설: BTC RV z≥2.5 + BTC 30m ret<0 + HIGH vol p90 → 13 alts SHORT 270m hold
+- Precedent: 67번 graveyard H5에서 down-trigger × LONG mean=-150bp t=-2.73 → mirror SHORT는 +150bp/trade 잠재
+- DNA: paradigm 69와 mode flip (LONG↔SHORT, up↔down), 같은 인프라 활용
+- Pre-est gross: ~150 bp (16 bp 통과 강함)
+- R-1 ETA: 5-10분 (cache hit + 기존 source class fork)
+
+**#1 `liquidation_cascade_event`** (큐 §1 #1 유지)
+- 데이터 백필 필요: Binance liq REST API `/fapi/v1/forceOrders` 또는 archive
+- 백필 ETA 검토 필요 (별 turn에서 평가)
+- 시도 가치: 새 데이터 차원, large effect (cascade 5%+ move)
+- Pre-est gross: 200+ bp 가능 (rare event but huge)
+
+#### Tier 2 — Mechanism distinct, 시도 가치 있음
+
+**NEW D. `btc_oi_velocity_regime_alt_long_240m`** (paradigm 69 의 OI velocity 변형)
+- 가설: BTC 30m OI growth z-score ≥ +2.5 + HIGH vol p90 → 13 alts LONG
+- DNA: paradigm 69 mechanism (vol cascade) but OI velocity trigger 대신 RV
+- Mid-fitness: oi_price_decoupling 시드와 다른 차원 (velocity ≠ decoupling)
+- 데이터: microstructure joblib 5m OI 컬럼 보유
+
+**#2 `taker_buy_volume_5m_zscore`** (큐 §1 #2)
+- 2024 백필로 sample 1.7x 증가 시 LSR-style noise 우회 가능성
+- 단 graveyard 60 (LSR contrarian) 패턴 위험
+- 가설 전제: BTC up-trigger 같은 sign-conditional 적용 후 검증
+
+#### Tier 3 — 데이터 백필 후 시도 (별 turn)
+
+**#4 `oi_premium_5m_decoupling`** — premium 5m 백필 필요
+**#12 `cross_funding_premium_lead_lag`** — funding 1y 한계, sample 부족
+
+#### Tier 4 — 영구 제거 권장 (saturation / antipattern 확정)
+
+| Q3 # | paradigm | 제거 사유 |
+|---|---|---|
+| #3 | `realized_vol_regime_5m` | paradigm 69가 이미 vol regime을 entry condition으로 활용 (substantive 중복) |
+| #5 | `funding_premium_oi_4signal_majority` | §3-F filter mechanism antipattern (Q2 4/4 graveyard) |
+| #6 | `microstructure_smartmoney_consensus` | LSR family direct extension (graveyard 60 직접 회피) |
+| #7 | `oi_funding_correlation_regime_5m` | §3-F corr filter antipattern |
+| #8 | `intraday_premium_cycle` | §3-F calendar + premium saturated (Q2 §5) |
+| #9 | `hmm_regime_premium` | premium domain saturated (Q2 §5 명시) |
+| #10 | `kalman_filter_premium_innovation` | premium domain saturated |
+| #11 | `change_point_detection_premium` | premium domain saturated |
+
+→ Q3 12 candidates 중 **8개 Tier 4 제거**, 2개 Tier 2-3 보존, 2개 Tier 1 (단 #1만 큐 원본). **새 2 candidates (A, D)는 Q3 큐에서 시작.**
+
+### 6.5 Updated Schedule (2026-05-14 ~ 2026-06-13 Day 30 검증 전)
+
+Day 30 검증까지 30일. 일일 1-2 candidate fail-fast:
+
+| 우선순위 | candidate | 데이터 백필 필요? | ETA |
+|---|---|---|---|
+| 1 | A `btc_rv_HIGHVOL_down_alt_short_240m` (mirror SHORT) | 없음 | R-1 5-10분 |
+| 2 | D `btc_oi_velocity_regime_alt_long_240m` | 없음 (microstructure 보유) | R-1 10-15분 |
+| 3 | #1 `liquidation_cascade_event` | Binance liq archive 백필 평가 | 별 turn 평가 |
+| 4 | #2 `taker_buy_volume_5m_zscore` (sign-cond 변형) | 없음 (microstructure) | R-1 10-15분 |
+| 5 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn |
+
+#### Day 30 검증 가까워질 때 (2026-06-08~13)
+- Paper baseline 측정 우선 (paradigm 69 13 sessions Day 30)
+- 새 paradigm 시도 PAUSE — capacity 확보
+
+### 6.6 Quick command (new candidate R-1 templ)
+
+```bash
+# Sign-conditional mirror variant (A)
+Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6.4 후
+paradigm-architect 호출 — A 가설로 R-1 PoC ONLY 진행.
+prompt: "_perm_utils 사용 + Mint mint@183.99.228.81 명시 + 1241280 BTC count 확인 + R-1 only halt".
+```
+
+---
+
+**END Mid-Q3 Update** — 다음 candidate (Tier 1 A) R-1 즉시 시도 가능.
