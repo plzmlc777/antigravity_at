@@ -339,8 +339,23 @@
       "updated_at": "2026-05-14T11:33:50+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "btc_rv_spike_highvol_down_alt_short_240m": {
+      "name": "btc_rv_spike_highvol_down_alt_short_240m",
+      "hypothesis": "BTC 30m RV z>=+2.5 rising + 60m cooldown + BTC 30m_ret<0 (DOWN-trigger) + BTC 30d RV >= p90(90d) HIGH-vol -> SHORT 13 alts hold 240m. Mirror of paradigm 69 LONG (which is R-5 seeded). Precedent: 67th H5 measured -150bp LONG side -> +150bp SHORT side.",
+      "data_dependencies": [
+        "joblib cache ohlcv 1m BTCUSDT+13 alts 2024-01-02..2026-05-12"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T12:38:45+00:00",
+      "updated_at": "2026-05-14T12:39:50+00:00",
+      "graveyard_reason": "R-1 GRAVEYARD: SHORT direction is OPPOSITE — alts mean-revert UP after BTC DOWN-trigger. H1 mean=-49.0bp t=-3.62 sig_t_excess=-2.48 ci_lower=-75.6bp. 0/13 alts net>0. H6 mirror comparison: paradigm 69 LONG side measured +112.9bp t=+9.23 sig_t_excess=+10.4 on SAME data — SHORT is exactly the loser side of an asymmetric trigger, not an independent edge. H7 baseline -9.5bp negative drift. Mirror-symmetric hypothesis FALSIFIED.",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-14T11:33:50+00:00"
+  "updated_at": "2026-05-14T12:39:50+00:00"
 }

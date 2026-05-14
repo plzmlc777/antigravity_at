@@ -155,7 +155,7 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 
 → **OHLCV-only paradigm은 sample 1.7x 즉시 활용 가능**. Funding/premium/OI 기반은 별도 백필 필요.
 
-### 6.2 R-1/R-3 mandatory checklist (5 lessons 통합)
+### 6.2 R-1/R-3 mandatory checklist (8 lessons 통합)
 
 1. **`_perm_utils` 의무 사용** — fee_aware_perm_test + bootstrap_ci. perm_p_two_sided + null_mean_t 반드시 보고.
 2. **Three-gate strict** (R-1 pass): `signal_t_excess ≥ 2.0` AND `ci_lower > 0` AND `perm_p_two_sided ≤ 0.10`. legacy `|t|≥2 OR perm_p≤0.10` deprecated.
@@ -164,6 +164,7 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 5. **OHLCV joblib cache 사용** — DB ORDER BY 13min vs cache 30s. R-3 ≥ 2 alts 사용 시 의무.
 6. **LOCAL execution 우회 방지** — paradigm-architect agent 호출 시 prompt에 explicit `mint@183.99.228.81` 명시. 호출 후 BTCUSDT 1m count 확인 (= 1,241,280 expected).
 7. **Mechanical vs Substantive verdict** — quarter denominator artifact 인지. 측정 가능한 모든 quarter PASS면 substantive PASS로 인정 가능.
+8. **Mirror hypothesis antipattern** (70번째 graveyard 2026-05-14) — paradigm X의 LONG 측면이 +X bp여도 mirror SHORT는 +X bp가 **아니다**. 시장 미시구조 방향 비대칭 (UP-trigger = momentum continuation / DOWN-trigger = mean reversion 가능성). Mirror도 별도 R-1 검증 의무. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = **13σ 격차**. 또한 graveyard의 H5 sub-finding을 mirror 정량 evidence로 자동 채택 금지 — 별도 R-1으로 확정.
 
 ### 6.3 Fee Floor 사전 추정 룰 (새)
 
@@ -178,12 +179,11 @@ R-1 호출 전 다음 검증:
 
 #### Tier 1 — 즉시 시도 가치 매우 높음
 
-**NEW A. `btc_rv_spike_HIGHVOL_down_alt_short_240m`** (paradigm 69 mirror SHORT)
-- 가설: BTC RV z≥2.5 + BTC 30m ret<0 + HIGH vol p90 → 13 alts SHORT 270m hold
-- Precedent: 67번 graveyard H5에서 down-trigger × LONG mean=-150bp t=-2.73 → mirror SHORT는 +150bp/trade 잠재
-- DNA: paradigm 69와 mode flip (LONG↔SHORT, up↔down), 같은 인프라 활용
-- Pre-est gross: ~150 bp (16 bp 통과 강함)
-- R-1 ETA: 5-10분 (cache hit + 기존 source class fork)
+**~~A. `btc_rv_spike_HIGHVOL_down_alt_short_240m`~~ — 2026-05-14 GRAVEYARD (70번째)** ❌
+- 가설 falsified: mirror SHORT는 **-49bp** (precedent +150 bp 잠재 가정 wrong)
+- H6 측정: paradigm 69 UP×LONG +112.9bp vs mirror DOWN×SHORT -49bp = **13σ 격차**
+- Mechanism 비대칭: UP-trigger = momentum continuation / DOWN-trigger = mean reversion rebound
+- Lesson 통합 → §6.2 #8 (Mirror antipattern)
 
 **#1 `liquidation_cascade_event`** (큐 §1 #1 유지)
 - 데이터 백필 필요: Binance liq REST API `/fapi/v1/forceOrders` 또는 archive
@@ -228,13 +228,13 @@ R-1 호출 전 다음 검증:
 
 Day 30 검증까지 30일. 일일 1-2 candidate fail-fast:
 
-| 우선순위 | candidate | 데이터 백필 필요? | ETA |
-|---|---|---|---|
-| 1 | A `btc_rv_HIGHVOL_down_alt_short_240m` (mirror SHORT) | 없음 | R-1 5-10분 |
-| 2 | D `btc_oi_velocity_regime_alt_long_240m` | 없음 (microstructure 보유) | R-1 10-15분 |
-| 3 | #1 `liquidation_cascade_event` | Binance liq archive 백필 평가 | 별 turn 평가 |
-| 4 | #2 `taker_buy_volume_5m_zscore` (sign-cond 변형) | 없음 (microstructure) | R-1 10-15분 |
-| 5 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn |
+| 우선순위 | candidate | 데이터 백필 필요? | ETA | 상태 |
+|---|---|---|---|---|
+| ~~1~~ | ~~A `btc_rv_HIGHVOL_down_alt_short_240m`~~ (mirror SHORT) | 없음 | R-1 5-10분 | **GRAVEYARD 2026-05-14** ❌ |
+| 1 | D `btc_oi_velocity_regime_alt_long_240m` | 없음 (microstructure 보유) | R-1 10-15분 | 대기 |
+| 2 | #1 `liquidation_cascade_event` | Binance liq archive 백필 평가 | 별 turn 평가 | 대기 |
+| 3 | #2 `taker_buy_volume_5m_zscore` (sign-cond 변형) | 없음 (microstructure) | R-1 10-15분 | 대기 |
+| 4 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn | 대기 |
 
 #### Day 30 검증 가까워질 때 (2026-06-08~13)
 - Paper baseline 측정 우선 (paradigm 69 13 sessions Day 30)
