@@ -320,6 +320,19 @@ def _build_bn_lifecycle_decay_early_exit(kwargs: dict, runtime: dict) -> SignalS
     )
 
 
+@register_source("bn_btc_rv_highvol_long")
+def _build_bn_btc_rv_highvol_long(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceBTCRVHighvolLongSource
+    leader_1m = runtime.get("leader_ohlcv_1m")
+    if leader_1m is None:
+        raise KeyError("runtime_data['leader_ohlcv_1m'] required for bn_btc_rv_highvol_long")
+    return BinanceBTCRVHighvolLongSource(
+        leader_ohlcv_1m=leader_1m,
+        z_thresh=float(kwargs.get("z_thresh", 2.5)),
+        vol_pct_cutoff=float(kwargs.get("vol_pct_cutoff", 0.90)),
+    )
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter

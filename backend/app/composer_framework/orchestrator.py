@@ -49,6 +49,7 @@ class RuntimeBundle:
     binance_oi_df: Optional[pd.DataFrame] = None
     binance_funding_universe_df: Optional[pd.DataFrame] = None  # wide: index=time, cols=symbols
     leader_ohlcv_eval: Optional[pd.DataFrame] = None  # leader symbol's eval-tf ohlcv (e.g. BTC 5m)
+    leader_ohlcv_1m: Optional[pd.DataFrame] = None    # leader symbol's raw 1m ohlcv (used by bn_btc_rv_highvol_long)
     book_depth_daily: Optional[pd.DataFrame] = None
     premium_df: Optional[pd.DataFrame] = None
     eth_ohlcv_eval: Optional[pd.DataFrame] = None
@@ -101,6 +102,8 @@ class PaperOrchestrator:
             runtime_data["binance_funding_universe_df"] = bundle.binance_funding_universe_df
         if bundle.leader_ohlcv_eval is not None:
             runtime_data["leader_ohlcv_eval"] = bundle.leader_ohlcv_eval
+        if bundle.leader_ohlcv_1m is not None:
+            runtime_data["leader_ohlcv_1m"] = bundle.leader_ohlcv_1m
         if bundle.book_depth_daily is not None:
             runtime_data["book_depth_daily"] = bundle.book_depth_daily
         if bundle.premium_df is not None:

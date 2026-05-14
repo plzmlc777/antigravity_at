@@ -1,0 +1,281 @@
+{
+  "paradigm": "cross_sectional_30d_momentum_continuation",
+  "type": "T",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "BTCUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "panel_start": "2025-04-28",
+  "panel_end": "2026-05-12",
+  "n_weeks": 49,
+  "lookback_days_main": 30,
+  "lookback_grid": [
+    20,
+    30,
+    45,
+    60
+  ],
+  "hold_days": 4,
+  "fee_round_trip_pair_pct": 0.16,
+  "h1_pair_gross": {
+    "label": "H1_pair_gross",
+    "n": 49,
+    "mean_pct": -0.4871,
+    "median_pct": -1.3288,
+    "std_pct": 8.809,
+    "t_stat": -0.387,
+    "sharpe_ann": -0.399,
+    "win_rate": 0.429
+  },
+  "h2_pair_net": {
+    "label": "H2_pair_net",
+    "n": 49,
+    "mean_pct": -0.6471,
+    "median_pct": -1.4888,
+    "std_pct": 8.809,
+    "t_stat": -0.514,
+    "sharpe_ann": -0.53,
+    "win_rate": 0.388,
+    "alpha_ann_pct": -33.649
+  },
+  "h3_permutation": {
+    "n_perm": 1000,
+    "perm_t_mean": 0.00308523516756377,
+    "perm_t_std": 1.015296546735385,
+    "perm_p_two_sided": 0.746
+  },
+  "h4_top2_gross": {
+    "label": "H4_top2_gross",
+    "n": 49,
+    "mean_pct": -0.5678,
+    "median_pct": -0.4018,
+    "std_pct": 5.7154,
+    "t_stat": -0.695,
+    "sharpe_ann": -0.716,
+    "win_rate": 0.469
+  },
+  "h4_top2_net": {
+    "label": "H4_top2_net",
+    "n": 49,
+    "mean_pct": -0.8878,
+    "median_pct": -0.7218,
+    "std_pct": 5.7154,
+    "t_stat": -1.087,
+    "sharpe_ann": -1.12,
+    "win_rate": 0.469
+  },
+  "h4_robust_flag": false,
+  "h5_lookback_grid": [
+    {
+      "lookback_days": 20,
+      "n_weeks": 51,
+      "gross_mean_pct": 0.4238,
+      "net_mean_pct": 0.2638,
+      "t_stat": 0.294,
+      "sharpe_ann": 0.184,
+      "win_rate": 0.51
+    },
+    {
+      "lookback_days": 30,
+      "n_weeks": 49,
+      "gross_mean_pct": -0.4871,
+      "net_mean_pct": -0.6471,
+      "t_stat": -0.387,
+      "sharpe_ann": -0.53,
+      "win_rate": 0.429
+    },
+    {
+      "lookback_days": 45,
+      "n_weeks": 47,
+      "gross_mean_pct": -0.2385,
+      "net_mean_pct": -0.3985,
+      "t_stat": -0.221,
+      "sharpe_ann": -0.389,
+      "win_rate": 0.447
+    },
+    {
+      "lookback_days": 60,
+      "n_weeks": 45,
+      "gross_mean_pct": 0.3001,
+      "net_mean_pct": 0.1401,
+      "t_stat": 0.241,
+      "sharpe_ann": 0.121,
+      "win_rate": 0.533
+    }
+  ],
+  "h5_consistent_count": 2,
+  "h6_high_vol_gross": {
+    "label": "H6_high_vol_gross",
+    "n": 24,
+    "mean_pct": -1.2487,
+    "median_pct": -1.3398,
+    "std_pct": 7.604,
+    "t_stat": -0.804,
+    "sharpe_ann": -1.184,
+    "win_rate": 0.417
+  },
+  "h6_low_vol_gross": {
+    "label": "H6_low_vol_gross",
+    "n": 25,
+    "mean_pct": 0.244,
+    "median_pct": -1.2788,
+    "std_pct": 9.9322,
+    "t_stat": 0.123,
+    "sharpe_ann": 0.177,
+    "win_rate": 0.44
+  },
+  "first_weeks": [
+    {
+      "monday": "2025-06-02 00:00:00",
+      "friday": "2025-06-06 00:00:00",
+      "winner": "ETHUSDT",
+      "loser": "FILUSDT",
+      "w_ret": -0.05029771952978723,
+      "l_ret": -0.08784551306323374,
+      "pair_gross": 0.037547793533446505,
+      "pair_net": 0.03594779353344651,
+      "top2_pair_gross": -0.033693347658411366,
+      "top2_pair_net": -0.03689334765841137,
+      "univ_vol": 0.0323100453677807
+    },
+    {
+      "monday": "2025-06-09 00:00:00",
+      "friday": "2025-06-13 00:00:00",
+      "winner": "WIFUSDT",
+      "loser": "FILUSDT",
+      "w_ret": -0.17070559610705605,
+      "l_ret": -0.054978854286812706,
+      "pair_gross": -0.11572674182024334,
+      "pair_net": -0.11732674182024334,
+      "top2_pair_gross": -0.01655328346403162,
+      "top2_pair_net": -0.019753283464031622,
+      "univ_vol": 0.029493132629004333
+    },
+    {
+      "monday": "2025-06-16 00:00:00",
+      "friday": "2025-06-20 00:00:00",
+      "winner": "BCHUSDT",
+      "loser": "DOGEUSDT",
+      "w_ret": 0.021726935358591604,
+      "l_ret": -0.059903829442094936,
+      "pair_gross": 0.08163076480068654,
+      "pair_net": 0.08003076480068654,
+      "top2_pair_gross": 0.06819723387329302,
+      "top2_pair_net": 0.06499723387329302,
+      "univ_vol": 0.027740547435776045
+    },
+    {
+      "monday": "2025-06-23 00:00:00",
+      "friday": "2025-06-27 00:00:00",
+      "winner": "BCHUSDT",
+      "loser": "WIFUSDT",
+      "w_ret": 0.09172763083849178,
+      "l_ret": -0.06926041917610215,
+      "pair_gross": 0.16098805001459393,
+      "pair_net": 0.15938805001459394,
+      "top2_pair_gross": 0.09702937903826542,
+      "top2_pair_net": 0.09382937903826542,
+      "univ_vol": 0.024471989155364363
+    },
+    {
+      "monday": "2025-06-30 00:00:00",
+      "friday": "2025-07-04 00:00:00",
+      "winner": "BCHUSDT",
+      "loser": "ADAUSDT",
+      "w_ret": -0.0431685989000119,
+      "l_ret": 0.00017485574401110426,
+      "pair_gross": -0.043343454644023005,
+      "pair_net": -0.044943454644023,
+      "top2_pair_gross": -0.010746447222884703,
+      "top2_pair_net": -0.013946447222884703,
+      "univ_vol": 0.026473317534023433
+    }
+  ],
+  "last_weeks": [
+    {
+      "monday": "2026-04-06 00:00:00",
+      "friday": "2026-04-10 00:00:00",
+      "winner": "ETHUSDT",
+      "loser": "FILUSDT",
+      "w_ret": 0.06540875725260431,
+      "l_ret": 0.0641025641025641,
+      "pair_gross": 0.0013061931500402135,
+      "pair_net": -0.00029380684995978655,
+      "top2_pair_gross": 0.03557847560614158,
+      "top2_pair_net": 0.03237847560614158,
+      "univ_vol": 0.020405071370699898
+    },
+    {
+      "monday": "2026-04-13 00:00:00",
+      "friday": "2026-04-17 00:00:00",
+      "winner": "WIFUSDT",
+      "loser": "ADAUSDT",
+      "w_ret": 0.06458022851465461,
+      "l_ret": 0.039823008849557695,
+      "pair_gross": 0.02475721966509692,
+      "pair_net": 0.023157219665096918,
+      "top2_pair_gross": -0.00033355818166169726,
+      "top2_pair_net": -0.0035335581816616974,
+      "univ_vol": 0.022096753314518644
+    },
+    {
+      "monday": "2026-04-20 00:00:00",
+      "friday": "2026-04-24 00:00:00",
+      "winner": "WIFUSDT",
+      "loser": "ADAUSDT",
+      "w_ret": -0.10150753768844234,
+      "l_ret": 0.009685230024212954,
+      "pair_gross": -0.1111927677126553,
+      "pair_net": -0.1127927677126553,
+      "top2_pair_gross": -0.06483491270972058,
+      "top2_pair_net": -0.06803491270972058,
+      "univ_vol": 0.02301606433636383
+    },
+    {
+      "monday": "2026-04-27 00:00:00",
+      "friday": "2026-05-01 00:00:00",
+      "winner": "NEARUSDT",
+      "loser": "BCHUSDT",
+      "w_ret": -0.055718475073313845,
+      "l_ret": 0.0015794274019531596,
+      "pair_gross": -0.057297902475267004,
+      "pair_net": -0.058897902475267,
+      "top2_pair_gross": -0.03306013453920115,
+      "top2_pair_net": -0.03626013453920115,
+      "univ_vol": 0.019214356975818674
+    },
+    {
+      "monday": "2026-05-04 00:00:00",
+      "friday": "2026-05-08 00:00:00",
+      "winner": "DOGEUSDT",
+      "loser": "BCHUSDT",
+      "w_ret": -0.005270331667423855,
+      "l_ret": 0.014833851841832502,
+      "pair_gross": -0.020104183509256357,
+      "pair_net": -0.021704183509256358,
+      "top2_pair_gross": -0.057859542645938844,
+      "top2_pair_net": -0.061059542645938845,
+      "univ_vol": 0.017901875457845145
+    }
+  ],
+  "verdict": "graveyard",
+  "graveyard_reasons": [
+    "H1_t_below_1.8 (0.39)",
+    "net_mean_nonpositive (-0.65%)",
+    "perm_p_above_0.10 (0.746)",
+    "pair_direction_opposite_continuation_failed",
+    "sharpe_below_0.3 (-0.53)"
+  ]
+}

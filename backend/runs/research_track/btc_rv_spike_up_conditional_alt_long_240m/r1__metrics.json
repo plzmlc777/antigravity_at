@@ -1,0 +1,387 @@
+{
+  "paradigm": "btc_rv_spike_up_conditional_alt_long_240m",
+  "verdict": "GRAVEYARD",
+  "verdict_reasons": [
+    "perm_p_two_sided=0.3270 > 0.10",
+    "H4 single-point overfit: holds ['180'] negative"
+  ],
+  "data_window": {
+    "btc_first": "2025-04-28 00:00:00",
+    "btc_last": "2026-05-12 23:59:00",
+    "btc_bars": 547200,
+    "alts_loaded": [
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "alts_missing": []
+  },
+  "config": {
+    "rv_window_bars": 30,
+    "z_window_bars": 43200,
+    "z_thresh_main": 2.5,
+    "z_thresh_grid": [
+      2.0,
+      2.5,
+      3.0
+    ],
+    "cooldown_min": 60,
+    "hold_main_min": 240,
+    "hold_grid_min": [
+      180,
+      210,
+      240,
+      270,
+      300
+    ],
+    "fee_round_trip": 0.0008,
+    "n_perms": 1000,
+    "n_boot": 2000,
+    "pool_sample_size": 100000,
+    "long_only": true,
+    "up_trigger_filter": true
+  },
+  "H1": {
+    "n_triggers": 202,
+    "n_trades": 2626,
+    "gross": {
+      "n": 2626,
+      "mean": 0.002236028766522298,
+      "median": 0.0020079698623086673,
+      "std": 0.025033018258979377,
+      "t_stat": 4.577322700451653,
+      "win_rate": 0.5544554455445545
+    },
+    "net": {
+      "n": 2626,
+      "mean": 0.0014360287665222985,
+      "median": 0.0012079698623086673,
+      "std": 0.025033018258979377,
+      "t_stat": 2.9396612288344435,
+      "win_rate": 0.5285605483625285
+    }
+  },
+  "H2_three_gate": {
+    "fee_aware_perm": {
+      "obs_mean": 0.0014360287665222985,
+      "obs_t": 2.9396612288344435,
+      "null_mean_t": -2.445223816286779,
+      "null_std_t": 1.0303372898537668,
+      "signal_t_excess": 5.384885045121223,
+      "perm_p_two_sided": 0.327,
+      "perm_p_one_sided_below": 1.0,
+      "perm_p_one_sided_above": 0.0,
+      "n_observed": 2626,
+      "n_candidate": 100000
+    },
+    "bootstrap_ci": {
+      "mean": 0.0014360287665222985,
+      "ci_lower": 0.0008739101402950428,
+      "ci_upper": 0.0020660667074314646,
+      "prob_positive": 1.0,
+      "n": 2626,
+      "n_boot": 2000,
+      "block_size": 240
+    },
+    "gate_pass": {
+      "signal_t_excess_pass": true,
+      "ci_lower_pass": true,
+      "perm_p_two_pass": false
+    },
+    "gate_pass_all": false
+  },
+  "H3_per_symbol": {
+    "ADAUSDT": {
+      "n": 202,
+      "obs_t": 1.0305977400481354,
+      "null_mean_t": -0.907167018267816,
+      "excess": 1.9377647583159514,
+      "mean_net": 0.0018177374821334046,
+      "perm_p_two": 0.496,
+      "passes": true
+    },
+    "AVAXUSDT": {
+      "n": 202,
+      "obs_t": 1.4531297186343535,
+      "null_mean_t": -0.8071543948668257,
+      "excess": 2.260284113501179,
+      "mean_net": 0.002402411848685045,
+      "perm_p_two": 0.296,
+      "passes": true
+    },
+    "BCHUSDT": {
+      "n": 202,
+      "obs_t": 1.444508749153628,
+      "null_mean_t": -0.6243569567193383,
+      "excess": 2.068865705872966,
+      "mean_net": 0.001974783118795648,
+      "perm_p_two": 0.226,
+      "passes": true
+    },
+    "BNBUSDT": {
+      "n": 202,
+      "obs_t": 0.5702618304886804,
+      "null_mean_t": -0.9496923036369503,
+      "excess": 1.5199541341256309,
+      "mean_net": 0.0005869813300435557,
+      "perm_p_two": 0.726,
+      "passes": true
+    },
+    "DOGEUSDT": {
+      "n": 202,
+      "obs_t": 1.2598779473806605,
+      "null_mean_t": -0.68364267682146,
+      "excess": 1.9435206242021206,
+      "mean_net": 0.0022151822012832904,
+      "perm_p_two": 0.314,
+      "passes": true
+    },
+    "ETHUSDT": {
+      "n": 202,
+      "obs_t": 0.4985944251762437,
+      "null_mean_t": -0.5868873633025404,
+      "excess": 1.0854817884787842,
+      "mean_net": 0.0007850154653520457,
+      "perm_p_two": 0.702,
+      "passes": true
+    },
+    "FILUSDT": {
+      "n": 202,
+      "obs_t": 0.6802008775017673,
+      "null_mean_t": -0.7401616855092659,
+      "excess": 1.4203625630110333,
+      "mean_net": 0.0018601312114834361,
+      "perm_p_two": 0.606,
+      "passes": true
+    },
+    "LINKUSDT": {
+      "n": 202,
+      "obs_t": 0.98446722441595,
+      "null_mean_t": -0.7269647859197332,
+      "excess": 1.7114320103356833,
+      "mean_net": 0.0016708096803565013,
+      "perm_p_two": 0.468,
+      "passes": true
+    },
+    "LTCUSDT": {
+      "n": 202,
+      "obs_t": 0.9207430724124108,
+      "null_mean_t": -0.82281346532414,
+      "excess": 1.7435565377365507,
+      "mean_net": 0.001323540668955743,
+      "perm_p_two": 0.536,
+      "passes": true
+    },
+    "NEARUSDT": {
+      "n": 202,
+      "obs_t": 0.6348417101584632,
+      "null_mean_t": -0.6298374109089204,
+      "excess": 1.2646791210673838,
+      "mean_net": 0.0011475140228004615,
+      "perm_p_two": 0.598,
+      "passes": true
+    },
+    "SOLUSDT": {
+      "n": 202,
+      "obs_t": 0.5366391541222818,
+      "null_mean_t": -0.8337784515845128,
+      "excess": 1.3704176057067947,
+      "mean_net": 0.0008573886623096071,
+      "perm_p_two": 0.698,
+      "passes": true
+    },
+    "WIFUSDT": {
+      "n": 202,
+      "obs_t": 0.7739031191171485,
+      "null_mean_t": -0.5120065620123903,
+      "excess": 1.2859096811295387,
+      "mean_net": 0.0017998936267104933,
+      "perm_p_two": 0.496,
+      "passes": true
+    },
+    "XRPUSDT": {
+      "n": 202,
+      "obs_t": 0.14383443159573964,
+      "null_mean_t": -0.9264417725802228,
+      "excess": 1.0702762041759624,
+      "mean_net": 0.00022698464588065086,
+      "perm_p_two": 0.926,
+      "passes": true
+    }
+  },
+  "H3_pass_count": 13,
+  "H3_total_alts": 13,
+  "H4_hold_grid": {
+    "180": {
+      "n_trades": 2626,
+      "mean_net": -6.863127630124068e-05,
+      "t_net": -0.14710309450164138,
+      "win_rate": 0.5133282559025133
+    },
+    "210": {
+      "n_trades": 2626,
+      "mean_net": 0.0011177162525070402,
+      "t_net": 2.216699280405852,
+      "win_rate": 0.5220868240670221
+    },
+    "240": {
+      "n_trades": 2626,
+      "mean_net": 0.0014360287665222985,
+      "t_net": 2.9396612288344435,
+      "win_rate": 0.5285605483625285
+    },
+    "270": {
+      "n_trades": 2626,
+      "mean_net": 0.0014128948507012669,
+      "t_net": 2.780857357098138,
+      "win_rate": 0.5312261995430312
+    },
+    "300": {
+      "n_trades": 2626,
+      "mean_net": 0.0012915262121003562,
+      "t_net": 2.333349450648685,
+      "win_rate": 0.5190403655750191
+    }
+  },
+  "H4_all_positive": false,
+  "H4_non_main_negatives": [
+    "180"
+  ],
+  "H5_threshold_grid": {
+    "2.0": {
+      "n_trig": 298,
+      "n_trades": 3874,
+      "mean_net": 0.0003279783410897057,
+      "t_net": 0.8775651169272443
+    },
+    "2.5": {
+      "n_trig": 202,
+      "n_trades": 2626,
+      "mean_net": 0.0014360287665222985,
+      "t_net": 2.9396612288344435
+    },
+    "3.0": {
+      "n_trig": 133,
+      "n_trades": 1729,
+      "mean_net": 0.002994391779721478,
+      "t_net": 4.425963225259714
+    }
+  },
+  "H5_all_positive": true,
+  "H6_baseline": {
+    "n_bars_sampled": 202,
+    "n_trades": 2626,
+    "mean_net": -0.0011651420560497775,
+    "t_net": -3.5767772399851014,
+    "win_rate": 0.46268088347296266,
+    "ratio_h1_over_h6": -1.2324924322025743
+  },
+  "trigger_summary": {
+    "n_up_triggers_main": 202,
+    "first_trigger": "2025-06-05 14:48:00",
+    "last_trigger": "2026-05-10 16:35:00"
+  },
+  "per_alt_at_main_hold": {
+    "ADAUSDT": {
+      "n": 202,
+      "mean_gross": 0.002617737482133404,
+      "mean_net": 0.0018177374821334046,
+      "t_net": 1.0305977400481354,
+      "win_rate": 0.5198019801980198
+    },
+    "AVAXUSDT": {
+      "n": 202,
+      "mean_gross": 0.003202411848685045,
+      "mean_net": 0.002402411848685045,
+      "t_net": 1.4531297186343535,
+      "win_rate": 0.5297029702970297
+    },
+    "BCHUSDT": {
+      "n": 202,
+      "mean_gross": 0.002774783118795647,
+      "mean_net": 0.001974783118795648,
+      "t_net": 1.444508749153628,
+      "win_rate": 0.5247524752475248
+    },
+    "BNBUSDT": {
+      "n": 202,
+      "mean_gross": 0.0013869813300435552,
+      "mean_net": 0.0005869813300435557,
+      "t_net": 0.5702618304886804,
+      "win_rate": 0.5544554455445545
+    },
+    "DOGEUSDT": {
+      "n": 202,
+      "mean_gross": 0.003015182201283288,
+      "mean_net": 0.0022151822012832904,
+      "t_net": 1.2598779473806605,
+      "win_rate": 0.5247524752475248
+    },
+    "ETHUSDT": {
+      "n": 202,
+      "mean_gross": 0.001585015465352045,
+      "mean_net": 0.0007850154653520457,
+      "t_net": 0.4985944251762437,
+      "win_rate": 0.49504950495049505
+    },
+    "FILUSDT": {
+      "n": 202,
+      "mean_gross": 0.002660131211483436,
+      "mean_net": 0.0018601312114834361,
+      "t_net": 0.6802008775017673,
+      "win_rate": 0.5297029702970297
+    },
+    "LINKUSDT": {
+      "n": 202,
+      "mean_gross": 0.0024708096803565008,
+      "mean_net": 0.0016708096803565013,
+      "t_net": 0.98446722441595,
+      "win_rate": 0.5346534653465347
+    },
+    "LTCUSDT": {
+      "n": 202,
+      "mean_gross": 0.002123540668955742,
+      "mean_net": 0.001323540668955743,
+      "t_net": 0.9207430724124108,
+      "win_rate": 0.5594059405940595
+    },
+    "NEARUSDT": {
+      "n": 202,
+      "mean_gross": 0.0019475140228004608,
+      "mean_net": 0.0011475140228004615,
+      "t_net": 0.6348417101584632,
+      "win_rate": 0.5396039603960396
+    },
+    "SOLUSDT": {
+      "n": 202,
+      "mean_gross": 0.0016573886623096066,
+      "mean_net": 0.0008573886623096071,
+      "t_net": 0.5366391541222818,
+      "win_rate": 0.5198019801980198
+    },
+    "WIFUSDT": {
+      "n": 202,
+      "mean_gross": 0.002599893626710492,
+      "mean_net": 0.0017998936267104933,
+      "t_net": 0.7739031191171485,
+      "win_rate": 0.5148514851485149
+    },
+    "XRPUSDT": {
+      "n": 202,
+      "mean_gross": 0.0010269846458806507,
+      "mean_net": 0.00022698464588065086,
+      "t_net": 0.14383443159573964,
+      "win_rate": 0.5247524752475248
+    }
+  }
+}

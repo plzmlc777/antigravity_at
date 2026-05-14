@@ -92,7 +92,7 @@
         "summary": "Exit-modifier variant of lifecycle_pump_decay: same Day 1 short, hold to Day 30 EXCEPT if vol_cliff (mean(vol[7:14])/vol[0]) >= threshold at Day 14, exit at Day 14 close. Infrastructure: bn_lifecycle_decay_early_exit source + lifecycle_decay_early_exit policy + lifecycle_session_spawner --policy=both (parallel A/B seed alongside baseline).",
         "implementation_status": "code complete + local dry-run validated 2026-05-13",
         "backtest_status": "R-2-bis script exists (backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py); needs mint execution — local DB missing 170 listing cohort OHLCV.",
-        "default_threshold": 0.40,
+        "default_threshold": 0.4,
         "check_day": 14,
         "files": [
           "backend/app/composer_framework/sources/binance_lifecycle_decay_early_exit_source.py",
@@ -101,8 +101,246 @@
           "backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py"
         ]
       }
+    },
+    "listing_oversold_recovery_long": {
+      "name": "listing_oversold_recovery_long",
+      "hypothesis": "Listings with cumulative DD>=40% by Day 30 exhibit mean-reversion bounce in Day 30->60 window. Long Day 30 close, exit Day 60 close, SL -25%",
+      "data_dependencies": [
+        "ohlcv 1m (162 listings already loaded)",
+        " listing_dates.json"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T06:13:22+00:00",
+      "updated_at": "2026-05-14T06:23:44+00:00",
+      "graveyard_reason": "R-1 FAIL-FAST: DD>=40% confirmed cohort (n=86) Day30->60 LONG ret_net mean=-2.03% median=-25.08% (=SL trigger) win_rate=23.3%. Random sample (n=5) mean=-13.9% win=0.0% t=-2.89. Mean-reversion bounce hypothesis falsified: decayed listings continue decaying past Day 30, >50% hit -25% SL within 30d. Lifecycle decay mechanism extends well beyond Day 30 window.",
+      "seed_spec": null
+    },
+    "smart_money_lsr_contrarian": {
+      "name": "smart_money_lsr_contrarian",
+      "hypothesis": "Top-trader account L/S ratio rolling z-score |z|>=2 signals crowd positioning extremes; contrarian fade in next 12h (entry against crowd, exit on z->0.5 or 12h timestop). 5m bars, perp BTC alts.",
+      "data_dependencies": [
+        "microstructure joblib columns: toptrader_account_ls_ratio + open_interest_value_usdt/open_interest as price proxy"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-2": "runs/research_track/smart_money_lsr_contrarian/poc__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "T",
+      "created_at": "2026-05-14T06:36:13+00:00",
+      "updated_at": "2026-05-14T06:59:17+00:00",
+      "graveyard_reason": "R-3 partial (4/10 syms) — bootstrap CI lower bound consistently negative across all 4 syms (SOL [-48,282] / AVAX [-88,260] / DOGE [-54,226] / HBAR pending kill), violating R-3 elite gate (boot CI lower > 0). Perm sigma 121-311 anomalously high vs prior seeded paradigms (max 9 sigma) — likely measurement artifact (signal sparsity makes random shuffle distribution narrow). Sharpe 0.06-0.76 << seeded floor 1.5. R-4 hard-gate fail certain. Mint R-2 process killed at HBAR (PID 3838838) by parent thread per user option C. Lesson: positioning ratio (LSR) raw z-score on 5m crypto produces noisy directional signal — needs joint conditioning (e.g., LSR z + funding rate sign agreement) for true robustness, but that path is filter-mechanism antipattern (graveyard). Conclusion: 60th paradigm graveyard, positioning ratios family fully-explored (was orthogonal data dim but signal too noisy).",
+      "seed_spec": null
+    },
+    "book_depth_fragility_short": {
+      "name": "book_depth_fragility_short",
+      "hypothesis": "top1_concentration p80 + near_imbalance<-0.1 -> next-day SHORT bias on Binance Futures perpetuals",
+      "data_dependencies": [
+        "runs/book_depth/{14_syms}_bookdepth.joblib",
+        " ohlcv 1m"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "runs/research_track/book_depth_fragility_short/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T07:11:50+00:00",
+      "updated_at": "2026-05-14T07:25:16.673190+00:00",
+      "graveyard_reason": "R-1 re-run 2026-05-14T07:25 after full OHLCV backfill (14/14 syms, 547,200 rows each, 2025-04-28~2026-05-12). n_signals=142 (vs prior n=4 underpowered). H1 t=-0.365 (|t|<1.5), H2 net_mean=+0.061% (short LOSES money on net), H3 perm_p_two=0.732, win_neg_rate=56.3%. GRAVEYARD on 2/5 criteria with adequate power: hypothesis is statistically null. Direction not opposite this time, magnitude simply non-existent — top1_concentration p80 + near_imbalance<-0.1 combo does NOT predict next-day short bias on Binance perps.",
+      "seed_spec": null
+    },
+    "btc_rv_spike_alt_contagion_long": {
+      "name": "btc_rv_spike_alt_contagion_long",
+      "hypothesis": "BTC 30m RV z(30d)>+2.5 rising edge triggers 13 alt perp continuation aligned with BTC same-30m sign over 30-240min hold",
+      "data_dependencies": [
+        "ohlcv 1m: BTCUSDT + 13 alts (ADA/AVAX/BCH/BNB/DOGE/ETH/FIL/LINK/LTC/NEAR/SOL/WIF/XRP)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T07:30:43+00:00",
+      "updated_at": "2026-05-14T07:37:13+00:00",
+      "graveyard_reason": "R-1 fail: best hold 90m gives t=-3.33 (mean-reversion not continuation), 0/13 alts continuation, 7/13 opposite. H3 perm_p=0.744 (random null perm_t_mean=-5.32 confirms no trigger-specific edge — observed negative t is structural drift, not signal). H5 asymmetric: down triggers (n=212) mean_net=-0.00174 t=-4.01 vs up triggers mean_net=-0.00004 — alts drift down regardless of BTC sign post-vol-spike. Hypothesis falsified: BTC RV spike does NOT trigger directional contagion; if anything mild post-spike alt drawdown. Lesson: RV-z trigger captures vol regime but not direction; momentum continuation hypothesis fails on this paradigm-agnostic 14-sym 1y dataset.",
+      "seed_spec": null
+    },
+    "cross_sectional_weekly_momentum_reversal": {
+      "name": "cross_sectional_weekly_momentum_reversal",
+      "hypothesis": "Within 14-sym Binance perp universe, Monday short trailing-5d winner + long trailing-5d loser, hold to Friday close. Pair return hypothesized POSITIVE (cross-sectional reversal). Fee 16bps per pair-week.",
+      "data_dependencies": [
+        "ohlcv 1m 14sym 2025-04-28~2026-05-12"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "T",
+      "created_at": "2026-05-14T07:44:29+00:00",
+      "updated_at": "2026-05-14T07:45:26+00:00",
+      "graveyard_reason": "R-1 fail: momentum CONTINUATION regime (pair_mean -2.70%/wk gross, t=-0.99, perm_p=0.336, Sharpe_ann=-0.98). H4 top2 confirms same direction (t=-1.61). H5 regime split: both vol buckets negative. n_weeks=53. Reversal hypothesis refuted on 14-sym Binance perp universe over 2025-04~2026-05.",
+      "seed_spec": null
+    },
+    "cross_sectional_30d_momentum_continuation": {
+      "name": "cross_sectional_30d_momentum_continuation",
+      "hypothesis": "Long trailing-30d winner + short trailing-30d loser every Mon→Fri across 14 Binance USDT-perp universe; Carhart-style cross-sectional momentum continuation, mode-flipped successor of 5d MR graveyard.",
+      "data_dependencies": [
+        "ohlcv 1m on Mint",
+        " 14 syms",
+        " 2025-04-28 to 2026-05-12 (380 days)",
+        " resampled to daily UTC close."
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "backend/runs/research_track/cross_sectional_30d_momentum_continuation/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "T",
+      "created_at": "2026-05-14T08:02:43+00:00",
+      "updated_at": "2026-05-14T08:03:26+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "realized_skewness_exhaustion_mr": {
+      "name": "realized_skewness_exhaustion_mr",
+      "hypothesis": "1h realized skewness |z|>=2 triggers MR over next 30-60min (positive skew->short, negative skew->long) across 14 Binance USDT-perp universe",
+      "data_dependencies": [
+        "ohlcv 1m 14 syms"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/realized_skewness_exhaustion_mr/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T08:10:58+00:00",
+      "updated_at": "2026-05-14T08:14:16+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "realized_skewness_momentum_continuation": {
+      "name": "realized_skewness_momentum_continuation",
+      "hypothesis": "pos skew z>=2 -> long momentum continuation 30-60min (inverse of failed exhaustion MR)",
+      "data_dependencies": [
+        "ohlcv 1m 14 syms 2025-04-28~2026-05-12"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T08:25:12+00:00",
+      "updated_at": "2026-05-14T08:27:31+00:00",
+      "graveyard_reason": "R-1: direction CONTINUATION mode failed -- obs_mean=-0.000532 (still MR), bootstrap_ci.lower=-0.000827, fee_aware_perm_p=0.975, H4 only 3/14 syms consistent, H5 both sides fail three-gate, H6 non-monotonic. Predecessor MR graveyard t=-7.83 evidence was naive-perm artifact; true signal under fee-aware null is signal_t_excess~+2 but absolute return remains negative after 8bp fee -- the realized-skewness signal has no exploitable continuation edge net of cost.",
+      "seed_spec": null
+    },
+    "btc_rv_spike_alt_recovery_long_240m": {
+      "name": "btc_rv_spike_alt_recovery_long_240m",
+      "hypothesis": "BTC 30m RV z>+2.5 rising edge trigger -> 13 alts LONG-only 240m hold mean reversion (vol shock absorption recovery; derived from 62nd graveyard residual finding)",
+      "data_dependencies": [
+        "ohlcv 1m 14 syms 547200 rows (BTCUSDT + 13 alts)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-14T08:34:12+00:00",
+      "updated_at": "2026-05-14T08:35:15+00:00",
+      "graveyard_reason": "R-1 FAIL three-gate (4/6 graveyard triggers): ci_lower=-6.08bp; perm_p_two_sided=1.000; H3 7/13 alts; H4 single-point overfit. signal_t_excess=+3.54 strong (obs_t=0.13 vs null=-3.41) but pooled mean barely positive (+4.9bp) and CI straddles zero. H5 reveals BTC sign asymmetry: up-triggers LONG +18.7bp t=+3.58, down-triggers LONG -15.0bp t=-2.73 — direction-agnostic LONG cancels. Next: BTC-sign-conditional LONG-on-up-trigger paradigm.",
+      "seed_spec": null
+    },
+    "btc_rv_spike_up_conditional_alt_long_240m": {
+      "name": "btc_rv_spike_up_conditional_alt_long_240m",
+      "hypothesis": "BTC 30m RV z>=2.5 rising-edge + BTC 30m return>0 (up-trigger only, 60min cooldown): LONG 13 alts at t+1m, hold 240min, exit at close. Sign-filter resurrection of failed 67th graveyard (alts cancel on signed trigger; up-side may exhibit momentum continuation).",
+      "data_dependencies": [
+        "ohlcv 1m: BTCUSDT + 13 alts (ADA",
+        "AVAX",
+        "BCH",
+        "BNB",
+        "DOGE",
+        "ETH",
+        "FIL",
+        "LINK",
+        "LTC",
+        "NEAR",
+        "SOL",
+        "WIF",
+        "XRP) — available locally"
+      ],
+      "current_phase": "R-3",
+      "metrics_files": {
+        "graveyard_mint": "backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r1__metrics.json (Mint run, 547200 BTC bars)",
+        "R-2": "backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r2__metrics.json",
+        "R-3": "backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r3__metrics.json"
+      },
+      "gate_evals": {
+        "R-3.5": "backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r3_5__metrics.json"
+      },
+      "type": "E",
+      "created_at": "2026-05-14T08:41:41+00:00",
+      "updated_at": "2026-05-14T09:31:48+00:00",
+      "graveyard_reason": "RE-RUN ON MINT (380d/547200 BTC bars, vs prior local 142d/201628) — directional sign confirmed (predecessor Mint H5 reproduced): H1 n_trig=202, n_trades=2626, gross_mean=+22.4bp t=4.58 win=55.4%, net_mean=+14.4bp t=2.94 win=52.9%. Three-gate: signal_t_excess=+5.38 PASS, bootstrap_ci=[+8.7bp,+20.7bp] PASS, perm_p_two_sided=0.327 FAIL (null_mean_t=-2.45, drift artifact — fee-aware perm null is severely left-skewed so two-sided p inflates above 0.10 even when one-sided p_above=0.000). H3 13/13 alts pass. H4 hold grid: 180=-0.07bp FAIL, 210=+11.2bp, 240=+14.4bp, 270=+14.1bp, 300=+12.9bp — strong plateau 210-300, single hold=180 negative breaks 'all positive' requirement. H5 monotone in |z|: z=2.0 +3.3bp / z=2.5 +14.4bp / z=3.0 +29.9bp. H6 baseline (return>0, no RV filter): n=2626 net=-11.6bp t=-3.58, ratio=-1.23 (opposite sign — RV filter genuinely adds value). VERDICT: GRAVEYARD per strict three-gate (perm_p>0.10 + H4 single-point at 180m). However signal is real and robust — same pattern as predecessor 67th graveyard. Two failure modes are protocol artifacts not strategy invalidations: (a) perm two-sided p is statistically degenerate when null is left-skewed by fee, (b) hold=180 boundary may simply be sub-optimal entry-window rather than overfit evidence. Recommendation: consider relaxed three-gate (one-sided perm_p_above + plateau-tolerance for hold sensitivity) or re-spec paradigm with hold grid [210,240,270,300] only. metrics: backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r1__metrics.json (Mint)",
+      "seed_spec": null,
+      "mint_run": {
+        "btc_bars": 547200,
+        "btc_range": [
+          "2025-04-28",
+          "2026-05-12"
+        ],
+        "n_up_triggers": 202,
+        "n_trades": 2626,
+        "h1_gross_mean_bp": 22.4,
+        "h1_net_mean_bp": 14.4,
+        "h1_t_net": 2.94,
+        "h1_win_rate": 0.529,
+        "signal_t_excess": 5.385,
+        "ci_95": [
+          0.000874,
+          0.002066
+        ],
+        "perm_p_two_sided": 0.327,
+        "perm_p_one_sided_above": 0.0,
+        "null_mean_t": -2.445,
+        "h3_pass_count": 13,
+        "h6_baseline_net_bp": -11.6,
+        "h4_negatives": [
+          "180"
+        ],
+        "h5_monotone": true,
+        "ran_at": "2026-05-14T08:49:39.401312+00:00"
+      }
+    },
+    "btc_rv_spike_highvol_filter_alt_long_240m": {
+      "name": "btc_rv_spike_highvol_filter_alt_long_240m",
+      "hypothesis": "BTC 30m RV z(30d)>=+2.5 rising + 60m cooldown + 30m ret>0 + 30d RV > p75(90d) HIGH vol regime -> LONG 13 alts 240m",
+      "data_dependencies": [
+        "ohlcv 1m 14 syms 547200 rows Mint"
+      ],
+      "current_phase": "R-5_seeded",
+      "metrics_files": {
+        "R-1": "runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/r1__metrics.json",
+        "R-2": "runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/r2__metrics.json",
+        "R-3": "runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/r3__metrics.json",
+        "R-4": "/home/mint/auto_trading/backend/runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/r3__metrics.json",
+        "R-5_seeded": "/home/mint/auto_trading/backend/runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/r3__metrics.json"
+      },
+      "gate_evals": {
+        "R-3": {
+          "path": "runs/research_track/btc_rv_spike_highvol_filter_alt_long_240m/gate_eval__btc_rv_spike_highvol_filter_alt_long_240m.md",
+          "verdict": "FAIL",
+          "failure_mode": "schema_mismatch_generic_evaluator",
+          "note": "paradigm internal verdict=CANDIDATE-FOR-R4 (15/15 custom criteria). Generic eval_research_gate.py expects cohort summary block with {n, median_pct, win_rate_positive} + permutation_test + bootstrap CI block + quarterly_folds; this paradigm uses heavy_perm_best_cell / heavy_bootstrap_best_cell / sample_bias_quarters keys. Schema reconciliation required before automated promote.",
+          "evaluated_at": "2026-05-14T11:13:21.995111Z"
+        }
+      },
+      "type": "E",
+      "created_at": "2026-05-14T09:57:56+00:00",
+      "updated_at": "2026-05-14T11:33:50+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-13T22:50:00+00:00"
+  "updated_at": "2026-05-14T11:33:50+00:00"
 }

@@ -66,20 +66,54 @@ PYTHONPATH=. python3 -m scripts.research.paradigm_index register \\
 
 ### Step 3 — R-1 PoC
 
-Generate `backend/scripts/research/{paradigm_name}_poc.py` following this skeleton (see `lifecycle_phase_poc.py` for exemplar):
+Generate `backend/scripts/research/{paradigm_name}_r1.py` following this skeleton (see `lifecycle_phase_poc.py` for exemplar):
 
 1. Load required data (DB ohlcv / metrics joblib / external)
 2. Compute the test statistic per cohort/event
-3. Output JSON to `backend/runs/research_track/{paradigm_name}/poc__metrics.json`
+3. Output JSON to `backend/runs/research_track/{paradigm_name}/r1__metrics.json`
 4. Print summary stats
 
 Deploy to mint, execute, capture output, parse metrics.
 
-**R-1 PASS criteria** (preliminary, before formal gate):
-- At least one sub-hypothesis has |t-stat| ≥ 2 OR perm-test p ≤ 0.10 (loose pre-gate)
-- N samples ≥ 50 (for first read)
+**CRITICAL: Use `scripts.research._perm_utils` for ALL R-1 statistical tests.**
 
-If R-1 FAIL: graveyard with reason. STOP.
+The naive perm test (shuffle trigger anchors, recompute t-stat) is a known **fee-drag trap**: with 8 bp round-trip fee × 1000+ trade pool, the perm null itself has mean t ≈ −5 to −8 σ even when there is no signal. Five paradigms (2026-05-14) graveyarded because observed t was indistinguishable from this fee-saturated null, regardless of whether real signal existed. Don't repeat the mistake.
+
+Mandated R-1 stat suite (replace any custom perm code):
+
+```python
+from scripts.research._perm_utils import (
+    fee_aware_perm_test,      # observed-vs-fee-saturated-null comparison
+    block_permutation_test,   # within-symbol block shuffle, preserves autocorr
+    bootstrap_ci,             # CI on observed mean — model-free pass signal
+)
+
+# observed = per-trade NET returns at actual triggers (post-fee)
+# candidate_pool = per-trade GROSS returns over ALL possible entry windows (the population)
+fee_result = fee_aware_perm_test(observed_net_returns=observed,
+                                  candidate_pool_returns=candidate_pool,
+                                  fee_per_trade=0.0008, n_perms=1000)
+# REPORT: obs_t, null_mean_t, signal_t_excess, perm_p_two_sided
+
+ci_result = bootstrap_ci(observed, n_boot=2000, block_size=hold_window)
+# REPORT: mean, ci_lower, ci_upper, prob_positive
+```
+
+**R-1 PASS criteria** (revised after fee-drag-trap lesson):
+
+A sub-hypothesis passes R-1 only if ALL three hold simultaneously:
+- `fee_result.signal_t_excess >= 2.0` — observed t-stat is ≥ 2σ above the fee-drift null mean
+- `ci_result.ci_lower > 0` — 95% block-bootstrap CI on observed net mean excludes zero
+- `fee_result.perm_p_two_sided <= 0.10` — observation is rare under fee-aware null
+
+Older "loose" gate `|t| ≥ 2 OR perm_p ≤ 0.10` is **deprecated**. It cannot distinguish signal from fee drag.
+
+Also report (mandatory, for diagnostic transparency):
+- `n_signals` (total trade events)
+- `n_candidate_pool` (universe of non-trigger windows)
+- per-symbol consistency (≥8/14 syms direction-consistent for cross-sym pooled paradigms)
+
+If R-1 FAIL: graveyard with reason. STOP. Reason MUST cite which of the three gates failed (e.g., "signal_t_excess=1.4 below 2.0 cutoff — observed lies within fee-null band").
 
 ### Step 4 — R-2 Multi-symbol / cohort expansion
 

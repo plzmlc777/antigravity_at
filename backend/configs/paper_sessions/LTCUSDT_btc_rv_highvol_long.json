@@ -1,0 +1,31 @@
+{
+  "name": "LTCUSDT_btc_rv_highvol_long_paper_seed",
+  "symbol": "LTCUSDT",
+  "mode": "paper",
+  "initial_capital": 1000000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track paradigm 69 (R-4 PASS 2026-05-14). BTC 30m RV z(30d)>=2.5 rising edge + 60m cooldown + BTC 30m ret>0 + BTC 30d vol >= p90 of 90d distribution (HIGH vol regime) -> LONG, hold=270m (54 x 5m bars), TP=+5%, no SL. R-1~R-4 measured: n=455 trades, net_mean +126.28bp, t=+11.11, signal_t_excess +12.24, CI [+116, +128]bp, perm_p_above 0.000, plateau 96/96 cells, per-sym 13/13, cosine vs 68th parent 0.42 (distinct), funding-adj +125.62bp. Within-HIGH stratification 0 killer subregime. Sub-paradigm of graveyarded 68th btc_rv_spike_up_conditional_alt_long_240m (R-3.5 falsified for non-HIGH-vol regimes). Source: bn_btc_rv_highvol_long needs BTC 1m via runtime['leader_ohlcv_1m'] (paper_session_cli auto-loads). User-approved 2026-05-14.",
+  "pipeline_spec": {
+    "sources": [
+      {"type": "bn_btc_rv_highvol_long", "kwargs": {
+        "z_thresh": 2.5,
+        "vol_pct_cutoff": 0.90
+      }}
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {"feature_col": "bnrvh_signal", "scale": 1.0}
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.99,
+        "tp_pct": 0.05,
+        "max_hold_bars": 54
+      }
+    },
+    "config": {"eval_freq_minutes": 5, "forward_bars": 54}
+  }
+}

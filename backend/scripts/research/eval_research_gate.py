@@ -69,6 +69,19 @@ GATE_E = {
     "quarterly_n_min": 3,
 }
 
+# Event-study (new _perm_utils schema, fee-aware) gate thresholds
+# Introduced 2026-05-14 after fee-drag-trap lesson; paradigms using
+# scripts.research._perm_utils emit heavy_perm_best_cell + heavy_bootstrap_best_cell.
+GATE_E_NEW = {
+    "n_trades_min": 100,
+    "signal_t_excess_min": 2.5,
+    "perm_p_above_max": 0.05,
+    "ci_lower_bp_min": 0.0,
+    "plateau_min": 10,
+    "quarter_sig_t_excess_min": 2.0,
+    "quarter_min_count_required": 2,
+}
+
 
 def detect_type(metrics: dict) -> str:
     if "alpha_pct" in metrics or "sharpe_ann" in metrics:
@@ -78,7 +91,88 @@ def detect_type(metrics: dict) -> str:
         return "E"
     if "permutation_test" in metrics and "quarterly_folds" in metrics:
         return "E"
+    # New _perm_utils-based event-study (heavy_perm_best_cell marker)
+    if "heavy_perm_best_cell" in metrics and "heavy_bootstrap_best_cell" in metrics:
+        return "E"
     return "T"  # default
+
+
+def _is_new_schema(m: dict) -> bool:
+    """Detect new _perm_utils-based event-study schema (introduced 2026-05-14)."""
+    return "heavy_perm_best_cell" in m and "heavy_bootstrap_best_cell" in m
+
+
+def evaluate_e_new(m: dict) -> tuple[bool, list[str], dict]:
+    """Event-study gate for new _perm_utils-based schema.
+
+    Required blocks:
+      - best_cell_recheck: {n_trades, net_mean_bp, t, win, sharpe}
+      - heavy_perm_best_cell: {signal_t_excess, perm_p_one_sided_above, ...}
+      - heavy_bootstrap_best_cell: {ci_lower_bp, ci_upper_bp, prob_positive, ...}
+      - plateau_pass_count (int)
+      - sample_bias_quarters: per-quarter dict with sig_t_excess + perm_p_above
+      - look_ahead_clean (bool)
+    """
+    fails: list[str] = []
+    parsed: dict = {}
+
+    best = m.get("best_cell_recheck") or {}
+    perm = m.get("heavy_perm_best_cell") or {}
+    boot = m.get("heavy_bootstrap_best_cell") or {}
+
+    n_trades = best.get("n_trades", 0)
+    sig_t_excess = perm.get("signal_t_excess")
+    perm_p_above = perm.get("perm_p_one_sided_above")
+    ci_lower_bp = boot.get("ci_lower_bp")
+    plateau = m.get("plateau_pass_count", 0)
+    look_ahead_clean = m.get("look_ahead_clean", False)
+
+    parsed.update({
+        "n_trades": n_trades,
+        "signal_t_excess": sig_t_excess,
+        "perm_p_one_sided_above": perm_p_above,
+        "ci_lower_bp": ci_lower_bp,
+        "plateau_pass_count": plateau,
+        "look_ahead_clean": look_ahead_clean,
+        "net_mean_bp": best.get("net_mean_bp"),
+        "t_stat": best.get("t"),
+    })
+
+    if n_trades < GATE_E_NEW["n_trades_min"]:
+        fails.append(f"n_trades {n_trades} < {GATE_E_NEW['n_trades_min']}")
+    if sig_t_excess is None or sig_t_excess < GATE_E_NEW["signal_t_excess_min"]:
+        fails.append(f"signal_t_excess {sig_t_excess} < {GATE_E_NEW['signal_t_excess_min']}")
+    if perm_p_above is None or perm_p_above > GATE_E_NEW["perm_p_above_max"]:
+        fails.append(f"perm_p_one_sided_above {perm_p_above} > {GATE_E_NEW['perm_p_above_max']}")
+    if ci_lower_bp is None or ci_lower_bp <= GATE_E_NEW["ci_lower_bp_min"]:
+        fails.append(f"bootstrap ci_lower_bp {ci_lower_bp} ≤ {GATE_E_NEW['ci_lower_bp_min']}")
+    if plateau < GATE_E_NEW["plateau_min"]:
+        fails.append(f"plateau_pass_count {plateau} < {GATE_E_NEW['plateau_min']}")
+    if not look_ahead_clean:
+        fails.append("look_ahead_clean is False (potential lookahead bias)")
+
+    # Per-quarter robustness check (sample_bias_quarters: each quarter must independently pass)
+    sbq = m.get("sample_bias_quarters") or {}
+    quarter_dicts = [v for v in sbq.values() if isinstance(v, dict)]
+    n_quarters_pass = 0
+    n_quarters_present = 0
+    for q in quarter_dicts:
+        q_n = q.get("n", 0)
+        if q_n < 30:
+            continue
+        n_quarters_present += 1
+        q_sig = q.get("signal_t_excess") or q.get("sig_t_excess")
+        q_perm_p = q.get("perm_p_one_sided_above")
+        if q_sig is not None and q_sig >= GATE_E_NEW["quarter_sig_t_excess_min"] and (q_perm_p is None or q_perm_p <= 0.05):
+            n_quarters_pass += 1
+    parsed["quarters_present"] = n_quarters_present
+    parsed["quarters_passing"] = n_quarters_pass
+    if n_quarters_present < GATE_E_NEW["quarter_min_count_required"]:
+        fails.append(f"sample_bias_quarters present {n_quarters_present} < {GATE_E_NEW['quarter_min_count_required']} (need ≥2 independent quarters)")
+    elif n_quarters_pass < n_quarters_present:
+        fails.append(f"quarters_passing {n_quarters_pass}/{n_quarters_present} (each present quarter must independently pass sig_t_excess≥{GATE_E_NEW['quarter_sig_t_excess_min']})")
+
+    return len(fails) == 0, fails, parsed
 
 
 def _ratio(num: float, denom: float) -> float | None:
@@ -224,6 +318,10 @@ def main() -> int:
     if gate_type == "T":
         passed, fails, parsed = evaluate_t(metrics)
         gate_thresholds = GATE_T
+    elif _is_new_schema(metrics):
+        passed, fails, parsed = evaluate_e_new(metrics)
+        gate_thresholds = GATE_E_NEW
+        log.info("using new _perm_utils-based event-study gate")
     else:
         passed, fails, parsed = evaluate_e(metrics)
         gate_thresholds = GATE_E

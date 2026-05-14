@@ -1,0 +1,177 @@
+{
+  "config": {
+    "dd_threshold": 0.4,
+    "entry_day": 30,
+    "exit_day": 60,
+    "sl_level": 0.25,
+    "fee_round_trip": 0.0008,
+    "sample_n_for_r1": 5,
+    "seed": 42
+  },
+  "cohort_summary": {
+    "n_candidates": 160,
+    "n_processed": 160,
+    "n_dd40_confirmed_close": 86,
+    "n_dd40_confirmed_low": 106,
+    "dd_close_distribution": {
+      "min_pct": 0.0,
+      "p25_pct": 23.05,
+      "median_pct": 42.32,
+      "p75_pct": 59.16,
+      "max_pct": 91.05
+    }
+  },
+  "r1_random_sample_long_30d_ret_net": {
+    "n": 5,
+    "mean_pct": -13.9,
+    "median_pct": -11.7,
+    "std_pct": 10.75,
+    "t_stat": -2.89,
+    "win_rate_positive": 0.0,
+    "p25_pct": -25.08,
+    "p75_pct": -5.15,
+    "max_pct": -2.47,
+    "min_pct": -25.08
+  },
+  "advisory_full_confirmed_long_30d_ret_net": {
+    "n": 86,
+    "mean_pct": -2.03,
+    "median_pct": -25.08,
+    "std_pct": 56.98,
+    "t_stat": -0.33,
+    "win_rate_positive": 0.233,
+    "p25_pct": -25.08,
+    "p75_pct": -5.42,
+    "max_pct": 369.85,
+    "min_pct": -25.08
+  },
+  "advisory_full_processed_long_30d_ret_net": {
+    "n": 160,
+    "mean_pct": 10.67,
+    "median_pct": -25.08,
+    "std_pct": 183.06,
+    "t_stat": 0.74,
+    "win_rate_positive": 0.275,
+    "p25_pct": -25.08,
+    "p75_pct": 4.34,
+    "max_pct": 2229.36,
+    "min_pct": -25.08
+  },
+  "r1_sample_rows": [
+    {
+      "symbol": "SOONUSDT",
+      "listing_date": "2025-05-23",
+      "dd_close_pct": 0.5884525231082217,
+      "ret_net": -0.2507999999999999,
+      "exit_reason": "sl",
+      "hold_days_actual": 13
+    },
+    {
+      "symbol": "KATUSDT",
+      "listing_date": "2026-03-02",
+      "dd_close_pct": 0.6155044799376704,
+      "ret_net": -0.024680597014925434,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ONUSDT",
+      "listing_date": "2025-10-24",
+      "dd_close_pct": 0.6384603212279453,
+      "ret_net": -0.051549912800837164,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    },
+    {
+      "symbol": "ALLOUSDT",
+      "listing_date": "2025-11-11",
+      "dd_close_pct": 0.7096704249783176,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl",
+      "hold_days_actual": 7
+    },
+    {
+      "symbol": "ZKCUSDT",
+      "listing_date": "2025-09-15",
+      "dd_close_pct": 0.810805039504591,
+      "ret_net": -0.11696438356164382,
+      "exit_reason": "time",
+      "hold_days_actual": 30
+    }
+  ],
+  "confirmed_top5_winners": [
+    {
+      "symbol": "XPINUSDT",
+      "listing_date": "2025-09-12",
+      "dd_close_pct": 0.5736906211936662,
+      "ret_net": 3.698461343651073,
+      "exit_reason": "time"
+    },
+    {
+      "symbol": "INUSDT",
+      "listing_date": "2025-08-07",
+      "dd_close_pct": 0.4037670491448366,
+      "ret_net": 1.576599929153383,
+      "exit_reason": "time"
+    },
+    {
+      "symbol": "SPKUSDT",
+      "listing_date": "2025-06-17",
+      "dd_close_pct": 0.4767319804058783,
+      "ret_net": 1.528505135951662,
+      "exit_reason": "time"
+    },
+    {
+      "symbol": "TAUSDT",
+      "listing_date": "2025-07-21",
+      "dd_close_pct": 0.5797125950972105,
+      "ret_net": 1.3298656256099946,
+      "exit_reason": "time"
+    },
+    {
+      "symbol": "NAORISUSDT",
+      "listing_date": "2025-07-31",
+      "dd_close_pct": 0.5683241252302026,
+      "ret_net": 1.1130763197586728,
+      "exit_reason": "time"
+    }
+  ],
+  "confirmed_bottom5_losers": [
+    {
+      "symbol": "TREEUSDT",
+      "listing_date": "2025-07-29",
+      "dd_close_pct": 0.5655872257871959,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl"
+    },
+    {
+      "symbol": "TRUSTUSDT",
+      "listing_date": "2025-11-05",
+      "dd_close_pct": 0.5049180327868852,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl"
+    },
+    {
+      "symbol": "TURTLEUSDT",
+      "listing_date": "2025-10-22",
+      "dd_close_pct": 0.5463615023474179,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl"
+    },
+    {
+      "symbol": "WETUSDT",
+      "listing_date": "2025-12-10",
+      "dd_close_pct": 0.45043556106462834,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl"
+    },
+    {
+      "symbol": "ZBTUSDT",
+      "listing_date": "2025-10-17",
+      "dd_close_pct": 0.6841469308844853,
+      "ret_net": -0.2508000000000001,
+      "exit_reason": "sl"
+    }
+  ],
+  "r1_verdict": "FAIL"
+}

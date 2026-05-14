@@ -1,0 +1,402 @@
+{
+  "paradigm": "realized_skewness_exhaustion_mr",
+  "verdict": "GRAVEYARD",
+  "verdict_reasons": [
+    "H2 net_mean=-0.001160 <= 0 after fee",
+    "H3 perm_p=0.398 > 0.05",
+    "H4 only 0/14 syms consistent (need >=8)",
+    "H5 sign asymmetry inconsistent (one side not positive)",
+    "H6 |t| not monotonic in |z|: [10.849, 7.832, 6.075, 5.568]"
+  ],
+  "data_window": {
+    "first": "2025-04-28 00:00:00",
+    "last": "2026-05-12 23:59:00",
+    "data_days": 379
+  },
+  "config": {
+    "syms": [
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "BTCUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "skew_window_bars": 60,
+    "hourly_stride_min": 60,
+    "z_window_hourly_bars": 720,
+    "z_primary": 2.0,
+    "z_grid": [
+      1.5,
+      2.0,
+      2.5,
+      3.0
+    ],
+    "holds_min": [
+      30,
+      60,
+      90,
+      120
+    ],
+    "fee_round_trip": 0.0008,
+    "perm_n": 500
+  },
+  "trigger_summary": {
+    "n_triggers_total": 6079,
+    "per_sym": {
+      "ADAUSDT": 412,
+      "AVAXUSDT": 446,
+      "BCHUSDT": 487,
+      "BNBUSDT": 431,
+      "BTCUSDT": 439,
+      "DOGEUSDT": 447,
+      "ETHUSDT": 453,
+      "FILUSDT": 432,
+      "LINKUSDT": 411,
+      "LTCUSDT": 430,
+      "NEARUSDT": 390,
+      "SOLUSDT": 444,
+      "WIFUSDT": 423,
+      "XRPUSDT": 434
+    },
+    "triggers_per_year_est": 5854.445910290237
+  },
+  "H1_per_hold": {
+    "30": {
+      "n_trades": 6079,
+      "gross": {
+        "n": 6079,
+        "mean": -0.00026788067979190394,
+        "median": 0.00022857142857146684,
+        "std": 0.013017801384852843,
+        "t_stat": -1.6044264866481226,
+        "win_rate": 0.5201513406810331
+      },
+      "net": {
+        "n": 6079,
+        "mean": -0.0010678806797919042,
+        "median": -0.0005714285714285332,
+        "std": 0.013017801384852841,
+        "t_stat": -6.39589256145271,
+        "win_rate": 0.4390524757361408
+      }
+    },
+    "60": {
+      "n_trades": 6079,
+      "gross": {
+        "n": 6079,
+        "mean": -0.0003597050225971825,
+        "median": 0.0004130714154579884,
+        "std": 0.011545385390648371,
+        "t_stat": -2.4291489142037554,
+        "win_rate": 0.5336404013818062
+      },
+      "net": {
+        "n": 6079,
+        "mean": -0.0011597050225971826,
+        "median": -0.0003869285845420116,
+        "std": 0.011545385390648375,
+        "t_stat": -7.831684350967004,
+        "win_rate": 0.46635959861819376
+      }
+    },
+    "90": {
+      "n_trades": 6079,
+      "gross": {
+        "n": 6079,
+        "mean": 8.611489496130108e-05,
+        "median": 0.0005040784529375397,
+        "std": 0.014182990469617508,
+        "t_stat": 0.4733981286431751,
+        "win_rate": 0.5291988813949663
+      },
+      "net": {
+        "n": 6079,
+        "mean": -0.000713885105038699,
+        "median": -0.0002959215470624603,
+        "std": 0.014182990469617508,
+        "t_stat": -3.9244299484244602,
+        "win_rate": 0.4790261556177003
+      }
+    },
+    "120": {
+      "n_trades": 6077,
+      "gross": {
+        "n": 6077,
+        "mean": -0.00026757426303695194,
+        "median": 0.00032776138970835866,
+        "std": 0.014387674780571274,
+        "t_stat": -1.4497674462353203,
+        "win_rate": 0.517031429981899
+      },
+      "net": {
+        "n": 6077,
+        "mean": -0.001067574263036952,
+        "median": -0.0004722386102916414,
+        "std": 0.014387674780571276,
+        "t_stat": -5.784317203840693,
+        "win_rate": 0.4698041796939279
+      }
+    }
+  },
+  "H1_best_hold_min": 60,
+  "H1_per_sym_at_best": {
+    "ADAUSDT": {
+      "n": 412,
+      "t_stat": -1.5560122007849635,
+      "mean_net": -0.0009265574783405906,
+      "mean_gross": -0.00012655747834059035,
+      "win_rate": 0.49029126213592233
+    },
+    "AVAXUSDT": {
+      "n": 446,
+      "t_stat": -1.9082323572191893,
+      "mean_net": -0.0010809661129359278,
+      "mean_gross": -0.0002809661129359275,
+      "win_rate": 0.5
+    },
+    "BCHUSDT": {
+      "n": 487,
+      "t_stat": -3.8583139907128503,
+      "mean_net": -0.0014142529339550873,
+      "mean_gross": -0.0006142529339550871,
+      "win_rate": 0.4620123203285421
+    },
+    "BNBUSDT": {
+      "n": 431,
+      "t_stat": -2.811824601903585,
+      "mean_net": -0.000731531051870036,
+      "mean_gross": 6.8468948129964e-05,
+      "win_rate": 0.44547563805104406
+    },
+    "BTCUSDT": {
+      "n": 439,
+      "t_stat": -3.379335358339649,
+      "mean_net": -0.0007861564338093842,
+      "mean_gross": 1.3843566190615621e-05,
+      "win_rate": 0.4009111617312073
+    },
+    "DOGEUSDT": {
+      "n": 447,
+      "t_stat": -2.634712726160988,
+      "mean_net": -0.001462279279391168,
+      "mean_gross": -0.0006622792793911681,
+      "win_rate": 0.4720357941834452
+    },
+    "ETHUSDT": {
+      "n": 453,
+      "t_stat": -1.3020395009521768,
+      "mean_net": -0.0004484175162391597,
+      "mean_gross": 0.00035158248376084044,
+      "win_rate": 0.45474613686534215
+    },
+    "FILUSDT": {
+      "n": 432,
+      "t_stat": -2.743516899082428,
+      "mean_net": -0.0024842693953956306,
+      "mean_gross": -0.00168426939539563,
+      "win_rate": 0.47453703703703703
+    },
+    "LINKUSDT": {
+      "n": 411,
+      "t_stat": -1.6687936013064077,
+      "mean_net": -0.000739367127150362,
+      "mean_gross": 6.0632872849638106e-05,
+      "win_rate": 0.49635036496350365
+    },
+    "LTCUSDT": {
+      "n": 430,
+      "t_stat": -2.5937092759370963,
+      "mean_net": -0.0009297749592885264,
+      "mean_gross": -0.00012977495928852647,
+      "win_rate": 0.46744186046511627
+    },
+    "NEARUSDT": {
+      "n": 390,
+      "t_stat": -2.2676518484647197,
+      "mean_net": -0.0015655209401747403,
+      "mean_gross": -0.0007655209401747403,
+      "win_rate": 0.4717948717948718
+    },
+    "SOLUSDT": {
+      "n": 444,
+      "t_stat": -3.2742833973507866,
+      "mean_net": -0.0013421649047166914,
+      "mean_gross": -0.0005421649047166914,
+      "win_rate": 0.43018018018018017
+    },
+    "WIFUSDT": {
+      "n": 423,
+      "t_stat": -1.61888754661841,
+      "mean_net": -0.0017010238437181896,
+      "mean_gross": -0.0009010238437181895,
+      "win_rate": 0.48936170212765956
+    },
+    "XRPUSDT": {
+      "n": 434,
+      "t_stat": -1.5363936753030536,
+      "mean_net": -0.0006386488127303468,
+      "mean_gross": 0.0001613511872696535,
+      "win_rate": 0.4792626728110599
+    }
+  },
+  "H2_portfolio_ann_alpha": -6.789430326687123,
+  "H2_per_sym": {
+    "ADAUSDT": {
+      "n_trades": 412,
+      "mean_net": -0.0009265574783405906,
+      "ann_alpha_estimate": -0.36764040525820063,
+      "triggers_per_year": 396.78100263852247
+    },
+    "AVAXUSDT": {
+      "n_trades": 446,
+      "mean_net": -0.0010809661129359278,
+      "ann_alpha_estimate": -0.4643020409626377,
+      "triggers_per_year": 429.5250659630607
+    },
+    "BCHUSDT": {
+      "n_trades": 487,
+      "mean_net": -0.0014142529339550873,
+      "ann_alpha_estimate": -0.6632995521772732,
+      "triggers_per_year": 469.0105540897098
+    },
+    "BNBUSDT": {
+      "n_trades": 431,
+      "mean_net": -0.000731531051870036,
+      "ann_alpha_estimate": -0.3036432913586668,
+      "triggers_per_year": 415.0791556728232
+    },
+    "BTCUSDT": {
+      "n_trades": 439,
+      "mean_net": -0.0007861564338093842,
+      "ann_alpha_estimate": -0.3323740796080387,
+      "triggers_per_year": 422.78364116094986
+    },
+    "DOGEUSDT": {
+      "n_trades": 447,
+      "mean_net": -0.001462279279391168,
+      "ann_alpha_estimate": -0.6294938676228655,
+      "triggers_per_year": 430.48812664907655
+    },
+    "ETHUSDT": {
+      "n_trades": 453,
+      "mean_net": -0.0004484175162391597,
+      "ann_alpha_estimate": -0.1956295362072925,
+      "triggers_per_year": 436.2664907651715
+    },
+    "FILUSDT": {
+      "n_trades": 432,
+      "mean_net": -0.0024842693953956306,
+      "ann_alpha_estimate": -1.0335609452928314,
+      "triggers_per_year": 416.0422163588391
+    },
+    "LINKUSDT": {
+      "n_trades": 411,
+      "mean_net": -0.000739367127150362,
+      "ann_alpha_estimate": -0.29265477461599354,
+      "triggers_per_year": 395.8179419525066
+    },
+    "LTCUSDT": {
+      "n_trades": 430,
+      "mean_net": -0.0009297749592885264,
+      "ann_alpha_estimate": -0.3850347753570824,
+      "triggers_per_year": 414.1160949868074
+    },
+    "NEARUSDT": {
+      "n_trades": 390,
+      "mean_net": -0.0015655209401747403,
+      "ann_alpha_estimate": -0.5879997515405654,
+      "triggers_per_year": 375.5936675461742
+    },
+    "SOLUSDT": {
+      "n_trades": 444,
+      "mean_net": -0.0013421649047166914,
+      "ann_alpha_estimate": -0.5739082967239764,
+      "triggers_per_year": 427.59894459102907
+    },
+    "WIFUSDT": {
+      "n_trades": 423,
+      "mean_net": -0.0017010238437181896,
+      "ann_alpha_estimate": -0.6929540273110023,
+      "triggers_per_year": 407.3746701846966
+    },
+    "XRPUSDT": {
+      "n_trades": 434,
+      "mean_net": -0.0006386488127303468,
+      "ann_alpha_estimate": -0.2669349826506972,
+      "triggers_per_year": 417.9683377308707
+    }
+  },
+  "H3_perm": {
+    "obs_t": -7.831684350967004,
+    "perm_p_two_sided": 0.398,
+    "perm_n_done": 500,
+    "perm_t_mean": -7.586866506557096,
+    "perm_t_std": 1.0881099351118209
+  },
+  "H4_consistent_count": 0,
+  "H4_opposite_count": 14,
+  "H4_syms_total_with_data": 14,
+  "H5_asymmetry": {
+    "positive_skew_short": {
+      "n_trig": 3045,
+      "n_trades": 3045,
+      "mean_net": -0.0010198264334975319,
+      "t_stat": -6.131106581038115,
+      "win_rate": 0.4696223316912972
+    },
+    "negative_skew_long": {
+      "n_trig": 3034,
+      "n_trades": 3034,
+      "mean_net": -0.0013000907522637735,
+      "t_stat": -5.3005298153209495,
+      "win_rate": 0.46308503625576797
+    }
+  },
+  "H5_consistent_both_sides": false,
+  "H6_threshold_grid": {
+    "1.5": {
+      "n_signals": 11440,
+      "n_trades": 11440,
+      "mean_net": -0.001039531696121995,
+      "t_stat": -10.848993143911596,
+      "sharpe_trade": -10.848993143911596
+    },
+    "2.0": {
+      "n_signals": 6079,
+      "n_trades": 6079,
+      "mean_net": -0.0011597050225971826,
+      "t_stat": -7.831684350967004,
+      "sharpe_trade": -7.831684350967005
+    },
+    "2.5": {
+      "n_signals": 3622,
+      "n_trades": 3622,
+      "mean_net": -0.001323040310862134,
+      "t_stat": -6.074817718433545,
+      "sharpe_trade": -6.074817718433545
+    },
+    "3.0": {
+      "n_signals": 2214,
+      "n_trades": 2214,
+      "mean_net": -0.0017452296392657719,
+      "t_stat": -5.567538769033089,
+      "sharpe_trade": -5.567538769033089
+    }
+  },
+  "H6_t_sequence": [
+    10.848993143911596,
+    7.831684350967004,
+    6.074817718433545,
+    5.567538769033089
+  ],
+  "H6_monotonic": false
+}

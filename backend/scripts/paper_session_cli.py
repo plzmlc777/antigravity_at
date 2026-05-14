@@ -253,6 +253,13 @@ def build_runtime_bundle(symbol: str, eval_freq_minutes: int, sources_used: list
         except Exception as exc:
             log.warning("bn_cross_lead_lag requested but BTC ohlcv load failed: %s", exc)
 
+    if "bn_btc_rv_highvol_long" in sources_used:
+        # Paradigm 69 (R-4 PASS 2026-05-14): needs BTC raw 1m for RV trigger calc
+        try:
+            bundle.leader_ohlcv_1m = load_1m("BTCUSDT")
+        except Exception as exc:
+            log.warning("bn_btc_rv_highvol_long requested but BTC 1m load failed: %s", exc)
+
     # Binance native sources sharing 5min metrics joblib
     needs_metrics_5m = any(s in sources_used for s in (
         "bn_smart_money", "bn_taker_flow", "bn_oi_dynamics",
