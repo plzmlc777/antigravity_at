@@ -55,14 +55,19 @@ def resample_ohlcv(df_1m: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     out = out.dropna(subset=["open"])
 
     # Drop the most recent bar if the input ended mid-bar.
-    # We can detect this when the input's last timestamp is strictly less than
-    # the start of the *next* bar after our last resampled bar's start.
+    # Source 1m bars are timestamped at the START of their minute, so the LAST
+    # 1m bar of a completed coarse bar has timestamp `next_bar_start - 1 minute`.
+    # E.g., 5/12 daily bar is complete when df_1m includes a row at 5/12 23:59:00.
+    # The previous implementation used `- 1 second`, which always evaluated the
+    # final 1m bar (23:59:00) as "before" 23:59:59 and incorrectly dropped the
+    # bar. This froze paper sessions one day behind whenever data ended on a
+    # clean minute boundary (e.g., archive-based backfills).
     if len(out) >= 1:
         last_bar_start = out.index[-1]
         next_bar_start = last_bar_start + pd.Timedelta(freq) if freq != "1D" else (
             last_bar_start + pd.Timedelta(days=1)
         )
-        if df_1m.index[-1] < next_bar_start - pd.Timedelta(seconds=1):
+        if df_1m.index[-1] < next_bar_start - pd.Timedelta(minutes=1):
             out = out.iloc[:-1]
 
     return out
