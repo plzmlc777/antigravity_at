@@ -115,3 +115,6 @@ backend/runs/pattern_ml/
 backend/runs/pattern_fitness/
 backend/runs/pattern_composer/
 backend/runs/composer_framework/
+
+# OHLCV joblib cache (regeneratable from DB via _ohlcv_parquet_cache.py)
+backend/runs/ohlcv_cache/
