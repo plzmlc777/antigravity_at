@@ -387,8 +387,25 @@
       "updated_at": "2026-05-15T01:36:13+00:00",
       "graveyard_reason": "R-1 FAIL three-gate at all z (1.5/2.0/2.5). Signed BTC-up pool z=2.0: n=53165 net=-8.45bp t=-18.17 sig_t_excess=-1.03 ci_upper=-7.50bp (NEGATIVE). All 13/13 alts negative. BTC-up filter no rescue (signed -8.45 ≈ unsigned -8.08). Implied taker-buy-vol z-spike at 60m hold has anti-momentum bias. Standalone (not 69-derivative) so 9-lesson antipattern clean. Mirror SHORT NOT auto-launched (Q3 6.2 #8).",
       "seed_spec": null
+    },
+    "funding_oi_bipolar_squeeze_event": {
+      "name": "funding_oi_bipolar_squeeze_event",
+      "hypothesis": "Joint event detection: |funding_z|>=2.0 AND oi_growth_z>=+1.5 at 8h funding window. Sub-cell A (long-crowded fz>0): SHORT 240m. Sub-cell B (short-crowded fz<0): LONG 240m. Cooldown 24h. Universe = funding DB ∩ microstructure 5m OI ∩ ohlcv joblib = 6 syms (AVAX,BTC,DOGE,ETH,LINK,SOL).",
+      "data_dependencies": [
+        "binance_funding_rate DB (1y)",
+        " microstructure joblib (5m OI)",
+        " ohlcv joblib cache (1m close)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T02:17:16+00:00",
+      "updated_at": "2026-05-15T02:20:16+00:00",
+      "graveyard_reason": "R-1 three-gate FAIL both sub-cells. Best A (long-crowded SHORT) f=1.5/oi=1.5/480m n=32 mean_bp=-24.4 sig_t_excess=-0.56 ci_lower=-0.0089 perm_p=0.50. Best B (short-crowded LONG) f=2.0/oi=1.0/480m n=50 mean_bp=+14.3 (sub-fee on 240m: -11.5bp) sig_t_excess=+0.79 ci_lower=-0.0055 perm_p=0.70. Joint funding+OI extreme rare (~50-83 events at lower thresholds, <30 at f>=2.0). Sub-cell B per-sym 3/6 positive (AVAX/BTC/ETH +) vs 3/6 negative (DOGE/LINK/SOL -) — no consistent direction. Joint event detection on this signal pair lacks edge above fee floor + insufficient sample density at strict thresholds. (71st R-1 graveyard.)",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T01:36:13+00:00"
+  "updated_at": "2026-05-15T02:20:16+00:00"
 }

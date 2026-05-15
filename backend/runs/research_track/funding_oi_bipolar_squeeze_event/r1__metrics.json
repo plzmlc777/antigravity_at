@@ -1,0 +1,1085 @@
+{
+  "paradigm": "funding_oi_bipolar_squeeze_event",
+  "phase": "R-1",
+  "snapshot_date": "2026-05-15",
+  "universe": [
+    "AVAXUSDT",
+    "BTCUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "SOLUSDT"
+  ],
+  "fee_per_trade": 0.0008,
+  "cooldown_minutes": 1440,
+  "rolling_window_events": 30,
+  "panel_total_events_with_features": 6454,
+  "per_symbol_diag": {
+    "AVAXUSDT": {
+      "n_funding_events_with_features": 1096,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-13 08:00:00"
+    },
+    "BTCUSDT": {
+      "n_funding_events_with_features": 1041,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-02 00:00:00"
+    },
+    "DOGEUSDT": {
+      "n_funding_events_with_features": 1092,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-14 00:00:00"
+    },
+    "ETHUSDT": {
+      "n_funding_events_with_features": 1056,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-02 00:00:00"
+    },
+    "LINKUSDT": {
+      "n_funding_events_with_features": 1071,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-13 08:00:00"
+    },
+    "SOLUSDT": {
+      "n_funding_events_with_features": 1098,
+      "min_ts": "2025-05-13 08:00:00",
+      "max_ts": "2026-05-14 00:00:00"
+    }
+  },
+  "grid_results": [
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "direction": -1,
+      "n_events": 50,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -27.130496329628883,
+      "win_rate": 0.48,
+      "obs_t": -1.3667103642909888,
+      "null_mean_t": -0.39044424140743833,
+      "null_std_t": 1.0512239837375057,
+      "signal_t_excess": -0.9762661228835505,
+      "perm_p_two_sided": 0.23,
+      "perm_p_one_sided_above": 0.817,
+      "perm_p_one_sided_below": 0.183,
+      "ci_mean": -0.002713049632962888,
+      "ci_lower": -0.0065462558437939826,
+      "ci_upper": 0.001194110355640383,
+      "ci_prob_positive": 0.0935,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 4,
+          "mean_bp": 131.91858481379182,
+          "win_rate": 1.0
+        },
+        "BTCUSDT": {
+          "n": 11,
+          "mean_bp": -31.97240325611687,
+          "win_rate": 0.45454545454545453
+        },
+        "DOGEUSDT": {
+          "n": 7,
+          "mean_bp": -17.61724959281769,
+          "win_rate": 0.42857142857142855
+        },
+        "ETHUSDT": {
+          "n": 20,
+          "mean_bp": -55.71868846057308,
+          "win_rate": 0.4
+        },
+        "SOLUSDT": {
+          "n": 8,
+          "mean_bp": -36.85102544476757,
+          "win_rate": 0.5
+        }
+      }
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "direction": 1,
+      "n_events": 83,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -22.665190805914058,
+      "win_rate": 0.4578313253012048,
+      "obs_t": -1.6753730078965403,
+      "null_mean_t": -0.5479379540740329,
+      "null_std_t": 0.9846811987194084,
+      "signal_t_excess": -1.1274350538225075,
+      "perm_p_two_sided": 0.14,
+      "perm_p_one_sided_above": 0.871,
+      "perm_p_one_sided_below": 0.129,
+      "ci_mean": -0.0022665190805914058,
+      "ci_lower": -0.0049212499974670134,
+      "ci_upper": 0.0002058721306207823,
+      "ci_prob_positive": 0.0395,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 16,
+          "mean_bp": -42.64559772902401,
+          "win_rate": 0.5
+        },
+        "BTCUSDT": {
+          "n": 8,
+          "mean_bp": -55.077560951803704,
+          "win_rate": 0.125
+        },
+        "DOGEUSDT": {
+          "n": 16,
+          "mean_bp": 3.013089588858337,
+          "win_rate": 0.625
+        },
+        "ETHUSDT": {
+          "n": 10,
+          "mean_bp": 8.993002998192287,
+          "win_rate": 0.6
+        },
+        "LINKUSDT": {
+          "n": 13,
+          "mean_bp": -49.54114096734136,
+          "win_rate": 0.23076923076923078
+        },
+        "SOLUSDT": {
+          "n": 20,
+          "mean_bp": -12.618270822013548,
+          "win_rate": 0.5
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "direction": -1,
+      "n_events": 50,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -20.94999942520678,
+      "win_rate": 0.4,
+      "obs_t": -0.7560836261409491,
+      "null_mean_t": -0.1602403076825605,
+      "null_std_t": 1.00338978613713,
+      "signal_t_excess": -0.5958433184583887,
+      "perm_p_two_sided": 0.46,
+      "perm_p_one_sided_above": 0.732,
+      "perm_p_one_sided_below": 0.268,
+      "ci_mean": -0.002094999942520678,
+      "ci_lower": -0.007191613717688146,
+      "ci_upper": 0.003668200797788642,
+      "ci_prob_positive": 0.227,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 4,
+          "mean_bp": 196.73742938208113,
+          "win_rate": 1.0
+        },
+        "BTCUSDT": {
+          "n": 11,
+          "mean_bp": -66.71697706357658,
+          "win_rate": 0.2727272727272727
+        },
+        "DOGEUSDT": {
+          "n": 7,
+          "mean_bp": 37.80419544334825,
+          "win_rate": 0.7142857142857143
+        },
+        "ETHUSDT": {
+          "n": 20,
+          "mean_bp": -49.32513255393583,
+          "win_rate": 0.3
+        },
+        "SOLUSDT": {
+          "n": 8,
+          "mean_bp": -47.3362072642553,
+          "win_rate": 0.25
+        }
+      }
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "direction": 1,
+      "n_events": 83,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -5.761657817144241,
+      "win_rate": 0.5301204819277109,
+      "obs_t": -0.24572930299210888,
+      "null_mean_t": -0.4651978309983689,
+      "null_std_t": 0.9766831560581154,
+      "signal_t_excess": 0.21946852800626004,
+      "perm_p_two_sided": 0.845,
+      "perm_p_one_sided_above": 0.403,
+      "perm_p_one_sided_below": 0.597,
+      "ci_mean": -0.0005761657817144241,
+      "ci_lower": -0.004985630306622925,
+      "ci_upper": 0.0039794795114534145,
+      "ci_prob_positive": 0.4085,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 16,
+          "mean_bp": 58.76127612731245,
+          "win_rate": 0.4375
+        },
+        "BTCUSDT": {
+          "n": 8,
+          "mean_bp": -61.64346548118974,
+          "win_rate": 0.375
+        },
+        "DOGEUSDT": {
+          "n": 16,
+          "mean_bp": 10.830136045649631,
+          "win_rate": 0.5625
+        },
+        "ETHUSDT": {
+          "n": 10,
+          "mean_bp": 27.953468438846606,
+          "win_rate": 0.7
+        },
+        "LINKUSDT": {
+          "n": 13,
+          "mean_bp": -27.692803879630006,
+          "win_rate": 0.5384615384615384
+        },
+        "SOLUSDT": {
+          "n": 20,
+          "mean_bp": -50.90303518470616,
+          "win_rate": 0.55
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "direction": -1,
+      "n_events": 32,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -35.32919783797906,
+      "win_rate": 0.5,
+      "obs_t": -1.5772088759377605,
+      "null_mean_t": -0.3547590686201902,
+      "null_std_t": 1.0336289321618666,
+      "signal_t_excess": -1.2224498073175702,
+      "perm_p_two_sided": 0.153,
+      "perm_p_one_sided_above": 0.872,
+      "perm_p_one_sided_below": 0.128,
+      "ci_mean": -0.0035329197837979057,
+      "ci_lower": -0.008105163408032674,
+      "ci_upper": 0.0005902935407327791,
+      "ci_prob_positive": 0.0475,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 2,
+          "mean_bp": 48.36363627549046,
+          "win_rate": 1.0
+        },
+        "BTCUSDT": {
+          "n": 8,
+          "mean_bp": -30.600978217023748,
+          "win_rate": 0.625
+        },
+        "DOGEUSDT": {
+          "n": 3,
+          "mean_bp": -105.41270560647109,
+          "win_rate": 0.3333333333333333
+        },
+        "ETHUSDT": {
+          "n": 13,
+          "mean_bp": -47.16300217084856,
+          "win_rate": 0.38461538461538464
+        },
+        "SOLUSDT": {
+          "n": 6,
+          "mean_bp": -8.849438764946038,
+          "win_rate": 0.5
+        }
+      }
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "direction": 1,
+      "n_events": 55,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -29.1277373347184,
+      "win_rate": 0.41818181818181815,
+      "obs_t": -1.8556950955796385,
+      "null_mean_t": -0.4802984534523123,
+      "null_std_t": 0.978126693997311,
+      "signal_t_excess": -1.3753966421273263,
+      "perm_p_two_sided": 0.082,
+      "perm_p_one_sided_above": 0.924,
+      "perm_p_one_sided_below": 0.076,
+      "ci_mean": -0.00291277373347184,
+      "ci_lower": -0.00613756358519534,
+      "ci_upper": -7.852021302827411e-05,
+      "ci_prob_positive": 0.019,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 10,
+          "mean_bp": -86.27159855788412,
+          "win_rate": 0.4
+        },
+        "BTCUSDT": {
+          "n": 5,
+          "mean_bp": -30.86461019073705,
+          "win_rate": 0.2
+        },
+        "DOGEUSDT": {
+          "n": 11,
+          "mean_bp": 9.006058894829128,
+          "win_rate": 0.5454545454545454
+        },
+        "ETHUSDT": {
+          "n": 7,
+          "mean_bp": -18.592668574478214,
+          "win_rate": 0.42857142857142855
+        },
+        "LINKUSDT": {
+          "n": 8,
+          "mean_bp": -9.8968912759855,
+          "win_rate": 0.375
+        },
+        "SOLUSDT": {
+          "n": 14,
+          "mean_bp": -33.90923960649107,
+          "win_rate": 0.42857142857142855
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "direction": -1,
+      "n_events": 32,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -24.430758442251047,
+      "win_rate": 0.46875,
+      "obs_t": -0.7386274182006145,
+      "null_mean_t": -0.17781233446246233,
+      "null_std_t": 1.0542421717003425,
+      "signal_t_excess": -0.5608150837381521,
+      "perm_p_two_sided": 0.498,
+      "perm_p_one_sided_above": 0.701,
+      "perm_p_one_sided_below": 0.299,
+      "ci_mean": -0.0024430758442251046,
+      "ci_lower": -0.008887615966151919,
+      "ci_upper": 0.004420441559222509,
+      "ci_prob_positive": 0.2185,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 2,
+          "mean_bp": 71.83918259352906,
+          "win_rate": 1.0
+        },
+        "BTCUSDT": {
+          "n": 8,
+          "mean_bp": -59.33324066566829,
+          "win_rate": 0.375
+        },
+        "DOGEUSDT": {
+          "n": 3,
+          "mean_bp": -33.29582519424812,
+          "win_rate": 0.6666666666666666
+        },
+        "ETHUSDT": {
+          "n": 13,
+          "mean_bp": -36.5505310267941,
+          "win_rate": 0.46153846153846156
+        },
+        "SOLUSDT": {
+          "n": 6,
+          "mean_bp": 20.707944819553738,
+          "win_rate": 0.3333333333333333
+        }
+      }
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "direction": 1,
+      "n_events": 55,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -18.411311845481766,
+      "win_rate": 0.509090909090909,
+      "obs_t": -0.8295791251906663,
+      "null_mean_t": -0.3876628788243166,
+      "null_std_t": 1.038483226212125,
+      "signal_t_excess": -0.44191624636634974,
+      "perm_p_two_sided": 0.449,
+      "perm_p_one_sided_above": 0.671,
+      "perm_p_one_sided_below": 0.329,
+      "ci_mean": -0.0018411311845481766,
+      "ci_lower": -0.006417813003175033,
+      "ci_upper": 0.0021967531269450422,
+      "ci_prob_positive": 0.2135,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 10,
+          "mean_bp": -45.231361759436865,
+          "win_rate": 0.3
+        },
+        "BTCUSDT": {
+          "n": 5,
+          "mean_bp": -17.690095087387053,
+          "win_rate": 0.6
+        },
+        "DOGEUSDT": {
+          "n": 11,
+          "mean_bp": 20.524746537881285,
+          "win_rate": 0.5454545454545454
+        },
+        "ETHUSDT": {
+          "n": 7,
+          "mean_bp": -15.971515861623368,
+          "win_rate": 0.5714285714285714
+        },
+        "LINKUSDT": {
+          "n": 8,
+          "mean_bp": 99.68985979020316,
+          "win_rate": 0.75
+        },
+        "SOLUSDT": {
+          "n": 14,
+          "mean_bp": -98.8106098340821,
+          "win_rate": 0.42857142857142855
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 22,
+      "mean_bp_after_fee": -30.38026593529755,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "direction": 1,
+      "n_events": 35,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -26.170942439946348,
+      "win_rate": 0.4,
+      "obs_t": -1.4123378481603974,
+      "null_mean_t": -0.3924653721702256,
+      "null_std_t": 1.0260165199245008,
+      "signal_t_excess": -1.0198724759901718,
+      "perm_p_two_sided": 0.21,
+      "perm_p_one_sided_above": 0.828,
+      "perm_p_one_sided_below": 0.172,
+      "ci_mean": -0.0026170942439946348,
+      "ci_lower": -0.006347192631995034,
+      "ci_upper": 0.0008008669821541973,
+      "ci_prob_positive": 0.07,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 8,
+          "mean_bp": -26.884532110234325,
+          "win_rate": 0.5
+        },
+        "BTCUSDT": {
+          "n": 4,
+          "mean_bp": -36.034520733758455,
+          "win_rate": 0.25
+        },
+        "DOGEUSDT": {
+          "n": 7,
+          "mean_bp": 14.340792650783957,
+          "win_rate": 0.5714285714285714
+        },
+        "ETHUSDT": {
+          "n": 4,
+          "mean_bp": -36.93637192293435,
+          "win_rate": 0.25
+        },
+        "LINKUSDT": {
+          "n": 2,
+          "mean_bp": 15.985937698250966,
+          "win_rate": 0.5
+        },
+        "SOLUSDT": {
+          "n": 10,
+          "mean_bp": -54.138058184146615,
+          "win_rate": 0.3
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 1.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 22,
+      "mean_bp_after_fee": 12.860631799560508,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 1.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "direction": 1,
+      "n_events": 35,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -31.266920028626245,
+      "win_rate": 0.45714285714285713,
+      "obs_t": -1.0588780010598018,
+      "null_mean_t": -0.31938690308193735,
+      "null_std_t": 1.0359900431653362,
+      "signal_t_excess": -0.7394910979778644,
+      "perm_p_two_sided": 0.321,
+      "perm_p_one_sided_above": 0.773,
+      "perm_p_one_sided_below": 0.227,
+      "ci_mean": -0.0031266920028626246,
+      "ci_lower": -0.008862903166988591,
+      "ci_upper": 0.0020720780835178235,
+      "ci_prob_positive": 0.132,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 8,
+          "mean_bp": -2.719178079828213,
+          "win_rate": 0.375
+        },
+        "BTCUSDT": {
+          "n": 4,
+          "mean_bp": -24.25058911373795,
+          "win_rate": 0.5
+        },
+        "DOGEUSDT": {
+          "n": 7,
+          "mean_bp": 67.67860599833338,
+          "win_rate": 0.7142857142857143
+        },
+        "ETHUSDT": {
+          "n": 4,
+          "mean_bp": -16.866223440274762,
+          "win_rate": 0.5
+        },
+        "LINKUSDT": {
+          "n": 2,
+          "mean_bp": 153.56003916390435,
+          "win_rate": 0.5
+        },
+        "SOLUSDT": {
+          "n": 10,
+          "mean_bp": -168.89918464633845,
+          "win_rate": 0.3
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 10,
+      "mean_bp_after_fee": -10.270272193723557,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "direction": 1,
+      "n_events": 50,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": -11.543580299617547,
+      "win_rate": 0.54,
+      "obs_t": -0.5872105544833432,
+      "null_mean_t": -0.43907237354633255,
+      "null_std_t": 1.0288177226829696,
+      "signal_t_excess": -0.1481381809370107,
+      "perm_p_two_sided": 0.608,
+      "perm_p_one_sided_above": 0.549,
+      "perm_p_one_sided_below": 0.451,
+      "ci_mean": -0.0011543580299617547,
+      "ci_lower": -0.005132291626001185,
+      "ci_upper": 0.002687962043255186,
+      "ci_prob_positive": 0.308,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 11,
+          "mean_bp": -47.20787715656767,
+          "win_rate": 0.5454545454545454
+        },
+        "BTCUSDT": {
+          "n": 2,
+          "mean_bp": 8.339665090125406,
+          "win_rate": 0.5
+        },
+        "DOGEUSDT": {
+          "n": 8,
+          "mean_bp": -17.558759086816803,
+          "win_rate": 0.5
+        },
+        "ETHUSDT": {
+          "n": 8,
+          "mean_bp": 12.914088722801404,
+          "win_rate": 0.625
+        },
+        "LINKUSDT": {
+          "n": 9,
+          "mean_bp": -18.58004937903287,
+          "win_rate": 0.4444444444444444
+        },
+        "SOLUSDT": {
+          "n": 12,
+          "mean_bp": 10.81717590704463,
+          "win_rate": 0.5833333333333334
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 10,
+      "mean_bp_after_fee": 28.72906768628869,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "direction": 1,
+      "n_events": 50,
+      "n_candidate_pool": 6454,
+      "mean_bp_after_fee": 14.273447698097655,
+      "win_rate": 0.58,
+      "obs_t": 0.39712686539554254,
+      "null_mean_t": -0.3895365309357352,
+      "null_std_t": 1.0009265854062306,
+      "signal_t_excess": 0.7866633963312777,
+      "perm_p_two_sided": 0.702,
+      "perm_p_one_sided_above": 0.215,
+      "perm_p_one_sided_below": 0.785,
+      "ci_mean": 0.0014273447698097655,
+      "ci_lower": -0.005464165348899474,
+      "ci_upper": 0.008833323384280736,
+      "ci_prob_positive": 0.6525,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "per_symbol": {
+        "AVAXUSDT": {
+          "n": 11,
+          "mean_bp": 103.3076894312435,
+          "win_rate": 0.5454545454545454
+        },
+        "BTCUSDT": {
+          "n": 2,
+          "mean_bp": 40.616532702057675,
+          "win_rate": 0.5
+        },
+        "DOGEUSDT": {
+          "n": 8,
+          "mean_bp": -22.753248356257505,
+          "win_rate": 0.375
+        },
+        "ETHUSDT": {
+          "n": 8,
+          "mean_bp": 44.61193248758455,
+          "win_rate": 0.75
+        },
+        "LINKUSDT": {
+          "n": 9,
+          "mean_bp": -30.421428130455666,
+          "win_rate": 0.5555555555555556
+        },
+        "SOLUSDT": {
+          "n": 12,
+          "mean_bp": -33.75182367661891,
+          "win_rate": 0.6666666666666666
+        }
+      }
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 7,
+      "mean_bp_after_fee": -23.89994731088372,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 28,
+      "mean_bp_after_fee": -41.637948547805905,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 7,
+      "mean_bp_after_fee": 45.21836436547965,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 28,
+      "mean_bp_after_fee": -31.538460965820875,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 5,
+      "mean_bp_after_fee": -31.823016138973856,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 19,
+      "mean_bp_after_fee": -34.897207801494595,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.0,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 5,
+      "mean_bp_after_fee": 120.20143044351883,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.0,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 19,
+      "mean_bp_after_fee": -43.33678013506833,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 2,
+      "mean_bp_after_fee": 37.61408123518407,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 23,
+      "mean_bp_after_fee": 9.744410914156253,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 2,
+      "mean_bp_after_fee": 254.3497162479682,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 1.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 23,
+      "mean_bp_after_fee": 47.71360591877663,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 2,
+      "mean_bp_after_fee": 37.61408123518407,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 12,
+      "mean_bp_after_fee": -13.23443005513861,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 2,
+      "mean_bp_after_fee": 254.3497162479682,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 1.5,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 12,
+      "mean_bp_after_fee": 12.008410039022978,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 2,
+      "mean_bp_after_fee": 37.61408123518407,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_240m",
+      "n_events": 7,
+      "mean_bp_after_fee": -5.620147499499985,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "A_long_crowded_short",
+      "f_thr": 2.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 2,
+      "mean_bp_after_fee": 254.3497162479682,
+      "skipped": "low_sample_<30"
+    },
+    {
+      "cell": "B_short_crowded_long",
+      "f_thr": 2.5,
+      "oi_thr": 2.0,
+      "hold_col": "fwd_ret_480m",
+      "n_events": 7,
+      "mean_bp_after_fee": 52.08801958584154,
+      "skipped": "low_sample_<30"
+    }
+  ],
+  "best_subcell_A_long_crowded_short": {
+    "cell": "A_long_crowded_short",
+    "f_thr": 1.5,
+    "oi_thr": 1.5,
+    "hold_col": "fwd_ret_480m",
+    "direction": -1,
+    "n_events": 32,
+    "n_candidate_pool": 6454,
+    "mean_bp_after_fee": -24.430758442251047,
+    "win_rate": 0.46875,
+    "obs_t": -0.7386274182006145,
+    "null_mean_t": -0.17781233446246233,
+    "null_std_t": 1.0542421717003425,
+    "signal_t_excess": -0.5608150837381521,
+    "perm_p_two_sided": 0.498,
+    "perm_p_one_sided_above": 0.701,
+    "perm_p_one_sided_below": 0.299,
+    "ci_mean": -0.0024430758442251046,
+    "ci_lower": -0.008887615966151919,
+    "ci_upper": 0.004420441559222509,
+    "ci_prob_positive": 0.2185,
+    "three_gate_pass": false,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": false,
+      "ci_lower>0": false,
+      "perm_p_two<=0.10": false
+    },
+    "per_symbol": {
+      "AVAXUSDT": {
+        "n": 2,
+        "mean_bp": 71.83918259352906,
+        "win_rate": 1.0
+      },
+      "BTCUSDT": {
+        "n": 8,
+        "mean_bp": -59.33324066566829,
+        "win_rate": 0.375
+      },
+      "DOGEUSDT": {
+        "n": 3,
+        "mean_bp": -33.29582519424812,
+        "win_rate": 0.6666666666666666
+      },
+      "ETHUSDT": {
+        "n": 13,
+        "mean_bp": -36.5505310267941,
+        "win_rate": 0.46153846153846156
+      },
+      "SOLUSDT": {
+        "n": 6,
+        "mean_bp": 20.707944819553738,
+        "win_rate": 0.3333333333333333
+      }
+    }
+  },
+  "best_subcell_B_short_crowded_long": {
+    "cell": "B_short_crowded_long",
+    "f_thr": 2.0,
+    "oi_thr": 1.0,
+    "hold_col": "fwd_ret_480m",
+    "direction": 1,
+    "n_events": 50,
+    "n_candidate_pool": 6454,
+    "mean_bp_after_fee": 14.273447698097655,
+    "win_rate": 0.58,
+    "obs_t": 0.39712686539554254,
+    "null_mean_t": -0.3895365309357352,
+    "null_std_t": 1.0009265854062306,
+    "signal_t_excess": 0.7866633963312777,
+    "perm_p_two_sided": 0.702,
+    "perm_p_one_sided_above": 0.215,
+    "perm_p_one_sided_below": 0.785,
+    "ci_mean": 0.0014273447698097655,
+    "ci_lower": -0.005464165348899474,
+    "ci_upper": 0.008833323384280736,
+    "ci_prob_positive": 0.6525,
+    "three_gate_pass": false,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": false,
+      "ci_lower>0": false,
+      "perm_p_two<=0.10": false
+    },
+    "per_symbol": {
+      "AVAXUSDT": {
+        "n": 11,
+        "mean_bp": 103.3076894312435,
+        "win_rate": 0.5454545454545454
+      },
+      "BTCUSDT": {
+        "n": 2,
+        "mean_bp": 40.616532702057675,
+        "win_rate": 0.5
+      },
+      "DOGEUSDT": {
+        "n": 8,
+        "mean_bp": -22.753248356257505,
+        "win_rate": 0.375
+      },
+      "ETHUSDT": {
+        "n": 8,
+        "mean_bp": 44.61193248758455,
+        "win_rate": 0.75
+      },
+      "LINKUSDT": {
+        "n": 9,
+        "mean_bp": -30.421428130455666,
+        "win_rate": 0.5555555555555556
+      },
+      "SOLUSDT": {
+        "n": 12,
+        "mean_bp": -33.75182367661891,
+        "win_rate": 0.6666666666666666
+      }
+    }
+  },
+  "subcell_A_three_gate_pass": false,
+  "subcell_B_three_gate_pass": false,
+  "verdict": "GRAVEYARD_R1__A:gates_failed__B:gates_failed"
+}
