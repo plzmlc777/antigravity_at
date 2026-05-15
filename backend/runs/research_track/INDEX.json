@@ -457,8 +457,28 @@
       "updated_at": "2026-05-15T03:21:31+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short": {
+      "name": "btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short",
+      "hypothesis": "BTC-ETH 5m corr severe breakdown z<=-2.5 (deeper tail than paradigm 76 z=-2.0 focus) + BTC dn + alt dn → 12 alt 240m SHORT capitulation cascade. Cherry-pick verification of paradigm 76 non-focus PASS (n=298 +33.59bp signal_excess +3.71sigma perm_p 0.004) by promoting z=-2.5 to focus + multi-hold robustness + Bonferroni adjusted p-value.",
+      "data_dependencies": [
+        "ohlcv_1m joblib cache (BTCUSDT",
+        " ETHUSDT",
+        " 12 alts)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-2": "/home/hcpark/antigravity/backend/runs/research_track/btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short/r1__metrics.json",
+        "graveyard": "runs/research_track/btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short/r2__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T03:26:15+00:00",
+      "updated_at": "2026-05-15T03:41:11+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T03:21:31+00:00"
+  "updated_at": "2026-05-15T03:41:11+00:00"
 }

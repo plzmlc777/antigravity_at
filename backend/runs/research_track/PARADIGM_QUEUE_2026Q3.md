@@ -168,6 +168,11 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 9. **Trigger swap antipattern** (71번째 graveyard 2026-05-15) — 시드 paradigm의 mechanism (filter + universe + hold)를 유지하고 trigger만 다른 도메인(가격→OI/funding/LSR)으로 교체할 때, 새 trigger의 정보 운반 차원 사전 검토 필수. precedent: paradigm 69 RV trigger +112.9bp UP×LONG vs paradigm 71 OI velocity trigger -12.62bp z=2.5 = mechanism 동일하지만 trigger 호환 부재. OI/funding/LSR 같은 microstructure-only trigger는 가격 기반 vol-cascade mechanism filter와 결합 시 alpha 부재 전제. mirror antipattern과 함께 자동 시도 금지.
 10. **Taker-side aggressive volume family graveyard** (72번째 graveyard 2026-05-15) — implied/raw taker_buy_volume z-spike (5m trigger + 60m hold) 패밀리 전체가 fee floor 미달. graveyard 23 (taker_buy_sell_ratio raw) + 60 (LSR contrarian) + 72 (taker_buy_vol z signed) **3개 누적**. mechanism: buyer-imbalance overshoot가 60m forward에 mean-revert (anti-momentum) — z=1.5 signed -8.47bp **t=-21.10** 강력 부호 일관, BTC-up sign filter 부호 반전 무력. NET≈-8bp / gross≈0bp으로 **mirror SHORT도 fee saturation 본질로 비추**. 향후 taker/buyer-imbalance 변형 5m+60m hold 발의 보류. Longer hold (240m+) momentum continuation은 별개 검증 가치 있음.
 11. **Sample-density prescreen rule** (73번째 graveyard 2026-05-15, funding_oi_bipolar_squeeze_event) — fee_floor_prescreen (16bp gross) 통과해도 universe × sample × trigger_rate 부족하면 strict threshold cells가 n<30으로 측정 불가. R-1 발의 전 `expected_n_per_cell = total_windows × universe_size × trigger_rate` 추정 후 30 미만이면 발의 보류 또는 sample 확장 (universe 확장 / DB 백필) 우선. precedent: paradigm 73 funding DB 1y 한계 + 6-sym intersection (funding ∩ microstructure ∩ ohlcv) → strict cells 모두 skip, lower threshold 완화 시 noise 압도 + perm test 미생존. 특히 **funding-기반 joint event paradigm은 funding DB 백필 우선**.
+12. **Cross-asset correlation regime 자체는 directional signal 아님** (74번째 graveyard 2026-05-15, btc_eth_correlation_breakdown_5m_event_alt_directional) — BTC↔ETH 5m corr 1d-rolling z-score breakdown은 cross-asset stress regime을 정확히 표지 (p10=0.705 vs 평소 0.81)하나 unsigned single-direction (LONG)은 alpha 부재. paradigm 62 BTC RV contagion unsigned LONG와 동질 — regime detection ≠ directional bias. corr/vol regime trigger는 sign-conditional split (lesson #3) 필수, unsigned single-direction는 ex ante 폐기 권고.
+13. **Aggregate-real-but-fragile graveyard pattern** (75번째 graveyard 2026-05-15, btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long) — signal_t_excess 1.5~2σ + diversity gate PASS (7/12) + CI cross 0 (-0.001) + gross +19bp의 패턴은 alt-class universal mechanism 가설의 실패 (heterogeneity dominates). z=-2.0 focus aggregate +11bp는 4-alt 클러스터 (DOGE/SOL/NEAR/AVAX) + 8-alt 음수 분산의 우연한 합산. graveyard 확정하되 mirror/regime-stratify 변형 후보로 남김.
+14. **Single-symbol H5 sub-cell evidence는 cross-symbol generalize 보장 X** (76번째 graveyard 2026-05-15, btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short) — paradigm 74 H5 SOL-only sub-cell SHORT |t|=1.60 > LONG |t|=1.42 사전 evidence가 12-alt aggregate에 generalize 안 됨 (SHORT +0.42bp/sigex +0.83 < LONG +11bp/sigex +1.78). 단일 종목 H5 evidence를 cross-symbol promotion 정당화로 사용 시 사전 cross-symbol mini-validation 의무화. 단 paradigm 70 13σ 격차 mirror antipattern은 약함 (76 격차는 0.95σ 수준).
+15. **Non-focus PASS 격상 4-조건 정책** (77번째 R-1 PASS 2026-05-15, btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short) — focus FAIL이지만 sweep 비-focus threshold에서 strict 4-gate PASS 시 separate paradigm 격상 정당 조건: (a) 모든 4 gate 통과 (3-gate + diversity), (b) separate R-1 replication ±10% 일치, (c) Bonferroni adj_p (prior 9 tests 보수적) ≤ 0.10, (d) hold sweep 부호 일치. 동시 충족 시 sampling fluke 가능성 낮음, R-2 진행 권고. 단 R-1 PASS는 충분조건이 아니며 R-2 robustness가 진짜 검증 (paradigm 77이 R-1 PASS 후 R-2 1/4 FAIL).
+16. **Aggregate stat은 quarter/symbol 집중도 사전 검증 필수** (77번째 R-2 FAIL 2026-05-15) — R-1 단계에서 per-quarter t-stat distribution + per-alt ci_lower bootstrap 자동 포함 의무. Cherry-pick artifact 사전 차단. paradigm 77 aggregate +33.6bp/perm_p 0.005가 BNB+WIF 2종 + 4 quarter 우연한 합산 (10 alt 중 ci_lower>0인 alt = 2/10 / 2025Q3 t=-3.03 + 2025Q4 t=-1.73 반년 regime 단절). lesson #15 보완: non-focus PASS 격상 시 quarter homogeneity + per-alt ci_lower diagnostic 추가 검증 후에만 격상 자격.
 
 ### 6.3 Fee Floor 사전 추정 룰 (새)
 
@@ -224,8 +229,9 @@ R-1 호출 전 다음 검증:
 | #9 | `hmm_regime_premium` | premium domain saturated (Q2 §5 명시) |
 | #10 | `kalman_filter_premium_innovation` | premium domain saturated |
 | #11 | `change_point_detection_premium` | premium domain saturated |
+| (NEW) | `btc_eth_5m_corr_breakdown_family` (74-77) | 4 paradigms 동일 family DNA (BTC↔ETH 5m corr 1d-rolling z-score) — unsigned LONG/sign-cond LONG/sign-cond SHORT/severe SHORT 모두 R-1 또는 R-2 graveyard. taker_buy family와 동일 family-level retire. cross-asset corr regime trigger 변형 추가 시도 권장 안 됨 |
 
-→ Q3 12 candidates 중 **8개 Tier 4 제거**, 2개 Tier 2-3 보존, 2개 Tier 1 (단 #1만 큐 원본). **새 2 candidates (A, D)는 Q3 큐에서 시작.**
+→ Q3 12 candidates 중 **8개 Tier 4 제거** + cross-asset corr family 추가 폐기, 2개 Tier 2-3 보존, 2개 Tier 1 (단 #1만 큐 원본). **새 2 candidates (A, D)는 Q3 큐에서 시작.**
 
 ### 6.5 Updated Schedule (2026-05-14 ~ 2026-06-13 Day 30 검증 전)
 
@@ -238,8 +244,12 @@ Day 30 검증까지 30일. 일일 1-2 candidate fail-fast:
 | ~~1~~ | ~~#1 `liquidation_cascade_event`~~ | **Binance archive 전체 제거 확인 2026-05-15** | — | **BLOCKED ❌** — listing 빈 상태 (issue #337 미해결). 대안: CoinGlass 유료 (사용자 승인) / WS 자체 기록 60일+ / skip |
 | ~~1~~ | ~~#2 `taker_buy_volume_5m_zscore_signcond`~~ | 없음 (microstructure) | R-1 ~13분 실측 | **GRAVEYARD 2026-05-15** ❌ (72번째, z=1.5 signed -8.47bp t=-21.10, 0/3 z gates FAIL, taker-side family retire lesson #10) |
 | ~~1~~ | ~~F1 `funding_oi_bipolar_squeeze_event`~~ | 없음 (funding DB 1y) | R-1 ~5분 실측 | **GRAVEYARD 2026-05-15** ❌ (73번째, sample density 부족, lesson #11 sample-density prescreen) |
+| ~~1~~ | ~~B1 `btc_eth_correlation_breakdown_5m_event_alt_directional`~~ (74) | 없음 (OHLCV joblib) | R-1 ~7분 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (74번째, unsigned LONG 0/3 z FAIL, lesson #12 cross-asset corr regime ≠ directional) |
+| ~~1~~ | ~~B1.1 `btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long`~~ (75) | 없음 | R-1 ~6분 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (75번째, signal_excess +1.78 cutoff 0.22σ 미달, lesson #13 fragile-real heterogeneity) |
+| ~~1~~ | ~~B1.2 `btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short`~~ (76) | 없음 | R-1 ~6분 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (76번째, focus z=-2.0 FAIL, z=-2.5 non-focus PASS — 77로 격상, lesson #14 single-symbol H5 generalize 보장 X) |
+| ~~1~~ | ~~B1.3 `btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short`~~ (77) | 없음 | R-1 PASS + R-2 FAIL ~33s + 26s 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (77번째, R-1 4-gate ALL PASS — sigex +3.69σ perm_p 0.005, R-2 1/4 robustness PASS — quarter 2025Q3 t=-3.03 / per-symbol bootstrap 2/10 ci_lower>0, lesson #15 non-focus PASS 정책 + lesson #16 quarter/symbol 집중도 검증) |
 | 1 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn | 대기 |
-| (open) | 새 mechanism candidate 발의 필요 | — | — | Q3 §6.2 lessons #8 mirror + #9 trigger swap + #10 taker family + #11 sample density 회피 |
+| (open) | 새 mechanism candidate 발의 필요 | — | — | Q3 §6.2 lessons #8-#16 회피. **Cross-asset corr breakdown family (74-77) 폐기 확정** — taker family와 동일 family-level retire. funding/OI/microstructure novel mechanism 또는 OHLCV non-corr/non-vol-regime 차원 우선. |
 
 #### Day 30 검증 가까워질 때 (2026-06-08~13)
 - Paper baseline 측정 우선 (paradigm 69 13 sessions Day 30)

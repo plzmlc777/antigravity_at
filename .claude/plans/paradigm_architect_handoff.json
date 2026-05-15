@@ -1,30 +1,48 @@
 {
   "_meta": {
-    "title": "paradigm-architect handoff — 2026-05-15 update: 12 graveyards (61~73) + 1 R-5 seed + 11 lessons cumulative across 2026-05-14~15 burst",
+    "title": "paradigm-architect handoff — 2026-05-15 turn 2 burst: 4 graveyards (74-77) + 1 R-1 PASS→R-2 FAIL + cross-asset corr family retire + 5 lessons cumulative",
     "snapshot_date": "2026-05-15",
-    "snapshot_time_kst": "11:30",
-    "session_summary": "2-day cumulative burst (2026-05-14 + 2026-05-15): 12 paradigm R-1 graveyards (61~73) + 1 R-5 seed (paradigm 69 btc_rv_spike_highvol_filter_alt_long_240m, 13 paper sessions on Mint) + 1 data-blocked candidate (liquidation_cascade_event, Binance archive 전체 제거 확인) + 3 infrastructure modules + 2024 OHLCV backfill 14 syms × 2.4yr + Q3 paradigm queue 11 lessons. 2026-05-15 attempts: 71 btc_oi_velocity (trigger swap antipattern lesson #9) + 72 taker_buy_volume_signcond (taker family retire lesson #10) + 73 funding_oi_bipolar (sample-density prescreen lesson #11).",
+    "snapshot_time_kst": "13:00",
+    "session_summary": "2026-05-15 turn 2 (B1 cross-asset corr breakdown family 검증): 4 paradigm graveyards (74 unsigned LONG, 75 sign-cond LONG, 76 sign-cond SHORT focus FAIL but z=-2.5 non-focus PASS, 77 promoted 4-gate ALL R-1 PASS but R-2 1/4 robustness FAIL). cross-asset corr breakdown family DNA 폐기 확정 (taker family와 동일 family-level retire). 5 lessons 누적 (#12 corr regime ≠ directional / #13 fragile-real heterogeneity / #14 single-symbol H5 generalize 보장 X / #15 non-focus PASS 격상 4-조건 정책 / #16 quarter/symbol 집중도 사전 검증 의무). 누적 16 lessons (Q3 §6.2). 첫 R-1 PASS → R-2 FAIL 사이클 완주로 lesson #15-16 강화.",
     "primary_user_goal": "쉬지 않고 계속 새 paradigm 발굴 + 인생 바꾸는 alpha 추구. Quality > Quantity.",
-    "next_session_resume_target": "Q3 §6.5 schedule slot remaining — F2 `funding_sign_flip_event_alt_directional` (단 funding DB 1y sample density 위험) OR B1 `btc_eth_correlation_breakdown_event_alt_overshoot` (OHLCV-only, lesson #11 sample density 안전) OR #4 `oi_premium_5m_decoupling` (premium 5m 백필 ETA 별 turn 평가). 또는 새 mechanism 브레인스토밍.",
-    "git_head_at_snapshot": "(this commit) — paradigm 71 R-1 metrics + Q3 queue lessons #10 #11 + handoff update + 2026-05-15 burst integration"
+    "next_session_resume_target": "Cross-asset corr breakdown family 폐기 후 새 mechanism — Q3 §6.5 schedule remaining 후보 (premium 5m 백필 후 #4 oi_premium_5m_decoupling, funding DB 백필 후 F2 funding_sign_flip / paradigm 73 재시도, 또는 OHLCV non-corr/non-vol-regime 차원 새 mechanism). 또는 microstructure (LSR/taker 너머) novel 차원.",
+    "git_head_at_snapshot": "(this commit) — paradigm 74/75/77 artifacts + Q3 §6.2 lessons #12-16 + Tier 4 corr family retire + handoff turn 2 update"
   },
 
-  "today_2026_05_15_summary": {
+  "today_2026_05_15_turn2_summary": {
+    "graveyards": [
+      "74 btc_eth_correlation_breakdown_5m_event_alt_directional (lesson #12 corr regime characterization not directional, unsigned LONG 0/3 z FAIL, gross +7.3bp < 16bp fee floor)",
+      "75 btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long (lesson #13 fragile-real, sigex +1.78 cutoff 0.22σ 미달, diversity 7/12 PASS but heterogeneity dominates)",
+      "76 btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short (lesson #14 single-sym H5 generalize 보장 X, focus z=-2.0 FAIL +0.42bp/sigex +0.83, BUT z=-2.5 non-focus 4-gate ALL PASS spawned paradigm 77)",
+      "77 btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short (lesson #15-16, R-1 4-gate ALL PASS sigex +3.69σ perm_p 0.005 ci_lower +11.5bp diversity 10/12 → R-2 1/4 robustness PASS — quarter 2025Q3 t=-3.03 + 2025Q4 t=-1.73 반년 단절, per-symbol bootstrap 10 pos alts 중 ci_lower>0 = 2/10 BNB+WIF only, alpha 90% 2종 집중)"
+    ],
+    "first_r1_pass_in_burst": "paradigm 77 — 13 graveyard 후 첫 R-1 PASS 그러나 R-2 quarterly + per-symbol bootstrap에서 cherry-pick 본질 노출. 4-gate strict는 충분조건 아님 lesson #15-16 입증",
+    "family_retire": "Cross-asset corr breakdown family (BTC↔ETH 5m corr 1d-rolling z-score) — paradigm 74/75/76/77 4번 일관 fail. Q3 §6.4 Tier 4 영구 제거 추가. taker_buy_volume family (graveyard 23/60/72) 다음 두 번째 family-level retire.",
+    "new_lessons_q3_62": [
+      "#12 (74): cross-asset correlation regime detection은 market-state characterization이며 directional signal 아님 (paradigm 62 unsigned LONG와 동질). corr/vol regime trigger는 sign-conditional split (lesson #3) 필수.",
+      "#13 (75): aggregate-real-but-fragile graveyard 패턴 — sigex 1.5~2σ + diversity PASS + CI cross 0의 패턴은 alt-class universal mechanism 실패 (heterogeneity dominates). 4-alt 클러스터 + 8-alt 음수 분산 우연한 합산.",
+      "#14 (76): 단일 종목 H5 sub-cell evidence는 cross-symbol promotion 보장 X. paradigm 74 H5 SOL-only |t|=1.60 vs 76 12-alt aggregate +0.42bp/sigex +0.83. 사전 cross-symbol mini-validation 의무.",
+      "#15 (77 R-1 PASS): non-focus PASS 격상 4-조건 정책 — (a) 모든 4 gate 통과 (3-gate + diversity), (b) separate R-1 replication ±10% 일치, (c) Bonferroni adj_p (prior tests 보수적) ≤ 0.10, (d) hold sweep 부호 일치. 동시 충족 시 sampling fluke 가능성 낮음. 단 R-1 PASS는 충분조건 아니며 R-2 robustness가 진짜 검증.",
+      "#16 (77 R-2 FAIL): aggregate stat은 quarter/symbol 집중도 사전 검증 필수. R-1 단계에서 per-quarter t-stat distribution + per-alt ci_lower bootstrap 자동 포함 의무. paradigm 77 aggregate +33.6bp/perm_p 0.005가 BNB+WIF 2종 + 4 quarter 우연한 합산. lesson #15 보완: non-focus PASS 격상 시 quarter homogeneity + per-alt diagnostic 추가 검증 후에만 격상 자격."
+    ],
+    "commits_2026_05_15_turn2": [
+      "52872bbb research(architect): paradigm 76 btc_eth_corr_breakdown_signcond_btcdn_altdn SHORT R-1 graveyard",
+      "(this commit) research(orchestrator): paradigm 74/75/77 artifacts + Q3 §6.2 lessons #12-16 + Tier 4 cross-asset corr family retire + handoff turn 2"
+    ]
+  },
+
+  "today_2026_05_15_turn1_summary": {
     "graveyards": [
       "71 btc_oi_velocity_regime_alt_long_240m (lesson #9 trigger swap antipattern)",
       "72 taker_buy_volume_5m_zscore_signcond (lesson #10 taker family retire)",
       "73 funding_oi_bipolar_squeeze_event (lesson #11 sample-density prescreen)"
     ],
     "data_blocked": "liquidation_cascade_event — Binance USDT-M liquidationSnapshot archive 전체 제거 확인 (issue #337 미해결, S3 listing 빈 상태). 대안: CoinGlass 유료 / WS 자체 기록 60일+ / 후보 deprioritize",
-    "new_lessons_q3_62": [
-      "#9 Trigger swap antipattern (71): mechanism 동일 ≠ trigger 호환. paradigm 69 RV +112.9bp vs 71 OI velocity -12.62bp. microstructure-only trigger는 가격 기반 vol-cascade와 호환 부재",
-      "#10 Taker-side aggressive volume family graveyard (72): graveyard 23/60/72 누적 — taker_buy_volume z-spike 5m+60m hold fee floor 미달. mirror SHORT도 fee saturation 본질로 비추",
-      "#11 Sample-density prescreen rule (73): expected_n_per_cell = total_windows × universe × trigger_rate <30 발의 보류. funding DB 1y + 6-sym intersection 한계. funding-기반 joint event는 funding DB 백필 우선"
-    ],
-    "commits_2026_05_15": [
-      "50e06479 research(architect): paradigm 72 taker_buy_volume_5m_zscore_signcond R-1 graveyard",
-      "d0a8c9cb research(architect): paradigm 71 funding_oi_bipolar_squeeze_event R-1 graveyard (architect mislabeled — actually paradigm 73)",
-      "(this commit) docs+research(orchestrator): paradigm 71 R-1 artifacts + paradigm 72/73 metrics sync + Q3 queue lessons #10 #11 + handoff JSON update"
+    "lessons_added": ["#9", "#10", "#11"],
+    "commits": [
+      "50e06479 paradigm 72",
+      "d0a8c9cb paradigm 73 (architect mislabeled — actually paradigm 73)",
+      "a657c478 paradigm 71 R-1 + 72/73 metrics sync + Q3 lessons #10 #11 + handoff 2026-05-15"
     ]
   },
 
@@ -43,35 +61,49 @@
     "r5_seeded": "69 btc_rv_spike_highvol_filter_alt_long_240m (13 paper sessions, predicted +57%/yr aggregate)",
     "infrastructure_added": [
       "backend/scripts/research/_perm_utils.py (fee_aware_perm_test + bootstrap_ci + block_perm)",
-      "backend/scripts/research/eval_research_gate.py GATE_E_NEW (handles new _perm_utils schema, dogfood-tested)",
-      "backend/scripts/research/_ohlcv_parquet_cache.py (joblib cache 250MB, 3-5s load/sym)"
+      "backend/scripts/research/eval_research_gate.py GATE_E_NEW",
+      "backend/scripts/research/_ohlcv_parquet_cache.py (joblib cache 250MB)"
     ],
     "data_backfill": "BTC + 13 alts 2024-01-02 ~ 2026-05-12 OHLCV 1m (was 380d, now 861d / WIF 845d)",
     "validation": "Paradigm 69 R-3 2.4yr substantive PASS (5/5 data-bearing quarters positive, 2024 Q3+Q4 PASS, plateau 96/96 identical, sig_t_excess +13.45)",
-    "commits": [
-      "8b222b7a research(architect): paradigm 69 R-5 seed + 8 graveyards + fee-aware perm infra",
-      "74b9875c research(architect): paradigm 69 R-3 2.4yr long-horizon re-validation + ohlcv joblib cache",
-      "040d3047 docs(paradigm-queue): Q3 mid-update — 8 Tier-4 retire, 2 new Tier-1 candidates, 7 lessons integrated",
-      "2ecf2c0c research(architect): paradigm 70 mirror SHORT graveyard + Q3 §6.2 #8 mirror-antipattern"
-    ]
+    "lessons_added": ["#1-#8"]
   },
 
-  "mandatory_checklist_r1_r3": {
-    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (11 lessons as of 2026-05-15)",
+  "mandatory_checklist_r1_r3_v2": {
+    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (16 lessons as of 2026-05-15 turn 2)",
     "1_perm_utils_mandatory": "_perm_utils.fee_aware_perm_test + bootstrap_ci. null_mean_t 보고 필수.",
-    "2_three_gate_strict": "signal_t_excess ≥ 2.0 AND ci_lower > 0 AND perm_p_two_sided ≤ 0.10. legacy |t|≥2 OR perm_p≤0.10 deprecated.",
-    "3_sign_conditional_h5": "Unsigned hypothesis는 즉시 sign-split 검토 (BTC sign 또는 신호 sign으로).",
+    "2_three_gate_strict": "signal_t_excess ≥ 2.0 AND ci_lower > 0 AND perm_p_two_sided ≤ 0.10.",
+    "3_sign_conditional_h5": "Unsigned hypothesis는 즉시 sign-split 검토.",
     "4_vol_regime_stratify_r3": "best cell를 BTC 30d vol regime (p25/p50/p75/p90)별로 stratify. 한 regime 강하게 음수면 sub-paradigm 후보 또는 graveyard.",
     "5_ohlcv_joblib_cache": "_ohlcv_parquet_cache.load_ohlcv_1m_cached() 사용. R-3 ≥2 alts 의무.",
     "6_mint_host_explicit": "paradigm-architect prompt에 mint@183.99.228.81 explicit. BTC 1m count = 1,241,280 확인.",
     "7_mechanical_vs_substantive": "Quarter denominator artifact 인지. 측정 가능한 모든 quarter PASS면 substantive PASS 인정.",
-    "8_mirror_antipattern": "paradigm X의 LONG +X bp가 mirror SHORT +X bp 보장 안 됨 (방향 비대칭). Mirror도 별도 R-1 검증 의무. H5 sub-findings 자동 채택 금지. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = 13σ 격차.",
-    "9_trigger_swap_antipattern": "시드 paradigm의 mechanism (filter + universe + hold) 유지 + trigger만 다른 도메인 교체 시 alpha 부재 가능. precedent: paradigm 71 OI velocity trigger -12.62bp vs paradigm 69 RV trigger +112.9bp. microstructure-only (OI/funding/LSR) trigger는 가격 기반 vol-cascade mechanism filter와 호환 부재 전제. Mirror antipattern과 함께 자동 시도 금지.",
-    "10_taker_family_graveyard": "implied/raw taker_buy_volume z-spike (5m + 60m hold) family 전체 fee floor 미달. graveyard 23 + 60 + 72 누적. buyer-imbalance overshoot가 60m forward에 mean-revert (anti-momentum). NET≈-8bp / gross≈0bp으로 mirror SHORT도 fee saturation 본질로 비추. 향후 5m+60m hold 변형 발의 보류.",
-    "11_sample_density_prescreen": "fee_floor (16bp gross) 통과해도 universe × sample × trigger_rate 부족하면 strict threshold cells가 n<30 측정 불가. R-1 발의 전 expected_n_per_cell = total_windows × universe × trigger_rate 추정 후 30 미만이면 발의 보류 또는 sample 확장 (universe / DB 백필) 우선. precedent: paradigm 73 funding DB 1y + 6-sym intersection → strict cells 모두 skip + lower threshold noise 압도. funding-기반 joint event는 funding DB 백필 우선."
+    "8_mirror_antipattern": "paradigm X의 LONG +X bp가 mirror SHORT +X bp 보장 안 됨. Mirror도 별도 R-1 검증 의무. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = 13σ 격차 / paradigm 76은 0.95σ 격차로 약함.",
+    "9_trigger_swap_antipattern": "시드 paradigm의 mechanism 유지 + trigger만 다른 도메인 교체 시 alpha 부재 가능. precedent: paradigm 71 OI velocity vs paradigm 69 RV trigger.",
+    "10_taker_family_graveyard": "implied/raw taker_buy_volume z-spike (5m + 60m hold) family 전체 fee floor 미달. graveyard 23 + 60 + 72 누적. mirror SHORT도 fee saturation 본질로 비추.",
+    "11_sample_density_prescreen": "fee_floor (16bp gross) 통과해도 universe × sample × trigger_rate 부족하면 strict threshold cells가 n<30 측정 불가. R-1 발의 전 expected_n_per_cell 추정 후 30 미만이면 발의 보류 또는 sample 확장 우선.",
+    "12_corr_regime_not_directional": "Cross-asset correlation regime detection은 market-state characterization이며 directional signal 아님. paradigm 62 unsigned LONG (BTC RV contagion)와 동질. corr/vol regime trigger는 sign-conditional split 필수.",
+    "13_aggregate_real_but_fragile": "sigex 1.5~2σ + diversity gate PASS + CI cross 0의 패턴은 alt-class universal mechanism 실패 (heterogeneity dominates). 부분 alt 클러스터 우연한 합산 의심.",
+    "14_single_symbol_h5_no_generalize": "단일 종목 H5 sub-cell evidence는 cross-symbol promotion 보장 X. 사전 cross-symbol mini-validation 의무. precedent: paradigm 74 H5 SOL-only |t|=1.60 → 76 12-alt +0.42bp/sigex +0.83 generalize 실패.",
+    "15_non_focus_pass_promotion_4cond": "non-focus PASS 격상 4-조건 정책: (a) 모든 4 gate 통과 (3-gate + diversity), (b) separate R-1 replication ±10% 일치, (c) Bonferroni adj_p ≤ 0.10, (d) hold sweep 부호 일치. R-1 PASS는 충분조건 아니며 R-2 robustness가 진짜 검증.",
+    "16_quarter_symbol_concentration_diagnostic": "Aggregate stat은 quarter/symbol 집중도 사전 검증 필수. R-1 단계에서 per-quarter t-stat distribution + per-alt ci_lower bootstrap 자동 포함 의무. Cherry-pick artifact 사전 차단."
   },
 
   "fee_floor_prescreen_rule": "R-1 호출 전 expected gross |return| per trigger ≥ 16 bp (=2×8bp fee + buffer). 미달 시 발의 보류.",
+
+  "family_retire_list": {
+    "taker_buy_volume_family": {
+      "graveyards": ["23 taker_buy_sell_ratio raw", "60 LSR contrarian", "72 taker_buy_volume z signed"],
+      "DNA": "implied/raw taker_buy_volume z-spike (5m trigger + 60m hold)",
+      "lesson": "#10 — buyer-imbalance overshoot가 60m forward에 mean-revert (anti-momentum). NET≈-8bp / gross≈0bp으로 mirror SHORT도 fee saturation 본질"
+    },
+    "cross_asset_corr_breakdown_family": {
+      "graveyards": ["74 unsigned LONG", "75 sign-cond LONG", "76 sign-cond SHORT focus", "77 severe SHORT R-2 cherry-pick"],
+      "DNA": "BTC↔ETH 5m return 1d-rolling Pearson corr → 30d z-score breakdown event",
+      "lesson": "#12-#16 — corr regime characterization not directional / heterogeneity dominates / single-symbol H5 generalize 실패 / non-focus PASS 격상 정책 + quarter/symbol 집중도 검증",
+      "added_2026_05_15_turn2": true
+    }
+  },
 
   "infrastructure_state": {
     "data": {
@@ -88,35 +120,36 @@
       "R-2": ["listing_volume_cliff"],
       "R-4": ["(promoted, gate evaluator passed)"]
     },
-    "paper_pool_total": "51 active sessions (KR 10 + Composer-ML 13 + Research Track 28 incl. new 13)"
+    "paper_pool_total": "51 active sessions (KR 10 + Composer-ML 13 + Research Track 28 incl. paradigm 69 13)",
+    "graveyard_total": "16 paradigms × R-1 graveyard (61-77 minus 69 R-5 seeded)"
   },
 
   "next_session_start_commands": {
-    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 새 mechanism candidate 발의 진행해. 11 lessons 회피 + sample-density prescreen 의무. B1 btc_eth_correlation_breakdown 또는 F2 funding_sign_flip 또는 새 mechanism 브레인스토밍.",
-    "alternative_1": "Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6 후 #4 `oi_premium_5m_decoupling` premium 5m 백필 ETA 평가 진행해 (별 turn).",
-    "alternative_2": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 funding DB 백필 ETA 평가 (1y → 2-3y, paradigm 73 재시도용 + 향후 funding 기반 paradigm sample density 확보)",
-    "alternative_3": "paper baseline 측정 우선: paradigm 69 D+1 (오늘) trigger 발생 여부 점검. paper session 13개 health check.",
+    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 새 mechanism candidate 발의 진행해. 16 lessons 회피 + sample-density prescreen + quarter/symbol 집중도 사전 검증 의무. Cross-asset corr breakdown family + taker family 회피. premium 5m / funding DB 백필 ETA 평가 또는 OHLCV non-corr/non-vol-regime 새 차원.",
+    "alternative_1": "premium 5m 백필 ETA 평가 (1y → 14 syms × 5m × 1y) 후 #4 oi_premium_5m_decoupling 진행",
+    "alternative_2": "funding DB 백필 ETA 평가 (1y → 2-3y) 후 paradigm 73 funding_oi_bipolar_squeeze_event 재시도 + F2 funding_sign_flip",
+    "alternative_3": "OHLCV-only novel mechanism 브레인스토밍 — corr/vol-regime/cross-sec rotation/skewness/RV contagion 회피한 차원 (예: range-based path tortuosity, volume absorption compression, OI compression-release)",
+    "alternative_4": "paper baseline 측정 우선: paradigm 69 D+1 (오늘) trigger 발생 여부 점검. paper session 13개 health check.",
     "day_7_paper_baseline_check_at": "2026-05-21 — paradigm 69 13 sessions 첫 baseline 측정",
     "day_30_paper_baseline_validation_at": "2026-06-13 — predicted +57%/yr 대비 측정값, alpha < 50% 시 demote"
   },
 
   "q3_queue_state": {
-    "_source": "backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6 (2026-05-14 updated)",
+    "_source": "backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6 (2026-05-15 turn 2 updated)",
     "tier_1_pending": [
-      "D btc_oi_velocity_regime_alt_long_240m (paradigm 69 mechanism OI velocity 변형, microstructure joblib 보유, R-1 ETA 10-15분)",
-      "#1 liquidation_cascade_event (Binance liq archive 백필 필요, large effect potential)"
-    ],
-    "tier_2_pending": [
-      "#2 taker_buy_volume_5m_zscore (sign-cond 변형 후)",
       "#4 oi_premium_5m_decoupling (premium 5m 백필 필요)"
     ],
-    "tier_4_retired_2026_05_14": [
-      "A btc_rv_HIGHVOL_down_alt_short_240m (70번 mirror antipattern graveyard)",
+    "tier_4_retired_2026_05_15_turn2": [
+      "btc_eth_5m_corr_breakdown_family (74-77 4 paradigms 모두 fail)"
+    ],
+    "tier_4_retired_cumulative": [
+      "A btc_rv_HIGHVOL_down_alt_short_240m (70 mirror antipattern)",
       "#3 realized_vol_regime_5m (paradigm 69 substantive 중복)",
       "#5/#7 §3-F filter mechanism",
       "#6 LSR family",
       "#8 §3-F calendar + premium saturated",
-      "#9/#10/#11 premium domain saturated (Q2 §5)"
+      "#9/#10/#11 premium domain saturated (Q2 §5)",
+      "btc_eth_5m_corr_breakdown_family (74-77, NEW)"
     ]
   },
 
@@ -138,19 +171,19 @@
     },
     "predicted_alpha": "+57.16%/yr aggregate pool, +4.40%/sym/yr (sym-weighted)",
     "demote_criterion": "Day 30 measured alpha < +28%/yr (= 50% of predicted)",
-    "cron_status": "Mint binance-paper-cycle (11:30 KST 매일) 자동 포함. ecosystem.config.cjs 변경 없음."
+    "cron_status": "Mint binance-paper-cycle (11:30 KST 매일) 자동 포함"
   },
 
   "files_to_read_in_new_session": [
     {
       "priority": 1,
       "path": "/home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json",
-      "reason": "본 handoff. 전체 컨텍스트"
+      "reason": "본 handoff. 전체 컨텍스트 (turn 2 update)"
     },
     {
       "priority": 2,
       "path": "/home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md",
-      "reason": "Q3 큐 §6 mid-update + tier 분류 + 8 lessons"
+      "reason": "Q3 큐 §6 mid-update + tier 분류 + 16 lessons"
     },
     {
       "priority": 3,
