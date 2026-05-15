@@ -50,7 +50,7 @@
       "type": "E",
       "created_at": "2026-05-13T12:39:06+00:00",
       "updated_at": "2026-05-13T12:49:13+00:00",
-      "graveyard_reason": "R-1 PoC n=5891 Friday-Monday events on 182 symbols. Hyp A pure MR corr -0.023 (t -1.77, perm_p 0.024 marginal). Hyp B volume-conditional: low-vol corr -0.107 (n=2187) vs high-vol +0.005 \u2014 effect exists but sub-fee. Hyp C quarterly split 3/6 negative-3/6 positive (regime instability). Hyp D naive trade ann_sharpe -0.22 win 46.6% \u2014 unprofitable after 8bps fee. Effect size ~3bps << fee floor. Possible 24/7 MM arbitrage. metrics: backend/runs/research_track/weekend_mr/poc__metrics.json",
+      "graveyard_reason": "R-1 PoC n=5891 Friday-Monday events on 182 symbols. Hyp A pure MR corr -0.023 (t -1.77, perm_p 0.024 marginal). Hyp B volume-conditional: low-vol corr -0.107 (n=2187) vs high-vol +0.005 — effect exists but sub-fee. Hyp C quarterly split 3/6 negative-3/6 positive (regime instability). Hyp D naive trade ann_sharpe -0.22 win 46.6% — unprofitable after 8bps fee. Effect size ~3bps << fee floor. Possible 24/7 MM arbitrage. metrics: backend/runs/research_track/weekend_mr/poc__metrics.json",
       "seed_spec": null
     },
     "listing_pump_first60min": {
@@ -66,7 +66,7 @@
       "type": "E",
       "created_at": "2026-05-13T12:59:53+00:00",
       "updated_at": "2026-05-13T12:59:53+00:00",
-      "graveyard_reason": "R-1 PoC n=161 cohort. Base trade (entry=60min,hold=180min) median +0.53% mean -2.58% t -1.55. Permutation sigma = -0.04 \u2014 listing-anchored entry NO BETTER than random entry in [60,1200] min range. Pump-conditional shows OPPOSITE: high-pump (>=+20% in 60min, n=21) median -4.57% (momentum continuation, not fade). All 12 (entry,hold) grid cells negative mean. Conclusion: lifecycle_pump_decay mechanism (slow price-discovery fade) operates on daily timescale, NOT intraday. metrics: backend/runs/research_track/listing_pump_first60min/poc__metrics.json",
+      "graveyard_reason": "R-1 PoC n=161 cohort. Base trade (entry=60min,hold=180min) median +0.53% mean -2.58% t -1.55. Permutation sigma = -0.04 — listing-anchored entry NO BETTER than random entry in [60,1200] min range. Pump-conditional shows OPPOSITE: high-pump (>=+20% in 60min, n=21) median -4.57% (momentum continuation, not fade). All 12 (entry,hold) grid cells negative mean. Conclusion: lifecycle_pump_decay mechanism (slow price-discovery fade) operates on daily timescale, NOT intraday. metrics: backend/runs/research_track/listing_pump_first60min/poc__metrics.json",
       "seed_spec": null
     },
     "listing_volume_cliff": {
@@ -91,7 +91,7 @@
         "name": "lifecycle_early_exit_d14",
         "summary": "Exit-modifier variant of lifecycle_pump_decay: same Day 1 short, hold to Day 30 EXCEPT if vol_cliff (mean(vol[7:14])/vol[0]) >= threshold at Day 14, exit at Day 14 close. Infrastructure: bn_lifecycle_decay_early_exit source + lifecycle_decay_early_exit policy + lifecycle_session_spawner --policy=both (parallel A/B seed alongside baseline).",
         "implementation_status": "code complete + local dry-run validated 2026-05-13",
-        "backtest_status": "R-2-bis script exists (backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py); needs mint execution \u2014 local DB missing 170 listing cohort OHLCV.",
+        "backtest_status": "R-2-bis script exists (backend/scripts/research/listing_volume_cliff_r2_bis_early_exit.py); needs mint execution — local DB missing 170 listing cohort OHLCV.",
         "default_threshold": 0.4,
         "check_day": 14,
         "files": [
@@ -132,7 +132,7 @@
       "type": "T",
       "created_at": "2026-05-14T06:36:13+00:00",
       "updated_at": "2026-05-14T06:59:17+00:00",
-      "graveyard_reason": "R-3 partial (4/10 syms) \u2014 bootstrap CI lower bound consistently negative across all 4 syms (SOL [-48,282] / AVAX [-88,260] / DOGE [-54,226] / HBAR pending kill), violating R-3 elite gate (boot CI lower > 0). Perm sigma 121-311 anomalously high vs prior seeded paradigms (max 9 sigma) \u2014 likely measurement artifact (signal sparsity makes random shuffle distribution narrow). Sharpe 0.06-0.76 << seeded floor 1.5. R-4 hard-gate fail certain. Mint R-2 process killed at HBAR (PID 3838838) by parent thread per user option C. Lesson: positioning ratio (LSR) raw z-score on 5m crypto produces noisy directional signal \u2014 needs joint conditioning (e.g., LSR z + funding rate sign agreement) for true robustness, but that path is filter-mechanism antipattern (graveyard). Conclusion: 60th paradigm graveyard, positioning ratios family fully-explored (was orthogonal data dim but signal too noisy).",
+      "graveyard_reason": "R-3 partial (4/10 syms) — bootstrap CI lower bound consistently negative across all 4 syms (SOL [-48,282] / AVAX [-88,260] / DOGE [-54,226] / HBAR pending kill), violating R-3 elite gate (boot CI lower > 0). Perm sigma 121-311 anomalously high vs prior seeded paradigms (max 9 sigma) — likely measurement artifact (signal sparsity makes random shuffle distribution narrow). Sharpe 0.06-0.76 << seeded floor 1.5. R-4 hard-gate fail certain. Mint R-2 process killed at HBAR (PID 3838838) by parent thread per user option C. Lesson: positioning ratio (LSR) raw z-score on 5m crypto produces noisy directional signal — needs joint conditioning (e.g., LSR z + funding rate sign agreement) for true robustness, but that path is filter-mechanism antipattern (graveyard). Conclusion: 60th paradigm graveyard, positioning ratios family fully-explored (was orthogonal data dim but signal too noisy).",
       "seed_spec": null
     },
     "book_depth_fragility_short": {
@@ -150,7 +150,7 @@
       "type": "E",
       "created_at": "2026-05-14T07:11:50+00:00",
       "updated_at": "2026-05-14T07:25:16.673190+00:00",
-      "graveyard_reason": "R-1 re-run 2026-05-14T07:25 after full OHLCV backfill (14/14 syms, 547,200 rows each, 2025-04-28~2026-05-12). n_signals=142 (vs prior n=4 underpowered). H1 t=-0.365 (|t|<1.5), H2 net_mean=+0.061% (short LOSES money on net), H3 perm_p_two=0.732, win_neg_rate=56.3%. GRAVEYARD on 2/5 criteria with adequate power: hypothesis is statistically null. Direction not opposite this time, magnitude simply non-existent \u2014 top1_concentration p80 + near_imbalance<-0.1 combo does NOT predict next-day short bias on Binance perps.",
+      "graveyard_reason": "R-1 re-run 2026-05-14T07:25 after full OHLCV backfill (14/14 syms, 547,200 rows each, 2025-04-28~2026-05-12). n_signals=142 (vs prior n=4 underpowered). H1 t=-0.365 (|t|<1.5), H2 net_mean=+0.061% (short LOSES money on net), H3 perm_p_two=0.732, win_neg_rate=56.3%. GRAVEYARD on 2/5 criteria with adequate power: hypothesis is statistically null. Direction not opposite this time, magnitude simply non-existent — top1_concentration p80 + near_imbalance<-0.1 combo does NOT predict next-day short bias on Binance perps.",
       "seed_spec": null
     },
     "btc_rv_spike_alt_contagion_long": {
@@ -165,7 +165,7 @@
       "type": "E",
       "created_at": "2026-05-14T07:30:43+00:00",
       "updated_at": "2026-05-14T07:37:13+00:00",
-      "graveyard_reason": "R-1 fail: best hold 90m gives t=-3.33 (mean-reversion not continuation), 0/13 alts continuation, 7/13 opposite. H3 perm_p=0.744 (random null perm_t_mean=-5.32 confirms no trigger-specific edge \u2014 observed negative t is structural drift, not signal). H5 asymmetric: down triggers (n=212) mean_net=-0.00174 t=-4.01 vs up triggers mean_net=-0.00004 \u2014 alts drift down regardless of BTC sign post-vol-spike. Hypothesis falsified: BTC RV spike does NOT trigger directional contagion; if anything mild post-spike alt drawdown. Lesson: RV-z trigger captures vol regime but not direction; momentum continuation hypothesis fails on this paradigm-agnostic 14-sym 1y dataset.",
+      "graveyard_reason": "R-1 fail: best hold 90m gives t=-3.33 (mean-reversion not continuation), 0/13 alts continuation, 7/13 opposite. H3 perm_p=0.744 (random null perm_t_mean=-5.32 confirms no trigger-specific edge — observed negative t is structural drift, not signal). H5 asymmetric: down triggers (n=212) mean_net=-0.00174 t=-4.01 vs up triggers mean_net=-0.00004 — alts drift down regardless of BTC sign post-vol-spike. Hypothesis falsified: BTC RV spike does NOT trigger directional contagion; if anything mild post-spike alt drawdown. Lesson: RV-z trigger captures vol regime but not direction; momentum continuation hypothesis fails on this paradigm-agnostic 14-sym 1y dataset.",
       "seed_spec": null
     },
     "cross_sectional_weekly_momentum_reversal": {
@@ -185,7 +185,7 @@
     },
     "cross_sectional_30d_momentum_continuation": {
       "name": "cross_sectional_30d_momentum_continuation",
-      "hypothesis": "Long trailing-30d winner + short trailing-30d loser every Mon\u2192Fri across 14 Binance USDT-perp universe; Carhart-style cross-sectional momentum continuation, mode-flipped successor of 5d MR graveyard.",
+      "hypothesis": "Long trailing-30d winner + short trailing-30d loser every Mon→Fri across 14 Binance USDT-perp universe; Carhart-style cross-sectional momentum continuation, mode-flipped successor of 5d MR graveyard.",
       "data_dependencies": [
         "ohlcv 1m on Mint",
         " 14 syms",
@@ -247,7 +247,7 @@
       "type": "E",
       "created_at": "2026-05-14T08:34:12+00:00",
       "updated_at": "2026-05-14T08:35:15+00:00",
-      "graveyard_reason": "R-1 FAIL three-gate (4/6 graveyard triggers): ci_lower=-6.08bp; perm_p_two_sided=1.000; H3 7/13 alts; H4 single-point overfit. signal_t_excess=+3.54 strong (obs_t=0.13 vs null=-3.41) but pooled mean barely positive (+4.9bp) and CI straddles zero. H5 reveals BTC sign asymmetry: up-triggers LONG +18.7bp t=+3.58, down-triggers LONG -15.0bp t=-2.73 \u2014 direction-agnostic LONG cancels. Next: BTC-sign-conditional LONG-on-up-trigger paradigm.",
+      "graveyard_reason": "R-1 FAIL three-gate (4/6 graveyard triggers): ci_lower=-6.08bp; perm_p_two_sided=1.000; H3 7/13 alts; H4 single-point overfit. signal_t_excess=+3.54 strong (obs_t=0.13 vs null=-3.41) but pooled mean barely positive (+4.9bp) and CI straddles zero. H5 reveals BTC sign asymmetry: up-triggers LONG +18.7bp t=+3.58, down-triggers LONG -15.0bp t=-2.73 — direction-agnostic LONG cancels. Next: BTC-sign-conditional LONG-on-up-trigger paradigm.",
       "seed_spec": null
     },
     "btc_rv_spike_up_conditional_alt_long_240m": {
@@ -266,7 +266,7 @@
         "NEAR",
         "SOL",
         "WIF",
-        "XRP) \u2014 available locally"
+        "XRP) — available locally"
       ],
       "current_phase": "R-3",
       "metrics_files": {
@@ -280,7 +280,7 @@
       "type": "E",
       "created_at": "2026-05-14T08:41:41+00:00",
       "updated_at": "2026-05-14T09:31:48+00:00",
-      "graveyard_reason": "RE-RUN ON MINT (380d/547200 BTC bars, vs prior local 142d/201628) \u2014 directional sign confirmed (predecessor Mint H5 reproduced): H1 n_trig=202, n_trades=2626, gross_mean=+22.4bp t=4.58 win=55.4%, net_mean=+14.4bp t=2.94 win=52.9%. Three-gate: signal_t_excess=+5.38 PASS, bootstrap_ci=[+8.7bp,+20.7bp] PASS, perm_p_two_sided=0.327 FAIL (null_mean_t=-2.45, drift artifact \u2014 fee-aware perm null is severely left-skewed so two-sided p inflates above 0.10 even when one-sided p_above=0.000). H3 13/13 alts pass. H4 hold grid: 180=-0.07bp FAIL, 210=+11.2bp, 240=+14.4bp, 270=+14.1bp, 300=+12.9bp \u2014 strong plateau 210-300, single hold=180 negative breaks 'all positive' requirement. H5 monotone in |z|: z=2.0 +3.3bp / z=2.5 +14.4bp / z=3.0 +29.9bp. H6 baseline (return>0, no RV filter): n=2626 net=-11.6bp t=-3.58, ratio=-1.23 (opposite sign \u2014 RV filter genuinely adds value). VERDICT: GRAVEYARD per strict three-gate (perm_p>0.10 + H4 single-point at 180m). However signal is real and robust \u2014 same pattern as predecessor 67th graveyard. Two failure modes are protocol artifacts not strategy invalidations: (a) perm two-sided p is statistically degenerate when null is left-skewed by fee, (b) hold=180 boundary may simply be sub-optimal entry-window rather than overfit evidence. Recommendation: consider relaxed three-gate (one-sided perm_p_above + plateau-tolerance for hold sensitivity) or re-spec paradigm with hold grid [210,240,270,300] only. metrics: backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r1__metrics.json (Mint)",
+      "graveyard_reason": "RE-RUN ON MINT (380d/547200 BTC bars, vs prior local 142d/201628) — directional sign confirmed (predecessor Mint H5 reproduced): H1 n_trig=202, n_trades=2626, gross_mean=+22.4bp t=4.58 win=55.4%, net_mean=+14.4bp t=2.94 win=52.9%. Three-gate: signal_t_excess=+5.38 PASS, bootstrap_ci=[+8.7bp,+20.7bp] PASS, perm_p_two_sided=0.327 FAIL (null_mean_t=-2.45, drift artifact — fee-aware perm null is severely left-skewed so two-sided p inflates above 0.10 even when one-sided p_above=0.000). H3 13/13 alts pass. H4 hold grid: 180=-0.07bp FAIL, 210=+11.2bp, 240=+14.4bp, 270=+14.1bp, 300=+12.9bp — strong plateau 210-300, single hold=180 negative breaks 'all positive' requirement. H5 monotone in |z|: z=2.0 +3.3bp / z=2.5 +14.4bp / z=3.0 +29.9bp. H6 baseline (return>0, no RV filter): n=2626 net=-11.6bp t=-3.58, ratio=-1.23 (opposite sign — RV filter genuinely adds value). VERDICT: GRAVEYARD per strict three-gate (perm_p>0.10 + H4 single-point at 180m). However signal is real and robust — same pattern as predecessor 67th graveyard. Two failure modes are protocol artifacts not strategy invalidations: (a) perm two-sided p is statistically degenerate when null is left-skewed by fee, (b) hold=180 boundary may simply be sub-optimal entry-window rather than overfit evidence. Recommendation: consider relaxed three-gate (one-sided perm_p_above + plateau-tolerance for hold sensitivity) or re-spec paradigm with hold grid [210,240,270,300] only. metrics: backend/runs/research_track/btc_rv_spike_up_conditional_alt_long_240m/r1__metrics.json (Mint)",
       "seed_spec": null,
       "mint_run": {
         "btc_bars": 547200,
@@ -352,7 +352,7 @@
       "type": "E",
       "created_at": "2026-05-14T12:38:45+00:00",
       "updated_at": "2026-05-14T12:39:50+00:00",
-      "graveyard_reason": "R-1 GRAVEYARD: SHORT direction is OPPOSITE \u2014 alts mean-revert UP after BTC DOWN-trigger. H1 mean=-49.0bp t=-3.62 sig_t_excess=-2.48 ci_lower=-75.6bp. 0/13 alts net>0. H6 mirror comparison: paradigm 69 LONG side measured +112.9bp t=+9.23 sig_t_excess=+10.4 on SAME data \u2014 SHORT is exactly the loser side of an asymmetric trigger, not an independent edge. H7 baseline -9.5bp negative drift. Mirror-symmetric hypothesis FALSIFIED.",
+      "graveyard_reason": "R-1 GRAVEYARD: SHORT direction is OPPOSITE — alts mean-revert UP after BTC DOWN-trigger. H1 mean=-49.0bp t=-3.62 sig_t_excess=-2.48 ci_lower=-75.6bp. 0/13 alts net>0. H6 mirror comparison: paradigm 69 LONG side measured +112.9bp t=+9.23 sig_t_excess=+10.4 on SAME data — SHORT is exactly the loser side of an asymmetric trigger, not an independent edge. H7 baseline -9.5bp negative drift. Mirror-symmetric hypothesis FALSIFIED.",
       "seed_spec": null
     },
     "btc_oi_velocity_regime_alt_long_240m": {
@@ -385,12 +385,12 @@
       "type": "E",
       "created_at": "2026-05-15T01:35:49+00:00",
       "updated_at": "2026-05-15T01:36:13+00:00",
-      "graveyard_reason": "R-1 FAIL three-gate at all z (1.5/2.0/2.5). Signed BTC-up pool z=2.0: n=53165 net=-8.45bp t=-18.17 sig_t_excess=-1.03 ci_upper=-7.50bp (NEGATIVE). All 13/13 alts negative. BTC-up filter no rescue (signed -8.45 \u2248 unsigned -8.08). Implied taker-buy-vol z-spike at 60m hold has anti-momentum bias. Standalone (not 69-derivative) so 9-lesson antipattern clean. Mirror SHORT NOT auto-launched (Q3 6.2 #8).",
+      "graveyard_reason": "R-1 FAIL three-gate at all z (1.5/2.0/2.5). Signed BTC-up pool z=2.0: n=53165 net=-8.45bp t=-18.17 sig_t_excess=-1.03 ci_upper=-7.50bp (NEGATIVE). All 13/13 alts negative. BTC-up filter no rescue (signed -8.45 ≈ unsigned -8.08). Implied taker-buy-vol z-spike at 60m hold has anti-momentum bias. Standalone (not 69-derivative) so 9-lesson antipattern clean. Mirror SHORT NOT auto-launched (Q3 6.2 #8).",
       "seed_spec": null
     },
     "funding_oi_bipolar_squeeze_event": {
       "name": "funding_oi_bipolar_squeeze_event",
-      "hypothesis": "Joint event detection: |funding_z|>=2.0 AND oi_growth_z>=+1.5 at 8h funding window. Sub-cell A (long-crowded fz>0): SHORT 240m. Sub-cell B (short-crowded fz<0): LONG 240m. Cooldown 24h. Universe = funding DB \u2229 microstructure 5m OI \u2229 ohlcv joblib = 6 syms (AVAX,BTC,DOGE,ETH,LINK,SOL).",
+      "hypothesis": "Joint event detection: |funding_z|>=2.0 AND oi_growth_z>=+1.5 at 8h funding window. Sub-cell A (long-crowded fz>0): SHORT 240m. Sub-cell B (short-crowded fz<0): LONG 240m. Cooldown 24h. Universe = funding DB ∩ microstructure 5m OI ∩ ohlcv joblib = 6 syms (AVAX,BTC,DOGE,ETH,LINK,SOL).",
       "data_dependencies": [
         "binance_funding_rate DB (1y)",
         " microstructure joblib (5m OI)",
@@ -402,7 +402,7 @@
       "type": "E",
       "created_at": "2026-05-15T02:17:16+00:00",
       "updated_at": "2026-05-15T02:20:16+00:00",
-      "graveyard_reason": "R-1 three-gate FAIL both sub-cells. Best A (long-crowded SHORT) f=1.5/oi=1.5/480m n=32 mean_bp=-24.4 sig_t_excess=-0.56 ci_lower=-0.0089 perm_p=0.50. Best B (short-crowded LONG) f=2.0/oi=1.0/480m n=50 mean_bp=+14.3 (sub-fee on 240m: -11.5bp) sig_t_excess=+0.79 ci_lower=-0.0055 perm_p=0.70. Joint funding+OI extreme rare (~50-83 events at lower thresholds, <30 at f>=2.0). Sub-cell B per-sym 3/6 positive (AVAX/BTC/ETH +) vs 3/6 negative (DOGE/LINK/SOL -) \u2014 no consistent direction. Joint event detection on this signal pair lacks edge above fee floor + insufficient sample density at strict thresholds. (71st R-1 graveyard.)",
+      "graveyard_reason": "R-1 three-gate FAIL both sub-cells. Best A (long-crowded SHORT) f=1.5/oi=1.5/480m n=32 mean_bp=-24.4 sig_t_excess=-0.56 ci_lower=-0.0089 perm_p=0.50. Best B (short-crowded LONG) f=2.0/oi=1.0/480m n=50 mean_bp=+14.3 (sub-fee on 240m: -11.5bp) sig_t_excess=+0.79 ci_lower=-0.0055 perm_p=0.70. Joint funding+OI extreme rare (~50-83 events at lower thresholds, <30 at f>=2.0). Sub-cell B per-sym 3/6 positive (AVAX/BTC/ETH +) vs 3/6 negative (DOGE/LINK/SOL -) — no consistent direction. Joint event detection on this signal pair lacks edge above fee floor + insufficient sample density at strict thresholds. (71st R-1 graveyard.)",
       "seed_spec": null
     },
     "btc_eth_correlation_breakdown_5m_event_alt_directional": {
@@ -443,7 +443,7 @@
     },
     "btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short": {
       "name": "btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short",
-      "hypothesis": "BTC-ETH 5m 1d-rolling corr breakdown z<=-2.0 + BTC dn \u00d7 alt dn at trigger \u2192 12-alt aggregate 240m forward SHORT capitulation continuation. NOT blind mirror of paradigm 75 LONG; promoted from paradigm 74 H5 sub-cell btc_dn \u00d7 sol_dn @ z=-2.0 (n=45 -39.9bp t=-1.60), pre-existing evidence stronger than LONG cell (n=26 +69.6bp t=+1.42). Lesson #8 mirror antipattern explicitly addressed.",
+      "hypothesis": "BTC-ETH 5m 1d-rolling corr breakdown z<=-2.0 + BTC dn × alt dn at trigger → 12-alt aggregate 240m forward SHORT capitulation continuation. NOT blind mirror of paradigm 75 LONG; promoted from paradigm 74 H5 sub-cell btc_dn × sol_dn @ z=-2.0 (n=45 -39.9bp t=-1.60), pre-existing evidence stronger than LONG cell (n=26 +69.6bp t=+1.42). Lesson #8 mirror antipattern explicitly addressed.",
       "data_dependencies": [
         "OHLCV joblib cache (BTC + ETH + 12 alts: ADA AVAX BCH BNB DOGE FIL LINK LTC NEAR SOL WIF XRP)"
       ],
@@ -460,7 +460,7 @@
     },
     "btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short": {
       "name": "btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short",
-      "hypothesis": "BTC-ETH 5m corr severe breakdown z<=-2.5 (deeper tail than paradigm 76 z=-2.0 focus) + BTC dn + alt dn \u2192 12 alt 240m SHORT capitulation cascade. Cherry-pick verification of paradigm 76 non-focus PASS (n=298 +33.59bp signal_excess +3.71sigma perm_p 0.004) by promoting z=-2.5 to focus + multi-hold robustness + Bonferroni adjusted p-value.",
+      "hypothesis": "BTC-ETH 5m corr severe breakdown z<=-2.5 (deeper tail than paradigm 76 z=-2.0 focus) + BTC dn + alt dn → 12 alt 240m SHORT capitulation cascade. Cherry-pick verification of paradigm 76 non-focus PASS (n=298 +33.59bp signal_excess +3.71sigma perm_p 0.004) by promoting z=-2.5 to focus + multi-hold robustness + Bonferroni adjusted p-value.",
       "data_dependencies": [
         "ohlcv_1m joblib cache (BTCUSDT",
         " ETHUSDT",
@@ -480,7 +480,7 @@
     },
     "range_compression_directional_break_alt_30m_240m": {
       "name": "range_compression_directional_break_alt_30m_240m",
-      "hypothesis": "30m path tortuosity z>=+2.5 compression on rolling 24-bar (12h) window followed by next-bar |return|>=2x vol break \u2192 directional 240m alt LONG/SHORT continuation. 13-alt universe (BTC excluded). Path tortuosity = sum(|H-L|)/|close_net_move| over 12h is a novel geometric DNA dimension (NOT covered by corr / vol-regime / skewness / taker / premium-funding / OI-velocity).",
+      "hypothesis": "30m path tortuosity z>=+2.5 compression on rolling 24-bar (12h) window followed by next-bar |return|>=2x vol break → directional 240m alt LONG/SHORT continuation. 13-alt universe (BTC excluded). Path tortuosity = sum(|H-L|)/|close_net_move| over 12h is a novel geometric DNA dimension (NOT covered by corr / vol-regime / skewness / taker / premium-funding / OI-velocity).",
       "data_dependencies": [
         "ohlcv 1m joblib cache (14 syms)"
       ],
@@ -492,10 +492,27 @@
       "type": "E",
       "created_at": "2026-05-15T04:30:00+00:00",
       "updated_at": "2026-05-15T04:32:38+00:00",
-      "graveyard_reason": "R-1 graveyard (78th paradigm). Aggregate three-gate FAIL across all hold windows: 60m net=-9.4bp sigex=+0.24 / 120m net=-8.8bp sigex=-0.16 / 240m net=-14.4bp obs_t=-2.49 null_mean_t=-2.05 sigex=-0.44 perm_p=0.320 ci=[-25.5,-3.6]bp / 480m net=-17.6bp sigex=-1.70 perm_p=0.058 (anti-momentum significant). Diversity: 3/13 alts net>0 (AVAX/LINK/XRP only); 0/13 ci_lower>0. Concentration: 2/10 measurable quarters t>0 (2024Q1-2025Q2 + 2026Q1 all negative). Sign-split symmetric BOTH negative (UP-LONG -13.1bp t=-1.62 / DOWN-SHORT -15.5bp t=-1.89) = direction-following continuation hypothesis fully falsified; not a mirror antipattern, both directions truly fail. Mechanism reversed: post-compression break bars exhibit mean-reversion not continuation; hold sweep monotonically worsens with longer hold. DNA: path tortuosity geometric metric \u2014 first non-statistical OHLCV dimension tested; FALSIFIED as directional source.",
+      "graveyard_reason": "R-1 graveyard (78th paradigm). Aggregate three-gate FAIL across all hold windows: 60m net=-9.4bp sigex=+0.24 / 120m net=-8.8bp sigex=-0.16 / 240m net=-14.4bp obs_t=-2.49 null_mean_t=-2.05 sigex=-0.44 perm_p=0.320 ci=[-25.5,-3.6]bp / 480m net=-17.6bp sigex=-1.70 perm_p=0.058 (anti-momentum significant). Diversity: 3/13 alts net>0 (AVAX/LINK/XRP only); 0/13 ci_lower>0. Concentration: 2/10 measurable quarters t>0 (2024Q1-2025Q2 + 2026Q1 all negative). Sign-split symmetric BOTH negative (UP-LONG -13.1bp t=-1.62 / DOWN-SHORT -15.5bp t=-1.89) = direction-following continuation hypothesis fully falsified; not a mirror antipattern, both directions truly fail. Mechanism reversed: post-compression break bars exhibit mean-reversion not continuation; hold sweep monotonically worsens with longer hold. DNA: path tortuosity geometric metric — first non-statistical OHLCV dimension tested; FALSIFIED as directional source.",
+      "seed_spec": null
+    },
+    "funding_oi_bipolar_squeeze_event_retry_2025_2026": {
+      "name": "funding_oi_bipolar_squeeze_event_retry_2025_2026",
+      "hypothesis": "Paradigm 73 retry with 14-sym universe (was 6) + 2.2yr sample (was 1yr): funding rate 30-window z-score AND OI growth z-score >= +1.5 joint trigger, sign-bipolar sub-cells A (long-crowded SHORT) + B (short-crowded LONG), 240m/480m hold, 24h cooldown",
+      "data_dependencies": [
+        "binance_funding_rate DB 2.5yr",
+        " microstructure joblib 5m OI 14 syms (BTC 1.5yr / 13 alts 2.2yr)",
+        " ohlcv joblib cache 14 syms"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T05:24:28+00:00",
+      "updated_at": "2026-05-15T05:27:44+00:00",
+      "graveyard_reason": "paradigm 79 R-1 graveyard 2026-05-15 turn 4. Paradigm 73 RETRY with sample-density boost (universe 6->14, sample 1yr->2.2yr, panel 9750->34292). Lesson #11 prescreen VALIDATED — focus n boost 10->69 (A) / 30->137 (B). Three-gate both sub-cells FAIL: A SHORT mean_bp=+4.94 sigex=0.524 perm_p=0.822 sub-fee no-sig / B LONG mean_bp=-53.04 sigex=-1.213 perm_p=0.143 directionally wrong 7/9 quarters neg 12/14 syms neg. Grid sweep 36 cells, NO PASS, max sigex +1.80 (A f=2.0 oi=1.0 240m). Mechanism FALSIFIED at expanded sample.",
       "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T04:32:38+00:00"
+  "updated_at": "2026-05-15T05:27:44+00:00"
 }
