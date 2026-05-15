@@ -26,7 +26,7 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 - `.claude/plans/research_track_master.md` — elite gate definition, paradigm catalog, R-1~R-6 protocol
 - `.claude/plans/paper_pool_master.md` — current paper pool baseline (~38 sessions)
 - `.claude/plans/paradigm_architect_handoff.json` — most recent session handoff (graveyards, lessons, infrastructure deltas)
-- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **19 cumulative lessons** (Q3 mid-update, 2026-05-15) — read before any R-1 dispatch
+- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **20 cumulative lessons** (Q3 mid-update, 2026-05-15) — read before any R-1 dispatch
 - `backend/scripts/research/_perm_utils.py` — mandatory fee-aware perm + bootstrap CI helper (replaces naive perm code)
 - `backend/scripts/research/_ohlcv_parquet_cache.py` — joblib OHLCV cache loader (Mint ~/auto_trading/backend/runs/ohlcv_cache/)
 - `backend/scripts/research/eval_research_gate.py` — automated gate evaluator (`evaluate_e_new` for `_perm_utils` schema)
@@ -393,6 +393,7 @@ If any check fails, fix code before promoting. Document the fix in a commit.
 | R-1 focus FAIL + sweep non-focus PASS (Lesson #15) | run separate R-1 replication + Bonferroni adj_p + hold-sweep sign check; if all four met, propose as candidate paradigm (still halt for user) |
 | R-1 joint-trigger paradigm dispatched without Symmetric Negative Test (Lesson #19) | reject before execution — regenerate R-1 script with 4-quadrant variants (A focus + A mirror + B same-sign + B mirror) baked in. Joint-trigger = trigger condition is logical AND of two or more z-scores/threshold events |
 | R-1 Symmetric Negative Test all 4 variants 3-gate FAIL | **broad-falsified** graveyard, no follow-up R-1 dispatch for mirror/B accepted. Cite paradigm 80 precedent in graveyard note |
+| R-1 sign-conditional 4-cell focus FAIL + single non-focus cell isolated three-gate PASS + Concentration FAIL (Lesson #20) | graveyard the paradigm. Narrow scope variant (single-symbol cluster R-1) requires Lesson #15 4-cond (a)+(b)+(c)+(d) ALL pass on the cluster — do NOT auto-dispatch narrow variant. Cite paradigm 81 precedent (cell 4 sigex +2.52 PASS but 3/13 alts only → not promotable) |
 | Gate evaluator returns parse error | inspect metrics.json schema, regenerate script if needed |
 | Dogfood mismatch (Hyp B re-run produces different results) | STOP and re-validate gate config — do not promote any new paradigm until reconciled |
 
