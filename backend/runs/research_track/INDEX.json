@@ -511,8 +511,23 @@
       "updated_at": "2026-05-15T05:27:44+00:00",
       "graveyard_reason": "paradigm 79 R-1 graveyard 2026-05-15 turn 4. Paradigm 73 RETRY with sample-density boost (universe 6->14, sample 1yr->2.2yr, panel 9750->34292). Lesson #11 prescreen VALIDATED — focus n boost 10->69 (A) / 30->137 (B). Three-gate both sub-cells FAIL: A SHORT mean_bp=+4.94 sigex=0.524 perm_p=0.822 sub-fee no-sig / B LONG mean_bp=-53.04 sigex=-1.213 perm_p=0.143 directionally wrong 7/9 quarters neg 12/14 syms neg. Grid sweep 36 cells, NO PASS, max sigex +1.80 (A f=2.0 oi=1.0 240m). Mechanism FALSIFIED at expanded sample.",
       "seed_spec": null
+    },
+    "rolling_beta_regime_breakdown": {
+      "name": "rolling_beta_regime_breakdown",
+      "hypothesis": "13 alts rolling 30d beta vs BTC, beta-z extreme breakdown (|z|>2.0) trigger × BTC 1d direction 4-cell symmetric (sign-conditional). Mechanism: beta amplification × BTC trend follow (cells 1,2 LONG/SHORT) OR beta decoupling × BTC trend fade (cells 3,4 SHORT/LONG). Hold focus 5d, sweep 1d/3d/5d/10d/20d.",
+      "data_dependencies": [
+        "ohlcv_cache joblib 14 syms (BTC + 13 alts)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T06:27:02+00:00",
+      "updated_at": "2026-05-15T06:31:59+00:00",
+      "graveyard_reason": "R1_FAIL focus cell 1 mean -196.5bp sigex -3.83 3-gate FAIL; cell 4 separate 3-gate PASS but Concentration Gate FAIL (3/13 syms ci_pos = AVAX/BCH/BNB) + Lesson #15 4-cond FAIL (diversity 3/13 + Bonferroni adj_p 0.18). See GRAVEYARD_NOTE.md",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T05:27:44+00:00"
+  "updated_at": "2026-05-15T06:31:59+00:00"
 }
