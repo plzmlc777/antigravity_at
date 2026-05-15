@@ -1,27 +1,36 @@
 {
   "_meta": {
-    "title": "paradigm-architect handoff — 2026-05-15 turn 3 burst: paradigm 78 graveyard (geometric path metrics family retire) + lesson #17 + Concentration Gate dogfood 정상 + paradigm-architect spec lesson #15-16 통합",
+    "title": "paradigm-architect handoff — 2026-05-15 turn 3 burst v2: paradigm 78 graveyard (geometric path metrics family retire) + paradigm 79 graveyard (funding × OI joint squeeze family retire, 2회 일관 fail) + lessons #17/#18 + Concentration Gate dogfood 정상 + funding DB 2.5yr 백필 + paradigm-architect spec lesson #15-16 통합",
     "snapshot_date": "2026-05-15",
-    "snapshot_time_kst": "16:00",
-    "session_summary": "2026-05-15 turn 3 (Option B spec 강화 + Option A R-1 dispatch): paradigm-architect agent spec에 lesson #15 (non-focus PASS 4-cond promotion) + lesson #16 (Concentration Gate per-quarter t-stat + per-symbol bootstrap_ci auto-emit) 통합. paradigm 78 `range_compression_directional_break_alt_30m_240m` R-1 dispatch — three-gate ALL FAIL (sigex -0.44 / ci [-25.5,-3.6]bp / perm_p 0.320), sign-split UP-LONG -13.14bp + DOWN-SHORT -15.52bp 대칭 음수 (mirror antipattern 아닌 진성 dud), Concentration Gate 첫 dogfood 정상 작동 (quarter_pos_t_ratio 0.20 / symbol_ci_pos_ratio 0.00 균질 음수 = cherry-pick X). Hold sweep monotonic worsening (480m sigex -1.70 perm_p 0.058 anti-momentum 근접). Lesson #17 추가: geometric path metrics family (tortuosity / fractality / Hurst exponent) alone fee-floor 미달 = skewness family (65-66)와 동질, Tier 4 영구 제거. 누적 17 lessons (Q3 §6.2), 18 R-1 graveyards (61-78 minus 69 R-5 seeded).",
+    "snapshot_time_kst": "17:30",
+    "session_summary": "2026-05-15 turn 3 v2 (spec 강화 + 2 R-1 dispatch + funding DB backfill): paradigm-architect spec에 lesson #15 (non-focus PASS 4-cond) + lesson #16 (Concentration Gate 자동 emit) 통합 → paradigm 78 (path tortuosity compression+break) three-gate ALL FAIL + symmetric negative graveyard + lesson #17 geometric path metrics family retire → funding DB 1y→2.5yr backfill (40,654 rows, 17초 실측) → paradigm 79 = paradigm 73 retry (funding × OI bipolar squeeze) sample 5.1x boost 후에도 mechanism falsified (B short-crowded LONG -53bp 방향 반대 12/14 syms) graveyard + lesson #18 sample boost ≠ mechanism 보상 + funding × OI joint squeeze family retire (4번째 family retire). 누적 18 lessons (Q3 §6.2), 19 R-1 graveyards (61-79 minus 69 R-5 seeded), 4 retired families (taker / cross-asset corr / geometric path / funding × OI joint).",
     "primary_user_goal": "쉬지 않고 계속 새 paradigm 발굴 + 인생 바꾸는 alpha 추구. Quality > Quantity.",
-    "next_session_resume_target": "OHLCV-only 공간 점진 소진 (78 paradigm 18번째 R-1 graveyard) → 새 도메인 열기 우선. funding DB 2-3yr 백필 ETA 평가 → ETA OK시 paradigm 73 (funding_oi_bipolar_squeeze_event) retry with expanded sample. 또는 premium 5m 백필 ETA 평가 → #4 oi_premium_5m_decoupling. 또는 microstructure (LSR/taker family retire 후) novel non-velocity 차원.",
-    "git_head_at_snapshot": "(this commit) — paradigm-architect spec lesson #15-16 hooks + paradigm 78 graveyard artifacts (240d5573) + Q3 §6.2 lesson #17 + Tier 4 geometric_path_metrics_family retire + handoff turn 3 update"
+    "next_session_resume_target": "**OHLCV+derivatives 공간 점진 소진 메타 패턴 확인** (19 R-1 graveyards 대비 1 R-5 시드 = 5% PASS rate). 새 도메인 또는 새 mechanism 차원 우선 — (a) premium 5m 백필 후 #4 oi_premium_5m_decoupling, (b) microstructure novel non-OI-velocity / non-taker / non-LSR / non-book-depth 차원, (c) OHLCV-only non-corr/non-vol-regime/non-skewness/non-path-geometric 차원 (예: volume profile / VWAP deviation / session boundary effect). retry 결정 트리 (lesson #18): graveyard 사유가 *오직* sample-density이고 mechanism aggregate marginal-positive였을 때만 retry 정당.",
+    "git_head_at_snapshot": "(this commit) — paradigm-architect spec lesson #15-16 hooks + paradigm 78/79 graveyard artifacts (240d5573 / 0a5e9177) + Q3 §6.2 lessons #17/#18 + Tier 4 geometric_path_metrics_family + funding_oi_joint_squeeze_family retire + funding DB 2.5yr backfill + handoff turn 3 v2"
   },
 
   "today_2026_05_15_turn3_summary": {
-    "spec_enhancement": "paradigm-architect.md 7개 영역 lesson #15-16 hooks 통합: References (16 lessons file pointer) / Step 3 Mandatory Lesson #16 Concentration Diagnostics 코드 + Concentration Gate (quarter_pos_t_ratio ≥ 0.5 AND symbol_ci_pos_ratio ≥ 0.30 AND n_symbols_ci_pos ≥ 3) / Step 3 Lesson #15 non-focus PASS 4-cond policy (separate R-1 replication + Bonferroni adj_p + hold sweep 부호 일치) / Failure protocols 3 신규 row (CONCENTRATED_R1_PASS / non-focus 4-cond / expected_n<30 prescreen halt) / Output format verdict 4-state",
+    "spec_enhancement": "paradigm-architect.md 7개 영역 lesson #15-16 hooks 통합: References (lessons file pointer) / Step 3 Mandatory Lesson #16 Concentration Diagnostics 코드 + Concentration Gate (quarter_pos_t_ratio ≥ 0.5 AND symbol_ci_pos_ratio ≥ 0.30 AND n_symbols_ci_pos ≥ 3) / Step 3 Lesson #15 non-focus PASS 4-cond policy / Failure protocols 3 신규 row / Output format verdict 4-state.",
+    "data_backfill": "funding DB 1y → 2.5yr (14 OHLCV-aligned syms × 911일 / WIFUSDT 847일). +33,950 net new rows, total binance_funding_rate 24,117 → 58,067 rows. ETA 예측 5-10분, 실측 17초 (extremely cheap). Idempotent ON CONFLICT (symbol, funding_time) DO NOTHING.",
     "graveyards": [
-      "78 range_compression_directional_break_alt_30m_240m (lesson #17 geometric path metrics family — three-gate ALL FAIL, sign-split 대칭 음수, Concentration Gate dogfood 정상)"
+      "78 range_compression_directional_break_alt_30m_240m (lesson #17 geometric path metrics family — three-gate ALL FAIL, sign-split 대칭 음수, Concentration Gate dogfood 정상)",
+      "79 funding_oi_bipolar_squeeze_event_retry_2025_2026 (lesson #18 sample boost ≠ mechanism 보상 — paradigm 73 sample-density 해결 후에도 mechanism falsified, B short-crowded LONG -53bp 방향 반대)"
     ],
-    "concentration_gate_first_dogfood": "paradigm 78에서 lesson #16 hook 첫 적용 — three-gate FAIL이라 Concentration Gate까지 도달 안 했으나 r1__metrics.json `concentration` 블록 정상 emit (quarter_pos_t_ratio 0.20 / symbol_ci_pos_ratio 0.00). homogeneous failure 확정으로 cherry-pick artifact 가능성 사전 차단 확인. 향후 paradigm에서 three-gate PASS시 concentration 진단 자동 작동 보장.",
-    "family_retire": "geometric_path_metrics_family (tortuosity / fractality / Hurst exponent / box-counting fractal dim 등 alone) — skewness family (65-66 graveyard)와 동질, return distribution moments 외 geometric path metrics도 fee-floor 미달.",
+    "concentration_gate_first_dogfood": "paradigm 78에서 lesson #16 hook 첫 적용 — three-gate FAIL이라 Concentration Gate까지 도달 안 했으나 r1__metrics.json `concentration` 블록 정상 emit (quarter_pos_t_ratio 0.20 / symbol_ci_pos_ratio 0.00). homogeneous failure 확정으로 cherry-pick artifact 가능성 사전 차단 확인. paradigm 79에서도 정상 작동 (B LONG q_ratio 0.14 / s_ratio 0.0 균질 negative).",
+    "family_retire_2_in_turn3": [
+      "geometric_path_metrics_family (tortuosity / fractality / Hurst / box-counting alone) — skewness family와 동질 fee-floor 미달",
+      "funding_oi_joint_squeeze_family (paradigm 73 sample-bottleneck + 79 mechanism-falsified 2회 일관) — textbook short-squeeze 직관 cross-symbol universal에서 작동 X"
+    ],
     "new_lessons_q3_62": [
-      "#17 (78): Geometric path metrics alone fee-floor 미달 — 12h tortuosity z 압축 + break direction-following 240m hold가 양 방향 대칭 음수 (UP-LONG -13bp / DOWN-SHORT -15bp). skewness family와 동질 — return distribution moments 외 geometric path metrics (tortuosity / fractality / Hurst / box-counting) alone 단독 directional signal 못 운반. Tier 4 family retire."
+      "#17 (78): Geometric path metrics alone fee-floor 미달 — 12h tortuosity z 압축 + break direction-following 240m hold 양 방향 대칭 음수. skewness family와 동질. Tier 4 family retire.",
+      "#18 (79): Sample-density boost는 mechanism 부재를 보상하지 않는다 — paradigm 73 graveyard 사유(sample-density)를 정확히 해결(5.1x boost 실측)했음에도 mechanism 차원에서 falsified. Lesson #11 prescreen mechanic은 정상 작동하나 sample-density는 mechanism의 필요조건이지 충분조건이 아님. retry 결정 트리: (a) 기존 graveyard 사유가 *오직* sample-density뿐이고 mechanism aggregate marginal-positive였으면 retry 정당화, (b) mechanism이 noise-level 또는 directionally wrong이었으면 sample 확장해도 fail. funding × OI joint squeeze family retire."
     ],
+    "meta_pattern_emerging": "19 R-1 graveyards 대비 1 R-5 시드 (69) = 5% PASS rate. OHLCV + derivative joint events 공간 점진 소진. 4 families retired (taker / cross-asset corr / geometric path / funding × OI joint). 향후 새 도메인 (premium 5m / 새 microstructure 차원) 또는 OHLCV 새 mechanism 차원 발굴 필요.",
     "commits_2026_05_15_turn3": [
       "240d5573 research(architect): paradigm 78 range_compression_directional_break_alt_30m_240m R-1 graveyard",
-      "(this commit) research(orchestrator): paradigm-architect spec lesson #15-16 hooks + Q3 §6.2 lesson #17 + Tier 4 geometric_path_metrics_family retire + handoff turn 3 update"
+      "935fb41f research(orchestrator): paradigm-architect spec lesson #15-16 hooks + Q3 §6.2 lesson #17 + Tier 4 geometric_path_metrics_family retire + handoff turn 3",
+      "0a5e9177 research(architect): paradigm 79 funding_oi_bipolar_squeeze_event_retry_2025_2026 R-1 graveyard",
+      "(this commit) research(orchestrator): Q3 §6.2 lesson #18 + Tier 4 funding_oi_joint_squeeze_family retire + handoff turn 3 v2 + funding DB 2.5yr backfill (40,654 rows)"
     ]
   },
 
@@ -86,7 +95,7 @@
   },
 
   "mandatory_checklist_r1_r3_v2": {
-    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (17 lessons as of 2026-05-15 turn 3)",
+    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (18 lessons as of 2026-05-15 turn 3 v2)",
     "1_perm_utils_mandatory": "_perm_utils.fee_aware_perm_test + bootstrap_ci. null_mean_t 보고 필수.",
     "2_three_gate_strict": "signal_t_excess ≥ 2.0 AND ci_lower > 0 AND perm_p_two_sided ≤ 0.10.",
     "3_sign_conditional_h5": "Unsigned hypothesis는 즉시 sign-split 검토.",
@@ -103,7 +112,8 @@
     "14_single_symbol_h5_no_generalize": "단일 종목 H5 sub-cell evidence는 cross-symbol promotion 보장 X. 사전 cross-symbol mini-validation 의무. precedent: paradigm 74 H5 SOL-only |t|=1.60 → 76 12-alt +0.42bp/sigex +0.83 generalize 실패.",
     "15_non_focus_pass_promotion_4cond": "non-focus PASS 격상 4-조건 정책: (a) 모든 4 gate 통과 (3-gate + diversity), (b) separate R-1 replication ±10% 일치, (c) Bonferroni adj_p ≤ 0.10, (d) hold sweep 부호 일치. R-1 PASS는 충분조건 아니며 R-2 robustness가 진짜 검증.",
     "16_quarter_symbol_concentration_diagnostic": "Aggregate stat은 quarter/symbol 집중도 사전 검증 필수. R-1 단계에서 per-quarter t-stat distribution + per-alt ci_lower bootstrap 자동 포함 의무. Cherry-pick artifact 사전 차단.",
-    "17_geometric_path_metrics_family_retire": "Geometric path metrics (tortuosity / fractality / Hurst exponent / box-counting fractal dim 등) alone fee-floor 미달. paradigm 78 12h tortuosity z 압축 + break direction-following 240m hold 양 방향 대칭 음수 (UP-LONG -13bp / DOWN-SHORT -15bp). skewness family (65-66)와 동질 — return distribution moments 외 geometric path metrics 단독 directional signal 못 운반. Tier 4 family retire."
+    "17_geometric_path_metrics_family_retire": "Geometric path metrics (tortuosity / fractality / Hurst exponent / box-counting fractal dim 등) alone fee-floor 미달. paradigm 78 12h tortuosity z 압축 + break direction-following 240m hold 양 방향 대칭 음수 (UP-LONG -13bp / DOWN-SHORT -15bp). skewness family (65-66)와 동질 — return distribution moments 외 geometric path metrics 단독 directional signal 못 운반. Tier 4 family retire.",
+    "18_sample_boost_not_mechanism_compensation": "Sample-density boost는 mechanism 부재를 보상하지 않는다. paradigm 79 = paradigm 73 retry — 사용 5.1x boost (universe 6→14 × sample 1yr→2.5yr microstructure 1.5yr binding) 실측 적중 (A n=10→69 / B n=30→137) but B sub-cell mean -53bp 방향 반대 12/14 syms 음수로 mechanism falsified. Lesson #11 prescreen mechanic은 정상 작동. retry 결정 트리: (a) 기존 graveyard 사유 *오직* sample-density + mechanism aggregate marginal-positive면 retry 정당, (b) mechanism noise/directionally-wrong이면 sample 확장 fail. funding × OI joint squeeze family Tier 4 retire (paradigm 73 + 79 2회 일관 fail)."
   },
 
   "fee_floor_prescreen_rule": "R-1 호출 전 expected gross |return| per trigger ≥ 16 bp (=2×8bp fee + buffer). 미달 시 발의 보류.",
@@ -125,6 +135,12 @@
       "DNA": "Geometric path metrics alone (tortuosity / fractality / Hurst exponent / box-counting fractal dim 등) — intra-window |H-L| 누적 또는 fractal dimension 계산값",
       "lesson": "#17 — return distribution moments family (skewness 65-66) 와 동질하게 geometric path metrics alone directional alpha 못 운반. UP-LONG/DOWN-SHORT 양 방향 대칭 음수 = 진성 dud (mirror sub-paradigm 잠재력 X)",
       "added_2026_05_15_turn3": true
+    },
+    "funding_oi_joint_squeeze_family": {
+      "graveyards": ["73 funding_oi_bipolar_squeeze_event (sample-density bottleneck)", "79 funding_oi_bipolar_squeeze_event_retry_2025_2026 (sample 5.1x boost 후에도 mechanism falsified)"],
+      "DNA": "Funding rate z-score × OI growth z-score joint event detection at 8h funding boundary, bipolar sub-cells (long-crowded SHORT / short-crowded LONG) 240m hold",
+      "lesson": "#11 (73) sample-density prescreen + #18 (79) sample boost ≠ mechanism 보상 — B short-crowded LONG sub-cell 방향 반대 (12/14 syms 음수 / 7/9 quarters 음수). textbook short-squeeze 직관 cross-symbol universal에서 작동 X. funding × OI 단순 z-score joint은 directional alpha 못 운반.",
+      "added_2026_05_15_turn3_v2": true
     }
   },
 
@@ -134,7 +150,7 @@
       "ohlcv_joblib_cache": "Mint ~/auto_trading/backend/runs/ohlcv_cache/{SYM}_1m.joblib × 14 (~250MB), gitignored",
       "premium_joblib": "1y on Mint (별도 백필 필요 시)",
       "microstructure_joblib": "5m × 1.5yr on Mint (OI/LSR/taker columns)",
-      "binance_funding_rate_db": "1y on Mint (2025-05~2026-05)"
+      "binance_funding_rate_db": "**2.5yr on Mint (2023-11-15~2026-05-15)** — 2026-05-15 turn 3 backfill. 14 OHLCV-aligned syms × 911일 (WIFUSDT 847일 listing date). Total 58,067 rows. Idempotent ON CONFLICT (symbol, funding_time) DO NOTHING."
     },
     "research_track_dir": "Mint ~/auto_trading/backend/runs/research_track/",
     "active_paradigms": {
@@ -144,14 +160,15 @@
       "R-4": ["(promoted, gate evaluator passed)"]
     },
     "paper_pool_total": "51 active sessions (KR 10 + Composer-ML 13 + Research Track 28 incl. paradigm 69 13)",
-    "graveyard_total": "18 paradigms × R-1 graveyard (61-78 minus 69 R-5 seeded)"
+    "graveyard_total": "19 paradigms × R-1 graveyard (61-79 minus 69 R-5 seeded)"
   },
 
   "next_session_start_commands": {
-    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 funding DB 2-3yr 백필 ETA 평가 진행 (turn 3에서 OHLCV-only 공간 점진 소진 확인 — 18 R-1 graveyard). ETA OK시 paradigm 73 retry (funding_oi_bipolar_squeeze_event) sample density 확보로 재시도. 17 lessons 회피 + cross-asset corr/taker/geometric path metrics family 회피.",
-    "alternative_1": "premium 5m 백필 ETA 평가 (1y → 14 syms × 5m × 1y) 후 #4 oi_premium_5m_decoupling 진행",
-    "alternative_2": "OHLCV-only novel mechanism 브레인스토밍 — corr/vol-regime/cross-sec rotation/skewness/RV contagion/path-geometric 모두 회피한 차원. 후보: volume absorption (volume spike + small |return| absorption mark) — 단 taker family 회피 정당화 필요 / overnight gap (crypto 24h 없음 → session boundary effect 변형)",
-    "alternative_3": "paper baseline 측정 우선: paradigm 69 D+1 (오늘) trigger 발생 여부 점검. paper session 13개 health check.",
+    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json (turn 3 v2) 후 새 도메인/mechanism 발굴. **메타 패턴**: 19 R-1 graveyards 대비 1 R-5 시드 (5% PASS rate), OHLCV+derivative joint events 공간 점진 소진. 4 retired families 회피: taker / cross-asset corr / geometric path / funding × OI joint. 18 lessons (Q3 §6.2) 회피. retry 결정 트리 (lesson #18): graveyard 사유가 *오직* sample-density + mechanism aggregate marginal-positive였을 때만 정당.",
+    "alternative_1": "premium 5m 백필 ETA 평가 (14 syms × 5m × 1-2yr) 후 #4 oi_premium_5m_decoupling 진행. funding 백필 17초 실측이라 premium 5m도 cheap 가능성 높음.",
+    "alternative_2": "Microstructure novel non-OI-velocity / non-taker / non-LSR 차원 — book_depth (Tier 4) / liquidation_proxy (taker_buy_vol - taker_sell_vol 극단값 = synthetic liquidation cascade) / mark_price vs index_price spread 등.",
+    "alternative_3": "OHLCV-only non-corr/non-vol-regime/non-skewness/non-path-geometric 차원 — volume profile / VWAP deviation / session boundary effect (UTC 00:00 daily reset에서 alts 행동) / weekly pattern (월~금 vs 토~일 funding 차이).",
+    "alternative_4": "paper baseline 측정 우선: paradigm 69 D+1 (오늘) trigger 발생 여부 점검. paper session 13개 health check.",
     "day_7_paper_baseline_check_at": "2026-05-21 — paradigm 69 13 sessions 첫 baseline 측정",
     "day_30_paper_baseline_validation_at": "2026-06-13 — predicted +57%/yr 대비 측정값, alpha < 50% 시 demote"
   },
