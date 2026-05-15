@@ -354,8 +354,41 @@
       "updated_at": "2026-05-14T12:39:50+00:00",
       "graveyard_reason": "R-1 GRAVEYARD: SHORT direction is OPPOSITE — alts mean-revert UP after BTC DOWN-trigger. H1 mean=-49.0bp t=-3.62 sig_t_excess=-2.48 ci_lower=-75.6bp. 0/13 alts net>0. H6 mirror comparison: paradigm 69 LONG side measured +112.9bp t=+9.23 sig_t_excess=+10.4 on SAME data — SHORT is exactly the loser side of an asymmetric trigger, not an independent edge. H7 baseline -9.5bp negative drift. Mirror-symmetric hypothesis FALSIFIED.",
       "seed_spec": null
+    },
+    "btc_oi_velocity_regime_alt_long_240m": {
+      "name": "btc_oi_velocity_regime_alt_long_240m",
+      "hypothesis": "BTC 30m OI growth z-score >= +2.5 trigger + BTC 30d realized vol p90 HIGH-vol filter + 13 alts LONG 240m hold. paradigm 69 OI-velocity analog (microstructure trigger orthogonal to RV).",
+      "data_dependencies": [
+        "microstructure_joblib (BTC 5m OI)",
+        " ohlcv_cache (14 syms 1m)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/btc_oi_velocity_regime_alt_long_240m/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T01:07:49+00:00",
+      "updated_at": "2026-05-15T01:14:44+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "taker_buy_volume_5m_zscore_signcond": {
+      "name": "taker_buy_volume_5m_zscore_signcond",
+      "hypothesis": "Per-sym 5m taker-buy quote vol z>=2.0 + BTC-up filter -> 60m LONG continuation. Standalone info-flow signal.",
+      "data_dependencies": [
+        "microstructure 5m joblib + ohlcv 1m cached"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T01:35:49+00:00",
+      "updated_at": "2026-05-15T01:36:13+00:00",
+      "graveyard_reason": "R-1 FAIL three-gate at all z (1.5/2.0/2.5). Signed BTC-up pool z=2.0: n=53165 net=-8.45bp t=-18.17 sig_t_excess=-1.03 ci_upper=-7.50bp (NEGATIVE). All 13/13 alts negative. BTC-up filter no rescue (signed -8.45 ≈ unsigned -8.08). Implied taker-buy-vol z-spike at 60m hold has anti-momentum bias. Standalone (not 69-derivative) so 9-lesson antipattern clean. Mirror SHORT NOT auto-launched (Q3 6.2 #8).",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-14T12:39:50+00:00"
+  "updated_at": "2026-05-15T01:36:13+00:00"
 }
