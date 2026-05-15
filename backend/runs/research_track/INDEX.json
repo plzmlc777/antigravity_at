@@ -404,8 +404,61 @@
       "updated_at": "2026-05-15T02:20:16+00:00",
       "graveyard_reason": "R-1 three-gate FAIL both sub-cells. Best A (long-crowded SHORT) f=1.5/oi=1.5/480m n=32 mean_bp=-24.4 sig_t_excess=-0.56 ci_lower=-0.0089 perm_p=0.50. Best B (short-crowded LONG) f=2.0/oi=1.0/480m n=50 mean_bp=+14.3 (sub-fee on 240m: -11.5bp) sig_t_excess=+0.79 ci_lower=-0.0055 perm_p=0.70. Joint funding+OI extreme rare (~50-83 events at lower thresholds, <30 at f>=2.0). Sub-cell B per-sym 3/6 positive (AVAX/BTC/ETH +) vs 3/6 negative (DOGE/LINK/SOL -) — no consistent direction. Joint event detection on this signal pair lacks edge above fee floor + insufficient sample density at strict thresholds. (71st R-1 graveyard.)",
       "seed_spec": null
+    },
+    "btc_eth_correlation_breakdown_5m_event_alt_directional": {
+      "name": "btc_eth_correlation_breakdown_5m_event_alt_directional",
+      "hypothesis": "BTC-ETH 5m corr 1d-rolling z<-1.5/-2.0/-2.5 cross-asset dislocation -> SOL 240m forward LONG (cascade overshoot reversal hypothesis)",
+      "data_dependencies": [
+        "ohlcv 1m joblib cache (BTC",
+        "ETH",
+        "SOL)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/btc_eth_corr_breakdown/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T02:42:24+00:00",
+      "updated_at": "2026-05-15T02:42:28+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long": {
+      "name": "btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long",
+      "hypothesis": "BTC-ETH 5m corr_z<=-2.0 breakdown + sign-cond pre-filter (BTC dn x alt up at trigger) -> alt 240m forward LONG continuation. Promotion of paradigm 74 H5 sub-cell finding (n=26 SOL +69.6bp t=+1.42) to cross-alt aggregate test for power.",
+      "data_dependencies": [
+        "OHLCV joblib cache 14 syms (BTC+ETH+12alts)",
+        " no microstructure",
+        " no funding"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T03:01:18+00:00",
+      "updated_at": "2026-05-15T03:03:20+00:00",
+      "graveyard_reason": "R-1 three-gate FAIL all 3 z thresholds. Focus z=-2.0 aggregate (n=330): gross +19.0bp net +11.0bp signal_excess=+1.78 (sub 2.0) ci_lower=-0.001 (crosses 0) perm_p=0.42. Diversity 7/12 PASS only at z=-2.0. Paradigm 74 H5 SOL pocket reproduced (SOL +69.6bp t=+1.42) but heterogeneity too high (DOGE +99bp SOL +70bp vs WIF -45bp BCH -26bp XRP -22bp). Aggregate signal real but fragile. n_agg=330 power-sufficient; substantive not power-limited graveyard.",
+      "seed_spec": null
+    },
+    "btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short": {
+      "name": "btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short",
+      "hypothesis": "BTC-ETH 5m 1d-rolling corr breakdown z<=-2.0 + BTC dn × alt dn at trigger → 12-alt aggregate 240m forward SHORT capitulation continuation. NOT blind mirror of paradigm 75 LONG; promoted from paradigm 74 H5 sub-cell btc_dn × sol_dn @ z=-2.0 (n=45 -39.9bp t=-1.60), pre-existing evidence stronger than LONG cell (n=26 +69.6bp t=+1.42). Lesson #8 mirror antipattern explicitly addressed.",
+      "data_dependencies": [
+        "OHLCV joblib cache (BTC + ETH + 12 alts: ADA AVAX BCH BNB DOGE FIL LINK LTC NEAR SOL WIF XRP)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-15T03:19:37+00:00",
+      "updated_at": "2026-05-15T03:21:31+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T02:20:16+00:00"
+  "updated_at": "2026-05-15T03:21:31+00:00"
 }
