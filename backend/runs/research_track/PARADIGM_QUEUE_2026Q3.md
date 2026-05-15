@@ -173,6 +173,7 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 14. **Single-symbol H5 sub-cell evidence는 cross-symbol generalize 보장 X** (76번째 graveyard 2026-05-15, btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short) — paradigm 74 H5 SOL-only sub-cell SHORT |t|=1.60 > LONG |t|=1.42 사전 evidence가 12-alt aggregate에 generalize 안 됨 (SHORT +0.42bp/sigex +0.83 < LONG +11bp/sigex +1.78). 단일 종목 H5 evidence를 cross-symbol promotion 정당화로 사용 시 사전 cross-symbol mini-validation 의무화. 단 paradigm 70 13σ 격차 mirror antipattern은 약함 (76 격차는 0.95σ 수준).
 15. **Non-focus PASS 격상 4-조건 정책** (77번째 R-1 PASS 2026-05-15, btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short) — focus FAIL이지만 sweep 비-focus threshold에서 strict 4-gate PASS 시 separate paradigm 격상 정당 조건: (a) 모든 4 gate 통과 (3-gate + diversity), (b) separate R-1 replication ±10% 일치, (c) Bonferroni adj_p (prior 9 tests 보수적) ≤ 0.10, (d) hold sweep 부호 일치. 동시 충족 시 sampling fluke 가능성 낮음, R-2 진행 권고. 단 R-1 PASS는 충분조건이 아니며 R-2 robustness가 진짜 검증 (paradigm 77이 R-1 PASS 후 R-2 1/4 FAIL).
 16. **Aggregate stat은 quarter/symbol 집중도 사전 검증 필수** (77번째 R-2 FAIL 2026-05-15) — R-1 단계에서 per-quarter t-stat distribution + per-alt ci_lower bootstrap 자동 포함 의무. Cherry-pick artifact 사전 차단. paradigm 77 aggregate +33.6bp/perm_p 0.005가 BNB+WIF 2종 + 4 quarter 우연한 합산 (10 alt 중 ci_lower>0인 alt = 2/10 / 2025Q3 t=-3.03 + 2025Q4 t=-1.73 반년 regime 단절). lesson #15 보완: non-focus PASS 격상 시 quarter homogeneity + per-alt ci_lower diagnostic 추가 검증 후에만 격상 자격.
+17. **Geometric path metrics alone fee-floor 미달** (78번째 graveyard 2026-05-15 turn 3, `range_compression_directional_break_alt_30m_240m`) — 12h rolling 30m bars 의 path tortuosity (= Σ|H-L| / |net_move|) 의 30일 z-score top-decile compression + next-bar break-direction-following 240m hold 가설. focus aggregate net -14.37bp / sigex -0.44 / ci=[-25.5,-3.6]bp three-gate FAIL/FAIL/FAIL. UP-LONG -13.14bp + DOWN-SHORT -15.52bp **대칭 음수** (mirror antipattern 아닌 진성 dud). Concentration Gate dogfood 첫 적용: quarter_pos_t_ratio=0.20 / symbol_ci_pos_ratio=0.00 → 균질 음수 (cherry-pick X). Hold sweep monotonic worsening (480m sigex=-1.70 perm_p=0.058 anti-momentum 근접). **메시지**: skewness family (65-66) 와 동일하게, return distribution moments 외 geometric path metrics (tortuosity / fractality / Hurst exponent 등) 단독은 directional alpha 운반 X. paradigm-architect spec Lesson #16 Concentration Gate가 첫 dogfood에서 정상 작동 확인 (verdict CONCENTRATED_R1_PASS 가능성 사전 차단 — three-gate 자체 FAIL이라 concentration까지 도달 안 함). Tier 4 영구 제거: `geometric_path_metrics_family` (tortuosity / fractality / Hurst 등 alone).
 
 ### 6.3 Fee Floor 사전 추정 룰 (새)
 
@@ -230,8 +231,7 @@ R-1 호출 전 다음 검증:
 | #10 | `kalman_filter_premium_innovation` | premium domain saturated |
 | #11 | `change_point_detection_premium` | premium domain saturated |
 | (NEW) | `btc_eth_5m_corr_breakdown_family` (74-77) | 4 paradigms 동일 family DNA (BTC↔ETH 5m corr 1d-rolling z-score) — unsigned LONG/sign-cond LONG/sign-cond SHORT/severe SHORT 모두 R-1 또는 R-2 graveyard. taker_buy family와 동일 family-level retire. cross-asset corr regime trigger 변형 추가 시도 권장 안 됨 |
-
-→ Q3 12 candidates 중 **8개 Tier 4 제거** + cross-asset corr family 추가 폐기, 2개 Tier 2-3 보존, 2개 Tier 1 (단 #1만 큐 원본). **새 2 candidates (A, D)는 Q3 큐에서 시작.**
+| (NEW 2026-05-15 turn3) | `geometric_path_metrics_family` (78 range tortuosity) | path geometric metrics (tortuosity / fractality / Hurst exponent / box-counting fractal dim 등) alone — return distribution moments family (skewness 65-66) 와 동일하게 fee-floor 미달. 78 paradigm UP-LONG/DOWN-SHORT 양 방향 대칭 음수로 mirror sub-paradigm 잠재력 X. lesson #17 |
 
 ### 6.5 Updated Schedule (2026-05-14 ~ 2026-06-13 Day 30 검증 전)
 
@@ -248,8 +248,10 @@ Day 30 검증까지 30일. 일일 1-2 candidate fail-fast:
 | ~~1~~ | ~~B1.1 `btc_eth_corr_breakdown_signcond_btcdn_altup_240m_long`~~ (75) | 없음 | R-1 ~6분 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (75번째, signal_excess +1.78 cutoff 0.22σ 미달, lesson #13 fragile-real heterogeneity) |
 | ~~1~~ | ~~B1.2 `btc_eth_corr_breakdown_signcond_btcdn_altdn_240m_short`~~ (76) | 없음 | R-1 ~6분 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (76번째, focus z=-2.0 FAIL, z=-2.5 non-focus PASS — 77로 격상, lesson #14 single-symbol H5 generalize 보장 X) |
 | ~~1~~ | ~~B1.3 `btc_eth_corr_severe_breakdown_signcond_btcdn_altdn_240m_short`~~ (77) | 없음 | R-1 PASS + R-2 FAIL ~33s + 26s 실측 | **GRAVEYARD 2026-05-15 turn 2** ❌ (77번째, R-1 4-gate ALL PASS — sigex +3.69σ perm_p 0.005, R-2 1/4 robustness PASS — quarter 2025Q3 t=-3.03 / per-symbol bootstrap 2/10 ci_lower>0, lesson #15 non-focus PASS 정책 + lesson #16 quarter/symbol 집중도 검증) |
+| ~~1~~ | ~~G1 `range_compression_directional_break_alt_30m_240m`~~ (78) | 없음 (OHLCV joblib 2.4yr) | R-1 ~6분 실측 | **GRAVEYARD 2026-05-15 turn 3** ❌ (78번째, path tortuosity 12h compression + break direction-following 240m, three-gate ALL FAIL, sign-split 대칭 음수, Concentration Gate dogfood 정상 작동, lesson #17 geometric path metrics family retire) |
 | 1 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn | 대기 |
-| (open) | 새 mechanism candidate 발의 필요 | — | — | Q3 §6.2 lessons #8-#16 회피. **Cross-asset corr breakdown family (74-77) 폐기 확정** — taker family와 동일 family-level retire. funding/OI/microstructure novel mechanism 또는 OHLCV non-corr/non-vol-regime 차원 우선. |
+| 1 | F1' `funding_oi_bipolar_squeeze_event` retry | **funding DB 2-3yr 백필 필요 (ETA 평가 turn 3)** | 별 turn | 대기 — paradigm 73 sample density만 부족했음 |
+| (open) | 새 mechanism candidate 발의 필요 | — | — | Q3 §6.2 lessons #8-#17 회피. **Cross-asset corr (74-77) + geometric path metrics (78) family 폐기 확정**. funding DB 백필 후 paradigm 73 retry 또는 premium 5m 백필 후 #4 oi_premium_5m_decoupling 우선. |
 
 #### Day 30 검증 가까워질 때 (2026-06-08~13)
 - Paper baseline 측정 우선 (paradigm 69 13 sessions Day 30)

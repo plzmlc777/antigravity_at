@@ -25,7 +25,11 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 
 - `.claude/plans/research_track_master.md` — elite gate definition, paradigm catalog, R-1~R-6 protocol
 - `.claude/plans/paper_pool_master.md` — current paper pool baseline (~38 sessions)
-- `backend/scripts/research/eval_research_gate.py` — automated gate evaluator
+- `.claude/plans/paradigm_architect_handoff.json` — most recent session handoff (graveyards, lessons, infrastructure deltas)
+- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **16 cumulative lessons** (Q3 mid-update, 2026-05-15) — read before any R-1 dispatch
+- `backend/scripts/research/_perm_utils.py` — mandatory fee-aware perm + bootstrap CI helper (replaces naive perm code)
+- `backend/scripts/research/_ohlcv_parquet_cache.py` — joblib OHLCV cache loader (Mint ~/auto_trading/backend/runs/ohlcv_cache/)
+- `backend/scripts/research/eval_research_gate.py` — automated gate evaluator (`evaluate_e_new` for `_perm_utils` schema)
 - `backend/scripts/research/paradigm_index.py` — paradigm state registry
 - `backend/runs/research_track/INDEX.json` — paradigm state machine
 - Reference paradigm template: `backend/scripts/research/lifecycle_phase_{poc,r2,r3}.py` — dogfood pattern
@@ -113,7 +117,87 @@ Also report (mandatory, for diagnostic transparency):
 - `n_candidate_pool` (universe of non-trigger windows)
 - per-symbol consistency (≥8/14 syms direction-consistent for cross-sym pooled paradigms)
 
-If R-1 FAIL: graveyard with reason. STOP. Reason MUST cite which of the three gates failed (e.g., "signal_t_excess=1.4 below 2.0 cutoff — observed lies within fee-null band").
+If R-1 FAIL on three-gate: graveyard with reason. STOP. Reason MUST cite which of the three gates failed (e.g., "signal_t_excess=1.4 below 2.0 cutoff — observed lies within fee-null band").
+
+#### Mandatory Lesson #16 Concentration Diagnostics (2026-05-15 paradigm 77 fallout)
+
+Aggregate three-gate PASS can still hide cherry-pick (alpha concentrated in 1-2 quarters or 1-2 symbols). Paradigm 77 R-1 4-gate ALL PASS (sigex +3.69σ, perm_p 0.005, ci_lower +11.5bp, diversity 10/12) → R-2 FAIL because alpha was BNB+WIF only (2/10 alt ci_lower > 0) and 2 quarters out of 4 measurable (2025Q3 t=-3.03, 2025Q4 t=-1.73). Catch this at R-1, not R-2.
+
+**Required additional fields in `r1__metrics.json`** (auto-emit, no special flag):
+
+```python
+# After computing observed (DataFrame indexed by entry timestamp, columns: symbol, net_return)
+import pandas as pd
+from scripts.research._perm_utils import bootstrap_ci
+
+obs_df = pd.DataFrame({
+    "ts": entry_timestamps,
+    "symbol": symbols,
+    "net_return": net_returns,
+})
+
+# (1) Per-quarter t-stat distribution
+obs_df["quarter"] = obs_df["ts"].dt.to_period("Q").astype(str)
+per_q = obs_df.groupby("quarter").agg(
+    n_trades=("net_return", "size"),
+    mean_bp=("net_return", lambda s: s.mean() * 10000),
+    t_stat=("net_return", lambda s: float(s.mean() / s.std(ddof=1) * (len(s) ** 0.5)) if len(s) >= 3 and s.std(ddof=1) > 0 else float("nan")),
+).reset_index()
+per_quarter_records = per_q.to_dict(orient="records")
+n_q_measurable = int((per_q["n_trades"] >= 10).sum())
+n_q_pos_t = int(((per_q["t_stat"] > 0) & (per_q["n_trades"] >= 10)).sum())
+
+# (2) Per-symbol bootstrap CI
+per_sym_records = []
+for sym, sub in obs_df.groupby("symbol"):
+    if len(sub) < 10:
+        per_sym_records.append({"symbol": sym, "n_trades": len(sub), "skip": "n<10"})
+        continue
+    ci = bootstrap_ci(sub["net_return"].values, n_boot=2000, block_size=1)
+    per_sym_records.append({
+        "symbol": sym,
+        "n_trades": len(sub),
+        "mean_bp": float(sub["net_return"].mean() * 10000),
+        "ci_lower_bp": ci["ci_lower"] * 10000,
+        "ci_upper_bp": ci["ci_upper"] * 10000,
+        "ci_lower_pos": ci["ci_lower"] > 0,
+    })
+n_sym_measurable = sum(1 for r in per_sym_records if r.get("skip") is None)
+n_sym_ci_pos = sum(1 for r in per_sym_records if r.get("ci_lower_pos") is True)
+
+concentration = {
+    "per_quarter_t_stats": per_quarter_records,
+    "n_quarters_measurable": n_q_measurable,
+    "n_quarters_pos_t": n_q_pos_t,
+    "quarter_pos_t_ratio": (n_q_pos_t / n_q_measurable) if n_q_measurable else float("nan"),
+    "per_symbol_bootstrap": per_sym_records,
+    "n_symbols_measurable": n_sym_measurable,
+    "n_symbols_ci_pos": n_sym_ci_pos,
+    "symbol_ci_pos_ratio": (n_sym_ci_pos / n_sym_measurable) if n_sym_measurable else float("nan"),
+}
+metrics["concentration"] = concentration
+```
+
+**Concentration Gate (R-1 promotion check, applied AFTER three-gate PASS):**
+
+- `quarter_pos_t_ratio >= 0.5` — at least half of measurable quarters (n_trades ≥ 10) have t-stat > 0
+- `symbol_ci_pos_ratio >= 0.30` — at least 30% of measurable symbols (n_trades ≥ 10) have bootstrap ci_lower > 0
+- AND `n_symbols_ci_pos >= 3` — minimum absolute floor (avoids 1/3 = 0.33 trap with tiny universe)
+
+If three-gate PASS but Concentration Gate FAIL → verdict = **`CONCENTRATED_R1_PASS`**, halt at R-1, do NOT auto-promote to R-2. Report which dimension is concentrated (quarter vs symbol vs both). User decides whether to:
+- Graveyard as cherry-pick artifact, OR
+- Repackage as narrow paradigm (e.g., "BNB+WIF SHORT only") with explicit per-symbol scope
+
+#### Lesson #15 — Non-focus PASS 4-condition promotion policy
+
+If the focus threshold FAILS three-gate but a non-focus threshold in the same sweep PASSES, do NOT auto-promote as a new paradigm. To justify spawning a separate paradigm for the non-focus threshold, ALL four must hold:
+
+- (a) all 4 R-1 gates pass (three-gate + diversity ≥ 7/12 alts direction-consistent)
+- (b) **separate R-1 replication** on a held-out adjacent sample (e.g., shift trigger window by 30 days), result within ±10% of focus statistic
+- (c) **Bonferroni-adjusted p-value** ≤ 0.10 (multiply perm_p by total number of sweep tests run in this paradigm to date)
+- (d) hold-window sweep sign consistency (60m / 120m / 240m / 480m all same direction)
+
+Even when (a)-(d) all met: treat as R-2 candidate, not as R-1 PASS. R-2 robustness (quarterly + per-symbol bootstrap + regime stratify) is the real test. Paradigm 77 cleared (a) and (c) but failed at R-2 because (b) and (d) weren't separately checked. **Bake (b) and (d) into the R-1 script when the focus threshold is FAIL but sweep reveals non-focus PASS.**
 
 ### Step 4 — R-2 Multi-symbol / cohort expansion
 
@@ -272,6 +356,10 @@ If any check fails, fix code before promoting. Document the fix in a commit.
 | R-1 syntax error after 3 retries | graveyard `script_generation_failed`, alert user |
 | Backfill > 30min ETA | halt, report cohort size + alternative scope |
 | R-1 produces n < 50 | halt, report data scarcity + suggested expansion |
+| R-1 expected_n_per_cell < 30 (Lesson #11 prescreen) | do NOT dispatch R-1, halt and request sample-density expansion or universe widen |
+| R-1 three-gate FAIL | graveyard with reason citing failed gate(s) |
+| R-1 three-gate PASS + Concentration Gate FAIL (Lesson #16) | verdict `CONCENTRATED_R1_PASS`, halt at R-1, alert user with quarter/symbol breakdown — DO NOT auto-promote |
+| R-1 focus FAIL + sweep non-focus PASS (Lesson #15) | run separate R-1 replication + Bonferroni adj_p + hold-sweep sign check; if all four met, propose as candidate paradigm (still halt for user) |
 | Gate evaluator returns parse error | inspect metrics.json schema, regenerate script if needed |
 | Dogfood mismatch (Hyp B re-run produces different results) | STOP and re-validate gate config — do not promote any new paradigm until reconciled |
 
@@ -299,13 +387,18 @@ End-of-run summary in Korean, structured as:
 - Sub-hypotheses: ...
 
 ### 진행 결과
-- R-1: {PASS/FAIL} — {핵심 통계}
+- R-1: {PASS/FAIL/CONCENTRATED_R1_PASS} — {obs_t, signal_t_excess, ci_lower_bp, perm_p, diversity_n/N, quarter_pos_t_ratio, symbol_ci_pos_ratio}
 - R-2: ... (PASS시)
 - R-3: ...
 - R-4 gate: ...
 
+### Concentration Diagnostics (Lesson #16, R-1 의무 출력)
+- Per-quarter t-stat: {Q1: t=…, Q2: t=…, …} (n_measurable / n_pos_t)
+- Per-symbol bootstrap: {SYM: ci_lower_bp=… ci_pos=true/false} (n_measurable / n_ci_pos)
+- Verdict: {homogeneous / quarter-concentrated / symbol-concentrated / both}
+
 ### 최종 판정
-{✅ R-5 시드 대기 / ❌ graveyard / ⚠️ 사용자 결정 필요}
+{✅ R-5 시드 대기 / ❌ graveyard / ⚠️ CONCENTRATED_R1_PASS — 사용자 결정 / ⚠️ non-focus PASS 4-cond 후보 — 사용자 결정}
 
 ### 산출물
 - code: backend/scripts/research/{name}_*.py
