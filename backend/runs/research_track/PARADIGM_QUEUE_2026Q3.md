@@ -165,6 +165,9 @@ Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.
 6. **LOCAL execution 우회 방지** — paradigm-architect agent 호출 시 prompt에 explicit `mint@183.99.228.81` 명시. 호출 후 BTCUSDT 1m count 확인 (= 1,241,280 expected).
 7. **Mechanical vs Substantive verdict** — quarter denominator artifact 인지. 측정 가능한 모든 quarter PASS면 substantive PASS로 인정 가능.
 8. **Mirror hypothesis antipattern** (70번째 graveyard 2026-05-14) — paradigm X의 LONG 측면이 +X bp여도 mirror SHORT는 +X bp가 **아니다**. 시장 미시구조 방향 비대칭 (UP-trigger = momentum continuation / DOWN-trigger = mean reversion 가능성). Mirror도 별도 R-1 검증 의무. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = **13σ 격차**. 또한 graveyard의 H5 sub-finding을 mirror 정량 evidence로 자동 채택 금지 — 별도 R-1으로 확정.
+9. **Trigger swap antipattern** (71번째 graveyard 2026-05-15) — 시드 paradigm의 mechanism (filter + universe + hold)를 유지하고 trigger만 다른 도메인(가격→OI/funding/LSR)으로 교체할 때, 새 trigger의 정보 운반 차원 사전 검토 필수. precedent: paradigm 69 RV trigger +112.9bp UP×LONG vs paradigm 71 OI velocity trigger -12.62bp z=2.5 = mechanism 동일하지만 trigger 호환 부재. OI/funding/LSR 같은 microstructure-only trigger는 가격 기반 vol-cascade mechanism filter와 결합 시 alpha 부재 전제. mirror antipattern과 함께 자동 시도 금지.
+10. **Taker-side aggressive volume family graveyard** (72번째 graveyard 2026-05-15) — implied/raw taker_buy_volume z-spike (5m trigger + 60m hold) 패밀리 전체가 fee floor 미달. graveyard 23 (taker_buy_sell_ratio raw) + 60 (LSR contrarian) + 72 (taker_buy_vol z signed) **3개 누적**. mechanism: buyer-imbalance overshoot가 60m forward에 mean-revert (anti-momentum) — z=1.5 signed -8.47bp **t=-21.10** 강력 부호 일관, BTC-up sign filter 부호 반전 무력. NET≈-8bp / gross≈0bp으로 **mirror SHORT도 fee saturation 본질로 비추**. 향후 taker/buyer-imbalance 변형 5m+60m hold 발의 보류. Longer hold (240m+) momentum continuation은 별개 검증 가치 있음.
+11. **Sample-density prescreen rule** (73번째 graveyard 2026-05-15, funding_oi_bipolar_squeeze_event) — fee_floor_prescreen (16bp gross) 통과해도 universe × sample × trigger_rate 부족하면 strict threshold cells가 n<30으로 측정 불가. R-1 발의 전 `expected_n_per_cell = total_windows × universe_size × trigger_rate` 추정 후 30 미만이면 발의 보류 또는 sample 확장 (universe 확장 / DB 백필) 우선. precedent: paradigm 73 funding DB 1y 한계 + 6-sym intersection (funding ∩ microstructure ∩ ohlcv) → strict cells 모두 skip, lower threshold 완화 시 noise 압도 + perm test 미생존. 특히 **funding-기반 joint event paradigm은 funding DB 백필 우선**.
 
 ### 6.3 Fee Floor 사전 추정 룰 (새)
 
@@ -231,10 +234,12 @@ Day 30 검증까지 30일. 일일 1-2 candidate fail-fast:
 | 우선순위 | candidate | 데이터 백필 필요? | ETA | 상태 |
 |---|---|---|---|---|
 | ~~1~~ | ~~A `btc_rv_HIGHVOL_down_alt_short_240m`~~ (mirror SHORT) | 없음 | R-1 5-10분 | **GRAVEYARD 2026-05-14** ❌ |
-| 1 | D `btc_oi_velocity_regime_alt_long_240m` | 없음 (microstructure 보유) | R-1 10-15분 | 대기 |
-| 2 | #1 `liquidation_cascade_event` | Binance liq archive 백필 평가 | 별 turn 평가 | 대기 |
-| 3 | #2 `taker_buy_volume_5m_zscore` (sign-cond 변형) | 없음 (microstructure) | R-1 10-15분 | 대기 |
-| 4 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn | 대기 |
+| ~~1~~ | ~~D `btc_oi_velocity_regime_alt_long_240m`~~ | 없음 (microstructure 보유) | R-1 0.56분 실측 | **GRAVEYARD 2026-05-15** ❌ (71번째, 0/3 z three-gate FAIL, trigger swap antipattern 입증) |
+| ~~1~~ | ~~#1 `liquidation_cascade_event`~~ | **Binance archive 전체 제거 확인 2026-05-15** | — | **BLOCKED ❌** — listing 빈 상태 (issue #337 미해결). 대안: CoinGlass 유료 (사용자 승인) / WS 자체 기록 60일+ / skip |
+| ~~1~~ | ~~#2 `taker_buy_volume_5m_zscore_signcond`~~ | 없음 (microstructure) | R-1 ~13분 실측 | **GRAVEYARD 2026-05-15** ❌ (72번째, z=1.5 signed -8.47bp t=-21.10, 0/3 z gates FAIL, taker-side family retire lesson #10) |
+| ~~1~~ | ~~F1 `funding_oi_bipolar_squeeze_event`~~ | 없음 (funding DB 1y) | R-1 ~5분 실측 | **GRAVEYARD 2026-05-15** ❌ (73번째, sample density 부족, lesson #11 sample-density prescreen) |
+| 1 | #4 `oi_premium_5m_decoupling` | premium 5m 백필 ETA 평가 | 별 turn | 대기 |
+| (open) | 새 mechanism candidate 발의 필요 | — | — | Q3 §6.2 lessons #8 mirror + #9 trigger swap + #10 taker family + #11 sample density 회피 |
 
 #### Day 30 검증 가까워질 때 (2026-06-08~13)
 - Paper baseline 측정 우선 (paradigm 69 13 sessions Day 30)

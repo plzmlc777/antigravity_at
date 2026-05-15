@@ -1,0 +1,633 @@
+{
+  "paradigm": "taker_buy_volume_5m_zscore_signcond",
+  "phase": "R-1",
+  "verdict": "FAIL",
+  "reason": "three-gate FAIL at all z; failures: z=1.5:signal_t_excess<2.0; ci_lower<=0; z=2.0:signal_t_excess<2.0; ci_lower<=0; perm_p_two_sided>0.10; z=2.5:signal_t_excess<2.0; ci_lower<=0; perm_p_two_sided>0.10",
+  "recommendation": "graveyard now",
+  "config": {
+    "btc": "BTCUSDT",
+    "alts": [
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "z_window_bars": 30,
+    "z_grid": [
+      1.5,
+      2.0,
+      2.5
+    ],
+    "z_default": 2.0,
+    "cooldown_min": 30,
+    "hold_min": 60,
+    "fee_rt": 0.0008,
+    "btc_ret_window_min": 60,
+    "perm_n": 1000,
+    "boot_n": 2000,
+    "seed": 42,
+    "early_term_bp_threshold": 5.0,
+    "data_window": "microstructure 5m joblib (~1.5yr from 2024-11-07)",
+    "signal_construction": "implied_tbq = (ratio/(1+ratio)) * \u03a3(close_1m * vol_1m) over 5m bin; z over 30-bar rolling"
+  },
+  "early_term_pre_screen": {
+    "z": 2.0,
+    "n_unsigned": 111001,
+    "mean_bp_unsigned_net": -8.075858294317207,
+    "t_unsigned_net": -23.857821012987916,
+    "triggered": false,
+    "threshold_bp": 5.0
+  },
+  "per_z_results": {
+    "1.5": {
+      "z_thresh": 1.5,
+      "n_total_unsigned": 142603,
+      "n_signed_btc_up": 68176,
+      "unsigned_summary_net": {
+        "n": 142603,
+        "mean_bp": -7.962326897420755,
+        "median_bp": -8.150235870316484,
+        "std_bp": 109.81675261722994,
+        "t_stat": -27.380144621932544,
+        "win_rate": 0.4415405005504793
+      },
+      "signed_summary_net": {
+        "n": 68176,
+        "mean_bp": -8.47170031078334,
+        "median_bp": -11.682111756509453,
+        "std_bp": 104.83643385411737,
+        "t_stat": -21.099594213554656,
+        "win_rate": 0.41667155597277633
+      },
+      "fee_aware_perm": {
+        "obs_mean": -0.0008471700310783341,
+        "obs_t": -21.099594213554656,
+        "null_mean_t": -19.374502552850092,
+        "null_std_t": 1.1126381301511419,
+        "signal_t_excess": -1.7250916607045639,
+        "perm_p_two_sided": 0.042,
+        "perm_p_one_sided_below": 0.042,
+        "perm_p_one_sided_above": 0.958,
+        "n_observed": 68176,
+        "n_candidate": 16111965
+      },
+      "bootstrap_ci": {
+        "mean": -0.0008471700310783341,
+        "ci_lower": -0.0009248007063805162,
+        "ci_upper": -0.0007691190393775416,
+        "prob_positive": 0.0,
+        "n": 68176,
+        "n_boot": 2000,
+        "block_size": 60
+      },
+      "three_gate_verdict": "FAIL",
+      "three_gate_reason": "signal_t_excess<2.0; ci_lower<=0"
+    },
+    "2.0": {
+      "z_thresh": 2.0,
+      "n_total_unsigned": 111001,
+      "n_signed_btc_up": 53165,
+      "unsigned_summary_net": {
+        "n": 111001,
+        "mean_bp": -8.075858294317207,
+        "median_bp": -8.327011118377296,
+        "std_bp": 112.77721339616103,
+        "t_stat": -23.857821012987916,
+        "win_rate": 0.441752777002009
+      },
+      "signed_summary_net": {
+        "n": 53165,
+        "mean_bp": -8.44535742070576,
+        "median_bp": -12.039726974304214,
+        "std_bp": 107.1914183444892,
+        "t_stat": -18.1664858925514,
+        "win_rate": 0.4149346374494498
+      },
+      "fee_aware_perm": {
+        "obs_mean": -0.0008445357420705759,
+        "obs_t": -18.166485892551396,
+        "null_mean_t": -17.132031928721148,
+        "null_std_t": 1.0940784600613436,
+        "signal_t_excess": -1.0344539638302486,
+        "perm_p_two_sided": 0.172,
+        "perm_p_one_sided_below": 0.172,
+        "perm_p_one_sided_above": 0.828,
+        "n_observed": 53165,
+        "n_candidate": 16111965
+      },
+      "bootstrap_ci": {
+        "mean": -0.0008445357420705759,
+        "ci_lower": -0.0009392983497064438,
+        "ci_upper": -0.0007503318106588466,
+        "prob_positive": 0.0,
+        "n": 53165,
+        "n_boot": 2000,
+        "block_size": 60
+      },
+      "three_gate_verdict": "FAIL",
+      "three_gate_reason": "signal_t_excess<2.0; ci_lower<=0; perm_p_two_sided>0.10"
+    },
+    "2.5": {
+      "z_thresh": 2.5,
+      "n_total_unsigned": 84467,
+      "n_signed_btc_up": 40669,
+      "unsigned_summary_net": {
+        "n": 84467,
+        "mean_bp": -7.959504622973755,
+        "median_bp": -8.141740430750215,
+        "std_bp": 116.27546668588144,
+        "t_stat": -19.894887280551455,
+        "win_rate": 0.4434512886689476
+      },
+      "signed_summary_net": {
+        "n": 40669,
+        "mean_bp": -7.92761628273243,
+        "median_bp": -12.1734485205136,
+        "std_bp": 110.11652182669751,
+        "t_stat": -14.518504472725185,
+        "win_rate": 0.4141975460424402
+      },
+      "fee_aware_perm": {
+        "obs_mean": -0.000792761628273243,
+        "obs_t": -14.518504472725185,
+        "null_mean_t": -14.988485706604497,
+        "null_std_t": 1.0898719003430803,
+        "signal_t_excess": 0.46998123387931123,
+        "perm_p_two_sided": 0.667,
+        "perm_p_one_sided_below": 0.667,
+        "perm_p_one_sided_above": 0.333,
+        "n_observed": 40669,
+        "n_candidate": 16111965
+      },
+      "bootstrap_ci": {
+        "mean": -0.000792761628273243,
+        "ci_lower": -0.0009037219787271782,
+        "ci_upper": -0.0006819571381724114,
+        "prob_positive": 0.0,
+        "n": 40669,
+        "n_boot": 2000,
+        "block_size": 60
+      },
+      "three_gate_verdict": "FAIL",
+      "three_gate_reason": "signal_t_excess<2.0; ci_lower<=0; perm_p_two_sided>0.10"
+    }
+  },
+  "per_sym_at_z_default": {
+    "ADAUSDT": {
+      "n_trig_total": 8429,
+      "n_valid": 8429,
+      "n_signed": 3974,
+      "mean_bp_signed_net": -7.538427501031627,
+      "t_stat_signed_net": -4.146047846486309,
+      "mean_bp_unsigned_net": -8.339626350872738
+    },
+    "AVAXUSDT": {
+      "n_trig_total": 8540,
+      "n_valid": 8540,
+      "n_signed": 4082,
+      "mean_bp_signed_net": -6.570596799727872,
+      "t_stat_signed_net": -4.1444483670146495,
+      "mean_bp_unsigned_net": -8.07255496692264
+    },
+    "BCHUSDT": {
+      "n_trig_total": 8480,
+      "n_valid": 8480,
+      "n_signed": 4086,
+      "mean_bp_signed_net": -6.174013647673563,
+      "t_stat_signed_net": -4.001362585041834,
+      "mean_bp_unsigned_net": -6.91099044017446
+    },
+    "BNBUSDT": {
+      "n_trig_total": 8645,
+      "n_valid": 8645,
+      "n_signed": 4183,
+      "mean_bp_signed_net": -8.355934265480323,
+      "t_stat_signed_net": -9.206764088532267,
+      "mean_bp_unsigned_net": -7.541350094468886
+    },
+    "DOGEUSDT": {
+      "n_trig_total": 8621,
+      "n_valid": 8620,
+      "n_signed": 4101,
+      "mean_bp_signed_net": -9.576470868103714,
+      "t_stat_signed_net": -5.266639517786379,
+      "mean_bp_unsigned_net": -9.176546189974507
+    },
+    "ETHUSDT": {
+      "n_trig_total": 8499,
+      "n_valid": 8499,
+      "n_signed": 4129,
+      "mean_bp_signed_net": -8.692831543036936,
+      "t_stat_signed_net": -7.270622913418466,
+      "mean_bp_unsigned_net": -8.945018348030528
+    },
+    "FILUSDT": {
+      "n_trig_total": 8473,
+      "n_valid": 8473,
+      "n_signed": 3872,
+      "mean_bp_signed_net": -7.9157814585140684,
+      "t_stat_signed_net": -4.453337190812646,
+      "mean_bp_unsigned_net": -8.551765234704941
+    },
+    "LINKUSDT": {
+      "n_trig_total": 8541,
+      "n_valid": 8541,
+      "n_signed": 4119,
+      "mean_bp_signed_net": -9.312169003252908,
+      "t_stat_signed_net": -5.928011487961688,
+      "mean_bp_unsigned_net": -8.915338308152988
+    },
+    "LTCUSDT": {
+      "n_trig_total": 8617,
+      "n_valid": 8617,
+      "n_signed": 4118,
+      "mean_bp_signed_net": -8.24327044902654,
+      "t_stat_signed_net": -6.084306674713398,
+      "mean_bp_unsigned_net": -7.406461630538146
+    },
+    "NEARUSDT": {
+      "n_trig_total": 8547,
+      "n_valid": 8547,
+      "n_signed": 4143,
+      "mean_bp_signed_net": -9.217797487462779,
+      "t_stat_signed_net": -5.090892606665384,
+      "mean_bp_unsigned_net": -8.166751166411752
+    },
+    "SOLUSDT": {
+      "n_trig_total": 8670,
+      "n_valid": 8670,
+      "n_signed": 4222,
+      "mean_bp_signed_net": -9.703559550036898,
+      "t_stat_signed_net": -6.575581736162512,
+      "mean_bp_unsigned_net": -8.609876529338493
+    },
+    "WIFUSDT": {
+      "n_trig_total": 8447,
+      "n_valid": 8447,
+      "n_signed": 4182,
+      "mean_bp_signed_net": -10.704886711552653,
+      "t_stat_signed_net": -3.9115781434944594,
+      "mean_bp_unsigned_net": -8.702433246909445
+    },
+    "XRPUSDT": {
+      "n_trig_total": 8493,
+      "n_valid": 8493,
+      "n_signed": 3954,
+      "mean_bp_signed_net": -7.585918487268044,
+      "t_stat_signed_net": -4.981655577917851,
+      "mean_bp_unsigned_net": -5.637997226228319
+    }
+  },
+  "per_sym_diagnostics": {
+    "ADAUSDT": {
+      "status": "ok",
+      "n_signal_bars": 227275,
+      "z_range": [
+        -2.4624839054246626,
+        5.2928201392881125
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 10922,
+          "n_valid": 10922,
+          "n_signed": 5153
+        },
+        "2.0": {
+          "n_trig": 8429,
+          "n_valid": 8429,
+          "n_signed": 3974
+        },
+        "2.5": {
+          "n_trig": 6399,
+          "n_valid": 6399,
+          "n_signed": 3031
+        }
+      }
+    },
+    "AVAXUSDT": {
+      "status": "ok",
+      "n_signal_bars": 227675,
+      "z_range": [
+        -2.4511334554547317,
+        5.294276847827711
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11101,
+          "n_valid": 11101,
+          "n_signed": 5276
+        },
+        "2.0": {
+          "n_trig": 8540,
+          "n_valid": 8540,
+          "n_signed": 4082
+        },
+        "2.5": {
+          "n_trig": 6406,
+          "n_valid": 6406,
+          "n_signed": 3121
+        }
+      }
+    },
+    "BCHUSDT": {
+      "status": "ok",
+      "n_signal_bars": 225374,
+      "z_range": [
+        -2.3139868977267772,
+        5.293919976395206
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 10706,
+          "n_valid": 10706,
+          "n_signed": 5168
+        },
+        "2.0": {
+          "n_trig": 8480,
+          "n_valid": 8480,
+          "n_signed": 4086
+        },
+        "2.5": {
+          "n_trig": 6676,
+          "n_valid": 6676,
+          "n_signed": 3211
+        }
+      }
+    },
+    "BNBUSDT": {
+      "status": "ok",
+      "n_signal_bars": 226546,
+      "z_range": [
+        -2.2550551539515866,
+        5.293110683633743
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 10929,
+          "n_valid": 10929,
+          "n_signed": 5255
+        },
+        "2.0": {
+          "n_trig": 8645,
+          "n_valid": 8645,
+          "n_signed": 4183
+        },
+        "2.5": {
+          "n_trig": 6653,
+          "n_valid": 6653,
+          "n_signed": 3215
+        }
+      }
+    },
+    "DOGEUSDT": {
+      "status": "ok",
+      "n_signal_bars": 229635,
+      "z_range": [
+        -2.2734996745268465,
+        5.292384520068588
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11029,
+          "n_valid": 11028,
+          "n_signed": 5267
+        },
+        "2.0": {
+          "n_trig": 8621,
+          "n_valid": 8620,
+          "n_signed": 4101
+        },
+        "2.5": {
+          "n_trig": 6619,
+          "n_valid": 6619,
+          "n_signed": 3224
+        }
+      }
+    },
+    "ETHUSDT": {
+      "status": "ok",
+      "n_signal_bars": 228697,
+      "z_range": [
+        -2.2012395500787485,
+        5.291631503728416
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 10587,
+          "n_valid": 10587,
+          "n_signed": 5050
+        },
+        "2.0": {
+          "n_trig": 8499,
+          "n_valid": 8499,
+          "n_signed": 4129
+        },
+        "2.5": {
+          "n_trig": 6703,
+          "n_valid": 6703,
+          "n_signed": 3305
+        }
+      }
+    },
+    "FILUSDT": {
+      "status": "ok",
+      "n_signal_bars": 224661,
+      "z_range": [
+        -2.2690879409133546,
+        5.292038388881853
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11033,
+          "n_valid": 11033,
+          "n_signed": 5110
+        },
+        "2.0": {
+          "n_trig": 8473,
+          "n_valid": 8473,
+          "n_signed": 3872
+        },
+        "2.5": {
+          "n_trig": 6314,
+          "n_valid": 6314,
+          "n_signed": 2871
+        }
+      }
+    },
+    "LINKUSDT": {
+      "status": "ok",
+      "n_signal_bars": 228507,
+      "z_range": [
+        -2.4402470412987283,
+        5.286390248101904
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11091,
+          "n_valid": 11091,
+          "n_signed": 5342
+        },
+        "2.0": {
+          "n_trig": 8541,
+          "n_valid": 8541,
+          "n_signed": 4119
+        },
+        "2.5": {
+          "n_trig": 6440,
+          "n_valid": 6440,
+          "n_signed": 3091
+        }
+      }
+    },
+    "LTCUSDT": {
+      "status": "ok",
+      "n_signal_bars": 227190,
+      "z_range": [
+        -2.3749632016994546,
+        5.291285436491123
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11118,
+          "n_valid": 11118,
+          "n_signed": 5330
+        },
+        "2.0": {
+          "n_trig": 8617,
+          "n_valid": 8617,
+          "n_signed": 4118
+        },
+        "2.5": {
+          "n_trig": 6580,
+          "n_valid": 6580,
+          "n_signed": 3132
+        }
+      }
+    },
+    "NEARUSDT": {
+      "status": "ok",
+      "n_signal_bars": 226986,
+      "z_range": [
+        -2.4963255524333534,
+        5.293080289542939
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11146,
+          "n_valid": 11146,
+          "n_signed": 5382
+        },
+        "2.0": {
+          "n_trig": 8547,
+          "n_valid": 8547,
+          "n_signed": 4143
+        },
+        "2.5": {
+          "n_trig": 6336,
+          "n_valid": 6336,
+          "n_signed": 3071
+        }
+      }
+    },
+    "SOLUSDT": {
+      "status": "ok",
+      "n_signal_bars": 231705,
+      "z_range": [
+        -2.2866983767807065,
+        5.285646252950548
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11132,
+          "n_valid": 11131,
+          "n_signed": 5364
+        },
+        "2.0": {
+          "n_trig": 8670,
+          "n_valid": 8670,
+          "n_signed": 4222
+        },
+        "2.5": {
+          "n_trig": 6552,
+          "n_valid": 6552,
+          "n_signed": 3237
+        }
+      }
+    },
+    "WIFUSDT": {
+      "status": "ok",
+      "n_signal_bars": 225541,
+      "z_range": [
+        -2.420820196042456,
+        5.290694604810744
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 11016,
+          "n_valid": 11016,
+          "n_signed": 5424
+        },
+        "2.0": {
+          "n_trig": 8447,
+          "n_valid": 8447,
+          "n_signed": 4182
+        },
+        "2.5": {
+          "n_trig": 6319,
+          "n_valid": 6319,
+          "n_signed": 3158
+        }
+      }
+    },
+    "XRPUSDT": {
+      "status": "ok",
+      "n_signal_bars": 227029,
+      "z_range": [
+        -2.5470886762194036,
+        5.2935076833943855
+      ],
+      "per_z": {
+        "1.5": {
+          "n_trig": 10795,
+          "n_valid": 10795,
+          "n_signed": 5055
+        },
+        "2.0": {
+          "n_trig": 8493,
+          "n_valid": 8493,
+          "n_signed": 3954
+        },
+        "2.5": {
+          "n_trig": 6470,
+          "n_valid": 6470,
+          "n_signed": 3002
+        }
+      }
+    }
+  },
+  "flagged_per_sym": [],
+  "trigger_counts_summary": {
+    "1.5": {
+      "n_total_unsigned": 142603,
+      "n_signed_btc_up": 68176
+    },
+    "2.0": {
+      "n_total_unsigned": 111001,
+      "n_signed_btc_up": 53165
+    },
+    "2.5": {
+      "n_total_unsigned": 84467,
+      "n_signed_btc_up": 40669
+    }
+  },
+  "wall_clock_s": 101.4
+}

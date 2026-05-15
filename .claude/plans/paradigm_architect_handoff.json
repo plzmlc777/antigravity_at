@@ -1,12 +1,31 @@
 {
   "_meta": {
-    "title": "paradigm-architect handoff — 2026-05-14 break-through day complete (paradigm 69 R-5 seeded + 9 graveyards + 3 infra + Q3 mid-update + mirror antipattern lesson)",
-    "snapshot_date": "2026-05-14",
-    "snapshot_time_kst": "22:30",
-    "session_summary": "Single-day burst: 9 paradigm R-1 graveyards (61~70), 1 R-5 seed (paradigm 69 btc_rv_spike_highvol_filter_alt_long_240m, 13 paper sessions on Mint), 3 infrastructure modules (_perm_utils, eval_research_gate GATE_E_NEW, _ohlcv_parquet_cache), R-3 2.4yr long-horizon validation completed (substantive PASS), Q3 paradigm queue mid-update (§6, 8 lessons + tier reclassification), 2024 OHLCV backfill (14 syms × 2.4yr, 250MB joblib cache).",
+    "title": "paradigm-architect handoff — 2026-05-15 update: 12 graveyards (61~73) + 1 R-5 seed + 11 lessons cumulative across 2026-05-14~15 burst",
+    "snapshot_date": "2026-05-15",
+    "snapshot_time_kst": "11:30",
+    "session_summary": "2-day cumulative burst (2026-05-14 + 2026-05-15): 12 paradigm R-1 graveyards (61~73) + 1 R-5 seed (paradigm 69 btc_rv_spike_highvol_filter_alt_long_240m, 13 paper sessions on Mint) + 1 data-blocked candidate (liquidation_cascade_event, Binance archive 전체 제거 확인) + 3 infrastructure modules + 2024 OHLCV backfill 14 syms × 2.4yr + Q3 paradigm queue 11 lessons. 2026-05-15 attempts: 71 btc_oi_velocity (trigger swap antipattern lesson #9) + 72 taker_buy_volume_signcond (taker family retire lesson #10) + 73 funding_oi_bipolar (sample-density prescreen lesson #11).",
     "primary_user_goal": "쉬지 않고 계속 새 paradigm 발굴 + 인생 바꾸는 alpha 추구. Quality > Quantity.",
-    "next_session_resume_target": "Q3 §6.5 schedule slot 1 — D `btc_oi_velocity_regime_alt_long_240m` R-1 진행 (paradigm 69 mechanism의 OI velocity 변형). OR slot 2 — #1 `liquidation_cascade_event` 백필 ETA 평가.",
-    "git_head_at_snapshot": "2ecf2c0c (paradigm 70 mirror SHORT graveyard + Q3 §6.2 #8 mirror-antipattern, pushed to origin/master)"
+    "next_session_resume_target": "Q3 §6.5 schedule slot remaining — F2 `funding_sign_flip_event_alt_directional` (단 funding DB 1y sample density 위험) OR B1 `btc_eth_correlation_breakdown_event_alt_overshoot` (OHLCV-only, lesson #11 sample density 안전) OR #4 `oi_premium_5m_decoupling` (premium 5m 백필 ETA 별 turn 평가). 또는 새 mechanism 브레인스토밍.",
+    "git_head_at_snapshot": "(this commit) — paradigm 71 R-1 metrics + Q3 queue lessons #10 #11 + handoff update + 2026-05-15 burst integration"
+  },
+
+  "today_2026_05_15_summary": {
+    "graveyards": [
+      "71 btc_oi_velocity_regime_alt_long_240m (lesson #9 trigger swap antipattern)",
+      "72 taker_buy_volume_5m_zscore_signcond (lesson #10 taker family retire)",
+      "73 funding_oi_bipolar_squeeze_event (lesson #11 sample-density prescreen)"
+    ],
+    "data_blocked": "liquidation_cascade_event — Binance USDT-M liquidationSnapshot archive 전체 제거 확인 (issue #337 미해결, S3 listing 빈 상태). 대안: CoinGlass 유료 / WS 자체 기록 60일+ / 후보 deprioritize",
+    "new_lessons_q3_62": [
+      "#9 Trigger swap antipattern (71): mechanism 동일 ≠ trigger 호환. paradigm 69 RV +112.9bp vs 71 OI velocity -12.62bp. microstructure-only trigger는 가격 기반 vol-cascade와 호환 부재",
+      "#10 Taker-side aggressive volume family graveyard (72): graveyard 23/60/72 누적 — taker_buy_volume z-spike 5m+60m hold fee floor 미달. mirror SHORT도 fee saturation 본질로 비추",
+      "#11 Sample-density prescreen rule (73): expected_n_per_cell = total_windows × universe × trigger_rate <30 발의 보류. funding DB 1y + 6-sym intersection 한계. funding-기반 joint event는 funding DB 백필 우선"
+    ],
+    "commits_2026_05_15": [
+      "50e06479 research(architect): paradigm 72 taker_buy_volume_5m_zscore_signcond R-1 graveyard",
+      "d0a8c9cb research(architect): paradigm 71 funding_oi_bipolar_squeeze_event R-1 graveyard (architect mislabeled — actually paradigm 73)",
+      "(this commit) docs+research(orchestrator): paradigm 71 R-1 artifacts + paradigm 72/73 metrics sync + Q3 queue lessons #10 #11 + handoff JSON update"
+    ]
   },
 
   "today_2026_05_14_summary": {
@@ -38,7 +57,7 @@
   },
 
   "mandatory_checklist_r1_r3": {
-    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (8 lessons)",
+    "_source": "PARADIGM_QUEUE_2026Q3.md §6.2 (11 lessons as of 2026-05-15)",
     "1_perm_utils_mandatory": "_perm_utils.fee_aware_perm_test + bootstrap_ci. null_mean_t 보고 필수.",
     "2_three_gate_strict": "signal_t_excess ≥ 2.0 AND ci_lower > 0 AND perm_p_two_sided ≤ 0.10. legacy |t|≥2 OR perm_p≤0.10 deprecated.",
     "3_sign_conditional_h5": "Unsigned hypothesis는 즉시 sign-split 검토 (BTC sign 또는 신호 sign으로).",
@@ -46,7 +65,10 @@
     "5_ohlcv_joblib_cache": "_ohlcv_parquet_cache.load_ohlcv_1m_cached() 사용. R-3 ≥2 alts 의무.",
     "6_mint_host_explicit": "paradigm-architect prompt에 mint@183.99.228.81 explicit. BTC 1m count = 1,241,280 확인.",
     "7_mechanical_vs_substantive": "Quarter denominator artifact 인지. 측정 가능한 모든 quarter PASS면 substantive PASS 인정.",
-    "8_mirror_antipattern": "paradigm X의 LONG +X bp가 mirror SHORT +X bp 보장 안 됨 (방향 비대칭). Mirror도 별도 R-1 검증 의무. H5 sub-findings 자동 채택 금지. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = 13σ 격차."
+    "8_mirror_antipattern": "paradigm X의 LONG +X bp가 mirror SHORT +X bp 보장 안 됨 (방향 비대칭). Mirror도 별도 R-1 검증 의무. H5 sub-findings 자동 채택 금지. precedent: paradigm 69 UP×LONG +113bp vs mirror DOWN×SHORT -49bp = 13σ 격차.",
+    "9_trigger_swap_antipattern": "시드 paradigm의 mechanism (filter + universe + hold) 유지 + trigger만 다른 도메인 교체 시 alpha 부재 가능. precedent: paradigm 71 OI velocity trigger -12.62bp vs paradigm 69 RV trigger +112.9bp. microstructure-only (OI/funding/LSR) trigger는 가격 기반 vol-cascade mechanism filter와 호환 부재 전제. Mirror antipattern과 함께 자동 시도 금지.",
+    "10_taker_family_graveyard": "implied/raw taker_buy_volume z-spike (5m + 60m hold) family 전체 fee floor 미달. graveyard 23 + 60 + 72 누적. buyer-imbalance overshoot가 60m forward에 mean-revert (anti-momentum). NET≈-8bp / gross≈0bp으로 mirror SHORT도 fee saturation 본질로 비추. 향후 5m+60m hold 변형 발의 보류.",
+    "11_sample_density_prescreen": "fee_floor (16bp gross) 통과해도 universe × sample × trigger_rate 부족하면 strict threshold cells가 n<30 측정 불가. R-1 발의 전 expected_n_per_cell = total_windows × universe × trigger_rate 추정 후 30 미만이면 발의 보류 또는 sample 확장 (universe / DB 백필) 우선. precedent: paradigm 73 funding DB 1y + 6-sym intersection → strict cells 모두 skip + lower threshold noise 압도. funding-기반 joint event는 funding DB 백필 우선."
   },
 
   "fee_floor_prescreen_rule": "R-1 호출 전 expected gross |return| per trigger ≥ 16 bp (=2×8bp fee + buffer). 미달 시 발의 보류.",
@@ -70,9 +92,10 @@
   },
 
   "next_session_start_commands": {
-    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 Q3 §6.5 schedule slot 1 (D `btc_oi_velocity_regime_alt_long_240m`) R-1 진행해. 본 handoff의 mandatory_checklist_r1_r3 + fee_floor_prescreen_rule 반드시 준수.",
-    "alternative_1": "Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6 후 다음 candidate (D 또는 #1) 진행해",
-    "alternative_2": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 #1 `liquidation_cascade_event` 백필 ETA 평가 진행해 (Binance archive /futures/um/daily/liquidationSnapshot/)",
+    "primary": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 새 mechanism candidate 발의 진행해. 11 lessons 회피 + sample-density prescreen 의무. B1 btc_eth_correlation_breakdown 또는 F2 funding_sign_flip 또는 새 mechanism 브레인스토밍.",
+    "alternative_1": "Read /home/hcpark/antigravity/backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md §6 후 #4 `oi_premium_5m_decoupling` premium 5m 백필 ETA 평가 진행해 (별 turn).",
+    "alternative_2": "Read /home/hcpark/antigravity/.claude/plans/paradigm_architect_handoff.json 후 funding DB 백필 ETA 평가 (1y → 2-3y, paradigm 73 재시도용 + 향후 funding 기반 paradigm sample density 확보)",
+    "alternative_3": "paper baseline 측정 우선: paradigm 69 D+1 (오늘) trigger 발생 여부 점검. paper session 13개 health check.",
     "day_7_paper_baseline_check_at": "2026-05-21 — paradigm 69 13 sessions 첫 baseline 측정",
     "day_30_paper_baseline_validation_at": "2026-06-13 — predicted +57%/yr 대비 측정값, alpha < 50% 시 demote"
   },

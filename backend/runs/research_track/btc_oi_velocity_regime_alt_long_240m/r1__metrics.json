@@ -1,0 +1,291 @@
+{
+  "paradigm": "btc_oi_velocity_regime_alt_long_240m",
+  "phase": "R-1",
+  "hypothesis": "BTC OI velocity z(30d 5m)>=+2.5 rising edge + 60m cooldown AND BTC 30d RV > 90d p90 -> LONG 13 alts hold 240m",
+  "config": {
+    "btc_oi_source": "runs/microstructure/BTCUSDT_full_metrics.joblib",
+    "oi_bars_5m_per_30m_window": 6,
+    "oi_z_lookback_bars_5m": 8640,
+    "z_thresh_default": 2.5,
+    "z_thresh_grid": [
+      2.0,
+      2.5,
+      3.0
+    ],
+    "cooldown_min": 60,
+    "fee_round_trip": 0.0008,
+    "default_hold": 240,
+    "vol_lookback_bars": 43200,
+    "vol_dist_bars": 129600,
+    "vol_min_periods": 129600,
+    "vol_cutoff_quantile": 0.9,
+    "n_perms": 1000,
+    "n_boot": 2000,
+    "alts": [
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "data_source_alts": "ohlcv_cache joblib (1m)",
+    "expected_btc_bars_1m": 1241280
+  },
+  "derived_from": {
+    "parent_paradigm": "btc_rv_spike_highvol_filter_alt_long_240m (paradigm 69)",
+    "trigger_swap": "RV(30m z 30d) -> OI growth(30m z 30d) \u2014 orthogonal trigger, same mechanism filter"
+  },
+  "data_window": {
+    "btc_ohlcv_first": "2024-01-02 00:00:00",
+    "btc_ohlcv_last": "2026-05-12 23:59:00",
+    "btc_ohlcv_bars": 1241280,
+    "btc_oi_first": "2024-11-07 00:05:00",
+    "btc_oi_last": "2026-05-02 00:00:00",
+    "btc_oi_bars_5m": 155805
+  },
+  "n_signal_bars": 104839,
+  "alts_loaded": 13,
+  "candidate_pool_size": 19994,
+  "h4_z_threshold_grid": [
+    {
+      "z_thresh": 2.0,
+      "n_triggers_raw": 553,
+      "n_triggers_highvol": 114,
+      "n_trades": 1482,
+      "net_mean_bp": 4.2778479411367485,
+      "t": 0.7040733002894775,
+      "win": 0.4817813765182186,
+      "sharpe": 0.0182891606022095,
+      "signal_t_excess": 2.2330301472568843,
+      "null_mean_t": -1.5289568469674069,
+      "perm_p_two_sided": 0.825,
+      "perm_p_one_sided_above": 0.01,
+      "bootstrap_ci_lower_bp": -7.040307992104882,
+      "bootstrap_ci_upper_bp": 17.032430987126247,
+      "bootstrap_prob_positive": 0.7633333333333333,
+      "three_gate_pass": false
+    },
+    {
+      "z_thresh": 2.5,
+      "n_triggers_raw": 378,
+      "n_triggers_highvol": 72,
+      "n_trades": 936,
+      "net_mean_bp": -12.620853072825268,
+      "t": -1.7483229264658589,
+      "win": 0.452991452991453,
+      "sharpe": -0.057145722551993954,
+      "signal_t_excess": -0.5177863591956169,
+      "null_mean_t": -1.230536567270242,
+      "perm_p_two_sided": 0.3275,
+      "perm_p_one_sided_above": 0.6775,
+      "bootstrap_ci_lower_bp": -26.92313051380729,
+      "bootstrap_ci_upper_bp": -0.10460621927099437,
+      "bootstrap_prob_positive": 0.023333333333333334,
+      "three_gate_pass": false
+    },
+    {
+      "z_thresh": 3.0,
+      "n_triggers_raw": 264,
+      "n_triggers_highvol": 49,
+      "n_trades": 637,
+      "net_mean_bp": 14.443543953904113,
+      "t": 1.6587705848277363,
+      "win": 0.4945054945054945,
+      "sharpe": 0.0657228834926131,
+      "signal_t_excess": 2.7031892957845196,
+      "null_mean_t": -1.0444187109567835,
+      "perm_p_two_sided": 0.2625,
+      "perm_p_one_sided_above": 0.0,
+      "bootstrap_ci_lower_bp": -4.275303848149922,
+      "bootstrap_ci_upper_bp": 31.969378728078127,
+      "bootstrap_prob_positive": 0.9433333333333334,
+      "three_gate_pass": false
+    }
+  ],
+  "h1_main_cell": {
+    "z_thresh": 2.5,
+    "n_triggers_raw": 378,
+    "n_triggers_highvol": 72,
+    "n_trades": 936,
+    "net_mean_bp": -12.620853072825268,
+    "t": -1.7483229264658589,
+    "win": 0.452991452991453,
+    "sharpe": -0.057145722551993954
+  },
+  "h2": {
+    "obs_mean_bp": -12.620853072825268,
+    "obs_t": -1.7483229264658589,
+    "null_mean_t": -1.298328749531407,
+    "null_std_t": 1.0351995648862573,
+    "signal_t_excess": -0.44999417693445176,
+    "perm_p_two_sided": 0.328,
+    "perm_p_one_sided_above": 0.676,
+    "perm_p_one_sided_below": 0.324,
+    "n_observed": 936,
+    "n_candidate": 19994,
+    "bootstrap_mean_bp": -12.620853072825268,
+    "bootstrap_ci_lower_bp": -27.012716466533206,
+    "bootstrap_ci_upper_bp": 0.6779101756362383,
+    "bootstrap_prob_positive": 0.03
+  },
+  "h3_per_symbol": [
+    {
+      "n": 72,
+      "mean_bp": -23.833978224742047,
+      "t": -0.9386588034736759,
+      "win": 0.4583333333333333,
+      "sharpe": -0.11062200085944786,
+      "sym": "ADAUSDT",
+      "signal_t_excess": -0.5950520684827263
+    },
+    {
+      "n": 72,
+      "mean_bp": -9.038831052813654,
+      "t": -0.38062422795362244,
+      "win": 0.4583333333333333,
+      "sharpe": -0.04485699544498345,
+      "sym": "AVAXUSDT",
+      "signal_t_excess": -0.03701749296267276
+    },
+    {
+      "n": 72,
+      "mean_bp": -10.829032716791808,
+      "t": -0.45878451103583573,
+      "win": 0.4722222222222222,
+      "sharpe": -0.05406827314279899,
+      "sym": "BCHUSDT",
+      "signal_t_excess": -0.11517777604488605
+    },
+    {
+      "n": 72,
+      "mean_bp": -11.881139016387865,
+      "t": -0.5208727898071124,
+      "win": 0.5138888888888888,
+      "sharpe": -0.0613854469680274,
+      "sym": "BNBUSDT",
+      "signal_t_excess": -0.1772660548161627
+    },
+    {
+      "n": 72,
+      "mean_bp": 4.553245616958472,
+      "t": 0.17335063449424934,
+      "win": 0.4583333333333333,
+      "sharpe": 0.020429568195645727,
+      "sym": "DOGEUSDT",
+      "signal_t_excess": 0.516957369485199
+    },
+    {
+      "n": 72,
+      "mean_bp": -11.71774418353867,
+      "t": -0.5716059286183375,
+      "win": 0.4861111111111111,
+      "sharpe": -0.06736440471541001,
+      "sym": "ETHUSDT",
+      "signal_t_excess": -0.2279991936273878
+    },
+    {
+      "n": 72,
+      "mean_bp": -16.224360802908507,
+      "t": -0.5325434040750515,
+      "win": 0.3611111111111111,
+      "sharpe": -0.06276084204960611,
+      "sym": "FILUSDT",
+      "signal_t_excess": -0.18893666908410184
+    },
+    {
+      "n": 72,
+      "mean_bp": -17.55327927588978,
+      "t": -0.6751880819666675,
+      "win": 0.4027777777777778,
+      "sharpe": -0.07957167855582818,
+      "sym": "LINKUSDT",
+      "signal_t_excess": -0.3315813469757178
+    },
+    {
+      "n": 72,
+      "mean_bp": -4.824365009373464,
+      "t": -0.20635483624849377,
+      "win": 0.5,
+      "sharpe": -0.024319150673658255,
+      "sym": "LTCUSDT",
+      "signal_t_excess": 0.1372518987424559
+    },
+    {
+      "n": 72,
+      "mean_bp": -9.353684076137425,
+      "t": -0.2860567023114398,
+      "win": 0.4305555555555556,
+      "sharpe": -0.03371210566804678,
+      "sym": "NEARUSDT",
+      "signal_t_excess": 0.057550032679509866
+    },
+    {
+      "n": 72,
+      "mean_bp": -21.118787017070662,
+      "t": -0.9056476751702177,
+      "win": 0.4444444444444444,
+      "sharpe": -0.1067316020797821,
+      "sym": "SOLUSDT",
+      "signal_t_excess": -0.5620409401792681
+    },
+    {
+      "n": 72,
+      "mean_bp": -17.690204975323432,
+      "t": -0.5578108320920928,
+      "win": 0.4444444444444444,
+      "sharpe": -0.06573863699860492,
+      "sym": "WIFUSDT",
+      "signal_t_excess": -0.21420409710114313
+    },
+    {
+      "n": 72,
+      "mean_bp": -14.558929212709687,
+      "t": -0.5328197241854595,
+      "win": 0.4583333333333333,
+      "sharpe": -0.06279340668691406,
+      "sym": "XRPUSDT",
+      "signal_t_excess": -0.18921298919450985
+    }
+  ],
+  "h3_alts_pos_and_t_ex_gt_1": 0,
+  "h5_sign_split": {
+    "btc_up_at_trigger": {
+      "n_trades": 429,
+      "n": 429,
+      "mean_bp": -0.7028263890869083,
+      "t": -0.07804022081170868,
+      "win": 0.4731934731934732,
+      "sharpe": -0.0037678173658531834
+    },
+    "btc_down_at_trigger": {
+      "n_trades": 507,
+      "n": 507,
+      "mean_bp": -22.70533718983465,
+      "t": -2.078920352741923,
+      "win": 0.4358974358974359,
+      "sharpe": -0.092328094252257
+    },
+    "n_unknown_sign": 0,
+    "_note": "diagnostic only \u2014 checklist 8 forbids auto-deriving mirror SHORT"
+  },
+  "verdict_basis": {
+    "gate_signal_t_excess_ge_2": false,
+    "gate_ci_lower_pos": false,
+    "gate_perm_p_two_le_0p10": false,
+    "three_gate_pass": false,
+    "any_z_three_gate_pass": false,
+    "passing_z_thresholds": [],
+    "direction_ok": false
+  },
+  "verdict": "GRAVEYARD",
+  "recommendation": "graveyard_now",
+  "wall_clock_min": 0.56
+}
