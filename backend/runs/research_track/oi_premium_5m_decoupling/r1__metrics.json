@@ -1,0 +1,331 @@
+{
+  "paradigm_name": "oi_premium_5m_decoupling",
+  "phase": "R-1",
+  "type": "E",
+  "mechanism": "A_decouple_reversal",
+  "hypothesis": "OI 5m z-score vs premium 5m z-score opposite-sign joint event (|z|>=2 each) -> directional mean-reversal. LONG: oi_z>+2 AND premium_z<-2. SHORT: oi_z<-2 AND premium_z>+2.",
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "n_symbols": 14,
+    "z_threshold": 2.0,
+    "rolling_window_bars": 288,
+    "focus_hold": "60m",
+    "hold_bars_map": {
+      "5m": 1,
+      "15m": 3,
+      "30m": 6,
+      "60m": 12,
+      "240m": 48
+    },
+    "fee_per_trade": 0.0008
+  },
+  "data_window": {
+    "earliest": "2024-05-16 00:00:00",
+    "latest": "2026-05-12 22:55:00",
+    "total_5m_rows_across_syms": 2801620
+  },
+  "aggregate_focus_hold": {
+    "n_trades": 5859,
+    "n_long": 3309,
+    "n_short": 2550,
+    "mean_net_bp": -8.10997944107916,
+    "median_net_bp": -9.46070698217926,
+    "fee_aware_perm": {
+      "obs_mean": -0.0008109979441079159,
+      "obs_t": -2.5899129470492124,
+      "null_mean_t": -6.423222165612826,
+      "null_std_t": 1.0787703506211894,
+      "signal_t_excess": 3.8333092185636133,
+      "perm_p_two_sided": 1.0,
+      "perm_p_one_sided_below": 1.0,
+      "perm_p_one_sided_above": 0.0,
+      "n_observed": 5859.0,
+      "n_candidate": 2795761.0
+    },
+    "bootstrap_ci_bp": {
+      "mean_bp": -8.10997944107916,
+      "ci_lower_bp": -13.041459601570951,
+      "ci_upper_bp": -2.30340935203823,
+      "prob_positive": 0.003,
+      "n": 5859,
+      "block_size": 12
+    }
+  },
+  "three_gate": {
+    "gate_a_signal_t_excess_ge_2": true,
+    "gate_b_ci_lower_gt_0": false,
+    "gate_c_perm_p_le_0_10": false,
+    "pass": false
+  },
+  "concentration": {
+    "per_quarter_t_stats": [
+      {
+        "quarter": "2024Q2",
+        "n_trades": 300,
+        "mean_bp": -7.1247179578479365,
+        "t_stat": -0.9781447419846652
+      },
+      {
+        "quarter": "2024Q3",
+        "n_trades": 565,
+        "mean_bp": -5.765404402273536,
+        "t_stat": -0.7989352920424821
+      },
+      {
+        "quarter": "2024Q4",
+        "n_trades": 781,
+        "mean_bp": -8.255794788388311,
+        "t_stat": -1.506827958463525
+      },
+      {
+        "quarter": "2025Q1",
+        "n_trades": 819,
+        "mean_bp": 3.7331059804553894,
+        "t_stat": 0.498780895676176
+      },
+      {
+        "quarter": "2025Q2",
+        "n_trades": 806,
+        "mean_bp": -8.071133024727338,
+        "t_stat": -2.0099835310848575
+      },
+      {
+        "quarter": "2025Q3",
+        "n_trades": 692,
+        "mean_bp": -11.953787020716112,
+        "t_stat": -2.8461655793978338
+      },
+      {
+        "quarter": "2025Q4",
+        "n_trades": 984,
+        "mean_bp": -11.869500547338134,
+        "t_stat": -0.7745651810375596
+      },
+      {
+        "quarter": "2026Q1",
+        "n_trades": 704,
+        "mean_bp": -14.042216087332548,
+        "t_stat": -2.84822784016781
+      },
+      {
+        "quarter": "2026Q2",
+        "n_trades": 208,
+        "mean_bp": -11.483058839312287,
+        "t_stat": -2.2339560790712896
+      }
+    ],
+    "n_quarters_measurable": 9,
+    "n_quarters_pos_t": 1,
+    "quarter_pos_t_ratio": 0.1111111111111111,
+    "per_symbol_bootstrap": [
+      {
+        "symbol": "ADAUSDT",
+        "n_trades": 431,
+        "mean_bp": 10.369979475445374,
+        "ci_lower_bp": -13.799203692086536,
+        "ci_upper_bp": 37.48452053031403,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "AVAXUSDT",
+        "n_trades": 360,
+        "mean_bp": -15.3601487209422,
+        "ci_lower_bp": -31.4256646219402,
+        "ci_upper_bp": 0.5643993749884115,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "BCHUSDT",
+        "n_trades": 323,
+        "mean_bp": -11.762721924576146,
+        "ci_lower_bp": -27.10008365706295,
+        "ci_upper_bp": 3.6929025839205347,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "BNBUSDT",
+        "n_trades": 679,
+        "mean_bp": -16.420892418068377,
+        "ci_lower_bp": -23.60786871844178,
+        "ci_upper_bp": -8.843620962949746,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "BTCUSDT",
+        "n_trades": 463,
+        "mean_bp": -10.424267504267657,
+        "ci_lower_bp": -17.69320196710179,
+        "ci_upper_bp": -3.3829220729246234,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "DOGEUSDT",
+        "n_trades": 466,
+        "mean_bp": -20.07500605499581,
+        "ci_lower_bp": -39.142134853347834,
+        "ci_upper_bp": -2.581143093740507,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "ETHUSDT",
+        "n_trades": 513,
+        "mean_bp": -8.635344810349714,
+        "ci_lower_bp": -18.843085040200307,
+        "ci_upper_bp": 1.5650875886073325,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "FILUSDT",
+        "n_trades": 320,
+        "mean_bp": -2.3891000944515195,
+        "ci_lower_bp": -24.315957846379774,
+        "ci_upper_bp": 20.116532681933638,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "LINKUSDT",
+        "n_trades": 308,
+        "mean_bp": 0.09219061576574758,
+        "ci_lower_bp": -27.680720921065173,
+        "ci_upper_bp": 38.859974031033445,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "LTCUSDT",
+        "n_trades": 362,
+        "mean_bp": -2.299950555581102,
+        "ci_lower_bp": -15.885866847279951,
+        "ci_upper_bp": 11.562163461111034,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "NEARUSDT",
+        "n_trades": 280,
+        "mean_bp": -14.728892314662264,
+        "ci_lower_bp": -36.45908706996344,
+        "ci_upper_bp": 5.002908809383156,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "SOLUSDT",
+        "n_trades": 532,
+        "mean_bp": -8.494979259484989,
+        "ci_lower_bp": -19.16661062547909,
+        "ci_upper_bp": 2.212063796456474,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "WIFUSDT",
+        "n_trades": 309,
+        "mean_bp": -17.22886417701615,
+        "ci_lower_bp": -89.54818648435544,
+        "ci_upper_bp": 61.567773812876105,
+        "ci_lower_pos": false,
+        "skip": null
+      },
+      {
+        "symbol": "XRPUSDT",
+        "n_trades": 513,
+        "mean_bp": 5.146444062763674,
+        "ci_lower_bp": -16.845618824129616,
+        "ci_upper_bp": 32.313621129490194,
+        "ci_lower_pos": false,
+        "skip": null
+      }
+    ],
+    "n_symbols_measurable": 14,
+    "n_symbols_ci_pos": 0,
+    "symbol_ci_pos_ratio": 0.0,
+    "concentration_gate_pass": false
+  },
+  "sample_density_prescreen": {
+    "trigger_rate": 0.002091290039334385,
+    "expected_n_per_cell_quarters_x_sides": 325.5,
+    "cell_floor_30": true
+  },
+  "hold_sweep": [
+    {
+      "hold": "5m",
+      "n_obs": 5859,
+      "mean_bp": -6.5103184955773585,
+      "obs_t": -5.66094050406766,
+      "null_mean_t": -21.422263806496268,
+      "signal_t_excess": 15.761323302428607,
+      "perm_p_two_sided": 1.0,
+      "ci_lower_bp": -8.652607834544362,
+      "ci_upper_bp": -4.170186328562873
+    },
+    {
+      "hold": "15m",
+      "n_obs": 5859,
+      "mean_bp": -7.23859253990183,
+      "obs_t": -3.404610221403343,
+      "null_mean_t": -12.496606806743314,
+      "signal_t_excess": 9.09199658533997,
+      "perm_p_two_sided": 1.0,
+      "ci_lower_bp": -11.082230325539077,
+      "ci_upper_bp": -2.8355182266795893
+    },
+    {
+      "hold": "30m",
+      "n_obs": 5859,
+      "mean_bp": -6.666505327645764,
+      "obs_t": -2.186575420026064,
+      "null_mean_t": -8.844999095939986,
+      "signal_t_excess": 6.658423675913922,
+      "perm_p_two_sided": 1.0,
+      "ci_lower_bp": -12.528840829418751,
+      "ci_upper_bp": 0.2312833759573095
+    },
+    {
+      "hold": "60m",
+      "n_obs": 5859,
+      "mean_bp": -8.10997944107916,
+      "obs_t": -2.5899129470492124,
+      "null_mean_t": -6.2959175363121,
+      "signal_t_excess": 3.7060045892628874,
+      "perm_p_two_sided": 1.0,
+      "ci_lower_bp": -13.047669309680668,
+      "ci_upper_bp": -2.2769244025748723
+    },
+    {
+      "hold": "240m",
+      "n_obs": 5859,
+      "mean_bp": -5.450921677263894,
+      "obs_t": -1.2383911845652475,
+      "null_mean_t": -3.2523782938397434,
+      "signal_t_excess": 2.013987109274496,
+      "perm_p_two_sided": 0.996,
+      "ci_lower_bp": -14.427016085081393,
+      "ci_upper_bp": 3.430276583740014
+    }
+  ],
+  "verdict": "R1_FAIL"
+}
