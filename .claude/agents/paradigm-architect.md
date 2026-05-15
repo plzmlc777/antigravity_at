@@ -26,7 +26,7 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 - `.claude/plans/research_track_master.md` — elite gate definition, paradigm catalog, R-1~R-6 protocol
 - `.claude/plans/paper_pool_master.md` — current paper pool baseline (~38 sessions)
 - `.claude/plans/paradigm_architect_handoff.json` — most recent session handoff (graveyards, lessons, infrastructure deltas)
-- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **16 cumulative lessons** (Q3 mid-update, 2026-05-15) — read before any R-1 dispatch
+- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **19 cumulative lessons** (Q3 mid-update, 2026-05-15) — read before any R-1 dispatch
 - `backend/scripts/research/_perm_utils.py` — mandatory fee-aware perm + bootstrap CI helper (replaces naive perm code)
 - `backend/scripts/research/_ohlcv_parquet_cache.py` — joblib OHLCV cache loader (Mint ~/auto_trading/backend/runs/ohlcv_cache/)
 - `backend/scripts/research/eval_research_gate.py` — automated gate evaluator (`evaluate_e_new` for `_perm_utils` schema)
@@ -187,6 +187,37 @@ metrics["concentration"] = concentration
 If three-gate PASS but Concentration Gate FAIL → verdict = **`CONCENTRATED_R1_PASS`**, halt at R-1, do NOT auto-promote to R-2. Report which dimension is concentrated (quarter vs symbol vs both). User decides whether to:
 - Graveyard as cherry-pick artifact, OR
 - Repackage as narrow paradigm (e.g., "BNB+WIF SHORT only") with explicit per-symbol scope
+
+#### Mandatory Lesson #19 Symmetric Negative Test (2026-05-15 paradigm 80 fallout)
+
+Joint-trigger paradigms (two-or-more signal AND/joint events) admit multiple directional interpretations. Testing only the focus direction wastes turns: if A focus FAILs, the user must wait for mirror/alternative-mechanism dispatches that frequently also FAIL. Paradigm 80 (`oi_premium_5m_decoupling`) tested all four sign-quadrants in a single R-1 batch — focus + mirror + alternative mechanism + alternative mirror — and all four were negative, confirming **broad-falsification** rather than "single-direction null with mirror still open". This shortcut saves 1-3 dispatch cycles per joint paradigm.
+
+**Required structure for joint-trigger R-1 scripts**:
+
+1. **Mechanism A focus** (primary hypothesis direction) — full three-gate + concentration evaluation.
+2. **Mechanism A mirror** (LONG/SHORT swapped, same trigger event) — at minimum `mean_net_bp`, `signal_t_excess`, `ci_lower_bp`, `perm_p_two_sided`. Skip full concentration block if A focus is broadly negative (14/14 ci_neg) — derive mirror conclusion by symmetry.
+3. **Mechanism B same-sign joint** (continuation interpretation if A is reversal, reversal interpretation if A is continuation) — full evaluation.
+4. **Mechanism B mirror** — derive by symmetry from B same-sign + A mirror unless B same-sign is itself promising.
+
+Report all four in `r1__metrics.json` under `symmetric_variants` block:
+
+```python
+metrics["symmetric_variants"] = {
+    "mechanism_A_focus": {...three-gate + concentration...},
+    "mechanism_A_mirror": {"mean_net_bp": ..., "signal_t_excess": ..., "ci_lower_bp": ..., "perm_p_two_sided": ..., "verdict": "..."},
+    "mechanism_B_same_sign": {...},
+    "mechanism_B_mirror": {"derivation": "by symmetry from A mirror + B same-sign", "expected_mean_bp": ...} OR full eval if promising,
+}
+```
+
+**When this applies**: any R-1 whose trigger condition is a logical AND/joint of two or more z-scores or threshold events (e.g., `oi_z × premium_z`, `funding_z × oi_z`, `corr_z × vol_regime`). Single-signal triggers fall back to standard Lesson #8 (mirror antipattern — separate R-1 dispatch acceptable since single-signal mirror often has asymmetric effect).
+
+**Verdict resolution**:
+- All four variants 3-gate FAIL → **broad-falsified**, graveyard, no follow-up R-1. Mention "Symmetric Negative Test (Lesson #19) all variants FAIL" in graveyard note.
+- One variant 3-gate PASS, others FAIL → that variant becomes the paradigm (with concentration check), others are auto-graveyarded.
+- Multiple variants PASS → halt, report to user. Likely indicates trigger event is informative but direction is regime-dependent (sub-paradigm split candidate).
+
+**Anti-pattern this kills**: "let me dispatch mirror as a follow-up after A graveyard" / "mechanism B is a separate paradigm — file a new R-1 ticket". Both wasted prior dispatches; bake into the same R-1 script.
 
 #### Lesson #15 — Non-focus PASS 4-condition promotion policy
 
@@ -360,6 +391,8 @@ If any check fails, fix code before promoting. Document the fix in a commit.
 | R-1 three-gate FAIL | graveyard with reason citing failed gate(s) |
 | R-1 three-gate PASS + Concentration Gate FAIL (Lesson #16) | verdict `CONCENTRATED_R1_PASS`, halt at R-1, alert user with quarter/symbol breakdown — DO NOT auto-promote |
 | R-1 focus FAIL + sweep non-focus PASS (Lesson #15) | run separate R-1 replication + Bonferroni adj_p + hold-sweep sign check; if all four met, propose as candidate paradigm (still halt for user) |
+| R-1 joint-trigger paradigm dispatched without Symmetric Negative Test (Lesson #19) | reject before execution — regenerate R-1 script with 4-quadrant variants (A focus + A mirror + B same-sign + B mirror) baked in. Joint-trigger = trigger condition is logical AND of two or more z-scores/threshold events |
+| R-1 Symmetric Negative Test all 4 variants 3-gate FAIL | **broad-falsified** graveyard, no follow-up R-1 dispatch for mirror/B accepted. Cite paradigm 80 precedent in graveyard note |
 | Gate evaluator returns parse error | inspect metrics.json schema, regenerate script if needed |
 | Dogfood mismatch (Hyp B re-run produces different results) | STOP and re-validate gate config — do not promote any new paradigm until reconciled |
 
@@ -387,7 +420,8 @@ End-of-run summary in Korean, structured as:
 - Sub-hypotheses: ...
 
 ### 진행 결과
-- R-1: {PASS/FAIL/CONCENTRATED_R1_PASS} — {obs_t, signal_t_excess, ci_lower_bp, perm_p, diversity_n/N, quarter_pos_t_ratio, symbol_ci_pos_ratio}
+- R-1: {PASS/FAIL/CONCENTRATED_R1_PASS/BROAD_FALSIFIED} — {obs_t, signal_t_excess, ci_lower_bp, perm_p, diversity_n/N, quarter_pos_t_ratio, symbol_ci_pos_ratio}
+- Symmetric Negative Test (Lesson #19, joint-trigger paradigm 의무): {A focus / A mirror / B same-sign / B mirror} 4-variant verdict
 - R-2: ... (PASS시)
 - R-3: ...
 - R-4 gate: ...
@@ -398,7 +432,7 @@ End-of-run summary in Korean, structured as:
 - Verdict: {homogeneous / quarter-concentrated / symbol-concentrated / both}
 
 ### 최종 판정
-{✅ R-5 시드 대기 / ❌ graveyard / ⚠️ CONCENTRATED_R1_PASS — 사용자 결정 / ⚠️ non-focus PASS 4-cond 후보 — 사용자 결정}
+{✅ R-5 시드 대기 / ❌ graveyard / ❌ BROAD_FALSIFIED (Symmetric Negative Test all 4 variants FAIL) / ⚠️ CONCENTRATED_R1_PASS — 사용자 결정 / ⚠️ non-focus PASS 4-cond 후보 — 사용자 결정}
 
 ### 산출물
 - code: backend/scripts/research/{name}_*.py

@@ -1,15 +1,17 @@
-"""Download Binance Futures premiumIndex 1d klines from data.binance.vision.
+"""Download Binance Futures premiumIndex klines from data.binance.vision.
 
-URL: https://data.binance.vision/data/futures/um/daily/premiumIndexKlines/{SYM}/1d/{SYM}-1d-YYYY-MM-DD.zip
+URL: https://data.binance.vision/data/futures/um/daily/premiumIndexKlines/{SYM}/{interval}/{SYM}-{interval}-YYYY-MM-DD.zip
 
-Each daily file contains 1 row (1d kline) with premium values:
-  open, high, low, close = premium = (mark_price - index_price) / index_price (approximately)
+For 1d: each daily zip has 1 row. For 5m/15m/etc: 288/96 rows per daily zip.
+premium = (mark_price - index_price) / index_price (approximately)
 
-Output: backend/runs/premium_index/{SYMBOL}_premium.joblib
-        DataFrame indexed by date with columns: open, high, low, close, count
+Output:
+  1d (default):  backend/runs/premium_index/{SYMBOL}_premium.joblib
+  non-1d:        backend/runs/premium_index/{SYMBOL}_premium_{interval}.joblib
 
 Usage:
   python -m scripts.backfill_premium_index --symbols BTCUSDT,ETHUSDT --days 800
+  python -m scripts.backfill_premium_index --symbols BTCUSDT --interval 5m --days 730
 """
 from __future__ import annotations
 
@@ -39,12 +41,12 @@ KLINE_COLS = ["open_time", "open", "high", "low", "close", "volume",
               "taker_buy_volume", "taker_buy_quote_volume", "ignore"]
 
 
-def _url(sym: str, date) -> str:
-    return f"{ARCHIVE_BASE}/{sym}/1d/{sym}-1d-{date.isoformat()}.zip"
+def _url(sym: str, date, interval: str = "1d") -> str:
+    return f"{ARCHIVE_BASE}/{sym}/{interval}/{sym}-{interval}-{date.isoformat()}.zip"
 
 
-def _fetch(sym: str, date, session: requests.Session, retries: int = 2):
-    url = _url(sym, date)
+def _fetch(sym: str, date, session: requests.Session, retries: int = 2, interval: str = "1d"):
+    url = _url(sym, date, interval=interval)
     for attempt in range(retries + 1):
         try:
             r = session.get(url, timeout=30)
@@ -71,6 +73,8 @@ def main() -> int:
     p.add_argument("--days", type=int, default=800)
     p.add_argument("--end-date", default=None)
     p.add_argument("--parallel", type=int, default=16)
+    p.add_argument("--interval", default="1d",
+                   help="Kline interval: 1d/12h/4h/1h/30m/15m/5m/1m (default 1d)")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "premium_index"))
     p.add_argument("--refresh", action="store_true",
                    help="Incremental: read existing joblib, fetch only days after its last date, merge")
@@ -86,7 +90,8 @@ def main() -> int:
     target_days = [start_date + timedelta(days=i) for i in range(args.days)]
 
     for sym in syms:
-        out_path = out_dir / f"{sym}_premium.joblib"
+        suffix = "" if args.interval == "1d" else f"_{args.interval}"
+        out_path = out_dir / f"{sym}_premium{suffix}.joblib"
 
         existing = None
         days_to_fetch = target_days
@@ -112,7 +117,8 @@ def main() -> int:
         frames = []
         session = requests.Session()
         with ThreadPoolExecutor(max_workers=args.parallel) as ex:
-            futs = {ex.submit(_fetch, sym, d, session): d for d in days_to_fetch}
+            futs = {ex.submit(_fetch, sym, d, session, 2, args.interval): d
+                    for d in days_to_fetch}
             for f in as_completed(futs):
                 df = f.result()
                 if df is not None and not df.empty:
