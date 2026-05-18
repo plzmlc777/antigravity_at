@@ -2,7 +2,10 @@
 # Composer Phase 6 — daily paper trading cycle for all active sessions.
 # Wrapped by sas_loop_wrapper.sh.
 #
-# Runs: paper_session_cli run --all
+# Runs: paper_session_cli run --all --exchange kr
+# Only KR sessions (6-digit Kiwoom tickers) advance here. Binance USDT/USDC
+# perp sessions are routed to binance-paper-cycle instead — split 2026-05-18
+# to avoid duplicate work + cleaner ownership per market.
 # Reads each session's pipeline_spec, builds runtime data (OHLCV from DB,
 # pre-scanned signals, KR investor flow), fits/predicts, applies policy,
 # persists state.
@@ -27,7 +30,7 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
-PYTHONPATH=. python3 -m scripts.paper_session_cli run --all 2>&1 | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 -m scripts.paper_session_cli run --all --exchange kr 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[composer-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 

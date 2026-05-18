@@ -22,10 +22,20 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+
+_KR_SYMBOL_RE = re.compile(r"^\d{6}$")
+
+
+def classify_exchange(symbol: str) -> str:
+    """KR Kiwoom symbols are 6-digit numeric tickers; everything else is treated
+    as Binance (USDT/USDC perp). Used by `run --exchange` to route sessions to
+    the correct cycle (binance-paper-cycle vs composer-paper-cycle)."""
+    return "kr" if _KR_SYMBOL_RE.match(symbol or "") else "binance"
 
 import joblib
 import pandas as pd
@@ -340,6 +350,14 @@ def cmd_run(args) -> int:
         log.error("Must specify --id or --all")
         return 2
     sessions = [s for s in sessions if s.status == "active"]
+    exchange_filter = (getattr(args, "exchange", "all") or "all").lower()
+    if exchange_filter not in ("all", "binance", "kr"):
+        log.error("--exchange must be one of: all, binance, kr (got %r)", exchange_filter)
+        return 2
+    if exchange_filter != "all":
+        before = len(sessions)
+        sessions = [s for s in sessions if classify_exchange(s.symbol) == exchange_filter]
+        log.info("--exchange=%s filtered %d → %d sessions", exchange_filter, before, len(sessions))
     if not sessions:
         print("No active sessions to run")
         return 0
@@ -448,6 +466,12 @@ def main() -> int:
     p_run = sub.add_parser("run", help="Run one cycle")
     p_run.add_argument("--id", default=None)
     p_run.add_argument("--all", action="store_true")
+    p_run.add_argument(
+        "--exchange",
+        choices=["all", "binance", "kr"],
+        default="all",
+        help="Filter sessions by exchange (KR=6-digit symbol, else Binance). Default: all (backward compatible)",
+    )
     p_run.set_defaults(func=cmd_run)
 
     # status

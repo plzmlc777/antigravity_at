@@ -2,10 +2,10 @@
 # Binance Phase 1 paper trading cycle for all active sessions (24/7 market).
 # Wrapped by sas_loop_wrapper.sh.
 #
-# Runs: paper_session_cli run --all
-# All active paper sessions (KR + Binance) processed in single call.
-# KR sessions silently skip when ohlcv data is from prior trading day.
-# Binance sessions advance using fresh UTC-day boundary data.
+# Runs: paper_session_cli run --all --exchange binance
+# Only Binance USDT/USDC perp sessions advance here. KR sessions (6-digit
+# tickers) are routed to composer-paper-cycle instead — see split rationale
+# 2026-05-18 (avoid duplicate work + cleaner ownership per market).
 #
 # Schedule: daily 00:30 UTC (09:30 KST) — 30 minutes after UTC-day rollover
 # to allow archive data ingestion if any.
@@ -54,7 +54,7 @@ PYTHONPATH=. python3 fetch_binance_metrics.py \
   --symbols "${POS_SYMBOLS}" \
   --source oi --oi-period 5m --positioning-days 2 2>&1 | tail -30 | tee -a "${LOG_FILE}"
 
-PYTHONPATH=. python3 -m scripts.paper_session_cli run --all 2>&1 | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 -m scripts.paper_session_cli run --all --exchange binance 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 
