@@ -423,8 +423,23 @@
       "updated_at": "2026-05-18T05:58:34+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "token_unlock_cliff_short_alt": {
+      "name": "token_unlock_cliff_short_alt",
+      "hypothesis": "Token Unlock Cliff event triggers forced supply-side dilution + pre-event positioning unwind; SHORT entry at unlock_ts - 72h, exit at unlock_ts + 24h close. Category A external event injection (lifecycle_pump_decay analog forced-supply-entry side, lesson #26 sub-mechanism asymmetry hypothesis entry-side mechanism). Universe: top-30 Binance Futures USDS-M perp tokens with known vesting schedules (APT/ARB/OP/SUI/STRK/PYTH/JTO/WLD/W/ENA/JUP/TIA/SEI/MANTA/ALT/PORTAL/AEVO/REZ/IO/ZK/ZRO/DYM/OMNI/METIS/AVAIL/PIXEL/XAI/ACE/NFP/MERL etc). Symmetric Negative Test 4-quadrant: A focus SHORT (forced dilution drift), A mirror LONG (anticipation oversold reversal), B same-sign LONG post-unlock 48h recovery, B mirror SHORT.",
+      "data_dependencies": [
+        "Manual compilation from CryptoRank public vesting page (cryptorank.io/price/{coin}/vesting) + Tokenomist.ai public (tokenomist.ai/{coin}) + project whitepapers (free web scrape no auth). data.binance.vision OHLCV 1m archive for each unlock-eligible perp sym. 2024-01-01 to 2026-05-18 lookback. ETA 1.5-2.5h manual compilation (user-approved 30min ETA exception)."
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-18T06:40:01+00:00",
+      "updated_at": "2026-05-18T07:08:15+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-18T05:58:34+00:00"
+  "updated_at": "2026-05-18T07:08:15+00:00"
 }
