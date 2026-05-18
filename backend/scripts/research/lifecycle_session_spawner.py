@@ -128,13 +128,21 @@ def eligible_for_session(sym: str, meta: dict, today: date) -> tuple[bool, str]:
     return True, "ok"
 
 
-def session_exists_for(symbol: str, policy_variant: str = POLICY_BASELINE) -> bool:
-    """Check existing paper sessions for symbol + variant name suffix."""
+def session_exists_for(
+    symbol: str,
+    policy_variant: str = POLICY_BASELINE,
+    check_day: int | None = None,
+) -> bool:
+    """Check existing paper sessions for symbol + variant name suffix.
+
+    When `policy_variant == POLICY_EARLY_EXIT` and `check_day` is given, the
+    name suffix `_earlyexit_d{check_day}` must match — d7 and d14 are treated
+    as distinct variants (separate paper sessions for parallel A/B).
+    """
     sessions_dir = ROOT / "runs" / "paper_sessions"
     if not sessions_dir.exists():
         return False
-    # baseline session: name contains "lifecycle_" but NOT "earlyexit"
-    # early_exit session: name contains "earlyexit"
+    target_ee_tag = f"earlyexit_d{int(check_day)}" if check_day is not None else "earlyexit"
     for p in sessions_dir.iterdir():
         sj = p / "session.json"
         if not sj.exists():
@@ -148,7 +156,8 @@ def session_exists_for(symbol: str, policy_variant: str = POLICY_BASELINE) -> bo
                 continue
             has_ee = "earlyexit" in n
             if policy_variant == POLICY_EARLY_EXIT and has_ee:
-                return True
+                if check_day is None or target_ee_tag in n:
+                    return True
             if policy_variant == POLICY_BASELINE and not has_ee:
                 return True
         except Exception:
@@ -330,9 +339,14 @@ def main() -> int:
             "parallel A/B measurement."
         ),
     )
-    p.add_argument("--early-exit-check-day", type=int, default=14,
+    p.add_argument("--early-exit-check-day", type=int, default=None,
                    choices=(7, 14),
-                   help="Day at which vol_cliff is evaluated (default 14, matches R-2 metric).")
+                   help="DEPRECATED single check_day (use --early-exit-check-days). Kept for backward compat.")
+    p.add_argument("--early-exit-check-days", default="7,14",
+                   help=("Comma-separated list of check_day values to spawn as "
+                         "PARALLEL early-exit variants (default '7,14'). Each "
+                         "becomes a distinct session: _earlyexit_d7, _earlyexit_d14. "
+                         "Single value (e.g. '14') = original behavior."))
     p.add_argument("--early-exit-vc-threshold", type=float, default=0.40,
                    help="vol_cliff threshold above which early-exit fires (default 0.40).")
     args = p.parse_args()
@@ -341,6 +355,14 @@ def main() -> int:
         variants = [POLICY_BASELINE, POLICY_EARLY_EXIT]
     else:
         variants = [args.policy]
+
+    # Resolve early-exit check_days: explicit --early-exit-check-day overrides
+    # the list (back-compat), else parse --early-exit-check-days.
+    if args.early_exit_check_day is not None:
+        ee_check_days = [int(args.early_exit_check_day)]
+    else:
+        ee_check_days = sorted({int(x) for x in args.early_exit_check_days.split(",") if x.strip()})
+    log.info("early-exit check_days = %s", ee_check_days)
 
     known = json.loads(LISTINGS_PATH.read_text()) if LISTINGS_PATH.exists() else {}
     log.info("known listings: %d", len(known))
@@ -372,21 +394,26 @@ def main() -> int:
             skipped.append((sym, "backfill failed"))
             continue
         for variant in variants:
-            if session_exists_for(sym, policy_variant=variant):
-                skipped.append((f"{sym}/{variant}", "session already exists"))
-                continue
-            ok_spawn = spawn_session(
-                sym,
-                meta["onboard_date"],
-                policy_variant=variant,
-                early_exit_check_day=args.early_exit_check_day,
-                early_exit_vc_threshold=args.early_exit_vc_threshold,
-                dry_run=args.dry_run,
-            )
-            if not ok_spawn:
-                skipped.append((f"{sym}/{variant}", "spawn failed"))
-                continue
-            spawned += 1
+            # For early_exit, iterate over every requested check_day (each is a
+            # distinct paper session). Baseline ignores check_day entirely.
+            check_day_iter = ee_check_days if variant == POLICY_EARLY_EXIT else [None]
+            for cd in check_day_iter:
+                tag = f"{sym}/{variant}" if cd is None else f"{sym}/{variant}_d{cd}"
+                if session_exists_for(sym, policy_variant=variant, check_day=cd):
+                    skipped.append((tag, "session already exists"))
+                    continue
+                ok_spawn = spawn_session(
+                    sym,
+                    meta["onboard_date"],
+                    policy_variant=variant,
+                    early_exit_check_day=(cd if cd is not None else 14),
+                    early_exit_vc_threshold=args.early_exit_vc_threshold,
+                    dry_run=args.dry_run,
+                )
+                if not ok_spawn:
+                    skipped.append((tag, "spawn failed"))
+                    continue
+                spawned += 1
 
     log.info("\n=== SUMMARY ===")
     log.info("spawned: %d", spawned)

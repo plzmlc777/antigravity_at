@@ -7,10 +7,14 @@
 #   2. Identify listings aged 1-14 days, not in blocklist (stocks/commodities),
 #      not already covered by an existing paper session (per-variant detection)
 #   3. Backfill that symbol's 1m ohlcv (35 days) — shared across variants
-#   4. Create per-listing PaperSession(s) via paper_session_cli — BOTH variants:
+#   4. Create per-listing PaperSession(s) via paper_session_cli — THREE variants:
 #        - baseline (R-4 PASS): Day 1 short, hold to Day 30
-#        - early_exit (R-2-bis +1.41% mean uplift, +2.5pp win, t-stat 1.70→2.13):
+#        - early_exit_d14 (R-2-bis +1.41% mean uplift, +2.5pp win, t-stat 1.70→2.13):
 #          Day 1 short; at Day 14 if vol_cliff>=0.40, exit early
+#        - early_exit_d7 (2026-05-18 aggressive expansion): same as d14 but
+#          earlier check_day for shorter capital cycling — A/B measures
+#          whether earlier exit signal preserves the +1.41% uplift while
+#          freeing capital sooner
 #
 # Schedule: daily 03:00 UTC (12:00 KST) — AFTER binance-paper-cycle (02:30 UTC)
 # so new sessions appear on the NEXT day's cycle (acceptable — lifecycle hold
@@ -40,7 +44,7 @@ source venv/bin/activate
 PYTHONPATH=. python3 -m scripts.research.lifecycle_session_spawner \
   --refresh-listings \
   --policy both \
-  --early-exit-check-day 14 \
+  --early-exit-check-days 7,14 \
   --early-exit-vc-threshold 0.40 \
   2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
