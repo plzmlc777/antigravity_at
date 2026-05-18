@@ -118,3 +118,6 @@ backend/runs/composer_framework/
 
 # OHLCV joblib cache (regeneratable from DB via _ohlcv_parquet_cache.py)
 backend/runs/ohlcv_cache/
+
+# Track 3 DART pipeline runtime artifacts (joblib cache + per-run metrics, regeneratable)
+backend/runs/dart_track/

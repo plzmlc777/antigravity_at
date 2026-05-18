@@ -295,6 +295,70 @@ paradigm-architect 호출 — A 가설로 R-1 PoC ONLY 진행.
 prompt: "_perm_utils 사용 + Mint mint@183.99.228.81 명시 + 1241280 BTC count 확인 + R-1 only halt".
 ```
 
+### 6.7 2026-05-18 Track 3 DART KR equity earnings/guidance family update
+
+**Track 3 (DART OpenAPI pipeline)** Sub-task 3A design + 3B 구현 + 2 R-1 dispatch 완료, KR equity post-earnings/guidance directional momentum family **Tier 4 formal retire**.
+
+**Paradigm 92 — `dart_h1_earnings_gap_proxy_kr_equity_long_5d`** (Track 3 Sub-task 3B 첫 dispatch, 2026-05-18)
+- 가설: KOSPI200+KOSDAQ150 잠정실적 공시 후 시초가 gap ≥ +3% → +1d open 매수 → +5d hold (LONG)
+- R-1 gap proxy PASS_R1: n=156 / sigex +3.67 / 3-gate ALL PASS / Concentration PASS
+- R-2 wf TEST PASS but TS-CV **1/5** (fold k=5 2026Q1+Q2 단독 견인)
+- R-2c true YoY OP ≥+30% surprise n=706: **0/5 folds PASS** (5 fold 3 양수 / 2 유의 음수 temporal alternating)
+- **NEW lesson #29 candidate**: gap proxy ≠ true surprise direction (sentiment-driven gap ≈ continuation vs fundamental YoY ≈ mean reversion in KR equity, US PEAD strong but KR retail over-reaction)
+- Side discovery: neg surprise × LONG t=-2.28 sig_t_ex -3.25 강한 하방 continuation but reverse (neg×SHORT) net -23bp sub-fee
+- 산출물: dart_adapter.py + disclosure_parser.py + _naver_kr_equity.py + dart_earnings_signal_r1.py + r2.py + r2c.py (6 files ~1,000 lines) + cache (universe + 197 stock OHLCV 2.4yr + 2,000 fnltt + 1,996 events_ret joblib)
+- [[project_paradigm_dart_h1_earnings_gap]] 참조
+
+**Paradigm 93 — `dart_h2_guidance_amend_30pct_kr_equity_directional_5d`** (Track 3 Sub-task 3B 두번째 dispatch, 2026-05-18)
+- 가설: EARNINGS_GUIDANCE_AMEND 공시 ("매출액또는손익구조30%이상변경") + DART fnltt YoY OP growth direction → +1d open / +5d hold, lesson #29 cross-proxy 강제 (observable pre_ret_5d + fundamental YoY OP 두 트랙 독립 측정)
+- R-1 4-quadrant + cross-proxy: n=1,106 events / 350 pos / 327 neg
+  - Fund pos×LONG: gross +50.7bp (정확 fee floor) / net +0.7bp / sigex **-0.97** / ci_lo -98bp
+  - Obs pos_pre×LONG: gross +175.4bp / t **+2.47** / sigex **+1.34 < 2.0** / ci_lo +25.8bp (traditional t PASS but fee-aware strict 차단)
+  - 두 트랙 모두 strict 3-gate FAIL → `BROAD_FALSIFIED` cross_proxy_verdict
+- **Lesson #29 dogfood 2번째 성공 + 정식 승급 candidate → confirmed**: cross-proxy strict gate가 single-proxy marginal artifact 정확 차단 (paradigm 92 동형 trap 방지 입증)
+- Side discovery: B mirror neg×LONG gross +74~110bp / prob_pos 94.2% / mean reversion pattern but sigex<2.0 paradigm-grade 미달
+- TS-CV degenerate 1 fold (가이던스 ≥30% pos events Q1 entry agglomeration, 별도 lesson candidate 본 paradigm BROAD_FALSIFIED로 보류)
+- 산출물: dart_guidance_signal_r1.py (~550 lines) + h2_guidance_r1_metrics.json + h2_guidance_events_cache.joblib (1,107 events) + h2_guidance_events_ret_cache.joblib (1,106 enriched) + fnltt_cache +150 entries
+- [[project_paradigm_dart_h2_guidance]] 참조
+
+**Lesson #29 정식 (candidate → confirmed via dual dogfood)**:
+**Cross-proxy strict (observable + fundamental both PASS)**. Trigger: R-1 paradigm 발의 시 trigger가 관측 가능한 sentiment-driven proxy 또는 fundamental signal 단일 차원. Check: 동일 mechanism family에서 두 트랙 (observable + fundamental) 독립 측정 가능한가? 두 트랙 모두 R-1 본체에 4-quadrant Symmetric Negative Test 한 batch 측정 의무. Action: 두 트랙 모두 PASS → PROMOTE_R2 / 한 트랙만 PASS → SINGLE_PROXY_TRAP halt / 두 트랙 모두 FAIL → BROAD_FALSIFIED / opposite alignment → mean-reversion regime 진단. paradigm-architect r1_protocol.md spec 통합 권고.
+
+**Family retire — KR equity post-earnings/guidance directional momentum** (Tier 4 formal retire 5번째, 2026-05-18):
+- paradigm 92 (잠정실적 gap proxy R-1 PASS → R-2c 0/5) + paradigm 93 (가이던스 ±30% cross-proxy R-1 BROAD_FALSIFIED) 이중 graveyard 누적 입증
+- 사전 차단 sub-mechanism: 잠정실적 directional momentum / 가이던스 변경 directional momentum / 사업/반기/분기 보고서 directional momentum / 컨센서스 surprise momentum / 모든 hold period × universe size 변형
+- Family-distinct hypothesis만 R-1 dispatch 가능: mean-reversion 방향 (단 fee floor / sigex 2.0 사전 통과) / 비-directional event / 외부 event (lesson #27 amendment 추가 prescreen)
+- 재검토 2026-11-18
+- [[feedback_family_retire_kr_post_earnings]] 참조
+
+**Track 3 DART OpenAPI 인프라 영구 자산** (재사용 가능, ~250MB):
+- `backend/app/services/dart_adapter.py` (DART HTTP client + crtfc_key + paging)
+- `backend/app/services/disclosure_parser.py` (Tier S/A/B/C classifier)
+- `backend/scripts/research/_naver_kr_equity.py` (universe + OHLCV)
+- `backend/runs/dart_track/ohlcv_cache/` (197 KR stocks × 2.4yr 일봉)
+- `backend/runs/dart_track/fnltt_cache/` (~2,150 DART fnltt entries)
+- `backend/runs/dart_track/events_ret_cache.joblib` (1,996 잠정실적 events)
+- `backend/runs/dart_track/h2_guidance_events_ret_cache.joblib` (1,106 가이던스 events)
+
+**Tier 4 family retire 표 update** (§6.4):
+
+| Family | 누적 paradigm graveyard | 사유 |
+|---|---|---|
+| btc_eth_5m_corr_breakdown_family | 74+75+76+77 | cross-asset corr regime trigger 변형 모두 fail, lesson #15+16 적용 |
+| geometric_path_metrics_family | 78 | path tortuosity/fractality/Hurst alone fee-floor 미달, lesson #17 |
+| funding_oi_joint_squeeze_family | 73+79 | sample-density bottleneck → 5.1x boost 후에도 mechanism falsified, lesson #18 |
+| 5m_microstructure_single_domain_alpha_family (advisory caution) | 80+82+83+85 | 5m premium/OI single-domain 4번 누적 fail, formal retire 직전 단계 |
+| **kr_equity_post_earnings_guidance_directional_momentum_family** (NEW 2026-05-18) | **92+93** | **KR PEAD weak + retail over-reaction, sub-mechanism 모두 사전 차단, lesson #29 confirmed** |
+
+**Paradigm campaign 진행 상태** (2026-05-18 22:13 KST):
+- 누적 graveyards: 93 (paradigm 86~93 9개 graveyard 8개 + R-1 PASS 가지 변형 0개)
+- R-5 시드: 8개 (unchanged)
+- Family retire (formal): 5 + advisory caution 1
+- Lessons: 29 (lesson #29 정식 승급)
+- Day 30 baseline 검증: 2026-06-03~13 (10-20일 남음)
+- Campaign 휴면 유지: paradigm-architect 정식 dispatch 금지 2026-05-29까지 (lifecycle live mode 재개), ad-hoc R-1 검증은 허용
+- 다음 entry point: Day 30 baseline 측정 완료 + lifecycle live mode 결과 누적, family-distinct mechanism만 발의 가능
+
 ---
 
-**END Mid-Q3 Update** — 다음 candidate (Tier 1 A) R-1 즉시 시도 가능.
+**END Mid-Q3 Update + Track 3 Final** — 다음 candidate (Day 30 baseline 측정 + lifecycle live mode 결과 우선, 2026-05-29+ campaign 재개).

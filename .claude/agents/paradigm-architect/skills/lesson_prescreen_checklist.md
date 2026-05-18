@@ -1,10 +1,10 @@
 # Skill: Q3 Lesson Prescreen Checklist
 
 > Parent agent: `paradigm-architect`
-> Purpose: Pre-flight grid covering all 28 Q3 cumulative lessons — block paradigm dispatch when applicable
+> Purpose: Pre-flight grid covering all 29 Q3 cumulative lessons — block paradigm dispatch when applicable
 > Tools: Read
 
-> Last sync: 2026-05-18 KST (lessons #1-#28 inclusive). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 if newer lessons exist.
+> Last sync: 2026-05-18 KST 22:13 (lessons #1-#29 inclusive, lesson #29 promoted candidate → confirmed via paradigm 92+93 dual dogfood). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 if newer lessons exist.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
 
@@ -74,6 +74,26 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 **Trigger**: R-0 진입 시점에 external event 데이터 substrate 가용성 미확인.
 **Check**: substrate가 event 시점 전후 N hours/days 측정 가능한가? (예: Binance Futures perp onboardDate 이전은 HTTP 404)
 **Action**: substrate 부재 시 DISPATCH_IMPOSSIBLE halt. R-0 단계에서 차단. (Paradigm 89 precedent)
+
+### #29 — Cross-proxy strict (observable + fundamental both PASS) [CONFIRMED 2026-05-18]
+**Trigger**: R-1 paradigm 발의 시 trigger가 관측 가능한 sentiment-driven proxy (gap, pre-event ret 등) 또는 fundamental signal (true YoY surprise, realized magnitude 등) 단일 차원.
+**Check**: 동일 mechanism family에서 observable proxy + fundamental signal 두 트랙 독립 측정 가능한가? 두 트랙 모두 R-1 본체에 4-quadrant Symmetric Negative Test 한 batch 측정 의무.
+**Action**:
+- 두 트랙 모두 PASS 시: `PASS_R1_CROSS_PROXY_PROMOTE_R2` (진정한 paradigm)
+- 한 트랙만 PASS 시: `SINGLE_PROXY_TRAP_{FUND|OBS}_ONLY` halt — paradigm-grade 아님 (paradigm 92 H1 gap proxy R-1 PASS but R-2c true YoY 0/5 동형 trap 입증)
+- 두 트랙 모두 FAIL 시: `BROAD_FALSIFIED` graveyard
+- 두 트랙이 opposite directional alignment 시: mean-reversion regime 진단, family advisory caution 권고
+
+**Why CONFIRMED**:
+1. Paradigm 92 (H1 KR equity 잠정실적 momentum) — gap proxy R-1 PASS_R1 (sigex +3.67) but R-2c true YoY 0/5 fold PASS, sentiment continuation ≠ fundamental momentum 입증
+2. Paradigm 93 (H2 KR equity 가이던스 ±30% momentum) — cross-proxy strict 강제 R-1, fund pos×LONG sigex -0.97 + obs pos_pre_ret×LONG sigex +1.34 < 2.0, strict gate가 single-proxy marginal artifact 정확 차단
+
+**Implementation**: R-1 protocol spec에 observable_track_quadrants + fundamental_track_quadrants 양 측정 의무화. 각 트랙 별 4-quadrant + Concentration Gate + three-gate eval, cross_proxy_verdict 자동 산출.
+
+### Family retire — KR equity post-earnings/guidance directional momentum [CONFIRMED 2026-05-18]
+**Trigger**: 한국 주식 (KOSPI/KOSDAQ) earnings/guidance 발표 후 directional drift momentum hypothesis 발의 시도.
+**Check**: paradigm 92 (H1 잠정실적) + paradigm 93 (H2 가이던스) 이중 graveyard 누적 입증. Family-wide 사전 차단.
+**Action**: 다음 sub-mechanism 모두 `HALT_BEFORE_R1` 사전 차단 — (a) 잠정실적 directional momentum (b) 가이던스 변경 directional momentum (c) 사업/반기/분기 보고서 directional momentum (d) 컨센서스 surprise (Naver IR 추정치) momentum (e) 모든 hold period (1d~30d) × universe size 변형. **Family-distinct hypothesis만 R-1 dispatch 가능** — mean-reversion 방향 (단 fee floor / sigex 2.0 사전 통과 필수) / 비-directional event (vol expansion, pair trade, sector rotation) / 외부 event (lesson #27 amendment 추가 prescreen). 재검토 2026-11-18. ([[feedback_family_retire_kr_post_earnings]] 참조)
 
 ## Earlier Lessons (#1-#10 condensed)
 
