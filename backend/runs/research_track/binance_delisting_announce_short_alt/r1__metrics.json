@@ -1,0 +1,1110 @@
+{
+  "paradigm_name": "binance_delisting_announce_short_alt",
+  "generated_at": "2026-05-18T05:38:20.861548+00:00",
+  "n_events": 57,
+  "n_skipped": 0,
+  "fee_baseline_per_trade": 0.0008,
+  "fee_stress_per_trade": 0.0025,
+  "entry_offset_min": 5,
+  "exit_before_delist_min": 1440,
+  "per_quarter_event_counts": {
+    "2024-Q4": 6,
+    "2025-Q3": 8,
+    "2025-Q4": 18,
+    "2026-Q1": 13,
+    "2026-Q2": 12
+  },
+  "lesson_11_prescreen": {
+    "n_total": 57,
+    "scope_reduction": "2-quadrant (A focus SHORT + A mirror LONG); B same-sign / B mirror deferred per user authorization (Lesson #11+#19)",
+    "concentration_per_quarter_measurable": 3,
+    "concentration_per_quarter_total": 5,
+    "verdict_for_three_gate": "PASS",
+    "verdict_for_concentration_quarter": "PASS_at_least_2_quarters_measurable"
+  },
+  "symmetric_variants": {
+    "A_focus_SHORT": {
+      "side": "short",
+      "fee_baseline": {
+        "label": "A_focus_SHORT_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": 1380.8157486482387,
+        "obs_t": 4.659803362716762,
+        "null_mean_t": 2.426340916005129,
+        "signal_t_excess": 2.233462446711633,
+        "perm_p_two_sided": 0.062,
+        "perm_p_one_sided_above": 0.062,
+        "perm_p_one_sided_below": 0.938,
+        "ci_lower_bp": 781.9055597691789,
+        "ci_upper_bp": 1950.570208510498,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 386,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "fee_stress": {
+        "label": "A_focus_SHORT_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": 1363.8157486482392,
+        "obs_t": 4.60243390032199,
+        "null_mean_t": 2.374276204707559,
+        "signal_t_excess": 2.228157695614431,
+        "perm_p_two_sided": 0.061,
+        "perm_p_one_sided_above": 0.061,
+        "perm_p_one_sided_below": 0.939,
+        "ci_lower_bp": 764.9055597691793,
+        "ci_upper_bp": 1933.570208510498,
+        "prob_positive": 1.0,
+        "n_candidate_pool": 386,
+        "gate_a_sigex_pass": true,
+        "gate_b_ci_pass": true,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": true
+      },
+      "concentration_baseline": {
+        "side": "short",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024-Q4",
+            "n_trades": 6,
+            "mean_bp": 44.173330381249336,
+            "t_stat": 0.030686907148035486
+          },
+          {
+            "quarter": "2025-Q3",
+            "n_trades": 8,
+            "mean_bp": 1986.3684850198324,
+            "t_stat": 2.0037454811998523
+          },
+          {
+            "quarter": "2025-Q4",
+            "n_trades": 18,
+            "mean_bp": 1600.6666333653227,
+            "t_stat": 3.6043984447705832
+          },
+          {
+            "quarter": "2026-Q1",
+            "n_trades": 13,
+            "mean_bp": 1995.1600227955134,
+            "t_stat": 3.9244217784521456
+          },
+          {
+            "quarter": "2026-Q2",
+            "n_trades": 12,
+            "mean_bp": 650.1191761321638,
+            "t_stat": 1.2349170196706871
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 3,
+        "quarter_pos_t_ratio": 1.0,
+        "per_symbol_records": [
+          {
+            "symbol": "1000WHYUSDT",
+            "n_trades": 1,
+            "mean_bp": 3502.6382978723404,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "1000XUSDT",
+            "n_trades": 1,
+            "mean_bp": 1463.1786636076852,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "42USDT",
+            "n_trades": 1,
+            "mean_bp": 2959.7026203534438,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "AIUSDT",
+            "n_trades": 1,
+            "mean_bp": 74.30452674897192,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ALPHAUSDT",
+            "n_trades": 1,
+            "mean_bp": 3124.8992723094593,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "B3USDT",
+            "n_trades": 1,
+            "mean_bp": 243.11799105607236,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BAKEUSDT",
+            "n_trades": 1,
+            "mean_bp": 1497.6179775280898,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BDXNUSDT",
+            "n_trades": 1,
+            "mean_bp": 546.8854041013274,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BIDUSDT",
+            "n_trades": 1,
+            "mean_bp": 3567.862068965517,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BOBUSDT",
+            "n_trades": 1,
+            "mean_bp": 460.5188229492021,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BONDUSDT",
+            "n_trades": 1,
+            "mean_bp": 3260.628678772699,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BSWUSDT",
+            "n_trades": 1,
+            "mean_bp": 336.10532615200435,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "COMMONUSDT",
+            "n_trades": 1,
+            "mean_bp": 2765.1788079470207,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "CUDISUSDT",
+            "n_trades": 1,
+            "mean_bp": 2119.659574468085,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DAMUSDT",
+            "n_trades": 1,
+            "mean_bp": 2320.907048008171,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DEFIUSDT",
+            "n_trades": 1,
+            "mean_bp": -1850.647437548288,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DEGENUSDT",
+            "n_trades": 1,
+            "mean_bp": -420.0079644662278,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DMCUSDT",
+            "n_trades": 1,
+            "mean_bp": 3155.841807909604,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "EPTUSDT",
+            "n_trades": 1,
+            "mean_bp": 3188.675900277008,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "FISUSDT",
+            "n_trades": 1,
+            "mean_bp": 2333.723874904652,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "FLMUSDT",
+            "n_trades": 1,
+            "mean_bp": 2893.2345679012337,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "HIFIUSDT",
+            "n_trades": 1,
+            "mean_bp": 1369.4774090667474,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "HIPPOUSDT",
+            "n_trades": 1,
+            "mean_bp": 1941.0358126721762,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "IRUSDT",
+            "n_trades": 1,
+            "mean_bp": 4253.430246189918,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "KDAUSDT",
+            "n_trades": 1,
+            "mean_bp": 4136.486692015209,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "LEVERUSDT",
+            "n_trades": 1,
+            "mean_bp": 5459.948717948719,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "LOOMUSDT",
+            "n_trades": 1,
+            "mean_bp": -815.0704302548636,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MAVIAUSDT",
+            "n_trades": 1,
+            "mean_bp": 3035.740573152338,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MILKUSDT",
+            "n_trades": 1,
+            "mean_bp": 4069.5733465937333,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MYROUSDT",
+            "n_trades": 1,
+            "mean_bp": 4327.664335664335,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "NEIROETHUSDT",
+            "n_trades": 1,
+            "mean_bp": 6266.424663482414,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OBOLUSDT",
+            "n_trades": 1,
+            "mean_bp": 2883.7609046849757,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OLUSDT",
+            "n_trades": 1,
+            "mean_bp": 1160.8311688311692,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OMGUSDT",
+            "n_trades": 1,
+            "mean_bp": 2186.903086862886,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ORBSUSDT",
+            "n_trades": 1,
+            "mean_bp": -1524.7165821160088,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PERPUSDT",
+            "n_trades": 1,
+            "mean_bp": 1905.265306122448,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PONKEUSDT",
+            "n_trades": 1,
+            "mean_bp": 7.641293013555213,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PUFFERUSDT",
+            "n_trades": 1,
+            "mean_bp": -2518.518934081347,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "QUICKUSDT",
+            "n_trades": 1,
+            "mean_bp": 352.4902667627974,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "REIUSDT",
+            "n_trades": 1,
+            "mean_bp": 1651.6343178621653,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "RLSUSDT",
+            "n_trades": 1,
+            "mean_bp": -1413.3018205046296,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "RVVUSDT",
+            "n_trades": 1,
+            "mean_bp": 568.298701298702,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SKATEUSDT",
+            "n_trades": 1,
+            "mean_bp": 4397.5608820709485,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SLERFUSDT",
+            "n_trades": 1,
+            "mean_bp": -1404.2142048212268,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SWELLUSDT",
+            "n_trades": 1,
+            "mean_bp": -189.5541031227319,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SXPUSDT",
+            "n_trades": 1,
+            "mean_bp": -599.3978494623651,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "TANSSIUSDT",
+            "n_trades": 1,
+            "mean_bp": 4555.679245283018,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "TOKENUSDT",
+            "n_trades": 1,
+            "mean_bp": -5.691597414588571,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "UXLINKUSDT",
+            "n_trades": 1,
+            "mean_bp": -312.87804878048587,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VFYUSDT",
+            "n_trades": 1,
+            "mean_bp": -431.9054899235573,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VINEUSDT",
+            "n_trades": 1,
+            "mean_bp": -338.9066843150244,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VOXELUSDT",
+            "n_trades": 1,
+            "mean_bp": 1139.8730587440923,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "XCNUSDT",
+            "n_trades": 1,
+            "mean_bp": -551.2303545511097,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "XEMUSDT",
+            "n_trades": 1,
+            "mean_bp": -5878.445344129554,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "YALAUSDT",
+            "n_trades": 1,
+            "mean_bp": 1189.802197802198,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ZKJUSDT",
+            "n_trades": 1,
+            "mean_bp": 2038.0199004975134,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ZRCUSDT",
+            "n_trades": 1,
+            "mean_bp": -1751.2388400130328,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          }
+        ],
+        "n_symbols_measurable": 0,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": NaN,
+        "symbol_axis_note": "one-shot event paradigm: per-symbol n=1, CI not applicable",
+        "n_pos": 41,
+        "n_neg": 16,
+        "sign_ratio_positive": 0.7192982456140351,
+        "top3_abs_concentration_pct": 14.829112924652915,
+        "concentration_gate": {
+          "quarter_pass": true,
+          "sign_pass": true,
+          "blowup_pass": true,
+          "overall_pass": true
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "short",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.8291666666667,
+        "n_events": 57,
+        "trades_per_year": 40.4901110129015,
+        "per_trade_net_edge_pct": 14.631786636076852,
+        "capital_utilization_pct": 36.654665271909984,
+        "mean_hold_days": 3.3042519493177394,
+        "single_trade_sharpe_annualized": 6.486942037287733,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "PASS",
+        "fail_dims": []
+      },
+      "frequency_first_gate_stress": {
+        "side": "short",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.8291666666667,
+        "n_events": 57,
+        "trades_per_year": 40.4901110129015,
+        "per_trade_net_edge_pct": 14.461786636076852,
+        "capital_utilization_pct": 36.654665271909984,
+        "mean_hold_days": 3.3042519493177394,
+        "single_trade_sharpe_annualized": 6.407077642098261,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "PASS",
+        "fail_dims": []
+      },
+      "three_gate_verdict": "PASS_both_fee_levels",
+      "concentration_gate_overall_pass": true,
+      "frequency_gate_baseline_verdict": "PASS",
+      "frequency_gate_stress_verdict": "PASS"
+    },
+    "A_mirror_LONG": {
+      "side": "long",
+      "fee_baseline": {
+        "label": "A_mirror_LONG_fee_baseline",
+        "fee_per_trade": 0.0008,
+        "n_obs": 57,
+        "obs_mean_bp": -1396.815748648239,
+        "obs_t": -4.713798150853019,
+        "null_mean_t": -2.475342997226372,
+        "signal_t_excess": -2.2384551536266466,
+        "perm_p_two_sided": 0.064,
+        "perm_p_one_sided_above": 0.936,
+        "perm_p_one_sided_below": 0.064,
+        "ci_lower_bp": -1966.5702085104983,
+        "ci_upper_bp": -797.9055597691795,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 386,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "fee_stress": {
+        "label": "A_mirror_LONG_fee_stress",
+        "fee_per_trade": 0.0025,
+        "n_obs": 57,
+        "obs_mean_bp": -1413.8157486482382,
+        "obs_t": -4.77116761324779,
+        "null_mean_t": -2.5274077085239424,
+        "signal_t_excess": -2.2437599047238472,
+        "perm_p_two_sided": 0.065,
+        "perm_p_one_sided_above": 0.935,
+        "perm_p_one_sided_below": 0.065,
+        "ci_lower_bp": -1983.5702085104983,
+        "ci_upper_bp": -814.9055597691793,
+        "prob_positive": 0.0,
+        "n_candidate_pool": 386,
+        "gate_a_sigex_pass": false,
+        "gate_b_ci_pass": false,
+        "gate_c_perm_p_pass": true,
+        "three_gate_pass": false
+      },
+      "concentration_baseline": {
+        "side": "long",
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024-Q4",
+            "n_trades": 6,
+            "mean_bp": -60.1733303812498,
+            "t_stat": -0.04180199650468941
+          },
+          {
+            "quarter": "2025-Q3",
+            "n_trades": 8,
+            "mean_bp": -2002.3684850198326,
+            "t_stat": -2.0198854511706696
+          },
+          {
+            "quarter": "2025-Q4",
+            "n_trades": 18,
+            "mean_bp": -1616.666633365323,
+            "t_stat": -3.6404274178960363
+          },
+          {
+            "quarter": "2026-Q1",
+            "n_trades": 13,
+            "mean_bp": -2011.160022795514,
+            "t_stat": -3.955893313435718
+          },
+          {
+            "quarter": "2026-Q2",
+            "n_trades": 12,
+            "mean_bp": -666.1191761321637,
+            "t_stat": -1.2653094046981272
+          }
+        ],
+        "n_quarters_measurable": 3,
+        "n_quarters_pos_t": 0,
+        "quarter_pos_t_ratio": 0.0,
+        "per_symbol_records": [
+          {
+            "symbol": "1000WHYUSDT",
+            "n_trades": 1,
+            "mean_bp": -3518.638297872341,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "1000XUSDT",
+            "n_trades": 1,
+            "mean_bp": -1479.1786636076852,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "42USDT",
+            "n_trades": 1,
+            "mean_bp": -2975.702620353444,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "AIUSDT",
+            "n_trades": 1,
+            "mean_bp": -90.30452674897194,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ALPHAUSDT",
+            "n_trades": 1,
+            "mean_bp": -3140.89927230946,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "B3USDT",
+            "n_trades": 1,
+            "mean_bp": -259.11799105607236,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BAKEUSDT",
+            "n_trades": 1,
+            "mean_bp": -1513.6179775280898,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BDXNUSDT",
+            "n_trades": 1,
+            "mean_bp": -562.8854041013274,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BIDUSDT",
+            "n_trades": 1,
+            "mean_bp": -3583.8620689655177,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BOBUSDT",
+            "n_trades": 1,
+            "mean_bp": -476.5188229492021,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BONDUSDT",
+            "n_trades": 1,
+            "mean_bp": -3276.6286787726995,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "BSWUSDT",
+            "n_trades": 1,
+            "mean_bp": -352.1053261520044,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "COMMONUSDT",
+            "n_trades": 1,
+            "mean_bp": -2781.178807947021,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "CUDISUSDT",
+            "n_trades": 1,
+            "mean_bp": -2135.659574468085,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DAMUSDT",
+            "n_trades": 1,
+            "mean_bp": -2336.907048008171,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DEFIUSDT",
+            "n_trades": 1,
+            "mean_bp": 1834.6474375482883,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DEGENUSDT",
+            "n_trades": 1,
+            "mean_bp": 404.00796446622775,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "DMCUSDT",
+            "n_trades": 1,
+            "mean_bp": -3171.8418079096045,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "EPTUSDT",
+            "n_trades": 1,
+            "mean_bp": -3204.6759002770086,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "FISUSDT",
+            "n_trades": 1,
+            "mean_bp": -2349.723874904652,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "FLMUSDT",
+            "n_trades": 1,
+            "mean_bp": -2909.234567901234,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "HIFIUSDT",
+            "n_trades": 1,
+            "mean_bp": -1385.4774090667474,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "HIPPOUSDT",
+            "n_trades": 1,
+            "mean_bp": -1957.0358126721762,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "IRUSDT",
+            "n_trades": 1,
+            "mean_bp": -4269.430246189918,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "KDAUSDT",
+            "n_trades": 1,
+            "mean_bp": -4152.486692015209,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "LEVERUSDT",
+            "n_trades": 1,
+            "mean_bp": -5475.948717948719,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "LOOMUSDT",
+            "n_trades": 1,
+            "mean_bp": 799.0704302548637,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MAVIAUSDT",
+            "n_trades": 1,
+            "mean_bp": -3051.7405731523386,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MILKUSDT",
+            "n_trades": 1,
+            "mean_bp": -4085.5733465937337,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "MYROUSDT",
+            "n_trades": 1,
+            "mean_bp": -4343.664335664335,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "NEIROETHUSDT",
+            "n_trades": 1,
+            "mean_bp": -6282.424663482414,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OBOLUSDT",
+            "n_trades": 1,
+            "mean_bp": -2899.760904684976,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OLUSDT",
+            "n_trades": 1,
+            "mean_bp": -1176.8311688311692,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "OMGUSDT",
+            "n_trades": 1,
+            "mean_bp": -2202.903086862886,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ORBSUSDT",
+            "n_trades": 1,
+            "mean_bp": 1508.716582116009,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PERPUSDT",
+            "n_trades": 1,
+            "mean_bp": -1921.265306122448,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PONKEUSDT",
+            "n_trades": 1,
+            "mean_bp": -23.641293013555213,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "PUFFERUSDT",
+            "n_trades": 1,
+            "mean_bp": 2502.5189340813467,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "QUICKUSDT",
+            "n_trades": 1,
+            "mean_bp": -368.49026676279743,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "REIUSDT",
+            "n_trades": 1,
+            "mean_bp": -1667.6343178621653,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "RLSUSDT",
+            "n_trades": 1,
+            "mean_bp": 1397.3018205046299,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "RVVUSDT",
+            "n_trades": 1,
+            "mean_bp": -584.298701298702,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SKATEUSDT",
+            "n_trades": 1,
+            "mean_bp": -4413.560882070949,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SLERFUSDT",
+            "n_trades": 1,
+            "mean_bp": 1388.2142048212268,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SWELLUSDT",
+            "n_trades": 1,
+            "mean_bp": 173.5541031227319,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "SXPUSDT",
+            "n_trades": 1,
+            "mean_bp": 583.397849462365,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "TANSSIUSDT",
+            "n_trades": 1,
+            "mean_bp": -4571.679245283018,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "TOKENUSDT",
+            "n_trades": 1,
+            "mean_bp": -10.308402585411429,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "UXLINKUSDT",
+            "n_trades": 1,
+            "mean_bp": 296.87804878048587,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VFYUSDT",
+            "n_trades": 1,
+            "mean_bp": 415.90548992355724,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VINEUSDT",
+            "n_trades": 1,
+            "mean_bp": 322.90668431502434,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "VOXELUSDT",
+            "n_trades": 1,
+            "mean_bp": -1155.873058744092,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "XCNUSDT",
+            "n_trades": 1,
+            "mean_bp": 535.2303545511097,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "XEMUSDT",
+            "n_trades": 1,
+            "mean_bp": 5862.445344129554,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "YALAUSDT",
+            "n_trades": 1,
+            "mean_bp": -1205.802197802198,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ZKJUSDT",
+            "n_trades": 1,
+            "mean_bp": -2054.0199004975134,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          },
+          {
+            "symbol": "ZRCUSDT",
+            "n_trades": 1,
+            "mean_bp": 1735.2388400130328,
+            "ci_lower_bp": null,
+            "skip": "n<10_oneshot_event"
+          }
+        ],
+        "n_symbols_measurable": 0,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": NaN,
+        "symbol_axis_note": "one-shot event paradigm: per-symbol n=1, CI not applicable",
+        "n_pos": 15,
+        "n_neg": 42,
+        "sign_ratio_positive": 0.2631578947368421,
+        "top3_abs_concentration_pct": 14.790188718466329,
+        "concentration_gate": {
+          "quarter_pass": false,
+          "sign_pass": false,
+          "blowup_pass": true,
+          "overall_pass": false
+        }
+      },
+      "frequency_first_gate_baseline": {
+        "side": "long",
+        "fee_per_trade": 0.0008,
+        "oos_days": 513.8291666666667,
+        "n_events": 57,
+        "trades_per_year": 40.4901110129015,
+        "per_trade_net_edge_pct": -14.79178663607685,
+        "capital_utilization_pct": 36.654665271909984,
+        "mean_hold_days": 3.3042519493177394,
+        "single_trade_sharpe_annualized": -6.562108526877826,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-14.79<2.0",
+          "single_trade_sharpe=-6.56<1.5"
+        ]
+      },
+      "frequency_first_gate_stress": {
+        "side": "long",
+        "fee_per_trade": 0.0025,
+        "oos_days": 513.8291666666667,
+        "n_events": 57,
+        "trades_per_year": 40.4901110129015,
+        "per_trade_net_edge_pct": -14.961786636076852,
+        "capital_utilization_pct": 36.654665271909984,
+        "mean_hold_days": 3.3042519493177394,
+        "single_trade_sharpe_annualized": -6.641972922067297,
+        "cutoffs": {
+          "trades_per_year": 12,
+          "per_trade_net_edge_pct": 2.0,
+          "capital_utilization_pct": 30.0,
+          "single_trade_sharpe": 1.5
+        },
+        "gate_verdict": "FAIL",
+        "fail_dims": [
+          "per_trade_net_edge_pct=-14.96<2.0",
+          "single_trade_sharpe=-6.64<1.5"
+        ]
+      },
+      "three_gate_verdict": "FAIL",
+      "concentration_gate_overall_pass": false,
+      "frequency_gate_baseline_verdict": "FAIL",
+      "frequency_gate_stress_verdict": "FAIL"
+    }
+  },
+  "overall_verdict": "PASS_R1_FULL"
+}

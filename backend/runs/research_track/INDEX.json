@@ -405,8 +405,26 @@
       "updated_at": "2026-05-15T07:21:24+00:00",
       "graveyard_reason": "4-quadrant Symmetric Negative Test all FAIL (Lesson #19): A focus pv_neg×oi_up LONG mean -4.42bp sigex +1.06 ci_lower -11.03 perm_p 0.883 FAIL / B same-sign pv_pos×oi_dn SHORT -4.85bp sigex +0.74 ci_lower -12.28 perm_p 0.784 FAIL / mirrors -11.58 -11.15bp (exactly fee 8bp lower = direction-bet noise). Concentration Gate (Lesson #16) 0/13 alts ci_pos in both A focus and B same-sign — cherry-pick zero. Gross median 84.78bp fee floor passed but mechanism broad-falsified. Pre-funding pv_z velocity × OI direction divergence is noise-level; settlement timing offers no directional alpha. paradigm 80 (5m premium z × 5m OI z level joint) + paradigm 82 (this, 5m premium velocity × 5m OI direction divergence at pre-funding event) both broad-falsified — 5m premium × OI joint event family extension caution.",
       "seed_spec": null
+    },
+    "binance_delisting_announce_short_alt": {
+      "name": "binance_delisting_announce_short_alt",
+      "hypothesis": "Binance Futures USDS-M perp delisting announcement triggers forced-exit liquidity drift; SHORT entry at announce_ts+5min, exit at delist_ts-24h close. Symmetric Negative Test 2-quadrant: A focus SHORT + A mirror LONG. Category A external event injection (lifecycle paradigm analog). Universe: historical USDS-M perp delistings 2024-01 to 2026-05 (paradigm-architect to scrape from Binance announcement page).",
+      "data_dependencies": [
+        "Binance announcement page scrape (delisting category 161)",
+        " data.binance.vision 1m OHLCV for delisted syms (~60 syms",
+        " ~1.5GB)",
+        " /fapi/v1/exchangeInfo deliveryDate field"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-18T05:24:00+00:00",
+      "updated_at": "2026-05-18T05:58:34+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-15T07:21:24+00:00"
+  "updated_at": "2026-05-18T05:58:34+00:00"
 }
