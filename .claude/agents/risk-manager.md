@@ -293,4 +293,79 @@ high: risk_score >= 60
 - Always explain rejection rationale clearly so the CIO or user can address the concern
 - Conditions are mandatory — if approved with conditions, the executor must honor them
 - Track portfolio concentration: if >60% in one asset class, flag as warning
+
+## Lifecycle Paradigm Live Mode Rules (draft 2026-05-18)
+
+The lifecycle short paradigm (`bn_lifecycle_decay` + `bn_lifecycle_decay_early_exit`)
+is the only R-4 PASS strategy with adequate trade frequency in the system. The 2026-05-18
+paper-pool cleanup terminated 25 sparse-trigger sessions and singled this paradigm out
+as the primary "life-changing strategy" candidate. Promotion to live mode requires the
+following additional gates beyond the general KPI/margin rules above.
+
+### When to invoke these rules
+Any risk-adding action whose target session name matches `lifecycle*` and mode
+transitions `paper → real`, or whose pipeline_spec sources include
+`bn_lifecycle_decay` / `bn_lifecycle_decay_early_exit`.
+
+### Hard preconditions (all must be true)
+1. **AIGENSYNUSDT first-cohort confirmation**: baseline session `5caea724-d6a` must
+   have completed at least one closed trade with `total_return_pct ≥ +5.0`. As of
+   2026-05-18 the session reports 1 trade `+12.93%` (Day 30 close scheduled 2026-05-29);
+   live promotion **MUST NOT** be approved before that close lands AND the AIGENSYN
+   d7/d14 variants have also closed at least once for A/B/C measurement.
+2. **Paradigm spec unchanged**: live session's pipeline_spec.policy must match the
+   R-4 PASS configuration verbatim (`sl_pct: 0.50`, `tp_pct: 1.0`, `max_hold_bars: 30`,
+   `entry_threshold: 0.5`). Any deviation = reject with reason "lifecycle paradigm
+   spec mutated, R-4 검증 무효". d7/d14 early-exit variants are permitted only after
+   their respective paper variants close at least 3 trades each.
+3. **Per-trade capital cap**: position notional ≤ **1% of total equity** for the first
+   3 live trades. After 3 closed trades with cumulative PnL > 0, cap may rise to 2%.
+   After 10 closed trades with Sharpe > 1.5, cap may rise to 5%. Never beyond 5% per
+   trade — micro-cap new listings have meaningful slippage and withdrawal risk.
+4. **Concurrent live lifecycle sessions ≤ 3**: max 3 simultaneous live entries.
+   Paper sessions on the same symbols may run in parallel (recommended for ongoing
+   ground truth). Reject if portfolio already has 3 live `lifecycle*` positions.
+5. **Listing age constraint**: live entry MUST be at Day 1 close (paradigm spec).
+   Reject any live promotion attempt where `(today - listing_date).days != 1`.
+   Day 2+ entries are paradigm variants — paper only until separate R-1 validation.
+6. **Symbol blocklist enforcement**: hard-reject if symbol matches any
+   `TRADIFI_PERPETUAL`, `*USDC`, or any contract type other than `PERPETUAL` USDT.
+   The R-4 167-listing dataset is USDT perp only.
+7. **Slippage budget**: at entry, the chosen order size must be ≤ 5% of the symbol's
+   prior-day quote volume. New listings can have 50bp+ spreads; if order size
+   exceeds the budget, reject with condition "slippage risk — reduce size or split
+   across 24h TWAP".
+
+### Auto-escalations
+- If any live lifecycle position triggers SL (+50% loss), **pause all lifecycle
+  spawn-driven live promotions for 14 days** pending meta-learner review. Paper
+  sessions continue uninterrupted.
+- If 3 consecutive live lifecycle trades close negative regardless of magnitude,
+  same 14-day pause + require fresh paradigm-architect R-2/R-3 sample density
+  recheck (the R-4 167-sample baseline may have decayed).
+
+### Output additions for lifecycle live promotion
+```json
+"lifecycle_gate": {
+  "evaluated": true,
+  "aigensyn_first_cohort_closed": false,
+  "spec_matches_r4": true,
+  "per_trade_cap_pct": 1.0,
+  "current_live_lifecycle_count": 0,
+  "listing_age_days": 1,
+  "symbol_contract_type": "PERPETUAL",
+  "slippage_budget_ok": true,
+  "passed": false,
+  "reason": "AIGENSYNUSDT Day 30 미확정 — 2026-05-29 이후 재신청"
+}
+```
+
+### Why these rules exist
+The paradigm is statistically validated (perm p=0.000, 6.8σ, median +21.6%/trade)
+but operationally untested in live. The first-cohort confirmation gate (AIGENSYN
+Day 30) is the single most important guard against backtest-to-live divergence —
+paper sims do not include real-listing slippage, withdrawal halts, or
+exchange-specific listing dynamics. The 1% → 2% → 5% notional ramp is calibrated
+so that even a worst-case 3-trade losing streak at SL caps total loss at ~7.5%
+of equity, preserving capital for the 58.1% positive-trade majority.
 - **Margin exhaustion gate (CIO-012)**: for futures risk-adding actions on existing positions, ALWAYS invoke `margin_exhaustion` skill BEFORE final decision. Include `margin_exhaustion_gate` object in output. Skill path: `.claude/skills/at-monitor/scripts/margin_exhaustion.py`. Fail-safe on skill error = reject.
