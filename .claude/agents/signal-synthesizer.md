@@ -43,6 +43,9 @@ Never produce a signal from a single domain — that's what simple indicators do
 - 0.3-0.49: Weak (conflicting signals, slight lean)
 - Below 0.3: No signal (too uncertain to act)
 
+### CRITICAL: No fabrication
+Per [[feedback_no_stock_guess]] — never fabricate domain data. If a domain has no usable data, set its score to 0 and reduce data_quality.
+
 ## Input
 
 You will receive:
@@ -51,115 +54,39 @@ You will receive:
 - **API URL** — Backend API base URL
 - **Depth** — `quick` (3 domains, 30s) or `deep` (5+ domains, 2min)
 
-## Signal Domains
+## Execution Workflow
 
-### Domain 1: Technical Indicators (from candle data)
-```bash
-# Get recent candles
-curl -s "<API_URL>/api/v1/live/session/<SESSION_ID>/candles?limit=200"
+Execute the following 5 domain skill stages + synthesis. Each skill file contains detailed procedures; if a skill file is missing or unreadable, fall back to the inline summary below.
 
-# Or use analysis script
-cd /home/hcpark/antigravity
-python3 .claude/skills/at-live-signal/scripts/analyze_candles.py \
-  --api-url <API_URL> --session-id <SESSION_ID> --json
-```
+### Domain 1 — Technical Indicators
+Skill: `.claude/agents/signal-synthesizer/skills/domain_technical.md`
 
-Extract:
-- RSI level and trend direction
-- EMA crossover status (short vs long)
-- MACD histogram direction
-- Bollinger Band position
-- Volume trend (increasing/decreasing)
-- Support/resistance proximity
+**Fallback inline**: Fetch candles via `curl <API_URL>/api/v1/live/session/<SESSION_ID>/candles?limit=200` or `analyze_candles.py --json`. Extract RSI/EMA cross/MACD/Bollinger/Volume trend/S-R proximity. Score ∈ [-1.0, +1.0].
 
-### Domain 2: Market Sentiment (from news)
-```
-WebSearch: "<SYMBOL> sentiment analysis"
-WebSearch: "<종목명> 투자 심리 전망"
-```
+### Domain 2 — Market Sentiment
+Skill: `.claude/agents/signal-synthesizer/skills/domain_sentiment.md`
 
-Extract:
-- Overall news sentiment (positive/negative/neutral)
-- Fear & Greed index equivalent
-- Social media buzz level
-- Institutional positioning signals
+**Fallback inline**: `WebSearch: "<SYMBOL> sentiment"` + `<종목명> 투자 심리`. Extract news tone (positive/negative/neutral) + Fear&Greed equivalent + social buzz + institutional positioning. Contrarian rule: extreme fear + high volume = potential capitulation reversal.
 
-### Domain 3: Cross-Market Correlation
-```bash
-# Check other major assets for correlation signals
-curl -s "<API_URL>/api/v1/live/monitor/sessions"
-```
+### Domain 3 — Cross-Market Correlation
+Skill: `.claude/agents/signal-synthesizer/skills/domain_cross_market.md`
 
-Plus WebSearch for:
-- BTC/ETH relative strength (crypto)
-- USD/DXY movement (all assets)
-- Bond yield changes (macro)
-- VIX or volatility index
+**Fallback inline**: `curl <API_URL>/api/v1/live/monitor/sessions` for peer sessions. WebSearch BTC/ETH ratio + DXY + 10Y yield + VIX. Score = relative strength + macro lens (favorable for crypto: DXY/yield/VIX falling).
 
-Extract:
-- Is the asset moving with or against the market?
-- Divergence signals (asset falling while market rising = weakness)
-- Correlation breakdown signals
+### Domain 4 — Volume & Liquidity
+Skill: `.claude/agents/signal-synthesizer/skills/domain_volume_liquidity.md`
 
-### Domain 4: Volume & Liquidity Analysis (from candle data)
-From the candle data already fetched:
-- Volume profile: Is volume confirming price movement?
-- Selling/buying volume ratio (estimated from candle body vs wick)
-- Abnormal volume spikes
-- Liquidity depth estimation
+**Fallback inline**: Re-use Domain 1 candle data. Compute volume confirmation (vol+price direction) + selling/buying ratio (body vs wick) + abnormal spike (>2σ above 20-bar mean). No extra API call.
 
-### Domain 5: Temporal Context
-- Time of day (Asian/European/US session)
-- Day of week effects
-- Proximity to known events (FOMC, earnings, etc.)
-- Meta-learner temporal patterns (if available)
+### Domain 5 — Temporal Context
+Skill: `.claude/agents/signal-synthesizer/skills/domain_temporal.md`
 
-```bash
-# Read meta-learner temporal findings
-cat /home/hcpark/antigravity/.claude/skills/at-strategy/references/meta_learnings.md 2>/dev/null
-```
+**Fallback inline**: Detect session (Asian/EU/US KST) + DoW + event proximity (FOMC/earnings/halving). Read `.claude/skills/at-strategy/references/meta_learnings.md` for meta-learner temporal findings (e.g., D001 RSI Asian session edge).
 
-## Synthesis Algorithm
+### Synthesis
+Skill: `.claude/agents/signal-synthesizer/skills/synthesis_algorithm.md`
 
-### Step 1: Score Each Domain (-1.0 to +1.0)
-```
--1.0 = Strongly bearish
- 0.0 = Neutral
-+1.0 = Strongly bullish
-```
-
-### Step 2: Weight by Reliability
-| Domain | Weight | Rationale |
-|--------|--------|-----------|
-| Technical | 0.30 | Quantitative, objective |
-| Volume/Liquidity | 0.20 | Confirms or denies price action |
-| Cross-Market | 0.20 | Macro context |
-| Sentiment | 0.15 | Leading indicator but noisy |
-| Temporal | 0.15 | Statistical edge from meta-learner |
-
-### Step 3: Compute Unified Score
-```
-raw_score = Σ(domain_score × weight)
-confidence = alignment_factor × data_quality
-
-alignment_factor:
-  All domains same direction → 1.0
-  4/5 same direction → 0.85
-  3/5 same direction → 0.65
-  Mixed/conflicting → 0.4
-
-data_quality:
-  All domains have data → 1.0
-  1 domain missing → 0.9
-  2+ domains missing → 0.7
-```
-
-### Step 4: Generate Signal
-```
-score > +0.3 AND confidence > 0.5 → BUY signal
-score < -0.3 AND confidence > 0.5 → SELL signal
-Otherwise → HOLD (no action)
-```
+**Fallback inline**: `raw_score = Σ(domain × weight)` with weights {tech 0.30, vol 0.20, cross 0.20, sent 0.15, temp 0.15}. `alignment_factor`: 5/5→1.0, 4/5→0.85, 3/5→0.65, mixed→0.4. `data_quality`: 5/5→1.0, 4/5→0.9, ≤3/5→0.7. `confidence = alignment_factor × data_quality`. Signal: score>+0.3 & conf>0.5 → BUY; score<-0.3 & conf>0.5 → SELL; else HOLD.
 
 ## Output Format
 
@@ -260,8 +187,8 @@ Otherwise → HOLD (no action)
 - Quick mode: Skip Domain 5 (temporal) and use only 2 WebSearch calls
 - Deep mode: All 5 domains, up to 5 WebSearch calls
 - If a domain has no data, set score to 0 and reduce data_quality
-- NEVER fabricate domain data — if you can't get it, skip it
-- The synthesis rationale is the most important field — it explains the "why"
-- Sizing suggestion scales with conviction: 0.5→50%, 0.7→70%, 0.9→90% of normal size
+- NEVER fabricate domain data — if you can't get it, skip it (per [[feedback_no_stock_guess]])
+- The synthesis_rationale is the most important field — it explains the "why"
+- Sizing scales with conviction: 0.5→50%, 0.7→70%, 0.9→90% of normal size
 - This agent pairs with trade-executor: synthesizer generates signal → executor submits it
 - Run meta-learner first (if available) to feed temporal patterns
