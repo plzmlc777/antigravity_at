@@ -438,8 +438,41 @@
       "updated_at": "2026-05-18T07:08:15+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "listing_pre_announce_leak_long_alt": {
+      "name": "listing_pre_announce_leak_long_alt",
+      "hypothesis": "Binance Futures USDS-M perp listing announcement T-72h~T-24h 사이 informed trader 사전 positioning detection. LONG entry at announcement_ts - 48h close, exit at announcement_ts + 5min close. Category A entry-side (anticipated new demand entry, lifecycle pre-stage analog). lesson #27 entry-side classification — lifecycle (post-event cascade) 검증된 mechanism의 pre-event leak 차원 미탐색. Universe: 2024-11~2026-05 USDS-M perp listing events (Binance announcement cat 48 listing-related scrape, paradigm 87 data source 재활용).",
+      "data_dependencies": [
+        "Binance announcement page scrape (listing categories",
+        " cat 48 etc",
+        " 2024-11~2026-05) + data.binance.vision 1m OHLCV for listed syms in pre-announce window (announce_ts -72h to +5min). paradigm 87 scrape script base 재활용 가능 (다른 announcement category)."
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-18T07:18:50+00:00",
+      "updated_at": "2026-05-18T09:15:08+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "stablecoin_mint_event_long_alt_24h": {
+      "name": "stablecoin_mint_event_long_alt_24h",
+      "hypothesis": "USDT/USDC official issuance large mint event (>=USD 100M one-time mint from ZeroAddress) → 24-48h BTC/ETH/13 alts cascade LONG (new fiat to crypto demand entry, fundamental supply-side trigger). Entry at mint_ts + 5min close, exit at mint_ts + 24h close. Category A entry-side (fresh fiat demand entry, NOVEL mechanism class — 86+2 graveyards에 등장 X). lesson #27 entry-side classification 정당화.",
+      "data_dependencies": [
+        "Etherscan free API (USDT contract 0xdAC17F958D2ee523a2206206994597C13D831ec7 + USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 Transfer event log from ZeroAddress = mint events",
+        " 5 calls/sec rate limit) + Tether transparency report (tether.to public web) + Circle transparency (circle.com/transparency public). data.binance.vision 1m OHLCV cache 재활용 (BTC/ETH + paradigm 69 13 alts fast-track sub-universe). 2024-01~2026-05 lookback."
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-18T07:18:50+00:00",
+      "updated_at": "2026-05-18T09:15:08+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-18T07:08:15+00:00"
+  "updated_at": "2026-05-18T09:15:08+00:00"
 }
