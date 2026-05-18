@@ -10,7 +10,12 @@
       "Bash(ssh hcpark@34.64.87.89 \"tail -f /tmp/daily_manual_20260416.log\")",
       "Bash(mkdir -p /home/hcpark/antigravity/.claude/skills/at-orchestrator/scripts/sena_brief)",
       "Bash(mkdir -p /home/hcpark/antigravity/.claude/skills/at-orchestrator/runs/sena_brief)",
-      "Bash(mkdir -p /home/hcpark/antigravity/.claude/commands)"
+      "Bash(mkdir -p /home/hcpark/antigravity/.claude/commands)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(mkdir -p .claude/agents/market-researcher/skills && ls -la .claude/agents/market-researcher/)",
+      "Bash(mkdir -p .claude/agents/paradigm-architect/skills && ls .claude/agents/paradigm-architect/)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\references",
@@ -46,7 +51,9 @@
       "\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\scripts\\strategies",
       "\\\\wsl.localhost\\Ubuntu\\home\\hcpark\\antigravity\\.claude\\skills\\at-live-signal\\scripts\\strategies",
       "\\\\wsl.localhost\\tmp\\",
-      "/home/hcpark/antigravity/.claude"
+      "/home/hcpark/antigravity/.claude",
+      "/home/hcpark/antigravity/.claude/agents/market-researcher",
+      "/home/hcpark/antigravity/.claude/agents/paradigm-architect"
     ]
   }
 }
