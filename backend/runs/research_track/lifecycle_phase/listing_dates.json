@@ -923,6 +923,12 @@
     "onboard_date": "2019-09-25",
     "onboard_ts_ms": 1569398400000
   },
+  "CSCOUSDT": {
+    "base": "CSCO",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778853000000
+  },
   "CTKUSDT": {
     "base": "CTK",
     "contract_type": "PERPETUAL",
@@ -988,6 +994,12 @@
     "contract_type": "PERPETUAL",
     "onboard_date": "2024-10-02",
     "onboard_ts_ms": 1727872200000
+  },
+  "DISUSDT": {
+    "base": "DIS",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778852400000
   },
   "DODOXUSDT": {
     "base": "DODOX",
@@ -1421,6 +1433,12 @@
     "onboard_date": "2021-03-17",
     "onboard_ts_ms": 1615964400000
   },
+  "HDUSDT": {
+    "base": "HD",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778853300000
+  },
   "HEIUSDT": {
     "base": "HEI",
     "contract_type": "PERPETUAL",
@@ -1775,6 +1793,12 @@
     "onboard_date": "2024-06-20",
     "onboard_ts_ms": 1718886600000
   },
+  "LITEUSDT": {
+    "base": "LITE",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778851800000
+  },
   "LITUSDT": {
     "base": "LIT",
     "contract_type": "PERPETUAL",
@@ -1997,6 +2021,12 @@
     "onboard_date": "2023-12-26",
     "onboard_ts_ms": 1703593800000
   },
+  "MRVLUSDT": {
+    "base": "MRVL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778853900000
+  },
   "MSFTUSDT": {
     "base": "MSFT",
     "contract_type": "TRADIFI_PERPETUAL",
@@ -2195,6 +2225,12 @@
     "onboard_date": "2024-12-06",
     "onboard_ts_ms": 1733497200000
   },
+  "ORCLUSDT": {
+    "base": "ORCL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778852100000
+  },
   "ORDERUSDT": {
     "base": "ORDER",
     "contract_type": "PERPETUAL",
@@ -2242,6 +2278,12 @@
     "contract_type": "PERPETUAL",
     "onboard_date": "2021-12-23",
     "onboard_ts_ms": 1640242800000
+  },
+  "PHAROSUSDT": {
+    "base": "PHAROS",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-05-14",
+    "onboard_ts_ms": 1778735700000
   },
   "PHAUSDT": {
     "base": "PHA",
@@ -2687,6 +2729,12 @@
     "onboard_date": "2025-05-28",
     "onboard_ts_ms": 1748437200000
   },
+  "SOXLUSDT": {
+    "base": "SOXL",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778853600000
+  },
   "SPACEUSDT": {
     "base": "SPACE",
     "contract_type": "PERPETUAL",
@@ -2740,6 +2788,12 @@
     "contract_type": "PERPETUAL",
     "onboard_date": "2025-11-06",
     "onboard_ts_ms": 1762430400000
+  },
+  "STARUSDT": {
+    "base": "STAR",
+    "contract_type": "PERPETUAL",
+    "onboard_date": "2026-05-14",
+    "onboard_ts_ms": 1778736600000
   },
   "STBLUSDT": {
     "base": "STBL",
@@ -3028,6 +3082,12 @@
     "contract_type": "PERPETUAL",
     "onboard_date": "2025-11-06",
     "onboard_ts_ms": 1762428600000
+  },
+  "UBERUSDT": {
+    "base": "UBER",
+    "contract_type": "TRADIFI_PERPETUAL",
+    "onboard_date": "2026-05-15",
+    "onboard_ts_ms": 1778852700000
   },
   "UBUSDT": {
     "base": "UB",
