@@ -1,0 +1,410 @@
+{
+  "paradigm_name": "dart_supply_contract_announce_kr_equity_vol_expansion_5d",
+  "paradigm_index_proposed": 102,
+  "phase": "R-1",
+  "verdict": "BROAD_FALSIFIED",
+  "verdict_reason": "A_focus three-gate FAIL: sig_ex=1.9485535265865934 ci_l_bp=868.4282963404856 perm_p_above=0.073",
+  "primary_hold_days": 5,
+  "pre_vol_window_days": 30,
+  "vol_expansion_threshold": 1.5,
+  "vol_contraction_threshold": 1.0,
+  "straddle_fee_bp_baseline": 100,
+  "straddle_fee_bp_stress": 200,
+  "n_events_total": 1987,
+  "n_distinct_stocks": 114,
+  "n_pool_total": 29559,
+  "window_kst": "2024-01-01 .. 2026-05-19 (2.4yr full DART substrate)",
+  "config": {
+    "universe_size": 350,
+    "needle_core": "공급계약체결",
+    "exclude_terms": [
+      "해지",
+      "자회사",
+      "거래정지"
+    ],
+    "min_cell_n": 30,
+    "max_symbol_fraction": 0.1,
+    "n_perms": 1000,
+    "n_bootstrap": 2000,
+    "fee_leg_bp": 50
+  },
+  "cells_4quadrant": {
+    "A_focus": {
+      "label": "announce × vol_ratio>=1.5",
+      "n": 311,
+      "fee_round_trip_bp": 100,
+      "gross_mean_abs_bp": 1087.1057870926188,
+      "net_mean_bp": 987.1057870926187,
+      "t_obs": 15.448474569344032,
+      "pass_n": true,
+      "mean_vol_ratio": 1.9895502169811892,
+      "median_vol_ratio": 1.8034407085003823,
+      "concentration_top_sym": "336260",
+      "concentration_top_frac": 0.05787781350482315,
+      "pass_concentration_symbol": true,
+      "signal_t_excess": 1.9485535265865934,
+      "null_mean_t": 13.499921042757439,
+      "perm_p_two_sided": 0.073,
+      "perm_p_one_sided_above": 0.073,
+      "ci_lower_bp": 868.4282963404856,
+      "ci_upper_bp": 1120.3386772197855,
+      "prob_positive": 1.0,
+      "pass_three_gate": false
+    },
+    "A_mirror": {
+      "label": "announce × vol_ratio<1.0",
+      "n": 1211,
+      "fee_round_trip_bp": 100,
+      "gross_mean_abs_bp": 524.5559264491852,
+      "net_mean_bp": 424.55592644918516,
+      "t_obs": 31.61961420937908,
+      "pass_n": true,
+      "mean_vol_ratio": 0.6354073305253716,
+      "median_vol_ratio": 0.6404631490637746,
+      "signal_t_excess": 5.629753505308489,
+      "null_mean_t": 25.98986070407059,
+      "perm_p_two_sided": 0.0,
+      "perm_p_one_sided_above": 0.0,
+      "ci_lower_bp": 398.41555685689247,
+      "ci_upper_bp": 449.58514617724376,
+      "prob_positive": 1.0,
+      "pass_three_gate": true
+    },
+    "B_baseline_expand": {
+      "label": "non_announce × vol_ratio>=1.5",
+      "n": 4118,
+      "fee_round_trip_bp": 100,
+      "gross_mean_abs_bp": 1173.1271918662349,
+      "net_mean_bp": 1073.1271918662346,
+      "t_obs": 54.251725248024044,
+      "pass_n": true,
+      "mean_vol_ratio": 2.1481026035788937,
+      "median_vol_ratio": 1.9020760919484587,
+      "signal_t_excess": 6.51759254393636,
+      "null_mean_t": 47.734132704087685,
+      "perm_p_two_sided": 0.0,
+      "perm_p_one_sided_above": 0.0,
+      "ci_lower_bp": 1034.757690021858,
+      "ci_upper_bp": 1110.9734808782473,
+      "prob_positive": 1.0,
+      "pass_three_gate": true
+    },
+    "B_baseline_contract": {
+      "label": "non_announce × vol_ratio<1.0",
+      "n": 19058,
+      "fee_round_trip_bp": 100,
+      "gross_mean_abs_bp": 500.2091792701155,
+      "net_mean_bp": 400.20917927011544,
+      "t_obs": 117.86057410880976,
+      "pass_n": true,
+      "mean_vol_ratio": 0.6242364306648057,
+      "median_vol_ratio": 0.6308667652949452,
+      "signal_t_excess": NaN,
+      "null_mean_t": NaN,
+      "perm_p_two_sided": NaN,
+      "perm_p_one_sided_above": NaN,
+      "ci_lower_bp": 393.8161859371179,
+      "ci_upper_bp": 407.2437171147735,
+      "prob_positive": 1.0,
+      "pass_three_gate": false
+    },
+    "A_focus_stress200bp": {
+      "label": "announce × vol_ratio>=1.5 @ 200bp",
+      "n": 311,
+      "fee_round_trip_bp": 200,
+      "gross_mean_abs_bp": 1087.1057870926188,
+      "net_mean_bp": 887.1057870926186,
+      "t_obs": 13.883447317822657,
+      "pass_n": true,
+      "mean_vol_ratio": 1.9895502169811892,
+      "median_vol_ratio": 1.8034407085003823,
+      "concentration_top_sym": "336260",
+      "concentration_top_frac": 0.05787781350482315,
+      "pass_concentration_symbol": true,
+      "signal_t_excess": 2.9256358434742964,
+      "null_mean_t": 10.957811474348361,
+      "perm_p_two_sided": 0.0,
+      "perm_p_one_sided_above": 0.0,
+      "ci_lower_bp": 768.4282963404856,
+      "ci_upper_bp": 1020.3386772197856,
+      "prob_positive": 1.0,
+      "pass_three_gate": true
+    }
+  },
+  "lesson_32_universe_baseline_coherence": {
+    "A_focus_mean_vol_ratio": 1.9895502169811892,
+    "B_baseline_all_mean_vol_ratio": 0.9637535989162043,
+    "A_minus_B_vol_ratio_excess": 1.025796618064985,
+    "pass_universe_baseline_coherent_min_excess_0p05": true,
+    "note": "Lesson #32 dogfood: A focus vol_ratio must exceed B baseline universe vol_ratio to claim event-driven volatility excess (not universe drift artifact). Threshold 0.05 conservative (5% relative excess in vol ratio)."
+  },
+  "concentration_gate": {
+    "per_quarter_straddle_t": {
+      "2024Q1": {
+        "n": 14,
+        "t": 3.024672614712035,
+        "measurable": true
+      },
+      "2024Q2": {
+        "n": 27,
+        "t": 4.714382885982715,
+        "measurable": true
+      },
+      "2024Q3": {
+        "n": 27,
+        "t": 6.880818213867298,
+        "measurable": true
+      },
+      "2024Q4": {
+        "n": 43,
+        "t": 5.011415618537025,
+        "measurable": true
+      },
+      "2025Q1": {
+        "n": 20,
+        "t": 4.497292932511081,
+        "measurable": true
+      },
+      "2025Q2": {
+        "n": 36,
+        "t": 4.885394277506048,
+        "measurable": true
+      },
+      "2025Q3": {
+        "n": 27,
+        "t": 5.396082949971391,
+        "measurable": true
+      },
+      "2025Q4": {
+        "n": 59,
+        "t": 6.911528010852082,
+        "measurable": true
+      },
+      "2026Q1": {
+        "n": 51,
+        "t": 6.841836001363113,
+        "measurable": true
+      },
+      "2026Q2": {
+        "n": 7,
+        "t": 6.110277829489522,
+        "measurable": true
+      },
+      "__summary": {
+        "n_measurable": 10,
+        "n_pos_t": 10,
+        "quarter_pos_t_ratio": 1.0,
+        "pass_n_measurable_min4": true,
+        "pass_quarter_pos_t_ratio_min_0p5": true
+      }
+    },
+    "per_symbol_straddle_ci": {
+      "000720": {
+        "n": 14,
+        "ci_lower_bp": 159.8002390230019,
+        "ci_pos": true
+      },
+      "006360": {
+        "n": 16,
+        "ci_lower_bp": 237.1270761085315,
+        "ci_pos": true
+      },
+      "028050": {
+        "n": 17,
+        "ci_lower_bp": 203.26148983710607,
+        "ci_pos": true
+      },
+      "042660": {
+        "n": 11,
+        "ci_lower_bp": 527.5285596627965,
+        "ci_pos": true
+      },
+      "047040": {
+        "n": 9,
+        "ci_lower_bp": 90.46775656868324,
+        "ci_pos": true
+      },
+      "047810": {
+        "n": 10,
+        "ci_lower_bp": 584.5438070266971,
+        "ci_pos": true
+      },
+      "052690": {
+        "n": 9,
+        "ci_lower_bp": 711.9184174860201,
+        "ci_pos": true
+      },
+      "079550": {
+        "n": 12,
+        "ci_lower_bp": 483.8349543844048,
+        "ci_pos": true
+      },
+      "083650": {
+        "n": 11,
+        "ci_lower_bp": 527.9976465611254,
+        "ci_pos": true
+      },
+      "171090": {
+        "n": 10,
+        "ci_lower_bp": 632.2310052368489,
+        "ci_pos": true
+      },
+      "222080": {
+        "n": 10,
+        "ci_lower_bp": 818.2216296814478,
+        "ci_pos": true
+      },
+      "336260": {
+        "n": 18,
+        "ci_lower_bp": 895.8992383351206,
+        "ci_pos": true
+      },
+      "347700": {
+        "n": 12,
+        "ci_lower_bp": 1220.4526699673181,
+        "ci_pos": true
+      },
+      "375500": {
+        "n": 14,
+        "ci_lower_bp": 333.8719888750337,
+        "ci_pos": true
+      },
+      "440110": {
+        "n": 9,
+        "ci_lower_bp": 170.9224762240014,
+        "ci_pos": true
+      },
+      "__summary": {
+        "n_measurable": 15,
+        "n_ci_pos": 15,
+        "symbol_ci_pos_ratio": 1.0,
+        "pass_symbol_ci_pos_ratio_min_0p30": true,
+        "pass_n_symbols_ci_pos_min_3": true
+      }
+    },
+    "pass_concentration_gate": true
+  },
+  "cross_proxy_lesson29": {
+    "observable_gap_split": {
+      "top33_n": 103,
+      "bot33_n": 103,
+      "top33_payoff": {
+        "label": "gap_top33",
+        "n": 103,
+        "fee_round_trip_bp": 100,
+        "gross_mean_abs_bp": 1467.2869196860615,
+        "net_mean_bp": 1367.2869196860615,
+        "t_obs": 9.256732296186703,
+        "pass_n": true,
+        "mean_vol_ratio": 2.040811414323631,
+        "median_vol_ratio": 1.8376135788463204,
+        "signal_t_excess": 1.189462272838453,
+        "null_mean_t": 8.06727002334825,
+        "perm_p_two_sided": 0.154,
+        "perm_p_one_sided_above": 0.154,
+        "ci_lower_bp": 1088.0064569198423,
+        "ci_upper_bp": 1663.6122753833354,
+        "prob_positive": 1.0,
+        "pass_three_gate": false
+      },
+      "bot33_payoff": {
+        "label": "gap_bot33",
+        "n": 103,
+        "fee_round_trip_bp": 100,
+        "gross_mean_abs_bp": 912.8584177283918,
+        "net_mean_bp": 812.8584177283919,
+        "t_obs": 9.329250056495667,
+        "pass_n": true,
+        "mean_vol_ratio": 1.9088578878012232,
+        "median_vol_ratio": 1.7712807495282514,
+        "signal_t_excess": 1.2619800331474167,
+        "null_mean_t": 8.06727002334825,
+        "perm_p_two_sided": 0.14,
+        "perm_p_one_sided_above": 0.14,
+        "ci_lower_bp": 652.6334303632008,
+        "ci_upper_bp": 987.038452841617,
+        "prob_positive": 1.0,
+        "pass_three_gate": false
+      }
+    },
+    "fundamental_freq_split": {
+      "top33_n": 120,
+      "bot33_n": 114,
+      "top33_payoff": {
+        "label": "freq_top33",
+        "n": 120,
+        "fee_round_trip_bp": 100,
+        "gross_mean_abs_bp": 1214.1557650043396,
+        "net_mean_bp": 1114.1557650043396,
+        "t_obs": 8.94406193751248,
+        "pass_n": true,
+        "mean_vol_ratio": 1.9703710131180556,
+        "median_vol_ratio": 1.7515955751955046,
+        "signal_t_excess": 0.32517886751137404,
+        "null_mean_t": 8.618883070001106,
+        "perm_p_two_sided": 0.427,
+        "perm_p_one_sided_above": 0.427,
+        "ci_lower_bp": 879.9417921464933,
+        "ci_upper_bp": 1359.0635691303594,
+        "prob_positive": 1.0,
+        "pass_three_gate": false
+      },
+      "bot33_payoff": {
+        "label": "freq_bot33",
+        "n": 114,
+        "fee_round_trip_bp": 100,
+        "gross_mean_abs_bp": 1093.6762792361767,
+        "net_mean_bp": 993.6762792361767,
+        "t_obs": 10.067225899118277,
+        "pass_n": true,
+        "mean_vol_ratio": 1.9794104533409722,
+        "median_vol_ratio": 1.8120568774787065,
+        "signal_t_excess": 1.6464810935801388,
+        "null_mean_t": 8.420744805538138,
+        "perm_p_two_sided": 0.076,
+        "perm_p_one_sided_above": 0.076,
+        "ci_lower_bp": 808.3213449630678,
+        "ci_upper_bp": 1210.284018854916,
+        "prob_positive": 1.0,
+        "pass_three_gate": false
+      }
+    },
+    "coherence": {
+      "obs_top_gap_ge_bot": true,
+      "fund_bot_freq_ge_top": false,
+      "obs_top_minus_bot_bp": 554.4285019576696,
+      "fund_bot_minus_top_bp": -120.47948576816293,
+      "pass_both_proxies": false
+    }
+  },
+  "life_changing_4dim_straddle": {
+    "n_trades": 311,
+    "window_days": 827,
+    "trades_per_yr": 137.35519951632406,
+    "per_trade_edge_net_pct": 9.871057870926187,
+    "annualized_sharpe": 10.266631160340664,
+    "util_calendar": 0.6844014510278114,
+    "pass_trades_per_yr_min12": true,
+    "pass_per_trade_edge_min_2pct": true,
+    "pass_capital_util_min_30pct": true,
+    "pass_sharpe_min_1p5": true,
+    "pass_4dim_life_changing": true
+  },
+  "lesson_grid_applied": [
+    "#11 sample density (R-0 prescreen confirmed PASS at 2,421 events)",
+    "#16 Concentration Gate (per-stock + per-quarter on straddle payoff)",
+    "#19 Symmetric Negative Test (4-quadrant single batch)",
+    "#20 narrow-scope 4-cond qualification (cross-proxy + 4-dim)",
+    "#21 axis stacking (univariate vol_ratio, single-axis OK)",
+    "#22 stateful change-point (5d realized vol = stateless ratio, OK)",
+    "#23 event-anchored sparse trap (not boundary statistic)",
+    "#26 amendment (year-round 10/10 quarters from R-0)",
+    "#27 amendment (N/A — direction-blind, not entry-side directional)",
+    "#28 substrate availability (paradigm 101 cache+OHLCV reused)",
+    "#29 cross-proxy strict (observable abs_gap + fundamental freq_6m)",
+    "#30 short-data verdict (full 2.4yr window used)",
+    "#31 DNA inventory cross-check (vol expansion DNA distinct from p101)",
+    "#32 candidate dogfood (A_focus vs B_baseline vol_ratio excess)"
+  ],
+  "next_step_recommendation": "User explicit gate required before R-2. R-1 verdict above is final for this dispatch. PASS_R1_* paths propose R-2 walk-forward + cohort expansion. Graveyards halt + report to lessons grid update."
+}

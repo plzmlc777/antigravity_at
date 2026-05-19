@@ -132,6 +132,26 @@ def load_runtime(symbol: str) -> dict:
             runtime["leader_ohlcv_eval"] = leader_eval
     except Exception:
         pass  # only matters if spec requests bn_cross_lead_lag
+
+    # leader symbol 1m raw ohlcv (for bn_btc_rv_highvol_long source — paradigm 69)
+    try:
+        db = SessionLocal()
+        try:
+            sql = text("""SELECT timestamp, open, high, low, close, volume FROM ohlcv
+                          WHERE symbol = 'BTCUSDT' AND time_frame = '1m' ORDER BY timestamp""")
+            rows = db.execute(sql).fetchall()
+        finally:
+            db.close()
+        if rows:
+            df_1m = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+            df_1m["timestamp"] = pd.to_datetime(df_1m["timestamp"])
+            df_1m = df_1m.set_index("timestamp")
+            for c in ("open", "high", "low", "close", "volume"):
+                df_1m[c] = pd.to_numeric(df_1m[c])
+            df_1m = df_1m.dropna(subset=["open", "high", "low", "close", "volume"])
+            runtime["leader_ohlcv_1m"] = df_1m
+    except Exception:
+        pass  # only matters if spec requests bn_btc_rv_highvol_long
     return runtime
 
 

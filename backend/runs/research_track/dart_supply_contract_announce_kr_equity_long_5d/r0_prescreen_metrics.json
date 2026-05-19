@@ -1,0 +1,130 @@
+{
+  "paradigm_name": "dart_supply_contract_announce_kr_equity_long_5d",
+  "phase": "R-0_prescreen",
+  "scan_window": [
+    "20240101",
+    "20260519"
+  ],
+  "universe_size": 350,
+  "n_total_b_type_scanned": 305214,
+  "n_match_universe_supply_contract": 2421,
+  "by_quarter": {
+    "2024Q1": 170,
+    "2024Q2": 206,
+    "2024Q3": 193,
+    "2024Q4": 305,
+    "2025Q1": 216,
+    "2025Q2": 255,
+    "2025Q3": 245,
+    "2025Q4": 400,
+    "2026Q1": 281,
+    "2026Q2": 150
+  },
+  "n_measurable_quarters_min20events": 10,
+  "measurable_quarters": [
+    "2024Q1",
+    "2024Q2",
+    "2024Q3",
+    "2024Q4",
+    "2025Q1",
+    "2025Q2",
+    "2025Q3",
+    "2025Q4",
+    "2026Q1",
+    "2026Q2"
+  ],
+  "per_quarter_focus_avg": 242.1,
+  "n_unique_stocks_triggered": 127,
+  "top10_stocks_by_event_count": [
+    [
+      "009540",
+      116
+    ],
+    [
+      "347700",
+      88
+    ],
+    [
+      "375500",
+      83
+    ],
+    [
+      "047040",
+      78
+    ],
+    [
+      "028050",
+      76
+    ],
+    [
+      "000720",
+      74
+    ],
+    [
+      "267250",
+      71
+    ],
+    [
+      "006360",
+      71
+    ],
+    [
+      "042660",
+      70
+    ],
+    [
+      "010140",
+      67
+    ]
+  ],
+  "top10_report_nm_patterns": [
+    [
+      "단일판매ㆍ공급계약체결",
+      1913
+    ],
+    [
+      "단일판매ㆍ공급계약체결(자회사의 주요경영사항)",
+      313
+    ],
+    [
+      "단일판매ㆍ공급계약체결(자율공시)",
+      145
+    ],
+    [
+      "단일판매ㆍ공급계약해지",
+      28
+    ],
+    [
+      "주권매매거래정지              (단일판매공급계약)",
+      14
+    ],
+    [
+      "단일판매ㆍ공급계약해지(자회사의 주요경영사항)",
+      6
+    ],
+    [
+      "투자판단관련주요경영사항(자회사의 주요경영사항)              (단일판매 공급계약 잔여금액 승계)",
+      1
+    ],
+    [
+      "단일판매ㆍ공급계약해지(자율공시)",
+      1
+    ]
+  ],
+  "density_per_quarter_min_required": 30,
+  "density_pass": true,
+  "n_measurable_quarters_min_required": 4,
+  "n_measurable_quarters_pass": true,
+  "side_classification_audit": {
+    "disclosure_parser_entry_exists": false,
+    "proposed_side": "ENTRY_IMMEDIATE",
+    "proposed_kind_code": "supply_contract",
+    "proposed_tier": "A",
+    "rationale": "Single sales/supply contract announcement = immediate market attention information event (announcement itself = market-moving signal next bar). Lifecycle listing announce analog (paradigm 87 mechanism class). Future revenue contribution is secondary/delayed but primary trigger = immediate information attention (retail + institutional buying pressure).",
+    "lesson_27_amendment_classify": "ENTRY_IMMEDIATE candidate"
+  },
+  "decision_verdict": "GO_R1",
+  "decision_reason": "density_pass=True (per_qtr=242.1 >= 30); n_measurable_quarters_pass=True (10 >= 4)",
+  "next_step_recommendation": "GO_R1: Build supply_contract_events_cache.joblib via DART API + price merge, patch disclosure_parser.py with SUPPLY_CONTRACT entry (Side.ENTRY_IMMEDIATE), dispatch R-1 4-quadrant symmetric negative + hold sweep 3d/5d/10d + Concentration Gate + 4-dim life-changing.",
+  "timestamp_kst": "2026-05-19 14:48:29"
+}

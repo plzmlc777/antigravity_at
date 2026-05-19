@@ -1,0 +1,82 @@
+{
+  "paradigm_name": "dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d",
+  "paradigm_number": 100,
+  "verdict": "SAMPLE_INSUFFICIENT_TEMPORAL_CONCENTRATION",
+  "halt_phase": "R-0_prescreen",
+  "halt_at": "lesson_26_amendment_n_measurable_quarters_lt_4",
+  "hypothesis": "EARNINGS_GUIDANCE_AMEND (가이던스 ±30% 변경) NEG surprise direction × LONG mean-reversion at hold sweep 5d/10d/20d/30d; paradigm 93 B mirror neg×LONG side discovery 정식화",
+  "family_distinct_check": {
+    "directional_momentum_family_retire": "passed (mean-reversion direction is family-distinct, explicitly allowed per feedback_family_retire_kr_post_earnings.md)"
+  },
+  "substrate_audit_via_cache_reuse": {
+    "cache_source": "backend/runs/dart_track/h2_guidance_events_ret_cache.joblib (paradigm 93 R-1 artifact)",
+    "window": "2024-01-15 .. 2026-04-15 (2.4yr)",
+    "n_events_total": 1106,
+    "n_events_neg_yoy_lt_-30pct": 327,
+    "n_events_pos_yoy_ge_+30pct": 350,
+    "n_distinct_stocks": 303,
+    "fundamental_track_neg_quarterly_distribution": {
+      "2024Q1": 134,
+      "2025Q1": 120,
+      "2026Q1": 73,
+      "_note": "100.0% concentration in Q1 (annual-results disclosure cycle)"
+    },
+    "observable_track_neg_quarterly_distribution": {
+      "2024Q1": 75,
+      "2025Q1": 88,
+      "2025Q2": 1,
+      "2026Q1": 95,
+      "_note": "99.6% concentration in Q1; single 2025Q2 event sub-threshold for cell formation"
+    },
+    "n_measurable_quarters_fund_track": 3,
+    "n_measurable_quarters_obs_track": 3,
+    "lesson_26_amendment_threshold": "n_measurable_quarters >= 4 required"
+  },
+  "lesson_grid_failures": {
+    "lesson_26_small_sample_concentration_gate": {
+      "rule": "n_measurable_quarters >= 4 required for valid TS-CV; <4 → auto-FAIL",
+      "observed": "n_measurable_quarters = 3 (both tracks)",
+      "verdict": "AUTO_FAIL precondition met before R-1 dispatch"
+    },
+    "structural_diagnosis": "EARNINGS_GUIDANCE_AMEND substrate is filed at fiscal year-end annual-results cycle (Q1 of following year). 99.5-99.6% of events cluster in 2024Q1/2025Q1/2026Q1. 2.4yr window admits exactly 3 measurable Q1s. Hold extension 5d→10d→20d→30d does NOT add temporal independence — events remain Q1-clustered, only hold horizon changes. Walk-forward 5-fold TS-CV structurally impossible (paradigm 93 already collapsed to fold_count=1 with all 3 quarters merged)."
+  },
+  "paradigm_93_baseline_for_reference_hold_5d": {
+    "B_mirror_neg_long_fund_track": {
+      "n": 327,
+      "gross_mean_bp": 123.84,
+      "net_mean_bp": 73.84,
+      "t_stat": 1.55,
+      "signal_t_excess": 0.54,
+      "perm_p_one_sided_above": 0.293,
+      "ci_lower_bp": -14.88,
+      "ci_upper_bp": 169.27,
+      "prob_positive": 0.942,
+      "pass_three_gate": false,
+      "blockers": ["sigex<2.0", "ci_lower<0", "perm_p>0.10"]
+    },
+    "B_mirror_neg_long_obs_track": {
+      "n": 259,
+      "gross_mean_bp": 159.66,
+      "net_mean_bp": 109.66,
+      "t_stat": 1.97,
+      "signal_t_excess": 1.10,
+      "perm_p_one_sided_above": 0.125,
+      "ci_lower_bp": 9.24,
+      "ci_upper_bp": 228.07,
+      "pass_three_gate": false,
+      "blockers": ["sigex<2.0", "perm_p>0.10"]
+    },
+    "_note": "Both tracks at 5d hold sub-grade (sigex<2.0). Hold-extension hypothesis (20d) would need not just stronger sigex but also pass Concentration Gate which n_measurable_quarters=3 structurally blocks."
+  },
+  "life_changing_4dim_eyeball_prescreen": {
+    "trades_per_year_estimate": "10-15 effective (327 neg events / 2.4yr nominal 136/yr but 99.5% Q1-clustered + 20d hold overlap → ~3-5 independent positions/Q1 × 3Q1 = 9-15/yr)",
+    "trades_per_yr_ge_12_threshold": "marginal — fails depending on overlap policy",
+    "_note": "Even if signal were strong, life-changing 4-dim trades/yr ≥ 12 borderline due to Q1-burst + 20d hold overlap"
+  },
+  "decision_rationale": "Lesson #26 amendment (paradigm 87 dogfood) prescribes n_measurable_quarters >= 4 auto-FAIL precondition before R-1 dispatch. Cache audit (paradigm 93 events_ret) shows fundamental track has exactly 3 measurable quarters (2024Q1/2025Q1/2026Q1) and observable track has 3 measurable + 1 sub-cell quarter. Extending hold horizon 5d→20d does not add temporal independence. R-1 execution would waste compute on a paradigm structurally precluded from R-2 walk-forward validation. Halt now and record as 100th paradigm graveyard.",
+  "ad_hoc_dispatch_context": {
+    "data_window_ratio_lesson_30": "1.0 (full 2.4yr DART window reused via cache)",
+    "trigger_no_data_window_concern": true
+  },
+  "next_step_recommendation": "Do not retry. EARNINGS_GUIDANCE_AMEND substrate temporal-distribution defect is structural (KR annual-results disclosure cycle inherent). Family-distinct hypothesis dispatch from KR equity post-earnings/guidance family must use non-Q1-clustered triggers (e.g., 분기보고서 quarterly filings 4x/yr distribution if classifier exists, or external triggers like 단일판매·공급계약체결 contracts which file year-round). Track 3 DART permanent retirement of guidance-direction-based paradigms enforced by graveyard 92+93+100."
+}

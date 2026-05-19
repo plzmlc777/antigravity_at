@@ -471,8 +471,72 @@
       "updated_at": "2026-05-18T09:15:08+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "funding_velocity_cross_section_dispersion": {
+      "name": "funding_velocity_cross_section_dispersion",
+      "hypothesis": "8h funding cycle, sym i Δf cross-section z-score |cs_z_Δf|>2 outlier → mean-reversal fade. 4-quadrant Symmetric Negative Test (Lesson #19), 14-sym universe, 2.5yr.",
+      "data_dependencies": [
+        "binance_funding_rate",
+        " ohlcv joblib cache"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-19T02:56:42+00:00",
+      "updated_at": "2026-05-19T02:56:59+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED 2026-05-19 (97/98/99 batch P1). 4-quadrant Symmetric Negative Test all FAIL three-gate. Focus A high LONG n=1300 mean -8.62bp sigex -0.20 ci_lower_bp -26.07 perm_p 0.456 / mirror SHORT -7.38bp sigex +0.60 / B mirror LONG -8.47bp sigex -0.18 / B focus low SHORT -7.53bp sigex +0.58. All cells near fee floor (-7.4~-8.6bp), signed but not significantly. cs_z(Δfunding) dispersion noise-driven, contains no directional alpha. 2.37yr panel 36,211 cycles. Funding family retire confirmed for cross-section velocity sub-class. metrics: backend/runs/research_track/funding_velocity_cross_section_dispersion/r1__metrics.json",
+      "seed_spec": null
+    },
+    "funding_regime_stratify_dispersion": {
+      "name": "funding_regime_stratify_dispersion",
+      "hypothesis": "BTC funding 30d rolling regime (HIGH/MID/LOW) conditional cs_z(funding_level) MR asymmetry. 14-sym universe, 2.5yr.",
+      "data_dependencies": [
+        "binance_funding_rate",
+        " ohlcv cache",
+        " BTC 30d funding regime"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-19T02:56:44+00:00",
+      "updated_at": "2026-05-19T02:57:04+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED 2026-05-19 (98 P2). 4-quadrant × HIGH regime focus all FAIL. HIGH regime A LONG n=128 +15.72bp sigex +0.54 ci_lower -76.71 (insufficient sample even at HIGH regime); A mirror SHORT -31.72bp sigex -0.21; B mirror LONG -6.49bp; B focus SHORT n=789 -9.51bp sigex +0.04 (near fee floor). MID regime B SHORT sigex -1.51 strongest (anti-MR direction). Regime stratify did not unlock alpha — funding LEVEL dispersion is regime-blind noise. 2.37yr panel 36,252 cycles, HIGH=11127 MID=15328 LOW=9797. metrics: backend/runs/research_track/funding_regime_stratify_dispersion/r1__metrics.json",
+      "seed_spec": null
+    },
+    "funding_cycle_8h_differential_velocity_per_sym": {
+      "name": "funding_cycle_8h_differential_velocity_per_sym",
+      "hypothesis": "Per-sym 8h-to-8h Δfunding history-z |z(Δf)|>2 → MR fade. 4-quadrant, 14-sym, 2.5yr, 90-cycle rolling.",
+      "data_dependencies": [
+        "binance_funding_rate",
+        " ohlcv cache"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-19T02:56:46+00:00",
+      "updated_at": "2026-05-19T02:57:11+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED_MIRROR_ONLY 2026-05-19 (99 P3). 4-quadrant Symmetric Negative Test: focus A high LONG n=1295 +12.44bp sigex +2.03 ci_lower -4.31 perm_p 0.205 (sigex marginal but ci FAIL three-gate); A mirror SHORT -28.44bp sigex -1.85; B mirror LONG n=1304 +24.00bp sigex +3.19 ci_lower +5.88 perm_p 0.028 **3gate PASS** but LC edge 0.24% (<2.0% gate) + Concentration unmeasured (not focus); B focus SHORT -40.00bp sigex -2.90 anti-direction. Mirror-only PASS pattern = symmetric directional bias (both LONG cells outperform when |z(Δf)| extreme either direction) — not mechanism alpha. Concentration on A focus borderline cell: 0/13 syms ci_lower>0, 5/13 syms negative mean. Life-changing FAIL on all cells (edge_pct ≤ 0.24% << 2.0%). 2.38yr panel 38,618 cycles. metrics: backend/runs/research_track/funding_cycle_8h_differential_velocity_per_sym/r1__metrics.json",
+      "seed_spec": null
+    },
+    "dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d": {
+      "name": "dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d",
+      "hypothesis": "KR equity EARNINGS_GUIDANCE_AMEND ±30% NEG surprise × LONG mean-reversion hold 5d/10d/20d/30d; paradigm 93 B mirror side discovery 정식화",
+      "data_dependencies": [],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "backend/runs/research_track/dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d/r1_prescreen_halt_metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-19T04:26:03+00:00",
+      "updated_at": "2026-05-19T04:26:15+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-18T09:15:08+00:00"
+  "updated_at": "2026-05-19T04:26:15+00:00"
 }
