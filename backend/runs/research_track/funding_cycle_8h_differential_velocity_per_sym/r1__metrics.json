@@ -1,0 +1,5340 @@
+{
+  "paradigm": "funding_cycle_8h_differential_velocity_per_sym",
+  "phase": "R-1",
+  "session_date": "2026-05-19",
+  "campaign": "batch_ad_hoc_R1_funding_family_distinct_P3",
+  "hypothesis": "Per-sym 8h-to-8h \u0394funding history-z |z(\u0394f)|>2 outlier \u2192 mean-rev fade",
+  "dna_distinct_from": [
+    "paradigm 96 sign flip (categorical vs continuous)",
+    "paradigm 79 extreme level (level z vs velocity z)",
+    "paradigm 22 funding_carry (3 syms specific vs 14 syms)",
+    "P1 funding_velocity cross_section (cs z vs per-sym history z)"
+  ],
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "BTCUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "rolling_windows": 90,
+  "z_thresholds": [
+    1.5,
+    2.0,
+    2.5
+  ],
+  "focus": {
+    "z_thr": 2.0,
+    "hold_col": "fwd_ret_8h"
+  },
+  "fee_per_trade": 0.0008,
+  "cooldown_minutes": 480,
+  "panel_total_cycles": 38618,
+  "panel_span_days": 868.0,
+  "per_symbol_diag": {
+    "ADAUSDT": {
+      "n_cycles": 2582,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "AVAXUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "BCHUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "BNBUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "BTCUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "DOGEUSDT": {
+      "n_cycles": 2573,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-19 00:00:00"
+    },
+    "ETHUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "FILUSDT": {
+      "n_cycles": 2562,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "LINKUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "LTCUSDT": {
+      "n_cycles": 2556,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "NEARUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    },
+    "SOLUSDT": {
+      "n_cycles": 2605,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-19 00:00:00"
+    },
+    "WIFUSDT": {
+      "n_cycles": 4996,
+      "min_ts": "2024-02-02 16:00:00",
+      "max_ts": "2026-05-15 04:00:00"
+    },
+    "XRPUSDT": {
+      "n_cycles": 2593,
+      "min_ts": "2024-01-02 00:00:00",
+      "max_ts": "2026-05-15 00:00:00"
+    }
+  },
+  "grid_results": [
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -3.000606788619468,
+      "win_rate": 0.47452868030485357,
+      "obs_t": -0.6800932959098925,
+      "null_mean_t": -1.6659176879996391,
+      "signal_t_excess": 0.9858243920897466,
+      "perm_p_two_sided": 0.849,
+      "perm_p_one_sided_above": 0.155,
+      "perm_p_one_sided_below": 0.845,
+      "ci_mean": -0.0003000606788619468,
+      "ci_lower": -0.0011863470709572437,
+      "ci_upper": 0.0005780052283066501,
+      "ci_prob_positive": 0.242,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": -0.03000606788619468,
+        "capital_util": 0.4786866359447004,
+        "annualized_sharpe": -0.4411677358851353,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": 3.5381498220969365,
+          "win_rate": 0.4909090909090909
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -2.7911664433135184,
+          "win_rate": 0.4117647058823529
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": 19.91094376455225,
+          "win_rate": 0.5133333333333333
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": -21.897805661399392,
+          "win_rate": 0.43137254901960786
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": -0.980738698928088,
+          "win_rate": 0.4438202247191011
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": 17.49229766359945,
+          "win_rate": 0.5406976744186046
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": -5.929946903934257,
+          "win_rate": 0.47560975609756095
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": -15.818787290502483,
+          "win_rate": 0.47752808988764045
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": -17.491799652177686,
+          "win_rate": 0.45348837209302323
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": -0.5039340661781239,
+          "win_rate": 0.5384615384615384
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": 10.745002650506208,
+          "win_rate": 0.5084745762711864
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": -23.668640209688064,
+          "win_rate": 0.3870967741935484
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": 3.937351820027998,
+          "win_rate": 0.4782608695652174
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": -15.947820552995848,
+          "win_rate": 0.48214285714285715
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -12.999393211380525,
+      "win_rate": 0.46610509426393903,
+      "obs_t": -2.946337456639554,
+      "null_mean_t": -2.2434813084206304,
+      "signal_t_excess": -0.7028561482189235,
+      "perm_p_two_sided": 0.239,
+      "perm_p_one_sided_above": 0.761,
+      "perm_p_one_sided_below": 0.239,
+      "ci_mean": -0.0012999393211380525,
+      "ci_lower": -0.0021780052283066494,
+      "ci_upper": -0.0004136529290427552,
+      "ci_prob_positive": 0.005,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": -0.12999393211380525,
+        "capital_util": 0.4786866359447004,
+        "annualized_sharpe": -1.911251048520052,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": -19.538149822096923,
+          "win_rate": 0.45454545454545453
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -13.20883355668647,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": -35.910943764552236,
+          "win_rate": 0.44
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": 5.897805661399396,
+          "win_rate": 0.49019607843137253
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": -15.019261301071909,
+          "win_rate": 0.47752808988764045
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": -33.49229766359944,
+          "win_rate": 0.4069767441860465
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": -10.070053096065733,
+          "win_rate": 0.4695121951219512
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": -0.1812127094975031,
+          "win_rate": 0.4606741573033708
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": 1.4917996521776955,
+          "win_rate": 0.47093023255813954
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": -15.496065933821878,
+          "win_rate": 0.39644970414201186
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": -26.7450026505062,
+          "win_rate": 0.4576271186440678
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": 7.668640209688072,
+          "win_rate": 0.5290322580645161
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": -19.93735182002797,
+          "win_rate": 0.48757763975155277
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": -0.052179447004152696,
+          "win_rate": 0.47023809523809523
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -15.875563128595509,
+      "win_rate": 0.48044692737430167,
+      "obs_t": -3.3207173997271324,
+      "null_mean_t": -1.6534237934040412,
+      "signal_t_excess": -1.6672936063230912,
+      "perm_p_two_sided": 0.049,
+      "perm_p_one_sided_above": 0.951,
+      "perm_p_one_sided_below": 0.049,
+      "ci_mean": -0.001587556312859551,
+      "ci_lower": -0.00251837409019407,
+      "ci_upper": -0.0006689395806160224,
+      "ci_prob_positive": 0.0005,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": -0.1587556312859551,
+        "capital_util": 0.48118279569892475,
+        "annualized_sharpe": -2.154106481511463,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": -45.22728610855182,
+          "win_rate": 0.5141242937853108
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": -16.070153146012302,
+          "win_rate": 0.4777777777777778
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": -21.95354877068151,
+          "win_rate": 0.4965034965034965
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": -19.93722116314615,
+          "win_rate": 0.4217687074829932
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": -16.96828606258962,
+          "win_rate": 0.43037974683544306
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": -26.65708918625647,
+          "win_rate": 0.46703296703296704
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": -36.07442232042614,
+          "win_rate": 0.47368421052631576
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": -11.696313321246096,
+          "win_rate": 0.5084745762711864
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": -5.055306767404576,
+          "win_rate": 0.49122807017543857
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": -13.976663081777671,
+          "win_rate": 0.45977011494252873
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": -11.745144023758572,
+          "win_rate": 0.4888888888888889
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": 0.9349339051372981,
+          "win_rate": 0.5095541401273885
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": -15.296893272304292,
+          "win_rate": 0.44171779141104295
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": 19.66811925314986,
+          "win_rate": 0.5766871165644172
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -0.12443687140448342,
+      "win_rate": 0.4537110933758978,
+      "obs_t": -0.0260286630901409,
+      "null_mean_t": -2.2639221970376826,
+      "signal_t_excess": 2.237893533947542,
+      "perm_p_two_sided": 0.999,
+      "perm_p_one_sided_above": 0.01,
+      "perm_p_one_sided_below": 0.99,
+      "ci_mean": -1.2443687140448342e-05,
+      "ci_lower": -0.0009310604193839771,
+      "ci_upper": 0.0009183740901940701,
+      "ci_prob_positive": 0.4935,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": -0.0012443687140448341,
+        "capital_util": 0.48118279569892475,
+        "annualized_sharpe": -0.016884457518775285,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": 29.22728610855184,
+          "win_rate": 0.4293785310734463
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": 0.07015314601230899,
+          "win_rate": 0.4666666666666667
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": 5.953548770681513,
+          "win_rate": 0.3986013986013986
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": 3.9372211631461456,
+          "win_rate": 0.5306122448979592
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": 0.9682860625896196,
+          "win_rate": 0.4620253164556962
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": 10.657089186256492,
+          "win_rate": 0.46153846153846156
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": 20.074422320426148,
+          "win_rate": 0.4444444444444444
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": -4.303686678753886,
+          "win_rate": 0.4406779661016949
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": -10.94469323259542,
+          "win_rate": 0.4444444444444444
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": -2.0233369182223253,
+          "win_rate": 0.4540229885057471
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": -4.254855976241417,
+          "win_rate": 0.4666666666666667
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": -16.934933905137296,
+          "win_rate": 0.42038216560509556
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": -0.7031067276957197,
+          "win_rate": 0.5276073619631901
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": -35.668119253149854,
+          "win_rate": 0.3312883435582822
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 5.015813354095112,
+      "win_rate": 0.48896911351785,
+      "obs_t": 0.8380960689087606,
+      "null_mean_t": -0.7928348742451956,
+      "signal_t_excess": 1.6309309431539563,
+      "perm_p_two_sided": 0.525,
+      "perm_p_one_sided_above": 0.049,
+      "perm_p_one_sided_below": 0.951,
+      "ci_mean": 0.0005015813354095112,
+      "ci_lower": -0.000689147034637291,
+      "ci_upper": 0.0016542986834858474,
+      "ci_prob_positive": 0.8035,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": 0.050158133540951125,
+        "capital_util": 0.9573732718894008,
+        "annualized_sharpe": 0.54366209371324,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": 5.065040400650398,
+          "win_rate": 0.509090909090909
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -2.760962015571377,
+          "win_rate": 0.49411764705882355
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": 40.396219506136894,
+          "win_rate": 0.4533333333333333
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": -20.492174478767044,
+          "win_rate": 0.47058823529411764
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": 5.164398762380884,
+          "win_rate": 0.4606741573033708
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": 4.806238487067759,
+          "win_rate": 0.46511627906976744
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": 4.4592828510490845,
+          "win_rate": 0.5365853658536586
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": -6.976419615747404,
+          "win_rate": 0.5224719101123596
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": -0.7915447003770099,
+          "win_rate": 0.47093023255813954
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": 11.206695695359343,
+          "win_rate": 0.5384615384615384
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": 17.32351245999632,
+          "win_rate": 0.519774011299435
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": -16.978989208445626,
+          "win_rate": 0.44516129032258067
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": 29.383339799125643,
+          "win_rate": 0.4906832298136646
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": -21.87661330534715,
+          "win_rate": 0.4583333333333333
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -21.015813354095105,
+      "win_rate": 0.4729241877256318,
+      "obs_t": -3.511548240248445,
+      "null_mean_t": -1.991100808068496,
+      "signal_t_excess": -1.520447432179949,
+      "perm_p_two_sided": 0.06,
+      "perm_p_one_sided_above": 0.94,
+      "perm_p_one_sided_below": 0.06,
+      "ci_mean": -0.0021015813354095104,
+      "ci_lower": -0.0032542986834858466,
+      "ci_upper": -0.0009108529653627083,
+      "ci_prob_positive": 0.0005,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": -0.21015813354095103,
+        "capital_util": 0.9573732718894008,
+        "annualized_sharpe": -2.277895982681607,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": -21.065040400650382,
+          "win_rate": 0.4666666666666667
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -13.239037984428611,
+          "win_rate": 0.47058823529411764
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": -56.396219506136866,
+          "win_rate": 0.5066666666666667
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": 4.492174478767042,
+          "win_rate": 0.477124183006536
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": -21.164398762380884,
+          "win_rate": 0.47191011235955055
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": -20.806238487067752,
+          "win_rate": 0.5058139534883721
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": -20.45928285104908,
+          "win_rate": 0.43902439024390244
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": -9.023580384252583,
+          "win_rate": 0.43258426966292135
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": -15.208455299622976,
+          "win_rate": 0.4883720930232558
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": -27.206695695359343,
+          "win_rate": 0.40828402366863903
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": -33.32351245999629,
+          "win_rate": 0.4632768361581921
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": 0.9789892084456496,
+          "win_rate": 0.5161290322580645
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": -45.383339799125636,
+          "win_rate": 0.4813664596273292
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": 5.876613305347177,
+          "win_rate": 0.49404761904761907
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 4.730062112984909,
+      "win_rate": 0.49840383080606543,
+      "obs_t": 0.741083648901377,
+      "null_mean_t": -0.7993235541563267,
+      "signal_t_excess": 1.5404072030577036,
+      "perm_p_two_sided": 0.592,
+      "perm_p_one_sided_above": 0.062,
+      "perm_p_one_sided_below": 0.938,
+      "ci_mean": 0.0004730062112984909,
+      "ci_lower": -0.0008285464131514848,
+      "ci_upper": 0.0017262033812366416,
+      "ci_prob_positive": 0.7765,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": 0.04730062112984909,
+        "capital_util": 0.9623655913978495,
+        "annualized_sharpe": 0.4807313900218663,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": -20.17749703672115,
+          "win_rate": 0.4576271186440678
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": 10.414917868709548,
+          "win_rate": 0.5277777777777778
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": 4.637424510569661,
+          "win_rate": 0.4755244755244755
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": -8.783073957955603,
+          "win_rate": 0.4557823129251701
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": -7.3757209014712535,
+          "win_rate": 0.4177215189873418
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": 3.5375785522037044,
+          "win_rate": 0.5164835164835165
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": -29.25155893739884,
+          "win_rate": 0.49122807017543857
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": -2.9037919777537837,
+          "win_rate": 0.5310734463276836
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": 11.303247582922863,
+          "win_rate": 0.5321637426900585
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": 7.229227175686215,
+          "win_rate": 0.47701149425287354
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": 34.428088007772814,
+          "win_rate": 0.5444444444444444
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": 4.5273696140432165,
+          "win_rate": 0.5031847133757962
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": 24.567808901643488,
+          "win_rate": 0.5061349693251533
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": 12.932763848958531,
+          "win_rate": 0.5153374233128835
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -20.730062112984893,
+      "win_rate": 0.45849960095770154,
+      "obs_t": -3.2478875976003594,
+      "null_mean_t": -1.9907328824265105,
+      "signal_t_excess": -1.257154715173849,
+      "perm_p_two_sided": 0.097,
+      "perm_p_one_sided_above": 0.903,
+      "perm_p_one_sided_below": 0.097,
+      "ci_mean": -0.002073006211298489,
+      "ci_lower": -0.0033262033812366406,
+      "ci_upper": -0.0007714535868485153,
+      "ci_prob_positive": 0.0005,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": -0.20730062112984893,
+        "capital_util": 0.9623655913978495,
+        "annualized_sharpe": -2.1068627296579114,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": 4.177497036721182,
+          "win_rate": 0.5028248587570622
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": -26.414917868709534,
+          "win_rate": 0.43333333333333335
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": -20.637424510569634,
+          "win_rate": 0.44755244755244755
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": -7.21692604204439,
+          "win_rate": 0.48299319727891155
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": -8.624279098528742,
+          "win_rate": 0.5253164556962026
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": -19.53757855220369,
+          "win_rate": 0.44505494505494503
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": 13.251558937398855,
+          "win_rate": 0.47953216374269003
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": -13.096208022246199,
+          "win_rate": 0.4350282485875706
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": -27.303247582922847,
+          "win_rate": 0.4327485380116959
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": -23.2292271756862,
+          "win_rate": 0.4540229885057471
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": -50.4280880077728,
+          "win_rate": 0.40555555555555556
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": -20.527369614043206,
+          "win_rate": 0.45222929936305734
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": -40.56780890164347,
+          "win_rate": 0.4754601226993865
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": -28.932763848958523,
+          "win_rate": 0.44171779141104295
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 6.36754722815093,
+      "win_rate": 0.4817488969113518,
+      "obs_t": 0.7009834246700994,
+      "null_mean_t": -0.2185458969534061,
+      "signal_t_excess": 0.9195293216235055,
+      "perm_p_two_sided": 0.468,
+      "perm_p_one_sided_above": 0.168,
+      "perm_p_one_sided_below": 0.832,
+      "ci_mean": 0.000636754722815093,
+      "ci_lower": -0.001175769063882898,
+      "ci_upper": 0.00252472934984402,
+      "ci_prob_positive": 0.7575,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": 0.0636754722815093,
+        "capital_util": 1.9147465437788016,
+        "annualized_sharpe": 0.45471889256160175,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": -68.62271055317123,
+          "win_rate": 0.41818181818181815
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -10.456419465761224,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": 57.40367387077709,
+          "win_rate": 0.54
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": -31.707803564661635,
+          "win_rate": 0.45098039215686275
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": -0.9678944701543936,
+          "win_rate": 0.48314606741573035
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": 7.854730030812669,
+          "win_rate": 0.4883720930232558
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": -0.9566496027772002,
+          "win_rate": 0.5426829268292683
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": 36.08231560025447,
+          "win_rate": 0.5280898876404494
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": -27.540873627831665,
+          "win_rate": 0.4127906976744186
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": 0.9484684127740192,
+          "win_rate": 0.5029585798816568
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": 29.480279706295562,
+          "win_rate": 0.4689265536723164
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": -23.180072697425487,
+          "win_rate": 0.49032258064516127
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": 75.45203231842162,
+          "win_rate": 0.4906832298136646
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": -21.268017147675085,
+          "win_rate": 0.4226190476190476
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 2493,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -22.36754722815092,
+      "win_rate": 0.4905736060970718,
+      "obs_t": -2.462373547563387,
+      "null_mean_t": -1.738140265771195,
+      "signal_t_excess": -0.7242332817921919,
+      "perm_p_two_sided": 0.211,
+      "perm_p_one_sided_above": 0.789,
+      "perm_p_one_sided_below": 0.211,
+      "ci_mean": -0.0022367547228150917,
+      "ci_lower": -0.0041247293498440215,
+      "ci_upper": -0.0004242309361171003,
+      "ci_prob_positive": 0.008,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 2493,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1049.041762672811,
+        "per_trade_edge_pct": -0.22367547228150916,
+        "capital_util": 1.9147465437788016,
+        "annualized_sharpe": -1.5973099123534333,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 165,
+          "mean_bp": 52.62271055317127,
+          "win_rate": 0.5515151515151515
+        },
+        "AVAXUSDT": {
+          "n": 170,
+          "mean_bp": -5.543580534238748,
+          "win_rate": 0.47058823529411764
+        },
+        "BCHUSDT": {
+          "n": 150,
+          "mean_bp": -73.4036738707771,
+          "win_rate": 0.44666666666666666
+        },
+        "BNBUSDT": {
+          "n": 153,
+          "mean_bp": 15.707803564661642,
+          "win_rate": 0.477124183006536
+        },
+        "BTCUSDT": {
+          "n": 178,
+          "mean_bp": -15.032105529845598,
+          "win_rate": 0.47752808988764045
+        },
+        "DOGEUSDT": {
+          "n": 172,
+          "mean_bp": -23.85473003081266,
+          "win_rate": 0.4941860465116279
+        },
+        "ETHUSDT": {
+          "n": 164,
+          "mean_bp": -15.043350397222786,
+          "win_rate": 0.4268292682926829
+        },
+        "FILUSDT": {
+          "n": 178,
+          "mean_bp": -52.08231560025447,
+          "win_rate": 0.43820224719101125
+        },
+        "LINKUSDT": {
+          "n": 172,
+          "mean_bp": 11.540873627831692,
+          "win_rate": 0.5581395348837209
+        },
+        "LTCUSDT": {
+          "n": 169,
+          "mean_bp": -16.948468412773984,
+          "win_rate": 0.4911242603550296
+        },
+        "NEARUSDT": {
+          "n": 177,
+          "mean_bp": -45.480279706295555,
+          "win_rate": 0.5028248587570622
+        },
+        "SOLUSDT": {
+          "n": 155,
+          "mean_bp": 7.180072697425525,
+          "win_rate": 0.49032258064516127
+        },
+        "WIFUSDT": {
+          "n": 322,
+          "mean_bp": -91.45203231842162,
+          "win_rate": 0.4937888198757764
+        },
+        "XRPUSDT": {
+          "n": 168,
+          "mean_bp": 5.2680171476751205,
+          "win_rate": 0.5416666666666666
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 19.847608983079166,
+      "win_rate": 0.5,
+      "obs_t": 2.090016414932853,
+      "null_mean_t": -0.1652568558172504,
+      "signal_t_excess": 2.255273270750103,
+      "perm_p_two_sided": 0.043,
+      "perm_p_one_sided_above": 0.011,
+      "perm_p_one_sided_below": 0.989,
+      "ci_mean": 0.0019847608983079167,
+      "ci_lower": 3.550018957794306e-05,
+      "ci_upper": 0.0038422619105994665,
+      "ci_prob_positive": 0.9755,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": 0.19847608983079168,
+        "capital_util": 1.924731182795699,
+        "annualized_sharpe": 1.355766650375655,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": 24.73971464523244,
+          "win_rate": 0.5254237288135594
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": 12.815508008701647,
+          "win_rate": 0.5222222222222223
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": -7.740549638536938,
+          "win_rate": 0.4405594405594406
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": -18.101395304934016,
+          "win_rate": 0.46938775510204084
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": 13.240310708634238,
+          "win_rate": 0.47468354430379744
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": 57.65498636831606,
+          "win_rate": 0.5054945054945055
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": 17.791964103598964,
+          "win_rate": 0.4853801169590643
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": 2.621422978266341,
+          "win_rate": 0.5028248587570622
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": -14.788414431423236,
+          "win_rate": 0.49122807017543857
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": 2.3379485939588984,
+          "win_rate": 0.5574712643678161
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": 48.25747693706706,
+          "win_rate": 0.5111111111111111
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": 18.546761778854954,
+          "win_rate": 0.5159235668789809
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": 56.752040814876004,
+          "win_rate": 0.46932515337423314
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": 16.878893281695653,
+          "win_rate": 0.5398773006134969
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 1.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 2506,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -35.847608983079155,
+      "win_rate": 0.47166799680766164,
+      "obs_t": -3.7748673542794857,
+      "null_mean_t": -1.7938623319522244,
+      "signal_t_excess": -1.9810050223272613,
+      "perm_p_two_sided": 0.016,
+      "perm_p_one_sided_above": 0.984,
+      "perm_p_one_sided_below": 0.016,
+      "ci_mean": -0.0035847608983079157,
+      "ci_lower": -0.005442261910599465,
+      "ci_upper": -0.0016355001895779436,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 2506,
+        "panel_span_days": 868.0,
+        "trades_per_year": 1054.5120967741937,
+        "per_trade_edge_pct": -0.35847608983079154,
+        "capital_util": 1.924731182795699,
+        "annualized_sharpe": -2.4487076905031553,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 177,
+          "mean_bp": -40.73971464523241,
+          "win_rate": 0.4576271186440678
+        },
+        "AVAXUSDT": {
+          "n": 180,
+          "mean_bp": -28.81550800870161,
+          "win_rate": 0.45555555555555555
+        },
+        "BCHUSDT": {
+          "n": 143,
+          "mean_bp": -8.259450361463047,
+          "win_rate": 0.5244755244755245
+        },
+        "BNBUSDT": {
+          "n": 147,
+          "mean_bp": 2.1013953049340333,
+          "win_rate": 0.4965986394557823
+        },
+        "BTCUSDT": {
+          "n": 158,
+          "mean_bp": -29.240310708634233,
+          "win_rate": 0.47468354430379744
+        },
+        "DOGEUSDT": {
+          "n": 182,
+          "mean_bp": -73.65498636831606,
+          "win_rate": 0.43956043956043955
+        },
+        "ETHUSDT": {
+          "n": 171,
+          "mean_bp": -33.79196410359893,
+          "win_rate": 0.4678362573099415
+        },
+        "FILUSDT": {
+          "n": 177,
+          "mean_bp": -18.62142297826633,
+          "win_rate": 0.4745762711864407
+        },
+        "LINKUSDT": {
+          "n": 171,
+          "mean_bp": -1.2115855685767387,
+          "win_rate": 0.47953216374269003
+        },
+        "LTCUSDT": {
+          "n": 174,
+          "mean_bp": -18.337948593958874,
+          "win_rate": 0.42528735632183906
+        },
+        "NEARUSDT": {
+          "n": 180,
+          "mean_bp": -64.25747693706703,
+          "win_rate": 0.4722222222222222
+        },
+        "SOLUSDT": {
+          "n": 157,
+          "mean_bp": -34.546761778854936,
+          "win_rate": 0.4394904458598726
+        },
+        "WIFUSDT": {
+          "n": 326,
+          "mean_bp": -72.75204081487603,
+          "win_rate": 0.5153374233128835
+        },
+        "XRPUSDT": {
+          "n": 163,
+          "mean_bp": -32.878893281695646,
+          "win_rate": 0.4539877300613497
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 0.41175188561754833,
+      "win_rate": 0.4934362934362934,
+      "obs_t": 0.06372884521424307,
+      "null_mean_t": -1.2441118050481406,
+      "signal_t_excess": 1.3078406502623836,
+      "perm_p_two_sided": 0.968,
+      "perm_p_one_sided_above": 0.087,
+      "perm_p_one_sided_below": 0.913,
+      "ci_mean": 4.117518856175483e-05,
+      "ci_lower": -0.0012424701927323206,
+      "ci_upper": 0.001238777082770502,
+      "ci_prob_positive": 0.5185,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": 0.0041175188561754835,
+        "capital_util": 0.2486559139784946,
+        "annualized_sharpe": 0.04134007866689354,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": 4.527983041732763,
+          "win_rate": 0.5
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": -29.97566244576179,
+          "win_rate": 0.4024390243902439
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": 41.57800864469556,
+          "win_rate": 0.5333333333333333
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": -19.842615432382765,
+          "win_rate": 0.425531914893617
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": -5.0617863039531,
+          "win_rate": 0.4342105263157895
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": 73.93281318550423,
+          "win_rate": 0.6588235294117647
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": -12.704523983324489,
+          "win_rate": 0.4878048780487805
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": -19.07057622803927,
+          "win_rate": 0.46534653465346537
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": -45.49967921425862,
+          "win_rate": 0.3854166666666667
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": -2.954962543163846,
+          "win_rate": 0.5340909090909091
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": -2.886837668218444,
+          "win_rate": 0.5274725274725275
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": -28.46264588966324,
+          "win_rate": 0.4
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": 23.711123019605385,
+          "win_rate": 0.5195530726256983
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": 14.567667930255679,
+          "win_rate": 0.6172839506172839
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -16.411751885617537,
+      "win_rate": 0.4471042471042471,
+      "obs_t": -2.540126790298558,
+      "null_mean_t": -1.593264214752929,
+      "signal_t_excess": -0.946862575545629,
+      "perm_p_two_sided": 0.161,
+      "perm_p_one_sided_above": 0.839,
+      "perm_p_one_sided_below": 0.161,
+      "ci_mean": -0.0016411751885617536,
+      "ci_lower": -0.002838777082770503,
+      "ci_upper": -0.0003575298072676786,
+      "ci_prob_positive": 0.0045,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": -0.16411751885617537,
+        "capital_util": 0.2486559139784946,
+        "annualized_sharpe": -1.6477474365306275,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": -20.527983041732757,
+          "win_rate": 0.4444444444444444
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": 13.975662445761792,
+          "win_rate": 0.5121951219512195
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": -57.578008644695544,
+          "win_rate": 0.4266666666666667
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": 3.8426154323827664,
+          "win_rate": 0.5
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": -10.938213696046894,
+          "win_rate": 0.47368421052631576
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": -89.93281318550424,
+          "win_rate": 0.3058823529411765
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": -3.295476016675507,
+          "win_rate": 0.45121951219512196
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": 3.070576228039286,
+          "win_rate": 0.45544554455445546
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": 29.499679214258627,
+          "win_rate": 0.5416666666666666
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": -13.045037456836159,
+          "win_rate": 0.3977272727272727
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": -13.113162331781552,
+          "win_rate": 0.43956043956043955
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": 12.462645889663246,
+          "win_rate": 0.52
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": -39.71112301960535,
+          "win_rate": 0.44692737430167595
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": -30.567667930255677,
+          "win_rate": 0.3333333333333333
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -3.66802533783579,
+      "win_rate": 0.49079754601226994,
+      "obs_t": -0.5439238232445285,
+      "null_mean_t": -1.2005704380529916,
+      "signal_t_excess": 0.6566466148084631,
+      "perm_p_two_sided": 0.79,
+      "perm_p_one_sided_above": 0.254,
+      "perm_p_one_sided_below": 0.746,
+      "ci_mean": -0.000366802533783579,
+      "ci_lower": -0.001608584160253582,
+      "ci_upper": 0.000929472121457358,
+      "ci_prob_positive": 0.2935,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": -0.036680253378357904,
+        "capital_util": 0.250384024577573,
+        "annualized_sharpe": -0.352836357949584,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": -2.716659695624172,
+          "win_rate": 0.5842696629213483
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": -0.8216515103569217,
+          "win_rate": 0.494949494949495
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": -21.612862797048926,
+          "win_rate": 0.524390243902439
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": -22.656120933490378,
+          "win_rate": 0.4111111111111111
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": -26.237303139113347,
+          "win_rate": 0.41333333333333333
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": 13.64498013609622,
+          "win_rate": 0.5308641975308642
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": -30.208341249612587,
+          "win_rate": 0.5263157894736842
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": -1.112246202187463,
+          "win_rate": 0.4536082474226804
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": -0.4257780332711354,
+          "win_rate": 0.4752475247524752
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": -16.657416627266805,
+          "win_rate": 0.5
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": -20.36070494281161,
+          "win_rate": 0.5319148936170213
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": 7.201874874615959,
+          "win_rate": 0.5342465753424658
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": 14.37194942034078,
+          "win_rate": 0.42702702702702705
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": 41.749251904940316,
+          "win_rate": 0.5571428571428572
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -12.331974662164201,
+      "win_rate": 0.45015337423312884,
+      "obs_t": -1.828682789404246,
+      "null_mean_t": -1.631603344007498,
+      "signal_t_excess": -0.19707944539674793,
+      "perm_p_two_sided": 0.425,
+      "perm_p_one_sided_above": 0.575,
+      "perm_p_one_sided_below": 0.425,
+      "ci_mean": -0.0012331974662164202,
+      "ci_lower": -0.0025294721214573594,
+      "ci_upper": 8.584160253582573e-06,
+      "ci_prob_positive": 0.026,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": -0.12331974662164202,
+        "capital_util": 0.250384024577573,
+        "annualized_sharpe": -1.1862429032978945,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": -13.283340304375821,
+          "win_rate": 0.38202247191011235
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": -15.178348489643062,
+          "win_rate": 0.43434343434343436
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": 5.612862797048911,
+          "win_rate": 0.4146341463414634
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": 6.656120933490387,
+          "win_rate": 0.5444444444444444
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": 10.237303139113358,
+          "win_rate": 0.48
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": -29.644980136096223,
+          "win_rate": 0.41975308641975306
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": 14.208341249612594,
+          "win_rate": 0.39473684210526316
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": -14.887753797812502,
+          "win_rate": 0.4742268041237113
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": -15.574221966728858,
+          "win_rate": 0.45544554455445546
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": 0.6574166272668163,
+          "win_rate": 0.44565217391304346
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": 4.360704942811641,
+          "win_rate": 0.425531914893617
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": -23.20187487461596,
+          "win_rate": 0.410958904109589
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": -30.371949420340776,
+          "win_rate": 0.5405405405405406
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": -57.74925190494035,
+          "win_rate": 0.34285714285714286
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 12.435981773536115,
+      "win_rate": 0.4988416988416988,
+      "obs_t": 1.426172033014111,
+      "null_mean_t": -0.6037937488732736,
+      "signal_t_excess": 2.029965781887385,
+      "perm_p_two_sided": 0.205,
+      "perm_p_one_sided_above": 0.015,
+      "perm_p_one_sided_below": 0.985,
+      "ci_mean": 0.0012435981773536115,
+      "ci_lower": -0.00043139411099040294,
+      "ci_upper": 0.0029031964832906994,
+      "ci_prob_positive": 0.9115,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": 0.12435981773536114,
+        "capital_util": 0.4973118279569892,
+        "annualized_sharpe": 0.925139375099645,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": 21.814603829537553,
+          "win_rate": 0.5555555555555556
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": -45.156734420056736,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": 46.82876585134873,
+          "win_rate": 0.41333333333333333
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": -33.417501625762675,
+          "win_rate": 0.44680851063829785
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": -0.11968263620036425,
+          "win_rate": 0.47368421052631576
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": 47.88549827680901,
+          "win_rate": 0.4588235294117647
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": 13.846568970283537,
+          "win_rate": 0.5487804878048781
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": 5.821405352517073,
+          "win_rate": 0.5247524752475248
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": -27.350426976285657,
+          "win_rate": 0.4166666666666667
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": 29.59873708902708,
+          "win_rate": 0.5340909090909091
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": 27.228535745968955,
+          "win_rate": 0.5384615384615384
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": -9.368264506286394,
+          "win_rate": 0.52
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": 57.1906129367294,
+          "win_rate": 0.5251396648044693
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": -3.7367232784710285,
+          "win_rate": 0.49382716049382713
+        }
+      },
+      "concentration": {
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q1",
+            "n_trades": 187,
+            "mean_bp": 65.01139332912528,
+            "t_stat": 2.397216713891251
+          },
+          {
+            "quarter": "2024Q2",
+            "n_trades": 116,
+            "mean_bp": -5.522760199326968,
+            "t_stat": -0.19374856113060063
+          },
+          {
+            "quarter": "2024Q3",
+            "n_trades": 135,
+            "mean_bp": 16.601121469481313,
+            "t_stat": 0.6399925982673893
+          },
+          {
+            "quarter": "2024Q4",
+            "n_trades": 171,
+            "mean_bp": 65.80230742135059,
+            "t_stat": 2.4387064056051995
+          },
+          {
+            "quarter": "2025Q1",
+            "n_trades": 150,
+            "mean_bp": -0.9471181312451856,
+            "t_stat": -0.03090262984492931
+          },
+          {
+            "quarter": "2025Q2",
+            "n_trades": 96,
+            "mean_bp": 10.985769561727727,
+            "t_stat": 0.3646851098436763
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 145,
+            "mean_bp": -12.266275126158149,
+            "t_stat": -0.6354938260205404
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 138,
+            "mean_bp": -20.227297319829376,
+            "t_stat": -0.8237012423008832
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 111,
+            "mean_bp": -41.69958750728258,
+            "t_stat": -1.8044166360576424
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 46,
+            "mean_bp": -13.460325252771488,
+            "t_stat": -0.6049401685721149
+          }
+        ],
+        "n_quarters_measurable": 10,
+        "n_quarters_pos_t": 4,
+        "quarter_pos_t_ratio": 0.4,
+        "per_symbol_bootstrap": [
+          {
+            "symbol": "ADAUSDT",
+            "n_trades": 90,
+            "mean_bp": 21.814603829537553,
+            "ci_lower_bp": -23.670617121780186,
+            "ci_upper_bp": 69.06815945928122,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "AVAXUSDT",
+            "n_trades": 82,
+            "mean_bp": -45.156734420056736,
+            "ci_lower_bp": -103.57145769461206,
+            "ci_upper_bp": 14.039875507531436,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BCHUSDT",
+            "n_trades": 75,
+            "mean_bp": 46.82876585134873,
+            "ci_lower_bp": -20.38377164117542,
+            "ci_upper_bp": 117.84801681954357,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BNBUSDT",
+            "n_trades": 94,
+            "mean_bp": -33.417501625762675,
+            "ci_lower_bp": -60.88420506333661,
+            "ci_upper_bp": -5.174451719548102,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BTCUSDT",
+            "n_trades": 76,
+            "mean_bp": -0.11968263620036425,
+            "ci_lower_bp": -33.021664466201734,
+            "ci_upper_bp": 36.981434703358055,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "DOGEUSDT",
+            "n_trades": 85,
+            "mean_bp": 47.88549827680901,
+            "ci_lower_bp": -36.395099032587574,
+            "ci_upper_bp": 138.40056643418092,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "ETHUSDT",
+            "n_trades": 82,
+            "mean_bp": 13.846568970283537,
+            "ci_lower_bp": -31.54146605694012,
+            "ci_upper_bp": 58.60543288308757,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "FILUSDT",
+            "n_trades": 101,
+            "mean_bp": 5.821405352517073,
+            "ci_lower_bp": -53.134636932887155,
+            "ci_upper_bp": 73.9603328953888,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "LINKUSDT",
+            "n_trades": 96,
+            "mean_bp": -27.350426976285657,
+            "ci_lower_bp": -83.66467718785613,
+            "ci_upper_bp": 30.676963089297285,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "LTCUSDT",
+            "n_trades": 88,
+            "mean_bp": 29.59873708902708,
+            "ci_lower_bp": -15.594209482587848,
+            "ci_upper_bp": 79.23337572872809,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "NEARUSDT",
+            "n_trades": 91,
+            "mean_bp": 27.228535745968955,
+            "ci_lower_bp": -35.72140742613732,
+            "ci_upper_bp": 96.15292589397592,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "SOLUSDT",
+            "n_trades": 75,
+            "mean_bp": -9.368264506286394,
+            "ci_lower_bp": -69.84829883900508,
+            "ci_upper_bp": 45.9240772249962,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "WIFUSDT",
+            "n_trades": 179,
+            "mean_bp": 57.1906129367294,
+            "ci_lower_bp": -14.489713177558416,
+            "ci_upper_bp": 131.1749341968197,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "XRPUSDT",
+            "n_trades": 81,
+            "mean_bp": -3.7367232784710285,
+            "ci_lower_bp": -52.500417020628916,
+            "ci_upper_bp": 42.592810119150144,
+            "ci_lower_pos": false
+          }
+        ],
+        "n_symbols_measurable": 14,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": 0.0
+      },
+      "concentration_gate": {
+        "pass": false,
+        "quarter_pos_t_ratio>=0.5": false,
+        "symbol_ci_pos_ratio>=0.30": false,
+        "n_symbols_ci_pos>=3": false,
+        "quarter_pos_t_ratio": 0.4,
+        "symbol_ci_pos_ratio": 0.0,
+        "n_symbols_ci_pos": 0
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -28.435981773536106,
+      "win_rate": 0.46332046332046334,
+      "obs_t": -3.261069586240209,
+      "null_mean_t": -1.4088318923825065,
+      "signal_t_excess": -1.8522376938577023,
+      "perm_p_two_sided": 0.023,
+      "perm_p_one_sided_above": 0.977,
+      "perm_p_one_sided_below": 0.023,
+      "ci_mean": -0.0028435981773536107,
+      "ci_lower": -0.004503196483290698,
+      "ci_upper": -0.0011686058890095956,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": -0.28435981773536106,
+        "capital_util": 0.4973118279569892,
+        "annualized_sharpe": -2.115413715408956,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": -37.814603829537546,
+          "win_rate": 0.4222222222222222
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": 29.15673442005672,
+          "win_rate": 0.4878048780487805
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": -62.82876585134873,
+          "win_rate": 0.56
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": 17.41750162576267,
+          "win_rate": 0.48936170212765956
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": -15.880317363799621,
+          "win_rate": 0.47368421052631576
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": -63.88549827680905,
+          "win_rate": 0.4823529411764706
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": -29.84656897028352,
+          "win_rate": 0.4268292682926829
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": -21.821405352517058,
+          "win_rate": 0.43564356435643564
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": 11.350426976285664,
+          "win_rate": 0.53125
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": -45.598737089027075,
+          "win_rate": 0.3977272727272727
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": -43.228535745968934,
+          "win_rate": 0.43956043956043955
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": -6.631735493713586,
+          "win_rate": 0.4533333333333333
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": -73.1906129367294,
+          "win_rate": 0.44692737430167595
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": -12.26327672152897,
+          "win_rate": 0.4691358024691358
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 23.99810744626848,
+      "win_rate": 0.5214723926380368,
+      "obs_t": 2.5929965174135376,
+      "null_mean_t": -0.592146260717605,
+      "signal_t_excess": 3.1851427781311425,
+      "perm_p_two_sided": 0.028,
+      "perm_p_one_sided_above": 0.0,
+      "perm_p_one_sided_below": 1.0,
+      "ci_mean": 0.002399810744626848,
+      "ci_lower": 0.0005876075010402129,
+      "ci_upper": 0.004290270474944368,
+      "ci_prob_positive": 0.9985,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": 0.2399810744626848,
+        "capital_util": 0.500768049155146,
+        "annualized_sharpe": 1.682043345560248,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": true,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": 23.014683096198105,
+          "win_rate": 0.5280898876404494
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": 22.044380772455508,
+          "win_rate": 0.5353535353535354
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": -5.290202973670941,
+          "win_rate": 0.4634146341463415
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": -6.572854639156297,
+          "win_rate": 0.45555555555555555
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": -24.52420217290994,
+          "win_rate": 0.3333333333333333
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": 43.3522112269311,
+          "win_rate": 0.6419753086419753
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": -11.82426654276082,
+          "win_rate": 0.5526315789473685
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": 22.052992882920144,
+          "win_rate": 0.5360824742268041
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": 24.511928189092334,
+          "win_rate": 0.5544554455445545
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": 5.702739310541666,
+          "win_rate": 0.5217391304347826
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": 41.72656434969411,
+          "win_rate": 0.5425531914893617
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": 11.485751124446905,
+          "win_rate": 0.547945205479452
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": 74.89942127370222,
+          "win_rate": 0.518918918918919
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": 50.82812285998438,
+          "win_rate": 0.5571428571428572
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -39.99810744626846,
+      "win_rate": 0.4340490797546012,
+      "obs_t": -4.321797189362676,
+      "null_mean_t": -1.4217479179383103,
+      "signal_t_excess": -2.9000492714243657,
+      "perm_p_two_sided": 0.001,
+      "perm_p_one_sided_above": 0.999,
+      "perm_p_one_sided_below": 0.001,
+      "ci_mean": -0.003999810744626847,
+      "ci_lower": -0.005890270474944367,
+      "ci_upper": -0.0021876075010402126,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": -0.39998107446268466,
+        "capital_util": 0.500768049155146,
+        "annualized_sharpe": -2.803494009502027,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": -39.014683096198084,
+          "win_rate": 0.42696629213483145
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": -38.0443807724555,
+          "win_rate": 0.41414141414141414
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": -10.709797026329033,
+          "win_rate": 0.45121951219512196
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": -9.427145360843697,
+          "win_rate": 0.4777777777777778
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": 8.524202172909936,
+          "win_rate": 0.6266666666666667
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": -59.352211226931054,
+          "win_rate": 0.32098765432098764
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": -4.175733457239152,
+          "win_rate": 0.4473684210526316
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": -38.052992882920094,
+          "win_rate": 0.41237113402061853
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": -40.51192818909233,
+          "win_rate": 0.4158415841584158
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": -21.70273931054164,
+          "win_rate": 0.42391304347826086
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": -57.726564349694115,
+          "win_rate": 0.39361702127659576
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": -27.4857511244469,
+          "win_rate": 0.410958904109589
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": -90.89942127370226,
+          "win_rate": 0.4594594594594595
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": -66.82812285998442,
+          "win_rate": 0.38571428571428573
+        }
+      },
+      "concentration": {
+        "per_quarter_t_stats": [
+          {
+            "quarter": "2024Q1",
+            "n_trades": 184,
+            "mean_bp": -145.38441259418653,
+            "t_stat": -4.678226538328031
+          },
+          {
+            "quarter": "2024Q2",
+            "n_trades": 100,
+            "mean_bp": -22.812166257976706,
+            "t_stat": -0.9137195700552775
+          },
+          {
+            "quarter": "2024Q3",
+            "n_trades": 140,
+            "mean_bp": -102.2107545011715,
+            "t_stat": -3.871922192540341
+          },
+          {
+            "quarter": "2024Q4",
+            "n_trades": 165,
+            "mean_bp": -87.34178927515606,
+            "t_stat": -2.720447598887554
+          },
+          {
+            "quarter": "2025Q1",
+            "n_trades": 150,
+            "mean_bp": 11.534554331203962,
+            "t_stat": 0.3926389434478745
+          },
+          {
+            "quarter": "2025Q2",
+            "n_trades": 119,
+            "mean_bp": 12.326515921264038,
+            "t_stat": 0.4993256266054446
+          },
+          {
+            "quarter": "2025Q3",
+            "n_trades": 142,
+            "mean_bp": 1.1847106354293986,
+            "t_stat": 0.06357494059605216
+          },
+          {
+            "quarter": "2025Q4",
+            "n_trades": 131,
+            "mean_bp": -15.845447578943814,
+            "t_stat": -0.5501738908491531
+          },
+          {
+            "quarter": "2026Q1",
+            "n_trades": 115,
+            "mean_bp": 26.72215489381244,
+            "t_stat": 0.9462491697735783
+          },
+          {
+            "quarter": "2026Q2",
+            "n_trades": 58,
+            "mean_bp": 21.254407918446525,
+            "t_stat": 1.0898633386435441
+          }
+        ],
+        "n_quarters_measurable": 10,
+        "n_quarters_pos_t": 5,
+        "quarter_pos_t_ratio": 0.5,
+        "per_symbol_bootstrap": [
+          {
+            "symbol": "ADAUSDT",
+            "n_trades": 89,
+            "mean_bp": -39.014683096198084,
+            "ci_lower_bp": -103.66083764304378,
+            "ci_upper_bp": 26.55655748666169,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "AVAXUSDT",
+            "n_trades": 99,
+            "mean_bp": -38.0443807724555,
+            "ci_lower_bp": -88.46136361740973,
+            "ci_upper_bp": 8.346196476671787,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BCHUSDT",
+            "n_trades": 82,
+            "mean_bp": -10.709797026329033,
+            "ci_lower_bp": -81.61760364284298,
+            "ci_upper_bp": 57.84907511450635,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BNBUSDT",
+            "n_trades": 90,
+            "mean_bp": -9.427145360843697,
+            "ci_lower_bp": -62.88510254601193,
+            "ci_upper_bp": 36.54607199596127,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "BTCUSDT",
+            "n_trades": 75,
+            "mean_bp": 8.524202172909936,
+            "ci_lower_bp": -29.8656431347013,
+            "ci_upper_bp": 46.08406580329236,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "DOGEUSDT",
+            "n_trades": 81,
+            "mean_bp": -59.352211226931054,
+            "ci_lower_bp": -121.89259368527621,
+            "ci_upper_bp": 2.6355987036009463,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "ETHUSDT",
+            "n_trades": 76,
+            "mean_bp": -4.175733457239152,
+            "ci_lower_bp": -58.734825984513606,
+            "ci_upper_bp": 57.991157277740314,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "FILUSDT",
+            "n_trades": 97,
+            "mean_bp": -38.052992882920094,
+            "ci_lower_bp": -111.69978744490415,
+            "ci_upper_bp": 36.46644752639683,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "LINKUSDT",
+            "n_trades": 101,
+            "mean_bp": -40.51192818909233,
+            "ci_lower_bp": -97.41239421097883,
+            "ci_upper_bp": 13.36095312278687,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "LTCUSDT",
+            "n_trades": 92,
+            "mean_bp": -21.70273931054164,
+            "ci_lower_bp": -72.43026248501229,
+            "ci_upper_bp": 30.883376728579897,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "NEARUSDT",
+            "n_trades": 94,
+            "mean_bp": -57.726564349694115,
+            "ci_lower_bp": -123.10436860971693,
+            "ci_upper_bp": 6.279874846483888,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "SOLUSDT",
+            "n_trades": 73,
+            "mean_bp": -27.4857511244469,
+            "ci_lower_bp": -89.60986337767727,
+            "ci_upper_bp": 37.07289820022271,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "WIFUSDT",
+            "n_trades": 185,
+            "mean_bp": -90.89942127370226,
+            "ci_lower_bp": -168.07113941980631,
+            "ci_upper_bp": -15.395983711502724,
+            "ci_lower_pos": false
+          },
+          {
+            "symbol": "XRPUSDT",
+            "n_trades": 70,
+            "mean_bp": -66.82812285998442,
+            "ci_lower_bp": -158.92119999605396,
+            "ci_upper_bp": 11.415003314396337,
+            "ci_lower_pos": false
+          }
+        ],
+        "n_symbols_measurable": 14,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": 0.0
+      },
+      "concentration_gate": {
+        "pass": false,
+        "quarter_pos_t_ratio>=0.5": true,
+        "symbol_ci_pos_ratio>=0.30": false,
+        "n_symbols_ci_pos>=3": false,
+        "quarter_pos_t_ratio": 0.5,
+        "symbol_ci_pos_ratio": 0.0,
+        "n_symbols_ci_pos": 0
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 15.052827949282033,
+      "win_rate": 0.48957528957528956,
+      "obs_t": 1.0988457461646979,
+      "null_mean_t": -0.1659832021356131,
+      "signal_t_excess": 1.264828948300311,
+      "perm_p_two_sided": 0.249,
+      "perm_p_one_sided_above": 0.087,
+      "perm_p_one_sided_below": 0.913,
+      "ci_mean": 0.0015052827949282033,
+      "ci_lower": -0.0011887764556605387,
+      "ci_upper": 0.0040644964567578094,
+      "ci_prob_positive": 0.851,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": 0.15052827949282033,
+        "capital_util": 0.9946236559139784,
+        "annualized_sharpe": 0.712807041089729,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": -39.54873219338231,
+          "win_rate": 0.4666666666666667
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": -63.16237286417554,
+          "win_rate": 0.47560975609756095
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": 54.31212023367603,
+          "win_rate": 0.49333333333333335
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": -43.08126037690347,
+          "win_rate": 0.43617021276595747
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": -38.47658248317715,
+          "win_rate": 0.39473684210526316
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": 43.90319078613466,
+          "win_rate": 0.49411764705882355
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": 52.153143401996864,
+          "win_rate": 0.6097560975609756
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": 48.61541657779173,
+          "win_rate": 0.5445544554455446
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": -62.93494286742731,
+          "win_rate": 0.4166666666666667
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": 4.21889430759761,
+          "win_rate": 0.5340909090909091
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": 50.4445516327261,
+          "win_rate": 0.4835164835164835
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": -22.054437485209814,
+          "win_rate": 0.5066666666666667
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": 128.5015018850556,
+          "win_rate": 0.5139664804469274
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": -25.352741547386525,
+          "win_rate": 0.4567901234567901
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 1295,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -31.05282794928202,
+      "win_rate": 0.48416988416988416,
+      "obs_t": -2.2668343791227814,
+      "null_mean_t": -1.2504670114098475,
+      "signal_t_excess": -1.016367367712934,
+      "perm_p_two_sided": 0.125,
+      "perm_p_one_sided_above": 0.875,
+      "perm_p_one_sided_below": 0.125,
+      "ci_mean": -0.003105282794928202,
+      "ci_lower": -0.005664496456757812,
+      "ci_upper": -0.0004112235443394596,
+      "ci_prob_positive": 0.0095,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 1295,
+        "panel_span_days": 868.0,
+        "trades_per_year": 544.929435483871,
+        "per_trade_edge_pct": -0.3105282794928202,
+        "capital_util": 0.9946236559139784,
+        "annualized_sharpe": -1.47046617968233,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 90,
+          "mean_bp": 23.548732193382328,
+          "win_rate": 0.5111111111111111
+        },
+        "AVAXUSDT": {
+          "n": 82,
+          "mean_bp": 47.16237286417557,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 75,
+          "mean_bp": -70.31212023367608,
+          "win_rate": 0.48
+        },
+        "BNBUSDT": {
+          "n": 94,
+          "mean_bp": 27.08126037690346,
+          "win_rate": 0.46808510638297873
+        },
+        "BTCUSDT": {
+          "n": 76,
+          "mean_bp": 22.47658248317715,
+          "win_rate": 0.5789473684210527
+        },
+        "DOGEUSDT": {
+          "n": 85,
+          "mean_bp": -59.90319078613463,
+          "win_rate": 0.49411764705882355
+        },
+        "ETHUSDT": {
+          "n": 82,
+          "mean_bp": -68.15314340199687,
+          "win_rate": 0.36585365853658536
+        },
+        "FILUSDT": {
+          "n": 101,
+          "mean_bp": -64.61541657779172,
+          "win_rate": 0.4158415841584158
+        },
+        "LINKUSDT": {
+          "n": 96,
+          "mean_bp": 46.93494286742734,
+          "win_rate": 0.5729166666666666
+        },
+        "LTCUSDT": {
+          "n": 88,
+          "mean_bp": -20.218894307597562,
+          "win_rate": 0.4659090909090909
+        },
+        "NEARUSDT": {
+          "n": 91,
+          "mean_bp": -66.44455163272612,
+          "win_rate": 0.4725274725274725
+        },
+        "SOLUSDT": {
+          "n": 75,
+          "mean_bp": 6.0544374852098475,
+          "win_rate": 0.48
+        },
+        "WIFUSDT": {
+          "n": 179,
+          "mean_bp": -144.50150188505566,
+          "win_rate": 0.4692737430167598
+        },
+        "XRPUSDT": {
+          "n": 81,
+          "mean_bp": 9.352741547386554,
+          "win_rate": 0.5308641975308642
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 43.40886727327959,
+      "win_rate": 0.5130368098159509,
+      "obs_t": 3.0573252394334594,
+      "null_mean_t": -0.15640847636036664,
+      "signal_t_excess": 3.213733715793826,
+      "perm_p_two_sided": 0.001,
+      "perm_p_one_sided_above": 0.0,
+      "perm_p_one_sided_below": 1.0,
+      "ci_mean": 0.004340886727327959,
+      "ci_lower": 0.0015660333213454835,
+      "ci_upper": 0.0071827842216172725,
+      "ci_prob_positive": 0.9995,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": 0.4340886727327959,
+        "capital_util": 1.001536098310292,
+        "annualized_sharpe": 1.983247389522928,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": true,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": 108.93181308429358,
+          "win_rate": 0.5730337078651685
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": 24.928061442202445,
+          "win_rate": 0.5252525252525253
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": -17.70253962323968,
+          "win_rate": 0.43902439024390244
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": -22.536466818339008,
+          "win_rate": 0.4444444444444444
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": 7.200323674947134,
+          "win_rate": 0.4266666666666667
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": 69.40575235631398,
+          "win_rate": 0.5432098765432098
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": 40.86630545260029,
+          "win_rate": 0.5
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": 56.5602841698954,
+          "win_rate": 0.5257731958762887
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": 20.553385037369864,
+          "win_rate": 0.5148514851485149
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": -14.753073167634032,
+          "win_rate": 0.5108695652173914
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": 59.71559670899056,
+          "win_rate": 0.5531914893617021
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": 26.48017476031332,
+          "win_rate": 0.5342465753424658
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": 112.18900991664121,
+          "win_rate": 0.5135135135135135
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": 59.261027205628544,
+          "win_rate": 0.5714285714285714
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.0,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 1304,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -59.408867273279576,
+      "win_rate": 0.45858895705521474,
+      "obs_t": -4.184219510204869,
+      "null_mean_t": -1.2596657171555747,
+      "signal_t_excess": -2.924553793049294,
+      "perm_p_two_sided": 0.001,
+      "perm_p_one_sided_above": 0.999,
+      "perm_p_one_sided_below": 0.001,
+      "ci_mean": -0.005940886727327958,
+      "ci_lower": -0.008782784221617271,
+      "ci_upper": -0.003166033321345483,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 1304,
+        "panel_span_days": 868.0,
+        "trades_per_year": 548.7165898617512,
+        "per_trade_edge_pct": -0.5940886727327958,
+        "capital_util": 1.001536098310292,
+        "annualized_sharpe": -2.714249146205473,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 89,
+          "mean_bp": -124.93181308429355,
+          "win_rate": 0.4044943820224719
+        },
+        "AVAXUSDT": {
+          "n": 99,
+          "mean_bp": -40.92806144220242,
+          "win_rate": 0.4444444444444444
+        },
+        "BCHUSDT": {
+          "n": 82,
+          "mean_bp": 1.7025396232397068,
+          "win_rate": 0.524390243902439
+        },
+        "BNBUSDT": {
+          "n": 90,
+          "mean_bp": 6.53646681833902,
+          "win_rate": 0.5111111111111111
+        },
+        "BTCUSDT": {
+          "n": 75,
+          "mean_bp": -23.200323674947114,
+          "win_rate": 0.5066666666666667
+        },
+        "DOGEUSDT": {
+          "n": 81,
+          "mean_bp": -85.40575235631398,
+          "win_rate": 0.41975308641975306
+        },
+        "ETHUSDT": {
+          "n": 76,
+          "mean_bp": -56.86630545260028,
+          "win_rate": 0.47368421052631576
+        },
+        "FILUSDT": {
+          "n": 97,
+          "mean_bp": -72.56028416989537,
+          "win_rate": 0.44329896907216493
+        },
+        "LINKUSDT": {
+          "n": 101,
+          "mean_bp": -36.553385037369864,
+          "win_rate": 0.45544554455445546
+        },
+        "LTCUSDT": {
+          "n": 92,
+          "mean_bp": -1.2469268323659333,
+          "win_rate": 0.4673913043478261
+        },
+        "NEARUSDT": {
+          "n": 94,
+          "mean_bp": -75.71559670899055,
+          "win_rate": 0.425531914893617
+        },
+        "SOLUSDT": {
+          "n": 73,
+          "mean_bp": -42.480174760313325,
+          "win_rate": 0.4383561643835616
+        },
+        "WIFUSDT": {
+          "n": 185,
+          "mean_bp": -128.18900991664125,
+          "win_rate": 0.4756756756756757
+        },
+        "XRPUSDT": {
+          "n": 70,
+          "mean_bp": -75.26102720562857,
+          "win_rate": 0.4142857142857143
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 9.986939122432318,
+      "win_rate": 0.5073746312684366,
+      "obs_t": 1.0428072534831023,
+      "null_mean_t": -0.9314436197692071,
+      "signal_t_excess": 1.9742508732523094,
+      "perm_p_two_sided": 0.49,
+      "perm_p_one_sided_above": 0.03,
+      "perm_p_one_sided_below": 0.97,
+      "ci_mean": 0.0009986939122432318,
+      "ci_lower": -0.0007493724427119208,
+      "ci_upper": 0.0028307976347374786,
+      "ci_prob_positive": 0.8575,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": 0.09986939122432319,
+        "capital_util": 0.13018433179723504,
+        "annualized_sharpe": 0.6764555947698835,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": -6.104875169839814,
+          "win_rate": 0.49122807017543857
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": -13.638813882544559,
+          "win_rate": 0.46
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": 57.25216426397577,
+          "win_rate": 0.5
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": -17.5562780535222,
+          "win_rate": 0.41818181818181815
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": 28.61173470194223,
+          "win_rate": 0.5925925925925926
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": 83.97678533849876,
+          "win_rate": 0.6097560975609756
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": -2.7919090362842516,
+          "win_rate": 0.5405405405405406
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": 5.379350914725559,
+          "win_rate": 0.49122807017543857
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": -32.00988100409471,
+          "win_rate": 0.42857142857142855
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": 35.93899296903424,
+          "win_rate": 0.5957446808510638
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": -17.44859938988644,
+          "win_rate": 0.4782608695652174
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": -40.309664840661284,
+          "win_rate": 0.35135135135135137
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": 28.810825481682123,
+          "win_rate": 0.5454545454545454
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 38.301599182858716,
+          "win_rate": 0.6388888888888888
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -25.98693912243231,
+      "win_rate": 0.42920353982300885,
+      "obs_t": -2.713480905458466,
+      "null_mean_t": -1.1220907554015853,
+      "signal_t_excess": -1.5913901500568808,
+      "perm_p_two_sided": 0.054,
+      "perm_p_one_sided_above": 0.946,
+      "perm_p_one_sided_below": 0.054,
+      "ci_mean": -0.002598693912243231,
+      "ci_lower": -0.00443079763473748,
+      "ci_upper": -0.0008506275572880781,
+      "ci_prob_positive": 0.0025,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": -0.2598693912243231,
+        "capital_util": 0.13018433179723504,
+        "annualized_sharpe": -1.7602000117161363,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": -9.89512483016019,
+          "win_rate": 0.43859649122807015
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": -2.361186117455426,
+          "win_rate": 0.46
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": -73.25216426397576,
+          "win_rate": 0.45
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": 1.5562780535222085,
+          "win_rate": 0.4727272727272727
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": -44.61173470194222,
+          "win_rate": 0.2962962962962963
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": -99.97678533849879,
+          "win_rate": 0.3170731707317073
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": -13.208090963715742,
+          "win_rate": 0.43243243243243246
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": -21.37935091472554,
+          "win_rate": 0.40350877192982454
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": 16.00988100409472,
+          "win_rate": 0.5102040816326531
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": -51.938992969034246,
+          "win_rate": 0.3191489361702128
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": 1.4485993898864375,
+          "win_rate": 0.5217391304347826
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": 24.30966484066131,
+          "win_rate": 0.5405405405405406
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": -44.810825481682144,
+          "win_rate": 0.43434343434343436
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -54.3015991828587,
+          "win_rate": 0.3333333333333333
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": 1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 2.2996304965312295,
+      "win_rate": 0.5014367816091954,
+      "obs_t": 0.24216487564520645,
+      "null_mean_t": -0.8783962595664648,
+      "signal_t_excess": 1.1205611352116713,
+      "perm_p_two_sided": 0.837,
+      "perm_p_one_sided_above": 0.123,
+      "perm_p_one_sided_below": 0.877,
+      "ci_mean": 0.00022996304965312294,
+      "ci_lower": -0.0016239738416055213,
+      "ci_upper": 0.002013097295359301,
+      "ci_prob_positive": 0.5885,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": 0.022996304965312294,
+        "capital_util": 0.1336405529953917,
+        "annualized_sharpe": 0.15708922664259875,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": -6.515949352185049,
+          "win_rate": 0.58
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": 19.55918622348174,
+          "win_rate": 0.5961538461538461
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": -14.94539961843762,
+          "win_rate": 0.5531914893617021
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": -30.89102600541178,
+          "win_rate": 0.3728813559322034
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": -22.50725567599912,
+          "win_rate": 0.4375
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": 13.8673464694401,
+          "win_rate": 0.5526315789473685
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": 16.269337385425736,
+          "win_rate": 0.5588235294117647
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": 29.191929105958785,
+          "win_rate": 0.40816326530612246
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": 11.86005728361888,
+          "win_rate": 0.54
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": -30.051765275110913,
+          "win_rate": 0.56
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": -3.115110088033246,
+          "win_rate": 0.49122807017543857
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": -8.761113035101971,
+          "win_rate": 0.5128205128205128
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": 12.941891818105464,
+          "win_rate": 0.4077669902912621
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 48.327588059811276,
+          "win_rate": 0.6111111111111112
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_4h",
+      "direction": -1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -18.299630496531222,
+      "win_rate": 0.4454022988505747,
+      "obs_t": -1.9270607822562114,
+      "null_mean_t": -1.2057834583730265,
+      "signal_t_excess": -0.7212773238831849,
+      "perm_p_two_sided": 0.253,
+      "perm_p_one_sided_above": 0.747,
+      "perm_p_one_sided_below": 0.253,
+      "ci_mean": -0.001829963049653122,
+      "ci_lower": -0.003613097295359303,
+      "ci_upper": 2.3973841605522485e-05,
+      "ci_prob_positive": 0.028,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": -0.18299630496531222,
+        "capital_util": 0.1336405529953917,
+        "annualized_sharpe": -1.2500594364536277,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": -9.484050647814925,
+          "win_rate": 0.36
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": -35.55918622348173,
+          "win_rate": 0.38461538461538464
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": -1.0546003815623637,
+          "win_rate": 0.3829787234042553
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": 14.891026005411787,
+          "win_rate": 0.576271186440678
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": 6.507255675999111,
+          "win_rate": 0.5625
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": -29.867346469440083,
+          "win_rate": 0.39473684210526316
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": -32.269337385425736,
+          "win_rate": 0.38235294117647056
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": -45.191929105958764,
+          "win_rate": 0.4489795918367347
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": -27.860057283618882,
+          "win_rate": 0.4
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": 14.051765275110927,
+          "win_rate": 0.42
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": -12.884889911966763,
+          "win_rate": 0.45614035087719296
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": -7.2388869648980325,
+          "win_rate": 0.41025641025641024
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": -28.941891818105464,
+          "win_rate": 0.5631067961165048
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -64.32758805981128,
+          "win_rate": 0.3055555555555556
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 28.36069092339236,
+      "win_rate": 0.5206489675516224,
+      "obs_t": 2.1768071712453505,
+      "null_mean_t": -0.4835027905943228,
+      "signal_t_excess": 2.6603099618396735,
+      "perm_p_two_sided": 0.051,
+      "perm_p_one_sided_above": 0.003,
+      "perm_p_one_sided_below": 0.997,
+      "ci_mean": 0.002836069092339236,
+      "ci_lower": 0.00034063367466513964,
+      "ci_upper": 0.005468019836262263,
+      "ci_prob_positive": 0.99,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": 0.2836069092339236,
+        "capital_util": 0.2603686635944701,
+        "annualized_sharpe": 1.4120666928674965,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": 25.312205253318947,
+          "win_rate": 0.5614035087719298
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": -42.17076842586712,
+          "win_rate": 0.48
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": 76.63247234290867,
+          "win_rate": 0.425
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": -18.630641749167008,
+          "win_rate": 0.43636363636363634
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": 55.577729748691496,
+          "win_rate": 0.7407407407407407
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": 90.66073796921485,
+          "win_rate": 0.4146341463414634
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": 9.095121569260668,
+          "win_rate": 0.5405405405405406
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": 54.8131720079056,
+          "win_rate": 0.5789473684210527
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": -31.854285433176162,
+          "win_rate": 0.3877551020408163
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": 67.37973027182619,
+          "win_rate": 0.6170212765957447
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": -23.722277480578228,
+          "win_rate": 0.5
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": 17.958924524218997,
+          "win_rate": 0.5675675675675675
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": 73.25417287019462,
+          "win_rate": 0.5656565656565656
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 20.658678165203245,
+          "win_rate": 0.5
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -44.360690923392355,
+      "win_rate": 0.4469026548672566,
+      "obs_t": -3.40487720783244,
+      "null_mean_t": -0.9763820164954015,
+      "signal_t_excess": -2.4284951913370385,
+      "perm_p_two_sided": 0.007,
+      "perm_p_one_sided_above": 0.993,
+      "perm_p_one_sided_below": 0.007,
+      "ci_mean": -0.004436069092339235,
+      "ci_lower": -0.007068019836262262,
+      "ci_upper": -0.001940633674665141,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": -0.44360690923392354,
+        "capital_util": 0.2603686635944701,
+        "annualized_sharpe": -2.208699861886831,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": -41.31220525331893,
+          "win_rate": 0.40350877192982454
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": 26.170768425867134,
+          "win_rate": 0.52
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": -92.63247234290867,
+          "win_rate": 0.55
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": 2.6306417491670193,
+          "win_rate": 0.4909090909090909
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": -71.57772974869148,
+          "win_rate": 0.2222222222222222
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": -106.66073796921481,
+          "win_rate": 0.5121951219512195
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": -25.095121569260666,
+          "win_rate": 0.4594594594594595
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": -70.81317200790558,
+          "win_rate": 0.38596491228070173
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": 15.854285433176168,
+          "win_rate": 0.5918367346938775
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": -83.37973027182626,
+          "win_rate": 0.3191489361702128
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": 7.72227748057825,
+          "win_rate": 0.4782608695652174
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": -33.958924524218986,
+          "win_rate": 0.43243243243243246
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": -89.25417287019471,
+          "win_rate": 0.40404040404040403
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -36.658678165203234,
+          "win_rate": 0.4722222222222222
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": 1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 38.04644590350624,
+      "win_rate": 0.5445402298850575,
+      "obs_t": 2.9380947737529346,
+      "null_mean_t": -0.4713809896067607,
+      "signal_t_excess": 3.4094757633596955,
+      "perm_p_two_sided": 0.002,
+      "perm_p_one_sided_above": 0.0,
+      "perm_p_one_sided_below": 1.0,
+      "ci_mean": 0.0038046445903506237,
+      "ci_lower": 0.0014191513143623417,
+      "ci_upper": 0.006403389811331148,
+      "ci_prob_positive": 0.9995,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": 0.3804644590350624,
+        "capital_util": 0.2672811059907834,
+        "annualized_sharpe": 1.9059041266071637,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": true,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": -7.327509516801878,
+          "win_rate": 0.58
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": 63.35417084106827,
+          "win_rate": 0.6346153846153846
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": 6.880466708872196,
+          "win_rate": 0.44680851063829785
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": -17.34166511817265,
+          "win_rate": 0.4576271186440678
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": 2.8611502574177066,
+          "win_rate": 0.34375
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": 97.52964643248049,
+          "win_rate": 0.6052631578947368
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": 46.63931471705533,
+          "win_rate": 0.6764705882352942
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": 64.77870136049116,
+          "win_rate": 0.5510204081632653
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": 76.41852563773821,
+          "win_rate": 0.64
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": 7.175879947009418,
+          "win_rate": 0.52
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": 43.77895856390924,
+          "win_rate": 0.5263157894736842
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": 2.1745523105897426,
+          "win_rate": 0.5641025641025641
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": 54.193550412315695,
+          "win_rate": 0.4854368932038835
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 93.12835160896569,
+          "win_rate": 0.6944444444444444
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_8h",
+      "direction": -1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -54.04644590350622,
+      "win_rate": 0.41522988505747127,
+      "obs_t": -4.17367710644369,
+      "null_mean_t": -1.0095281068790154,
+      "signal_t_excess": -3.1641489995646745,
+      "perm_p_two_sided": 0.0,
+      "perm_p_one_sided_above": 1.0,
+      "perm_p_one_sided_below": 0.0,
+      "ci_mean": -0.005404644590350622,
+      "ci_lower": -0.008003389811331144,
+      "ci_upper": -0.0030191513143623433,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": -0.5404644590350621,
+        "capital_util": 0.2672811059907834,
+        "annualized_sharpe": -2.7074104250681272,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": false,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": -8.672490483198095,
+          "win_rate": 0.4
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": -79.3541708410683,
+          "win_rate": 0.34615384615384615
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": -22.880466708872174,
+          "win_rate": 0.425531914893617
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": 1.341665118172643,
+          "win_rate": 0.4915254237288136
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": -18.86115025741773,
+          "win_rate": 0.625
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": -113.52964643248053,
+          "win_rate": 0.3157894736842105
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": -62.63931471705529,
+          "win_rate": 0.3235294117647059
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": -80.77870136049113,
+          "win_rate": 0.40816326530612246
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": -92.41852563773823,
+          "win_rate": 0.36
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": -23.175879947009417,
+          "win_rate": 0.44
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": -59.77895856390922,
+          "win_rate": 0.42105263157894735
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": -18.174552310589725,
+          "win_rate": 0.38461538461538464
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": -70.19355041231577,
+          "win_rate": 0.49514563106796117
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -109.12835160896576,
+          "win_rate": 0.25
+        }
+      }
+    },
+    {
+      "cell": "A_focus_high_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 13.377181643740707,
+      "win_rate": 0.4941002949852507,
+      "obs_t": 0.6808946531136275,
+      "null_mean_t": -0.15837578998273427,
+      "signal_t_excess": 0.8392704430963618,
+      "perm_p_two_sided": 0.467,
+      "perm_p_one_sided_above": 0.186,
+      "perm_p_one_sided_below": 0.814,
+      "ci_mean": 0.0013377181643740707,
+      "ci_lower": -0.0023467428975058623,
+      "ci_upper": 0.005240506725302504,
+      "ci_prob_positive": 0.74,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": 0.13377181643740707,
+        "capital_util": 0.5207373271889402,
+        "annualized_sharpe": 0.44168756595158826,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": -29.223523240967424,
+          "win_rate": 0.5263157894736842
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": -71.34698421606038,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": 135.90770461607985,
+          "win_rate": 0.55
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": -20.953788844625727,
+          "win_rate": 0.4909090909090909
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": 35.020504828260755,
+          "win_rate": 0.6296296296296297
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": 44.64249024633424,
+          "win_rate": 0.4634146341463415
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": -7.680307138707421,
+          "win_rate": 0.5675675675675675
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": 114.28928285664811,
+          "win_rate": 0.5964912280701754
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": -88.01336992681908,
+          "win_rate": 0.40816326530612246
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": -32.62623496483047,
+          "win_rate": 0.46808510638297873
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": -32.803541698329255,
+          "win_rate": 0.391304347826087
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": -38.96552320266397,
+          "win_rate": 0.43243243243243246
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": 91.8617060123284,
+          "win_rate": 0.494949494949495
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 19.867290383567706,
+          "win_rate": 0.4166666666666667
+        }
+      }
+    },
+    {
+      "cell": "A_mirror_high_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 678,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -29.377181643740713,
+      "win_rate": 0.48525073746312686,
+      "obs_t": -1.495289997361314,
+      "null_mean_t": -0.8671610173375663,
+      "signal_t_excess": -0.6281289800237477,
+      "perm_p_two_sided": 0.251,
+      "perm_p_one_sided_above": 0.757,
+      "perm_p_one_sided_below": 0.243,
+      "ci_mean": -0.0029377181643740714,
+      "ci_lower": -0.006840506725302506,
+      "ci_upper": 0.0007467428975058657,
+      "ci_prob_positive": 0.064,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": false
+      },
+      "life_changing": {
+        "n_trades": 678,
+        "panel_span_days": 868.0,
+        "trades_per_year": 285.2989631336406,
+        "per_trade_edge_pct": -0.29377181643740713,
+        "capital_util": 0.5207373271889402,
+        "annualized_sharpe": -0.9699753057336166,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 57,
+          "mean_bp": 13.223523240967449,
+          "win_rate": 0.47368421052631576
+        },
+        "AVAXUSDT": {
+          "n": 50,
+          "mean_bp": 55.34698421606038,
+          "win_rate": 0.5
+        },
+        "BCHUSDT": {
+          "n": 40,
+          "mean_bp": -151.90770461607994,
+          "win_rate": 0.425
+        },
+        "BNBUSDT": {
+          "n": 55,
+          "mean_bp": 4.953788844625734,
+          "win_rate": 0.43636363636363634
+        },
+        "BTCUSDT": {
+          "n": 27,
+          "mean_bp": -51.02050482826075,
+          "win_rate": 0.3333333333333333
+        },
+        "DOGEUSDT": {
+          "n": 41,
+          "mean_bp": -60.64249024633419,
+          "win_rate": 0.5121951219512195
+        },
+        "ETHUSDT": {
+          "n": 37,
+          "mean_bp": -8.319692861292582,
+          "win_rate": 0.43243243243243246
+        },
+        "FILUSDT": {
+          "n": 57,
+          "mean_bp": -130.28928285664813,
+          "win_rate": 0.3508771929824561
+        },
+        "LINKUSDT": {
+          "n": 49,
+          "mean_bp": 72.01336992681914,
+          "win_rate": 0.5918367346938775
+        },
+        "LTCUSDT": {
+          "n": 47,
+          "mean_bp": 16.62623496483048,
+          "win_rate": 0.5319148936170213
+        },
+        "NEARUSDT": {
+          "n": 46,
+          "mean_bp": 16.803541698329276,
+          "win_rate": 0.5652173913043478
+        },
+        "SOLUSDT": {
+          "n": 37,
+          "mean_bp": 22.965523202663963,
+          "win_rate": 0.5675675675675675
+        },
+        "WIFUSDT": {
+          "n": 99,
+          "mean_bp": -107.86170601232848,
+          "win_rate": 0.48484848484848486
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -35.86729038356767,
+          "win_rate": 0.5833333333333334
+        }
+      }
+    },
+    {
+      "cell": "B_mirror_low_LONG",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": 1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": 61.045046699672596,
+      "win_rate": 0.5344827586206896,
+      "obs_t": 3.2641353397115123,
+      "null_mean_t": -0.14314191156175646,
+      "signal_t_excess": 3.4072772512732685,
+      "perm_p_two_sided": 0.001,
+      "perm_p_one_sided_above": 0.001,
+      "perm_p_one_sided_below": 0.999,
+      "ci_mean": 0.00610450466996726,
+      "ci_lower": 0.002551049849170481,
+      "ci_upper": 0.00987833726263914,
+      "ci_prob_positive": 0.9995,
+      "three_gate_pass": true,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": true,
+        "ci_lower>0": true,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": 0.610450466996726,
+        "capital_util": 0.5345622119815668,
+        "annualized_sharpe": 2.11740243008362,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": true,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": 108.19780529394635,
+          "win_rate": 0.6
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": 115.05467542723221,
+          "win_rate": 0.6346153846153846
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": 2.4089908755826106,
+          "win_rate": 0.425531914893617
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": -40.13330769112274,
+          "win_rate": 0.4745762711864407
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": 69.35425452348726,
+          "win_rate": 0.4375
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": 113.90489883517336,
+          "win_rate": 0.47368421052631576
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": 77.95631675762051,
+          "win_rate": 0.6176470588235294
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": 122.8370398745701,
+          "win_rate": 0.5714285714285714
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": 49.90508030027742,
+          "win_rate": 0.46
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": -15.263179016677892,
+          "win_rate": 0.52
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": 71.86639236980338,
+          "win_rate": 0.5964912280701754
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": 14.284691687999066,
+          "win_rate": 0.5641025641025641
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": 75.51170329274663,
+          "win_rate": 0.5145631067961165
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": 110.2422730649374,
+          "win_rate": 0.6111111111111112
+        }
+      }
+    },
+    {
+      "cell": "B_focus_low_SHORT",
+      "z_thr": 2.5,
+      "hold_col": "fwd_ret_16h",
+      "direction": -1,
+      "n_events": 696,
+      "n_candidate_pool": 38618,
+      "mean_bp_after_fee": -77.04504669967261,
+      "win_rate": 0.4382183908045977,
+      "obs_t": -4.1196701989495565,
+      "null_mean_t": -0.8981915772091994,
+      "signal_t_excess": -3.2214786217403573,
+      "perm_p_two_sided": 0.002,
+      "perm_p_one_sided_above": 0.998,
+      "perm_p_one_sided_below": 0.002,
+      "ci_mean": -0.007704504669967261,
+      "ci_lower": -0.011478337262639145,
+      "ci_upper": -0.00415104984917048,
+      "ci_prob_positive": 0.0,
+      "three_gate_pass": false,
+      "three_gate_detail": {
+        "signal_t_excess>=2.0": false,
+        "ci_lower>0": false,
+        "perm_p_two<=0.10": true
+      },
+      "life_changing": {
+        "n_trades": 696,
+        "panel_span_days": 868.0,
+        "trades_per_year": 292.87327188940094,
+        "per_trade_edge_pct": -0.7704504669967261,
+        "capital_util": 0.5345622119815668,
+        "annualized_sharpe": -2.672376841816188,
+        "gate_trades_per_year>=12": true,
+        "gate_per_trade_edge_pct>=2": false,
+        "gate_capital_util>=0.30": true,
+        "gate_annualized_sharpe>=1.5": false,
+        "life_changing_all_pass": false
+      },
+      "per_symbol": {
+        "ADAUSDT": {
+          "n": 50,
+          "mean_bp": -124.19780529394637,
+          "win_rate": 0.4
+        },
+        "AVAXUSDT": {
+          "n": 52,
+          "mean_bp": -131.05467542723224,
+          "win_rate": 0.36538461538461536
+        },
+        "BCHUSDT": {
+          "n": 47,
+          "mean_bp": -18.408990875582596,
+          "win_rate": 0.5106382978723404
+        },
+        "BNBUSDT": {
+          "n": 59,
+          "mean_bp": 24.133307691122752,
+          "win_rate": 0.4915254237288136
+        },
+        "BTCUSDT": {
+          "n": 32,
+          "mean_bp": -85.35425452348724,
+          "win_rate": 0.53125
+        },
+        "DOGEUSDT": {
+          "n": 38,
+          "mean_bp": -129.90489883517347,
+          "win_rate": 0.47368421052631576
+        },
+        "ETHUSDT": {
+          "n": 34,
+          "mean_bp": -93.9563167576205,
+          "win_rate": 0.38235294117647056
+        },
+        "FILUSDT": {
+          "n": 49,
+          "mean_bp": -138.8370398745701,
+          "win_rate": 0.3877551020408163
+        },
+        "LINKUSDT": {
+          "n": 50,
+          "mean_bp": -65.90508030027742,
+          "win_rate": 0.52
+        },
+        "LTCUSDT": {
+          "n": 50,
+          "mean_bp": -0.7368209833221027,
+          "win_rate": 0.46
+        },
+        "NEARUSDT": {
+          "n": 57,
+          "mean_bp": -87.86639236980336,
+          "win_rate": 0.3684210526315789
+        },
+        "SOLUSDT": {
+          "n": 39,
+          "mean_bp": -30.284691687999054,
+          "win_rate": 0.38461538461538464
+        },
+        "WIFUSDT": {
+          "n": 103,
+          "mean_bp": -91.51170329274669,
+          "win_rate": 0.46601941747572817
+        },
+        "XRPUSDT": {
+          "n": 36,
+          "mean_bp": -126.24227306493746,
+          "win_rate": 0.3611111111111111
+        }
+      }
+    }
+  ],
+  "focus_A_LONG": {
+    "cell": "A_focus_high_LONG",
+    "z_thr": 2.0,
+    "hold_col": "fwd_ret_8h",
+    "direction": 1,
+    "n_events": 1295,
+    "n_candidate_pool": 38618,
+    "mean_bp_after_fee": 12.435981773536115,
+    "win_rate": 0.4988416988416988,
+    "obs_t": 1.426172033014111,
+    "null_mean_t": -0.6037937488732736,
+    "signal_t_excess": 2.029965781887385,
+    "perm_p_two_sided": 0.205,
+    "perm_p_one_sided_above": 0.015,
+    "perm_p_one_sided_below": 0.985,
+    "ci_mean": 0.0012435981773536115,
+    "ci_lower": -0.00043139411099040294,
+    "ci_upper": 0.0029031964832906994,
+    "ci_prob_positive": 0.9115,
+    "three_gate_pass": false,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": true,
+      "ci_lower>0": false,
+      "perm_p_two<=0.10": false
+    },
+    "life_changing": {
+      "n_trades": 1295,
+      "panel_span_days": 868.0,
+      "trades_per_year": 544.929435483871,
+      "per_trade_edge_pct": 0.12435981773536114,
+      "capital_util": 0.4973118279569892,
+      "annualized_sharpe": 0.925139375099645,
+      "gate_trades_per_year>=12": true,
+      "gate_per_trade_edge_pct>=2": false,
+      "gate_capital_util>=0.30": true,
+      "gate_annualized_sharpe>=1.5": false,
+      "life_changing_all_pass": false
+    },
+    "per_symbol": {
+      "ADAUSDT": {
+        "n": 90,
+        "mean_bp": 21.814603829537553,
+        "win_rate": 0.5555555555555556
+      },
+      "AVAXUSDT": {
+        "n": 82,
+        "mean_bp": -45.156734420056736,
+        "win_rate": 0.5
+      },
+      "BCHUSDT": {
+        "n": 75,
+        "mean_bp": 46.82876585134873,
+        "win_rate": 0.41333333333333333
+      },
+      "BNBUSDT": {
+        "n": 94,
+        "mean_bp": -33.417501625762675,
+        "win_rate": 0.44680851063829785
+      },
+      "BTCUSDT": {
+        "n": 76,
+        "mean_bp": -0.11968263620036425,
+        "win_rate": 0.47368421052631576
+      },
+      "DOGEUSDT": {
+        "n": 85,
+        "mean_bp": 47.88549827680901,
+        "win_rate": 0.4588235294117647
+      },
+      "ETHUSDT": {
+        "n": 82,
+        "mean_bp": 13.846568970283537,
+        "win_rate": 0.5487804878048781
+      },
+      "FILUSDT": {
+        "n": 101,
+        "mean_bp": 5.821405352517073,
+        "win_rate": 0.5247524752475248
+      },
+      "LINKUSDT": {
+        "n": 96,
+        "mean_bp": -27.350426976285657,
+        "win_rate": 0.4166666666666667
+      },
+      "LTCUSDT": {
+        "n": 88,
+        "mean_bp": 29.59873708902708,
+        "win_rate": 0.5340909090909091
+      },
+      "NEARUSDT": {
+        "n": 91,
+        "mean_bp": 27.228535745968955,
+        "win_rate": 0.5384615384615384
+      },
+      "SOLUSDT": {
+        "n": 75,
+        "mean_bp": -9.368264506286394,
+        "win_rate": 0.52
+      },
+      "WIFUSDT": {
+        "n": 179,
+        "mean_bp": 57.1906129367294,
+        "win_rate": 0.5251396648044693
+      },
+      "XRPUSDT": {
+        "n": 81,
+        "mean_bp": -3.7367232784710285,
+        "win_rate": 0.49382716049382713
+      }
+    },
+    "concentration": {
+      "per_quarter_t_stats": [
+        {
+          "quarter": "2024Q1",
+          "n_trades": 187,
+          "mean_bp": 65.01139332912528,
+          "t_stat": 2.397216713891251
+        },
+        {
+          "quarter": "2024Q2",
+          "n_trades": 116,
+          "mean_bp": -5.522760199326968,
+          "t_stat": -0.19374856113060063
+        },
+        {
+          "quarter": "2024Q3",
+          "n_trades": 135,
+          "mean_bp": 16.601121469481313,
+          "t_stat": 0.6399925982673893
+        },
+        {
+          "quarter": "2024Q4",
+          "n_trades": 171,
+          "mean_bp": 65.80230742135059,
+          "t_stat": 2.4387064056051995
+        },
+        {
+          "quarter": "2025Q1",
+          "n_trades": 150,
+          "mean_bp": -0.9471181312451856,
+          "t_stat": -0.03090262984492931
+        },
+        {
+          "quarter": "2025Q2",
+          "n_trades": 96,
+          "mean_bp": 10.985769561727727,
+          "t_stat": 0.3646851098436763
+        },
+        {
+          "quarter": "2025Q3",
+          "n_trades": 145,
+          "mean_bp": -12.266275126158149,
+          "t_stat": -0.6354938260205404
+        },
+        {
+          "quarter": "2025Q4",
+          "n_trades": 138,
+          "mean_bp": -20.227297319829376,
+          "t_stat": -0.8237012423008832
+        },
+        {
+          "quarter": "2026Q1",
+          "n_trades": 111,
+          "mean_bp": -41.69958750728258,
+          "t_stat": -1.8044166360576424
+        },
+        {
+          "quarter": "2026Q2",
+          "n_trades": 46,
+          "mean_bp": -13.460325252771488,
+          "t_stat": -0.6049401685721149
+        }
+      ],
+      "n_quarters_measurable": 10,
+      "n_quarters_pos_t": 4,
+      "quarter_pos_t_ratio": 0.4,
+      "per_symbol_bootstrap": [
+        {
+          "symbol": "ADAUSDT",
+          "n_trades": 90,
+          "mean_bp": 21.814603829537553,
+          "ci_lower_bp": -23.670617121780186,
+          "ci_upper_bp": 69.06815945928122,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "AVAXUSDT",
+          "n_trades": 82,
+          "mean_bp": -45.156734420056736,
+          "ci_lower_bp": -103.57145769461206,
+          "ci_upper_bp": 14.039875507531436,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BCHUSDT",
+          "n_trades": 75,
+          "mean_bp": 46.82876585134873,
+          "ci_lower_bp": -20.38377164117542,
+          "ci_upper_bp": 117.84801681954357,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BNBUSDT",
+          "n_trades": 94,
+          "mean_bp": -33.417501625762675,
+          "ci_lower_bp": -60.88420506333661,
+          "ci_upper_bp": -5.174451719548102,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BTCUSDT",
+          "n_trades": 76,
+          "mean_bp": -0.11968263620036425,
+          "ci_lower_bp": -33.021664466201734,
+          "ci_upper_bp": 36.981434703358055,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "DOGEUSDT",
+          "n_trades": 85,
+          "mean_bp": 47.88549827680901,
+          "ci_lower_bp": -36.395099032587574,
+          "ci_upper_bp": 138.40056643418092,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "ETHUSDT",
+          "n_trades": 82,
+          "mean_bp": 13.846568970283537,
+          "ci_lower_bp": -31.54146605694012,
+          "ci_upper_bp": 58.60543288308757,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "FILUSDT",
+          "n_trades": 101,
+          "mean_bp": 5.821405352517073,
+          "ci_lower_bp": -53.134636932887155,
+          "ci_upper_bp": 73.9603328953888,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "LINKUSDT",
+          "n_trades": 96,
+          "mean_bp": -27.350426976285657,
+          "ci_lower_bp": -83.66467718785613,
+          "ci_upper_bp": 30.676963089297285,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "LTCUSDT",
+          "n_trades": 88,
+          "mean_bp": 29.59873708902708,
+          "ci_lower_bp": -15.594209482587848,
+          "ci_upper_bp": 79.23337572872809,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "NEARUSDT",
+          "n_trades": 91,
+          "mean_bp": 27.228535745968955,
+          "ci_lower_bp": -35.72140742613732,
+          "ci_upper_bp": 96.15292589397592,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "SOLUSDT",
+          "n_trades": 75,
+          "mean_bp": -9.368264506286394,
+          "ci_lower_bp": -69.84829883900508,
+          "ci_upper_bp": 45.9240772249962,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "WIFUSDT",
+          "n_trades": 179,
+          "mean_bp": 57.1906129367294,
+          "ci_lower_bp": -14.489713177558416,
+          "ci_upper_bp": 131.1749341968197,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "XRPUSDT",
+          "n_trades": 81,
+          "mean_bp": -3.7367232784710285,
+          "ci_lower_bp": -52.500417020628916,
+          "ci_upper_bp": 42.592810119150144,
+          "ci_lower_pos": false
+        }
+      ],
+      "n_symbols_measurable": 14,
+      "n_symbols_ci_pos": 0,
+      "symbol_ci_pos_ratio": 0.0
+    },
+    "concentration_gate": {
+      "pass": false,
+      "quarter_pos_t_ratio>=0.5": false,
+      "symbol_ci_pos_ratio>=0.30": false,
+      "n_symbols_ci_pos>=3": false,
+      "quarter_pos_t_ratio": 0.4,
+      "symbol_ci_pos_ratio": 0.0,
+      "n_symbols_ci_pos": 0
+    }
+  },
+  "focus_A_mirror_SHORT": {
+    "cell": "A_mirror_high_SHORT",
+    "z_thr": 2.0,
+    "hold_col": "fwd_ret_8h",
+    "direction": -1,
+    "n_events": 1295,
+    "n_candidate_pool": 38618,
+    "mean_bp_after_fee": -28.435981773536106,
+    "win_rate": 0.46332046332046334,
+    "obs_t": -3.261069586240209,
+    "null_mean_t": -1.4088318923825065,
+    "signal_t_excess": -1.8522376938577023,
+    "perm_p_two_sided": 0.023,
+    "perm_p_one_sided_above": 0.977,
+    "perm_p_one_sided_below": 0.023,
+    "ci_mean": -0.0028435981773536107,
+    "ci_lower": -0.004503196483290698,
+    "ci_upper": -0.0011686058890095956,
+    "ci_prob_positive": 0.0,
+    "three_gate_pass": false,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": false,
+      "ci_lower>0": false,
+      "perm_p_two<=0.10": true
+    },
+    "life_changing": {
+      "n_trades": 1295,
+      "panel_span_days": 868.0,
+      "trades_per_year": 544.929435483871,
+      "per_trade_edge_pct": -0.28435981773536106,
+      "capital_util": 0.4973118279569892,
+      "annualized_sharpe": -2.115413715408956,
+      "gate_trades_per_year>=12": true,
+      "gate_per_trade_edge_pct>=2": false,
+      "gate_capital_util>=0.30": true,
+      "gate_annualized_sharpe>=1.5": false,
+      "life_changing_all_pass": false
+    },
+    "per_symbol": {
+      "ADAUSDT": {
+        "n": 90,
+        "mean_bp": -37.814603829537546,
+        "win_rate": 0.4222222222222222
+      },
+      "AVAXUSDT": {
+        "n": 82,
+        "mean_bp": 29.15673442005672,
+        "win_rate": 0.4878048780487805
+      },
+      "BCHUSDT": {
+        "n": 75,
+        "mean_bp": -62.82876585134873,
+        "win_rate": 0.56
+      },
+      "BNBUSDT": {
+        "n": 94,
+        "mean_bp": 17.41750162576267,
+        "win_rate": 0.48936170212765956
+      },
+      "BTCUSDT": {
+        "n": 76,
+        "mean_bp": -15.880317363799621,
+        "win_rate": 0.47368421052631576
+      },
+      "DOGEUSDT": {
+        "n": 85,
+        "mean_bp": -63.88549827680905,
+        "win_rate": 0.4823529411764706
+      },
+      "ETHUSDT": {
+        "n": 82,
+        "mean_bp": -29.84656897028352,
+        "win_rate": 0.4268292682926829
+      },
+      "FILUSDT": {
+        "n": 101,
+        "mean_bp": -21.821405352517058,
+        "win_rate": 0.43564356435643564
+      },
+      "LINKUSDT": {
+        "n": 96,
+        "mean_bp": 11.350426976285664,
+        "win_rate": 0.53125
+      },
+      "LTCUSDT": {
+        "n": 88,
+        "mean_bp": -45.598737089027075,
+        "win_rate": 0.3977272727272727
+      },
+      "NEARUSDT": {
+        "n": 91,
+        "mean_bp": -43.228535745968934,
+        "win_rate": 0.43956043956043955
+      },
+      "SOLUSDT": {
+        "n": 75,
+        "mean_bp": -6.631735493713586,
+        "win_rate": 0.4533333333333333
+      },
+      "WIFUSDT": {
+        "n": 179,
+        "mean_bp": -73.1906129367294,
+        "win_rate": 0.44692737430167595
+      },
+      "XRPUSDT": {
+        "n": 81,
+        "mean_bp": -12.26327672152897,
+        "win_rate": 0.4691358024691358
+      }
+    }
+  },
+  "focus_B_mirror_LONG": {
+    "cell": "B_mirror_low_LONG",
+    "z_thr": 2.0,
+    "hold_col": "fwd_ret_8h",
+    "direction": 1,
+    "n_events": 1304,
+    "n_candidate_pool": 38618,
+    "mean_bp_after_fee": 23.99810744626848,
+    "win_rate": 0.5214723926380368,
+    "obs_t": 2.5929965174135376,
+    "null_mean_t": -0.592146260717605,
+    "signal_t_excess": 3.1851427781311425,
+    "perm_p_two_sided": 0.028,
+    "perm_p_one_sided_above": 0.0,
+    "perm_p_one_sided_below": 1.0,
+    "ci_mean": 0.002399810744626848,
+    "ci_lower": 0.0005876075010402129,
+    "ci_upper": 0.004290270474944368,
+    "ci_prob_positive": 0.9985,
+    "three_gate_pass": true,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": true,
+      "ci_lower>0": true,
+      "perm_p_two<=0.10": true
+    },
+    "life_changing": {
+      "n_trades": 1304,
+      "panel_span_days": 868.0,
+      "trades_per_year": 548.7165898617512,
+      "per_trade_edge_pct": 0.2399810744626848,
+      "capital_util": 0.500768049155146,
+      "annualized_sharpe": 1.682043345560248,
+      "gate_trades_per_year>=12": true,
+      "gate_per_trade_edge_pct>=2": false,
+      "gate_capital_util>=0.30": true,
+      "gate_annualized_sharpe>=1.5": true,
+      "life_changing_all_pass": false
+    },
+    "per_symbol": {
+      "ADAUSDT": {
+        "n": 89,
+        "mean_bp": 23.014683096198105,
+        "win_rate": 0.5280898876404494
+      },
+      "AVAXUSDT": {
+        "n": 99,
+        "mean_bp": 22.044380772455508,
+        "win_rate": 0.5353535353535354
+      },
+      "BCHUSDT": {
+        "n": 82,
+        "mean_bp": -5.290202973670941,
+        "win_rate": 0.4634146341463415
+      },
+      "BNBUSDT": {
+        "n": 90,
+        "mean_bp": -6.572854639156297,
+        "win_rate": 0.45555555555555555
+      },
+      "BTCUSDT": {
+        "n": 75,
+        "mean_bp": -24.52420217290994,
+        "win_rate": 0.3333333333333333
+      },
+      "DOGEUSDT": {
+        "n": 81,
+        "mean_bp": 43.3522112269311,
+        "win_rate": 0.6419753086419753
+      },
+      "ETHUSDT": {
+        "n": 76,
+        "mean_bp": -11.82426654276082,
+        "win_rate": 0.5526315789473685
+      },
+      "FILUSDT": {
+        "n": 97,
+        "mean_bp": 22.052992882920144,
+        "win_rate": 0.5360824742268041
+      },
+      "LINKUSDT": {
+        "n": 101,
+        "mean_bp": 24.511928189092334,
+        "win_rate": 0.5544554455445545
+      },
+      "LTCUSDT": {
+        "n": 92,
+        "mean_bp": 5.702739310541666,
+        "win_rate": 0.5217391304347826
+      },
+      "NEARUSDT": {
+        "n": 94,
+        "mean_bp": 41.72656434969411,
+        "win_rate": 0.5425531914893617
+      },
+      "SOLUSDT": {
+        "n": 73,
+        "mean_bp": 11.485751124446905,
+        "win_rate": 0.547945205479452
+      },
+      "WIFUSDT": {
+        "n": 185,
+        "mean_bp": 74.89942127370222,
+        "win_rate": 0.518918918918919
+      },
+      "XRPUSDT": {
+        "n": 70,
+        "mean_bp": 50.82812285998438,
+        "win_rate": 0.5571428571428572
+      }
+    }
+  },
+  "focus_B_SHORT": {
+    "cell": "B_focus_low_SHORT",
+    "z_thr": 2.0,
+    "hold_col": "fwd_ret_8h",
+    "direction": -1,
+    "n_events": 1304,
+    "n_candidate_pool": 38618,
+    "mean_bp_after_fee": -39.99810744626846,
+    "win_rate": 0.4340490797546012,
+    "obs_t": -4.321797189362676,
+    "null_mean_t": -1.4217479179383103,
+    "signal_t_excess": -2.9000492714243657,
+    "perm_p_two_sided": 0.001,
+    "perm_p_one_sided_above": 0.999,
+    "perm_p_one_sided_below": 0.001,
+    "ci_mean": -0.003999810744626847,
+    "ci_lower": -0.005890270474944367,
+    "ci_upper": -0.0021876075010402126,
+    "ci_prob_positive": 0.0,
+    "three_gate_pass": false,
+    "three_gate_detail": {
+      "signal_t_excess>=2.0": false,
+      "ci_lower>0": false,
+      "perm_p_two<=0.10": true
+    },
+    "life_changing": {
+      "n_trades": 1304,
+      "panel_span_days": 868.0,
+      "trades_per_year": 548.7165898617512,
+      "per_trade_edge_pct": -0.39998107446268466,
+      "capital_util": 0.500768049155146,
+      "annualized_sharpe": -2.803494009502027,
+      "gate_trades_per_year>=12": true,
+      "gate_per_trade_edge_pct>=2": false,
+      "gate_capital_util>=0.30": true,
+      "gate_annualized_sharpe>=1.5": false,
+      "life_changing_all_pass": false
+    },
+    "per_symbol": {
+      "ADAUSDT": {
+        "n": 89,
+        "mean_bp": -39.014683096198084,
+        "win_rate": 0.42696629213483145
+      },
+      "AVAXUSDT": {
+        "n": 99,
+        "mean_bp": -38.0443807724555,
+        "win_rate": 0.41414141414141414
+      },
+      "BCHUSDT": {
+        "n": 82,
+        "mean_bp": -10.709797026329033,
+        "win_rate": 0.45121951219512196
+      },
+      "BNBUSDT": {
+        "n": 90,
+        "mean_bp": -9.427145360843697,
+        "win_rate": 0.4777777777777778
+      },
+      "BTCUSDT": {
+        "n": 75,
+        "mean_bp": 8.524202172909936,
+        "win_rate": 0.6266666666666667
+      },
+      "DOGEUSDT": {
+        "n": 81,
+        "mean_bp": -59.352211226931054,
+        "win_rate": 0.32098765432098764
+      },
+      "ETHUSDT": {
+        "n": 76,
+        "mean_bp": -4.175733457239152,
+        "win_rate": 0.4473684210526316
+      },
+      "FILUSDT": {
+        "n": 97,
+        "mean_bp": -38.052992882920094,
+        "win_rate": 0.41237113402061853
+      },
+      "LINKUSDT": {
+        "n": 101,
+        "mean_bp": -40.51192818909233,
+        "win_rate": 0.4158415841584158
+      },
+      "LTCUSDT": {
+        "n": 92,
+        "mean_bp": -21.70273931054164,
+        "win_rate": 0.42391304347826086
+      },
+      "NEARUSDT": {
+        "n": 94,
+        "mean_bp": -57.726564349694115,
+        "win_rate": 0.39361702127659576
+      },
+      "SOLUSDT": {
+        "n": 73,
+        "mean_bp": -27.4857511244469,
+        "win_rate": 0.410958904109589
+      },
+      "WIFUSDT": {
+        "n": 185,
+        "mean_bp": -90.89942127370226,
+        "win_rate": 0.4594594594594595
+      },
+      "XRPUSDT": {
+        "n": 70,
+        "mean_bp": -66.82812285998442,
+        "win_rate": 0.38571428571428573
+      }
+    },
+    "concentration": {
+      "per_quarter_t_stats": [
+        {
+          "quarter": "2024Q1",
+          "n_trades": 184,
+          "mean_bp": -145.38441259418653,
+          "t_stat": -4.678226538328031
+        },
+        {
+          "quarter": "2024Q2",
+          "n_trades": 100,
+          "mean_bp": -22.812166257976706,
+          "t_stat": -0.9137195700552775
+        },
+        {
+          "quarter": "2024Q3",
+          "n_trades": 140,
+          "mean_bp": -102.2107545011715,
+          "t_stat": -3.871922192540341
+        },
+        {
+          "quarter": "2024Q4",
+          "n_trades": 165,
+          "mean_bp": -87.34178927515606,
+          "t_stat": -2.720447598887554
+        },
+        {
+          "quarter": "2025Q1",
+          "n_trades": 150,
+          "mean_bp": 11.534554331203962,
+          "t_stat": 0.3926389434478745
+        },
+        {
+          "quarter": "2025Q2",
+          "n_trades": 119,
+          "mean_bp": 12.326515921264038,
+          "t_stat": 0.4993256266054446
+        },
+        {
+          "quarter": "2025Q3",
+          "n_trades": 142,
+          "mean_bp": 1.1847106354293986,
+          "t_stat": 0.06357494059605216
+        },
+        {
+          "quarter": "2025Q4",
+          "n_trades": 131,
+          "mean_bp": -15.845447578943814,
+          "t_stat": -0.5501738908491531
+        },
+        {
+          "quarter": "2026Q1",
+          "n_trades": 115,
+          "mean_bp": 26.72215489381244,
+          "t_stat": 0.9462491697735783
+        },
+        {
+          "quarter": "2026Q2",
+          "n_trades": 58,
+          "mean_bp": 21.254407918446525,
+          "t_stat": 1.0898633386435441
+        }
+      ],
+      "n_quarters_measurable": 10,
+      "n_quarters_pos_t": 5,
+      "quarter_pos_t_ratio": 0.5,
+      "per_symbol_bootstrap": [
+        {
+          "symbol": "ADAUSDT",
+          "n_trades": 89,
+          "mean_bp": -39.014683096198084,
+          "ci_lower_bp": -103.66083764304378,
+          "ci_upper_bp": 26.55655748666169,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "AVAXUSDT",
+          "n_trades": 99,
+          "mean_bp": -38.0443807724555,
+          "ci_lower_bp": -88.46136361740973,
+          "ci_upper_bp": 8.346196476671787,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BCHUSDT",
+          "n_trades": 82,
+          "mean_bp": -10.709797026329033,
+          "ci_lower_bp": -81.61760364284298,
+          "ci_upper_bp": 57.84907511450635,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BNBUSDT",
+          "n_trades": 90,
+          "mean_bp": -9.427145360843697,
+          "ci_lower_bp": -62.88510254601193,
+          "ci_upper_bp": 36.54607199596127,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "BTCUSDT",
+          "n_trades": 75,
+          "mean_bp": 8.524202172909936,
+          "ci_lower_bp": -29.8656431347013,
+          "ci_upper_bp": 46.08406580329236,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "DOGEUSDT",
+          "n_trades": 81,
+          "mean_bp": -59.352211226931054,
+          "ci_lower_bp": -121.89259368527621,
+          "ci_upper_bp": 2.6355987036009463,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "ETHUSDT",
+          "n_trades": 76,
+          "mean_bp": -4.175733457239152,
+          "ci_lower_bp": -58.734825984513606,
+          "ci_upper_bp": 57.991157277740314,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "FILUSDT",
+          "n_trades": 97,
+          "mean_bp": -38.052992882920094,
+          "ci_lower_bp": -111.69978744490415,
+          "ci_upper_bp": 36.46644752639683,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "LINKUSDT",
+          "n_trades": 101,
+          "mean_bp": -40.51192818909233,
+          "ci_lower_bp": -97.41239421097883,
+          "ci_upper_bp": 13.36095312278687,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "LTCUSDT",
+          "n_trades": 92,
+          "mean_bp": -21.70273931054164,
+          "ci_lower_bp": -72.43026248501229,
+          "ci_upper_bp": 30.883376728579897,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "NEARUSDT",
+          "n_trades": 94,
+          "mean_bp": -57.726564349694115,
+          "ci_lower_bp": -123.10436860971693,
+          "ci_upper_bp": 6.279874846483888,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "SOLUSDT",
+          "n_trades": 73,
+          "mean_bp": -27.4857511244469,
+          "ci_lower_bp": -89.60986337767727,
+          "ci_upper_bp": 37.07289820022271,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "WIFUSDT",
+          "n_trades": 185,
+          "mean_bp": -90.89942127370226,
+          "ci_lower_bp": -168.07113941980631,
+          "ci_upper_bp": -15.395983711502724,
+          "ci_lower_pos": false
+        },
+        {
+          "symbol": "XRPUSDT",
+          "n_trades": 70,
+          "mean_bp": -66.82812285998442,
+          "ci_lower_bp": -158.92119999605396,
+          "ci_upper_bp": 11.415003314396337,
+          "ci_lower_pos": false
+        }
+      ],
+      "n_symbols_measurable": 14,
+      "n_symbols_ci_pos": 0,
+      "symbol_ci_pos_ratio": 0.0
+    },
+    "concentration_gate": {
+      "pass": false,
+      "quarter_pos_t_ratio>=0.5": true,
+      "symbol_ci_pos_ratio>=0.30": false,
+      "n_symbols_ci_pos>=3": false,
+      "quarter_pos_t_ratio": 0.5,
+      "symbol_ci_pos_ratio": 0.0,
+      "n_symbols_ci_pos": 0
+    }
+  },
+  "verdict_components": {
+    "A_focus_three_gate": false,
+    "A_focus_concentration_gate": false,
+    "A_focus_life_changing": false,
+    "A_mirror_three_gate": false,
+    "B_mirror_three_gate": true,
+    "B_focus_three_gate": false,
+    "B_focus_concentration_gate": false,
+    "B_focus_life_changing": false
+  },
+  "verdict": "BROAD_FALSIFIED_MIRROR_ONLY"
+}

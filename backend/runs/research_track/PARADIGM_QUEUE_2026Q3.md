@@ -27,13 +27,13 @@
 
 ## 1. Candidates 상세
 
-### #1 `liquidation_cascade_event` ⭐⭐⭐ (최강 후보, 데이터 backfill 필요)
-- **데이터**: Binance liquidation REST API (`/fapi/v1/forceOrders` archive 또는 `data.binance.vision/futures/um/daily/liquidationSnapshot/`)
-- **신호**: 5m 또는 1m 격자에서 large liquidation event 감지 → cascade 시작점 식별 → reversal 예측
-- **가설**: 강제 청산 cascade 후 단기 reversal (over-stretched leverage flushed). 또는 cascade 가속 momentum (추가 청산 예측).
-- **§3 위험**: §3-A rare-event (extreme cascade는 sparse), 데이터 backfill 필요
-- **R-1 fail-fast**: liquidation magnitude threshold sweep, alpha+sharpe ≥ 0
-- **추천**: 가장 강한 새 차원, 다른 domain 시드와 직교
+### #1 `liquidation_cascade_event` ⭐⭐⭐ (최강 후보, ~~데이터 backfill 필요~~ → **substrate-blocked R-0 2026-05-19**)
+- ~~**데이터**: Binance liquidation REST API (`/fapi/v1/forceOrders` archive 또는 `data.binance.vision/futures/um/daily/liquidationSnapshot/`)~~
+- **substrate verification 결과 (2026-05-19 ad-hoc R-1 dispatch attempt, paradigm-architect agent `a24a663f7f0416aad`)**: **4 independent fail modes** — (1) `data.binance.vision/.../liquidationSnapshot/` 트리 부재 (HTML cache만, 실제 S3 prefix `<IsTruncated>false</IsTruncated>` empty), (2) `metrics/` csv 8칼럼 (OI + 4 L/S + taker buy/sell) liquidation 미포함, (3) REST `allForceOrders` 영구 폐기 ("out of maintenance"), `/fapi/v1/forceOrders` 계정 scoped, WS `!forceOrder@arr` live-only, (4) Mint forceOrder/liquidation recorder 사전 누적 0건
+- **Verdict**: `DISPATCH_IMPOSSIBLE` — **Lesson #28 5번째 effective dogfood** (paradigm 89 listing_pre_announce + 90 stablecoin_mint sub-mode + 100 candidate dart_treasury_buyback #27 + 100 candidate liquidation_cascade #28 + implicit 84/85)
+- **재시도 경로 (deferred to Day 30 후)**: (a) Mint PM2 `!forceOrder@arr` WS recorder service stand-up → 60-90d forward collection → 2026-07-15+ 재시도 가능, (b) paid feed (Coinglass/Hyblock/Laevitas) **차단** ([[feedback_no_freemium_trial]] 위반)
+- **Tier 변경**: ⭐⭐⭐ 최강 후보 → **R-0 substrate-blocked, R-1 dispatch 불가** (2026-Q2/Q3 후보 아님). 산출물: `backend/runs/research_track/graveyard__binance_perp_liquidation_cascade_event_alt_intraday.md`
+- **메타 함의**: Q3 큐 §1 top candidate 중 가장 강한 claim이 public 인프라에서 구조적 undispatchable
 
 ### #2 `taker_buy_volume_5m_zscore` ⭐⭐ (microstructure 새 컬럼)
 - **데이터**: microstructure joblib `taker_buy_sell_ratio` (graveyard 23) — 다른 컬럼 활용 검토 (taker_buy_volume_quote 등 backfill)
@@ -361,4 +361,382 @@ prompt: "_perm_utils 사용 + Mint mint@183.99.228.81 명시 + 1241280 BTC count
 
 ---
 
-**END Mid-Q3 Update + Track 3 Final** — 다음 candidate (Day 30 baseline 측정 + lifecycle live mode 결과 우선, 2026-05-29+ campaign 재개).
+### 6.8 2026-05-19 paradigm 97 candidate R-0 inventory halt + lesson #31 candidate
+
+**paradigm 97 candidate — `funding_term_structure_cross_sym_dispersion`** (ad-hoc R-1 dispatch attempt, R-0 inventory halt 적용, R-1 미실행)
+
+- **가설**: 같은 거래소(Binance USDS-M) 14-sym universe 8h funding cycle 시점 cross-section z-score (sym i funding rate vs universe median/std) outlier (|cs_z|>2) → mean-reversion fade
+- **Family-distinct claim**: paradigm 96 graveyard memory §family-distinct exception path 2 "funding term structure cross-sym (8h cycle differential between syms)" 매칭 시도
+- **r0_inventory_check 결과 (paradigm-architect agent `a5ab76e84652d8a3d`, 2026-05-19 11:25 KST)**: 기존 `funding_dispersion` paradigm (R-5 paper seeded 2026-05-05, ETCUSDT `d2640960-52b` active) 와 **DNA 5/6 차원 정확 일치**:
+
+| 차원 | funding_dispersion (R-5 seeded) | paradigm 97 candidate |
+|---|---|---|
+| Substrate | Binance USDS perp 14-sym universe | 동일 ✅ |
+| Statistic | cross-section z-score of funding vs universe mean/std | 동일 ✅ |
+| Direction | mean-reversion fade (FundingReversalPolicy + NegationPassthrough) | 동일 ✅ |
+| Mechanism | universe-level cross-section dispersion | 동일 ✅ |
+| Universe scope | R-1 ETC focus + R-2 14-sym 전체 측정 완료 | 14-sym 동일 ✅ |
+| Threshold | entry_z = 0.8 (+ z=2.0 SOL sweep 측정 완료) | \|z\| > 2.0 ⚠️ parametric variant |
+
+- **R-2 14-sym universe-wide 측정 (2026-05-05) 결과적 부분 falsified**: ETC alpha 138 sharpe 3.50 R-5 paper seed / **non-ETC 13 sym 평균 alpha +37 sharpe -0.07 sharpe_pos 5/13** → universe-wide mean-reversion 가설 R-2 단계에서 이미 falsified, per-symbol 1:1 paradigm (ETC outlier)
+- **paradigm 96 §family-distinct path 2 정의 모호성 노출**: "funding term structure"는 funding_dispersion (cross-section dispersion)이 **아님**. 진정한 family-distinct term structure = (a) multi-tenor funding curve slope (Binance 단일 8h tenor → 불가능) 또는 (b) funding cycle 시점 간 differential / velocity (8h-to-8h delta velocity, 미측정). [[project_paradigm_96_funding_sign_flip_family_retire]] §family-distinct amendment 적용
+- **Verdict**: `FAIL_FAMILY_SUBSUMED` (R-0 inventory halt, R-1 dispatch 미실행, graveyard 카운터 96 유지, paradigm_index register skip — INDEX.md 부정확성 회피)
+- **산출물**: 본 큐 §6.8 인라인 보고만 (R-1 코드/metrics/gate_eval 없음). Inventory 증거: `backend/runs/research_track/funding_dispersion/gate_eval__ETCUSDT.md` (2026-05-05 5/6 DNA overlap 명시), 본 INDEX.md line 70 (`funding_dispersion` R-5 paper seeded), 181-195 (시드 산출물 + R-1 spec)
+- **연결**: [[project_paradigm_97_funding_dispersion_inventory_halt]]
+
+**NEW Lesson #31 candidate (1 dogfood 2026-05-19) — Cross-section dispersion family R-5 점유 inventory prescreen**
+
+**Trigger**: R-1 paradigm 발의 시 statistic axis = cross-section dispersion (sym i feature vs universe mean/std/median z-score) family
+**Check**: paradigm_index에서 기존 seeded paradigm DNA 차원 6개 cross-check — substrate / statistic / direction / mechanism / universe / threshold-or-hold
+**Action**:
+- DNA cutoff ≥ 5/6 일치 (parametric variant only) → `FAIL_FAMILY_SUBSUMED` R-0 inventory halt, R-1 dispatch 차단
+- DNA 4/6 이하 → 다음 차원 (시간 frame / event anchor / regime conditioning) 새 dimension 결합 시 valid family-distinct, R-1 dispatch 가능
+- **Why**: paradigm 97 candidate dogfood (DNA 5/6 with funding_dispersion R-5 seeded ETCUSDT, parametric variant only) → inventory halt 사전 차단으로 R-1 자원 + paper pool noise 회피. paradigm-architect r0_inventory_check skill의 정상 작동 입증
+- **Implementation**: paradigm-architect agent skill spec에 `r0_inventory_check` cross-section dispersion family-aware DNA 6-dim cross-check 의무 추가, paradigm 96 graveyard memory §family-distinct path 정의 모호성 해소 후속 dispatch 의무
+
+**campaign 진행 상태 갱신 (2026-05-19 11:30 KST, 후속 batch 전)**:
+- 누적 graveyards: 96 (paradigm 97 candidate inventory halt는 graveyard 카운터 미증가)
+- Inventory-halt 사례: 1건 NEW (paradigm 97 candidate `funding_term_structure_cross_sym_dispersion`)
+- Lessons: 29 confirmed + Lesson #30 candidate + Lesson #31 candidate + NARROW_SCOPE_LIFE_CHANGING_FAIL verdict candidate
+
+### 6.9 2026-05-19 12:00 KST batch ad-hoc R-1 — paradigm 97/98/99 정식 graveyard (funding family 완전 소진)
+
+**Batch dispatch context**: Day 7 baseline 우선 모드 binding 상태에서 사용자 명시 P1/P2/P3 batch ad-hoc R-1 dispatch. paradigm 97 candidate inventory halt 후속 agent 권고 3 진정한 funding family-distinct 후보 동시 검증. paradigm-architect agent `a4f7454c52e17debf` Mint full-window sequential execution (P1→P2→P3), batch 단일 message 종료 보고.
+
+> **명명 명확화**: paradigm 97 candidate `funding_term_structure_cross_sym_dispersion` §6.8 inventory halt (counter 미증가)와 본 §6.9 paradigm 97/98/99는 별개. 본 batch P1이 정식 paradigm 97 카운터 차지.
+
+| # | Paradigm | Sample | Focus 결과 | Verdict |
+|---|---|---|---|---|
+| **97** | `funding_velocity_cross_section_dispersion` (P1) | 14×2.37yr 36,211 | A LONG -8.62bp sigex -0.20 (4-quadrant fee floor -7.4~-8.6bp) | **BROAD_FALSIFIED** |
+| **98** | `funding_regime_stratify_dispersion` (P2) | 14×2.37yr 36,252 | HIGH-A LONG +15.72bp ci -76.71 (sample variance) / MID-B opposite sigex -1.51 | **BROAD_FALSIFIED** |
+| **99** | `funding_cycle_8h_differential_velocity_per_sym` (P3) | 14×2.38yr 38,618 | A focus sigex +2.03 ci -4.31 FAIL / B mirror PASS sigex +3.19 / Concentration 0/13 ci_pos / edge 0.24% (8x deficit) | **BROAD_FALSIFIED_MIRROR_ONLY** |
+
+**Funding family Tier 4 retire 결정적 강화** (6 sub-class 6 graveyards):
+- 73 funding_oi_bipolar (joint event) / 79 funding_oi_bipolar_retry (extreme level) / 96 funding_rate_sign_flip (categorical) / **97 cs velocity** / **98 regime stratify** / **99 per-sym velocity**
+- **Exception**: paradigm 22 funding_carry R-5 seeded (3-sym narrow carry) + funding_dispersion R-5 seeded ETCUSDT (cs level z, per-symbol 1:1, R-2 non-ETC sharpe_pos 5/13 부분 falsified)
+- HALT_BEFORE_R1 sub-mechanism 8개로 확장 ([[project_paradigm_96_funding_sign_flip_family_retire]] §HALT_BEFORE_R1 sub-mechanism 5-8 추가)
+
+**Lesson dogfood 동시 통과 (3개)**:
+
+### NARROW_SCOPE_LIFE_CHANGING_FAIL verdict [CANDIDATE → CONFIRMED 2026-05-19 dogfood 2회 누적]
+- dogfood 1: paradigm 95 cross_asset_volume_concentration (edge 0.47% 4.3x deficit)
+- dogfood 2: paradigm 99 funding_cycle_8h_differential_velocity B mirror (edge 0.24% **8x deficit**, 3/4 dim PASS only)
+- **정식 승급 자격 충족** → lesson_prescreen_checklist.md `NEW verdict — NARROW_SCOPE_LIFE_CHANGING_FAIL` 항목 [CONFIRMED] 격상
+
+### Lesson #31 — Cross-section dispersion family R-5 점유 inventory prescreen [CANDIDATE → CONFIRMED 2026-05-19 dogfood 2회 양방향]
+- dogfood 1: paradigm 97 candidate inventory halt (DNA 5/6 with funding_dispersion R-5, FAIL_FAMILY_SUBSUMED)
+- dogfood 2: batch P1/P2/P3 (DNA ≤4/6 cross-check 통과 → dispatch 정상)
+- **정식 승급 자격 충족** → lesson_prescreen_checklist.md `Lesson #31 candidate` 항목 [CONFIRMED] 격상
+
+### Lesson #8 Mirror antipattern symmetric LONG bias amendment candidate (paradigm 99 발견)
+- A focus high LONG +12.44bp AND B mirror low LONG +24.00bp **둘 다 양수**
+- "leverage shock magnitude → general upward bias" 패턴 (directional MR 아님)
+- 향후 mirror-only PASS 판정 시 (a) 정통 mirror antipattern vs (b) symmetric magnitude bias 사전 분류 의무 추가 candidate
+
+### Campaign 진행 상태 갱신 (2026-05-19 12:00 KST 본 batch 후)
+- 누적 graveyards: **99** (96→99, +3 신규 정식)
+- Inventory-halt 사례: 1 (paradigm 97 candidate, counter 미증가)
+- R-5 시드: 8개 unchanged
+- Family retire (formal Tier 4): 7 + 1 advisory caution (funding sub-class 결정적 강화, entry 변경 없음)
+- Lessons: **29 confirmed + Lesson #30 candidate + Lesson #31 confirmed + NARROW_SCOPE_LIFE_CHANGING_FAIL confirmed** + Lesson #8 amendment candidate
+- Campaign 모드: **Day 7 baseline 우선 모드 유지** (2026-05-21 도래까지 2일, 본 batch는 ad-hoc 사용자 명시 승인으로 모드 위반 아님)
+
+---
+
+### 6.10 2026-05-19 12:35 KST paradigm 100 candidates 2x halt + 메타 회고 + Day 7~Day 30 plan revision
+
+**Context**: §6.9 batch P1+P2+P3 → paradigm 97/98/99 graveyards 직후 추가 ad-hoc R-1 2건 attempt. 둘 다 R-0 halt (paradigm 100 ID 미확정, candidate halt 사례).
+
+#### paradigm 100 candidate `dart_treasury_share_repurchase_announce_kr_equity_long_5d`
+- KR equity 자기주식 취득 결정 공시 +1d open / +5d hold LONG
+- **Verdict**: `HALT_BEFORE_R1_LESSON27_AMENDMENT_DELAYED_INDIRECT` (R-1 미실행, compute 0)
+- **차단 근거 3 independent evidences**:
+  1. `backend/app/services/disclosure_parser.py:60-62` 자기주식취득결정 `Side.ENTRY_DELAYED` 사전 분류 (Track 3 paradigm 92/93 작업 시 이미 명시)
+  2. `.claude/plans/track3_dart_pipeline_design.md` §11.4 H3 차단 결정 명시
+  3. Mechanism 동형 paradigm 87/88/90 fragility (announcement vs execution 시간 분리, VWAP 분할)
+- **Lesson #27 amendment 4번째 dogfood** (paradigm 87 + 88 + 90 + 본 100 candidate)
+- agent ID: `a014bd5d7e0d416f8`
+
+#### paradigm 100 candidate `binance_perp_liquidation_cascade_event_alt_intraday`
+- Binance USDS-M perp 14-sym 5min liquidation notional volume top decile cascade → 4-quadrant direction (Q3 큐 §1 #1 ⭐⭐⭐ 최강 후보)
+- **Verdict**: `DISPATCH_IMPOSSIBLE` (R-0 substrate halt, compute 0)
+- **차단 근거 4 independent fail modes**:
+  1. `data.binance.vision/.../liquidationSnapshot/` 트리 부재 (HTML cache only, S3 prefix `<IsTruncated>false</IsTruncated>` empty)
+  2. `metrics/` csv 8칼럼 (OI + 4 L/S ratio + taker buy/sell ratio) liquidation 미포함
+  3. REST `allForceOrders` 영구 폐기 ("out of maintenance"), `/fapi/v1/forceOrders` 계정 scoped only, WS `!forceOrder@arr` live-only
+  4. Mint 인프라 forceOrder/liquidation recorder 사전 누적 0건
+- **Lesson #28 5번째 effective dogfood** (paradigm 89 + 90 sub-mode + 100 candidate dart_treasury + 100 candidate liquidation + implicit 84/85)
+- 재시도 경로 (deferred to Day 30 후): Mint PM2 `!forceOrder@arr` WS recorder service stand-up → 60-90d forward collection → 2026-07-15+
+- 산출물: `backend/runs/research_track/graveyard__binance_perp_liquidation_cascade_event_alt_intraday.md`
+- agent ID: `a24a663f7f0416aad`
+- **§1 #1 annotation 갱신** (위 §1 #1 entry strikethrough + substrate-blocked R-0 표기)
+
+#### 메타 회고 (정량)
+
+**누적 통계 (2026-05-19 12:35 KST)**:
+- graveyards counter: **99**
+- Inventory-halt 사례: 2 (paradigm 97 candidate funding_term_structure + paradigm 100 candidate dart_treasury)
+- Substrate-halt 사례: 1 (paradigm 100 candidate liquidation_cascade)
+- R-5 paper seeded: 8 (unchanged)
+- Family retire formal Tier 4: 7 + 1 advisory caution
+- Lessons confirmed: 30 (29 prior + #31 NEW) + 1 amendment (#27 4 dogfoods)
+- Lessons candidate: 2 (#30 short-data + #8 symmetric LONG bias amendment)
+- Verdict confirmed: 2 (#29 cross-proxy + NARROW_SCOPE_LIFE_CHANGING_FAIL)
+
+**Closing rate 정량 분석**:
+- Q2 (2026-04~2026-05-13): R-5 시드 비율 ~10%, family retire 0건
+- mid-Q3 (2026-05-14~2026-05-19): R-5 시드 비율 ~3% (1/35), **family retire 7건** + advisory 1건
+- **3.3x closing rate 가속**
+- 최근 14 R-1 dispatches (paradigm 86~99) + 3 candidate halts (97 candidate + 100×2): **0% R-5 pass rate in last 5 days**
+
+#### Day 7 ~ Day 30 plan revision
+
+| 기간 | 일정 | 모드 |
+|---|---|---|
+| 2026-05-19 ~ 05-21 (~1.5d) | Day 7 도래까지 | Day 7 baseline 우선 모드 유지, ad-hoc R-1 가능하나 ROI 낮음. 인프라 prep / 다른 트랙 권장 |
+| 2026-05-21 (Day 7) | paradigm 69 13 sessions 실측 alpha 측정 | baseline 비교 + lifecycle live mode 재개 prep |
+| 2026-05-22 ~ 05-28 (~7d) | Day 7 → lifecycle live mode 재개 전 | Day 7 결과 메타-학습, WS recorder stand-up 결정 사용자 게이트 |
+| 2026-05-29 (lifecycle live mode 재개) | live mode 재개 + paper Day 30 baseline prep | 정식 dispatch 보류 유지 |
+| 2026-06-03 ~ 06-13 (Day 30) | paper Day 30 baseline 측정 | 정식 dispatch 재개 가능 시점, family-distinct 새 axis만 발의 |
+| 2026-07-15 (WS recorder 60-90d) | frontier scout 재실행 가능 | liquidation cascade event 재시도 가능, 5m microstructure family advisory 재시도 검토 |
+| 2026-11-18 (6개월) | KR equity family retire 재검토 | regime 변화 trigger 시 |
+
+#### Campaign 진행 상태 갱신 (2026-05-19 12:35 KST 본 §6.10 후)
+
+- 누적 graveyards: 99 (96→99, +3 신규)
+- Inventory-halt 사례: 2 (paradigm 97 candidate + paradigm 100 candidate dart_treasury)
+- Substrate-halt 사례: 1 (paradigm 100 candidate liquidation_cascade)
+- Lessons: 30 confirmed + 2 candidates + 2 verdict confirmed
+- Campaign 모드: Day 7 baseline 우선 모드 유지 (2026-05-21 도래까지 ~1.5일), 추가 ad-hoc R-1 ROI 낮음
+- **paradigm 발의 공간 사실상 closing 입증** — 정식 dispatch 재개는 2026-05-29 또는 Day 30 결과 후, family-distinct 새 axis (WS recorder substrate / paid feed user decision / DART/KIND/FRED/ECOS 정부 source / cross-exchange) 만 발의 가능
+- [[project_paradigm_campaign_closing_rate_snapshot_2026_05_19]] 정량 회고 메모리
+
+---
+
+### 6.11 2026-05-19 13:27 KST paradigm 100 정식 graveyard — DART 가이던스 family 양방향 결정적 폐기
+
+**Context**: agent 권고 "family-distinct mean-reversion direction" 정식화 시도. paradigm-architect ad-hoc R-1 분리 모드 dispatch (`a472b837b91df3400`). paradigm 93 cache audit으로 R-0 prescreen halt, 자원 0 소모.
+
+#### paradigm 100 `dart_h2_guidance_amend_30pct_kr_equity_mean_reversion_neg_long_20d`
+- 가설: KR equity EARNINGS_GUIDANCE_AMEND × NEG surprise (YoY OP ≤ -30% OR pre_ret_5d ≤ -3%) × LONG mean-reversion (oversold bounce) × hold 5d→20d 확장
+- Family-distinct path 정확 통과 — [[feedback_family_retire_kr_post_earnings]] §"mean-reversion direction 허용" 첫 항목
+- **Verdict**: `SAMPLE_INSUFFICIENT_TEMPORAL_CONCENTRATION` (R-0 prescreen halt, paradigm_index 정식 register, **graveyard counter 99 → 100**)
+
+#### R-0 prescreen 차단 evidence (paradigm 93 cache audit)
+
+| Track | n_neg | Quarter distribution | n_measurable_quarters |
+|---|---|---|---|
+| FUND (op_growth ≤ -30%) | 327 | 2024Q1=134 / 2025Q1=120 / 2026Q1=73 (100.0%) | **3** |
+| OBS (pre_ret_5d ≤ -3%) | 259 | 2024Q1=75 / 2025Q1=88 / 2025Q2=1 / 2026Q1=95 (99.6%) | **3** |
+| All events | 1106 | 99.5% Q1-clustered | **3** |
+
+Lesson #26 amendment `n_measurable_quarters ≥ 4` 의무 → 실측 **3** (양 트랙). EARNINGS_GUIDANCE_AMEND substrate Q1-clustered 99.5% (KR annual-results disclosure cycle 본질). hold-extension/direction-flip/threshold-tweak 무력.
+
+#### DART 가이던스 family 양방향 결정적 폐기 입증
+
+| # | Paradigm | Direction | Verdict |
+|---|---|---|---|
+| 92 | dart_h1_earnings_gap_proxy_long_5d | directional momentum LONG | R-2c 0/5 graveyard |
+| 93 | dart_h2_guidance_amend_directional_5d | cross-proxy directional | BROAD_FALSIFIED |
+| **100** | **dart_h2_guidance_amend_mean_reversion_neg_long_20d** | **mean-reversion NEG×LONG** | **SAMPLE_INSUFFICIENT_TEMPORAL_CONCENTRATION** |
+
+**Track 3 DART 가이던스-기반 paradigm 영구 폐기** (directional + mean-reversion 양방향). Family retire 강화 — [[feedback_family_retire_kr_post_earnings]] amendment 의무 적용 ("mean-reversion direction 허용" path 차단).
+
+#### Lesson dogfood 누적
+
+##### Lesson #26 amendment — 3번째 dogfood 강력 누적
+- dogfood 1: paradigm 87 R-2 적발 FRAGILE_TEMPORAL_WF_FAIL
+- dogfood 2: paradigm 88 + 90 Phase 1 prescreen halt
+- dogfood 3: **paradigm 100 R-0 prescreen halt** (paradigm 93 cache audit, 자원 0)
+
+##### NEW lesson candidate — R-0 substrate quarterly distribution audit 의무
+**Trigger**: paradigm 발의 시 prior-paradigm cache 있을 때 R-1 실행 전 substrate quarter distribution 사전 audit
+**Check**: n_measurable_quarters 측정 → lesson #26 amendment auto-FAIL precondition cross-check
+**Action**: < 4 시 SAMPLE_INSUFFICIENT_TEMPORAL_CONCENTRATION halt before R-1
+**Why CANDIDATE (1 dogfood)**: paradigm 100 R-0에서 paradigm 93 cache 직접 audit으로 R-1 자원 사전 차단. paradigm-architect r0_inventory_check skill spec amendment 제안.
+
+#### Family-distinct path 사실상 close
+
+KR equity post-earnings/guidance family 남은 path:
+- ~~mean-reversion 방향~~ (paradigm 100 차단)
+- 비-directional event (vol expansion, pair trade, sector rotation)
+- ~~외부 event delayed/indirect~~ (paradigm 100 candidate dart_treasury 4th dogfood 차단)
+- **DART year-round filing (NEW agent 권고)**: 분기보고서 4x/yr / 단일판매·공급계약 — lesson #26+27+28 amendment 3중 prescreen 통과 필수
+
+#### Agent 권고
+1. 재시도 금지 (EARNINGS_GUIDANCE_AMEND hold/direction/threshold 모두 동일 temporal defect)
+2. Day 7 baseline 우선 모드 유지 (2026-05-21 ~1.5일)
+3. 후속 family-distinct 발의 시 R-0 substrate quarterly distribution audit 의무
+4. paradigm-architect spec amendment: `r0_inventory_check`에 "substrate quarterly distribution audit" sub-step 추가
+5. 후속 family-distinct 가능 후보: (a) 분기보고서 4x/yr / (b) 단일판매·공급계약 year-round filing / (c) 비-directional volatility event
+
+#### Campaign 진행 상태 갱신 (2026-05-19 13:30 KST)
+- 누적 graveyards counter: **100** milestone (+1 정식)
+- Inventory-halt 사례: 2 (97 candidate funding_term + 100 candidate dart_treasury)
+- Substrate-halt 사례: 1 (100 candidate liquidation_cascade)
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 7 + 1 advisory caution (KR post-earnings family **mean-reversion path 차단 추가 강화**)
+- Lessons: 30 confirmed + Lesson #26 amendment 3 dogfoods + **NEW candidate "substrate quarterly distribution audit"** + #30 candidate + NARROW_SCOPE_LIFE_CHANGING_FAIL confirmed
+- [[project_paradigm_100_dart_guidance_mean_reversion_milestone]] 신설
+
+---
+
+### 6.12 2026-05-19 14:56 KST paradigm 101 정식 graveyard — DART entry-side immediate family 결정적 폐기 (4 graveyards)
+
+**Context**: agent paradigm 100 §Next-step §5 권고 path (b) **DART year-round filing** 정식화 시도. paradigm-architect ad-hoc R-1 분리 모드 dispatch (`a26dae8c84f89483b`). DART scan 54분 + R-1 1분 = ~55분 cumulative cost.
+
+#### paradigm 101 `dart_supply_contract_announce_kr_equity_long_5d`
+- 가설: 단일판매·공급계약 공시 → +1d open / +5d hold LONG (immediate market attention information event)
+- **R-0 prescreen GO_R1 통과**: 2,421 events / 350 universe / 127 stocks, 10/10 quarters year-round PASS (≥88 events/quarter, paradigm 100 Q1-clustering trap 정확 회피)
+- disclosure_parser.py 단일판매·공급계약 type entry 부재 → agent inference `Side.ENTRY_IMMEDIATE` (lesson #27 amendment dogfood 5번째)
+- 측면 발견: DART pblntf_ty=I (거래소공시) 카테고리
+
+#### R-1 정식 실행 결과 — 3중 fail mode
+
+| Cell (5d) | n | net_bp | t_obs | sigex | gate |
+|---|---|---|---|---|---|
+| A focus announce × LONG | 2,009 | +52.9 | +2.49 | **-0.75** | FAIL |
+| A mirror announce × SHORT | 2,009 | -152.9 | -7.18 | +0.82 | FAIL |
+| **B baseline non_announce × LONG** | 14,886 | **+68.4** | +8.83 | — | FAIL |
+| B baseline × SHORT | 14,886 | -168.4 | -21.75 | — | FAIL |
+
+**3중 fail mode**:
+1. **Universe-drift dominance**: A focus +52.9bp < B baseline +68.4bp (15bp/5d under-perform, signal_t_excess -0.75)
+2. **Cross-proxy inverse**: freq_high +121.9bp > freq_low +57.4bp = company-quality selection bias (information event 가설 reject)
+3. **Per-symbol concentration FAIL**: 4-15/61 ci_pos (6.6-24.6% < 30% cutoff)
+
+**Life-changing 4-dim trap**: 10d edge +2.65% / sharpe +5.48 4-dim PASS — 그러나 A focus +265bp vs B baseline +230bp = 35bp/10d edge ≪ 50bp fee margin = universe drift artifact false-positive (paradigm 95 narrow-scope life-changing FAIL 동형).
+
+#### Verdict
+**`CONCENTRATION_FAIL` (R-1 primary) + `BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT` (auxiliary)** — counter 100 → **101** (정식 등록).
+
+#### KR equity DART entry-side family retire 4 graveyards 누적 결정적 강화
+
+| # | Paradigm | Mechanism class | Verdict |
+|---|---|---|---|
+| 92 | dart_h1_earnings_gap_proxy_long_5d | directional momentum | R-2c 0/5 graveyard |
+| 93 | dart_h2_guidance_amend_directional_5d | cross-proxy directional | BROAD_FALSIFIED |
+| 100 | dart_h2_guidance_amend_mean_reversion_neg_long_20d | mean-reversion | SAMPLE_INSUFFICIENT_TEMPORAL |
+| **101** | **dart_supply_contract_announce_long_5d** | **entry-side immediate information event** | **BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT** |
+
+#### NEW 자산 3건 정식 등록
+
+**Lesson — R-0 substrate quarterly distribution audit [CONFIRMED 자격 충족 2 dogfoods]**:
+- dogfood 1: paradigm 100 cache audit halt
+- dogfood 2: paradigm 101 신규 scan GO_R1 (양방향 입증)
+
+**NEW Lesson #32 candidate — Universe-baseline-coherent A_focus trap** (1 dogfood paradigm 101):
+- Trigger: A focus three-gate t_obs PASS but signal_t_excess < 2.0 AND B baseline net ≥ A focus net
+- Action: `BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT` verdict 발급
+
+**NEW verdict `BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT` 정식 추가**:
+- A_focus signal positive but B_baseline outperforms or ≥
+- 4-dim PASS는 universe drift artifact false-positive (paradigm 95 동형)
+- cross-proxy inverse 동반 시 mechanism reject
+
+**Lesson #27 amendment dogfood 5번째 성공**: agent 자체 inference `Side.ENTRY_IMMEDIATE` 분류 (disclosure_parser.py entry 부재 케이스)
+
+#### Agent 권고
+1. DO NOT retry single sales/supply contracts (3중 fail)
+2. KR equity DART entry-side family Tier 4 retire 결정적 강화 ([[feedback_family_retire_kr_post_earnings]] amendment)
+3. **다음 우선**: agent path (c) **non-directional volatility event paradigm** — paradigm 101 events cache + OHLCV 재사용 (Phase 0 ~5min)
+4. Lesson #32 candidate Q3 §6.2 정식 등록
+5. paradigm-architect R-1 verdict tree에 `BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT` 정식 추가
+6. Day 7 baseline 우선 모드 유지
+
+#### Campaign 진행 상태 갱신 (2026-05-19 15:00 KST)
+- 누적 graveyards: **101** (+1 정식)
+- Inventory-halt 사례: 2 / Substrate-halt 사례: 1
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 7 + 1 advisory caution (KR post-earnings/guidance/contract family **4 graveyards 누적 결정적 강화**)
+- Lessons: 30 confirmed + Lesson #26 amendment 3 dogfoods + Lesson #27 amendment 5 dogfoods + Lesson #28 5 dogfoods + Lesson #31 confirmed 2 dogfoods + **NEW substrate quarterly distribution audit confirmed 2 dogfoods** + **NEW Lesson #32 candidate 1 dogfood** + Lesson #30 candidate + Lesson #8 amendment candidate
+- Verdicts: 2 confirmed + **NEW BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT 정식**
+- [[project_paradigm_101_dart_supply_contract_universe_drift]] 신설
+
+---
+
+### 6.13 2026-05-19 15:40 KST paradigm 102 정식 graveyard — non-directional vol expansion conditioning trap + NEW Lesson #33 candidate
+
+**Context**: agent paradigm 101 §Next-step §3 권고 path (c) **non-directional volatility event paradigm** 정식화. paradigm-architect ad-hoc R-1 분리 모드 dispatch (`a174676849b10ac09`). paradigm 101 cache 재사용 (ETA ~3초).
+
+#### paradigm 102 `dart_supply_contract_announce_kr_equity_vol_expansion_5d`
+- 가설: 단일판매·공급계약 공시 후 +1d ~ +5d realized vol expansion magnitude (vol_post_5d / vol_pre_30d ≥ 1.5) trigger, **direction-blind univariate magnitude**
+- Family-distinct path 정확 통과 — paradigm 101 directional 4 axes 외 magnitude axis
+- **Verdict**: `BROAD_FALSIFIED` (conditioning trap, R-1 primary) — counter 101 → **102**
+
+#### R-1 결과
+
+| Cell | n | net_bp | sig_t_ex | mean_vol_ratio | 3-gate |
+|---|---|---|---|---|---|
+| A focus announce × vr≥1.5 | 311 | +987.1 | **1.95** | 1.99 | **FAIL** (sig_t_ex<2.0) |
+| A mirror announce × vr<1.0 | 1,211 | +424.6 | 5.63 | 0.64 | PASS |
+| **B baseline non_announce × vr≥1.5** | 4,118 | **+1,073.1** | **6.52** | 2.15 | PASS |
+| B baseline × vr<1.0 | 19,058 | +400.2 | nan | 0.62 | n/a |
+
+#### Conditioning trap 결정적 발견
+
+**vol_ratio≥1.5 filter가 |fwd_ret_5d| outcome과 수학적 상관** — A focus 987bp < B baseline_expand 1,073bp = universe baseline mechanics. A mirror도 +424bp positive (universe |return| floor). threshold tweak 복구 불가.
+
+#### NEW Lesson #33 candidate (agent 권고 정식 도출)
+
+**"Magnitude-as-outcome equals conditioning trap"**:
+- **Trigger**: trigger filter (magnitude-based) × outcome metric (magnitude-based) 수학적 상관
+- **Check**: R-1 4-quadrant에 5번째 cell `B_baseline_same_filter` 추가 의무
+- **Verdict**: A_focus_sig_t_excess ≥ B_baseline_same_filter_sig_t_excess + delta(≥1.0) 충족 시 valid / 미충족 시 `BROAD_FALSIFIED_CONDITIONING_TRAP`
+- **Distinct from #32**: #32 LEVEL coherence (trigger metric) vs #33 POST-CONDITIONING payoff coherence (outcome metric)
+- paradigm 102가 #32 PASS (vol_ratio 1.99 vs 0.96 20×) + #33 FAIL (payoff 987 vs 1,073) **양면 trap 입증**
+
+#### NEW verdict `BROAD_FALSIFIED_CONDITIONING_TRAP` candidate
+
+paradigm-architect R-1 verdict tree에 추가 — magnitude-based trigger × magnitude-based outcome conditioning trap halt.
+
+#### KR equity DART entry-side family retire 5 graveyards 누적 — 4 axes exhausted
+
+| # | Paradigm | Axis | Verdict |
+|---|---|---|---|
+| 92 | dart_h1_earnings_gap_proxy_long_5d | directional momentum | R-2c 0/5 |
+| 93 | dart_h2_guidance_amend_directional_5d | cross-proxy directional | BROAD_FALSIFIED |
+| 100 | dart_h2_guidance_amend_mean_reversion_neg_long_20d | mean-reversion | SAMPLE_INSUFFICIENT_TEMPORAL |
+| 101 | dart_supply_contract_announce_long_5d | entry-side immediate directional | BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT |
+| **102** | **dart_supply_contract_announce_vol_expansion_5d** | **non-directional magnitude** | **BROAD_FALSIFIED (conditioning trap)** |
+
+→ **4 axes exhausted**: directional / mean-reversion / entry-side immediate / non-directional magnitude. **공시 announcing stock 자체에 대한 모든 axis = 영구 retire**.
+
+#### 잔존 family-distinct path (agent 권고)
+- (a) external-event non-DART (KIND / FRED / ECOS 정부 source)
+- (b) DART event + decorrelated outcome (cross-stock spillover / 섹터 rotation, announce stock 자체가 아닌 영향받는 다른 stocks)
+- (c) non-announcement event types (volume shock / 외국인 매수 비율 변화)
+
+#### Cross-proxy (Lesson #29) — inverted (paradigm 101 동형)
+- Observable |gap| top33 +1,367bp > bot33 +813bp ✓
+- Fundamental freq_6m top33 +1,114bp > bot33 +994bp ✗ inverted (frequent announcer = high-beta company-quality bias)
+
+#### Life-changing 4-dim trap (paradigm 101 동형 false-positive)
+
+| Metric | Value | 4-dim |
+|---|---|---|
+| trades/yr | 137.4 | PASS |
+| edge | +9.87% | PASS |
+| sharpe | 10.27 | PASS |
+| capital_util | 68.4% | PASS |
+
+**그러나 universe baseline conditioning inheritance** = 진정한 event alpha 아님 (paradigm 101 narrow-scope life-changing FAIL false-positive 동형 재발견).
+
+#### Agent 권고
+1. Lesson #33 정식 입안 검토 (paradigm-architect spec hook 의무)
+2. Day 7 baseline 우선 모드 유지
+3. KR equity DART entry-side family retire 정식 amendment — 5 graveyards 누적 결정적 폐기
+4. R-2 자동 진행 금지
+
+#### Campaign 진행 상태 갱신 (2026-05-19 15:45 KST)
+- 누적 graveyards: **102** (+1 정식)
+- Inventory-halt 사례: 2 / Substrate-halt 사례: 1
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 7 + 1 advisory caution (**KR DART entry-side family 5 graveyards 누적 결정적 강화 4 axes exhausted**)
+- Lessons: 30 confirmed + 3 amendment confirmed (#26 amendment 3x + #27 amendment 5x + #28 5x + #31 2x + substrate audit CONFIRMED 자격 2x) + 4 candidates (#30 + #32 LEVEL coherence 2 dogfoods + **NEW #33 POST-CONDITIONING payoff coherence 1 dogfood** + #8 amendment)
+- Verdicts: 2 confirmed (#29 cross-proxy + NARROW_SCOPE_LIFE_CHANGING_FAIL) + BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT 정식 + **NEW BROAD_FALSIFIED_CONDITIONING_TRAP candidate**
+- [[project_paradigm_102_vol_expansion_conditioning_trap]] 신설
+
+---
+
+**END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap** — 다음 candidate (Day 30 baseline 측정 + lifecycle live mode 결과 우선, 2026-05-29+ campaign 재개, **잔존 family-distinct path = external-event non-DART / DART decorrelated outcome / non-announcement event types 3개 한정**).
