@@ -1,0 +1,47 @@
+{
+  "quarter_counts": {
+    "2024Q1": {
+      "form5_clean": 1383,
+      "d_total": 5000
+    },
+    "2024Q2": {
+      "form5_clean": 2151,
+      "d_total": 5000
+    },
+    "2024Q3": {
+      "form5_clean": 2227,
+      "d_total": 5000
+    },
+    "2024Q4": {
+      "form5_clean": 2089,
+      "d_total": 5000
+    },
+    "2025Q1": {
+      "form5_clean": 1347,
+      "d_total": 5000
+    },
+    "2025Q2": {
+      "form5_clean": 2008,
+      "d_total": 5000
+    },
+    "2025Q3": {
+      "form5_clean": 1902,
+      "d_total": 5000
+    },
+    "2025Q4": {
+      "form5_clean": 2043,
+      "d_total": 5000
+    },
+    "2026Q1": {
+      "form5_clean": 1201,
+      "d_total": 5000
+    },
+    "2026Q2pt": {
+      "form5_clean": 1516,
+      "d_total": 5000
+    }
+  },
+  "total_form5": 17867,
+  "n_measurable_quarters": 10,
+  "n_quarters_total": 10
+}
