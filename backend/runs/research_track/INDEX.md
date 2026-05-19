@@ -574,6 +574,32 @@ backend/runs/research_track/
 
 ---
 
+## Paradigm 94 — cross_asset_volume_concentration_alt_long_1d (R-1 mint rerun, 2026-05-19)
+
+ad-hoc R-1 re-execution on Mint full 2.4yr joblib cache (2024-01-02 ~ 2026-05-12, 845 days)
+following Mint hostname tunnel resolution. Prior local R-1 (2026-05-18, 72-day intersection)
+verdict was BROAD_FALSIFIED_FEE_FLOOR; mirror n=4 sparse PASS was inconclusive.
+
+**Verdict**: BROAD_FALSIFIED_DIRECTION_INVERTED
+
+- Focus (share_z <= -1.5 LONG): n=845 gross +37.18bp sigex +2.64 perm_p 0.003 BUT
+  ci_lower -4.60bp (3-gate 2/3) + Concentration FAIL (4/10 quarters, 0/13 syms ci_pos).
+- Mirror (share_z >= +1.5 LONG): n=702 gross +96.97bp sigex **+6.86** perm_p 0.000
+  ci_lower **+59.77bp** (3-gate 4/4) + Concentration marginal (7/10 quarters, 3/13 syms
+  ci_pos = 0.231 < 0.30 sym threshold).
+- Fund (BTC abs vol_usd z): focus FAIL (sigex +0.41), mirror PASS (sigex +3.86). Cross-proxy
+  jaccard 0.084 = non-redundant.
+
+**Implication**: hypothesis direction inverted. BTC volume share HIGH (not LOW)
+is the alt LONG +1d signal carrier. Per Lesson #8 + paradigm 70 mirror antipattern,
+mirror direction is **not** auto-promoted — separate R-1 dispatch required for
+cross_asset_volume_share_high_alt_long_1d (proposed name).
+
+**Artifacts**: backend/runs/research_track/cross_asset_volume_concentration_alt_long_1d/r1_mint_rerun/
+{r1_spec.md, r1_metrics.json, r1_summary.md, r1_script.py}
+
+---
+
 ## Cross-reference
 
 - `.claude/plans/research_track_master.md` — 본 트랙 마스터 plan
