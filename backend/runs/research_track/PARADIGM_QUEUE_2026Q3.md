@@ -808,4 +808,62 @@ paradigm-architect R-1 verdict tree에 추가 — magnitude-based trigger × mag
 
 ---
 
-**END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap + 2026-05-20 paradigm 115/116/117 정식 graveyards (DIFFUSE_POSITIVE + axis-redundancy + R-3 OOS) + Listing event family Tier 4 retire** — 다음 candidate (Day 30 baseline 측정 2026-06-03+ 우선, family-distinct 새 axis만 발의 가능).
+### 6.15 2026-05-20 16:38 KST paradigm 118 + 119 정식 graveyard — universe-aggregate axis advisory + Lesson #45 candidate (unsupervised decomposition w/o orthogonal mechanism)
+
+**Context**: 본 turn (2026-05-20 15:38~16:46 KST) /new-paradigm 스킬 R-1 분리 모드 2회 연속 dispatch. paradigm-architect agent foreground execution, 각 52초/16분 실행. R-2 자동 진행 미실행, background 0건.
+
+#### paradigm 118 `realized_correlation_regime_universe_alt_directional_4h`
+- 가설: 14-sym Binance perp universe 91-pair avg pairwise realized correlation 30d rolling z-score 양극단 시 forward 4h directional (z>+2 panic LONG / z<-2 decorrelation SHORT)
+- Universe substitution (cache 호환): ADA/AVAX/BCH/BNB/BTC/DOGE/ETH/FIL/LINK/LTC/NEAR/SOL/WIF/XRP
+- Primary cell (z=2.0 × 4h × 30d): 4/4 quadrant 3-gate FAIL (표면적 broad-falsified)
+- **Lesson #37 full-sweep scan 적발**: 5 non-primary cells (대부분 corr_window=14d) 3-gate PASS
+- 최강 cell cw=14d × z=2.0 × hold=8h: n=852, mean +50.77bp, sigex **+5.19**, ci_lower **+29.90bp**, perm_p **0.000**, 5/5 q_pos_t, **12/12 syms mean_pos**, **0/12 syms ci_pos** (homogeneous diffuse)
+- Per-trade edge 최강 (cw=14d × 24h hold): **1.50%/trade << 2%** (life-changing FAIL)
+- **Verdict**: `DIFFUSE_POSITIVE_CONCENTRATION_FAIL_LIFE_CHANGING_FAIL` (Lesson #41 amendment 3rd dogfood)
+- R-2 universe expansion declined (homogeneous diffuse, not concentrated few-name alpha — paradigm 115 R-2 학습 적용)
+- Graveyard `runs/research_track/graveyard__realized_correlation_regime_universe_alt_directional_4h.md`
+
+#### paradigm 119 `hmm_per_symbol_latent_regime_alt_directional_4h`
+- 가설: per-symbol 3-state Gaussian HMM × 1h log-returns × rolling 90d weekly walk-forward refit → posterior>0.8 state-identity-conditional 3-way (HIGH→SHORT, LOW→LONG, NEUTRAL→no-trade) × 4h hold
+- HMM fit 100% convergence (14 syms × 1,482 fits) — 기술적 valid
+- 4/4 quadrant three-gate FAIL: A_focus HIGH×SHORT sigex −0.59 / A_mirror HIGH×LONG sigex +4.58 perm_p 0.411 (mechanical-mirror fee-drift artifact) / B_focus LOW×LONG sigex −1.58 / B_mirror LOW×SHORT sigex −0.83
+- 0/14 syms_ci_pos universal / 0/32 sweep cells PASS / Lesson #32 universe drift check confirmed signal genuinely absent (not artifact)
+- **Verdict**: `BROAD_FALSIFIED`
+- Graveyard `runs/research_track/graveyard__hmm_per_symbol_latent_regime_alt_directional_4h.md`
+- 영구 자산: hmmlearn 0.3.3 Mint venv 설치 (numpy 2.2.6 + scipy 1.17.0 + sklearn 1.8.0 호환), HMM walk-forward fit template (14 syms × weekly refit ~10s/sym)
+
+#### Lesson 누적 변화
+
+##### Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL_LIFE_CHANGING_FAIL — formal CONFIRMED amendment [3 dogfoods 누적]
+- dogfood 1: paradigm 115 R-2 universe expansion 29-alt edge 0.27%/trade
+- dogfood 2: paradigm 116 axis-redundancy 동일 cell edge 0.21%/trade
+- **dogfood 3: paradigm 118 universe-aggregate corr edge 1.50%/trade (최강 cell, 천장 fundamental)**
+- 정식 amendment CONFIRMED → R-2 universe expansion path Lesson #41 verdict tree에서 명시적 prereq (per-trade edge ≥ 2% gate FIRST + DIFFUSE_POSITIVE SECOND)
+
+##### NEW Lesson #45 candidate — Unsupervised decomposition without orthogonal mechanism = no alpha synthesis [2 dogfoods 누적]
+- Trigger: HMM / k-means / GMM / CUSUM / BOCPD / Bayesian online change-point / spectral clustering × endogenous-only feature space (price/return/vol/OI alone)
+- dogfood 1: paradigm 83 `oi_5m_latent_regime_per_symbol_alt_60m` (k-means k=4 OI multi-feature)
+- dogfood 2: **paradigm 119 `hmm_per_symbol_latent_regime_alt_directional_4h`** (HMM 3-state 1h log-returns)
+- Action: paradigm-architect r0_inventory_check skill에 endogenous-only decomposition prescreen 추가 — external orthogonal axis (funding/OI/premium/liquidation/external event/volume) 결합 시에만 dispatch 가능
+- 1 more dogfood = formal family Tier 4 retire `unsupervised_endogenous_decomposition_family`
+
+##### Universe-aggregate scalar statistic axis — 정식 advisory caution 등급 [3 dogfoods 누적]
+- paradigm 115 ATR breakout / paradigm 116 volume-confirmed ATR / paradigm 118 realized correlation
+- 동일 fail pattern: pool sigex strong + 12+ syms homogeneous mean_pos + 0 syms ci_pos + per-trade edge structural ceiling < 2%
+- 4th 누적 시 formal Tier 4 family retire `universe_aggregate_homogeneous_diffuse_family`
+
+##### NARROW_SCOPE_LIFE_CHANGING_FAIL verdict — 5 dogfoods [paradigm 95 + 99 + 104 + 115 + 118]
+
+#### Campaign 진행 상태 갱신 (2026-05-20 16:46 KST 본 §6.15 후)
+- 누적 graveyards: **119** (117 → 119, +2 신규 정식)
+- Inventory-halt 사례: 2 / Substrate-halt 사례: 1
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 8 unchanged + **2 advisory caution** (5m microstructure 4 누적 + universe-aggregate scalar 3 누적)
+- Lessons: 30 confirmed + Lesson #31 confirmed + 3 amendment confirmed (#26 / #27 / #28) + **Lesson #41 promotion confirmed-with-amendment → formal CONFIRMED amendment (3 dogfoods)** + 5 candidates (#30 + #32 + #33 + #21 sub-finding + #8 amendment) + 3 new candidates (#42 / #43 / #44) + **NEW Lesson #45 candidate (2 dogfoods)**
+- 인프라 영구 자산 추가: **hmmlearn 0.3.3 + HMM walk-forward fit template** — HMM × exogenous axis 미래 paradigm 즉시 활용 가능 (Lesson #45 우회 path)
+- Skill commits: **9f9094cd** (Lesson #41-#44 + #21 sub-finding + Listing event family Tier 4 retire) + **a2bf558d** (Lesson #41 promotion + #45 candidate codify)
+- D-Day 2026-06-03까지 13일 / Day 7 baseline 2026-05-21 도래 / paper Day 30 baseline 우선 모드 유지
+
+---
+
+**END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap + 2026-05-20 paradigm 115/116/117 정식 graveyards (DIFFUSE_POSITIVE + axis-redundancy + R-3 OOS) + Listing event family Tier 4 retire + 2026-05-20 paradigm 118/119 정식 graveyards (universe-aggregate advisory + Lesson #45 candidate unsupervised endogenous decomposition)** — 다음 candidate (Day 30 baseline 측정 2026-06-03+ 우선, HMM × exogenous axis 또는 family-distinct 새 axis만 발의 가능).
