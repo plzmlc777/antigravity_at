@@ -46,7 +46,15 @@ Skill: `.claude/agents/paradigm-architect/skills/r0_inventory_check.md`
 ### Step 1 — Lesson Prescreen Checklist
 Skill: `.claude/agents/paradigm-architect/skills/lesson_prescreen_checklist.md`
 
-**Fallback inline**: Apply 28 Q3 lessons grid before dispatching R-1. Key gates: #11 sample density, #15 non-focus 4-cond, #16 Concentration, #19 Symmetric Negative Test (joint-trigger 의무), #20 sign-cond narrow scope, #21 axis stacking, #22 stateful CP frame freq, #23 boundary cycle sparse, #24 horizon density, #26 temporal WF mandatory, #27 entry/exit-side + immediate/delayed, #28 substrate availability prescreen.
+**Fallback inline**: Apply 32 confirmed lessons + 4 confirmed-자격 candidates grid before dispatching R-1. Key gates: #11 sample density, #15 non-focus 4-cond, #16 Concentration, #19 Symmetric Negative Test (joint-trigger 의무), #20 sign-cond narrow scope, #21 axis stacking, #22 stateful CP frame freq, #23 boundary cycle sparse, #24 horizon density, #26 temporal WF mandatory, #27 entry/exit-side + immediate/delayed, #28 substrate availability prescreen, #29 cross-proxy, #30 data window ratio <30% advisory, #32 universe-baseline-coherent A_focus vs B_baseline drift (positive-drift paradigm 101 or negative-drift paradigm 110 sub-pattern), #33 magnitude-conditioning trap, #34 empirical distribution prescreen, #35 fee-trap vs pool-drift triage, **#37 (2 dogfoods CONFIRMED 자격) full hold×threshold sweep verdict scan 의무 (auto-evaluator primary-only inspection 금지)**, **#39 (2 dogfoods CONFIRMED 자격) symmetric perfect mirror antipattern sub-class A broad-uniform-negative / sub-class B mechanism-inverted**, **#40 (2 dogfoods CONFIRMED 자격) structural threshold feasibility prescreen — non-negative aggregate statistics (std/var/count/magnitude/ATR/|return|/drawdown/RV) symmetric z≤−T 구조적 불가, percentile rank/log/ratio reformulate 필요**.
+
+**R-0 prescreen sequential order (Lesson #40 paradigm 109+110 dogfood)**:
+1. **Lesson #40 structural threshold feasibility** (FIRST): If trigger uses z-score on non-negative aggregate statistic, verify z.min() achievable. If z.min() > T (target threshold), HALT_BY_STRUCTURE → reformulate (percentile rank / log-transform / ratio compression / absolute threshold).
+2. **Lesson #28 substrate availability**: time-dim + existence-dim audit.
+3. **Lesson #11 + #23 sample density + empirical trigger rate**: expected_n_per_cell ≥ 30 + trigger rate ≥ 1.5%.
+4. **Lesson #34 empirical distribution prescreen**: |signal| p50/p90/p99/max measurement to validate threshold assumptions.
+5. **Lesson #27 entry/exit-side + immediate/delayed sub-classification**.
+6. **Lesson #32 universe-baseline-coherent**: A_focus vs B_baseline_same_filter drift artifact check.
 
 ### Step 3 — R-1 PoC (Three-Gate + Concentration + Symmetric Negative)
 Skill: `.claude/agents/paradigm-architect/skills/r1_protocol.md`
@@ -171,6 +179,10 @@ If any check fails: fix code before promoting. Document fix in commit.
 | R-2 walk-forward n_folds_pass < 3/5 (Lesson #26) | `FRAGILE_TEMPORAL_WF_FAIL` graveyard |
 | Entry-side delayed/indirect mechanism (Lesson #27 amendment) | R-0 halt — reclassify or scope-restrict to immediate-demand subset |
 | Substrate unavailable at event time (Lesson #28) | `DISPATCH_IMPOSSIBLE` R-0 halt |
+| Non-negative aggregate statistic + symmetric z≤−T trigger (Lesson #40 paradigm 109+110 CONFIRMED 자격) | `SAMPLE_INSUFFICIENT_STRUCTURAL_THRESHOLD_INFEASIBLE` R-0 halt — measure z.min() empirical, if > T reformulate (percentile rank / log-transform / ratio compression / absolute threshold) |
+| 4-quadrant A_focus + A_mirror exact-symmetric (±k bp), both broad-uniform-negative (Lesson #39 sub-class A paradigm 108) | `BROAD_FALSIFIED_NO_AXIS_SYNTHESIS` — trigger has zero directional info, joint signal is pure direction-bet + fee drag |
+| 4-quadrant A_focus + A_mirror exact-symmetric (±k bp), mirror shows real concentration (q_pos ≥ 30% or syms_ci_pos ≥ 30%) (Lesson #39 sub-class B paradigm 110) | `BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED` — mechanism direction is mirror (real but fee-bound), original direction inverted. Document A_mirror real direction in graveyard for future Lesson #41-candidate reference |
+| Sweep cell PASS off-primary (Lesson #37 CONFIRMED 자격 paradigm 107+108) | full hold×threshold sweep verdict scan 의무 — auto-evaluator must scan all cells for 3-gate PASS, not only primary. Document non-primary PASS cells even if NARROW_SCOPE_LIFE_CHANGING_FAIL ineligible |
 | Gate evaluator parse error | inspect metrics.json schema, regenerate script |
 | Dogfood mismatch | STOP and re-validate gate config — do not promote until reconciled |
 
