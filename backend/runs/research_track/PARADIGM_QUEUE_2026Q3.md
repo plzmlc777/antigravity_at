@@ -740,3 +740,69 @@ paradigm-architect R-1 verdict tree에 추가 — magnitude-based trigger × mag
 ---
 
 **END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap** — 다음 candidate (Day 30 baseline 측정 + lifecycle live mode 결과 우선, 2026-05-29+ campaign 재개, **잔존 family-distinct path = external-event non-DART / DART decorrelated outcome / non-announcement event types 3개 한정**).
+
+### 6.14 2026-05-20 11:11 KST continuous-parallel session 3 — paradigm 108/109/110 + 3 lesson candidates + 2 candidate→confirmed-자격 promotion
+
+**Session summary**:
+- /new-paradigm-frontier dispatch 3회 (paradigm 108/109/110)
+- 통산 8th continuous-parallel dispatch
+- 모두 graveyard (BROAD_FALSIFIED_FEE_FLOOR / SAMPLE_INSUFFICIENT_STRUCTURAL / BROAD_FALSIFIED_FEE_FLOOR mechanism-inverted)
+- Lesson production rate 매우 높음: 3 new candidates + 2 candidate→confirmed-자격 promotions + 1 Lesson #32 새 sub-pattern + 1 verdict 분류 정밀화
+
+**Lesson #39 candidate → CONFIRMED 자격 (2 dogfoods)**: Symmetric perfect mirror antipattern (2 sub-class refinement)
+- Sub-class A (paradigm 108 intra_symbol_spot_perp_lead_lag_alt_5m): A_focus +2.08bp / A_mirror exact −2.08bp = perfect symmetry + 양쪽 broad-uniform-negative + 0/14 syms ci_pos = zero directional info, pure direction-bet trap
+- Sub-class B (paradigm 110 alt_cohort_dispersion_compression_percentile_rank_directional_4h): A_focus −12.94bp / A_mirror exact +12.94bp = perfect symmetry + mirror shows real concentration (9/10 quarters pos_t + 4/13 syms ci_pos) = mechanism direction inverted, A_mirror is the correct direction but fee-bound
+- Verdict tree branches (paradigm-architect spec):
+  - sub-class A → `BROAD_FALSIFIED_NO_AXIS_SYNTHESIS`
+  - sub-class B → `BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED` (document A_mirror real direction in graveyard for future reference)
+
+**Lesson #40 candidate → CONFIRMED 자격 (2 dogfoods)**: `non_negative_aggregate_zscore_one_sided_floor`
+- paradigm 109 (alt_cohort_dispersion_compression z<−2): structural threshold infeasibility — σ_cs 비음수 → z.min()=−1.92, z≤−2 0 events. R-1 미실행.
+- paradigm 110 (rescue R1 percentile rank ≤0.10): structural fix SUCCESS (11.51% trigger rate), but mechanism direction inverted (13/13 alts ci_neg, t=−6.40, perm_p 0.000).
+- **Critical insight**: Structural threshold feasibility ≠ mechanism viability. 두 차원 R-0 sequential prescreen 의무.
+- paradigm-architect spec R-0 prescreen sequential order:
+  1. **Lesson #40 (FIRST)**: 비음수 aggregate statistic 트리거 시 z.min() 측정, > T 면 HALT_BY_STRUCTURE
+  2. Lesson #28 substrate availability
+  3. Lesson #11 + #23 sample density + empirical trigger rate
+  4. Lesson #34 empirical distribution
+  5. Lesson #27 entry/exit-side classification
+  6. Lesson #32 universe-baseline-coherent
+- Reformulation options: percentile rank / log-transform / ratio compression / absolute threshold
+
+**Lesson #37 candidate → CONFIRMED 자격 (2 dogfoods, 사전 이미 등록)**: Full hold×threshold sweep verdict scan 의무
+- paradigm 107 off-primary cell discovery
+- paradigm 108 0/45 sweep PASS 검증 dogfood
+- Auto-evaluator primary-only inspection 금지
+
+**Lesson #38 candidate (1st dogfood paradigm 108)**: Same-venue arbitrage tightness antipattern
+- Rule: Intra-exchange (same exchange) spot↔perp lead-lag paradigms are structurally fee-floor bound at 5m frame (mean|corr@τ=0| > 0.98 confirmed on Binance BTC 6m)
+- Why: Same-exchange market makers eliminate basis differences within sub-second windows
+- 1m frame variants a fortiori tighter (auto-block)
+- Cross-VENUE lead-lag feasible ONLY across exchanges or different time scales (HFT sub-second)
+- 2nd dogfood 필요: 별도 intra-exchange cross-venue paradigm 검증
+
+**NEW Lesson #41 candidate (1st dogfood paradigm 110)**: Compression-regime-conditional-BTC-direction-inverts
+- Rule: When cohort dispersion compresses (low cross-section std), cohort does NOT follow BTC direction in next 4h — instead reverses (BTC up → cohort SHORT, BTC down → cohort weak LONG/null)
+- Why hypothesis: Compression regime indicates macro-driven "all-aligned" state where individual symbols have already moved with macro; subsequent 4h is mean-reversion or alt-vs-BTC rotation
+- Evidence: A_focus (compression + BTC up → cohort LONG) gross −12.94bp t=−6.40 13/13 ci_neg perm_p 0.000 / A_mirror (cohort SHORT) gross +12.94bp 9/10 quarters pos_t + 4/13 syms ci_pos real but fee-bound
+- 2nd dogfood 필요: 독립 compression-direction-conditional paradigm 검증
+
+**Lesson #32 negative-drift artifact 새 sub-pattern (paradigm 110)**:
+- positive-drift artifact (paradigm 101): A_focus +52.9bp < B baseline +68.4bp = A worse on positive drift
+- negative-drift artifact (paradigm 110): A_focus −20.94bp < B baseline −16.42bp = A worse on negative drift (further down)
+- 양 sub-pattern 모두 paradigm-architect spec Lesson #32 prescreen에 포함 의무
+
+**Campaign 진행 상태 갱신 (2026-05-20 11:11 KST 본 §6.14 후)**:
+- 누적 graveyards: **110** (+3 since 102 milestone: paradigm 108/109/110)
+- Continuous-parallel session 3: 3 dispatches × 0 R-5 PASS
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 8 + 1 advisory + 1 deferred (no new this session)
+- Lessons: 32 confirmed + amendments + **4 candidate-confirmed-자격 (#36 PARTIAL / #37 / #39 / #40)** + 5 candidates (#30 / #8 / #33 candidate / **#38 / #41**)
+- Verdicts: 3 confirmed + BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT + BROAD_FALSIFIED_CONDITIONING_TRAP candidate + **BROAD_FALSIFIED_NO_AXIS_SYNTHESIS (Lesson #21 dogfood, paradigm 108)** + **BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED candidate (paradigm 110)**
+
+#### Agent 권고
+1. Lesson #39 + #40 + #37 정식 confirmed promotion (3 dogfood 자격 충족) → paradigm-architect spec R-0 prescreen + verdict tree 통합 (2026-05-20 본 session 완료)
+2. Lesson #38 + #41 candidate 상태 유지, 2nd dogfood 자연 누적 대기
+3. paradigm-architect spec R-0 prescreen sequential order Lesson #40 first-step 통합 (paradigm 109 type structural halt 사전 차단)
+4. Dispersion compression family (109+110) Tier 4 retire 보류 (mechanism real but fee-bound, 별도 cross-section axis 시도 가치 있음)
+5. Lesson #41 candidate test: paradigm 111 compression + BTC up → cohort SHORT 발의는 fee floor 16bp 통과 사전 어려움 (gross 12.94 < 16), 직접 dispatch보다는 자연 누적 대기 권고
