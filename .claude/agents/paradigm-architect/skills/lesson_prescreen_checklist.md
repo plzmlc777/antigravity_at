@@ -4,7 +4,7 @@
 > Purpose: Pre-flight grid covering all cumulative Q3 lessons — block paradigm dispatch when applicable
 > Tools: Read
 
-> Last sync: 2026-05-20 KST 15:38 (lessons #1-#33 + Lesson #21 sub-finding "axis-redundancy via primary-condition saturation" candidate paradigm 116 dogfood + **Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL confirmed-with-amendment 2 dogfoods (paradigm 115 + 116)** + **Lesson #42 PUMP-mirror absence / mechanism CLASS asymmetry candidate 1 dogfood (paradigm 117)** + **Lesson #43 R-3 OOS holdout mandatory candidate 1 dogfood (paradigm 117)** + **Lesson #44 survivorship cohort probe candidate 1 dogfood (paradigm 117)** + NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 4 dogfoods (95+99+104+115)). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.8 + §6.9 + §6.10 + §6.11 + §6.12 + §6.13 + paradigm 115/116/117 graveyards if newer lessons exist.
+> Last sync: 2026-05-20 KST 16:40 (lessons #1-#33 + Lesson #21 sub-finding "axis-redundancy via primary-condition saturation" candidate paradigm 116 dogfood + **Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL_LIFE_CHANGING_FAIL formal CONFIRMED amendment 3 dogfoods (paradigm 115 + 116 + 118)** + **Lesson #42 PUMP-mirror absence / mechanism CLASS asymmetry candidate 1 dogfood (paradigm 117)** + **Lesson #43 R-3 OOS holdout mandatory candidate 1 dogfood (paradigm 117)** + **Lesson #44 survivorship cohort probe candidate 1 dogfood (paradigm 117)** + **NEW Lesson #45 unsupervised decomposition w/o orthogonal mechanism candidate 2 dogfoods (paradigm 83 + 119)** + NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 5 dogfoods (95+99+104+115+118) + Universe-aggregate scalar statistic axis advisory caution (3 dogfoods 115/116/118)). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.8 + §6.9 + §6.10 + §6.11 + §6.12 + §6.13 + §6.14 + paradigm 115-119 graveyards if newer lessons exist.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
 
@@ -203,7 +203,7 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 
 **Implementation**: paradigm-architect agent `r0_inventory_check` skill + `lesson_prescreen_checklist.md` 양 영역 hook 의무. trigger metric × outcome metric mechanical correlation prescreen rule.
 
-### Lesson #41 — DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict branch [confirmed-with-amendment 2026-05-20, 2 dogfoods paradigm 115 + 116]
+### Lesson #41 — DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict branch [CONFIRMED amendment 2026-05-20, 3 dogfoods paradigm 115 + 116 + 118]
 **Trigger**: R-1 produces pool-level signal_t_excess ≥ +4σ AND ci_lower > 0 (strong pool evidence) but Concentration Gate fails on per-symbol leg (syms_ci_pos 0–2/13, syms_pos_mean 50–70% positive but individually non-significant) AND per-sym n < 100.
 **Check**: small-cohort universe (≤13 sym) per-symbol bootstrap CI tightness scales with per-sym n. Pool-level alpha may be real but diffused across symbols too thinly to satisfy Concentration leg.
 **Action**:
@@ -213,6 +213,9 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 **Why confirmed-with-amendment (2 paradigm-level dogfoods)**:
 1. paradigm 115 `alt_atr_normalized_range_breakout_continuation_long_2h` — k=1.5 4h hold pool sigex +4.28 / ci_lower +5.58bp / 0/13 syms_ci_pos / 9/13 syms_pos_mean. R-2 universe expansion (16 added alts) recovered 3/29 syms_ci_pos + amplified pool sigex +63%, but per-trade edge 0.27% < 2% → R2_FAIL_LIFE_CHANGING.
 2. paradigm 116 `alt_volume_confirmed_atr_breakout_continuation_long_2h` — k=1.5 vol_p60 4h cell mechanically identical (100% event retention via volume p80 overlay) → ci_lower +5.58bp identical to paradigm 115, syms_ci_pos 0/13 reproduced. Same DIFFUSE_POSITIVE mode at smaller n confirmed prediction.
+3. paradigm 118 `realized_correlation_regime_universe_alt_directional_4h` (2026-05-20) — universe-aggregate 14-sym pairwise avg correlation z-score 14d×8h hold A_focus panic LONG: pool sigex +5.19 / ci_lower +29.90bp / perm_p 0.000 / 5/5 q_pos_t / **12/12 syms mean_pos** / **0/12 syms ci_pos** / per-trade edge structural ceiling 1.50%/trade (cw=14d × 24h hold best) << 2% → `narrow_scope_life_changing_fail` graveyard. Pool-evidence-strong + homogeneous diffuse + per-sym n=71 small-cohort → 3rd dogfood confirms amendment as **formal CONFIRMED** verdict branch.
+
+**Meta-finding (3-dogfood pattern)**: universe-aggregate or universe-homogeneous statistic axes consistently produce real-but-sub-2% per-trade edge alpha. R-2 universe expansion can validate diffuse alpha but cannot break the per-trade structural ceiling (paradigm 115 R-2 dogfood). **권고**: universe-aggregate scalar statistic family (avg pairwise correlation / total volume share / cross-sectional dispersion of homogeneous returns / aggregate variance) advisory caution 등급 — 다음 dogfood (paradigm 4th) 누적 시 formal Tier 4 family retire.
 
 **Implementation**: paradigm-architect R-1 verdict tree新規 분기 `DIFFUSE_POSITIVE_CONCENTRATION_FAIL` 정식 추가. Pool-evidence-strong + concentration-fail + per-sym n<100 + per_trade_edge ≥ 2% candidate 시 R-2 universe expansion 자동 권고. per_trade_edge < 2% 동반 시 graveyard `confirmed_but_narrow_scope_life_changing_fail`.
 
@@ -245,6 +248,29 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 **Why candidate (1 dogfood)**: paradigm 117 — tier-1 28-alt universe R-2 PASS edge +1.93%/trade. Extended-tier probe: BAKEUSDT (n=30) **-7.93%/trade**, CTSIUSDT (n=20) -0.91%, FTMUSDT (n=11) +0.14% — weak-tier alts show **continuation** (NOT reversion) after −15% drawdowns. Pooled extended n=63 edge **-3.86%/trade**. Conservative R-5 edge (50% surviving + 50% extended) = **-0.59%/trade << 2%** → fail.
 
 **Implementation**: paradigm-architect R-3 caveat suite에 `survivorship_cohort_tier_probe` 추가. tier-1 universe 가설 발의 시 R-3 단계에서 quality-tier-lower (paradigm 117 BAKEUSDT/CTSIUSDT/FTMUSDT class) extended probe 의무 + conservative R-5 edge 계산.
+
+### Lesson #45 — Unsupervised decomposition without orthogonal mechanism = no alpha synthesis [CANDIDATE 2026-05-20, 2 dogfoods paradigm 83 + 119, 1 more = Tier 4 retire]
+**Trigger**: R-1 paradigm proposes unsupervised regime/state decomposition (HMM / k-means / GMM / CUSUM / BOCPD / Bayesian online change-point / spectral clustering) applied to **endogenous-only feature space** (price returns / vol / OI alone — no orthogonal mechanism axis combined).
+**Check**: decomposition statistic 자체는 mechanism class novel하지만 endogenous feature space만 사용 시 alpha synthesis 불가. 이전 dogfood 2회 모두 BROAD_FALSIFIED (paradigm 83 + 119).
+**Action**:
+- decomposition + endogenous-only feature → halt at R-0 with `UNSUPERVISED_DECOMPOSITION_INSUFFICIENT` halt
+- 통과 자격: orthogonal mechanism axis (funding / OI / premium / liquidation / external event / volume) 결합 시 발의 가능
+
+**Why CANDIDATE (2 dogfoods)**:
+1. paradigm 83 `oi_5m_latent_regime_per_symbol_alt_60m` — 13 alts × 5m OI multi-feature × per-sym k-means k=4 latent regime. 3/5 NOVEL ex ante (statistic / universe / mechanism). 4/4 cluster BROAD_FALSIFIED_FEE_FLOOR, all clusters CI fully negative, max |gross| 5.23bp << 16bp fee floor. Axis stacking does not synthesize alpha (Lesson #21 base).
+2. **paradigm 119 `hmm_per_symbol_latent_regime_alt_directional_4h`** (2026-05-20) — 14 alts × 1h log-returns × per-sym 3-state Gaussian HMM × 90d rolling refit. HMM fit 100% convergence (technically valid). 4/4 quadrant three-gate FAIL (A_focus HIGH×SHORT sigex -0.59 / B_focus LOW×LONG sigex -1.58 / A_mirror HIGH×LONG sigex +4.58 but perm_p 0.411 mechanical-mirror fee-drift artifact). 0/14 syms_ci_pos universal. 0/32 sweep cells PASS. Lesson #32 universe drift check confirmed signal genuinely absent (not artifact).
+
+**Distinct from Lesson #21**:
+- Lesson #21: axis stacking (multiple features combined) does not synthesize alpha (max |gross| < fee floor in stack)
+- Lesson #45: unsupervised decomposition (regime/state inference, latent variable) on endogenous-only features insufficient even when decomposition technically valid (HMM convergence, balanced state distribution)
+- Lesson #21 dogfoods focused on feature axis stacking; Lesson #45 covers latent variable extraction without external orthogonal signal
+
+**Implementation**: paradigm-architect r0_inventory_check skill에 "unsupervised decomposition orthogonal mechanism prescreen" 추가 — endogenous-only price/return/vol/OI feature space의 latent-state extraction paradigm 발의 시 자동 halt. external orthogonal axis (funding / OI velocity at major event / premium-index decoupling / cross-asset signal / on-chain event / lifecycle stage) 결합 시에만 dispatch 가능.
+
+**Permanent infrastructure asset (paradigm 119 graveyard inherited)**:
+- `hmmlearn 0.3.3` Mint venv 설치 완료 (numpy 2.2.6 + scipy 1.17.0 + sklearn 1.8.0 호환 검증)
+- HMM walk-forward fit template (14 syms × ~10s × weekly refit) reusable for **HMM × exogenous axis** future paradigm
+- per-sym state-label + posterior-max 시계열 구축 방법론 — regime conditioning을 orthogonal axis로 활용 가능 (예: HMM state × funding event / HMM state × listing announcement)
 
 ### NEW verdict — BROAD_FALSIFIED_CONDITIONING_TRAP candidate (Lesson #33 dogfood)
 
@@ -288,7 +314,7 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 - ratio < 0.30: verdict **advisory only**, full-window 재실행 의무, 본 R-1 verdict 신뢰 금지
 **Action**: ratio < 0.30 시 paradigm-architect r0 단계에서 caution flag + full-window 재실행 prerequisite dispatch 의무. paradigm 94 dogfood: local 72d (8.5% slice) → BROAD_FALSIFIED_FEE_FLOOR / Mint 845d (full) → BROAD_FALSIFIED_DIRECTION_INVERTED 진단 격차. ([[feedback_lesson_30_short_data_verdict]] 참조)
 
-### Verdict — NARROW_SCOPE_LIFE_CHANGING_FAIL [CONFIRMED 2026-05-19, 4 dogfoods 2026-05-20]
+### Verdict — NARROW_SCOPE_LIFE_CHANGING_FAIL [CONFIRMED 2026-05-19, 5 dogfoods 2026-05-20]
 **Trigger**: R-1 결과 Lesson #20 narrow-scope 4-cond (a 4-gate / b held-out / c Bonferroni / d hold sweep) ALL PASS 자격 충족, 또는 mirror-only PASS 시 (lesson #8 antipattern).
 **Check**: life-changing 4-dim gate 측정 의무 — trades/yr ≥ 12 / per_trade_edge_net ≥ 2.0% / capital_util ≥ 30% / annualized_sharpe ≥ 1.5
 **Action**:
@@ -301,6 +327,7 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 2. dogfood 2 — paradigm 99 `funding_cycle_8h_differential_velocity_per_sym` B mirror cell 3-gate PASS (sigex +3.19 / ci +5.88) but per-trade edge **0.24% (8x deficit)**, 3/4 dim PASS only (trades/yr 548.7 / util 0.50 / sharpe 1.68 PASS, edge FAIL). Concentration 0/13 ci_pos (mirror-only PASS preempts narrow-scope promotion). lesson #8 mirror antipattern + 4-dim FAIL 결합 verdict.
 3. dogfood 3 — paradigm 104 `cross_exchange_oi_differential` extended hold 480m/1440m edge 0.26-0.77% per-trade range. Hourly-scale crypto continuation paradigm class 일관 sub-1%/trade ceiling 입증.
 4. dogfood 4 — paradigm 115 `alt_atr_normalized_range_breakout_continuation_long_2h` R-2 universe expansion (29 alts) 후 pool sigex +6.96 / ci_lower +14.84bp / WF 3/5 PASS / 2/3 deep ci_95_pos but per-trade edge 0.27% << 2% → mechanism CONFIRMED real but operationally moot. Lesson #41 DIFFUSE_POSITIVE 우주 확장 path도 life-changing hard-block 우선 적용 입증.
+5. dogfood 5 — paradigm 118 `realized_correlation_regime_universe_alt_directional_4h` (2026-05-20) universe-aggregate 14-sym pairwise avg correlation z-score panic LONG. Best cell cw=14d × 24h hold per-trade edge 1.50%/trade close to but < 2%. R-2 universe expansion declined (homogeneous diffuse, not concentrated few-name alpha — paradigm 115 expansion learning 적용). NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 5th 누적 dogfood, universe-aggregate statistic class 결정적 한계 입증.
 
 **Implementation**: paradigm-architect R-1 verdict tree에 life-changing 4-dim layer를 Lesson #20 narrow-scope 자격 부여 **직전** 분기로 통합 의무. mirror-only PASS 케이스도 동일 측정 의무 (B mirror cell 4-dim 통과 시 narrow-scope-mirror candidate 자격 부여). ([[feedback_narrow_scope_life_changing_fail_verdict]] + [[project_paradigm_97_98_99_funding_family_completion]] 참조)
 
