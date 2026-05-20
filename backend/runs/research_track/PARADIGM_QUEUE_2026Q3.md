@@ -739,4 +739,73 @@ paradigm-architect R-1 verdict tree에 추가 — magnitude-based trigger × mag
 
 ---
 
-**END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap** — 다음 candidate (Day 30 baseline 측정 + lifecycle live mode 결과 우선, 2026-05-29+ campaign 재개, **잔존 family-distinct path = external-event non-DART / DART decorrelated outcome / non-announcement event types 3개 한정**).
+### 6.14 2026-05-20 15:38 KST paradigm 115/116/117 정식 graveyard — DIFFUSE_POSITIVE + axis-redundancy + mechanism CLASS asymmetry + listing family blocklist
+
+**Context**: 2026-05-20 paradigm-architect skill 정식 업데이트 (D-Day 2026-06-03 14일 전). paradigm 115/116/117 graveyards 통합 lesson 정리 + r0_inventory_check Listing family Tier 4 retire 블록리스트 등재.
+
+#### paradigm 115 `alt_atr_normalized_range_breakout_continuation_long_2h`
+- ATR k=1.5 × 24h trailing-high breakout 4h hold LONG continuation
+- R-1 pool sigex +4.28 ci_lower +5.58bp 13-alt 0/13 syms_ci_pos / 9/13 syms_pos_mean → `DIFFUSE_POSITIVE` (R-1 candidate)
+- R-2 universe expansion 29-alt → pool sigex +6.96 / ci_lower +14.84bp / WF 3/5 PASS / 2/3 deep ci_95_pos / syms_ci_pos 3/29 (DOT/SEI/ARB) / mechanism CONFIRMED real
+- **Verdict**: `confirmed_but_narrow_scope_life_changing_fail` (per-trade edge 0.27% << 2% structural floor)
+- Graveyard `runs/research_track/graveyard__alt_atr_normalized_range_breakout_continuation_long_2h.md`
+
+#### paradigm 116 `alt_volume_confirmed_atr_breakout_continuation_long_2h`
+- paradigm 115 mechanism + volume p80 secondary overlay (orthogonal axis 시도)
+- k=1.5 vol_p60 cell volume p80 retention 100% (mechanically identical to paradigm 115) → ci_lower +5.58bp 동일 / 0/13 syms_ci_pos 동일 / 4-dim 2/4 동일
+- **Verdict**: `AXIS_REDUNDANT_NO_SYNTHESIS` (paradigm 115 Lesson #41 2nd dogfood + Lesson #21 sub-finding 1st dogfood)
+- Graveyard `runs/research_track/graveyard__alt_volume_confirmed_atr_breakout_continuation_long_2h.md`
+
+#### paradigm 117 `alt_extreme_24h_drawdown_24h_reversion_long`
+- Alt 24h cumulative log return ≤ −15% capitulation 24h LONG mean-reversion
+- R-1 PASS_R1_FULL (n=406 sigex +8.71 lc4 4/4) → R-2 PASS (5 gates all GREEN, TS-CV 4/5) → **R-3 FAIL_OOS**
+- R-3 caveats: holdout OOS edge ratio 0.65 (35% decay), survivorship cohort probe BAKEUSDT/CTSIUSDT 음방향 −3.86%/trade pooled extended, B_same_sign (PUMP × SHORT) sigex +0.28 = mechanism class asymmetric (capitulation only, NOT euphoria)
+- **Verdict**: `R3_FAIL_OOS` (multi-axis: holdout decay + survivorship cohort + mechanism class asymmetry)
+- Graveyard `runs/research_track/graveyard__alt_extreme_24h_drawdown_24h_reversion_long.md`
+
+#### NEW lessons promoted (4)
+
+##### Lesson #21 sub-finding — Axis-redundancy via primary-condition saturation [CANDIDATE 2026-05-20, 1 dogfood paradigm 116]
+- Trigger: secondary axis overlay 가설
+- Check: empirical `P(secondary | primary) ≥ 95%` → redundant
+- Action: halt at R-0, relax primary OR seek truly orthogonal axis (funding rate sign / BTC dominance / hour-of-day class)
+
+##### Lesson #41 — DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict branch [confirmed-with-amendment 2026-05-20, 2 dogfoods paradigm 115 + 116]
+- Trigger: pool sigex ≥ +4σ / ci_lower > 0 / syms_ci_pos 0–2/13 / per-sym n < 100
+- Action: promote to R-2 universe expansion (25+ sym), NOT auto-graveyard
+- Amendment: per-trade edge < 2% 동반 시 graveyard `confirmed_but_narrow_scope_life_changing_fail` — pool-level mechanism real but operationally moot
+
+##### Lesson #42 — Mechanism CLASS asymmetry undetectable in R-1/R-2 single-axis measurement (PUMP-mirror absence) [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+- Trigger: "extreme magnitude → mean-revert" class 가설
+- Check: R-3 단계에서 orthogonal trigger (opposite tail × opposite direction) 측정 의무
+- Action: B_same_sign_orthogonal sigex < +1.0 시 mechanism narrative 재구성 + paradigm scope 좁힘 (paradigm 117: capitulation only, NOT symmetric magnitude)
+
+##### Lesson #43 — R-2 broad-shoulders + monotone + TS-CV all-pass does NOT predict R-3 OOS PASS [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+- Trigger: R-2 5-gate all GREEN graduation
+- Action: R-3 holdout OOS edge_ratio ≥ 0.70 cutoff + OOS-only life-changing 4-dim 의무 재평가
+
+##### Lesson #44 — Survivorship cohort probe via quality-tier-lower still-listed weakness [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+- Trigger: tier-1 liquid-major hand-picked universe 가설 (e.g. 28-alt)
+- Action: R-3 단계에서 quality-tier-lower extended probe 의무 + conservative R-5 edge = (50% surviving + 50% extended) 계산 → < 2% 시 graveyard
+
+##### NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 4-dogfood 강화
+- dogfoods: paradigm 95 + 99 + 104 + 115 (paradigm 115 R-2 expansion 후 mechanism real but per-trade edge structural ceiling)
+
+#### Listing event family Tier 4 retire 정식 등재 (R-0 inventory check 블록리스트)
+- paradigm 87 + 88 + 89 + 90 + 100 candidate liquidation cascade (4 graveyards + 1 substrate-blocked)
+- **Exception**: lifecycle_pump_decay (R-4 seeded, lifecycle Day-30 baseline 2026-06-03+)
+- `.claude/agents/paradigm-architect/skills/r0_inventory_check.md` §Family retire blocklist 등재 완료
+- 향후 listing/delisting/token-unlock/mint/liquidation 변형 dispatch 시 자동 HALT_BEFORE_R1
+
+#### Campaign 진행 상태 갱신 (2026-05-20 15:38 KST 본 §6.14 후)
+- 누적 graveyards: **117** (115 + 116 + 117 +3 신규)
+- Inventory-halt 사례: 2 / Substrate-halt 사례: 1
+- R-5 시드: 8 unchanged
+- Family retire (formal Tier 4): 8 + 1 advisory caution (**Listing event family 정식 추가 4 graveyards + 1 substrate-blocked, lifecycle 단일 예외**)
+- Lessons: 30 confirmed + #31 confirmed + 3 amendment confirmed (#26 / #27 / #28) + **NEW Lesson #41 confirmed-with-amendment** + 5 candidates (#30 + #32 + #33 + #21 sub-finding + #8 amendment) + **3 new candidates (#42 / #43 / #44)**
+- Verdicts: 2 confirmed + BROAD_FALSIFIED_UNIVERSE_DRIFT_ARTIFACT 정식 + BROAD_FALSIFIED_CONDITIONING_TRAP candidate + **DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict 정식 (Lesson #41 confirmed-with-amendment)**
+- D-Day 2026-06-03까지 14일 / Day 7 baseline 우선 모드 (lifecycle Mint cron 자동 작동 중)
+
+---
+
+**END Mid-Q3 Update + Track 3 Final + 2026-05-19 paradigm 97 inventory halt + 2026-05-19 batch paradigm 97/98/99 graveyards + 2026-05-19 paradigm 100 candidates 2x halt + 메타 회고 + 2026-05-19 paradigm 100 정식 graveyard milestone + 2026-05-19 paradigm 101 정식 graveyard universe drift artifact + 2026-05-19 paradigm 102 정식 graveyard conditioning trap + 2026-05-20 paradigm 115/116/117 정식 graveyards (DIFFUSE_POSITIVE + axis-redundancy + R-3 OOS) + Listing event family Tier 4 retire** — 다음 candidate (Day 30 baseline 측정 2026-06-03+ 우선, family-distinct 새 axis만 발의 가능).

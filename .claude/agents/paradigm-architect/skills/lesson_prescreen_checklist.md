@@ -1,10 +1,10 @@
 # Skill: Q3 Lesson Prescreen Checklist
 
 > Parent agent: `paradigm-architect`
-> Purpose: Pre-flight grid covering all 29 Q3 cumulative lessons — block paradigm dispatch when applicable
+> Purpose: Pre-flight grid covering all cumulative Q3 lessons — block paradigm dispatch when applicable
 > Tools: Read
 
-> Last sync: 2026-05-19 KST 15:45 (lessons #1-#33 + Lesson #26 amendment 3 dogfoods + Lesson "R-0 substrate quarterly distribution audit" CONFIRMED 자격 + **Lesson #32 candidate 2 dogfoods (paradigm 101 LEVEL coherence PASS + paradigm 102 LEVEL coherence PASS but POST-CONDITIONING FAIL)** + **NEW Lesson #33 candidate "Magnitude-as-outcome equals conditioning trap"** 1 dogfood + Lesson #27 amendment 5 dogfoods + Lesson #28 5 dogfoods + paradigm 102 정식 graveyard counter 102). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.8 + §6.9 + §6.10 + §6.11 + §6.12 + §6.13 if newer lessons exist.
+> Last sync: 2026-05-20 KST 15:38 (lessons #1-#33 + Lesson #21 sub-finding "axis-redundancy via primary-condition saturation" candidate paradigm 116 dogfood + **Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL confirmed-with-amendment 2 dogfoods (paradigm 115 + 116)** + **Lesson #42 PUMP-mirror absence / mechanism CLASS asymmetry candidate 1 dogfood (paradigm 117)** + **Lesson #43 R-3 OOS holdout mandatory candidate 1 dogfood (paradigm 117)** + **Lesson #44 survivorship cohort probe candidate 1 dogfood (paradigm 117)** + NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 4 dogfoods (95+99+104+115)). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.8 + §6.9 + §6.10 + §6.11 + §6.12 + §6.13 + paradigm 115/116/117 graveyards if newer lessons exist.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
 
@@ -39,6 +39,12 @@ For each lesson below, check applicability **before** generating R-1 code. If ap
 **Trigger**: R-1 paradigm proposes combining 2+ feature axes (multi-feature k-means or composite z).
 **Check**: per-cluster obs_t fully negative + max |gross| < fee floor (16bp)
 **Action**: stacking alone insufficient. Need mechanism-grade signal, not statistical combine. (Paradigm 83 precedent)
+
+#### #21 sub-finding — Axis-redundancy via primary-condition saturation [CANDIDATE 2026-05-20, 1 dogfood paradigm 116]
+**Trigger**: R-1 paradigm proposes secondary axis on top of an existing primary trigger (e.g. ATR breakout + volume confirmation).
+**Check**: empirical `retention = P(secondary_trigger | primary_trigger)` on prior cache. If retention ≥ 95% → secondary axis carries no orthogonal information.
+**Action**: halt at R-0 + reformulate (either relax primary so secondary becomes informative, or seek truly orthogonal third axis — funding rate sign / BTC dominance regime / hour-of-day etc.).
+**Why candidate**: paradigm 116 `alt_volume_confirmed_atr_breakout_continuation_long_2h` 1st dogfood — volume p80 overlay at k=1.5 retained 100% of paradigm 115 events, did NOT amplify pool sigex (+4.28 identical), syms_ci_pos 0/13 unchanged → `AXIS_REDUNDANT_NO_SYNTHESIS` verdict. Statement: amplification scales not just with each axis independent alpha but with **mutual information** between conditions.
 
 ### #22 — Stateful change-point detectors require frame-grade source frequency
 **Trigger**: R-1 uses CUSUM / Page-Hinkley / Bayesian change-point on daily-frame source.
@@ -197,6 +203,49 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 
 **Implementation**: paradigm-architect agent `r0_inventory_check` skill + `lesson_prescreen_checklist.md` 양 영역 hook 의무. trigger metric × outcome metric mechanical correlation prescreen rule.
 
+### Lesson #41 — DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict branch [confirmed-with-amendment 2026-05-20, 2 dogfoods paradigm 115 + 116]
+**Trigger**: R-1 produces pool-level signal_t_excess ≥ +4σ AND ci_lower > 0 (strong pool evidence) but Concentration Gate fails on per-symbol leg (syms_ci_pos 0–2/13, syms_pos_mean 50–70% positive but individually non-significant) AND per-sym n < 100.
+**Check**: small-cohort universe (≤13 sym) per-symbol bootstrap CI tightness scales with per-sym n. Pool-level alpha may be real but diffused across symbols too thinly to satisfy Concentration leg.
+**Action**:
+- DO NOT auto-graveyard — instead promote to R-2 with **universe expansion** (25+ sym Binance Futures perp tier 1+2) to test whether per-sym n ≥ 150 recovers syms_ci_pos.
+- **Amendment (paradigm 115 R-2 dogfood)**: even if expansion validates diffuse alpha (paradigm 115 R-2 expanded 29-sym pool sigex +6.96, ci_lower +14.84bp, syms_ci_pos 3/29), if `per_trade_edge_net < 2%` life-changing 4-dim hard-blocker → graveyard verdict `confirmed_but_narrow_scope_life_changing_fail`. Pool-level mechanism real but operationally moot — DO NOT seed R-5.
+
+**Why confirmed-with-amendment (2 paradigm-level dogfoods)**:
+1. paradigm 115 `alt_atr_normalized_range_breakout_continuation_long_2h` — k=1.5 4h hold pool sigex +4.28 / ci_lower +5.58bp / 0/13 syms_ci_pos / 9/13 syms_pos_mean. R-2 universe expansion (16 added alts) recovered 3/29 syms_ci_pos + amplified pool sigex +63%, but per-trade edge 0.27% < 2% → R2_FAIL_LIFE_CHANGING.
+2. paradigm 116 `alt_volume_confirmed_atr_breakout_continuation_long_2h` — k=1.5 vol_p60 4h cell mechanically identical (100% event retention via volume p80 overlay) → ci_lower +5.58bp identical to paradigm 115, syms_ci_pos 0/13 reproduced. Same DIFFUSE_POSITIVE mode at smaller n confirmed prediction.
+
+**Implementation**: paradigm-architect R-1 verdict tree新規 분기 `DIFFUSE_POSITIVE_CONCENTRATION_FAIL` 정식 추가. Pool-evidence-strong + concentration-fail + per-sym n<100 + per_trade_edge ≥ 2% candidate 시 R-2 universe expansion 자동 권고. per_trade_edge < 2% 동반 시 graveyard `confirmed_but_narrow_scope_life_changing_fail`.
+
+### Lesson #42 — Mechanism CLASS asymmetry undetectable in R-1/R-2 single-axis measurement (PUMP-mirror absence) [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+**Trigger**: R-1 framed as "extreme magnitude → mean-revert" class paradigm where mathematical mirror (A_focus = +X, A_mirror = −X by identity) does NOT test the symmetric mechanism class. Examples: drawdown × LONG (capitulation mean-reversion) vs PUMP × SHORT (euphoria correction).
+**Check**: R-1/R-2 4-quadrant SNT is mathematical-mirror only — `A_mirror = −A_focus` is identity, not an orthogonal test. The TRUE mechanism class test requires an **orthogonal trigger** (PUMP-trigger × SHORT-direction, not drawdown-trigger × SHORT-direction).
+**Action**: at R-3, mandatory caveat for any "extreme magnitude → mean-revert" class paradigm — measure `B_same_sign_orthogonal` cell (PUMP × SHORT for drawdown × LONG paradigm; or symmetric pre-trigger from opposite tail). If B_same_sign sigex < +1.0 while A_focus sigex ≥ +2.0 → mechanism is direction-asymmetric, NOT a symmetric "magnitude → mean-revert" class. Narrative must be rewritten ("fear-driven capitulation → bounce", not "extreme magnitude → mean-revert").
+
+**Why candidate (1 dogfood)**: paradigm 117 `alt_extreme_24h_drawdown_24h_reversion_long` Caveat 1 — A_focus (drawdown × LONG) sigex +8.71 ✓ / A_mirror (drawdown × SHORT) −8.71 (math mirror identity, sanity check) / **B_same_sign (PUMP × SHORT) sigex +0.28** ✗ null / B_mirror_real (PUMP × LONG) sigex +1.20 null. Mechanism is asymmetric — capitulation triggers forced-deleveraging cycle (liquidation cascade + funding flip + late-short cover), euphoria does NOT have the orthogonal forced-buy pressure.
+
+**Implementation**: paradigm-architect R-3 caveat suite에 `mechanism_class_orthogonal_mirror_test` 추가. Extreme-magnitude → mean-revert class hypothesis 식별 시 orthogonal trigger (opposite tail × opposite direction) measurement 의무. B_same_sign sigex < +1.0 시 mechanism narrative 재구성 + paradigm scope 좁힘.
+
+### Lesson #43 — R-2 broad-shoulders + monotone + TS-CV all-pass does NOT predict R-3 OOS PASS [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+**Trigger**: R-2 5 gates all GREEN (pool-drift OK, TS-CV ≥3/5, threshold monotone, broad-shoulders top-3 PASS, lc4 4/4) → graduate to R-3.
+**Check**: R-2 GREEN gates can coexist with substantive temporal decay over OOS holdout. Decay enough to drop net edge below life-changing 2%/trade floor even with otherwise healthy stats (sigex still > 3, perm_p ≤ 0.01, direction positive).
+**Action**: holdout OOS must be checked at R-3 with strict edge_ratio criteria:
+- `train_edge / oos_edge ≤ 0.30 decay` (i.e. edge_ratio ≥ 0.70) AND
+- life-changing 4-dim independently re-evaluated on OOS subset only (not pooled Train+OOS) AND
+- if edge_ratio ∈ (0.50, 0.70) → marginal, document but do not auto-pass; ratio < 0.50 → auto-graveyard
+
+**Why candidate (1 dogfood)**: paradigm 117 — Train (2024-05-30 ~ 2025-06-30) n=288 / edge +2.978%/trade / sigex +8.12 / lc4 4/4. OOS (2025-07-01 ~ 2026-04-30) n=118 / edge +1.929%/trade / sigex +3.51 / **lc4 3/4 (edge dim fails 2%)**. Edge ratio 0.65 (35% decay). Signal still statistically real on OOS but decayed past life-changing 2%/trade threshold.
+
+**Implementation**: paradigm-architect R-3 caveat suite에 `holdout_oos_decay_audit` 추가 — strict edge_ratio ≥ 0.70 cutoff + OOS-only life-changing 4-dim 의무. R-2 PASS는 R-3 진행 자격이지 R-3 통과 보장 아님 명시.
+
+### Lesson #44 — Survivorship cohort probe via quality-tier-lower still-listed weakness [CANDIDATE 2026-05-20, 1 dogfood paradigm 117]
+**Trigger**: R-3 paradigm with implicit tier-1 liquid-major universe (e.g. 28-alt cohort hand-picked for liquidity). Question: does mechanism generalize beyond tier-1 cohort?
+**Check**: Binance Vision archive does NOT preserve full history for symbols delisted before late 2023 (true survivorship cohort sample insufficient). Substitute: probe **still-listed weak-tier alts** (BAKEUSDT, CTSIUSDT, FTMUSDT class — lower liquidity tier still in current universe) for same trigger. If extended-tier probe shows opposite-direction result → mechanism's broad-cohort generalization at risk = **cohort-tier selection bias** (NOT classical survivorship but equally disabling).
+**Action**: at R-3 mandatory probe — measure conservative R-5 edge = (50% surviving + 50% extended-tier cohort) edge. If conservative edge < life-changing 2%/trade floor → graveyard regardless of tier-1-only PASS.
+
+**Why candidate (1 dogfood)**: paradigm 117 — tier-1 28-alt universe R-2 PASS edge +1.93%/trade. Extended-tier probe: BAKEUSDT (n=30) **-7.93%/trade**, CTSIUSDT (n=20) -0.91%, FTMUSDT (n=11) +0.14% — weak-tier alts show **continuation** (NOT reversion) after −15% drawdowns. Pooled extended n=63 edge **-3.86%/trade**. Conservative R-5 edge (50% surviving + 50% extended) = **-0.59%/trade << 2%** → fail.
+
+**Implementation**: paradigm-architect R-3 caveat suite에 `survivorship_cohort_tier_probe` 추가. tier-1 universe 가설 발의 시 R-3 단계에서 quality-tier-lower (paradigm 117 BAKEUSDT/CTSIUSDT/FTMUSDT class) extended probe 의무 + conservative R-5 edge 계산.
+
 ### NEW verdict — BROAD_FALSIFIED_CONDITIONING_TRAP candidate (Lesson #33 dogfood)
 
 **Trigger condition**: trigger metric × outcome metric magnitude-based 수학적 상관 + A focus outcome ≤ B baseline_same_filter outcome.
@@ -239,7 +288,7 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 - ratio < 0.30: verdict **advisory only**, full-window 재실행 의무, 본 R-1 verdict 신뢰 금지
 **Action**: ratio < 0.30 시 paradigm-architect r0 단계에서 caution flag + full-window 재실행 prerequisite dispatch 의무. paradigm 94 dogfood: local 72d (8.5% slice) → BROAD_FALSIFIED_FEE_FLOOR / Mint 845d (full) → BROAD_FALSIFIED_DIRECTION_INVERTED 진단 격차. ([[feedback_lesson_30_short_data_verdict]] 참조)
 
-### Verdict — NARROW_SCOPE_LIFE_CHANGING_FAIL [CONFIRMED 2026-05-19, 2 dogfoods]
+### Verdict — NARROW_SCOPE_LIFE_CHANGING_FAIL [CONFIRMED 2026-05-19, 4 dogfoods 2026-05-20]
 **Trigger**: R-1 결과 Lesson #20 narrow-scope 4-cond (a 4-gate / b held-out / c Bonferroni / d hold sweep) ALL PASS 자격 충족, 또는 mirror-only PASS 시 (lesson #8 antipattern).
 **Check**: life-changing 4-dim gate 측정 의무 — trades/yr ≥ 12 / per_trade_edge_net ≥ 2.0% / capital_util ≥ 30% / annualized_sharpe ≥ 1.5
 **Action**:
@@ -250,6 +299,8 @@ Entry-side 분류만으로 부족. Immediate-demand vs delayed/indirect 추가 �
 **Why CONFIRMED**:
 1. dogfood 1 — paradigm 95 `cross_asset_volume_concentration_alt_long_1d` 통계 4-cond ALL PASS but per-trade edge 0.47% (4.3x deficit) + capital util 6.39% (4.7x deficit). 1d hold × 6.4% trigger frequency × 14 universe capital cap 본질로 R-2 회복 불가.
 2. dogfood 2 — paradigm 99 `funding_cycle_8h_differential_velocity_per_sym` B mirror cell 3-gate PASS (sigex +3.19 / ci +5.88) but per-trade edge **0.24% (8x deficit)**, 3/4 dim PASS only (trades/yr 548.7 / util 0.50 / sharpe 1.68 PASS, edge FAIL). Concentration 0/13 ci_pos (mirror-only PASS preempts narrow-scope promotion). lesson #8 mirror antipattern + 4-dim FAIL 결합 verdict.
+3. dogfood 3 — paradigm 104 `cross_exchange_oi_differential` extended hold 480m/1440m edge 0.26-0.77% per-trade range. Hourly-scale crypto continuation paradigm class 일관 sub-1%/trade ceiling 입증.
+4. dogfood 4 — paradigm 115 `alt_atr_normalized_range_breakout_continuation_long_2h` R-2 universe expansion (29 alts) 후 pool sigex +6.96 / ci_lower +14.84bp / WF 3/5 PASS / 2/3 deep ci_95_pos but per-trade edge 0.27% << 2% → mechanism CONFIRMED real but operationally moot. Lesson #41 DIFFUSE_POSITIVE 우주 확장 path도 life-changing hard-block 우선 적용 입증.
 
 **Implementation**: paradigm-architect R-1 verdict tree에 life-changing 4-dim layer를 Lesson #20 narrow-scope 자격 부여 **직전** 분기로 통합 의무. mirror-only PASS 케이스도 동일 측정 의무 (B mirror cell 4-dim 통과 시 narrow-scope-mirror candidate 자격 부여). ([[feedback_narrow_scope_life_changing_fail_verdict]] + [[project_paradigm_97_98_99_funding_family_completion]] 참조)
 
