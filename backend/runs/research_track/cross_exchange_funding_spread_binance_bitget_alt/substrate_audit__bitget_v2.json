@@ -1,0 +1,76 @@
+{
+  "paradigm_id": 105,
+  "paradigm_name": "cross_exchange_funding_spread_binance_bitget_alt_directional_8h_illiquid_venue",
+  "audit_kst": "2026-05-19 18:32 KST",
+  "host": "WSL local (Mint operating server — staged for orchestrator commit)",
+  "purpose": "Lesson #28 substrate availability prescreen for Bitget/Gate.io/OKX funding history depth",
+  "endpoints_tested": [
+    {
+      "venue": "Bitget",
+      "endpoint": "https://api.bitget.com/api/v2/mix/market/history-fund-rate",
+      "productType": "USDT-FUTURES",
+      "params_probed": ["pageSize=100", "pageSize=1000", "pageNo=2..100", "endTime", "startTime", "idLessThan"],
+      "max_rows_returned": 100,
+      "window_covered_days": 33,
+      "oldest_reachable_utc": "2026-04-16 08:00:00",
+      "newest_reachable_utc": "2026-05-19 08:00:00",
+      "pagination_supported": false,
+      "walk_back_supported": false,
+      "verdict": "INSUFFICIENT_33D_HARD_CAP"
+    },
+    {
+      "venue": "Bitget V1",
+      "endpoint": "https://api.bitget.com/api/mix/v1/market/history-fundRate",
+      "status": "decommissioned (HTTP 30032 'V1 API has been decommissioned')"
+    },
+    {
+      "venue": "Gate.io",
+      "endpoint": "https://api.gateio.ws/api/v4/futures/usdt/funding_rate/{contract}",
+      "status": "INVALID_CREDENTIALS (auth required, freemium violation per user policy [[feedback_no_freemium_trial]])",
+      "verdict": "BLOCKED_BY_AUTH_REQUIREMENT"
+    },
+    {
+      "venue": "OKX",
+      "endpoint": "https://www.okx.com/api/v5/public/funding-rate-history",
+      "max_window_days_observed": 90,
+      "verdict": "INSUFFICIENT_~90D_CAP",
+      "note": "after-cursor pagination works but 180d/365d/730d/900d probes return 0 rows"
+    }
+  ],
+  "lesson_28_substrate_check": {
+    "result": "FAIL",
+    "reason": "All public no-auth Bitget/Gate.io/OKX endpoints return ≤33-90d historical funding rate. Required ≥1y for paradigm validation (cycle 8h × 7 syms × 1y = 7,665 cycles; 33d × 7 × 3 = 693 cycles ~ 9% of needed pool)."
+  },
+  "lesson_11_sample_density_projection": {
+    "available_window_days": 33,
+    "universe_syms": 7,
+    "cycles_per_day": 3,
+    "total_cycles_pool": 693,
+    "expected_trigger_rate_p90": 0.10,
+    "expected_triggers_total": 69,
+    "quadrants_4_x_quarters_4_cells": 16,
+    "expected_per_cell": 4.3,
+    "lesson_11_cutoff_per_cell": 30,
+    "result": "FAIL_PRE_EXECUTION (per-cell expected 4.3 ≪ 30)"
+  },
+  "lesson_30_data_window_ratio": {
+    "available_days": 33,
+    "binance_funding_window_days_full": 912,
+    "ratio_pct": 3.6,
+    "advisory_cutoff_pct": 30.0,
+    "result": "FAIL (3.6% ≪ 30% — advisory-only forced verdict not actionable)"
+  },
+  "freemium_check": {
+    "gate_io_auth_required": true,
+    "okx_public_ok_but_window_too_short": true,
+    "paid_feeds_considered": [
+      "Kaiko / Coin Metrics / Amberdata cross-venue funding history",
+      "BLOCKED per [[feedback_no_freemium_trial]] — paid + no government carve-out applies"
+    ]
+  },
+  "final_verdict": "DISPATCH_IMPOSSIBLE",
+  "reason_summary": "Bitget public funding history substrate hard-capped at 100 rows (33d) across all params and endpoints. OKX 90d. Gate.io auth-gated (freemium violation). No no-auth source provides ≥1y cross-venue alt funding history to feed the spread-z statistic. Lesson #11 + #28 + #30 all fail pre-execution.",
+  "verdict_classification": "DISPATCH_IMPOSSIBLE (Lesson #28 substrate substrate-time-dimension absent; equivalent to paradigm 89 listing_pre_announce substrate fail mode but for historical depth not pre-event existence)",
+  "next_action": "Cross-exchange family path #1 (illiquid venue Binance×Bitget) FALSIFIED at substrate layer. Combined with paradigm 103 (Binance×Bybit rate broad-falsified) + paradigm 104 (Binance×Bybit OI fee-trap), formal Tier 4 retire of cross-exchange family is justified. Paid feeds (Kaiko/Amberdata) only path remaining — blocked by user freemium policy.",
+  "graveyard_count": "105th paradigm graveyard"
+}

@@ -1,0 +1,40 @@
+{
+  "sl_pct_per_trade": 0.005,
+  "sl_bp": 50.0,
+  "stop_rate_interpolated_pct": 25.687014951404336,
+  "stop_rate_conservative_used": 0.3,
+  "interpolation_basis": {
+    "p50_adverse_bp": 8.79,
+    "p95_adverse_bp": 219.46,
+    "log_linear_pct_at_50bp": 74.31298504859566
+  },
+  "pre_sl_metrics": {
+    "net_bp_15min": 36.45,
+    "net_bp_10min": 39.8,
+    "trades_per_year": 6781,
+    "ann_gross_pct_15min": 2471.6745,
+    "ann_gross_pct_10min": 2698.8379999999997
+  },
+  "post_sl_metrics": {
+    "non_stop_natural_mean_bp_assumed": 60.0,
+    "net_bp_15min": 27.0,
+    "net_bp_10min": 29.345,
+    "ann_gross_pct_15min": 1830.87,
+    "ann_gross_pct_10min": 1989.8844499999998,
+    "pass_30pct_threshold": true
+  },
+  "post_sl_slip_stress_metrics": {
+    "sl_slippage_bp_added": 10.0,
+    "net_bp_10min": 26.345,
+    "ann_gross_pct_10min": 1786.4544499999997,
+    "pass_20pct_threshold": true
+  },
+  "funding_rate_impact": {
+    "typical_funding_bp_per_8h": 1.0,
+    "hold_min": 10,
+    "funding_per_trade_bp": 0.020833333333333332,
+    "annual_funding_drag_pct": 1.4127083333333332,
+    "note": "Negligible for 10min hold; SHORT pays funding when rate positive"
+  },
+  "verdict": "PASS_R4_SL_STRESS"
+}

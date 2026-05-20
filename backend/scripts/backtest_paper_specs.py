@@ -214,9 +214,13 @@ def main():
     ap.add_argument("--all", action="store_true", help="Both KR and Binance")
     ap.add_argument("--pattern", default=None, help="Filter spec name substring")
     ap.add_argument("--out", default=str(OUT_PATH), help="Output CSV path")
+    ap.add_argument("--include-subdirs", action="store_true",
+                    help="Also include nested spec dirs (e.g. configs/paper_sessions/lifecycle/*.json)")
     args = ap.parse_args()
 
     paths = sorted(SPEC_DIR.glob("*.json"))
+    if args.include_subdirs:
+        paths += sorted(SPEC_DIR.glob("*/*.json"))
     if not args.all:
         if args.kr:
             paths = [p for p in paths if is_kr_symbol(json.loads(p.read_text()).get("symbol", ""))]

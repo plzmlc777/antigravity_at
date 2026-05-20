@@ -1,0 +1,153 @@
+{
+  "paradigm_name": "intraday_session_open_alt_oi_acceleration_directional_30m",
+  "counter_proposed": 122,
+  "prescreen_timestamp_utc": "2026-05-20T11:00:14.992303+00:00",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_symbols_loaded": 13,
+  "decile_threshold": 0.9,
+  "anchor_cme": {
+    "hour_utc": 21,
+    "half_window_min": 15
+  },
+  "anchor_fund": {
+    "hours_utc": [
+      0,
+      8,
+      16
+    ],
+    "half_window_min": 5
+  },
+  "forward_hold_min": 30,
+  "panel_bars": 2663537,
+  "n_quarters_total": 10,
+  "lesson_11_sample_density": {
+    "n_triggers_total": 14925,
+    "n_triggers_pos": 6942,
+    "n_triggers_neg": 7983,
+    "trigger_rate_pct": 0.5603,
+    "per_quarter_pos": {
+      "2024Q1": 141,
+      "2024Q2": 1042,
+      "2024Q3": 561,
+      "2024Q4": 1038,
+      "2025Q1": 341,
+      "2025Q2": 618,
+      "2025Q3": 889,
+      "2025Q4": 966,
+      "2026Q1": 1096,
+      "2026Q2": 250
+    },
+    "per_quarter_neg": {
+      "2024Q1": 212,
+      "2024Q2": 1401,
+      "2024Q3": 688,
+      "2024Q4": 1195,
+      "2025Q1": 347,
+      "2025Q2": 834,
+      "2025Q3": 1085,
+      "2025Q4": 940,
+      "2026Q1": 1035,
+      "2026Q2": 246
+    },
+    "measurable_quarters_pos": 10,
+    "measurable_quarters_neg": 10,
+    "cutoff_per_cell": 30,
+    "verdict": "PASS"
+  },
+  "lesson_23_event_anchor_density": {
+    "cme_anchor_bars": 65059,
+    "fund_anchor_bars": 79597,
+    "dual_anchor_bars": 144656,
+    "dual_anchor_rate_pct": 5.431
+  },
+  "lesson_28_substrate_availability": {
+    "5m_klines_source": "DB.ohlcv 1m resampled to 5m (13/13 alts verified 2024-02\u21922026-04/05)",
+    "5m_OI_source": "backend/runs/microstructure/{SYM}_full_metrics.joblib (2024-02\u21922026-05)",
+    "verdict": "PASS \u2014 100% archive/local cache, no DB-bound staleness"
+  },
+  "lesson_30_data_window_ratio": {
+    "eth_days_loaded": 795,
+    "full_universe_proxy_days": 800,
+    "ratio_pct": 99.4,
+    "advisory_required": false
+  },
+  "lesson_34_empirical_distribution": {
+    "abs_oi_vel_z_p50": 0.19092533817533547,
+    "abs_oi_vel_z_p70": 0.39308129454956015,
+    "abs_oi_vel_z_p90": 1.0021754019048397,
+    "abs_oi_vel_z_p95": 1.5599241597579447,
+    "abs_oi_vel_z_p99": 3.6419791319572856
+  },
+  "lesson_40_structural_threshold_feasibility": {
+    "threshold_definition": "per-sym top-decile (|z| >= sym-specific p90 of rolling 30d)",
+    "structurally_reachable": true,
+    "verdict": "PASS \u2014 percentile rank by construction"
+  },
+  "lesson_44_amendment_graveyard_xref": {
+    "paradigm_113_hour_of_day_anchor": "BROAD_FALSIFIED 2026-05-20 \u2014 anchor hours {00,07,13,21} \u00d7 |z|>=1 momentum, 0/13 syms ci_pos in all 4 quadrants; hour-anchor ALONE = -6.69bp",
+    "paradigm_71_oi_velocity_single": "BROAD_FALSIFIED \u2014 OI velocity z trigger alone, all 0/3 z thresholds three-gate FAIL, z=2.5 -12.62bp",
+    "paradigm_120_oi_x_btc_regime_decomp": "BROAD_FALSIFIED \u2014 OI velocity \u00d7 BTC OI activity regime, 0/13 alts in all 4 quadrants",
+    "dna_overlap_assessment": "4 of 6 dimensions overlap with paradigm 113: universe=SAME, anchor temporal axis=PARTIAL (3 of 4 anchors {00,21} overlap), mechanism class=continuation, direction=sign-matched. Distinct: statistic axis (return-momentum 113 vs OI-velocity 122), frame (1h/2h vs 5m/30m). BORDERLINE \u2014 paradigm-distinct per graveyard 113 explicit note 'OI z at anchor hr paradigm-distinct'.",
+    "lesson_21_antipattern_risk": "paradigm 71 (OI velocity alone null) + paradigm 113 (hour-anchor alone -6.69bp null) = TWO NULL AXES stacking. Lesson #21 explicit antipattern: stacking null axes compounds fee drag without alpha synthesis.",
+    "family_retire_implication": "If paradigm 122 BROAD_FALSIFIED \u2192 oi_velocity_directional_family 3-sub-class triggered (71 single + 120 macro-regime joint + 122 temporal-anchor joint) \u2192 Tier 4 formal retire candidate."
+  },
+  "lesson_46_amendment_exact_mechanism_R0": {
+    "policy": "NO proxy. Exact filter (decile threshold + dual-anchor windowing + sign-matched 30m hold) applied to small sample n=200",
+    "n_valid_triggered_events": 14925,
+    "sample_n": 200,
+    "r0_gross_signed_bp": -5.055512286044655,
+    "r0_std_bp": 111.97907953969934,
+    "r0_t_stat": -0.6384740854324902,
+    "r0_net_bp_after_16bp_fee": -21.055512286044653,
+    "four_quadrant": {
+      "A_focus_pos_LONG": {
+        "label": "A_focus_pos_LONG",
+        "n": 6942,
+        "gross_bp": -7.39832372901441,
+        "net_bp": -23.39832372901441,
+        "t": -3.2375364718559467
+      },
+      "A_mirror_pos_SHORT": {
+        "label": "A_mirror_pos_SHORT",
+        "n": 6942,
+        "gross_bp": 7.39832372901441,
+        "net_bp": -8.601676270985589,
+        "t": 3.2375364718559467
+      },
+      "B_focus_neg_SHORT": {
+        "label": "B_focus_neg_SHORT",
+        "n": 7983,
+        "gross_bp": 16.101393359848142,
+        "net_bp": 0.10139335984814224,
+        "t": 9.682481767818402
+      },
+      "B_mirror_neg_LONG": {
+        "label": "B_mirror_neg_LONG",
+        "n": 7983,
+        "gross_bp": -16.101393359848142,
+        "net_bp": -32.101393359848146,
+        "t": -9.682481767818402
+      }
+    }
+  },
+  "lesson_39_sub_class_manual_check": {
+    "A_focus_vs_A_mirror": "exact_symmetric_construction (Lesson #39 sub-class A risk if both broad-uniform-negative)",
+    "B_focus_vs_B_mirror": "exact_symmetric_construction (Lesson #39 sub-class A risk if both broad-uniform-negative)",
+    "note": "exact-symmetric by construction since mirror = -focus on sign-matched paradigm"
+  },
+  "verdict": "R0_PASS_PROCEED_TO_R1"
+}

@@ -1,0 +1,44 @@
+{
+  "account_sizes_evaluated": [
+    100000,
+    1000000
+  ],
+  "universe_size": 13,
+  "trades_per_year_universe": 6781,
+  "per_symbol_avg_trades_per_year": 521.6,
+  "per_symbol_concurrent_avg": 0.0099,
+  "hold_min": 10,
+  "$100k_account": {
+    "notional_per_trigger_usd": 7692.0,
+    "slippage_estimate_bp_per_side": 1.0,
+    "slippage_round_trip_bp": 2.0,
+    "annual_slippage_drag_pct": 135.62,
+    "pass_100k_feasible": true
+  },
+  "$1M_account": {
+    "notional_per_trigger_usd": 76923.0,
+    "slippage_estimate_bp_per_side": 3.0,
+    "slippage_round_trip_bp": 6.0,
+    "annual_slippage_drag_pct": 406.86,
+    "pass_1M_feasible": true
+  },
+  "funding_rate_impact": {
+    "typical_funding_bp_per_8h": 1.0,
+    "funding_per_trade_bp": 0.020833333333333332,
+    "annual_funding_drag_pct": 1.41,
+    "short_pays_when_funding_positive": true,
+    "net_impact_negligible": true
+  },
+  "borrow_availability": {
+    "binance_futures_perp_uses_funding_not_borrow": true,
+    "all_13_alts_short_liquidity_active": true,
+    "no_explicit_borrow_fee": true
+  },
+  "capacity_verdict": "PASS \u2014 $100k account fully feasible, $1M scale plausible with 3bp/side slippage assumption",
+  "execution_notes": [
+    "Burst-triggered events cluster around BTC vol spikes \u2014 peak concurrency may briefly hit 3-5 alts simultaneously",
+    "Slippage at burst entry SHORT side may be elevated 2-3bp due to ask-side thinning during sell-off",
+    "Recommend: aggressive limit-order entry vs market-order to avoid burst-driven slippage",
+    "Funding rate monitor: per-symbol 8h funding spike (>3bp/8h) \u2192 skip new SHORT entries"
+  ]
+}

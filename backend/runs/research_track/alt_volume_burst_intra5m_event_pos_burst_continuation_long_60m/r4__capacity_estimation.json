@@ -1,0 +1,576 @@
+{
+  "paradigm_name": "alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m",
+  "paradigm_number": 127,
+  "phase": "R-4",
+  "caveat": "capacity_liquidity_estimation",
+  "executed_at_kst": "2026-05-21T08:30:10.682783+09:00",
+  "method": "90d recent 1m OHLCV per-sym, trigger reproduction (vol p99 30d AND |1m_ret|>0.5% AND sign>0), burst-minute USDT volume \u00d7 0.1% impact threshold = per-trigger capacity USDT, linear slippage impact estimation",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "impact_threshold": 0.001,
+  "account_sizes_evaluated": [
+    10000,
+    100000,
+    1000000
+  ],
+  "hold_minutes": 75,
+  "per_symbol": [
+    {
+      "sym": "ADAUSDT",
+      "status": "ok",
+      "n_bars": 113340,
+      "n_triggers_90d": 63,
+      "triggers_per_year_extrapolated": 255.5,
+      "burst_minute_volume_usdt_median": 2222516.73,
+      "burst_minute_volume_usdt_p25": 1665430.7855999998,
+      "burst_minute_volume_usdt_p75": 3447552.55055,
+      "capacity_usdt_per_trigger_median": 2222.51673,
+      "capacity_usdt_per_trigger_p25": 1665.4307856,
+      "capacity_usdt_per_trigger_p75": 3447.55255055,
+      "capacity_usdt_per_trigger_min": 892.4761904
+    },
+    {
+      "sym": "AVAXUSDT",
+      "status": "ok",
+      "n_bars": 60011,
+      "n_triggers_90d": 27,
+      "triggers_per_year_extrapolated": 109.5,
+      "burst_minute_volume_usdt_median": 1957372.575,
+      "burst_minute_volume_usdt_p25": 1080026.0535,
+      "burst_minute_volume_usdt_p75": 2567044.707,
+      "capacity_usdt_per_trigger_median": 1957.372575,
+      "capacity_usdt_per_trigger_p25": 1080.0260535000002,
+      "capacity_usdt_per_trigger_p75": 2567.044707,
+      "capacity_usdt_per_trigger_min": 697.260338
+    },
+    {
+      "sym": "BCHUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 25,
+      "triggers_per_year_extrapolated": 101.38888888888889,
+      "burst_minute_volume_usdt_median": 5403835.2299999995,
+      "burst_minute_volume_usdt_p25": 2096899.0,
+      "burst_minute_volume_usdt_p75": 7961776.94,
+      "capacity_usdt_per_trigger_median": 5403.83523,
+      "capacity_usdt_per_trigger_p25": 2096.899,
+      "capacity_usdt_per_trigger_p75": 7961.776940000001,
+      "capacity_usdt_per_trigger_min": 860.1032000000001
+    },
+    {
+      "sym": "BNBUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 14,
+      "triggers_per_year_extrapolated": 56.77777777777777,
+      "burst_minute_volume_usdt_median": 7901317.9399999995,
+      "burst_minute_volume_usdt_p25": 5348505.0975,
+      "burst_minute_volume_usdt_p75": 9919130.9825,
+      "capacity_usdt_per_trigger_median": 7901.317940000001,
+      "capacity_usdt_per_trigger_p25": 5348.5050974999995,
+      "capacity_usdt_per_trigger_p75": 9919.1309825,
+      "capacity_usdt_per_trigger_min": 2338.5743400000006
+    },
+    {
+      "sym": "DOGEUSDT",
+      "status": "ok",
+      "n_bars": 59995,
+      "n_triggers_90d": 28,
+      "triggers_per_year_extrapolated": 113.55555555555554,
+      "burst_minute_volume_usdt_median": 7185056.13871,
+      "burst_minute_volume_usdt_p25": 4764173.3789075,
+      "burst_minute_volume_usdt_p75": 9103618.69796,
+      "capacity_usdt_per_trigger_median": 7185.056138710001,
+      "capacity_usdt_per_trigger_p25": 4764.173378907501,
+      "capacity_usdt_per_trigger_p75": 9103.61869796,
+      "capacity_usdt_per_trigger_min": 3432.14795598
+    },
+    {
+      "sym": "ETHUSDT",
+      "status": "ok",
+      "n_bars": 100520,
+      "n_triggers_90d": 54,
+      "triggers_per_year_extrapolated": 219.0,
+      "burst_minute_volume_usdt_median": 132252366.08500001,
+      "burst_minute_volume_usdt_p25": 100130158.10750002,
+      "burst_minute_volume_usdt_p75": 193946302.70000002,
+      "capacity_usdt_per_trigger_median": 132252.36608500002,
+      "capacity_usdt_per_trigger_p25": 100130.15810750001,
+      "capacity_usdt_per_trigger_p75": 193946.30270000003,
+      "capacity_usdt_per_trigger_min": 64885.80105000001
+    },
+    {
+      "sym": "FILUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 63,
+      "triggers_per_year_extrapolated": 255.5,
+      "burst_minute_volume_usdt_median": 883602.72,
+      "burst_minute_volume_usdt_p25": 708664.4739999999,
+      "burst_minute_volume_usdt_p75": 1383446.5485,
+      "capacity_usdt_per_trigger_median": 883.60272,
+      "capacity_usdt_per_trigger_p25": 708.6644739999999,
+      "capacity_usdt_per_trigger_p75": 1383.4465485,
+      "capacity_usdt_per_trigger_min": 453.185609
+    },
+    {
+      "sym": "LINKUSDT",
+      "status": "ok",
+      "n_bars": 60014,
+      "n_triggers_90d": 26,
+      "triggers_per_year_extrapolated": 105.44444444444444,
+      "burst_minute_volume_usdt_median": 2259503.204,
+      "burst_minute_volume_usdt_p25": 1791403.5835000002,
+      "burst_minute_volume_usdt_p75": 3572974.31475,
+      "capacity_usdt_per_trigger_median": 2259.5032039999996,
+      "capacity_usdt_per_trigger_p25": 1791.4035835000002,
+      "capacity_usdt_per_trigger_p75": 3572.9743147500003,
+      "capacity_usdt_per_trigger_min": 671.18773
+    },
+    {
+      "sym": "LTCUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 13,
+      "triggers_per_year_extrapolated": 52.72222222222222,
+      "burst_minute_volume_usdt_median": 1274632.72,
+      "burst_minute_volume_usdt_p25": 831068.7999999999,
+      "burst_minute_volume_usdt_p75": 1918878.0,
+      "capacity_usdt_per_trigger_median": 1274.63272,
+      "capacity_usdt_per_trigger_p25": 831.0687999999999,
+      "capacity_usdt_per_trigger_p75": 1918.878,
+      "capacity_usdt_per_trigger_min": 512.3025500000001
+    },
+    {
+      "sym": "NEARUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 35,
+      "triggers_per_year_extrapolated": 141.94444444444443,
+      "burst_minute_volume_usdt_median": 1044705.044,
+      "burst_minute_volume_usdt_p25": 817421.2015,
+      "burst_minute_volume_usdt_p75": 1355882.667,
+      "capacity_usdt_per_trigger_median": 1044.705044,
+      "capacity_usdt_per_trigger_p25": 817.4212015,
+      "capacity_usdt_per_trigger_p75": 1355.882667,
+      "capacity_usdt_per_trigger_min": 447.357056
+    },
+    {
+      "sym": "SOLUSDT",
+      "status": "ok",
+      "n_bars": 100520,
+      "n_triggers_90d": 46,
+      "triggers_per_year_extrapolated": 186.55555555555554,
+      "burst_minute_volume_usdt_median": 23589485.155,
+      "burst_minute_volume_usdt_p25": 15860948.514999999,
+      "burst_minute_volume_usdt_p75": 37208229.660000004,
+      "capacity_usdt_per_trigger_median": 23589.485155000002,
+      "capacity_usdt_per_trigger_p25": 15860.948515,
+      "capacity_usdt_per_trigger_p75": 37208.229660000005,
+      "capacity_usdt_per_trigger_min": 11465.13388
+    },
+    {
+      "sym": "WIFUSDT",
+      "status": "ok",
+      "n_bars": 106778,
+      "n_triggers_90d": 80,
+      "triggers_per_year_extrapolated": 324.44444444444446,
+      "burst_minute_volume_usdt_median": 497428.54785,
+      "burst_minute_volume_usdt_p25": 383292.315925,
+      "burst_minute_volume_usdt_p75": 714082.1995,
+      "capacity_usdt_per_trigger_median": 497.42854785,
+      "capacity_usdt_per_trigger_p25": 383.292315925,
+      "capacity_usdt_per_trigger_p75": 714.0821995,
+      "capacity_usdt_per_trigger_min": 290.055717
+    },
+    {
+      "sym": "XRPUSDT",
+      "status": "ok",
+      "n_bars": 101729,
+      "n_triggers_90d": 24,
+      "triggers_per_year_extrapolated": 97.33333333333333,
+      "burst_minute_volume_usdt_median": 9186630.1827,
+      "burst_minute_volume_usdt_p25": 6742502.750050001,
+      "burst_minute_volume_usdt_p75": 14359945.70145,
+      "capacity_usdt_per_trigger_median": 9186.630182699999,
+      "capacity_usdt_per_trigger_p25": 6742.50275005,
+      "capacity_usdt_per_trigger_p75": 14359.94570145,
+      "capacity_usdt_per_trigger_min": 3619.5501726
+    }
+  ],
+  "account_scaling": {
+    "account_10000": {
+      "account_size_usdt": 10000,
+      "per_sym_position_usdt": 769.2307692307693,
+      "n_syms_evaluated": 13,
+      "n_syms_pass_median_5bp": 9,
+      "n_syms_pass_worst_10bp": 11,
+      "ratio_pass_median": 0.6923076923076923,
+      "ratio_pass_worst": 0.8461538461538461,
+      "overall_pass_median": false,
+      "overall_pass_worst": true,
+      "per_sym": [
+        {
+          "sym": "ADAUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 3.4610797698281863,
+          "impact_bp_p25_worst": 4.618809594982002,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "AVAXUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 3.929914922971521,
+          "impact_bp_p25_worst": 7.122335306059997,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "BCHUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 1.4234904220622755,
+          "impact_bp_p25_worst": 3.6684206975670706,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "BNBUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 0.9735474196482838,
+          "impact_bp_p25_worst": 1.4382163898288578,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "DOGEUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 1.0705981336547727,
+          "impact_bp_p25_worst": 1.6146153971566124,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "ETHUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 0.058163856874694886,
+          "impact_bp_p25_worst": 0.07682308544893347,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "FILUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 8.705617941406624,
+          "impact_bp_p25_worst": 10.854654035201,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "LINKUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 3.4044243348228034,
+          "impact_bp_p25_worst": 4.294011557841507,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "LTCUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 6.034920939663069,
+          "impact_bp_p25_worst": 9.255921642477366,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "NEARUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 7.36313827188499,
+          "impact_bp_p25_worst": 9.4104577642371,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "SOLUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 0.3260905289693124,
+          "impact_bp_p25_worst": 0.48498409064457476,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "WIFUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 15.464146007613772,
+          "impact_bp_p25_worst": 20.069037057901443,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "XRPUSDT",
+          "per_sym_position_usdt": 769.2307692307693,
+          "impact_bp_median": 0.8373372541754894,
+          "impact_bp_p25_worst": 1.1408683062458742,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        }
+      ]
+    },
+    "account_100000": {
+      "account_size_usdt": 100000,
+      "per_sym_position_usdt": 7692.307692307692,
+      "n_syms_evaluated": 13,
+      "n_syms_pass_median_5bp": 2,
+      "n_syms_pass_worst_10bp": 2,
+      "ratio_pass_median": 0.15384615384615385,
+      "ratio_pass_worst": 0.15384615384615385,
+      "overall_pass_median": false,
+      "overall_pass_worst": false,
+      "per_sym": [
+        {
+          "sym": "ADAUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 34.610797698281864,
+          "impact_bp_p25_worst": 46.188095949820024,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "AVAXUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 39.29914922971521,
+          "impact_bp_p25_worst": 71.22335306059998,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "BCHUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 14.234904220622754,
+          "impact_bp_p25_worst": 36.684206975670705,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "BNBUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 9.735474196482839,
+          "impact_bp_p25_worst": 14.382163898288576,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "DOGEUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 10.705981336547726,
+          "impact_bp_p25_worst": 16.146153971566125,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "ETHUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 0.5816385687469489,
+          "impact_bp_p25_worst": 0.7682308544893347,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "FILUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 87.05617941406624,
+          "impact_bp_p25_worst": 108.54654035201,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "LINKUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 34.044243348228036,
+          "impact_bp_p25_worst": 42.94011557841506,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "LTCUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 60.349209396630684,
+          "impact_bp_p25_worst": 92.55921642477365,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "NEARUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 73.6313827188499,
+          "impact_bp_p25_worst": 94.10457764237098,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "SOLUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 3.260905289693124,
+          "impact_bp_p25_worst": 4.849840906445747,
+          "pass_median_le_5bp": true,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "WIFUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 154.64146007613772,
+          "impact_bp_p25_worst": 200.69037057901443,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "XRPUSDT",
+          "per_sym_position_usdt": 7692.307692307692,
+          "impact_bp_median": 8.373372541754893,
+          "impact_bp_p25_worst": 11.40868306245874,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        }
+      ]
+    },
+    "account_1000000": {
+      "account_size_usdt": 1000000,
+      "per_sym_position_usdt": 76923.07692307692,
+      "n_syms_evaluated": 13,
+      "n_syms_pass_median_5bp": 0,
+      "n_syms_pass_worst_10bp": 1,
+      "ratio_pass_median": 0.0,
+      "ratio_pass_worst": 0.07692307692307693,
+      "overall_pass_median": false,
+      "overall_pass_worst": false,
+      "per_sym": [
+        {
+          "sym": "ADAUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 346.1079769828186,
+          "impact_bp_p25_worst": 461.8809594982002,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "AVAXUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 392.9914922971521,
+          "impact_bp_p25_worst": 712.2335306059997,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "BCHUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 142.34904220622755,
+          "impact_bp_p25_worst": 366.8420697567071,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "BNBUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 97.35474196482838,
+          "impact_bp_p25_worst": 143.82163898288576,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "DOGEUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 107.05981336547727,
+          "impact_bp_p25_worst": 161.46153971566125,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "ETHUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 5.816385687469489,
+          "impact_bp_p25_worst": 7.682308544893347,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": true
+        },
+        {
+          "sym": "FILUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 870.5617941406623,
+          "impact_bp_p25_worst": 1085.4654035201,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "LINKUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 340.44243348228036,
+          "impact_bp_p25_worst": 429.40115578415066,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "LTCUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 603.4920939663068,
+          "impact_bp_p25_worst": 925.5921642477366,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "NEARUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 736.3138271884991,
+          "impact_bp_p25_worst": 941.0457764237099,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "SOLUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 32.60905289693124,
+          "impact_bp_p25_worst": 48.498409064457476,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "WIFUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 1546.4146007613772,
+          "impact_bp_p25_worst": 2006.9037057901444,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        },
+        {
+          "sym": "XRPUSDT",
+          "per_sym_position_usdt": 76923.07692307692,
+          "impact_bp_median": 83.73372541754894,
+          "impact_bp_p25_worst": 114.0868306245874,
+          "pass_median_le_5bp": false,
+          "pass_worst_le_10bp": false
+        }
+      ]
+    }
+  },
+  "overall": {
+    "n_syms_ok": 13,
+    "median_capacity_usdt_across_syms": 2259.5032039999996,
+    "min_capacity_usdt_across_syms": 497.42854785,
+    "max_capacity_usdt_across_syms": 132252.36608500002,
+    "r4_capacity_gate_pass_account_100k": false,
+    "verdict": "FAIL_R4_CAPACITY"
+  },
+  "wall_clock_seconds": 4.7905592918396
+}

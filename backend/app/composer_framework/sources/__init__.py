@@ -29,7 +29,14 @@ from .binance_premium_velocity_zscore_source import BinancePremiumVelocityZScore
 from .binance_wick_reversal_multibar_source import BinanceWickReversalMultibarSource
 from .binance_lifecycle_decay_source import BinanceLifecycleDecaySource
 from .binance_lifecycle_decay_early_exit_source import BinanceLifecycleDecayEarlyExitSource
+from .binance_lifecycle_decay_bear_skip_source import BinanceLifecycleDecayBearSkipSource
 from .binance_btc_rv_highvol_long_source import BinanceBTCRVHighvolLongSource
+from .binance_alt_volume_burst_pos_continuation_long_source import (
+    BinanceAltVolumeBurstPosContinuationLongSource,
+)
+from .binance_alt_volume_burst_neg_reversion_short_source import (
+    BinanceAltVolumeBurstNegReversionShortSource,
+)
 
 __all__ = [
     "PatternSource",
@@ -57,5 +64,8 @@ __all__ = [
     "BinanceWickReversalMultibarSource",
     "BinanceLifecycleDecaySource",
     "BinanceLifecycleDecayEarlyExitSource",
+    "BinanceLifecycleDecayBearSkipSource",
     "BinanceBTCRVHighvolLongSource",
+    "BinanceAltVolumeBurstPosContinuationLongSource",
+    "BinanceAltVolumeBurstNegReversionShortSource",
 ]

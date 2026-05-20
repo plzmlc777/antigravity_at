@@ -1,0 +1,42 @@
+{
+  "name": "NEARUSDT_alt_volume_burst_neg_reversion_short_paper_seed",
+  "symbol": "NEARUSDT",
+  "mode": "paper",
+  "initial_capital": 100000,
+  "refit_interval_days": 30,
+  "fee_rate": 0.0004,
+  "notes": "Research Track paradigm 128 (R-4 PASS 2026-05-21 DUAL_MODE_HIGH_FREQ_DIFFUSE_SHORT_WITH_MANDATORY_SL — FIRST SHORT-only seed in campaign). 1m volume burst event: vol_1m > trailing 30d p99 AND |ret_1m|>0.5% AND ret_1m<0 (negative capitulation burst), aggregated as 5m-bin first-burst-sign (Lesson #50 MANDATORY — for SHORT arm per-burst INVERTS alpha net -34.61bp not just dilutes), per-symbol 30min debounce. Action: SHORT 10min hold (R-3 caveat 1 sweet-spot vs 15min original; +9.2% edge +14% sharpe uplift). SL=0.5% MANDATORY (max-adverse pre-SL was 129.88% squeeze; SL truncates left tail; post-SL ann_gross 1,990% / post-SL+10bp slip 1,786%). R-3 measured: n=14,843 trades 2.2yr / sigex +63.67 / 13/13 syms ci_pos. R-3 caveat 1 hold10min: gross +55.80bp / net +39.80bp / edge 0.398%/trade. R-3 OOS sigex +28.89 ci_lower +34.80bp 1.48x IS edge ratio (paradigm 117 0.65x fragility avoided). R-3 caveats 6/7 PASS, per-burst FAIL Lesson #50 OVERRIDE (dual-dogfood CONFIRMED 자격). OPERATIONAL CAVEAT — funding skip: skip new entries if per-symbol 8h funding rate > +3bp (SHORT pays funding when positive; +3bp/8h drag exceeds per-trade edge margin). Not encoded in current policy — Day 7 operational monitor required. Capacity: $100k feasible (2bp slip), $1M plausible with 6bp slip. First SHORT-only seed: new operational dimensions (stop_rate empirical tracking, funding monitor, SHORT slippage) require Day 7/Day 30 baseline empirical validation. User-approved 2026-05-21 dual deploy.",
+  "pipeline_spec": {
+    "sources": [
+      {
+        "type": "bn_alt_volume_burst_neg_reversion_short",
+        "kwargs": {
+          "volume_percentile": 99.0,
+          "magnitude_threshold": 0.005,
+          "aggregation_bin_min": 5,
+          "debounce_min": 30
+        }
+      }
+    ],
+    "composer": {
+      "type": "passthrough",
+      "kwargs": {
+        "feature_col": "bnvbns_signal",
+        "scale": 1.0
+      }
+    },
+    "policy": {
+      "type": "long_short_threshold",
+      "kwargs": {
+        "entry_threshold": 0.5,
+        "sl_pct": 0.005,
+        "tp_pct": 0.99,
+        "max_hold_bars": 2
+      }
+    },
+    "config": {
+      "eval_freq_minutes": 5,
+      "forward_bars": 2
+    }
+  }
+}

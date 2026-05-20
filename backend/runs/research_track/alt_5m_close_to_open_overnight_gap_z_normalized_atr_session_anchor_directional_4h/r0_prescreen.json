@@ -1,0 +1,100 @@
+{
+  "paradigm_name": "alt_5m_close_to_open_overnight_gap_z_normalized_atr_session_anchor_directional_4h",
+  "paradigm_counter_proposed": 126,
+  "dispatch_timestamp_kst": "2026-05-20T21:18:00+09:00",
+  "verdict": "R0_HALT_FAMILY_DISTINCT_GATE_FAIL_SESSION_ANCHOR_MOMENTUM_CONJUNCTION_DUPLICATE",
+  "counter_increment": false,
+  "halt_classification": "inventory_halt_R0_pre_dispatch_no_compute",
+  "halt_reason_summary": "paradigm 126 trigger (|gap_z|>2.5 at funding-boundary anchor) decomposes mathematically into (temporal anchor) x (1-bar 5m signed return z). This is class-identical to paradigm 113 (hour anchor x 1h signed return z, BROAD_FALSIFIED 2026-05-20) and paradigm 122 (dual anchor x OI velocity z, BROAD_FALSIFIED 2026-05-20). ATR-normalization + 30d z-score are scaling/rescaling transforms that preserve directional information; they do NOT constitute a new statistic class. paradigm 113 graveyard explicitly excludes momentum signals at anchor hr (lines 138-141): 'Hour-of-day axis combined with NON-momentum signals (e.g., volume z, OI z, premium z at anchor hr) might retain hypothesis space but is paradigm-distinct.' Close-to-open gap IS a 1-bar signed return = momentum signal at anchor. R-0 family-distinct gate FAIL.",
+  "family_distinct_decomposition": {
+    "axis_1": {
+      "name": "temporal_anchor_funding_boundary",
+      "specification": "UTC 00:00 / 08:00 / 16:00 (funding cycle 3x/day) at 5m bar boundary",
+      "predecessor_null_evidence": [
+        "paradigm 113 (hour anchor {00,07,13,21}): 0/13 syms ci_pos all 4 quadrants, hour-anchor ALONE = -6.69bp net",
+        "paradigm 122 (dual anchor 21UTC + {00,08,16}): 0/13 syms ci_pos all 4 quadrants, broad-uniform-negative both focus arms"
+      ],
+      "axis_class_verdict": "TEMPORAL_ANCHOR_NULL_2_dogfoods (paradigm 113 + 122)"
+    },
+    "axis_2": {
+      "name": "close_to_open_gap_z_atr_normalized",
+      "raw_formula": "(open_t / close_{t-1bar}) - 1 where t = 5m anchor bar, t-1bar = previous 5m bar",
+      "normalization_layer_1": "ATR_24h(close, n=288 bars) division",
+      "normalization_layer_2": "rolling_30d z-score ((gap_norm - mu_30d) / sigma_30d)",
+      "mathematical_decomposition": "raw_gap IS the 1-bar 5m signed log-return at the anchor bar. ATR-normalization is scalar division (preserves sign). Rolling z-score is affine transform (preserves sign, rescales magnitude). Therefore gap_z trigger sign = raw 1-bar log-return sign.",
+      "axis_class_assignment": "1-bar_signed_return_magnitude_z",
+      "predecessor_null_evidence": [
+        "paradigm 113 (1h signed return |z|>=1 at hour anchor): 0/13 syms ci_pos all 4 quadrants, |z|>=1 axis ALONE = -7.35bp net LONG"
+      ],
+      "axis_class_verdict": "SIGNED_RETURN_Z_AT_ANCHOR_NULL_1_dogfood (paradigm 113)"
+    },
+    "conjunction_verdict": "paradigm 126 = temporal_anchor (null per 113+122) x signed_return_z (null per 113) = TWO NULL AXES stacked. Lesson #21 explicit antipattern: stacking null axes compounds fee drag without alpha synthesis. paradigm 113 graveyard explicit prediction (lines 138-141): non-momentum signals at anchor hr might retain hypothesis space; momentum signals (return-based) are explicitly excluded as continuation hypothesis was directionally falsified.",
+    "differentiator_evaluation": {
+      "claimed_diff_1_return_window_length": {
+        "claim": "5m close-to-open gap vs paradigm 113 1h signed return",
+        "evaluation": "Return-window length is a granularity parameter, NOT a statistic class. Both produce signed return z. paradigm 113 already tested 1h hold sweep including shorter windows; no plateau emerged. Granularity variation within same class is parameter sweep, NOT family-distinct.",
+        "verdict": "REJECTED_as_family_distinct_differentiator"
+      },
+      "claimed_diff_2_atr_normalization": {
+        "claim": "ATR-normalization vs paradigm 113 rolling 30d z only",
+        "evaluation": "ATR is a volatility-rescaling transform (sigma-like denominator). It changes magnitude scale but preserves directional sign. paradigm 113 used rolling 30d std z-score = volatility-rescaling transform. Both are sigma-rescaling; ATR vs std is statistical estimator choice, NOT class change.",
+        "verdict": "REJECTED_as_family_distinct_differentiator"
+      },
+      "claimed_diff_3_anchor_specificity_funding_boundary_vs_hour_of_day": {
+        "claim": "funding-boundary (00/08/16 UTC) vs hour-of-day (00/07/13/21 UTC)",
+        "evaluation": "paradigm 122 already tested funding-boundary {00,08,16} as Anchor 2 (dual with CME 21 UTC) = BROAD_FALSIFIED. Funding-boundary anchor is a SUBSET of paradigm 113 hour anchor (00 UTC overlaps both). Anchor specificity narrowing within same temporal-anchor class is parameter sweep, NOT family-distinct.",
+        "verdict": "REJECTED_as_family_distinct_differentiator"
+      },
+      "claimed_diff_4_hold_horizon_4h": {
+        "claim": "4h hold vs paradigm 113 2h / paradigm 122 30min",
+        "evaluation": "Hold-horizon is a forward-window parameter, NOT a trigger statistic class. paradigm 113 hold sweep tested 1h/2h/4h; 4h sigex +1.58 (FAIL 3-gate). Hold variation within same statistic+trigger class is parameter sweep.",
+        "verdict": "REJECTED_as_family_distinct_differentiator"
+      }
+    },
+    "family_distinct_gate_final_verdict": "FAIL_all_4_claimed_differentiators_rejected. paradigm 126 is statistic-class duplicate of paradigm 113+122 session-anchor x signed-magnitude family.",
+    "session_anchor_family_cumulative_count": {
+      "paradigm_113": "BROAD_FALSIFIED 2026-05-20 (hour anchor x signed return z)",
+      "paradigm_122": "BROAD_FALSIFIED 2026-05-20 (dual anchor x OI velocity z)",
+      "paradigm_126_proposed": "BLOCKED at R-0 (funding-boundary anchor x signed return z, ATR-normalized)",
+      "if_dispatched_and_failed_would_be": "3rd consecutive session-anchor family graveyard -> Tier 4 formal retire qualifying threshold",
+      "halt_at_R0_action": "session-anchor family advisory caution etage 2/3 sub-classes falsified (113 magnitude/momentum + 122 OI velocity). Lesson #21 + paradigm 113 graveyard prediction blocks 3rd dispatch a priori. Advisory caution status preserved (not formal Tier 4 retire) because R-0 halt is not falsification dispatch."
+    }
+  },
+  "lesson_dogfoods_at_R0": {
+    "lesson_21_axis_stacking": "5th dogfood (paradigm 83+113+119+122+126 R-0 detection)",
+    "lesson_39_sub_class_A_predicted": "would have been 7th dogfood if dispatched (symmetric trigger by construction +-k bp mirror)",
+    "lesson_43_statistic_class_novelty_trap": "ATR-normalization + 30d z-score claimed as novelty; rejected as scaling transform",
+    "lesson_44_amendment_graveyard_xref": "8th dogfood (formal CONFIRMED status preserved) - paradigm 113+122 substrate keyword match (anchor, signed-z, 5m frame)",
+    "lesson_46_amendment_refinement": "stratified n=50x4q not executed (halt before R-0 compute, no need)",
+    "lesson_30_data_window_ratio": "not measured (no compute)",
+    "lesson_45_unsupervised_block": "PASS (explicit threshold |gap_z|>2.5, NOT unsupervised)",
+    "lesson_40_structural_threshold_feasibility": "not blocking (rolling z-score is signed empirical, |z|>2.5 trivially reachable)",
+    "lesson_28_substrate_availability": "PASS (5m klines archive-direct, paradigm 113+122 reuse)"
+  },
+  "session_anchor_family_tier_4_retire_candidate_status": {
+    "current_etage": "advisory_caution_2_sub_classes_falsified",
+    "this_dispatch_outcome": "R-0 halt does NOT increment falsification count (no compute, no graveyard verdict)",
+    "tier_4_formal_retire_eligibility": "requires 3 BROAD_FALSIFIED sub-classes from R-1 compute. Current 2/3. R-0 halt preserves advisory caution status; does not promote to formal Tier 4 retire.",
+    "future_dispatch_policy": "Any future session-anchor family R-1 dispatch must establish family-distinct via NON-return / NON-OI / NON-momentum trigger at anchor (e.g., volume z, premium z, basis z, funding-rate at anchor). Return-class triggers at session anchor are explicitly excluded per paradigm 113 graveyard prediction."
+  },
+  "counter_classification": "inventory_halt",
+  "counter_decision": "paradigm 126 slot retained but NOT incremented. Cumulative graveyard counter remains at 125. Next R-1 dispatch will use paradigm 126 slot with family-distinct candidate.",
+  "next_candidate_recommendation_1": {
+    "name": "alt_5m_book_depth_imbalance_persistence_top_decile_directional_2h_NOT_VALID_paradigm_22_family_RETIRED",
+    "rejected": true,
+    "reason": "book_depth family Tier 4 retired (4 cumulative graveyards 12+23+61+84). Excluded."
+  },
+  "next_candidate_recommendation_2": {
+    "name": "alt_5m_taker_buy_sell_volume_persistence_cusum_directional_2h_NOT_VALID_taker_family_RETIRED",
+    "rejected": true,
+    "reason": "Taker-side family Tier 4 retired (23+60+72 cumulative). Excluded."
+  },
+  "next_candidate_recommendation_3_VALID": {
+    "name": "alt_5m_volume_cusum_change_point_persistence_directional_2h",
+    "rationale": "paradigm 122 graveyard explicit recommendation (line 119) - volume CUSUM Page-Hinkley change-point on 5m frame, non-event-anchored continuous trigger (Lesson #23 explicit non-target), per-symbol normalized 5m volume deviation, CUSUM upper-threshold breach with prior 30d persistence > median, 2h directional drift hypothesis.",
+    "family_distinct_check_pending_R0": "volume axis (NOT taker-side, NOT magnitude z, NOT OI velocity, NOT session-anchored), CUSUM stateful frame-grade 5m abundant (paradigm 122 panel 2.66M bars). Non-anchored continuous trigger avoids session-anchor family. Substrate archive-direct.",
+    "lessons_to_apply_at_R0": ["#11", "#19", "#20", "#21", "#22", "#23", "#28", "#34", "#39", "#40", "#41", "#44", "#45", "#46"],
+    "expected_lesson_22_risk": "stateful CUSUM Page-Hinkley requires frame-grade frequency. 5m volume frame verified 2.66M bars by paradigm 122 panel - PASS expected.",
+    "expected_lesson_42_risk": "CUSUM is not unsupervised clustering, threshold is explicit (e.g., CUSUM > 5sigma cumulative). PASS expected."
+  }
+}

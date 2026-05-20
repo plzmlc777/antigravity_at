@@ -58,10 +58,12 @@ log = logging.getLogger("lifecycle_session_spawner")
 LISTINGS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "listing_dates.json"
 SESSIONS_CONFIG_DIR = ROOT / "configs" / "paper_sessions" / "lifecycle"
 EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 
 POLICY_BASELINE = "baseline"
 POLICY_EARLY_EXIT = "early_exit"
-POLICY_CHOICES = (POLICY_BASELINE, POLICY_EARLY_EXIT)
+POLICY_BEAR_SKIP = "bear_skip"
+POLICY_CHOICES = (POLICY_BASELINE, POLICY_EARLY_EXIT, POLICY_BEAR_SKIP)
 
 # Heuristic blocklist: tokenized stocks, commodities, ETFs we don't want to short
 # (lifecycle hypothesis was tested on pure-crypto cohort).
@@ -82,6 +84,55 @@ def fetch_exchange_info() -> dict:
     r = requests.get(EXCHANGE_INFO_URL, timeout=30)
     r.raise_for_status()
     return r.json()
+
+
+def compute_btc_30d_pre_ret(listing_date_str: str) -> float | None:
+    """Return BTC's 30-day pre-listing log return (close-to-close).
+
+    Anchor: BTC daily close on the trading day BEFORE listing_date_str.
+    Lookback: BTC daily close 30 calendar days before the anchor.
+    Returns `(anchor_close / lookback_close) - 1.0` as a float.
+
+    Used to gate the lifecycle_decay_bear_skip variant per R-3 regime analysis
+    (BEAR := pre_ret <= -0.05 → suppress short entry). Returns None on any
+    fetch error or insufficient data, in which case the spawner SKIPS the
+    bear_skip variant for that listing (conservative default — no session
+    rather than a session with unknown regime).
+    """
+    try:
+        ld = datetime.strptime(listing_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        end_ms = int(ld.timestamp() * 1000)
+        start_ms = end_ms - int(35 * 86400 * 1000)
+        r = requests.get(
+            KLINES_URL,
+            params={
+                "symbol": "BTCUSDT",
+                "interval": "1d",
+                "startTime": start_ms,
+                "endTime": end_ms,
+                "limit": 40,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        rows = r.json()
+        if not rows or len(rows) < 31:
+            log.warning(
+                "compute_btc_30d_pre_ret(%s): insufficient klines (%d)",
+                listing_date_str, len(rows) if rows else 0,
+            )
+            return None
+        # Use the LAST candle (anchor = trading day before listing) and the
+        # candle 30 days earlier (index -31). Binance klines are returned
+        # oldest-first; close is index 4.
+        anchor_close = float(rows[-1][4])
+        lookback_close = float(rows[-31][4])
+        if lookback_close <= 0:
+            return None
+        return anchor_close / lookback_close - 1.0
+    except Exception as exc:
+        log.warning("compute_btc_30d_pre_ret(%s) failed: %s", listing_date_str, exc)
+        return None
 
 
 def update_listings(known: dict) -> tuple[dict, list[str]]:
@@ -132,17 +183,23 @@ def session_exists_for(
     symbol: str,
     policy_variant: str = POLICY_BASELINE,
     check_day: int | None = None,
+    baseline_hold_days: int | None = None,
 ) -> bool:
     """Check existing paper sessions for symbol + variant name suffix.
 
-    When `policy_variant == POLICY_EARLY_EXIT` and `check_day` is given, the
-    name suffix `_earlyexit_d{check_day}` must match — d7 and d14 are treated
-    as distinct variants (separate paper sessions for parallel A/B).
+    For `POLICY_EARLY_EXIT`, the `_earlyexit_d{check_day}` tag must match.
+    For `POLICY_BEAR_SKIP`, the `_bearskip_` tag must be present.
+    For `POLICY_BASELINE`, the optional `_h{hold_days}` tag distinguishes
+    non-default hold horizons (default hold=30 has no tag — back-compat with
+    existing `lifecycle_{SYMBOL}_{DATE}` names) and the name must not contain
+    any other variant tag.
     """
     sessions_dir = ROOT / "runs" / "paper_sessions"
     if not sessions_dir.exists():
         return False
     target_ee_tag = f"earlyexit_d{int(check_day)}" if check_day is not None else "earlyexit"
+    is_default_hold = baseline_hold_days is None or int(baseline_hold_days) == 30
+    target_hold_tag = None if is_default_hold else f"_h{int(baseline_hold_days)}_"
     for p in sessions_dir.iterdir():
         sj = p / "session.json"
         if not sj.exists():
@@ -155,11 +212,19 @@ def session_exists_for(
             if "lifecycle" not in n:
                 continue
             has_ee = "earlyexit" in n
+            has_bs = "bearskip" in n
             if policy_variant == POLICY_EARLY_EXIT and has_ee:
                 if check_day is None or target_ee_tag in n:
                     return True
-            if policy_variant == POLICY_BASELINE and not has_ee:
+            elif policy_variant == POLICY_BEAR_SKIP and has_bs:
                 return True
+            elif policy_variant == POLICY_BASELINE and not has_ee and not has_bs:
+                # Detect any "_h{N}_" hold-variant tag in the name.
+                has_hold_tag = bool(re.search(r"_h\d+_", n))
+                if is_default_hold and not has_hold_tag:
+                    return True
+                if not is_default_hold and target_hold_tag and target_hold_tag in n:
+                    return True
         except Exception:
             continue
     return False
@@ -196,20 +261,25 @@ def build_session_spec(
     policy_variant: str = POLICY_BASELINE,
     early_exit_check_day: int = 14,
     early_exit_vc_threshold: float = 0.40,
+    baseline_hold_days: int = 30,
+    bear_skip_btc_30d_pre_ret: float | None = None,
+    bear_skip_threshold: float = -0.05,
 ) -> dict:
     """Build a paper-session spec for one of two lifecycle policy variants.
 
     `policy_variant`:
-      - "baseline" — Day 1 close short, hold to Day 30 (R-4 PASS paradigm).
+      - "baseline" — Day 1 close short, hold to Day `baseline_hold_days`
+        (R-4 PASS paradigm: default 30; R-3 plateau optimum: 21).
       - "early_exit" — same entry; at `early_exit_check_day` compute
         vol_cliff = mean(vol[7:14])/vol[0] (check_day=14) or partial proxy
         (check_day=7); if >= threshold, EARLY EXIT.
 
-    The two variants share entry semantics so a parallel pair of sessions
-    on the same listing measures the early-exit edge cleanly.
+    The variants share entry semantics so parallel sessions on the same
+    listing measure the hold-horizon / early-exit edge cleanly.
     """
     if policy_variant == POLICY_BASELINE:
-        name_suffix = ""
+        hold_days = int(baseline_hold_days)
+        name_suffix = "" if hold_days == 30 else f"_h{hold_days}"
         sources = [{"type": "bn_lifecycle_decay", "kwargs": {}}]
         composer = {"type": "passthrough",
                     "kwargs": {"feature_col": "bnld_signal", "scale": 1.0}}
@@ -219,13 +289,13 @@ def build_session_spec(
                 "entry_threshold": 0.5,
                 "sl_pct": 0.50,
                 "tp_pct": 1.0,
-                "max_hold_bars": 30,
+                "max_hold_bars": hold_days,
             },
         }
         notes = (
             f"Lifecycle short paradigm BASELINE for {symbol}. Listing date "
-            f"{listing_date}. Short Day 1 close, exit Day 30 close OR SL "
-            f"+50%. Auto-generated by lifecycle_session_spawner."
+            f"{listing_date}. Short Day 1 close, exit Day {hold_days} close "
+            f"OR SL +50%. Auto-generated by lifecycle_session_spawner."
         )
     elif policy_variant == POLICY_EARLY_EXIT:
         name_suffix = f"_earlyexit_d{early_exit_check_day}"
@@ -255,9 +325,50 @@ def build_session_spec(
             f"— exit early if decay invalidated, else hold to Day 30. "
             f"Auto-generated by lifecycle_session_spawner."
         )
+    elif policy_variant == POLICY_BEAR_SKIP:
+        if bear_skip_btc_30d_pre_ret is None:
+            raise ValueError(
+                "bear_skip_btc_30d_pre_ret must be provided for POLICY_BEAR_SKIP"
+            )
+        name_suffix = "_bearskip"
+        pre_ret = float(bear_skip_btc_30d_pre_ret)
+        thr = float(bear_skip_threshold)
+        sources = [{
+            "type": "bn_lifecycle_decay_bear_skip",
+            "kwargs": {
+                "btc_30d_pre_ret": pre_ret,
+                "bear_threshold": thr,
+            },
+        }]
+        composer = {"type": "passthrough",
+                    "kwargs": {"feature_col": "bnldbs_signal", "scale": 1.0}}
+        policy = {
+            "type": "long_short_threshold",
+            "kwargs": {
+                "entry_threshold": 0.5,
+                "sl_pct": 0.50,
+                "tp_pct": 1.0,
+                "max_hold_bars": 30,
+            },
+        }
+        regime_label = "BEAR_SKIP" if pre_ret <= thr else "ACTIVE"
+        notes = (
+            f"Lifecycle short BEAR-SKIP variant for {symbol}. Listing date "
+            f"{listing_date}. BTC 30d pre-listing return = {pre_ret:+.4f} "
+            f"(threshold {thr:+.2f}) → regime {regime_label}. R-3 BEAR cohort "
+            f"(n=38, median -50.08%, win 42.1%) suppressed — emit signal 0 "
+            f"(no entry) when BEAR, else identical to baseline (Day 1 short, "
+            f"hold 30 days, SL +50%). Auto-generated by lifecycle_session_spawner."
+        )
     else:
         raise ValueError(f"Unknown policy_variant: {policy_variant!r}")
 
+    # forward_bars matches the policy's max_hold_bars so the orchestrator
+    # tracks horizon correctly. Early-exit variants keep hold=30 (decay window
+    # unchanged); baseline non-default hold (e.g. h21) shortens the horizon.
+    forward_bars = (
+        int(baseline_hold_days) if policy_variant == POLICY_BASELINE else 30
+    )
     return {
         "name": f"lifecycle{name_suffix}_{symbol}_{listing_date}",
         "symbol": symbol,
@@ -272,7 +383,7 @@ def build_session_spec(
             "policy": policy,
             "config": {
                 "eval_freq_minutes": 1440,
-                "forward_bars": 30,
+                "forward_bars": forward_bars,
             },
         },
     }
@@ -285,16 +396,29 @@ def spawn_session(
     policy_variant: str = POLICY_BASELINE,
     early_exit_check_day: int = 14,
     early_exit_vc_threshold: float = 0.40,
+    baseline_hold_days: int = 30,
+    bear_skip_btc_30d_pre_ret: float | None = None,
+    bear_skip_threshold: float = -0.05,
     dry_run: bool = False,
 ) -> bool:
     SESSIONS_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    suffix = "" if policy_variant == POLICY_BASELINE else f"_earlyexit_d{early_exit_check_day}"
+    if policy_variant == POLICY_BASELINE:
+        suffix = "" if int(baseline_hold_days) == 30 else f"_h{int(baseline_hold_days)}"
+    elif policy_variant == POLICY_EARLY_EXIT:
+        suffix = f"_earlyexit_d{early_exit_check_day}"
+    elif policy_variant == POLICY_BEAR_SKIP:
+        suffix = "_bearskip"
+    else:
+        raise ValueError(f"Unknown policy_variant: {policy_variant!r}")
     spec_path = SESSIONS_CONFIG_DIR / f"{symbol}_lifecycle{suffix}_{listing_date}.json"
     spec = build_session_spec(
         symbol,
         listing_date,
         policy_variant=policy_variant,
         early_exit_check_day=early_exit_check_day,
+        baseline_hold_days=baseline_hold_days,
+        bear_skip_btc_30d_pre_ret=bear_skip_btc_30d_pre_ret,
+        bear_skip_threshold=bear_skip_threshold,
         early_exit_vc_threshold=early_exit_vc_threshold,
     )
     if dry_run:
@@ -330,13 +454,14 @@ def main() -> int:
                    help="Maximum age in days for spawn eligibility (default 14)")
     p.add_argument(
         "--policy",
-        choices=("baseline", "early_exit", "both"),
+        choices=("baseline", "early_exit", "bear_skip", "both", "all"),
         default="both",
         help=(
             "Which policy variant(s) to spawn. 'baseline' = R-4 PASS pure "
-            "hold-30. 'early_exit' = vol_cliff-gated early exit. 'both' "
-            "(default) seeds BOTH variants on every eligible listing — "
-            "parallel A/B measurement."
+            "hold-30. 'early_exit' = vol_cliff-gated early exit. 'bear_skip' "
+            "= regime-gated (R-3 BEAR cohort median -50.08% suppressed). "
+            "'both' (default) seeds baseline+early_exit. 'all' seeds "
+            "baseline+early_exit+bear_skip — parallel A/B/C on every listing."
         ),
     )
     p.add_argument("--early-exit-check-day", type=int, default=None,
@@ -349,10 +474,24 @@ def main() -> int:
                          "Single value (e.g. '14') = original behavior."))
     p.add_argument("--early-exit-vc-threshold", type=float, default=0.40,
                    help="vol_cliff threshold above which early-exit fires (default 0.40).")
+    p.add_argument("--baseline-hold-days", default="30",
+                   help=("Comma-separated list of hold horizons (days) to spawn "
+                         "as PARALLEL baseline variants (default '30' = R-4 PASS "
+                         "horizon). '30,21' seeds both the R-4 PASS hold-30 and "
+                         "the R-3 plateau-optimum hold-21 variant (median "
+                         "+24-28%, win 62-66%). Non-30 values produce a "
+                         "_h{N} session-name suffix; hold=30 keeps the original "
+                         "name shape for back-compat."))
+    p.add_argument("--bear-skip-threshold", type=float, default=-0.05,
+                   help=("BTC 30d pre-listing return threshold below which the "
+                         "bear_skip variant suppresses entry (default -0.05 per "
+                         "R-3 regime analysis: BEAR cohort n=38 median -50.08%)."))
     args = p.parse_args()
 
     if args.policy == "both":
         variants = [POLICY_BASELINE, POLICY_EARLY_EXIT]
+    elif args.policy == "all":
+        variants = [POLICY_BASELINE, POLICY_EARLY_EXIT, POLICY_BEAR_SKIP]
     else:
         variants = [args.policy]
 
@@ -363,6 +502,9 @@ def main() -> int:
     else:
         ee_check_days = sorted({int(x) for x in args.early_exit_check_days.split(",") if x.strip()})
     log.info("early-exit check_days = %s", ee_check_days)
+
+    baseline_hold_days_list = sorted({int(x) for x in args.baseline_hold_days.split(",") if x.strip()})
+    log.info("baseline hold_days = %s", baseline_hold_days_list)
 
     known = json.loads(LISTINGS_PATH.read_text()) if LISTINGS_PATH.exists() else {}
     log.info("known listings: %d", len(known))
@@ -393,21 +535,59 @@ def main() -> int:
         if not backfilled_ok:
             skipped.append((sym, "backfill failed"))
             continue
+        # Bear_skip needs BTC 30d pre-listing return — compute once per symbol
+        # so all bear_skip variants for the same listing share the same regime
+        # decision (and the cost is one Binance klines fetch per listing).
+        bear_skip_pre_ret = None
+        if POLICY_BEAR_SKIP in variants:
+            bear_skip_pre_ret = compute_btc_30d_pre_ret(meta["onboard_date"])
+            if bear_skip_pre_ret is None:
+                log.warning(
+                    "[%s] bear_skip btc_30d_pre_ret unavailable — variant will be skipped",
+                    sym,
+                )
+
         for variant in variants:
-            # For early_exit, iterate over every requested check_day (each is a
-            # distinct paper session). Baseline ignores check_day entirely.
-            check_day_iter = ee_check_days if variant == POLICY_EARLY_EXIT else [None]
-            for cd in check_day_iter:
-                tag = f"{sym}/{variant}" if cd is None else f"{sym}/{variant}_d{cd}"
-                if session_exists_for(sym, policy_variant=variant, check_day=cd):
+            # For early_exit, iterate every requested check_day (each is a
+            # distinct paper session). For baseline, iterate every requested
+            # hold_days horizon. For bear_skip, single variant per listing.
+            if variant == POLICY_EARLY_EXIT:
+                axis_iter = [("cd", cd) for cd in ee_check_days]
+            elif variant == POLICY_BEAR_SKIP:
+                axis_iter = [("bs", None)]
+            else:
+                axis_iter = [("hold", h) for h in baseline_hold_days_list]
+            for axis_kind, axis_val in axis_iter:
+                if axis_kind == "cd":
+                    tag = f"{sym}/{variant}_d{axis_val}"
+                    cd_arg, hold_arg = int(axis_val), 30
+                elif axis_kind == "bs":
+                    tag = f"{sym}/{variant}"
+                    cd_arg, hold_arg = None, 30
+                    if bear_skip_pre_ret is None:
+                        skipped.append((tag, "btc_30d_pre_ret unavailable"))
+                        continue
+                else:
+                    suffix_tag = "" if int(axis_val) == 30 else f"_h{int(axis_val)}"
+                    tag = f"{sym}/{variant}{suffix_tag}"
+                    cd_arg, hold_arg = None, int(axis_val)
+                if session_exists_for(
+                    sym,
+                    policy_variant=variant,
+                    check_day=cd_arg,
+                    baseline_hold_days=hold_arg,
+                ):
                     skipped.append((tag, "session already exists"))
                     continue
                 ok_spawn = spawn_session(
                     sym,
                     meta["onboard_date"],
                     policy_variant=variant,
-                    early_exit_check_day=(cd if cd is not None else 14),
+                    early_exit_check_day=(cd_arg if cd_arg is not None else 14),
                     early_exit_vc_threshold=args.early_exit_vc_threshold,
+                    baseline_hold_days=hold_arg,
+                    bear_skip_btc_30d_pre_ret=bear_skip_pre_ret,
+                    bear_skip_threshold=args.bear_skip_threshold,
                     dry_run=args.dry_run,
                 )
                 if not ok_spawn:

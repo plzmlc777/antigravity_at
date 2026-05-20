@@ -1,0 +1,94 @@
+{
+  "paradigm_name": "liquidation_cascade_post_capitulation_alt_directional_30m_x_45m",
+  "candidate_counter": 122,
+  "phase_halted": "R-0",
+  "verdict": "DISPATCH_IMPOSSIBLE_DUPLICATE_PARADIGM_100",
+  "timestamp_kst": "2026-05-20T19:32:00+09:00",
+  "policy_mode": "continuous_parallel",
+  "substrate_verification": {
+    "binance_vision_daily_endpoint": {
+      "url_probed": "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?prefix=data/futures/um/daily/&delimiter=/",
+      "available_prefixes": [
+        "aggTrades",
+        "bookDepth",
+        "bookTicker",
+        "indexPriceKlines",
+        "klines",
+        "markPriceKlines",
+        "metrics",
+        "premiumIndexKlines",
+        "trades"
+      ],
+      "liquidationSnapshot_present": false,
+      "forceOrders_present": false
+    },
+    "binance_vision_monthly_endpoint": {
+      "url_probed": "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?prefix=data/futures/um/monthly/&delimiter=/",
+      "available_prefixes": [
+        "aggTrades",
+        "bookTicker",
+        "fundingRate",
+        "indexPriceKlines",
+        "klines",
+        "markPriceKlines",
+        "premiumIndexKlines",
+        "trades"
+      ],
+      "liquidationSnapshot_present": false,
+      "forceOrders_present": false
+    },
+    "rest_api_force_orders": {
+      "endpoint": "https://fapi.binance.com/fapi/v1/allForceOrders?symbol=BTCUSDT",
+      "response_status_code": 400,
+      "response_body": "{\"code\":400,\"msg\":\"The endpoint has been out of maintenance\"}",
+      "deprecation_state": "permanently_retired_public_endpoint"
+    },
+    "websocket_force_order_arr": {
+      "stream": "wss://fstream.binance.com/ws/!forceOrder@arr",
+      "type": "live_only",
+      "historical_replay_available": false,
+      "comment": "live-only stream; 2.4yr backlook impossible from 2026-05-20 start"
+    },
+    "metrics_archive_liquidation_columns": {
+      "schema": [
+        "create_time",
+        "symbol",
+        "sum_open_interest",
+        "sum_open_interest_value",
+        "count_toptrader_long_short_ratio",
+        "sum_toptrader_long_short_ratio",
+        "count_long_short_ratio",
+        "sum_taker_long_short_vol_ratio"
+      ],
+      "liquidation_column_present": false
+    },
+    "mint_ws_recorder_status": "not_audited_inherits_paradigm_100_finding_no_ambient_recorder"
+  },
+  "duplicate_paradigm_check": {
+    "paradigm_100_name": "binance_perp_liquidation_cascade_event_alt_intraday",
+    "paradigm_100_verdict": "DISPATCH_IMPOSSIBLE",
+    "paradigm_100_date": "2026-05-19 KST",
+    "paradigm_100_graveyard_path": "backend/runs/research_track/graveyard__binance_perp_liquidation_cascade_event_alt_intraday.md",
+    "paradigm_122_overlap_dimensions": {
+      "trigger_substrate": "identical (BTC perp liquidation notional, 5min cluster)",
+      "universe": "near-identical (13-14 alt cohort)",
+      "decision_mode": "identical (4-quadrant SNT directional)",
+      "data_dependency": "identical (forceOrders / liquidationSnapshot, both unavailable)",
+      "time_scale": "near-identical (5/15/60/240m vs 30m+45m)",
+      "paradigm_dna_overlap": "6/6 — exact substrate-class duplicate"
+    },
+    "differentiation_attempt_30m_cooloff_45m_hold": "parameter variation only; does NOT address substrate absence (cooloff window cannot be applied to non-existent data)"
+  },
+  "lesson_references": {
+    "primary": "#28 (Entry-side event paradigm requires measurement substrate availability prescreen) — 6th dogfood",
+    "secondary": "#44 (R-0 inventory check vs existing graveyards) — should-have-caught this before dispatch",
+    "structural_class": "DISPATCH_IMPOSSIBLE per lesson #28 substrate-class (n_substrate_observable=0 by construction)"
+  },
+  "counter_assignment": "INVENTORY_HALT_NO_COUNTER_INCREMENT — per [[project_paradigm_97_funding_dispersion_inventory_halt]] precedent, R-0 substrate-duplicate halts do not consume paradigm counter. paradigm 122 slot remains available for next family-distinct candidate.",
+  "resources_consumed": {
+    "substrate_probes": 4,
+    "lines_of_code": 0,
+    "wall_clock_minutes": 2,
+    "data_downloaded_mb": 0
+  }
+}

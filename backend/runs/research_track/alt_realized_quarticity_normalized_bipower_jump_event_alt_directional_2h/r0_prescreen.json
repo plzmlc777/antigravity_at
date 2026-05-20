@@ -1,0 +1,17 @@
+{
+  "paradigm_name": "alt_realized_quarticity_normalized_bipower_jump_event_alt_directional_2h",
+  "verdict": "R0_HALT_STRUCTURAL_THRESHOLD_INFEASIBLE_LESSON_40",
+  "z_jump_above_3_rate_pct": 0.0,
+  "z_jump_above_2_rate_pct": 0.0,
+  "z_jump_above_2_5_rate_pct": 0.0,
+  "z_jump_percentiles": {
+    "50": 0.02795666992052611,
+    "70": 0.5217398907140381,
+    "80": 0.7130081559500255,
+    "90": 0.8853091115640906,
+    "95": 0.9889247009561246,
+    "99": 1.1348638831547537,
+    "99.5": 1.1783694102000537,
+    "99.9": 1.2551865039827204
+  }
+}

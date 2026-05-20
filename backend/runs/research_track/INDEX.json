@@ -535,8 +535,401 @@
       "updated_at": "2026-05-19T04:26:15+00:00",
       "graveyard_reason": null,
       "seed_spec": null
+    },
+    "binance_perp_mark_index_basis_extreme_alt_directional_4h": {
+      "name": "binance_perp_mark_index_basis_extreme_alt_directional_4h",
+      "paradigm_number": 111,
+      "hypothesis": "Binance USDT-perp mark price embeds (index spot composite). When 5m basis_pct = (mark - index)/index reaches rolling 30d p05/p95 extremes, basis mean-reverts over next 4h. LONG perp-cheap (basis ≤ p05), SHORT perp-rich (basis ≥ p95). 6-alt × 12mo scope.",
+      "data_dependencies": [
+        "data.binance.vision/futures/um/monthly/markPriceKlines/{sym}/5m (12mo)",
+        "data.binance.vision/futures/um/monthly/indexPriceKlines/{sym}/5m (12mo)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/binance_perp_mark_index_basis_extreme_alt_directional_4h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T03:08:30.638507+00:00",
+      "updated_at": "2026-05-20T03:08:30.638520+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED (R-1 4-quadrant SNT). All 4 quadrants FAIL 3-gate. A_focus (perp-cheap → LONG) gross -0.37bp / sigex 1.06 / 0/6 ci_pos. A_mirror -0.37bp. B_same_sign (perp-rich → SHORT) gross +5.63bp BUT < 16bp fee floor, sigex 1.61 / 0/6 ci_pos. B_mirror -5.63bp. Mean-reversion mechanism not observed at 5m basis × 4h hold granularity. n=5838 trades focus, 12mo / 6 alt scope.",
+      "seed_spec": null,
+      "lesson_dogfoods": [
+        "#11",
+        "#16",
+        "#19",
+        "#28",
+        "#30",
+        "#34",
+        "#40"
+      ],
+      "novelty_axes_novel": 3,
+      "novelty_axes_total": 5,
+      "verdict_metadata": {
+        "verdict": "BROAD_FALSIFIED",
+        "n_quadrants_pass_3gate": 0,
+        "A_focus_gross_bp": -0.368,
+        "B_same_sign_gross_bp": 5.633,
+        "concentration_n_syms_ci_pos": 0,
+        "concentration_n_syms_total": 6,
+        "panel_window": "2025-05-01 .. 2026-04-30",
+        "wall_clock_minutes": 0.75
+      }
+    },
+    "smart_dumb_money_divergence_alt_directional_4h": {
+      "name": "smart_dumb_money_divergence_alt_directional_4h",
+      "hypothesis": "Cross-source positioning divergence: top_position_LSR percentile rank >= 0.95 AND global_account_LSR percentile rank <= 0.05 AND gap > 0.85 in same 5m bar -> LONG 4h continuation. Mirror direction SHORT. Joint-trigger 4-quadrant SNT per Lesson #19.",
+      "data_dependencies": [
+        "binance_positioning_metric DB (top_long_short_position + global_long_short_account 5m)",
+        "ohlcv 1m DB (14 alts, but 3 truncated)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/smart_dumb_money_divergence_alt_directional_4h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T12:16:55+09:00",
+      "updated_at": "2026-05-20T12:17:01+09:00",
+      "graveyard_reason": "R-1 SAMPLE_INSUFFICIENT (Lesson #11 prescreen): A_focus 28.8 trades / B_same 4.7 trades post-decimation (factor 48), both < 30 floor. Compounded by Lesson #30 data_window_ratio 0.049 (35d / 720d archive). 4-quadrant SNT not executed. paradigm 112",
+      "seed_spec": null,
+      "paradigm_number": 112
+    },
+    "intraday_hour_of_day_anchor_alt_directional_2h": {
+      "name": "intraday_hour_of_day_anchor_alt_directional_2h",
+      "paradigm_number": 113,
+      "hypothesis": "4 anchor hours UTC (00/07/13/21) × prior 1h signed |z|>=1 alt-perp → 2h continuation. Time-zone liquidity overlap momentum extension.",
+      "data_dependencies": [
+        "ohlcv 1h (Binance public archive data.binance.vision/futures/um/monthly/klines)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/intraday_hour_of_day_anchor_alt_directional_2h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T03:33:23.316358+00:00",
+      "updated_at": "2026-05-20T03:33:23.316358+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED R-1. 4-quadrant SNT: A focus posZ→LONG net -11.65bp / B same negZ→SHORT net -14.93bp (both continuation directions FAIL). Mirrors are exact symmetric ±k bp by construction, both net <= 0 after fee. Concentration 0/13 syms in all 4 quadrants. Lesson #21 axis-stacking diagnostic confirms anti-synthesis (joint -11.65bp < hour-only -6.69bp and z-only -7.35bp). Lesson #39 sub-class A signature (trigger has zero directional info, fee drag dominates). 3rd dogfood of Lesson #21 + #39.",
+      "seed_spec": null
+    },
+    "alt_range_breakout_24h_trailing_high_continuation_long_2h": {
+      "name": "alt_range_breakout_24h_trailing_high_continuation_long_2h",
+      "paradigm_number": 114,
+      "hypothesis": "1h close > prior 24h trailing max (Donchian-style breakout) with 12h fresh-breakout debounce -> LONG continuation 2h on 13 alts. Mirror dn-break -> SHORT.",
+      "data_dependencies": [
+        "1h OHLCV joblib cache (reuse paradigm 113 SHARED_CACHE_DIR, 13 alts x 24mo)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/alt_range_breakout_24h_trailing_high_continuation_long_2h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T04:25:40.587089+00:00",
+      "updated_at": "2026-05-20T04:25:40.587089+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED_FEE_FLOOR. A_focus break-up LONG 2h gross +5.41bp n=2858 sigex +2.54; B_same break-dn SHORT 2h gross +6.07bp n=2995 sigex +2.34. Continuation mechanism real (both focus quadrants gross > 0, mirror perfectly negative -5.41/-6.07) but max gross < 16bp fee floor — uneconomic. Hold sweep h=1h gross +6.95bp (max) sigex +4.29 still net -1.05bp. Lesson #21 axis-stacking POSITIVE (debounce synthesizes alpha: joint -2.59bp vs raw -5.52bp). 0/13 syms ci_pos — broadly distributed thin edge. Classic CTA breakout space confirmed uneconomic at retail crypto fees.",
+      "seed_spec": null
+    },
+    "alt_atr_normalized_range_breakout_continuation_long_2h": {
+      "name": "alt_atr_normalized_range_breakout_continuation_long_2h",
+      "hypothesis": "ATR-normalized 24h trailing-high breakout continuation. paradigm 114 raw breakout mechanism real (sigex+2.54, gross+5.41bp) but net -2.59bp fee-bound. ATR k-buffer (k=0.5/1.0/1.5) filters noise breakouts, hypothesis: subset clears 16bp fee floor at some k.",
+      "data_dependencies": [],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "graveyard": "runs/research_track/alt_atr_normalized_range_breakout_continuation_long_2h/r2_FAIL.md",
+        "R-2": "runs/research_track/alt_atr_normalized_range_breakout_continuation_long_2h/r2__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T04:32:54+00:00",
+      "updated_at": "2026-05-20T05:22:46.677181+00:00",
+      "graveyard_reason": "R-2 universe expansion (29 alts) produced strong pool alpha (n=2245, net+26.99bp, sigex+6.96, perm_p_one 0.000, pool ci_lower +14.84bp, WF 3/5 PASS, q_pos 8/9) and 2/3 deep ci_95_pos on expanded top-3 (DOTUSDT+SEIUSDT) BUT life-changing 4-dim: edge 0.27%/trade << 2% hard blocker per feedback_life_changing_strategy_criterion. Mechanism CONFIRMED real but NOT life-changing. Lesson #41 candidate confirmed_but_narrow_scope_life_changing_fail (diffuse alpha aggregation hypothesis VALIDATED — universe expansion increased syms_ci_pos from 0/13 to 3/29 + revealed DOT/SEI/ARB concentrate alpha well, but per-trade edge structural insufficient).",
+      "seed_spec": null
+    },
+    "alt_extreme_24h_drawdown_reversal_long_4h": {
+      "name": "alt_extreme_24h_drawdown_reversal_long_4h",
+      "hypothesis": "Capitulation mean-reversion: alt 24h cumulative log return ≤ -15% triggers forward LONG continuation. Sparse event-driven (target edge≥2%/trade per post-pivot life-changing mandate). 4-quadrant SNT across 4 thresholds × 4 holds.",
+      "data_dependencies": [
+        "paradigm113_klines_cache (13 core)",
+        "paradigm115_r2_expansion (16 expansion, MATICUSDT dropped → 28 usable)"
+      ],
+      "current_phase": "R-1_HALT_PASS",
+      "metrics_files": {
+        "R-1": "runs/research_track/alt_extreme_24h_drawdown_reversal_long_4h/r1__metrics.json",
+        "R-1_PASS": "runs/research_track/alt_extreme_24h_drawdown_reversal_long_4h/r1_PASS.md"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T05:36:53.496077+00:00",
+      "updated_at": "2026-05-20T05:55:18.404865+00:00",
+      "r1_verdict": "PASS_R1_FULL_via_lesson37_sweep",
+      "r1_verdict_reason": "Primary 4h hold flat (gross +0.18bp). Hold-sweep at threshold -15% identifies 24h cell PASS: A_focus_drawdown_LONG n=406 gross+275.31bp net+267.31bp sigex+8.71 perm_p 0.000 CI[+201.52,+329.38] q_pos 7/8 syms_ci_pos 13/28 (46%) edge+2.67%/trade tpy=216 util=59% sharpe=5.72 all life-changing 4-dim PASS. Mechanism timescale is 24h not 4h.",
+      "r1_caveats": [
+        "Mechanism timescale = 24h not 4h. R-2 must use 24h hold primary and rename slug.",
+        "Per-quarter variance HIGH (108-645bp range). Q3-2025 single negative outlier n=5 marginal - Lesson #26 walk-forward stress test.",
+        "Survivorship: 28 currently-listed alts; delisted cohort excluded.",
+        "Per-sym concentration 13/28=46% above 30% gate but not uniform.",
+        "Lesson #39 sub-class A perfect-mirror at 4h (sum_abs 0.36bp) - 24h A_mirror must be computed in R-2 for confirmation.",
+        "First post-pivot R-1 PASS - sparse event-driven class remains viable at extended timescale."
+      ],
+      "seed_spec": null,
+      "next_action": "HALT_FOR_USER_APPROVAL_R2",
+      "rename_pointer": "alt_extreme_24h_drawdown_24h_reversion_long",
+      "r1_continuation_note": "Slug renamed at R-2 dispatch because mechanism timescale is 24h, not 4h. See alt_extreme_24h_drawdown_24h_reversion_long for R-2+ continuation."
+    },
+    "alt_extreme_24h_drawdown_24h_reversion_long": {
+      "name": "alt_extreme_24h_drawdown_24h_reversion_long",
+      "r1_alias": "alt_extreme_24h_drawdown_reversal_long_4h",
+      "paradigm_number": 117,
+      "hypothesis": "Capitulation mean-reversion at 24h timescale: alt 24h cumulative log return ≤ -15% triggers forward LONG 24h hold continuation. R-1 24h cell identified via Lesson #37 hold-sweep verdict scan: n=406 net+267.31bp edge+2.67%/trade sigex+8.71 lc4 4/4 PASS.",
+      "data_dependencies": [
+        "paradigm113_klines_cache (13 core)",
+        "paradigm115_r2_expansion (15 expansion, MATIC dropped → 28 usable)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "runs/research_track/alt_extreme_24h_drawdown_reversal_long_4h/r1__metrics.json",
+        "R-1_PASS": "runs/research_track/alt_extreme_24h_drawdown_reversal_long_4h/r1_PASS.md",
+        "R-2": "runs/research_track/alt_extreme_24h_drawdown_24h_reversion_long/r2__metrics.json",
+        "R-2_PASS": "runs/research_track/alt_extreme_24h_drawdown_24h_reversion_long/r2_PASS.md",
+        "R-3": "runs/research_track/alt_extreme_24h_drawdown_24h_reversion_long/r3__metrics.json",
+        "R-3_FAIL": "runs/research_track/alt_extreme_24h_drawdown_24h_reversion_long/r3_FAIL.md"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T05:55:18.404865+00:00",
+      "updated_at": "2026-05-20T06:17:23.065678+00:00",
+      "r1_verdict": "PASS_R1_FULL_via_lesson37_sweep",
+      "r2_verdict": "R2_PASS",
+      "r2_verdict_reason": "All 5 R-2 gates clear. Pool-drift OK (pool baseline -13.14bp NEGATIVE, A_focus +275.31bp = +288bp directional above pool, no upward drift artifact). TS-CV 4/5 folds PASS (all 5 positive means, fold 3 marginal t=1.25). Threshold sweep STRICTLY MONOTONE (edge 1.15→2.67→5.57→10.59% across -12/-15/-18/-22%, t-stat also monotone 4.27→7.85→11.58→14.41). Broad-shoulders survives top-3 removal (1000PEPE+SUI+HBAR removed, remaining n=344 edge 2.33% t=6.73). Life-changing 4/4 at primary 24h cell. Mechanism timescale is 24h NOT 4h (slug renamed from R-1).",
+      "r2_caveats": [
+        "A_mirror at 24h hold computed as direction-flip on same anchor → sum_abs = 0.00bp by mathematical identity, NOT a proper Lesson #39 sub-class A test. R-3 must compute proper 4-quadrant SNT @ 24h (pump SHORT + pump LONG mirrors on +15% threshold).",
+        "TIAUSDT structural negative contributor (-2658 bp / n=27) — R-3 should evaluate as structural exclusion candidate.",
+        "Survivorship: 28 currently-listed alts only; delisted cohort excluded → edge likely UPWARDLY biased. R-3 should attempt delisted cohort or document scope limitation for R-5.",
+        "Fold 3 of TS-CV t=1.25 (single Q1-2025 slice) — robust enough at 4/5 but indicates marginal cohort in early-2025 period."
+      ],
+      "seed_spec": null,
+      "next_action": "HALT_FOR_USER_APPROVAL_R3",
+      "lessons_dogfood": [
+        "Lesson #35 pool-drift triage 4th dogfood — pool baseline (-13bp) measurement definitively rules out fee-trap vs pool-drift ambiguity at 24h scale",
+        "Lesson #26 small-sample temporal WF 2nd dogfood after paradigm 87 — paradigm 117 CLEARS (4/5 vs paradigm 87 1/5) with all-positive folds",
+        "Lesson #37 hold-sweep verdict scan continuation (R-1 PASS via non-primary 24h cell, R-2 reframes 24h as primary)"
+      ],
+      "graveyard_reason": "R-3 R3_FAIL_OOS: OOS edge ratio 0.65 (Train +2.978%/trade -> OOS +1.929%/trade) below 0.70 strict-PASS threshold; OOS lc4 3/4 (edge dim fails 2%). Secondary R3_FAIL_SURVIVORSHIP: extended cohort probe (8 syms incl BAKEUSDT/CTSIUSDT/MATICUSDT) n=63 triggers edge -3.86%, conservative R-5 edge -0.59%/trade << 2% life-changing bar. Tertiary Caveat 1 F: real Lesson #39 4-quadrant SNT B_same (PUMP x SHORT) sigex 0.28 vs A_focus 8.71 - mechanism CLASS asymmetric (only capitulation bounce confirmed, not euphoria correction). Regime stratify 8/9 PASS, SL/TP plateau 6 cells PASS (seed sl=0.25 tp=0.30), correlation max 0.243 PASS - signal IS real on liquid-tier survivor cohort but does NOT pass life-changing 4-dim bar on holdout OOS and does NOT generalize to weaker-tier alts. metrics: runs/research_track/alt_extreme_24h_drawdown_24h_reversion_long/r3__metrics.json"
+    },
+    "btc_oi_activity_regime_x_alt_oi_velocity_decomp_long_4h": {
+      "paradigm_id": 120,
+      "phase": "GRAVEYARD",
+      "verdict": "BROAD_FALSIFIED_FEE_FLOOR_SUB_THRESHOLD",
+      "created_at": "2026-05-20T17:07:00+09:00",
+      "graveyard_at": "2026-05-20T17:10:00+09:00",
+      "hypothesis": "BTC OI activity HIGH regime × alt OI velocity |z|>1 4-quadrant 4h directional",
+      "type": "E",
+      "family_distinct_dna": "OI joint × BTC macro derivatives regime (vs paradigm 71 single OI trigger / vs paradigm 69 BTC RV price-vol)",
+      "lessons_dogfood": [
+        "#11",
+        "#19",
+        "#30",
+        "#32",
+        "#34",
+        "#39 (NEW sub-class C candidate)",
+        "#41 amendment",
+        "#45 (N/A — percentile threshold not unsupervised)",
+        "#46 (NEW candidate)"
+      ],
+      "artifacts": {
+        "script": "backend/scripts/research/paradigm120_btc_oi_activity_regime_x_alt_oi_velocity_decomp_long_4h_r1.py",
+        "metrics": "backend/runs/research_track/btc_oi_activity_regime_x_alt_oi_velocity_decomp_long_4h/r1__metrics.json",
+        "graveyard": "backend/runs/research_track/graveyard__btc_oi_activity_regime_x_alt_oi_velocity_decomp_long_4h.md"
+      }
+    },
+    "hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h": {
+      "paradigm_id": 121,
+      "phase": "GRAVEYARD",
+      "verdict": "BROAD_FALSIFIED_LESSON39_SYMMETRIC_NO_AXIS_SYNTHESIS_HMM_FILTER_INEFFECTIVE",
+      "created_at": "2026-05-20T17:17:00+09:00",
+      "graveyard_at": "2026-05-20T17:21:00+09:00",
+      "hypothesis": "HMM HIGH-vol state (per-sym 3-state Gaussian, weekly WF, posterior>=0.8) × markPrice basis 1h |z|>2 × 4-quadrant 4h directional",
+      "type": "E",
+      "family_distinct_dna": "HMM unsupervised endogenous decomposition AS FILTER + external orthogonal axis (markPrice basis) — Lesson #45 candidate umbrella-path verification target. Distinct from paradigm 119 (HMM endogenous-only state-identity trigger) and paradigm 105 (markPrice basis single-axis 5m percentile rank)",
+      "lessons_dogfood": [
+        "#11 (PASS R-0 / borderline R-1)",
+        "#16 (Concentration gate applied 4 quadrants all FAIL)",
+        "#19 (4-quadrant SNT single batch)",
+        "#28 (substrate paradigm 105 cache + hmmlearn install)",
+        "#34 (basis_pct median negative, |z|>2 4.86%)",
+        "#39 sub-class A 3rd dogfood CONFIRMED 자격 reinforced (A/B both exact ±2×fee symmetric)",
+        "#45 candidate STRENGTHENED (2 dogfoods CONFIRMED 자격 reached — paradigm 119 endogenous-only + paradigm 121 conditioning filter both BROAD_FALSIFIED)",
+        "#46 candidate DECLINE/AMENDMENT (R-0 proxy +43.46bp vs R-1 realized +10.36bp 4.2x bias — R-0 must use exact R-1 mechanism)"
+      ],
+      "artifacts": {
+        "r0_script": "backend/scripts/research/paradigm121_r0_prescreen.py",
+        "r0_metrics": "backend/runs/research_track/hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h/r0_prescreen.json",
+        "r1_script": "backend/scripts/research/paradigm121_hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h_r1.py",
+        "r1_metrics": "backend/runs/research_track/hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h/r1__metrics.json",
+        "graveyard": "backend/runs/research_track/graveyard__hmm_realized_vol_state_x_markprice_basis_extreme_alt_directional_4h.md"
+      },
+      "graveyard_reason": "R-1 4-quadrant SNT all FAIL 3-gate + Concentration 0/0 measurable syms. A_focus +10.36bp / A_mirror -26.36bp diff = 16bp = 2×fee exact symmetric (Lesson #39 sub-class A). B_focus -51.39 / B_mirror +35.39 also exact 2×fee symmetric. HMM HIGH-conf state rate ~2% (paradigm 119 fingerprint) — filter thins sample 14x while reducing gross drift 50%. Lesson #45 candidate STRENGTHENED to 2 dogfoods CONFIRMED 자격 reached (HMM-based mechanism architecturally broken across endogenous-only + exogenous-conditioned). Lesson #46 candidate AMENDMENT REQUIRED (R-0 proxy ≠ R-1 exact mechanism)."
+    },
+    "intraday_session_open_alt_oi_acceleration_directional_30m": {
+      "name": "intraday_session_open_alt_oi_acceleration_directional_30m",
+      "hypothesis": "13 alt 5m OI velocity z top-decile (|z|>=per-sym p90) at DUAL ANCHOR (CME close 21UTC +/-15min OR funding-cycle 00/08/16UTC +/-5min), 30min sign-matched forward hold",
+      "data_dependencies": [
+        "ohlcv 1m DB resampled 5m",
+        " microstructure full_metrics joblib open_interest 5m"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T11:04:12+00:00",
+      "updated_at": "2026-05-20T11:04:19+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED 4-quadrant SNT: all 4 quadrants ci_lower<0 + 0/13 syms ci_pos + Lesson #39 sub-class A both arms (exact symmetric broad-uniform-negative). Per-trade edge negative all quadrants (life-changing 4-dim FAIL gate first). Lesson #21 antipattern: paradigm 71 OI velocity alone null + paradigm 113 hour-anchor alone null = 2 null axes stacking confirmed. metrics: backend/runs/research_track/intraday_session_open_alt_oi_acceleration_directional_30m/r1__metrics.json",
+      "seed_spec": null
+    },
+    "alt_volume_cusum_change_point_persistence_directional_2h": {
+      "name": "alt_volume_cusum_change_point_persistence_directional_2h",
+      "hypothesis": "13 alt 5m volume Page-Hinkley CUSUM change-point detector (rolling 7d log-volume reference, lambda=12.0 → 3.60% alarm rate), sign-matched by alarm-bar log-vol z (positive → LONG continuation, negative → SHORT continuation), forward 2h hold.",
+      "data_dependencies": [
+        "ohlcv 1m DB resampled 5m volume column"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0_prescreen": "backend/runs/research_track/alt_volume_cusum_change_point_persistence_directional_2h/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_volume_cusum_change_point_persistence_directional_2h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T11:22:14.912747+00:00",
+      "updated_at": "2026-05-20T11:22:14.912747+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED_BOTH_FOCUS_NEGATIVE 4-quadrant SNT n=99,221: A_focus pos→LONG gross +6.32bp/net -9.68bp / B_focus neg→SHORT gross +1.11bp/net -14.89bp, both <16bp fee floor. ALL 4 quadrants ci_lower<0, 0/13 syms ci_pos, prob_pos=0.00. Lesson #39 sub-class A both arms (exact-symmetric broad-uniform-negative, trigger carries zero directional info). A_focus 1/10 quarters positive t (2024Q1 only), B_focus 0/10 quarters positive t. Lesson #41 amendment edge-first FAIL all quadrants (per-trade edge -0.10% to -0.22%). Lesson #46 AMENDMENT REFINEMENT first dogfood CONFIRMED: temporally-stratified n=50x4q exposed per-quarter sign-flip (Q1 +71 / Q4 -73 / Q3 -13 / Q2 -42 in A arm) at R-0, leading indicator of full-panel broad-falsified. NEW sub-amendment candidate R0_ADVISORY_PER_QUARTER_SIGN_FLIP. Page-Hinkley CUSUM IS family-distinct in statistic-class novelty (paradigm 84 only prior, 5m vs daily frame distinct) BUT change-points are direction-agnostic — Lesson #43 trap (statistic novelty != mechanism alpha). Stateful CP advisory caution candidate family (paradigm 84 + 123 = 2 sub-classes). 123rd graveyard. metrics: backend/runs/research_track/alt_volume_cusum_change_point_persistence_directional_2h/r1__metrics.json",
+      "seed_spec": null
+    },
+    "alt_realized_kurtosis_extreme_signed_directional_2h": {
+      "name": "alt_realized_kurtosis_extreme_signed_directional_2h",
+      "hypothesis": "13 alt 1h rolling realized kurtosis on 5m intra-bar log-returns (12-bar window) joint with 3rd-moment skewness sign as direction selector. Trigger: excess_kurt p90 > 2.401 AND |skew| > 1.0 (joint rate 8.72%). Direction: skew sign-matched LONG/SHORT continuation. Forward hold: 2h.",
+      "data_dependencies": [
+        "ohlcv 1m DB resampled to 5m close prices"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0_prescreen": "backend/runs/research_track/alt_realized_kurtosis_extreme_signed_directional_2h/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_realized_kurtosis_extreme_signed_directional_2h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T11:38:07.675660+00:00",
+      "updated_at": "2026-05-20T11:38:07.675677+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED_BOTH_FOCUS_NEGATIVE 4-quadrant SNT n=241,248 total: A_focus skew_pos×LONG n=125,893 gross +5.49bp/net -10.51bp obs_t -24.53; B_focus skew_neg×SHORT n=115,355 gross +1.25bp/net -14.75bp obs_t -28.32. BOTH focus quadrants gross-positive but well below 16bp fee floor. ALL 4 quadrants ci_lower<0, 0/13 syms ci_pos in every quadrant (broadest sub-class A signature). Lesson #39 sub-class A both arms (exact-symmetric broad-uniform-negative, trigger carries zero directional info despite gross sign correct). A_focus 1/10 quarters positive t, B_focus 1/10. Lesson #41 amendment edge-first FAIL all quadrants (per-trade edge -0.105% A_focus to -0.215% A_mirror). Lesson #46 AMENDMENT REFINEMENT 2nd dogfood CONFIRMED: stratified n=50x4q estimated A_focus gross +42.77bp t=5.00, full panel collapsed to +5.49bp (8x magnitude inflation). B_focus 2 sign-flips advisory correctly predicted full-panel fragility. Sub-amendment R0_ADVISORY_PER_QUARTER_SIGN_FLIP 2nd dogfood = formal CONFIRMED. NEW Lesson #46-B candidate: R-0 stratified magnitude inflation factor advisory (8x observed). Higher-order moment family now 3 graveyards (paradigm 65 3rd moment z MR / 66 3rd moment z momentum / 124 4th+3rd joint sign-matched) — Tier 4 retire CANDIDATE. Family-distinct vs paradigm 65/66 confirmed: 4th moment IS new statistic class but mechanism alpha exhausted. fee_aware_perm_test n_obs > n_pool×2 limit reproduced (paradigm 83 known limitation) — null_t/sigex/perm_p NaN, fallback to obs_t + bootstrap CI. Continuous-parallel 6 consecutive BROAD_FALSIFIED (119→120→121→122→123→124) — axis exhaustion signal continues. 124th graveyard. metrics: backend/runs/research_track/alt_realized_kurtosis_extreme_signed_directional_2h/r1__metrics.json",
+      "seed_spec": null
+    },
+    "alt_realized_quarticity_normalized_bipower_jump_event_alt_directional_2h": {
+      "name": "alt_realized_quarticity_normalized_bipower_jump_event_alt_directional_2h",
+      "hypothesis": "13 alt 1h rolling Barndorff-Nielsen ratio jump test on 5m intra-bar log-returns (12-bar window). Z_jump = ((RV-BV)/RV) * sqrt(M / (theta * max(1, RQ/BV^2))) where RV=realized variance, BV=bipower variation (jump-robust scale), RQ=realized quarticity (4th moment auxiliary normalizer). Trigger: Z_jump > 3.0 AND |1-bar log_ret| > 0.5% (magnitude confirm). Direction: sign of triggering 5m log-return (positive jump -> LONG continuation, negative -> SHORT). Forward hold 2h. Family-distinct claim vs paradigm 65/66/124: ratio-of-variations statistic (jump-isolation), discrete event trigger mode (vs continuous percentile), price-jump direction (vs distributional asymmetry).",
+      "data_dependencies": [
+        "ohlcv 1m DB resampled to 5m close prices"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0_prescreen": "backend/runs/research_track/alt_realized_quarticity_normalized_bipower_jump_event_alt_directional_2h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-20T11:52:40+00:00",
+      "updated_at": "2026-05-20T11:52:40+00:00",
+      "graveyard_reason": "R-0 HALT STRUCTURAL_THRESHOLD_INFEASIBLE_LESSON_40 (R-1 not dispatched). Barndorff-Nielsen ratio jump test on 1h (M=12) windows of 5m crypto log-returns. Two canonical forms attempted: Huang-Tauchen variant (RV-BV)/(BV*sqrt(theta*ratio/M)) Z p99.9=2.898, and canonical Andersen-Bollerslev ratio ((RV-BV)/RV)*sqrt(M/(theta*max(1, RQ/BV^2))) Z p99.9=1.255. Standard B-N critical value Z>3 STRUCTURALLY UNREACHABLE at M=12: canonical numerator bounded by [0,1] (jump fraction of variance cannot exceed 1), scale factor sqrt(M/theta)=sqrt(12/0.609)~4.44 insufficient to amplify past 3.0. Z>3 empirical rate 0.000% in ratio form / 0.064% in Huang-Tauchen form -- 4-quadrant SNT cannot be evaluated. Original B-N studies used M=78 (NYSE day) or M=288 (24h crypto), where sqrt(M/theta) is 11.3-21.8. Lesson #40 4th explicit dogfood with NEW sub-antipattern: 'academic test statistics with asymptotic critical values fail at short-window rolling deployment'. Lesson #44 amendment 6th dogfood applied (paradigm 65/66/124 cross-ref documented). Higher-order moment family: 4th paradigm in CANDIDATE but failure is substrate-level NOT mechanism-level (the jump-detection mechanism was never empirically tested at M=12). Conservative call: family remains Tier 4 retire CANDIDATE, not formal retire (any retry would require M=78+ window which overlaps with paradigm 67/68/69 RV daily-frame family already explored). Practical effect: 1h-frame discrete-event variants exhausted; daily-frame variants in retired family space. Both directions effectively closed. Lesson #46 AMENDMENT REFINEMENT 3rd-dogfood not reached (halted before stratified test). Continuous-parallel campaign: 7 consecutive non-PASS (119->125), first R-0 halt in streak. 125th graveyard. R-0 metrics: backend/runs/research_track/alt_realized_quarticity_normalized_bipower_jump_event_alt_directional_2h/r0_prescreen.json",
+      "seed_spec": null
+    },
+    "alt_volume_burst_intra5m_event_signed_directional_30m": {
+      "name": "alt_volume_burst_intra5m_event_signed_directional_30m",
+      "hypothesis": "13 alt 1m volume burst event within 5m frame. Trigger: 1m volume > p99 of 30-day rolling per-symbol 1m volume AND |1m_log_ret| > 0.5% magnitude confirm. Direction: sign of 1m_log_ret on burst minute (momentum continuation). Forward hold 30 min. Family-distinct from paradigm 72/116/123: binary event 1m granularity vs continuous z 5m / standalone burst trigger vs ATR confirmation / discrete 1m event vs stateful 5m Page-Hinkley CP.",
+      "data_dependencies": [
+        "ohlcv 1m DB per-symbol"
+      ],
+      "current_phase": "R-2",
+      "metrics_files": {
+        "R-0_prescreen": "backend/runs/research_track/alt_volume_burst_intra5m_event_signed_directional_30m/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_volume_burst_intra5m_event_signed_directional_30m/r1__metrics.json",
+        "R-2": "backend/runs/research_track/alt_volume_burst_intra5m_event_signed_directional_30m/r2__metrics.json"
+      },
+      "gate_evals": {
+        "R-2": "backend/runs/research_track/alt_volume_burst_intra5m_event_signed_directional_30m/gate_eval__r2.md"
+      },
+      "type": "E",
+      "created_at": "2026-05-20T13:02:45.882478+00:00",
+      "updated_at": "2026-05-20T13:26:00.708535+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m": {
+      "name": "alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m",
+      "hypothesis": "paradigm 126 A arm split — positive 1m volume burst event (1m vol > 30d p99 AND |1m_ret|>0.5%) → LONG continuation. Hold 60min (paradigm 126 R-2 sweet-spot, R-3 caveat #1 finds 90min global optimum). 13 alts. Family-distinct from 126 by single-arm focus + hold optimization. Lesson #41 dual-mode high-freq diffuse qualifier.",
+      "data_dependencies": [
+        "ohlcv 1m DB per-symbol (13 alts × 2.4yr)"
+      ],
+      "current_phase": "R-5_ARTIFACT_READY",
+      "metrics_files": {
+        "R-3": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r3__metrics.json",
+        "R-4": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r4__capacity_estimation.json",
+        "R-5": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r5__seed_spec.json"
+      },
+      "gate_evals": {
+        "R-4": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r4__elite_gate_eval.md"
+      },
+      "type": "E",
+      "created_at": "2026-05-20T22:59:55.916986+00:00",
+      "updated_at": "2026-05-20T23:51:09.342029+00:00",
+      "seed_spec": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r5__seed_spec.json",
+      "parent_paradigm": "alt_volume_burst_intra5m_event_signed_directional_30m",
+      "split_arm": "A_pos_burst_LONG",
+      "paradigm_number": 127,
+      "r3_verdict_override_note": "R3_PASS_LESSON_50_OVERRIDE — strict verdict R3_FAIL_PER_BURST_SIGNING superseded by Lesson #50 candidate CONFIRMED 자격 (dual dogfood paradigm 127+128). Per-burst signing FAIL = methodology antipattern (forward-window double-count + n inflation), NOT mechanism fragility. ci_lower +5.00bp confirms dilution-not-zero. First-burst-sign 5m bin aggregation is mechanistically correct implementation.",
+      "r4_verdict": "PASS_R4_HIGH_FREQ_DIFFUSE_SMALL_CAPITAL",
+      "r5_status": "DRAFT_PROPOSAL_AWAITING_USER_APPROVAL",
+      "r5_artifact_ready_at_kst": "2026-05-21T08:51:09.342025+09:00",
+      "deployment_checklist": "backend/runs/research_track/alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m/r5__deployment_checklist.md",
+      "deployment_status": "ARTIFACT_READY_AWAITING_MINT_DEPLOY",
+      "graveyard_reason_pre_lesson_50_override": null
+    },
+    "alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m": {
+      "name": "alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m",
+      "hypothesis": "13 alt 1m volume burst event @ 5m frame (1m vol > 30d p99 AND |1m_ret|>0.5% AND sign<0) → SHORT 15min hold capitulation reversion. paradigm 126 B-arm split. Mechanism: panic-sell capitulation reversion (vs continuation A-arm).",
+      "data_dependencies": [
+        "ohlcv 1m DB per-symbol",
+        "BTC 1h archive (vol regime stratify)"
+      ],
+      "current_phase": "R-5_ARTIFACT_READY",
+      "metrics_files": {
+        "R-3": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r3__metrics.json",
+        "R-4": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r5__seed_spec.json",
+        "R-5": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r5__seed_spec.json"
+      },
+      "gate_evals": {
+        "R-3": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/gate_eval__r3.md",
+        "R-4": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r4__elite_gate_eval.md"
+      },
+      "type": "E",
+      "created_at": "2026-05-21T07:54:06.077000+00:00",
+      "updated_at": "2026-05-20T23:51:09.342029+00:00",
+      "verdict": "R3_PASS_LESSON_50_OVERRIDE_THEN_R4_PASS_DUAL_MODE_HIGH_FREQ_DIFFUSE_SHORT_WITH_MANDATORY_SL",
+      "verdict_summary": "6/7 caveats PASS (hold horizon 10min sweet-spot, vol regime 3/3 ci_pos, debounce 30min, Sharpe/squeeze p95<500bp, OOS 2026 ratio 1.48x STRONGER, survivorship 0.99x identical) — 1 caveat FAIL: per-burst signing (-34.61bp net vs first-burst +36.45bp). Per-burst FAIL is stress test of alternative implementation NOT proposed for R-5 seed. Strict cascade verdict graveyard, but mechanism profile strongest R-3 in campaign to date. Awaiting user decision: Option A strict graveyard, Option B R-5 seed override with per-burst antipattern guardrail.",
+      "seed_spec": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r5__seed_spec.json",
+      "parent_paradigm": 126,
+      "arm_from_parent": "B",
+      "r4_verdict": "PASS_R4_DUAL_MODE_HIGH_FREQ_DIFFUSE_SHORT_WITH_MANDATORY_SL",
+      "r4_completed_at_kst": "2026-05-21T08:35:00+09:00",
+      "r4_lesson_50_override": true,
+      "r5_seed_proposal_status": "DRAFT_PENDING_USER_APPROVAL",
+      "r5_first_short_only_seed_in_campaign": true,
+      "r5_artifact_ready_at_kst": "2026-05-21T08:51:09.342025+09:00",
+      "deployment_checklist": "backend/runs/research_track/alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m/r5__deployment_checklist.md",
+      "deployment_status": "ARTIFACT_READY_AWAITING_MINT_DEPLOY",
+      "graveyard_reason_pre_lesson_50_override": "R3_FAIL_PER_BURST_DEGRADED",
+      "verdict_pre_lesson_50_override": "R3_FAIL_PER_BURST_DEGRADED"
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-19T04:26:15+00:00"
+  "updated_at": "2026-05-20T22:59:55.916986+00:00",
+  "last_updated_at_kst": "2026-05-21T08:51:09.342025+09:00"
 }

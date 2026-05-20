@@ -7,14 +7,24 @@
 #   2. Identify listings aged 1-14 days, not in blocklist (stocks/commodities),
 #      not already covered by an existing paper session (per-variant detection)
 #   3. Backfill that symbol's 1m ohlcv (35 days) — shared across variants
-#   4. Create per-listing PaperSession(s) via paper_session_cli — THREE variants:
+#   4. Create per-listing PaperSession(s) via paper_session_cli — FIVE variants:
 #        - baseline (R-4 PASS): Day 1 short, hold to Day 30
+#        - baseline_h21 (R-3 plateau optimum, 2026-05-20): same entry, hold=21.
+#          R-3 grid plateau top-10 favored hold=21 (median +24-28%, win 62-66%)
+#          over hold=30 — parallel A/B measures whether the shorter horizon
+#          preserves median while freeing capital ~30% sooner
 #        - early_exit_d14 (R-2-bis +1.41% mean uplift, +2.5pp win, t-stat 1.70→2.13):
 #          Day 1 short; at Day 14 if vol_cliff>=0.40, exit early
 #        - early_exit_d7 (2026-05-18 aggressive expansion): same as d14 but
 #          earlier check_day for shorter capital cycling — A/B measures
 #          whether earlier exit signal preserves the +1.41% uplift while
 #          freeing capital sooner
+#        - bear_skip (R-3 regime gate, 2026-05-20): same entry semantics but
+#          suppresses short when BTC 30d pre-listing return <= -0.05 (R-3
+#          BEAR cohort n=38 median -50.08% win 42.1% — catastrophic). Regime
+#          decision FROZEN at spawn time. A/B vs baseline measures regime-
+#          filter uplift in NEUTRAL+BULL listings (no-op) and avoided drawdown
+#          in BEAR listings (no entry)
 #
 # Schedule: daily 03:00 UTC (12:00 KST) — AFTER binance-paper-cycle (02:30 UTC)
 # so new sessions appear on the NEXT day's cycle (acceptable — lifecycle hold
@@ -43,9 +53,11 @@ source venv/bin/activate
 
 PYTHONPATH=. python3 -m scripts.research.lifecycle_session_spawner \
   --refresh-listings \
-  --policy both \
+  --policy all \
+  --baseline-hold-days 30,21 \
   --early-exit-check-days 7,14 \
   --early-exit-vc-threshold 0.40 \
+  --bear-skip-threshold -0.05 \
   2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[lifecycle-spawner] exit_code=${EC}" | tee -a "${LOG_FILE}"

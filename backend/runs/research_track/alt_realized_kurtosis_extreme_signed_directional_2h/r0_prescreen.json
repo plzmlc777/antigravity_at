@@ -1,0 +1,258 @@
+{
+  "paradigm_name": "alt_realized_kurtosis_extreme_signed_directional_2h",
+  "counter_proposed": 124,
+  "prescreen_timestamp_utc": "2026-05-20T11:31:30.273991+00:00",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_symbols_loaded": 13,
+  "trigger_params": {
+    "moment_window_bars_5m": 12,
+    "moment_window_minutes": 60,
+    "kurt_threshold_pct": 90.0,
+    "kurt_threshold_value_empirical": 2.4008458885048745,
+    "skew_abs_threshold_candidates": [
+      0.3,
+      0.5,
+      0.7,
+      1.0
+    ],
+    "skew_abs_threshold_chosen": 1.0,
+    "target_joint_rate_pct": 3.5000000000000004
+  },
+  "forward_hold_min": 120,
+  "fee_bp_round_trip": 16.0,
+  "panel_bars": 2768352,
+  "n_quarters_total": 10,
+  "lesson_22_frame_grade": {
+    "source_frequency": "5m intra-bar (1m DB resampled, 12 bars = 1h window)",
+    "statistic_class": "explicit higher-order moments (rolling skew + excess kurt)",
+    "frame_grade_satisfied": true,
+    "panel_bars_evidence": 2768352
+  },
+  "lesson_11_sample_density": {
+    "n_triggers_total": 241258,
+    "n_triggers_skew_pos": 125899,
+    "n_triggers_skew_neg": 115359,
+    "trigger_rate_pct": 8.7149,
+    "per_quarter_pos": {
+      "2024Q1": 5316,
+      "2024Q2": 12735,
+      "2024Q3": 12235,
+      "2024Q4": 12341,
+      "2025Q1": 11520,
+      "2025Q2": 12546,
+      "2025Q3": 12855,
+      "2025Q4": 17606,
+      "2026Q1": 23189,
+      "2026Q2": 5556
+    },
+    "per_quarter_neg": {
+      "2024Q1": 4120,
+      "2024Q2": 15581,
+      "2024Q3": 12461,
+      "2024Q4": 11143,
+      "2025Q1": 8868,
+      "2025Q2": 10831,
+      "2025Q3": 11990,
+      "2025Q4": 15471,
+      "2026Q1": 19602,
+      "2026Q2": 5292
+    },
+    "measurable_quarters_pos": 10,
+    "measurable_quarters_neg": 10,
+    "cutoff_per_cell": 30,
+    "verdict": "PASS"
+  },
+  "lesson_21_axis_stacking_check": {
+    "axis_count": 1,
+    "rationale": "kurtosis + skewness are 4th + 3rd central moments \u2014 single STATISTIC CLASS (higher-order moments). Joint trigger (kurt-top-decile AND |skew|>thr) with skew as direction-selector is conjunction within the same statistic class, NOT independent axis stacking. Comparable to: 'z-score level + z-score velocity' (same axis class) vs 'volume CUSUM + OI velocity + temporal anchor' (3 independent axes).",
+    "verdict": "PASS \u2014 single moment-statistic axis, joint conjunction is natural pair"
+  },
+  "lesson_23_non_event_anchored": {
+    "anchor_type": "CONTINUOUS rolling (per 5m bar) \u2014 NOT event-anchored",
+    "verdict": "PASS \u2014 Lesson #23 explicit non-target axis"
+  },
+  "lesson_28_substrate": {
+    "5m_klines_source": "DB.ohlcv 1m resampled to 5m (13/13 alts verified)",
+    "verdict": "PASS"
+  },
+  "lesson_30_data_window_ratio": {
+    "eth_days_loaded": 795,
+    "full_universe_proxy_days": 800,
+    "ratio_pct": 99.4,
+    "advisory_required": false
+  },
+  "lesson_34_empirical_distribution": {
+    "excess_kurt_percentiles": {
+      "50": -0.04784681739778528,
+      "70": 0.713245276892924,
+      "80": 1.3180267601185678,
+      "85": 1.7576800640941175,
+      "90": 2.4008458885048745,
+      "95": 3.5439235656847363,
+      "99": 6.2596921907464145
+    },
+    "abs_skew_percentiles": {
+      "50": 0.4717033330841893,
+      "70": 0.7427781812460933,
+      "80": 0.9398384231871005,
+      "90": 1.2583220018503463,
+      "95": 1.5645259190873444,
+      "99": 2.228061559748588
+    },
+    "abs_skew_threshold_rates_pct": {
+      "0.3": 66.47763723688317,
+      "0.5": 47.54424292864491,
+      "0.7": 32.63548132607414,
+      "1.0": 17.60596195859486
+    }
+  },
+  "lesson_40_structural_threshold_feasibility": {
+    "threshold_definition": "kurt top-decile (p90) AND |skew|>thr (sign-matched direction)",
+    "structurally_reachable": true,
+    "verdict": "PASS \u2014 moments are unbounded continuous statistics, top-decile + abs threshold both reachable"
+  },
+  "lesson_44_amendment_graveyard_xref": {
+    "paradigm_65_realized_skewness_exhaustion_mr": "GRAVEYARD 2026-05-14 \u2014 1h rolling skew (skew_window=60 1m bars) z=2.0 MR direction. Distinct from paradigm 124: (a) statistic class = 3rd moment ALONE vs 4th + 3rd JOINT; (b) frame = 1m base vs 5m base; (c) direction logic = z-trigger MR vs joint-trigger sign-matched continuation. DNA 3/6 dims distinct. NEW statistic class (4th moment kurtosis).",
+    "paradigm_66_realized_skewness_momentum_continuation": "GRAVEYARD 2026-05-14 \u2014 same 1h skew (skew_window=60 1m bars) momentum direction. Inverse of 65. Both directions of 3rd-moment-alone exhausted via z>2 trigger. Paradigm 124 distinct: joint kurt-top-decile + |skew|>thr (kurtosis is the primary statistic, skew used as direction-selector, NOT trigger). Mechanism: fat-tail event signed by asymmetry.",
+    "paradigm_72_taker_buy_vol": "GRAVEYARD 2026-05-15 \u2014 taker-side aggressive volume family fee-floor. Distinct from paradigm 124: volume family vs moment family.",
+    "paradigm_122_intraday_session_open_oi_acceleration": "BROAD_FALSIFIED 2026-05-20 \u2014 OI velocity x temporal anchor stacking (Lesson #21). Distinct from paradigm 124: OI axis + temporal anchor vs price-derived moments stateless.",
+    "paradigm_123_alt_volume_cusum_change_point_persistence_directional_2h": "BROAD_FALSIFIED 2026-05-20 \u2014 5m volume CUSUM stateful CP. Distinct from paradigm 124: volume CP statistic vs price moment statistic. Same 5m frame + 13-alt cohort (infra reuse) but DIFFERENT statistic class.",
+    "dna_overlap_assessment": "vs paradigm 65/66 (closest): 3/6 dims distinct (statistic class, frame base, direction logic). Statistic class novelty: 4th moment kurtosis NEVER measured in 123 prior paradigms. Joint conjunction (kurt + skew sign) is single-statistic-class natural pair, NOT axis stacking."
+  },
+  "lesson_45_family_distinct": {
+    "explicit_moment_class": "rolling pandas .skew + .kurt \u2014 closed-form 3rd/4th central moments",
+    "hmm_unsupervised_class": "unsupervised state inference (latent variable, EM, no explicit moments)",
+    "verdict": "DISTINCT \u2014 explicit statistical moment computation, NOT unsupervised clustering/decomposition"
+  },
+  "lesson_46_amendment_refinement_stratified_R0": {
+    "dogfood_number": "2nd CONFIRMED \uc790\uaca9 verification",
+    "policy": "temporally-stratified n=50 x 4 quarters + per-quarter sign-flip detection",
+    "stratification_strategy": "temporally_stratified_n50x4q_total_n=200",
+    "quarters_selected": [
+      "2024Q1",
+      "2024Q4",
+      "2025Q3",
+      "2026Q2"
+    ],
+    "n_sample_total": 200,
+    "four_quadrant_arithmetic_mean": {
+      "A_focus_skewpos_LONG": {
+        "label": "A_focus_skewpos_LONG",
+        "n": 91,
+        "gross_bp": 42.76694411431344,
+        "net_bp": 26.76694411431344,
+        "t": 4.996751468327701
+      },
+      "A_mirror_skewpos_SHORT": {
+        "label": "A_mirror_skewpos_SHORT",
+        "n": 91,
+        "gross_bp": -42.76694411431344,
+        "net_bp": -58.76694411431344,
+        "t": -4.996751468327701
+      },
+      "B_focus_skewneg_SHORT": {
+        "label": "B_focus_skewneg_SHORT",
+        "n": 109,
+        "gross_bp": -20.26683307194567,
+        "net_bp": -36.26683307194567,
+        "t": -3.284774741318405
+      },
+      "B_mirror_skewneg_LONG": {
+        "label": "B_mirror_skewneg_LONG",
+        "n": 109,
+        "gross_bp": 20.26683307194567,
+        "net_bp": 4.266833071945669,
+        "t": 3.284774741318405
+      }
+    },
+    "per_quarter_detail": {
+      "2024Q1": {
+        "n_total": 50,
+        "A_focus_n": 8,
+        "A_focus_gross_bp": -51.0908854682883,
+        "B_focus_n": 42,
+        "B_focus_gross_bp": -7.167410964234402
+      },
+      "2024Q4": {
+        "n_total": 50,
+        "A_focus_n": 21,
+        "A_focus_gross_bp": 81.01126211281424,
+        "B_focus_n": 29,
+        "B_focus_gross_bp": -74.25773991054244
+      },
+      "2025Q3": {
+        "n_total": 50,
+        "A_focus_n": 19,
+        "A_focus_gross_bp": 47.992905637585146,
+        "B_focus_n": 31,
+        "B_focus_gross_bp": 34.743714556595634
+      },
+      "2026Q2": {
+        "n_total": 50,
+        "A_focus_n": 43,
+        "A_focus_gross_bp": 39.242262480595635,
+        "B_focus_n": 7,
+        "B_focus_gross_bp": -118.80489117042377
+      }
+    },
+    "per_quarter_sign_flip_detection": {
+      "A_focus_signs_by_quarter": [
+        -1,
+        1,
+        1,
+        1
+      ],
+      "A_focus_sign_flips": 1,
+      "B_focus_signs_by_quarter": [
+        -1,
+        -1,
+        1,
+        -1
+      ],
+      "B_focus_sign_flips": 2,
+      "advisory_threshold": ">=2 sign flips suggests fragile/non-persistent mechanism"
+    }
+  },
+  "lesson_39_sub_class_manual_check": {
+    "A_focus_vs_A_mirror": "exact_symmetric_construction",
+    "B_focus_vs_B_mirror": "exact_symmetric_construction",
+    "note": "exact-symmetric by construction (mirror = -focus on sign-matched paradigm)"
+  },
+  "joint_rate_tuning_sweep": {
+    "0.3": {
+      "n_joint": 270833,
+      "n_total": 2768352,
+      "rate_pct": 9.783185086289604
+    },
+    "0.5": {
+      "n_joint": 265858,
+      "n_total": 2768352,
+      "rate_pct": 9.603475280600154
+    },
+    "0.7": {
+      "n_joint": 259136,
+      "n_total": 2768352,
+      "rate_pct": 9.360659338118852
+    },
+    "1.0": {
+      "n_joint": 241295,
+      "n_total": 2768352,
+      "rate_pct": 8.716196495243379
+    }
+  },
+  "verdict": "R0_PASS_BUT_ADVISORY_PER_QUARTER_SIGN_FLIP_LESSON_46_SUB"
+}

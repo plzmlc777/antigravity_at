@@ -1,0 +1,209 @@
+{
+  "name": "alt_volume_burst_pos_continuation_long_75m_paper_seed_FINALIZED",
+  "paradigm_number": 127,
+  "paradigm_name": "alt_volume_burst_intra5m_event_pos_burst_continuation_long_60m",
+  "phase": "R-5",
+  "status": "FINALIZED_ARTIFACT_READY_AWAITING_MINT_DEPLOY",
+  "drafted_at_kst": "2026-05-21T08:30:00+09:00",
+  "finalized_at_kst": "2026-05-21T08:42:00+09:00",
+  "deployed_at_kst": null,
+  "deployed_by": null,
+  "approval_basis": "user_explicit_dual_R5_seed_approve_2026_05_21",
+  "lineage": {
+    "parent_paradigm": "alt_volume_burst_intra5m_event_signed_directional_30m (paradigm 126)",
+    "split_arm": "A_pos_burst_LONG",
+    "sibling_paradigm": "alt_volume_burst_intra5m_event_neg_burst_reversion_short_15m (paradigm 128, dual-deployed simultaneously)",
+    "family_distinct_basis": "single-arm focus (continuation mechanism only) + hold optimization (75min sweet-spot vs parent 30min)"
+  },
+  "mode": "paper",
+  "exchange": "binance_futures",
+  "market_type": "USDT_perp",
+  "initial_capital_usdt": 10000,
+  "capacity_class": "C_small_capital_optimal",
+  "capacity_ceiling_usdt": 10000,
+  "capacity_caveat": "Per R-4 caveat #4 capacity estimation: 11/13 syms <=10bp worst-case slippage at $10k account (per-sym position $769). At $100k account only 2/13 syms (ETH, SOL) fit <=10bp. Live ramp requires either universe reduction to high-cap-6 or multi-bar VWAP fill across 75min hold.",
+  "fee_rate_per_side": 0.0004,
+  "fee_rate_basis": "round-trip taker 4bp + maker 4bp (Binance Futures USDT perp standard tier; conservative)",
+  "post_slippage_fee_assumption_bp": 20,
+  "source_name": "bn_alt_volume_burst_pos_continuation_long",
+  "source_class": "BinanceAltVolumeBurstPosContinuationLongSource",
+  "source_path": "backend/app/composer_framework/sources/binance_alt_volume_burst_pos_continuation_long_source.py",
+  "source_registry_factory": "_build_bn_alt_volume_burst_pos_continuation_long (pipeline_spec.py)",
+  "universe_primary_13": [
+    "ADAUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOGEUSDT",
+    "ETHUSDT", "FILUSDT", "LINKUSDT", "LTCUSDT", "NEARUSDT",
+    "SOLUSDT", "WIFUSDT", "XRPUSDT"
+  ],
+  "universe_caveat": "13 alts validated R-1/R-2/R-3 13/13 sym ci_pos. Anti-survivorship layer non-top-3 (FIL/NEAR/WIF) outperforms top-10 (+51.09bp vs +45.51bp ci_lower) -> universe diversification is mechanism-genuine, NOT survivorship artifact. Capacity-bound exclusion candidates: FIL (impact 8.71bp), WIF (15.46bp) -- recommend Day 30 paper baseline validation before exclusion.",
+  "paper_session_configs": [
+    "backend/configs/paper_sessions/ADAUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/AVAXUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/BCHUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/BNBUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/DOGEUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/ETHUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/FILUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/LINKUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/LTCUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/NEARUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/SOLUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/WIFUSDT_alt_volume_burst_pos_continuation_long.json",
+    "backend/configs/paper_sessions/XRPUSDT_alt_volume_burst_pos_continuation_long.json"
+  ],
+  "pipeline_spec_compact": {
+    "sources": [{"type": "bn_alt_volume_burst_pos_continuation_long", "kwargs": {"volume_percentile": 99.0, "magnitude_threshold": 0.005, "aggregation_bin_min": 5, "debounce_min": 30}}],
+    "composer": {"type": "passthrough", "kwargs": {"feature_col": "bnvbpl_signal", "scale": 1.0}},
+    "policy": {"type": "long_short_threshold", "kwargs": {"entry_threshold": 0.5, "sl_pct": 0.99, "tp_pct": 0.99, "max_hold_bars": 15}},
+    "config": {"eval_freq_minutes": 5, "forward_bars": 15}
+  },
+  "strategy_kwargs_documented": {
+    "trigger_bar_interval_min": 1,
+    "vol_rolling_window_days": 30,
+    "vol_percentile_threshold": 99.0,
+    "magnitude_threshold_pct": 0.005,
+    "direction_filter": "positive_burst_sign",
+    "aggregation_method": "first_burst_sign_5m_bin_only_MANDATORY_lesson_50_guardrail",
+    "direction": "long",
+    "hold_minutes": 75,
+    "hold_bars_at_5m_eval": 15,
+    "tp_pct": null,
+    "sl_pct": null,
+    "debounce_per_symbol_min": 30,
+    "position_sizing": "equal_weight_per_symbol",
+    "max_concurrent_positions_per_symbol": 1,
+    "max_concurrent_positions_portfolio": 13
+  },
+  "data_substrate_requirements": {
+    "primary": "Binance Futures USDT perp 1m kline (WS !kline_1m_<sym> or REST /fapi/v1/klines interval=1m)",
+    "secondary": "30d trailing 1m volume rolling p99 (computed in-strategy from kline history)",
+    "no_external_apis": "NO funding/OI/forceOrders/book-depth substrates required -> minimal substrate fragility (paradigm 100/122 graveyard precedent avoided)"
+  },
+  "r1_r4_research_lineage_metrics": {
+    "r1_focus_pos_long": {
+      "n": 13176, "gross_bp": 70.94, "net_bp_16bp_fee": 54.94,
+      "sigex": 49.83, "ci_lower_bp": 45.90, "perm_p_above": 0.000,
+      "syms_ci_pos_ratio": "13/13"
+    },
+    "r2_walk_forward_ts_cv": {
+      "n_folds_pass": "5/5", "broad_shoulders_top3_exclusion_retention_pct": 85,
+      "slippage_20bp_ann_gross_pct": 3066, "edge_per_trade_pct": 0.549,
+      "capital_util_pct": 34.3
+    },
+    "r3_caveats_pass": "6/7 (caveat 5 per-burst overridden by Lesson #50 CONFIRMED dual-dogfood)",
+    "r3_primary_baseline_hold60": {
+      "n": 13175, "gross_bp": 78.65, "net_bp": 62.65, "sigex": 43.96,
+      "ci_lower_bp": 50.11, "syms_ci_pos_ratio": "13/13",
+      "trades_per_year": 6019, "ann_gross_pct": 4734, "ann_net_pct": 3771
+    },
+    "r3_caveat_1_hold75_sweet_spot": {
+      "n": 13175, "gross_bp": 83.43, "net_bp": 67.43, "sigex": 43.76,
+      "ci_lower_bp": 52.99, "ann_gross_pct": 5021, "ann_net_pct": 4058,
+      "per_trade_edge_pct": 0.674
+    },
+    "r3_caveat_2_vol_regime_monotone": {
+      "LOW_ci_lower_bp": 32.71, "MID_ci_lower_bp": 39.67, "HIGH_ci_lower_bp": 61.26,
+      "mechanism_amplification": "vol-regime monotone increase = continuation mechanism strengthens in HIGH-vol regime"
+    },
+    "r3_caveat_6_oos_holdout": {
+      "is_qtrs": ["2024Q1", "2024Q2", "2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3", "2025Q4"],
+      "oos_qtrs": ["2026Q1", "2026Q2"], "oos_n": 1979,
+      "oos_gross_bp": 73.40, "oos_net_bp": 57.40, "oos_sigex": 19.42,
+      "oos_ci_lower_bp": 30.91, "oos_syms_ci_pos_ratio": "10/13",
+      "paradigm_117_precedent_safety_margin_x": 10.07
+    },
+    "r3_caveat_7_anti_survivorship": {
+      "top_10_market_cap_ci_lower_bp": 45.51,
+      "non_top_3_ci_lower_bp": 51.09,
+      "anti_survivorship_inversion": true,
+      "verdict": "non-top-3 outperforms top-10 -> mechanism is broad cross-market, NOT survivorship-driven"
+    }
+  },
+  "r4_elite_gate_summary": {
+    "gate_1_4dim_freq_high_freq_diffuse": "PASS",
+    "gate_2_edge_per_trade_vs_fee_floor": "PASS (2.55x at 20bp post-slippage)",
+    "gate_3_concentration_final": "PASS (5 stratification layers + anti-survivorship inversion)",
+    "gate_4_capacity_liquidity": "PASS_SMALL_CAPITAL_ONLY ($10k operational; $100k requires universe reduction)",
+    "gate_5_seed_spec_completeness": "PASS",
+    "gate_6_live_substrate": "PASS",
+    "gate_7_sample_sanity": "PASS",
+    "overall_r4_verdict": "PASS_R4_HIGH_FREQ_DIFFUSE_SMALL_CAPITAL"
+  },
+  "expected_paper_performance": {
+    "trades_per_year_universe_extrapolated": 6019,
+    "trades_per_day_universe_extrapolated": 16.5,
+    "trades_in_30d_window_expected": 495,
+    "trades_in_30d_window_per_symbol_avg": 38,
+    "gross_bp_per_trade_expected": 78.65,
+    "net_bp_per_trade_expected_16bp_fee": 62.65,
+    "net_bp_per_trade_expected_20bp_fee": 50.94,
+    "ann_gross_pct_expected": 4734,
+    "ann_net_pct_expected_16bp_fee": 3771,
+    "ann_net_pct_expected_20bp_fee": 3066,
+    "expected_sharpe_ann": 18.42,
+    "expected_max_drawdown_caveat": "R-3 caveat 4 pnl_max_loss -3287bp (worst single trade -32.87%). Intra-trade drawdown p99 -7.73%, mean -1.35%. Tail risk concentrated in low-cap syms (FIL/WIF) during regime-shift bursts."
+  },
+  "monitoring_dimensions": {
+    "day_7_baseline_kst_date": "2026-05-28",
+    "day_30_baseline_kst_date": "2026-06-20",
+    "measurement_script_reuse": "backend/scripts/backtest_paper_specs.py (consistent with 8 existing R-5 seed precedent)",
+    "per_paradigm_baseline_metrics": [
+      "ann_gross", "ann_net_16bp", "sharpe_annualized", "win_rate_pct",
+      "max_drawdown_pct", "trades_count_actual", "trades_per_day_actual",
+      "per_symbol_breakdown_net_bp", "per_symbol_breakdown_ci_pos_ratio"
+    ],
+    "vol_regime_metadata_tracking_required": true,
+    "vol_regime_metadata_rationale": "R-3 caveat 2 showed monotone vol amplification LOW +44.5 / MID +58.9 / HIGH +84.6bp; live validation required to confirm mechanism in real conditions"
+  },
+  "day_7_baseline_check_criteria": {
+    "min_trades_signal": "≥80 trades in 7d across 13 syms (extrapolated 16.5/day x 7 x 0.7 confidence) -- if <50 flag low trigger rate",
+    "min_gross_bp_per_trade": 40,
+    "min_net_bp_per_trade_16bp_fee": 24,
+    "max_drawdown_alarm_pct": -15,
+    "max_per_sym_ci_neg_ratio": "3/13 (matches R-3 OOS pattern); >5/13 = drift alarm",
+    "burst_signal_count_per_sym_min": 4
+  },
+  "day_30_baseline_check_criteria": {
+    "min_alpha_pct_of_measured": 50,
+    "min_alpha_ann_gross_pct": 1500,
+    "min_syms_net_positive": "10/13 (matches R-3 OOS 10/13)",
+    "max_drawdown_alarm_pct": -25
+  },
+  "demote_criterion": {
+    "trigger": "Day 30 measured net edge <50% of R-3 expected (ann_gross <1533% i.e. <50% of expected 3066% post-20bp slippage)",
+    "action": "demote to monitoring-only; do NOT terminate; investigate parameter drift / substrate degradation"
+  },
+  "termination_criterion": {
+    "trigger": "Day 30 measured net edge <30% of R-3 expected (ann_gross <920%) OR ci_lower negative at fold-level (any 3 of 5 OOS folds)",
+    "action": "terminate paper sessions; mark paradigm 127 as POST_SEED_FAIL; document in graveyard"
+  },
+  "monitoring_caveats_carryover_from_r4": [
+    "Capacity ceiling $10k initial — DO NOT scale to $100k without universe reduction or VWAP fill restructure",
+    "First-burst-sign 5m bin aggregation MANDATORY (Lesson #50 CONFIRMED methodology guardrail)",
+    "30min per-symbol debounce MANDATORY",
+    "75min hold default; future 90min variant if degradation observed",
+    "Vol-regime metadata tracking mandatory (HIGH-vol amplification mechanism validation)",
+    "OOS 3-sym ci_neg watchlist (SOL, XRP, BNB) — small-sample within OOS, monitor Day 30",
+    "Low-cap tight slippage (FIL/WIF/NEAR) — consider exclusion if Day 30 measured slippage exceeds estimates"
+  ],
+  "deployment_pipeline_status_2026_05_21": {
+    "step_1_source_class_created": true,
+    "step_2_source_registered_in_init_py": true,
+    "step_3_source_registered_in_pipeline_spec_factories": true,
+    "step_4_py_compile_passed": true,
+    "step_5_spec_validation_passed": true,
+    "step_6_paper_session_configs_generated_13_syms": true,
+    "step_7_r5_seed_spec_finalized": true,
+    "step_8_deployment_checklist_generated": true,
+    "step_9_index_json_updated_to_r5": "pending_in_this_dispatch",
+    "step_10_ecosystem_config_cjs_modification": "NOT_REQUIRED (binance-paper-cycle picks up sessions via paper_session_cli run --all)",
+    "step_11_mint_deploy_user_required": "PENDING — see r5__deployment_checklist.md"
+  },
+  "lessons_applied_at_r5_seed": [
+    "Lesson #41 amendment dual-mode high-freq diffuse (3rd confirmed dogfood, promotion to CONFIRMED-formal)",
+    "Lesson #49 unconditional fwd_ret pool for perm null (4th dogfood, R-3 sigex retention 87% confirms)",
+    "Lesson #50 CONFIRMED 자격 (2 dogfoods reached) first-burst-sign 5m bin aggregation MANDATORY",
+    "Lesson #26 temporal walk-forward (R-3 caveat 6 OOS 2026Q1+Q2 explicit holdout)",
+    "Lesson #16 Concentration Gate (R-3 OOS 10/13 syms ci_pos PASS)",
+    "Capacity Class C (NEW gate dimension) — $10k optimal, NOT scalable to $100k without restructure"
+  ]
+}

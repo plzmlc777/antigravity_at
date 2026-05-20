@@ -320,6 +320,15 @@ def _build_bn_lifecycle_decay_early_exit(kwargs: dict, runtime: dict) -> SignalS
     )
 
 
+@register_source("bn_lifecycle_decay_bear_skip")
+def _build_bn_lifecycle_decay_bear_skip(kwargs: dict, runtime: dict) -> SignalSource:
+    from .sources import BinanceLifecycleDecayBearSkipSource
+    return BinanceLifecycleDecayBearSkipSource(
+        btc_30d_pre_ret=float(kwargs["btc_30d_pre_ret"]),
+        bear_threshold=float(kwargs.get("bear_threshold", -0.05)),
+    )
+
+
 @register_source("bn_btc_rv_highvol_long")
 def _build_bn_btc_rv_highvol_long(kwargs: dict, runtime: dict) -> SignalSource:
     from .sources import BinanceBTCRVHighvolLongSource
@@ -330,6 +339,31 @@ def _build_bn_btc_rv_highvol_long(kwargs: dict, runtime: dict) -> SignalSource:
         leader_ohlcv_1m=leader_1m,
         z_thresh=float(kwargs.get("z_thresh", 2.5)),
         vol_pct_cutoff=float(kwargs.get("vol_pct_cutoff", 0.90)),
+    )
+
+
+@register_source("bn_alt_volume_burst_pos_continuation_long")
+def _build_bn_alt_volume_burst_pos_continuation_long(kwargs: dict, runtime: dict) -> SignalSource:
+    """paradigm 127 R-4 PASS 2026-05-21 — 1m volume burst positive continuation LONG."""
+    from .sources import BinanceAltVolumeBurstPosContinuationLongSource
+    return BinanceAltVolumeBurstPosContinuationLongSource(
+        volume_percentile=float(kwargs.get("volume_percentile", 99.0)),
+        magnitude_threshold=float(kwargs.get("magnitude_threshold", 0.005)),
+        aggregation_bin_min=int(kwargs.get("aggregation_bin_min", 5)),
+        debounce_min=int(kwargs.get("debounce_min", 30)),
+    )
+
+
+@register_source("bn_alt_volume_burst_neg_reversion_short")
+def _build_bn_alt_volume_burst_neg_reversion_short(kwargs: dict, runtime: dict) -> SignalSource:
+    """paradigm 128 R-4 PASS 2026-05-21 — 1m volume burst negative capitulation
+    reversion SHORT, SL=0.5% MANDATORY enforced via policy.sl_pct."""
+    from .sources import BinanceAltVolumeBurstNegReversionShortSource
+    return BinanceAltVolumeBurstNegReversionShortSource(
+        volume_percentile=float(kwargs.get("volume_percentile", 99.0)),
+        magnitude_threshold=float(kwargs.get("magnitude_threshold", 0.005)),
+        aggregation_bin_min=int(kwargs.get("aggregation_bin_min", 5)),
+        debounce_min=int(kwargs.get("debounce_min", 30)),
     )
 
 
