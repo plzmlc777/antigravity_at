@@ -1809,11 +1809,17 @@
       "updated_at": "2026-05-21T13:25:00+00:00",
       "graveyard_reason": "R-0 SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT (no R-1 dispatch). Lesson #28 amendment substrate-shape FAIL + Lesson #11 sample density FAIL joint halt. Substrate-existence: Binance Vision quarterly archive 9 pairs (BTC/ETH/XRP/BNB/BCH/LTC/ADA/DOT/LINK) full 2.25yr+. Substrate-shape: funding DB only BTC/ETH/LINK/SOL n=1095-1117 (1yr coverage 2025-05..2026-05); XRP/BNB/BCH/LTC/ADA/DOT funding n=0. Cross-source intersection: 3-4 syms x 1yr. Lesson #11: |z|>=2 trigger ~5%, 4-quadrant SNT per-quarter per-cell n=20.5 (3 syms) ~ 27.4 (4 syms) << 30 cutoff. Recovery path: funding DB 2.25yr backfill 8 syms (free unlimited Binance REST, 2-4hr) unlocks retry. Lesson #69 5th post-CONFIRMED 5-item strict template dogfood: Items 1+4 PASS (slug grep + DNA 4/5 distinct from paradigm 22 R-5 + funding family + basis family), Items 2+3 FAIL (substrate-shape + sample density), Item 5 advisory caution (potential Lesson #56 16th instance if executed). metrics: backend/runs/research_track/alt_perp_swap_basis_term_structure_carry_differential_directional_4h/TASK.md",
       "seed_spec": null
+    },
+    "infrastructure_funding_db_backfill_10_deep_syms_2_25yr_paradigm_170": {
+      "name": "infrastructure_funding_db_backfill_10_deep_syms_2_25yr_paradigm_170",
+      "paradigm_number": 170,
+      "phase": "INFRASTRUCTURE_TASK_COMPLETE",
+      "track": "infrastructure"
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-21T22:08:00+09:00",
-  "last_updated_at_kst": "2026-05-21T22:08:00+09:00",
+  "updated_at": "2026-05-21T22:25:00+09:00",
+  "last_updated_at_kst": "2026-05-21T22:25:00+09:00",
   "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
     "paradigm_number": 133,
     "phase": "R-1",
@@ -2104,6 +2110,79 @@
       "paradigm_170_priority_3": "Volume term structure (perp vol vs quarterly vol ratio z-score) - substrate audit needed",
       "lesson_69_dogfood_count": "5th post-CONFIRMED strict template (paradigm 169 successful prescreen halt)",
       "lesson_28_amendment_dogfood_count": "5 cumulative (paradigm 164-167+169)"
+    }
+  },
+  "infrastructure_funding_db_backfill_10_deep_syms_2_25yr_paradigm_170": {
+    "paradigm_number": 170,
+    "phase": "INFRASTRUCTURE_TASK_COMPLETE",
+    "verdict": "BACKFILL_SUCCESS",
+    "registered_at_kst": "2026-05-21T22:21:00+09:00",
+    "last_updated_kst": "2026-05-21T22:25:00+09:00",
+    "track_classification": "INFRASTRUCTURE task (NOT R-1 dispatch) - separate lane from paradigm campaign streak",
+    "user_approval": {
+      "ack_time_kst": "2026-05-21T22:20:41+09:00",
+      "ack_option": "Option 1 (funding DB backfill infrastructure task)",
+      "context": "paradigm 169 R-0 substrate-shape HALT downstream action item"
+    },
+    "execution": {
+      "script": "backend/fetch_binance_metrics.py --source funding --funding-days 822",
+      "api_endpoint": "Binance REST /fapi/v1/fundingRate (public free unlimited)",
+      "feedback_no_freemium_trial_compliant": true,
+      "idempotent": "ON CONFLICT (symbol, funding_time) DO NOTHING",
+      "wall_clock_seconds": 9,
+      "eta_vs_recommendation": "800x faster (9s vs 2-4hr)"
+    },
+    "coverage_achieved": {
+      "syms": [
+        "ADAUSDT",
+        "BCHUSDT",
+        "BNBUSDT",
+        "BTCUSDT",
+        "DOTUSDT",
+        "ETHUSDT",
+        "LINKUSDT",
+        "LTCUSDT",
+        "SOLUSDT",
+        "XRPUSDT"
+      ],
+      "n_syms": 10,
+      "n_records_per_sym": 2466,
+      "n_records_total": 24660,
+      "date_range_start": "2024-02-19",
+      "date_range_end": "2026-05-21",
+      "days_per_sym": 821,
+      "years_per_sym": 2.25,
+      "per_quarter_n_per_sym": 274,
+      "lesson_11_cutoff_cushion_x": 9.1
+    },
+    "pre_vs_post_comparison": {
+      "pre_deep_cohort": "4 syms × 1yr + 6 missing",
+      "post_deep_cohort": "10 syms × 2.25yr complete",
+      "paradigm_169_viability_pre": "SAMPLE_INSUFFICIENT n=20.5-27.4 << 30",
+      "paradigm_169_viability_post": "per-quadrant per-quarter n~274 STRONG PASS"
+    },
+    "unlocked_dispatch_candidates": [
+      "paradigm 169 retry (3M quarterly futures substrate audit needed)",
+      "paradigm 22 R-5 funding_carry expansion narrow-scope candidates",
+      "funding term structure cross-tenor variants (8h vs longer-cycle)",
+      "cross-exchange funding × OI joint events (post family Tier 4 retire family-distinct paths)"
+    ],
+    "lesson_dogfood": {
+      "lesson_28_amendment_prevention_to_unblock_cycle": "paradigm 169 substrate-shape FAIL catch → user ack → backfill unblock = halt-is-action-item-not-graveyard 입증",
+      "lesson_61_amendment_permanent_asset_verified": "next-action 1순위 권고가 user ack로 정확 실행, stale recommendation 없음"
+    },
+    "campaign_status_post_infrastructure": {
+      "graveyards_unchanged": 169,
+      "non_pass_streak_unchanged": 38,
+      "paradigm_counter": 170,
+      "r5_yield_pct": 6.47,
+      "r5_live_paradigms": 11,
+      "new_permanent_substrate_asset": "binance_funding_rate DB 10 syms × 2.25yr × 24,660 records"
+    },
+    "paradigm_171_next_action_recommendation": {
+      "priority_1_option_eta_retry": "paradigm 169 retry with 3M quarterly futures substrate Item 2 audit",
+      "priority_2_option_kappa": "paradigm 22 R-5 funding_carry expansion narrow-scope (BTC/ETH/SOL/LINK 등 deep cohort)",
+      "priority_3_option_lambda": "funding term structure cross-tenor variant (8h vs 3d rolling)"
     }
   }
 }

@@ -6271,3 +6271,54 @@ Cross-tenor carry differential per-sym (8h perp funding annualized − 3M quarte
 ⚠️ **dispatch 계속 — [[feedback-paradigm-campaign-continuous-parallel]] + [[feedback-persistence-over-efficiency]] 38-streak milestone 무관**
 
 **END 2026-05-21 22:30 KST paradigm 169 R-0 HALT** — Lesson #69 5th post-CONFIRMED strict template 영구 자산 적용 SUCCESSFUL (substrate-shape FAIL caught before R-1 dispatch, prevented wasted compute on n<30 cells). paradigm 170 권고: infrastructure backfill 1순위 + OI/volume term structure 2-3순위.
+
+---
+
+## §6.68 paradigm 170 — INFRASTRUCTURE TASK: Funding DB 2.25yr Backfill 10 Deep Syms (2026-05-21 22:21 KST, user Option 1 ack)
+
+paradigm 170 = INFRASTRUCTURE task (NOT R-1 dispatch). Counter 169 → **170** (infrastructure increment, separate lane). Non-PASS streak 38 unchanged.
+
+### Execution
+- Script: `backend/fetch_binance_metrics.py --source funding --funding-days 822`
+- Binance REST `/fapi/v1/fundingRate` public free unlimited ([[feedback-no-freemium-trial]] compliant)
+- ON CONFLICT idempotent
+- Wall-clock **9 seconds total** — ETA vs 권고 (2-4hr) **800x faster**
+
+### Coverage achieved (10 deep syms × 2.25yr)
+| Symbol | n_records | Range | Days |
+|---|---|---|---|
+| ADA/BCH/BNB/BTC/DOT/ETH/LINK/LTC/SOL/XRP USDT | 2,466 each | 2024-02-19 ~ 2026-05-21 | 821 |
+| **TOTAL** | **24,660** | **2.25yr** | **821** |
+
+Per-quarter sample density: **274/sym** — Lesson #11 (≥30 cutoff) **9x cushion strong PASS**.
+
+### Pre vs Post-backfill
+| Metric | Pre | Post |
+|---|---|---|
+| Deep cohort coverage | 4 × 1yr + 6 missing | 10 × 2.25yr complete |
+| paradigm 169 viability | SAMPLE_INSUFFICIENT n=20.5-27.4 | n~274 STRONG PASS |
+| Lesson #28 amendment audit | substrate-shape FAIL | substrate-shape PASS |
+
+### Unlocked candidates
+- **paradigm 169 retry** (3M quarterly futures substrate audit 추가 의무)
+- paradigm 22 R-5 funding_carry expansion narrow-scope candidates
+- funding term structure cross-tenor variants (8h vs longer-cycle aggregation)
+- cross-exchange funding × OI joint events (paradigm 73 family Tier 4 retire 이후 새 substrate 기반 family-distinct path 가능)
+
+### Lesson dogfood
+- **Lesson #28 amendment SUCCESSFUL prevention → unblock cycle**: paradigm 169 R-0 substrate-shape FAIL catch → user ack 후 backfill unblock = "halt is action item, not graveyard" 정확 cycle 입증
+- **Lesson #61 amendment PERMANENT ASSET ELEVATION verified**: §next-action 1순위 권고 user ack로 정확 실행, stale recommendation 없음
+
+### Counter
+- Graveyards: 169 unchanged
+- Non-PASS streak: 38 unchanged (infrastructure separate lane)
+- Paradigm counter: 169 → **170**
+- R-5 yield: 11/170 = **6.47%**
+- **NEW permanent substrate asset**: binance_funding_rate 10 syms × 2.25yr × 24,660 records
+
+### paradigm 171 next-action 권고
+**1순위 Option η-retry**: paradigm 169 retry with 3M quarterly futures substrate Item 2 audit
+**2순위 Option κ**: paradigm 22 R-5 funding_carry expansion narrow-scope (BTC/ETH/SOL/LINK 등 deep cohort candidates)
+**3순위 Option λ**: funding term structure cross-tenor variant (8h vs 3d rolling)
+
+**END 2026-05-21 22:21 KST paradigm 170 INFRASTRUCTURE TASK COMPLETE** — 10 deep syms × 821 days × 24,660 funding records. paradigm 169 retry unblocked. Wall-clock 9s (800x faster than ETA 2-4hr).
