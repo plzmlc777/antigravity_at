@@ -739,7 +739,42 @@ paradigm-architect R-1 verdict tree에 추가 — magnitude-based trigger × mag
 
 ---
 
-### 6.14 2026-05-20 15:38 KST paradigm 115/116/117 정식 graveyard — DIFFUSE_POSITIVE + axis-redundancy + mechanism CLASS asymmetry + listing family blocklist
+### 6.14 2026-05-20 11:11 KST continuous-parallel session 3 — paradigm 108/109/110 + 3 lesson candidates + 2 candidate→confirmed-자격 promotion
+
+**Session summary**:
+- /new-paradigm-frontier dispatch 3회 (paradigm 108/109/110)
+- 통산 8th continuous-parallel dispatch
+- 모두 graveyard (BROAD_FALSIFIED_FEE_FLOOR / SAMPLE_INSUFFICIENT_STRUCTURAL / BROAD_FALSIFIED_FEE_FLOOR mechanism-inverted)
+- Lesson production rate 매우 높음: 3 new candidates + 2 candidate→confirmed-자격 promotions + 1 Lesson #32 새 sub-pattern + 1 verdict 분류 정밀화
+
+**Lesson #39 candidate → CONFIRMED 자격 (2 dogfoods)**: Symmetric perfect mirror antipattern (2 sub-class refinement)
+- Sub-class A (paradigm 108 intra_symbol_spot_perp_lead_lag_alt_5m): A_focus +2.08bp / A_mirror exact −2.08bp = perfect symmetry + 양쪽 broad-uniform-negative + 0/14 syms ci_pos = zero directional info, pure direction-bet trap
+- Sub-class B (paradigm 110 alt_cohort_dispersion_compression_percentile_rank_directional_4h): A_focus −12.94bp / A_mirror exact +12.94bp = perfect symmetry + mirror shows real concentration (9/10 quarters pos_t + 4/13 syms ci_pos) = mechanism direction inverted, A_mirror is the correct direction but fee-bound
+- Verdict tree branches (paradigm-architect spec):
+  - sub-class A → `BROAD_FALSIFIED_NO_AXIS_SYNTHESIS`
+  - sub-class B → `BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED` (document A_mirror real direction in graveyard for future reference)
+
+**Lesson #40 candidate → CONFIRMED 자격 (2 dogfoods)**: `non_negative_aggregate_zscore_one_sided_floor`
+- paradigm 109 (alt_cohort_dispersion_compression z<−2): structural threshold infeasibility — σ_cs 비음수 → z.min()=−1.92, z≤−2 0 events. R-1 미실행.
+- paradigm 110 (rescue R1 percentile rank ≤0.10): structural fix SUCCESS (11.51% trigger rate), but mechanism direction inverted (13/13 alts ci_neg, t=−6.40, perm_p 0.000).
+- **Critical insight**: Structural threshold feasibility ≠ mechanism viability. 두 차원 R-0 sequential prescreen 의무.
+
+**Lesson #37 candidate → CONFIRMED 자격 (2 dogfoods, 사전 이미 등록)**: Full hold×threshold sweep verdict scan 의무 — paradigm 107 off-primary cell discovery + paradigm 108 0/45 sweep PASS 검증 dogfood.
+
+**Lesson #38 candidate (1st dogfood paradigm 108)**: Same-venue arbitrage tightness antipattern — Intra-exchange spot↔perp lead-lag paradigms structurally fee-floor bound at 5m frame (mean|corr@τ=0| > 0.98 Binance BTC 6m).
+
+**NEW Lesson #41 candidate (1st dogfood paradigm 110)**: Compression-regime-conditional-BTC-direction-inverts — When cohort dispersion compresses, cohort does NOT follow BTC direction in next 4h.
+
+**Lesson #32 negative-drift artifact 새 sub-pattern (paradigm 110)** — paradigm-architect Lesson #32 prescreen 적용 의무.
+
+**Campaign 진행 상태 갱신 (2026-05-20 11:11 KST 본 §6.14 후)**:
+- 누적 graveyards: **110** (+3 since 102 milestone: paradigm 108/109/110)
+- R-5 시드: 8 unchanged
+- Lessons: 32 confirmed + amendments + **4 candidate-confirmed-자격 (#36 PARTIAL / #37 / #39 / #40)** + 5 candidates (#30 / #8 / #33 / **#38 / #41**)
+
+---
+
+### 6.14b 2026-05-20 15:38 KST paradigm 115/116/117 정식 graveyard — DIFFUSE_POSITIVE + axis-redundancy + mechanism CLASS asymmetry + listing family blocklist
 
 **Context**: 2026-05-20 paradigm-architect skill 정식 업데이트 (D-Day 2026-06-03 14일 전). paradigm 115/116/117 graveyards 통합 lesson 정리 + r0_inventory_check Listing family Tier 4 retire 블록리스트 등재.
 

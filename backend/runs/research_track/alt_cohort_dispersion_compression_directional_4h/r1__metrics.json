@@ -1,0 +1,180 @@
+{
+  "paradigm_name": "alt_cohort_dispersion_compression_directional_4h",
+  "paradigm_number": 109,
+  "executed_at_kst": "2026-05-20T10:47:33.257633+09:00",
+  "universe_alts": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_alts": 13,
+  "fee_per_trade": 0.0008,
+  "primary_z_threshold": -2.0,
+  "primary_hold_min": 240,
+  "z_sweep": [
+    -2.5,
+    -2.0,
+    -1.5,
+    -1.0
+  ],
+  "hold_sweep_min": [
+    60,
+    120,
+    240,
+    480,
+    1440
+  ],
+  "panel_window": {
+    "first": "2024-01-02 00:00:00",
+    "last": "2026-05-12 22:00:00",
+    "n_hours": 20687,
+    "n_years": 2.3572895277207393
+  },
+  "lesson34_empirical_distribution": {
+    "sigma_cs_quantiles": {
+      "p1": 0.001399160796776927,
+      "p5": 0.001885721819577499,
+      "p10": 0.0022136176105612515,
+      "p50": 0.00407341948605676,
+      "p90": 0.008687372747078332,
+      "p99": 0.01875822375407635
+    },
+    "z_disp_quantiles": {
+      "p0.5": -1.3035396836463986,
+      "p1.0": -1.2437245311711016,
+      "p2.5": -1.1368518268096217,
+      "p5.0": -1.0407084418563086,
+      "p10.0": -0.9139402401253611,
+      "p50.0": -0.2571621485733967,
+      "p90.0": 1.1669424899306626,
+      "p95.0": 1.8789743068745066,
+      "p99.0": 3.87594764751921,
+      "p99.5": 4.927777073233954
+    },
+    "n_valid_hours": 20328
+  },
+  "lesson23_trigger_rate": {
+    "z_threshold": -2.0,
+    "n_trigger": 0,
+    "n_valid_hours": 20328,
+    "trigger_rate": 0.0,
+    "trigger_rate_pct": 0.0,
+    "lesson23_min_threshold_pct": 1.5,
+    "passes_lesson23": false
+  },
+  "lesson11_sample_density": {
+    "n_btc_up_at_trigger": 0,
+    "n_btc_dn_at_trigger": 0,
+    "n_quarters": 10,
+    "expected_per_quarter_A_focus": 0.0,
+    "expected_per_quarter_B_same_sign": 0.0,
+    "lesson11_min_per_cell": 30,
+    "passes_lesson11_A": false,
+    "passes_lesson11_B": false,
+    "passes_lesson11_both": false
+  },
+  "lesson30_data_window_ratio": {
+    "panel_years": 2.3572895277207393,
+    "mint_full_years": 2.3572895277207393,
+    "ratio": 1.0,
+    "passes_lesson30": true
+  },
+  "lesson28_substrate": {
+    "alts_with_coverage": [
+      "ADAUSDT",
+      "AVAXUSDT",
+      "BCHUSDT",
+      "BNBUSDT",
+      "DOGEUSDT",
+      "ETHUSDT",
+      "FILUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "SOLUSDT",
+      "WIFUSDT",
+      "XRPUSDT"
+    ],
+    "n_alts_covered": 13,
+    "passes_lesson28": true
+  },
+  "verdict": "SAMPLE_INSUFFICIENT",
+  "verdict_reason": "Lesson #11 fail: per-quarter A=0.0 / B=0.0 (<30 cutoff). Lesson #23 fail: trigger rate 0.00% (<1.5% cutoff).",
+  "lessons_dogfood": [
+    "#11",
+    "#23"
+  ],
+  "wall_clock_minutes": 0.12642697095870972,
+  "structural_diagnosis": {
+    "finding": "z_disp distribution is STRUCTURALLY one-sided",
+    "z_disp_min_observed": -1.9194851879593007,
+    "z_disp_max_observed": 24.307385836755387,
+    "n_obs_z_le_neg25": 0,
+    "n_obs_z_le_neg2": 0,
+    "n_obs_z_le_neg15": 7,
+    "n_obs_z_le_neg1": 1323,
+    "explanation": "Cross-section \u03c3_cs is non-negative by construction. Its rolling-30d distribution is right-skewed (variance/std distributions have hard zero lower bound + unbounded upper tail). Applying symmetric z-score \u2192 z \u2264 -2 is statistically impossible in 2.36yr of data. Hypothesis trigger form (z<-2) is structurally incompatible with statistic shape.",
+    "fix_options_for_future_paradigms": [
+      "Use percentile rank instead of z (e.g., \u03c3_cs \u2264 p10 rolling-30d quantile)",
+      "Log-transform \u03c3_cs before z-score (log \u03c3_cs distribution is more symmetric)",
+      "Use ratio \u03c3_cs / rolling_mean \u2264 0.5 (multiplicative compression)",
+      "Define compression by absolute \u03c3_cs threshold (e.g., \u03c3_cs \u2264 0.002)"
+    ]
+  },
+  "lesson_candidates": [
+    {
+      "id": "candidate_non_negative_aggregate_zscore_one_sided_floor",
+      "title": "Non-negative aggregate statistics (std/var/magnitude) admit only one-sided z-score thresholds",
+      "summary": "When the statistic S is structurally non-negative (S = std, var, count, magnitude, dispersion), its rolling-window distribution is right-skewed with a hard zero lower bound. A symmetric z-score threshold (z \u2264 -2 vs z \u2265 +2) is asymmetric in achievability: the upper tail can have rare events, but the lower tail is bounded by ~(-mean/std) of the rolling window. For typical 30d windows on noisy returns, z_S min is \u2248 -1.5 to -2.0 best case, often -1.2 to -1.8. R-0 prescreen MUST measure empirical z-distribution range BEFORE trigger threshold definition.",
+      "prescreen_addition": "Add to R-0: if hypothesis uses z-threshold on a non-negative statistic, compute empirical z.min() over 1y sample. If z.min() > threshold, HALT_BY_STRUCTURE.",
+      "first_dogfood": "paradigm 109 alt_cohort_dispersion_compression_directional_4h (this run)"
+    }
+  ],
+  "verdict_refined": "SAMPLE_INSUFFICIENT_STRUCTURAL_THRESHOLD_INFEASIBLE",
+  "verdict_reason_refined": "Lesson #11 + #23 fail downstream of structural infeasibility. z_disp \u2264 -2.0 is impossible-by-construction in 2.36yr panel (observed z_disp.min() = -1.92). Cross-section std is non-negative \u2192 rolling z-score lower tail bounded by (-rolling_mean / rolling_std) \u2248 -1.92 in this panel. Symmetric z-threshold (matching paradigm 69 highvol z>p90 form) is geometrically inverted: \u03c3-shape statistics admit only upper-tail z thresholds, not lower.",
+  "hypothesis_rescue_paths": [
+    {
+      "rescue_path_id": "R1",
+      "name": "percentile_rank_compression",
+      "description": "Trigger: \u03c3_cs \u2264 rolling_30d_quantile(0.05 or 0.10). Achievable always; tests bottom-decile dispersion regime.",
+      "estimated_trigger_rate": "5-10% (=p05/p10 by construction)",
+      "estimated_per_cell_A_focus": "n_total_trig * 0.5 / n_quarters \u2248 50-100, passes Lesson #11",
+      "novelty_preserved": true,
+      "infrastructure_changes": "none \u2014 modify trigger formula only"
+    },
+    {
+      "rescue_path_id": "R2",
+      "name": "log_transform_then_zscore",
+      "description": "Compute z on log(\u03c3_cs) \u2192 log-transform makes distribution closer to symmetric Gaussian. z \u2264 -2 then achievable.",
+      "estimated_trigger_rate": "1-2.5%",
+      "estimated_per_cell_A_focus": "10-30 marginal Lesson #11",
+      "novelty_preserved": true,
+      "infrastructure_changes": "trigger formula only"
+    },
+    {
+      "rescue_path_id": "R3",
+      "name": "ratio_compression",
+      "description": "Trigger: \u03c3_cs(t) / rolling_30d_mean(\u03c3_cs) \u2264 0.5 (half of typical dispersion).",
+      "estimated_trigger_rate": "needs empirical measurement",
+      "novelty_preserved": true,
+      "infrastructure_changes": "trigger formula only"
+    },
+    {
+      "rescue_path_id": "R4_decline",
+      "name": "decline_rescue",
+      "description": "Halt at R-1, register graveyard with structural infeasibility verdict. Surfaces lesson candidate for /paradigm-architect prescreen update.",
+      "rationale": "Three rescue paths require new hypothesis formulation = new paradigm number. Cleanest is to register p109 as SAMPLE_INSUFFICIENT_STRUCTURAL with rescue paths as separate p110/p111/p112 candidates for orchestrator queue."
+    }
+  ],
+  "wall_clock_minutes_total_including_diag": 4.0
+}
