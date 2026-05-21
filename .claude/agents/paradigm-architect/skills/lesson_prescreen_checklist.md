@@ -18,6 +18,8 @@
 > - Lesson #8 amendment candidate (universal LONG bias trigger-statistic-class-dependent, 6 dogfoods paradigm 99/148/156/157/158/160)
 > - Lesson #21 5 predictive dogfoods CONFIRMED (paradigm 83/165 axis stacking 정착)
 > - **Lesson #70 CONFIRMED formal** (R-5 LIVE narrow-cohort survivor alpha UNIVERSALLY non-transferable across paradigm families, 3 dogfoods × 2 families × 0/37 paradigm 173/174/175) — paradigm-architect skill 영구 자산화 의무 적용
+> - **Lesson #70 corollary candidate** (exempt path = spec-adaptive expansion requires Lesson #11 per-cell sample density, sparse-trigger family practically void, 1 dogfood paradigm 176)
+> - **Lesson #71 candidate** (agent SELF-RECOMMEND MODE saturation post-R-5 expansion lane closure + axis saturation requires user hypothesis OR substrate pivot 2026-07-15+, 1 dogfood paradigm 177)
 > Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.66 + paradigm 154-169 entries if newer.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
@@ -502,6 +504,30 @@ Compute saved cumulative ~75x (R-0 halt이 R-1 dispatch 사전 차단으로).
 - **Sub-C premium-momentum broad-cohort 신호 본질적 존재**: eligible-cohort 식별에 interaction covariate (funding/vol/beta regime) 필요 또는 fee structure 변경 (maker/spot venue) — 단 Lesson #21 axis stacking strict
 
 **Implementation**: paradigm-architect R-5 expansion screening proposal 발의 시 자동 verify (default HALT presumption). lesson_prescreen_checklist 영구 자산화. Expansion screening은 narrow-cohort alpha의 cherry-pick selection 검증 도구 (CONFIRMED 자격 이후 standardized strict audit).
+
+### Lesson #70 corollary candidate — Exempt path (spec-adaptive expansion) requires Lesson #11 sample density [1 dogfood paradigm 176]
+**Trigger**: Lesson #70 exempt path (spec-ADAPTIVE expansion, per-sym parameter optimization) 발의 시 candidate.
+**Check**: per-sym in-sample × parameter sweep cell n ≥ 30 cutoff verify + Bonferroni-adjusted significance.
+**Action**:
+- Sparse-trigger R-5 family (1d-hold, 2.2yr OOS per-sym 15-35 trades) → 70/30 split 후 IS 10-20 trades cutoff 미달 → **R-0 HALT_BY_SAMPLE_INSUFFICIENT** (paradigm 176 dogfood)
+- Per-cell n ≥ 30 AND Bonferroni correction PASS 시 dispatch authorize
+- Lesson #70 exempt path가 이론적으로 열려 있으나 sparse-trigger R-5 family에는 **practically void**
+
+**Why candidate (1 dogfood)**: paradigm 176 (paradigm 24 R-5 spec-adaptive expansion 17 syms × 5 z thresholds = 75 cells, 0/75 reach n≥30 best n=24, Bonferroni α=0.00067 vs empirical perm_p [0.497, 0.956] 750x gap). Confirmation gate 2nd dogfood: non-sparse R-5 paradigm (5m/1h granularity 예: OI-decoupling family) spec-adaptive expansion 시도 시.
+
+**Implementation**: paradigm-architect skill amendment — Lesson #70 exempt path dispatch 전 Lesson #11 per-cell sample density + Lesson #62 multiple-testing Bonferroni correction 사전 audit 의무. paradigm 22 + 24 R-5 family expansion path 전체 terminal 확정 — fixed-spec (Lesson #70 universal) + spec-adaptive (Lesson #70 corollary) 양 path 차단.
+
+### Lesson #71 candidate — Agent SELF-RECOMMEND saturation requires user hypothesis-provided dispatch [1 dogfood paradigm 177]
+**Trigger**: paradigm-architect agent SELF-RECOMMEND MODE 발의 시 (specific candidate 부재 상황).
+**Check**: 사전 7+ viable paths 모두 R-0 prescreen에서 (freemium violation / substrate-shape / family-proxy / multiple-testing) 차단 가능성.
+**Action**:
+- agent SELF-RECOMMEND 7+ paths 모두 R-0 prescreen halt → **fundamental shift 의무** (user hypothesis-provided dispatch OR defer until substrate pivot)
+- Substrate pivot wait: WS depth recorder 60+일 (2026-07-15+) / aggTrades tick-level / spot venue cross-reference
+- User-provided candidate: agent constraint set 외부 (axis-class fresh)
+
+**Why candidate (1 dogfood)**: paradigm 177 (2026-05-21 23:18 KST) SELF-RECOMMEND MODE 7 viable paths 발의 결과 모두 R-0 prescreen 차단 (3 freemium/substrate + 2 family-proxy + 2 defer). agent self-recommend without user candidate post-R-5 expansion lane closure + axis saturation이 default substrate-pivot 또는 forward-collection wait로 reduce. Confirmation gate 2nd dogfood: 다음 paradigm-architect SELF-RECOMMEND MODE 호출 시 동일 결과 발현 시.
+
+**Implementation**: paradigm-architect skill amendment — SELF-RECOMMEND MODE 호출 자체가 axis saturation symptom. 사용자 명시 hypothesis 없이 호출 시 default verdict = `R0_HALT_BY_AXIS_SATURATION_AGENT_SELF_RECOMMEND_VOID`. forward-collection wait 또는 substrate pivot 권고.
 
 ### Lesson #8 amendment candidate — universal LONG bias trigger-statistic-class-dependent [6 dogfoods paradigm 99/148/156/157/158/160]
 **Trigger**: 4-quadrant SNT 측정 시 A_focus_LONG + B_mirror_LONG 둘 다 양수 패턴 확인.

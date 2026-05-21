@@ -6762,3 +6762,213 @@ None are 3-gate PASS either (sigex ≤ +0.09), so even with util relaxation they
 **1순위 권고**: **Option α + Option β simultaneous** — Lesson #70 formal upgrade (lightweight skill doc amendment) + paradigm 176 new DNA dispatch (default mode). Option γ valuable but lower priority and higher overfitting risk.
 
 **END 2026-05-21 23:07 KST paradigm 175 R-5 EXPANSION SCREENING COMPLETE** — paradigm 24 R-5 follow_z2.0_h5 spec NO_EXPANSION_ELIGIBLE on 17 cross-family expansion syms (0/17 three-gate, 0/17 life-changing 4-dim, 0/17 eligible). **Lesson #70 CONFIRMED universal property** via 3 dogfoods × 2 paradigm families (funding + premium_index) × 0/37 aggregate. paradigm 22 + 24 R-5 LIVE cohorts confirmed terminal. Capital util structural ceiling for daily-granularity sparse-trigger R-5 paradigms identified (Lesson #25 corollary). 1순위 권고: Option α (Lesson #70 formal upgrade + paradigm-architect skill amendment) + Option β (paradigm 176 new DNA dispatch) simultaneous.
+
+## §6.74 paradigm 176 R-0 HALT — paradigm_24_r5_spec_adaptive_expansion_per_sym_entry_z_optimization_lesson_70_exempt (2026-05-21 23:13 KST)
+
+**Track**: paradigm 24 spec-ADAPTIVE expansion (Lesson #70 exempt path candidate — paradigm 175 §6.73 3순위 Option γ adopted)
+**Counter**: 176 used (substantive R-0 halt with counter consumption, paradigm 159 precedent)
+**Wall clock**: 10 min (audit only, no compute dispatched)
+**Verdict**: `R0_HALT_BY_SAMPLE_INSUFFICIENT_LESSON_11_AND_MULTIPLE_TESTING_LESSON_62_AND_LESSON_70_EXEMPT_FAIL`
+
+### Lesson #69 5-item strict template (11th post-CONFIRMED dogfood) outcome
+
+| Item | Verdict | Note |
+|---|---|---|
+| 1. Lesson #61 slug grep | PASS | clean |
+| 2. Lesson #28 substrate audit | PASS | premium_index joblib 17 syms × 2.19yr verified |
+| 3. Lesson #11 sample density | **HALT** | 0/75 cells reach n≥30 (best cell n=24 at z=2.0) |
+| 4. Lesson #62 DNA + multiple-testing strict | **HALT** | 75 cells Bonferroni α=0.00067 vs empirical perm_p [0.497, 0.956] |
+| 5. Lesson #56 family-proxy | advisory | reinforces halt |
+
+**Aggregate: 3 PASS / 2 HALT / 0 advisory-only-blocking** — per Lesson #69 strict template, any HALT item triggers R-0 halt.
+
+### Lesson #11 sample density quantitative breakdown
+
+Per-sym in-sample n_cell calculation at 70/30 train split, using paradigm 175 empirical n_trades(z=2.0) as ground truth + Gaussian tail-mass scaling:
+
+| z | tail mass | ratio vs z=2.0 | median per-sym IS n | syms with n≥30 |
+|---|---|---|---|---|
+| 2.0 | 0.0455 | 1.000x | 20 | **0/15** |
+| 2.5 | 0.0124 | 0.273x | 6 | 0/15 |
+| 3.0 | 0.0027 | 0.059x | 1 | 0/15 |
+| 3.5 | 0.00047 | 0.010x | 1 | 0/15 |
+| 4.0 | 0.00006 | 0.001x | 1 | 0/15 |
+
+**Every (sym × z) cell fails Lesson #11 n≥30 cutoff**. Best cell (LTC at z=2.0) has n=24, still 6 below cutoff.
+
+### Lesson #62 multiple-testing strict quantitative breakdown
+
+- Test cells: 15 valid syms × 5 z thresholds = **75 cells**
+- Bonferroni-adjusted α (target 0.05): **0.05 / 75 = 0.00067**
+- paradigm 175 empirical perm_p range across same 15 syms at z=2.0: **[0.497, 0.956]**
+- Required perm_p for Bonferroni significance: **< 0.00067**
+- Best empirical perm_p (0.497) is **~750x worse** than Bonferroni threshold
+
+No realistic per-sym tuning closes a 750x gap — this is fee-floor + noise saturation, not a hyperparameter discovery problem.
+
+### paradigm 159 R-0 HALT precedent (methodological adjacency)
+
+paradigm 159 (`alt_calendar_anchor_DOW_or_HOD_directional_4h`, 2026-05-21 R-0 HALT) used per-sym in-sample DOW/HOD fit across 14 syms × 7 DOW = 98 cells. Halted at R-0 for multiple-testing inflation + Lesson #21 axis-stacking.
+
+paradigm 176 is the **same antipattern with smaller cell count (75 vs 98)** but identical statistical structure. The methodological adjacency reinforces the halt verdict.
+
+### Lesson #70 exempt verification result
+
+paradigm 176 is **technically Lesson #70 exempt** (spec-adaptive is the carved-out path), but the exempt path itself fails on independent prescreen items:
+
+| Exempt requirement | paradigm 176 status |
+|---|---|
+| Mechanism-extension, not fixed-spec | ✓ per-sym entry_z |
+| Lesson #62 multiple-testing strict | ✗ 75 cells, Bonferroni 750x gap |
+| Bonferroni correction applied | ✓ specified |
+| Train/test split overfitting safeguard | ✓ 70/30 |
+| Lesson #11 sample density per cell | ✗ 0/75 cells achievable |
+
+**Conclusion**: Lesson #70 exempt path is **structurally infeasible** for daily-granularity sparse-trigger R-5 paradigms (paradigm 22 + 24 family). The exempt path is technically open but practically void for this paradigm class.
+
+### Lesson #70 corollary candidate (NEW, 1st dogfood paradigm 176)
+
+> **Lesson #70 corollary (candidate, 1st dogfood)**: "Lesson #70 exempt path (spec-adaptive expansion) requires per-sym in-sample n ≥ 30 at the candidate threshold (Lesson #11 cutoff). Daily-granularity sparse-trigger R-5 paradigms (paradigm 22 + 24 family) cannot satisfy this prerequisite because the native trigger rate produces 15-35 trades per sym across full 2.2yr OOS window, leaving 10-20 trades per sym after 70/30 train split — below cutoff. The exempt path is theoretically valid but practically void for sparse-trigger R-5 family."
+
+Confirmation gate: 2nd dogfood on a non-sparse R-5 paradigm (5m/1h granularity, e.g., OI-decoupling family) producing same exempt-path-infeasible outcome → CONFIRMED 자격.
+
+### paradigm 22 + 24 R-5 family terminal confirmation (Lesson #70 + corollary confluence)
+
+paradigm 176 closes the last unbanned expansion path for paradigm 22 + 24:
+- Fixed-spec same-cohort expansion: **banned by Lesson #70 CONFIRMED universal**
+- Spec-adaptive expansion: **banned by Lesson #70 corollary candidate** (Lesson #11 + Lesson #62)
+- Original narrow cohorts: terminal (HBAR/AXS/COMP for p22; DOGE/SOL/LDO for p24)
+
+paradigm 22 + 24 R-5 LIVE seeds remain valid in their original cohorts, but the family has **no remaining expansion path** at substrate window 2.2yr.
+
+### Counter snapshot post-paradigm 176
+
+- **Graveyards (substantive): 170 unchanged** (paradigm 176 = R-0 prescreen halt, not graveyard)
+- **R-0 halts with counter consumption (cumulative)**: paradigm 88/89/90/97-candidate/159/**176** = 6 substantive R-0 halts
+- **Non-PASS streak: 41+** (paradigm 176 adds to streak — sample-insufficient prescreen, not paradigm falsification)
+- **R-5 LIVE: 11 unchanged**
+- **R-5 yield: 6.40% unchanged**
+- **Paradigm counter: 173** (counter consumed: 169 → 170 → 171 → 172 → 173 after p171/172/173/174/175 + p176; **but p173/p174/p175 used "counter NOT increased" R-5 expansion screening lane** per their TASK definitions, so practical paradigm counter = 169 + p176 = 170 substantive)
+  - Note: counter accounting reconciliation deferred to META session
+- **Lesson library**: 70 CONFIRMED unchanged; **Lesson #70 corollary candidate (1st dogfood paradigm 176)**
+
+### paradigm 177 next-action 권고
+
+paradigm 175 §6.73 next-action menu now closed:
+- Option α (Lesson #70 formal upgrade to CONFIRMED 정식): completed at paradigm 175
+- Option β (paradigm 176 new DNA dispatch): mandatory remaining path (deferred to paradigm 177 by user choice of Option γ)
+- Option γ (spec-adaptive expansion): **paradigm 176 has falsified for paradigm 22 + 24 family**
+
+**1순위 권고**: **paradigm 177 = new paradigm DNA dispatch (Option β resume)** per [[feedback-paradigm-campaign-continuous-parallel]] and [[feedback-persistence-over-efficiency]]. R-5 LIVE cohort expansion lane is now structurally closed for sparse-trigger paradigms 22 + 24; resume default continuous-parallel dispatch with fresh paradigm hypothesis.
+
+**2순위 권고**: Lesson #70 corollary documentation (candidate, 1st dogfood paradigm 176). Add to lesson_prescreen_checklist.md as: *"Lesson #70 exempt path (spec-adaptive expansion) requires Lesson #11 per-cell sample density check. For sparse-trigger R-5 paradigms (paradigm 22 + 24 family), exempt path is presumptively void unless substrate window enables ≥30 trades per (sym × threshold) cell."*
+
+**3순위 (defer)**: Lesson #70 corollary 2nd-dogfood opportunity — when a future non-sparse R-5 LIVE paradigm appears (5m/1h granularity), retest spec-adaptive expansion path there to crystallize Lesson #70 corollary into CONFIRMED 자격.
+
+**END 2026-05-21 23:13 KST paradigm 176 R-0 HALT** — paradigm 24 spec-adaptive expansion (Lesson #70 exempt path candidate) HALT_BY_SAMPLE_INSUFFICIENT_LESSON_11_AND_MULTIPLE_TESTING_LESSON_62. **Lesson #70 exempt path proven structurally infeasible for sparse-trigger R-5 family** (paradigm 22 + 24 fully terminal). Lesson #70 corollary candidate registered (1st dogfood). 1순위 권고: paradigm 177 new paradigm DNA dispatch (Option β resume continuous-parallel).
+
+---
+
+## §6.75 paradigm 177 R-0 HALT — paradigm_177_self_recommend_microstructure_axis_saturation_audit (2026-05-21 23:18 KST)
+
+**Mode**: SELF-RECOMMEND MODE (Option β resume after paradigm 176 R-5 expansion lane closure, no specific user candidate)
+**Counter**: 177 used (substantive R-0 halt with viable-path audit cost, paradigm 159/176 precedent)
+**Wall clock**: 15 min (audit only, no R-1 compute dispatched)
+**Verdict**: `R0_HALT_BY_VIABLE_PATH_EXHAUSTION_AT_PARADIGM_177`
+
+### Autonomous candidate audit (7 viable paths from system prompt + memory)
+
+| # | Path | Outcome | Reason |
+|---|---|---|---|
+| 1 | Token unlock entry-side | **BLOCKED** | [[feedback-no-freemium-trial]] (TokenUnlocks/CMC/Etherscan/Solana/Tron/DefiLlama 5th blacklist, paradigm 90 stablecoin_mint precedent) |
+| 2 | WS depth recorder forward-collect | **DEFER** | 2026-07-15+ minimum availability (60+d cumulative) |
+| 3 | On-chain governance event | **BLOCKED** | [[feedback-no-freemium-trial]] (Etherscan/explorer freemium) |
+| 4 | New substrate backfill (aggTrades / options / spot venue) | **DEFER** | aggTrades >10GB threshold per Bash protocol; agent self-halt |
+| 5 | paradigm 175 Sub-C — premium-momentum × interaction covariate | **BLOCKED** | Lesson #56 family-proxy (paradigm 24 R-5 LIVE family) + Lesson #62 family-distinct strict |
+| 6 | Fee structure change (maker/spot venue, lower-fee instrument) | **DEFER + family-proxy** | substrate backfill cost + Lesson #56 OUTCOME-LEVEL family-proxy concern |
+| 7 | Microstructure 5m new sub-axis (family-distinct strict) | **BLOCKED** | 3 sub-axis variants all DNA dup or family-proxy (see below) |
+
+### Path 7 sub-axis analysis (microstructure 5m saturation)
+
+Substrate verified: 56 syms microstructure joblib (open_interest, open_interest_value_usdt, toptrader_account_ls_ratio, toptrader_position_ls_ratio, global_account_ls_ratio, taker_buy_sell_ratio), 2024-02 to 2026-05, 2.2yr.
+
+| Sub-axis candidate | DNA dedup (Lesson #61) | Family-proxy (Lesson #56) | Verdict |
+|---|---|---|---|
+| `smart_minus_retail_lsr_divergence_z` = position_ls − global_account_ls | **EXACT 6/6 DNA match** with paradigm 22 attempt `top_global_lsr_divergence` (2026-05-06 graveyard, R-2 8/10 catastrophic, alpha mean −8.82) | Cross-cohort LSR positioning state | **R-0 HALT — Lesson #61 DNA dup** |
+| `smart_money_internal_concentration_z` = position_ls − account_ls within toptrader | No exact match (within-cohort weighting divergence) | **LSR positioning state family** — 2 prior graveyards (paradigm 22 `top_global_lsr_divergence` + `smart_money_lsr_contrarian` 2026-05-14 SOL solo, all 12 specs negative alpha −34% to −2.8%). Lesson: "LSR positioning state ... 5m granularity 입증 안 됨, flow vs state 차이 결정적." | **R-0 HALT — Lesson #56 family-proxy + Lesson #62 family-distinct strict** |
+| `oi_count_vs_value_decoupling_z` = leverage size growth proxy | No exact match (count vs value decomposition not prior tested in derivative form) | **OI velocity family** — paradigm 71 `btc_oi_velocity_regime_alt_long_240m` graveyard (2026-05-15, 0/3 z thresholds three-gate FAIL) + paradigm 21 R-5 LIVE OI-price decoupling (same family) | **R-0 HALT — Lesson #56 family-proxy + Lesson #62 family-distinct strict** |
+
+#### Empirical substrate audit (executed for transparency)
+- 14 syms with both microstructure + 4h OHLCV verified
+- All sub-axes show healthy |z|≥2.0 trigger rate (13-17%), Lesson #11 PASS
+- Substrate quality NOT the blocker; family-distinctness IS the blocker
+
+### Lesson #69 5-item strict template (12th post-CONFIRMED dogfood) outcome
+
+| Item | Verdict | Note |
+|---|---|---|
+| 1. Lesson #61 slug grep | **HALT** | Sub-axis #2 exact 6/6 DNA match with `top_global_lsr_divergence` |
+| 2. Lesson #28 substrate audit | partial PASS (path 7 only) | Paths 1/3 freemium, paths 2/4 unavailable, path 7 substrate verified |
+| 3. Lesson #11 sample density | PASS (path 7) | 13-17% \|z\|≥2.0 trigger rate, healthy |
+| 4. Lesson #62 DNA + multiple-testing strict | **HALT** | All path 7 sub-axes <3/5 family-distinct (LSR positioning state OR OI velocity family) |
+| 5. Lesson #56 family-proxy | **HALT** | Path 7 sub-axis #1 LSR positioning state family + sub-axis #3 OI velocity family |
+
+**Aggregate: 1-2 PASS / 3-4 HALT** — per Lesson #69 strict template, R-0 halt mandatory.
+
+### Lesson #71 candidate (NEW, 1st dogfood paradigm 177)
+
+> **Lesson #71 candidate (1st dogfood)**: "After paradigm 22 + 24 R-5 LIVE family expansion lanes are terminal (paradigm 175 + 176) AND 41+ non-PASS streak AND Tier 4 retire count ≥15 AND 5m microstructure single-domain axis space saturated, agent SELF-RECOMMEND MODE without specific user candidate hypothesis must default to substrate-pivot or forward-collection wait, NOT axis-permutation within already-saturated families. Axis permutation at saturated family produces Lesson #56 + Lesson #62 family-proxy halts that consume paradigm counter without information gain."
+
+Confirmation gate: 2nd dogfood would occur at next agent SELF-RECOMMEND dispatch with similar substrate inventory state.
+
+### Microstructure 5m single-domain advisory caution family — Tier 4 retire candidate
+
+Cumulative graveyards at 5m microstructure single-domain layer:
+- paradigm 22 `top_global_lsr_divergence` (2026-05-06, R-2 8/10 catastrophic)
+- paradigm 23 `taker_flow_zscore` (2026-05-06, R-2 3/10)
+- paradigm 60 (TBS family)
+- paradigm 71 `btc_oi_velocity_regime_alt_long_240m` (2026-05-15)
+- paradigm 72 `taker_buy_vol` (2026-05-15, **family Tier 4 retire** TBS)
+- paradigm 80 `oi_premium_5m_decoupling` (2026-05-15, broad-falsified)
+- paradigm 82 `pre_funding_window_divergence` (2026-05-15, broad-falsified)
+- paradigm 83 `oi_5m_latent_regime` (2026-05-15, broad-falsified-fee-floor)
+- paradigm 85 `pre_session_open_oi` (2026-05-15, SAMPLE_INSUFFICIENT)
+- `smart_money_lsr_contrarian` (2026-05-14 SOL solo, all 12 specs negative)
+- paradigm 138 `funding_rate_x_cvd_4h_divergence_smart_money_distribution` (2026-05-21 Lesson #40 R-0 HALT)
+
+**Pattern: 11+ accumulated graveyards** at 5m microstructure single-domain layer. R-5 LIVE survivors: paradigm 21 OI-price decoupling (single seed, narrow cohort) + paradigm 23 placeholder.
+
+**Recommendation**: Promote 5m microstructure single-domain advisory caution → **Tier 4 formal retire** at next META session opportunity. Distinct multi-channel composite hypothesis (e.g., 5m × external substrate cross-reference) still permissible if user hypothesis-provided.
+
+### paradigm 22 + 24 R-5 family terminal + 5m microstructure single-domain family near-retire confluence
+
+This paradigm 177 attempt confirms that BOTH paradigm 22/24 R-5 expansion lane (paradigm 176 closure) AND 5m microstructure single-domain axis permutation are saturated. Combined with 15 Tier 4 family retires + freemium blacklist + KR post-earnings retire, the agent SELF-RECOMMEND space is approaching exhaustion at the substrate inventory available locally.
+
+### Counter snapshot post-paradigm 177
+
+- **Graveyards (substantive): 170 unchanged** (paradigm 177 = R-0 prescreen halt, not graveyard)
+- **R-0 halts with counter consumption (cumulative)**: paradigm 88/89/90/97-candidate/159/176/**177** = 7 substantive R-0 halts
+- **Non-PASS streak: 42+** (paradigm 177 adds to streak)
+- **R-5 LIVE: 11 unchanged**
+- **R-5 yield: 6.40% unchanged**
+- **Paradigm counter: 174 substantive** (counter consumed: 173 → 174 post-paradigm 177; reconciliation with R-5 expansion screening lane deferred to META session)
+- **Lesson library**: 70 CONFIRMED unchanged; **Lesson #70 corollary candidate (1st dogfood paradigm 176)**; **NEW Lesson #71 candidate (1st dogfood paradigm 177)**
+
+### paradigm 178 next-action 권고
+
+**1순위 (RECOMMENDED)**: **User hypothesis-provided dispatch** per [[feedback-direct-recommendation]] + [[feedback-persistence-over-efficiency]]. Agent SELF-RECOMMEND has reached substrate-inventory saturation at paradigm 177. User-provided fundamental hypothesis bypasses axis-saturation:
+- Cross-asset (BTC dominance + alt rotation, BTC/ETH ratio shifts, gold/crypto correlation breakdowns)
+- Macro-driven (Fed FOMC + perp basis, US treasury yield + funding rate)
+- Structural (quarterly options expiry + perp basis, BTC halving anniversary, Tax day flows)
+- External-event triggered (CPI release minute, NFP minute, FOMC press conference minute window)
+
+**2순위**: Defer paradigm 178 until substrate pivot
+- Mint WS depth recorder forward-collection (2026-07-15+ availability, 60+d cumulative)
+- liquidation cascade WS recorder (paradigm 100 candidate substrate-blocked, deferred to 2026-07-15+)
+- aggTrades tick-level backfill (>10GB scope, requires explicit user budget approval per Bash protocol)
+
+**3순위 (Lesson #56 override option)**: paradigm 175 Sub-C interaction covariate dispatch with **explicit user override of Lesson #56 family-proxy block**. premium-momentum × funding regime / vol regime / beta regime interaction triple. HIGH risk Lesson #21 axis stacking + Lesson #56 family-proxy. Only proceed with user explicit approval.
+
+**4순위 (META, future)**: META session crystallize Lesson #70 corollary CONFIRMED + Lesson #71 CONFIRMED + 5m microstructure single-domain Tier 4 formal retire. Lightweight skill amendment, no R-1 dispatch.
+
+**END 2026-05-21 23:18 KST paradigm 177 R-0 HALT** — autonomous SELF-RECOMMEND MODE 7 viable paths all blocked at R-0 prescreen (3 freemium/substrate + 2 family-proxy + 2 defer). **Lesson #71 candidate registered (1st dogfood)** — agent SELF-RECOMMEND without user candidate post-R-5 expansion lane closure + axis saturation should default to substrate-pivot or forward-collection wait. **5m microstructure single-domain family near-retire** (11+ graveyards). 1순위 권고: paradigm 178 = user hypothesis-provided dispatch OR defer until substrate pivot 2026-07-15+.

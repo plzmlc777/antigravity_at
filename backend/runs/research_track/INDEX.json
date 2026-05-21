@@ -1949,11 +1949,26 @@
       "r1_dispatched": false,
       "compute_avoided_min": "30-60 min (75 backtest cells avoided)",
       "next_action": "paradigm 177 new DNA dispatch (Option β resume) per persistence-over-efficiency"
+    },
+    "paradigm_177_self_recommend_microstructure_axis_saturation_audit": {
+      "name": "paradigm_177_self_recommend_microstructure_axis_saturation_audit",
+      "hypothesis": "SELF-RECOMMEND MODE — autonomous candidate selection. 7 viable paths audited (token unlock / WS depth / governance / new substrate / paradigm 175 Sub-C / fee structure / microstructure new sub-axis). All blocked at R-0 prescreen.",
+      "data_dependencies": [
+        "microstructure_joblib_56syms_2yr",
+        "freemium_blacklist"
+      ],
+      "current_phase": "R-0_HALT",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T23:18:41+09:00",
+      "updated_at": "2026-05-21T23:18:41+09:00",
+      "graveyard_reason": "R0_HALT_BY_VIABLE_PATH_EXHAUSTION_AT_PARADIGM_177 — 7 viable paths blocked at R-0 prescreen: 2 freemium blacklist + 2 substrate unavailable/>10GB + 1 paradigm 24 family-proxy + 1 defer + 1 microstructure single-domain saturated (3 sub-axes all DNA dup or family-proxy). Lesson #69 5-item template 1-2 PASS / 3-4 HALT. Lesson #71 candidate registered (1st dogfood) — agent SELF-RECOMMEND without user candidate after R-5 expansion lane closure + axis saturation should default to substrate-pivot or forward-collection wait."
     }
   },
   "schema_version": 1,
   "updated_at": "2026-05-21T14:15:47.128790+00:00",
-  "last_updated_at_kst": "2026-05-21T23:15:47.128776+00:00",
+  "last_updated_at_kst": "2026-05-21T23:18:41+09:00",
   "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
     "paradigm_number": 133,
     "phase": "R-1",
