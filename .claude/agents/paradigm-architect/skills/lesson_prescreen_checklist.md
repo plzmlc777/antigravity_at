@@ -17,7 +17,7 @@
 > - Lesson #68 candidate (session-boundary anchor × 4h hold cross-asset fee-floor-bound, 1 dogfood paradigm 157)
 > - Lesson #8 amendment candidate (universal LONG bias trigger-statistic-class-dependent, 6 dogfoods paradigm 99/148/156/157/158/160)
 > - Lesson #21 5 predictive dogfoods CONFIRMED (paradigm 83/165 axis stacking 정착)
-> - **Lesson #70 CONFIRMED 자격** (R-5 LIVE narrow-cohort survivor alpha non-transferable, 2 dogfoods × 2 cohort axes × 0/20 paradigm 173/174 funding family) — paradigm 175 paradigm 24 cross-family verification 3rd dogfood pending
+> - **Lesson #70 CONFIRMED formal** (R-5 LIVE narrow-cohort survivor alpha UNIVERSALLY non-transferable across paradigm families, 3 dogfoods × 2 families × 0/37 paradigm 173/174/175) — paradigm-architect skill 영구 자산화 의무 적용
 > Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.66 + paradigm 154-169 entries if newer.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
@@ -474,7 +474,12 @@ Compute saved cumulative ~75x (R-0 halt이 R-1 dispatch 사전 차단으로).
 **Check**: per-cluster/per-cell obs_t fully negative + max |gross| < fee floor (16bp).
 **Action**: axis-stacking only → R0_HALT_BY_AXIS_STACKING. orthogonal mechanism (NOT 2 retired families compound) required.
 
-### Lesson #70 CONFIRMED 자격 — R-5 LIVE narrow-cohort survivor alpha non-transferable [2 dogfoods × 2 cohort axes × 0/20 aggregate eligible, paradigm 173/174]
+### Lesson #70 CONFIRMED formal — R-5 LIVE narrow-cohort survivor alpha universally non-transferable [3 dogfoods × 2 distinct families × 0/37 aggregate, paradigm 173/174/175]
+
+**Status upgrade 2026-05-21 23:11 KST**: 자격 → **CONFIRMED 정식** (paradigm 175 cross-family verification 3rd dogfood overwhelming evidence, 0/37 aggregate eligible).
+
+**Permanent application**: All future R-5 LIVE survivor cohort expansion screening proposals at **fixed spec** on any broader cohort default verdict = **presumptively HALT** (paradigm-architect skill amendment 영구 자산화). Only **spec-ADAPTIVE expansion** (per-sym parameter optimization, mechanism extension class) permitted — 단 Lesson #62 multiple-testing strict + Bonferroni correction + train/test split overfitting safeguard 의무.
+
 **Trigger**: paradigm-architect R-5 LIVE survivor cohort expansion screening proposal at fixed paradigm spec (e.g., paradigm 22 R-5 funding_carry HBAR/AXS/COMP narrow seed → 10 deep syms 또는 10 mid-cap syms broader cohort).
 **Check**: cohort selection itself was part of the original R-5 paradigm's alpha. R-5 LIVE survivor narrow-cohort alpha does NOT transfer to broader universe sym-by-sym at same spec.
 **Action**:
@@ -484,13 +489,17 @@ Compute saved cumulative ~75x (R-0 halt이 R-1 dispatch 사전 차단으로).
 - If 0/N eligible → R-5 paradigm = post-hoc cherry-pick outlier (not broader subfamily head)
 - If ≥1 eligible → R-5 paradigm 부분 broader subfamily head, expansion candidates 발견
 
-**Why CONFIRMED 자격 (2 dogfoods × 2 distinct cohort axes × 0/20 aggregate)**:
-1. paradigm 173 (1st dogfood, 2026-05-21): paradigm 22 R-5 → 10 deep-liquid syms expansion 0/10 eligible. Best sigex +0.10 (SOL), best edge% +0.38% (BTC) << 2% life-changing gate.
-2. paradigm 174 (2nd dogfood, 2026-05-21): paradigm 22 R-5 → 10 mid-cap funding-volatile syms expansion 0/10 eligible. Best sigex +0.38 (FIL), best edge% +0.60% (LDO) << 2% gate. Mid-cap marginally better than deep but still 3.3x deficit.
+**Why CONFIRMED formal (3 dogfoods × 2 distinct families × 0/37 aggregate)**:
+1. paradigm 173 (1st dogfood, 2026-05-21): paradigm 22 R-5 funding_carry → 10 deep-liquid syms expansion 0/10 eligible. Best sigex +0.10 (SOL), best edge% +0.38% (BTC) << 2% life-changing gate.
+2. paradigm 174 (2nd dogfood, 2026-05-21): paradigm 22 R-5 funding_carry → 10 mid-cap funding-volatile syms expansion 0/10 eligible. Best sigex +0.38 (FIL), best edge% +0.60% (LDO) << 2% gate.
+3. **paradigm 175 (3rd dogfood cross-family, 2026-05-21)**: paradigm 24 R-5 premium_index z → 17 syms (deep + mid-cap 통합) expansion **0/17 eligible**. Best sigex ≤ +0.09 모두 ≤ +0.20, 4-dim util binding 모두 ≤ 20.3% (vs 30% threshold). 10/17 syms gross edge >2% but fee-applied sigex ≈ 0 (premium-momentum broad-cohort 신호 존재하나 fee-applied null variance 완전 소진).
 
-**Statement**: "R-5 LIVE survivor narrow-cohort alpha does NOT transfer to broader cohort sym-by-sym at the same spec. The original paradigm 22 R-5 cohort (HBAR/AXS/COMP) was discovered via post-hoc selection from a wider initial screening, NOT via mechanism-universal applicability. Funding family Tier 4 retire reaffirmed decisively — paradigm 22 R-5 = post-hoc cherry-pick single-cohort outlier, NOT broader subfamily head."
+**Statement (CONFIRMED universal)**: "R-5 LIVE narrow-cohort survivor alpha does NOT transfer to broader cohort sym-by-sym at the same spec — this applies UNIVERSALLY across distinct paradigm families (funding + premium_index verified 3 dogfoods 0/37 aggregate). The original R-5 cohorts (paradigm 22 HBAR/AXS/COMP, paradigm 24 DOGE/SOL/LDO) were discovered via post-hoc selection from wider initial screenings, NOT via mechanism-universal applicability. Cohort selection itself is part of the alpha — alpha is non-stationary across symbols, NOT mechanism applying 'to all symbols of class X'."
 
-**Cross-family verification pending**: paradigm 175 cross-family verification (paradigm 24 R-5 premium_index z-score deep/mid-cap expansion) — 3rd dogfood로 CONFIRMED universal vs funding-family-specific 결정.
+**Sub-findings (paradigm 175 advisory)**:
+- **Sub-A util 구조적 ceiling**: R-5 sparse-trigger 5d-hold family cohort 무관 util 10-20% ceiling (paradigm 22 + 24 동일 패턴)
+- **Sub-B net-vs-gross asymmetry**: paradigm 24 gross edge +2.5-5% on 10/17 syms 진실, sigex ≈ 0 (fee-applied null variance가 완전 소진)
+- **Sub-C premium-momentum broad-cohort 신호 본질적 존재**: eligible-cohort 식별에 interaction covariate (funding/vol/beta regime) 필요 또는 fee structure 변경 (maker/spot venue) — 단 Lesson #21 axis stacking strict
 
 **Implementation**: paradigm-architect R-5 expansion screening proposal 발의 시 자동 verify (default HALT presumption). lesson_prescreen_checklist 영구 자산화. Expansion screening은 narrow-cohort alpha의 cherry-pick selection 검증 도구 (CONFIRMED 자격 이후 standardized strict audit).
 

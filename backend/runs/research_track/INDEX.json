@@ -1929,11 +1929,31 @@
       "artifacts_dir": "backend/runs/research_track/paradigm_22_r5_narrow_scope_expansion_screening_10_midcap_funding_volatile_syms/"
     },
     "updated_at": "2026-05-21T22:55:30+09:00",
-    "last_updated_at_kst": "2026-05-21"
+    "last_updated_at_kst": "2026-05-21",
+    "paradigm_24_r5_spec_adaptive_expansion_per_sym_entry_z_optimization_lesson_70_exempt": {
+      "slug": "paradigm_24_r5_spec_adaptive_expansion_per_sym_entry_z_optimization_lesson_70_exempt",
+      "phase": "R0_HALT_BY_SAMPLE_INSUFFICIENT_LESSON_11_AND_MULTIPLE_TESTING_LESSON_62_AND_LESSON_70_EXEMPT_FAIL",
+      "verdict": "R0_HALT_BY_SAMPLE_INSUFFICIENT_LESSON_11_AND_MULTIPLE_TESTING_LESSON_62_AND_LESSON_70_EXEMPT_FAIL",
+      "registered_at_utc": "2026-05-21T14:15:47.128790+00:00",
+      "registered_at_kst": "2026-05-21T23:15:47.128776+00:00",
+      "track": "paradigm 24 spec-ADAPTIVE expansion (Lesson #70 exempt path candidate)",
+      "source_paradigm": "paradigm 175 §6.73 next-action option γ (Lesson #70 exempt path)",
+      "paradigm_counter": "176 (substantive R-0 halt with counter consumption, same handling as paradigm 159)",
+      "halt_items": [
+        "Lesson #11 sample density 0/75 cells n>=30",
+        "Lesson #62 multiple-testing 75 cells Bonferroni 0.00067 vs empirical perm_p 0.5+"
+      ],
+      "lesson_69_template": "11th post-CONFIRMED dogfood: 3 PASS / 2 HALT / 0 advisory-only-blocking",
+      "lesson_70_exempt_verification": "exempt path structurally infeasible for sparse-trigger R-5 family (paradigm 22 + 24); per-sym IS n=20 max << 30 cutoff",
+      "lesson_70_corollary_candidate": "Lesson #70 exempt path requires Lesson #11 sample density (1st dogfood)",
+      "r1_dispatched": false,
+      "compute_avoided_min": "30-60 min (75 backtest cells avoided)",
+      "next_action": "paradigm 177 new DNA dispatch (Option β resume) per persistence-over-efficiency"
+    }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-21T22:36:00+09:00",
-  "last_updated_at_kst": "2026-05-21",
+  "updated_at": "2026-05-21T14:15:47.128790+00:00",
+  "last_updated_at_kst": "2026-05-21T23:15:47.128776+00:00",
   "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
     "paradigm_number": 133,
     "phase": "R-1",

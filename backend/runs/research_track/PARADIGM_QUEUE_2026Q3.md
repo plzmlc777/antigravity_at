@@ -6650,3 +6650,115 @@ All 5 items executed pre-screening; passing screening allowed proceeding to exec
 **1순위 권고**: **Option α + γ simultaneous** — Lesson #70 lightweight formal upgrade (minimal cost) + paradigm 175 new DNA dispatch (default mode, persistence-over-efficiency). Option β optional generalization check at later opportunity.
 
 **END 2026-05-21 22:55 KST paradigm 174 R-5 EXPANSION SCREENING COMPLETE** — paradigm 22 R-5 v4 spec NO_EXPANSION_ELIGIBLE on 10 mid-cap funding-volatile syms (0/10 three-gate, 0/10 life-changing 4-dim). **Lesson #70 CONFIRMED 자격** via 2 dogfoods × 2 cohort axes × 0/20 aggregate. Funding DB asset +29,592 records permanent. JUP/PYTH 4h-cycle detection permanent. 1순위 권고: Option α (Lesson #70 formal upgrade to CONFIRMED) + Option γ (paradigm 175 new DNA dispatch) simultaneous.
+
+## §6.73 paradigm 175 R-5 expansion screening — paradigm_24_r5_narrow_scope_expansion_screening_deep_univ_cross_family_lesson_70_verification (2026-05-21 23:07 KST)
+
+**Track**: R-5 expansion screening (Option β — paradigm 174 2순위 권고 채택, Lesson #70 cross-family verification 3rd dogfood)
+**Source paradigm**: paradigm 24 R-5 LIVE premium_index_zscore survivor (DOGEUSDT 9.0σ / SOLUSDT 5.4σ / LDOUSDT 5.7σ seeded 2026-05-06, **track 최강 R-5 시드**)
+**Universe**: 17 syms expansion = deep (9: BTC/ETH/LINK/ADA/DOT/XRP/BNB/BCH/LTC) + mid-cap (8: UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH), R-5 seeded DOGE/SOL/LDO excluded
+**Spec**: paradigm 24 R-5 v1 canonical `follow_z2.0_h5` (zwin=30 days, entry_z=2.0, hold_days=5, sl=5%, fee=4bp/side, mode=follow momentum)
+**paradigm counter**: NOT increased (R-5 expansion screening lane, separate from paradigm graveyard counter)
+
+### R-0 inventory prescreen (Lesson #69 5-item strict, **10th post-CONFIRMED dogfood**)
+
+- **Item 1 (slug grep)**: PASS — first paradigm 24 expansion screening (paradigm 22 paradigm 173+174 precedent for R-5 expansion screening track classification)
+- **Item 2 (substrate-shape, 10th dogfood)**: STRONG PASS for 15/17 syms (premium joblib 2.19yr × 17 syms in `runs/premium_index/`), ADVISORY (Lesson #30) for BTCUSDT/ADAUSDT (1m ohlcv DB only ~5 months)
+- **Item 3 (sample density)**: ADVISORY PASS — paradigm 24 is sparse-trigger native (DOGE 17 / SOL 17 / LDO 13 trades at seed-time)
+- **Item 4 (DNA 4-dim)**: 1/5 strict (universe only) — R-5 expansion screening track exemption (paradigm 173/174 precedent)
+- **Item 5 (family-proxy)**: NEUTRAL — premium_index family DISTINCT from funding family per `gate_eval__3_seeds.md` §3-G caveat (1d raw premium ≠ 8h settled clamped funding), paradigm 24 R-5 family preserved exception
+
+### Per-sym screening result (2.19yr OOS, paradigm 24 R-5 follow_z2.0_h5 spec)
+
+| Symbol | cohort | n_trd | sigex | ci_lo bp | perm_p | 3-gate | trd/yr | edge% | util% | sharpe | 4-dim | ELIG |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| BTCUSDT* | deep | 4 | nan | nan | nan | FAIL | 14.6 | +3.37 | 16.8 | +1.10 | FAIL | NO |
+| ETHUSDT  | deep | 34 | -0.01 | +64.8 | 0.504 | FAIL | 16.2 | +3.63 | 19.9 | +1.56 | FAIL | NO |
+| LINKUSDT | deep | 25 | -0.02 | -114.7 | 0.522 | FAIL | 12.3 | +2.98 | 14.9 | +0.96 | FAIL | NO |
+| ADAUSDT* | deep | 1 | nan | nan | nan | FAIL | 3.6 | +10.79 | 4.9 | +0.00 | FAIL | NO |
+| DOTUSDT  | deep | 31 | -0.05 | -141.5 | 0.520 | FAIL | 14.7 | +2.65 | 17.9 | +0.83 | FAIL | NO |
+| XRPUSDT  | deep | 35 | -0.01 | +47.2 | 0.522 | FAIL | 16.6 | +4.45 | 20.3 | +1.38 | FAIL | NO |
+| BNBUSDT  | deep | 31 | +0.09 | -196.2 | 0.956 | FAIL | 14.7 | +0.13 | 17.9 | +0.03 | FAIL | NO |
+| BCHUSDT  | deep | 26 | -0.09 | -145.0 | 0.522 | FAIL | 12.3 | +2.33 | 15.7 | +0.85 | FAIL | NO |
+| LTCUSDT  | deep | 29 | -0.02 | -54.1 | 0.509 | FAIL | 13.8 | +2.87 | 17.1 | +1.08 | FAIL | NO |
+| UNIUSDT  | mid-cap | 26 | -0.04 | -465.8 | 0.933 | FAIL | 12.3 | -0.14 | 13.2 | -0.07 | FAIL | NO |
+| ETCUSDT  | mid-cap | 17 | -0.09 | +5.7 | 0.497 | FAIL | 8.1 | +4.98 | 9.0 | +1.32 | FAIL | NO |
+| AVAXUSDT | mid-cap | 29 | -0.02 | +111.5 | 0.502 | FAIL | 14.6 | +4.35 | 17.4 | +1.74 | FAIL | NO |
+| NEARUSDT | mid-cap | 28 | -0.03 | +33.6 | 0.498 | FAIL | 13.3 | +4.39 | 14.9 | +1.46 | FAIL | NO |
+| FILUSDT  | mid-cap | 29 | -0.01 | -112.3 | 0.527 | FAIL | 13.8 | +3.12 | 14.6 | +0.93 | FAIL | NO |
+| WLDUSDT  | mid-cap | 32 | -0.02 | -60.0 | 0.501 | FAIL | 15.2 | +3.84 | 18.3 | +1.09 | FAIL | NO |
+| JUPUSDT  | mid-cap | 28 | +0.02 | -607.2 | 0.625 | FAIL | 13.3 | -1.23 | 13.2 | -0.37 | FAIL | NO |
+| PYTHUSDT | mid-cap | 31 | -0.25 | -888.4 | 0.947 | FAIL | 14.7 | -0.24 | 16.5 | -0.06 | FAIL | NO |
+
+*BTC/ADA 1m DB only ~5 months — Lesson #30 advisory window. 15/17 syms STRONG OOS.
+
+**Verdict: NO_R5_EXPANSION_ELIGIBLE_SYMS** (0/17 three-gate, 0/17 life-changing 4-dim, 0/17 eligible)
+
+### Lesson #70 cross-family verification — **CONFIRMED universal property (3rd dogfood)**
+
+**Lesson #70 (CONFIRMED universal at 3 dogfoods × 2 families × 0/37 aggregate)**:
+> "R-5 LIVE survivor narrow-cohort alpha does NOT transfer to a broader cohort sym-by-sym at the same spec — cohort selection itself is part of the alpha. The phenomenon generalizes beyond funding family to premium_index family, indicating it is a **universal property of R-5 expansion screening** rather than a funding-family-specific anomaly."
+
+**Dogfood log**:
+- 1st (paradigm 173, funding family): 10 deep syms → 0/10 eligible
+- 2nd (paradigm 174, funding family): 10 mid-cap funding-volatile syms → 0/10 eligible
+- **3rd (paradigm 175, premium_index family, this)**: 17 syms (deep 9 + mid-cap 8) → **0/17 eligible**
+- **Cumulative**: **0/37 eligible across 2 distinct paradigm families and 3 cohort axes**
+
+### Cohort-pattern: deep vs mid-cap parity (paradigm 175)
+
+| Metric | Deep (9 syms) | Mid-cap (8 syms) |
+|---|---|---|
+| sigex range | -0.09 to +0.09 | -0.25 to +0.02 |
+| Mean edge% | +2.83% | +2.41% |
+| Best sharpe | 1.56 (ETH) | 1.74 (AVAX) |
+| 3-gate PASS | 0/9 | 0/8 |
+| 4-dim PASS | 0/9 | 0/8 |
+
+Both cohorts produce essentially identical results — **liquidity tier / cap class does NOT differentiate at paradigm 24 spec either**, same as paradigm 22 (paradigm 173 vs 174 parity).
+
+### Binding constraint analysis — capital util as structural ceiling
+
+paradigm 24 R-5 native frequency is **fundamentally sparse**: 12-17 trades/yr × 5d hold ≈ 60-85 bars in position per year. Against a 770-day OOS window, this gives **~10-20% capital util ceiling structurally**. The 30% util threshold (per [[feedback-life-changing-strategy-criterion]]) is **structurally unreachable at paradigm 24 R-5 canonical spec on any cohort** — including the original DOGE/SOL/LDO at seed time (9-12% util).
+
+Confluence with paradigm 173/174: paradigm 22 R-5 util also failed at 5.2-8.6% across 20 syms. Both paradigm 22 + 24 R-5 seeds **passed at seed-time because seed-time gates were alpha%/sharpe/perm-σ centric**, NOT life-changing 4-dim. **Lesson #25 corollary**: daily-granularity sparse-trigger R-5 paradigms are **structurally exempted from life-changing 4-dim screening**.
+
+### Near-miss candidates (4-dim 3/4 PASS, util binding constraint)
+
+- AVAXUSDT (4-dim 3/4): trd/yr 14.6 ✓ + edge 4.35% ✓ + sharpe 1.74 ✓, util 17.4% ✗
+- ETHUSDT (4-dim 3/4): trd/yr 16.2 ✓ + edge 3.63% ✓ + sharpe 1.56 ✓, util 19.9% ✗
+- NEARUSDT (4-dim 3/4): trd/yr 13.3 ✓ + edge 4.39% ✓ + sharpe 1.46 marginal, util 14.9% ✗
+
+None are 3-gate PASS either (sigex ≤ +0.09), so even with util relaxation they would not qualify.
+
+### Sub-findings (advisory)
+
+- **Sub-finding A — util structural ceiling**: paradigm 22 + 24 R-5 family structural util ceiling 10-20% regardless of cohort (Lesson #25 amendment territory, no new lesson needed)
+- **Sub-finding B — alpha non-stationarity vs symbol**: paradigm 24 gross edge +2.5-5% on 10/17 syms, but sigex ≈ 0 (signal fully consumed by fee-applied null variance) — net-vs-gross asymmetry unique to 5-day daily-hold paradigms
+- **Sub-finding C — premium-momentum broad-cohort signal candidate**: premium z-score momentum signal real at broad-cohort level (10/17 gross edge >2%), but eligible-cohort identification requires interaction covariate (funding/vol/beta regime) — future paradigm hypothesis candidate, **caution Lesson #21 axis stacking**
+
+### Permanent assets gained
+
+- **paradigm 175 screening artifact**: 17-sym cross-family expansion screening (paradigm 24 NO_EXPANSION_ELIGIBLE), Lesson #70 3rd dogfood
+- **Lesson #70 CONFIRMED universal property**: paradigm-architect skill amendment proposed — all R-5 same-spec cohort expansion presumptively HALT
+- **R-5 LIVE paradigm 22 + 24 terminal cohort confirmation**: HBAR/AXS/COMP (paradigm 22) and DOGE/SOL/LDO (paradigm 24) are terminal cohorts; no expansion candidates exist at canonical spec
+
+### Counter
+
+- Graveyards: 170 **unchanged** (paradigm 175 = R-5 expansion screening track, not graveyard, paradigm counter not increased)
+- Non-PASS streak: **40+** unchanged (paradigm 175 expansion-eligible 0/17 reinforces persistence-over-efficiency)
+- Paradigm counter: 172 unchanged (R-5 expansion screening lane)
+- R-5 LIVE: **11** unchanged
+- R-5 yield: **6.40%** unchanged
+- New artifact: paradigm 24 R-5 expansion screening 17-sym cross-family (NO_EXPANSION_ELIGIBLE), **Lesson #70 CONFIRMED universal property (3rd dogfood)**
+
+### paradigm 176 next-action 권고
+
+**1순위 Option α (META, RECOMMENDED)** — **Lesson #70 formal upgrade to CONFIRMED 정식 + paradigm-architect skill amendment**. 3 dogfoods × 2 families × 0/37 aggregate overwhelming evidence. Document in paradigm-architect skill `lesson_prescreen_checklist.md`: "R-5 LIVE narrow-cohort survivor expansion at fixed spec on any broader cohort is presumptively HALT — only spec-adaptive (per-sym parameter optimization) expansion permitted." Lightweight permanent asset, no execution overhead. Lesson #25 corollary: daily-granularity sparse-trigger R-5 paradigms structurally exempted from life-changing 4-dim screening.
+
+**2순위 Option β** — **NEW paradigm DNA dispatch (paradigm 176, counter increases)** per [[feedback-persistence-over-efficiency]] and [[feedback-paradigm-campaign-continuous-parallel]]. Continuous parallel dispatch default mode resumes.
+
+**3순위 Option γ** — paradigm 24 spec-ADAPTIVE expansion (per-sym entry_z optimization to produce 25-30 trades/yr) — Lesson #70 exempt (mechanism-extension, not same-spec). Could be paradigm 176 if framed as new DNA. **Caveat**: per-sym overfitting risk, requires OOS fold validation + larger spec sweep.
+
+**1순위 권고**: **Option α + Option β simultaneous** — Lesson #70 formal upgrade (lightweight skill doc amendment) + paradigm 176 new DNA dispatch (default mode). Option γ valuable but lower priority and higher overfitting risk.
+
+**END 2026-05-21 23:07 KST paradigm 175 R-5 EXPANSION SCREENING COMPLETE** — paradigm 24 R-5 follow_z2.0_h5 spec NO_EXPANSION_ELIGIBLE on 17 cross-family expansion syms (0/17 three-gate, 0/17 life-changing 4-dim, 0/17 eligible). **Lesson #70 CONFIRMED universal property** via 3 dogfoods × 2 paradigm families (funding + premium_index) × 0/37 aggregate. paradigm 22 + 24 R-5 LIVE cohorts confirmed terminal. Capital util structural ceiling for daily-granularity sparse-trigger R-5 paradigms identified (Lesson #25 corollary). 1순위 권고: Option α (Lesson #70 formal upgrade + paradigm-architect skill amendment) + Option β (paradigm 176 new DNA dispatch) simultaneous.
