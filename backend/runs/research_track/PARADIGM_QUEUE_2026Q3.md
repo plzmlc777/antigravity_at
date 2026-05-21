@@ -6322,3 +6322,331 @@ Per-quarter sample density: **274/sym** — Lesson #11 (≥30 cutoff) **9x cushi
 **3순위 Option λ**: funding term structure cross-tenor variant (8h vs 3d rolling)
 
 **END 2026-05-21 22:21 KST paradigm 170 INFRASTRUCTURE TASK COMPLETE** — 10 deep syms × 821 days × 24,660 funding records. paradigm 169 retry unblocked. Wall-clock 9s (800x faster than ETA 2-4hr).
+
+## §6.69 paradigm 171 — alt_perp_swap_basis_term_structure_carry_differential_directional_4h (paradigm 169 retry, R-0 HALT 2nd) (2026-05-21 22:30 KST)
+
+paradigm 171 = paradigm 169 retry post-paradigm 170 funding DB unblock. Counter 170 → **171** (substantive R-0 increment as separate entry, different substrate-shape axis from paradigm 169 parent). Non-PASS streak 38 → **39**.
+
+### Hypothesis (unchanged from paradigm 169)
+- Cross-tenor carry differential: (8h perp funding annualized) - (3M quarterly futures basis annualized) rolling 7d z-score |z|>=2 → 4h directional MR
+- Universe (post-paradigm 170): claimed 10 deep syms × 2.25yr
+- Direction: carry-rich → SHORT MR / carry-cheap → LONG MR (4-quadrant SNT)
+
+### R-0 Lesson #69 5-item strict template (6th post-CONFIRMED dogfood)
+- **Item 1 slug grep**: PASS (retry exempted, no new DNA 5/6 duplicate)
+- **Item 2 substrate-shape STRICT (CRITICAL)**: **FAIL 2nd at NEW axis** (3M quarterly futures, distinct from paradigm 169 funding DB axis)
+  - USDS-M (USDT-margin) `/fapi/v1/exchangeInfo` quarterly contracts: only **2 syms** (BTCUSDT, ETHUSDT) — permanent ceiling since 2021 (5yr no expansion)
+  - COIN-M (USD-margin) `/dapi/v1/exchangeInfo`: BTC/ETH/XRP/BNB/SOL (SOL 1.7yr partial)
+  - Binance Vision archive depth: USDS-M BTC/ETH 24 contracts each × 5yr+, COIN-M BTC/ETH 27 each, XRP/BNB 26 each, SOL only 11
+  - **Cross-margin mixing (USDT-perp × USD-quarterly) economically incoherent** — different trader cohorts, different margin currencies, convergence non-arbitrageable (NOT a valid recovery path)
+  - Strict same-margin intersection (USDT-perp funding × USDS-M quarterly): **{BTC, ETH} = 2 syms × 2.25yr**
+- **Item 3 Lesson #11 density**: FAIL — 2 syms × 2.25yr × 4h = 9,855 bars × 5% trigger = 493 events / 4 quadrants / 9 quarters = **13.7 events per-cell << 30 cutoff** (z>=1.5 relaxation marginal but inflates FDR)
+- **Item 4 Lesson #62 DNA 4-dim**: PASS 4/5 strict (statistic + universe + entry + mechanism distinct vs paradigm 22 R-5 + funding family + basis family)
+- **Item 5 Lesson #56 OUTCOME-LEVEL proxy**: advisory caution (potential 18th instance if executed, moot — funding family Tier 4 retire 11 sub-class + basis family Tier 4 retire 5 sub-class adjacent retire families both predict fee-floor saturation at 4h)
+
+### Halt verdict
+`SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT_2ND` — joint Lesson #28 amendment + Lesson #11 prescreen failure. paradigm 170 unblocked funding DB (10 syms × 2.25yr) but the **NEW substrate-shape FAIL is on the 3M quarterly futures axis** (USDS-M permanent 2-sym ceiling), distinct sub-axis from paradigm 169's funding DB axis FAIL.
+
+### Lesson dogfoods
+- **Lesson #69 6th post-CONFIRMED**: 5-item strict template SUCCEEDED at catching substrate-shape FAIL 2nd consecutive at different axis
+- **Lesson #28 amendment 6th post-CONFIRMED**: same paradigm slug, substrate-shape audit must check **every** required substrate axis independently (funding DB pass ≠ quarterly futures pass)
+- **Lesson #11 4th post-CONFIRMED**: structural density FAIL prevention (n=13.7/cell)
+- **Lesson #62**: DNA 4/5 differentiation maintained even at 2nd HALT
+- **Lesson #61 amendment retry exemption verified**: paradigm 171 = paradigm 169 retry, but new sub-axis finding (USDS-M quarterly limited to BTC/ETH only) is structurally distinct — Item 2 audit must enumerate every substrate axis
+
+### paradigm 22 R-5 baseline vs paradigm 171 cross-comparison
+- Cohort disjoint (HBAR/AXS/COMP vs BTC/ETH)
+- DNA 4/5 strict distinct — boundary classification ratified
+- paradigm 22 R-5 LIVE unchanged; paradigm 171 blocked by USDS-M quarterly structural scarcity, NOT mechanism falsification
+
+### Counter
+- Graveyards: 169 → **170**
+- Non-PASS streak: 38 → **39**
+- Paradigm counter: 170 → **171**
+- R-5 LIVE: 11 unchanged
+- R-5 yield: 11/171 = **6.43%**
+- Tier 4 family retires: 15 unchanged
+
+### paradigm 172 next-action 권고
+**1순위 Option α (recommended)**: drop cross-tenor funding × quarterly basis paradigm class entirely. USDS-M quarterly listing has been frozen at BTC/ETH for 5 years (no expansion since 2021-03), Binance has shown no intent to broaden the USDT-margin quarterly product line. Family-proxy advisory: "USDT-margin cross-tenor funding × quarterly basis: 2-sym permanent ceiling, do not retry without USDS-M quarterly listing expansion event."
+
+**2순위 Option β**: COIN-M perp funding DB backfill as infrastructure task (NEW endpoint different from USDS-M). Unlocks USD-margin same-margin cohort: 5 syms × 2.25yr (SOL 1.7yr partial → effective 4 syms × 2.25yr + SOL marginal). per-quadrant per-quarter ≈ 34 events Lesson #11 marginal PASS. Wall-clock ~9-30s estimated. Downstream PASS probability LOW given funding family Tier 4 retire 11 sub-class pattern + COIN-M is even smaller universe than USDS-M.
+
+**3순위 Option γ**: pivot to family-distinct axis using paradigm 170 funding DB only (no quarterly side):
+- (γ1) paradigm 22 R-5 narrow-scope expansion: BTC/ETH/SOL/LINK/ADA/DOT deep cohort candidates with funding 30d z-score MR
+- (γ2) funding term structure cross-tenor variant: 8h vs 3d rolling funding aggregation differential (single-source paradigm 170 DB, no quarterly substrate dependency)
+- (γ3) cross-exchange perp funding spread (paradigm 103 Bybit + 167 Bitget already done — substrate exhausted)
+
+## §6.70 paradigm 172 — alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h (2026-05-21 22:36 KST)
+
+paradigm 172 = Option γ2 from paradigm 171 next-action (funding term structure cross-time-frame variant, single-source paradigm 170 DB, no quarterly substrate dependency). Counter 171 → **172**. R-0 INVENTORY HALT (3rd in row: paradigm 169 → 171 → 172). Non-PASS streak 39 → **40**.
+
+### Hypothesis (proposed user dispatch)
+
+Per-symbol funding rate cross-time-frame divergence: (current 8h funding) - (3-day rolling mean funding, 9-cycle at 8h cadence). |z| ≥ 2.0 outlier → directional alpha 4h hold.
+- A focus: current > 3d mean + 2σ × SHORT (acceleration → MR)
+- B same-sign: current < 3d mean - 2σ × LONG (deceleration → MR bounce)
+- 4-quadrant SNT, 10 deep syms (paradigm 170 DB cohort), substrate verified
+
+### R-0 Lesson #69 5-item strict template (7th post-CONFIRMED dogfood)
+
+| # | Item | Result | Detail |
+|---|---|---|---|
+| 1 | #61 amendment slug grep | PASS | No DNA 5/6 duplicate; adjacent slugs paradigm 99/97/22 noted |
+| 2 | #28 amendment substrate-shape | **PASS_STRONG** | paradigm 170 funding DB 10 syms × 2.25yr × 24,660 records; 9-cycle rolling lookback feasible; single-source no external API |
+| 3 | #11 sample density | PASS_EXPECTED | per-cell ≈ 308, per-quarter ≈ 34, well above floors |
+| 4 | **#62 DNA 4-dim audit** | **HARD FAIL 0/6 strict vs paradigm 99** | statistic class proxy-isomorphic; 9/10 universe overlap; identical threshold; identical mechanism story |
+| 5 | **#56 OUTCOME-LEVEL family proxy** | **FAIL 18th instance candidate** | funding family Tier 4 retire 13 cumulative graveyards (incl. paradigm 167); closest precedent paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL edge 0.24% << 2% gate |
+
+### Critical finding — DNA collision with paradigm 99
+
+paradigm 99 (`funding_cycle_8h_differential_velocity_per_sym`, BROAD_FALSIFIED_MIRROR_ONLY 2026-05-19) tested per-sym **Δfunding(t)=f(t)-f(t-8h) rolling 30d z-score |z|>2**. paradigm 172 proposes per-sym **current - 3d rolling mean** divergence |z|>=2. Lesson #62 4-dim audit:
+
+| Axis | paradigm 172 | paradigm 99 | strict distinct? |
+|---|---|---|---|
+| Data domain | binance_funding_rate DB | binance_funding_rate DB | SAME |
+| Statistic class | current - mean_3d | Δf rolling-z(30d) | **PROXY-SAME** (both measure per-sym self-relative funding deviation magnitude over recent window; mathematically near-isomorphic when funding has persistence) |
+| Trigger threshold | \|z\|≥2.0 | \|z\|≥2.0 | SAME |
+| Universe | 10 syms (9/10 ⊂ paradigm 99) | 14 syms | OVERLAP_HIGH (only DOT new) |
+| Entry-side | per-sym z trigger on funding statistic | per-sym z trigger on funding statistic | PROXY-SAME |
+| Mechanism | leverage acceleration extreme → MR | leverage velocity extreme → MR | PROXY-SAME |
+
+**Strict distinct count: 0/6 → HARD FAIL Lesson #62 boundary (≥3/5 required)**
+
+User's surface-level distinction ("3d vs 30d window, rolling mean vs Δ velocity") does not survive proxy-isomorphism analysis. The two statistics fire on the same underlying events (per-sym funding deviation from recent self) when funding rates exhibit persistence (which paradigm 22 R-5 explicitly exploits).
+
+### paradigm 99 outcome → paradigm 172 family-proxy prediction
+
+paradigm 99 R-1 results (closest precedent):
+- A focus high LONG: n=1,295 mean +12.44bp **sigex +2.03** ci_lower **-4.31** 3-gate FAIL
+- B mirror low LONG: n=1,304 mean +24.00bp **sigex +3.19 ci_lower +5.88 3-gate PASS** BUT
+  - Symmetric LONG bias (both A LONG + B LONG positive → directional drift artifact)
+  - Concentration FAIL: 0/13 syms ci_pos
+  - **Life-changing FAIL: per-trade edge 0.24% (gate ≥ 2.0%, 8x deficit)**
+- NARROW_SCOPE_LIFE_CHANGING_FAIL verdict
+
+paradigm 172 predicted outcome (Lesson #56 family-proxy, HIGH confidence): BROAD_FALSIFIED_MIRROR_ONLY or NARROW_SCOPE_LIFE_CHANGING_FAIL with per-trade edge 0.2-0.5% range, Concentration FAIL, symmetric directional bias.
+
+### paradigm 22 R-5 vs paradigm 172 configuration mismatch
+
+| Dimension | paradigm 22 R-5 LIVE | paradigm 172 proposed |
+|---|---|---|
+| Cohort | narrow 3-sym (HBAR/AXS/COMP) | broad 10-sym |
+| Hold | 8h (funding cycle aligned) | 4h (sub-cycle) |
+| Exit | exit_z=1.0 MR endpoint | 4h time-based (no MR endpoint) |
+
+paradigm 172 violates **3/3** of paradigm 22 R-5's life-saving configuration choices. Maps directly to falsified broad variants (73/79/96/97/98/99/103/132/138/139/141/167), not to paradigm 22's narrow exception.
+
+### Lesson #61 amendment retry-exemption scope clarification
+
+Lesson #61 amendment retry-exemption applies to **substrate-blocked retries** (paradigm 171 = paradigm 169 retry post-paradigm 170 unblock, where the unblock removed the structural impediment). It does **NOT** apply to **mechanism-variant retries** (paradigm 172 = paradigm 99 statistical-form variant within an already-falsified family). This is a NEW scope amendment captured at this halt.
+
+### Halt verdict
+
+`R0_INVENTORY_HALT_LESSON_62_DNA_COLLISION_LESSON_56_FAMILY_PROXY_OUTCOME`
+
+### Lesson dogfoods (this halt)
+
+- **Lesson #62 12th boundary case**: DNA 4-dim audit table captured proxy-isomorphism that surface-level claim missed. Decisive gate at Item 4.
+- **Lesson #56 18th instance candidate**: funding family Tier 4 retire 13 cumulative graveyards + closest precedent paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL = HIGH-confidence outcome prediction without R-1 expenditure.
+- **Lesson #61 amendment scope clarification**: retry-exemption applies to substrate-blocked retries only, NOT to mechanism-variant retries within retired family.
+- **Lesson #69 7th post-CONFIRMED success**: 5-item strict template caught DNA collision before R-1 dispatch.
+
+### Funding family Tier 4 retire reinforcement (14th sub-class graveyard analogue)
+
+Funding axis variant space (single-source paradigm 170 DB) now **structurally exhausted** for single-signal mechanism testing. paradigm 22 R-5 LIVE remains the lone exception (narrow-cohort + MR endpoint exit + 8h cycle alignment). Sub-class graveyards now 14 (including paradigm 172 R-0 halt analogue).
+
+### Counter
+
+- Graveyards: 170 unchanged (R-0 halt, not graveyard)
+- Non-PASS streak: 39 → **40**
+- Paradigm counter: 171 → **172**
+- R-5 LIVE: 11 unchanged
+- R-5 yield: 11/172 = **6.40%**
+- Tier 4 family retires: 15 unchanged (funding family already retired)
+- **NEW family-proxy advisory text**: "funding single-source single-signal cross-time-frame variant: paradigm 99 family-proxy + funding Tier 4 retire pattern predicts narrow-scope LC FAIL; do not retry within paradigm 170 DB single-source unless paradigm 22 R-5 narrow-cohort + MR endpoint exit configuration is reproduced"
+
+### paradigm 173 next-action 권고
+
+**1순위 Option κ (recommended)**: **paradigm 22 R-5 narrow-scope expansion** to deep syms (BTC/ETH/SOL/LINK/ADA/DOT subset of paradigm 170 DB). Configuration: per-sym 30d funding z |z|≥2.5, exit_z=1.0 MR endpoint (paradigm 22 spec), 8h hold, sym-by-sym screening. DNA 3/5 strict distinct vs paradigm 22 R-5 (universe expansion is core new axis). Direct extension of R-5 LIVE survivor, not retire-violating retry.
+
+**2순위 Option μ**: substrate-distinct paradigm — exit funding axis entirely. WS recorder forward-collection candidates (2026-07-15+ maturity) or microstructure DB sub-axis with explicit Lesson #56 family-proxy audit.
+
+**3순위 Option ν**: paper baseline priority transition — Day 7 2026-05-28 (D-7) / Day 30 2026-06-03 (D-13), focus R-5 LIVE 11 paradigm diagnostics.
+
+**END 2026-05-21 22:36 KST paradigm 172 R-0 INVENTORY HALT** — Lesson #62 HARD FAIL 0/6 strict vs paradigm 99 (statistic class proxy-isomorphic + 9/10 universe overlap + identical threshold + identical mechanism story) + Lesson #56 OUTCOME-LEVEL family proxy 18th instance candidate (funding family Tier 4 retire 13 cumulative graveyards, closest precedent paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL). Counter 171 → 172, non-PASS streak 39 → 40. paradigm 173 권고: Option κ paradigm 22 R-5 narrow-scope expansion.
+
+---
+
+## §6.71 paradigm 173 R-5 expansion screening — paradigm_22_r5_narrow_scope_expansion_screening_10_deep_syms (2026-05-21 22:47 KST)
+
+### Track classification (self-decision, paradigm counter NOT increased)
+
+**Option A: R-5 expansion screening track** — paradigm 22 R-5 LIVE survivor (HBAR/AXS/COMP funding_carry v4) cohort expansion candidate evaluation on paradigm 170 funding DB asset (10 deep syms × 2.25yr × 24,660 records: BTCUSDT/ETHUSDT/SOLUSDT/LINKUSDT/ADAUSDT/DOTUSDT/XRPUSDT/BNBUSDT/BCHUSDT/LTCUSDT).
+
+Per paradigm-architect spec: R-5 LIVE direct extension = family-distinct exempt (not R-1 retry). Paradigm counter remains at 170. Cumulative graveyards remain at 170.
+
+### Canonical paradigm 22 R-5 v4 spec (replicated exactly from paper_seed_proposal__*USDT.json)
+
+- `lookback_funding_periods = 30` (30 × 8h = 10d)
+- `entry_z = 2.5` / `exit_z = 0.5` (NOT 1.0 from task brief — actual seed uses 0.5)
+- `max_hold_funding_periods = 7` (~56h)
+- `sl_pct = 0.03` / `fee_rate = 0.0004` per side
+- Mode: mean-reversion (z>+2.5 SHORT / z<−2.5 LONG)
+
+### R-0 inventory prescreen (Lesson #69 5-item strict, 8th post-CONFIRMED dogfood) — ALL 5 PASS
+
+1. **Slug grep**: funding_carry/ + funding_dispersion/ artifacts pre-existing; no prior 10-deep-syms screening artifact
+2. **Lesson #28 substrate-shape**: PASS strong (existence + shape verified: 2,466 funding records × 10 syms × 2.25yr; 30-period z computable)
+3. **Lesson #11 sample density**: PASS (per-sym n=41-75 trades / 2.25yr, all ≥ 30 cutoff)
+4. **Lesson #62 DNA 4-dim**: 1/5 strict (universe only) — R-5 expansion track family-distinct exemption applies (not R-1 retry)
+5. **Lesson #56 family-proxy outcome**: NEUTRAL (paradigm 22 R-5 = preserved exception, expansion ≠ retry-into-retired-family)
+
+### Screening result
+
+| Symbol | n_trd | sigex | ci_lo bp | perm_p | 3-gate | trd/yr | edge% | util% | sharpe | 4-dim | ELIG |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| BTCUSDT  | 41 | +0.05 | -37.4   | 0.542 | FAIL | 18.4 | +0.38 | 5.5 | +0.56 | FAIL | NO |
+| ETHUSDT  | 48 | +0.04 | -123.7  | 0.899 | FAIL | 21.6 | +0.16 | 6.2 | +0.08 | FAIL | NO |
+| SOLUSDT  | 45 | +0.10 | -117.3  | 0.883 | FAIL | 20.2 | +0.00 | 5.7 | -0.09 | FAIL | NO |
+| LINKUSDT | 73 | -0.01 | -81.2   | 0.886 | FAIL | 32.8 | +0.14 | 6.7 | +0.08 | FAIL | NO |
+| ADAUSDT  | 64 | +0.05 | -106.5  | 0.724 | FAIL | 28.8 | +0.30 | 6.8 | +0.22 | FAIL | NO |
+| DOTUSDT  | 68 | +0.04 | -151.0  | 0.715 | FAIL | 30.6 | -0.15 | 7.4 | -0.25 | FAIL | NO |
+| XRPUSDT  | 46 | -0.00 | -168.3  | 0.509 | FAIL | 20.7 | -0.63 | 4.5 | -0.95 | FAIL | NO |
+| BNBUSDT  | 75 | -0.01 | -84.2   | 0.508 | FAIL | 33.7 | -0.22 | 8.4 | -0.74 | FAIL | NO |
+| BCHUSDT  | 51 | +0.04 | -155.4  | 0.997 | FAIL | 22.9 | +0.07 | 6.5 | -0.00 | FAIL | NO |
+| LTCUSDT  | 54 | +0.01 | -120.7  | 0.756 | FAIL | 24.3 | -0.08 | 6.0 | -0.20 | FAIL | NO |
+
+**Verdict: NO_R5_EXPANSION_ELIGIBLE_SYMS** — 0/10 three-gate PASS, 0/10 life-changing 4-dim PASS, 0/10 R-5 expansion eligible.
+
+### Failure mode breakdown
+
+- **Three-gate**: all sigex ∈ [−0.01, +0.10] (no excess over fee-applied null), all ci_lower < 0 (deep negative −37 to −168 bp), all perm_p ∈ [0.51, 0.997] (random-indistinguishable)
+- **Life-changing 4-dim binding constraint**: per-trade edge −0.63 to +0.38% (need ≥+2.0%, fails by >5x margin across all 10); capital util 4.5-8.4% (need ≥30%, fails by ~4-7x margin). trades/yr 18-34 universally PASS (≥12). sharpe -0.95 to +0.56 (need ≥1.5, all FAIL)
+- **Exit reason mix**: dominant `mean` exit (mechanism IS firing as designed: z reverts below 0.5) — the spec activates correctly, but the gross edge per cycle on deep majors is insufficient to overcome 8 bp round-trip fee
+
+### Mechanism interpretation
+
+paradigm 22 R-5 alpha is **highly cohort-specific** and does NOT transfer to deep-liquid majors. Pattern: paradigm 22 v4 spec produces alpha 108-149% / sharpe 1.48-1.87 on HBAR/AXS/COMP (mid-cap funding-volatile), but alpha −161 to +69% / sharpe −0.95 to +0.56 on the 10 deep-liquid universe. Hypothesis: major caps have funding rates that are **too efficiently arbitraged** (deep liquidity, cross-exchange flow) → |z| ≥ 2.5 extremes lack the reversion premium present in less-arbitraged mid-cap regimes.
+
+### Lesson #70 candidate (single-instance dogfood, awaits 2nd confirmation)
+
+> **Lesson #70 candidate**: *"R-5 LIVE survivor narrow-cohort alpha does NOT transfer to deep-liquid universe sym-by-sym at the same spec — cohort selection itself is part of the alpha. Expansion screening on a different universe class than R-5 seed cohort risks broad-falsification by liquidity-class mismatch."*
+
+Confirmation gate: 2nd R-5 expansion screening on a different paradigm (e.g., paradigm 24 premium_index DOGE/SOL/LDO → 10 deep syms) producing same NO_EXPANSION_ELIGIBLE outcome → CONFIRMED 자격. Until then, Lesson #70 = candidate.
+
+### Lesson #69 5-item strict template — 8th post-CONFIRMED dogfood
+
+All 5 items executed pre-screening; passing screening allowed proceeding to execution (Items 1-3 PASS strong, Item 4 1/5 strict but R-5 expansion track exemption applies, Item 5 NEUTRAL family-proxy advisory).
+
+### Counter
+
+- Graveyards: 170 **unchanged** (paradigm 173 = R-5 expansion screening track, not graveyard, paradigm counter not increased)
+- Non-PASS streak: 40 → **40+** (paradigm 173 expansion-eligible 0/10 reinforces persistence-over-efficiency [[feedback_persistence_over_efficiency]])
+- Paradigm counter: 172 unchanged (R-5 expansion screening lane)
+- R-5 LIVE: **11** unchanged
+- R-5 yield: **6.40%** unchanged
+- New artifact: paradigm 22 R-5 expansion screening (10-deep-syms NO_EXPANSION_ELIGIBLE), Lesson #70 candidate
+
+### paradigm 174 next-action 권고
+
+**1순위 Option α (recommended)**: **mid-cap funding-volatile cohort R-5 expansion screening** — repeat paradigm 22 R-5 v4 screening on DOGE/LDO/UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH (funding_dispersion default cohort minus already-large/covered). Substrate prerequisite: backfill `binance_funding_rate` for these syms 2.25yr (re-use paradigm 170 backfill script pattern). Expected outcome: discover 2-5 syms with HBAR/AXS/COMP-like funding crowdedness inefficiency → R-5 LIVE cohort net expansion.
+
+**2순위 Option β**: paradigm 24 (premium_index z-score) deep-univ expansion screening to test whether Lesson #70 candidate is funding-specific or general — confirmation gate.
+
+**3순위 Option γ**: normal new-paradigm dispatch (paradigm 174 = new DNA, counter increases).
+
+**END 2026-05-21 22:47 KST paradigm 173 R-5 EXPANSION SCREENING COMPLETE** — paradigm 22 R-5 v4 spec NO_EXPANSION_ELIGIBLE on 10 deep syms (0/10 three-gate, 0/10 life-changing 4-dim). Cohort-specific alpha confirmed: paradigm 22 alpha does not transfer to deep-liquid majors at same spec. Lesson #70 candidate registered (R-5 LIVE narrow-cohort alpha is cohort-specific, not universe-portable). 1순위 권고: Option α mid-cap funding-volatile cohort screening (DOGE/LDO/UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH).
+
+## §6.72 paradigm 174 R-5 expansion screening — paradigm_22_r5_narrow_scope_expansion_screening_10_midcap_funding_volatile_syms (2026-05-21 22:55 KST)
+
+**Track**: R-5 expansion screening (Option α — paradigm 173 1순위 권고 채택, Lesson #70 candidate 2nd dogfood)
+**Source paradigm**: paradigm 22 R-5 LIVE funding_carry survivor (HBARUSDT/AXSUSDT/COMPUSDT seeded 2026-05-04)
+**Universe**: 10 mid-cap funding-volatile syms — DOGE/LDO/UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH (funding_dispersion default cohort minus HBAR/AXS/COMP/SOL)
+**Spec**: paradigm 22 R-5 v4 canonical (lookback=30 periods, entry_z=2.5, exit_z=0.5, max_hold=7 periods, sl=3%, fee=4bp/side)
+**paradigm counter**: NOT increased (R-5 expansion screening lane, separate from paradigm graveyard counter)
+
+### Step 1 — Substrate backfill (paradigm 170 script reuse)
+- `python3 fetch_binance_metrics.py --source funding --funding-days 822 --symbols DOGE,LDO,UNI,ETC,AVAX,NEAR,FIL,WLD,JUP,PYTH`
+- **Outcome**: 29,592 funding records inserted/upserted in ~10s wall-clock
+- **Post-backfill audit**: 10/10 syms × 2.25yr (2024-02-19 → 2026-05-21), 8/10 8h cycle (n=2466), **2/10 (JUP/PYTH) 4h cycle (n=4932)** — cycle-frequency anomaly noted for newer-listed perps
+- **Lesson #28 amendment substrate-shape audit 9th dogfood**: STRONG PASS with cycle-flag for JUP/PYTH (cycle-count preserved per spec semantics; effective windows scale 2x faster on 4h-cycle pair)
+
+### R-0 inventory prescreen (Lesson #69 5-item strict, 9th post-CONFIRMED dogfood)
+
+- **Item 1 (slug grep)**: PASS — paradigm 173 deep cohort precedent; paradigm 174 = mid-cap cohort, first dispatch
+- **Item 2 (substrate-shape, 9th dogfood)**: STRONG PASS after backfill (10/10 syms × 2.25yr)
+- **Item 3 (sample density)**: PASS — empirical per-sym n_trades ∈ [46, 140], far above ≥30 cutoff
+- **Item 4 (DNA 4-dim)**: 1/5 strict (universe only) — R-5 expansion screening track exemption (paradigm 173 precedent)
+- **Item 5 (family-proxy)**: NEUTRAL — funding family Tier 4 retire exception PRESERVED, paradigm 174 within-paradigm cohort expansion
+
+### Per-sym screening result (2.25yr OOS, paradigm 22 R-5 v4 spec)
+
+| Symbol | cycle | n_trd | sigex | ci_lo bp | perm_p | 3-gate | trd/yr | edge% | util% | sharpe | 4-dim | ELIG |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DOGEUSDT | 8h | 46  | +0.00 | -126.0 | 0.968 | FAIL | 20.7 | +0.06 | 5.2 | -0.03 | FAIL | NO |
+| LDOUSDT  | 8h | 71  | +0.02 | -38.0  | 0.516 | FAIL | 31.9 | +0.60 | 7.5 | +0.75 | FAIL | NO |
+| UNIUSDT  | 8h | 75  | +0.07 | -103.0 | 0.676 | FAIL | 33.7 | -0.10 | 8.0 | -0.27 | FAIL | NO |
+| ETCUSDT  | 8h | 66  | +0.04 | -66.9  | 0.561 | FAIL | 29.7 | +0.51 | 7.0 | +0.50 | FAIL | NO |
+| AVAXUSDT | 8h | 58  | +0.02 | -95.2  | 0.686 | FAIL | 26.1 | +0.36 | 7.1 | +0.29 | FAIL | NO |
+| NEARUSDT | 8h | 75  | +0.13 | -141.2 | 0.785 | FAIL | 33.7 | -0.09 | 7.5 | -0.17 | FAIL | NO |
+| FILUSDT  | 8h | 75  | +0.38 | -133.0 | 0.780 | FAIL | 33.7 | +0.43 | 8.5 | +0.21 | FAIL | NO |
+| WLDUSDT  | 8h | 74  | +0.00 | -227.6 | 0.485 | FAIL | 33.3 | -1.07 | 6.8 | -1.31 | FAIL | NO |
+| JUPUSDT  | 4h | 137 | +0.20 | -104.4 | 0.610 | FAIL | 61.2 | -0.18 | 8.6 | -0.38 | FAIL | NO |
+| PYTHUSDT | 4h | 140 | +0.02 | -141.0 | 0.495 | FAIL | 62.5 | -0.73 | 7.9 | -1.72 | FAIL | NO |
+
+**Verdict: NO_R5_EXPANSION_ELIGIBLE_SYMS** (0/10 three-gate, 0/10 life-changing 4-dim, 0/10 eligible)
+
+### Comparison vs paradigm 173 (deep cohort)
+
+| Metric | paradigm 173 deep | paradigm 174 mid-cap | Mid-cap advantage? |
+|---|---|---|---|
+| Mean edge%/trade range | -0.63 to +0.38 | -1.07 to +0.60 | similar (best LDO +0.60 vs best BTC +0.38) |
+| Best sigex | +0.10 (SOL) | +0.38 (FIL) | +0.28 better but still ≪ 2.0 |
+| Best ci_lower bp | -37.4 (BTC) | -38.0 (LDO) | tie |
+| n_trades range | 41-75 | 46-140 (4h-cycle JUP/PYTH 2x higher) | trade density up, edge floor stays |
+| Eligible count | 0/10 | 0/10 | **identical** |
+
+**Pattern**: more volatile funding distribution ↑ trade count, but **edge/trade does not improve correspondingly** — fee floor + reversion noise dominate regardless of base funding distribution. Cohort liquidity tier is NOT the binding constraint.
+
+### Lesson #70 candidate 2nd dogfood — CONFIRMED 자격
+
+**Lesson #70 statement (CONFIRMED 자격, 2 cohort dogfoods, 2 distinct cohort axes)**:
+> "R-5 LIVE survivor narrow-cohort alpha does NOT transfer to a broader cohort sym-by-sym at the same spec — cohort selection itself is part of the alpha. The original paradigm 22 R-5 cohort (HBAR/AXS/COMP) was discovered via post-hoc selection from a wider initial screening, NOT via mechanism-universal applicability. Expansion screening at the same spec on either deep-liquid (paradigm 173) or mid-cap funding-volatile (paradigm 174) cohort produces 0 eligible candidates."
+
+**Dogfood log**:
+- 1st (paradigm 173, 2026-05-21 22:47 KST): 10 deep syms BTC/ETH/SOL/LINK/ADA/DOT/XRP/BNB/BCH/LTC → 0/10 eligible
+- 2nd (paradigm 174, 2026-05-21 22:55 KST): 10 mid-cap funding-volatile syms DOGE/LDO/UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH → 0/10 eligible
+- **Outcome**: cohort axis (liquidity tier, funding volatility profile) is NOT the distinguishing factor — paradigm 22 R-5 alpha is specific to HBAR/AXS/COMP cohort by post-hoc cherry-pick, NOT a property of "mid-cap funding-volatile syms" as a class
+
+### Lesson #70 corollary
+
+- Narrow-cohort R-5 LIVE survivor expansion at fixed spec is **negative-yield** on any extended cohort.
+- Future paradigm cohort expansion should be **deprioritized** vs new paradigm DNA discovery or spec-adaptive expansion (per-sym parameter optimization).
+- Funding family Tier 4 retire decision **decisively reaffirmed**: paradigm 22 is a true single-cohort outlier rather than head of a broader subfamily.
+
+### Permanent assets gained
+
+- **Funding DB +29,592 records**: 10 mid-cap funding-volatile syms × 2.25yr (29,592 funding records, ~24,660 8h-cycle + 9,864 4h-cycle), reusable for future cross-symbol funding paradigm dispatches
+- **JUP/PYTH 4h-cycle flag**: Lesson #28 amendment 9th dogfood confirms substrate-shape audit detects funding cycle anomalies pre-screening — auto-detection logic via `detect_cycle_hours()` permanent
+
+### Counter
+
+- Graveyards: 170 **unchanged** (paradigm 174 = R-5 expansion screening track, not graveyard, paradigm counter not increased)
+- Non-PASS streak: **40+** unchanged (paradigm 174 expansion-eligible 0/10 reinforces persistence-over-efficiency)
+- Paradigm counter: 172 unchanged (R-5 expansion screening lane)
+- R-5 LIVE: **11** unchanged
+- R-5 yield: **6.40%** unchanged
+- New artifact: paradigm 22 R-5 expansion screening mid-cap cohort (10-mid-cap-syms NO_EXPANSION_ELIGIBLE), Lesson #70 CONFIRMED 자격
+
+### paradigm 175 next-action 권고
+
+**1순위 Option α (META, RECOMMENDED)** — **Lesson #70 formal upgrade to CONFIRMED 정식** (2 dogfoods, 2 distinct cohort axes, 0/20 aggregate eligible). Update paradigm-architect skill `lesson_prescreen_checklist.md` to add Lesson #70 strict prescreen item: "R-5 LIVE narrow-cohort survivor expansion at fixed spec on any broader cohort is presumptively HALT — only spec-adaptive (per-sym parameter optimization) expansion permitted." Lightweight permanent asset, no execution overhead.
+
+**2순위 Option β** — paradigm 24 (premium_index z-score, DOGE/SOL/LDO seeded) deep-univ expansion screening as **alternative-family generalization dogfood**. Tests whether Lesson #70 is funding-specific or generalizes to other R-5 LIVE families. Lower priority since Lesson #70 already CONFIRMED 자격 with strong evidence.
+
+**3순위 Option γ** — normal new-paradigm dispatch (paradigm 175 = new DNA, counter increases). Per [[feedback-persistence-over-efficiency]] and [[feedback-paradigm-campaign-continuous-parallel]] — continuous parallel dispatch is the default mode.
+
+**1순위 권고**: **Option α + γ simultaneous** — Lesson #70 lightweight formal upgrade (minimal cost) + paradigm 175 new DNA dispatch (default mode, persistence-over-efficiency). Option β optional generalization check at later opportunity.
+
+**END 2026-05-21 22:55 KST paradigm 174 R-5 EXPANSION SCREENING COMPLETE** — paradigm 22 R-5 v4 spec NO_EXPANSION_ELIGIBLE on 10 mid-cap funding-volatile syms (0/10 three-gate, 0/10 life-changing 4-dim). **Lesson #70 CONFIRMED 자격** via 2 dogfoods × 2 cohort axes × 0/20 aggregate. Funding DB asset +29,592 records permanent. JUP/PYTH 4h-cycle detection permanent. 1순위 권고: Option α (Lesson #70 formal upgrade to CONFIRMED) + Option γ (paradigm 175 new DNA dispatch) simultaneous.

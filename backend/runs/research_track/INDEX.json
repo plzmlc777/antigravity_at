@@ -1815,11 +1815,125 @@
       "paradigm_number": 170,
       "phase": "INFRASTRUCTURE_TASK_COMPLETE",
       "track": "infrastructure"
-    }
+    },
+    "alt_perp_swap_basis_term_structure_carry_differential_directional_4h_paradigm171_retry": {
+      "name": "alt_perp_swap_basis_term_structure_carry_differential_directional_4h_paradigm171_retry",
+      "paradigm_num": 171,
+      "hypothesis": "paradigm 169 retry post-paradigm 170 funding DB unblock. Same hypothesis: per-symbol cross-tenor carry differential ((8h perp funding annualized) - (3M quarterly futures implied basis annualized)) rolling 7d z-score |z|>=2 -> 4h directional MR convergence. Universe claim: 10 deep syms (post paradigm 170 funding DB unblock). Substrate-shape FAIL 2nd at 3M quarterly futures axis: USDS-M (USDT-margin) quarterly only BTC/ETH (2 syms permanent ceiling since 2021). Cross-margin mix (USDT-perp x USD-quarterly) economically incoherent.",
+      "data_dependencies": [
+        "binance_funding_rate DB (paradigm 170 unblocked: 10 syms x 2.25yr)",
+        "Binance Vision USDS-M quarterly futures klines (BTC/ETH only)",
+        "Binance Vision COIN-M quarterly futures klines (BTC/ETH/XRP/BNB/SOL, cross-margin mismatch)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T13:32:55.603643+00:00",
+      "updated_at": "2026-05-21T13:32:55.603643+00:00",
+      "graveyard_reason": "R-0 SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT_2ND (no R-1 dispatch). paradigm 171 = paradigm 169 retry post-paradigm 170 funding DB unblock. Lesson #28 amendment substrate-shape FAIL 2nd consecutive at NEW axis (3M quarterly futures, not paradigm 169 funding DB axis). Binance USDS-M (USDT-margin) quarterly futures only BTC/ETH (2 syms permanent ceiling since 2021 listing, 5yr no expansion). COIN-M (USD-margin) quarterly futures BTC/ETH/XRP/BNB/SOL (5 syms, SOL 1.7yr partial) BUT cross-margin mix (USDT-perp x USD-quarterly) economically incoherent (different trader cohorts, different margin currencies, convergence non-arbitrageable). Strict same-margin intersection: 2 syms (BTC/ETH) x 2.25yr. Lesson #11 sample density: 4-quadrant SNT per-quadrant per-quarter n=13.7 << 30 cutoff. Lesson #69 6th post-CONFIRMED 5-item strict template dogfood: Items 1+4 PASS (slug grep retry exempted + DNA 4/5 strict), Items 2+3 FAIL (substrate-shape USDS-M quarterly scarcity + sample density), Item 5 advisory caution (potential Lesson #56 18th instance). Recovery paths: (1) drop paradigm class entirely (recommended - USDS-M quarterly listing expansion permanent ceiling) (2) COIN-M perp funding DB backfill infrastructure task (5 syms marginal PASS Lesson #11 sub-grade cohort) (3) pivot to family-distinct axis (paradigm 22 R-5 narrow expansion or funding term structure cross-tenor using paradigm 170 DB only). TASK: backend/runs/research_track/alt_perp_swap_basis_term_structure_carry_differential_directional_4h/TASK_paradigm_171_retry.md",
+      "seed_spec": null,
+      "parent_paradigm": "alt_perp_swap_basis_term_structure_carry_differential_directional_4h (paradigm 169)",
+      "classification": "substantive R-0 increment (different substrate-shape axis from parent: quarterly futures USDS-M scarcity vs paradigm 169 funding DB scarcity)"
+    },
+    "alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h": {
+      "name": "alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h",
+      "paradigm_number": 172,
+      "hypothesis": "Per-sym (current 8h funding) - (3-day rolling mean funding) cross-time-frame divergence |z|>=2.0 -> 4h directional MR. 10 deep syms (paradigm 170 DB). 4-quadrant SNT.",
+      "data_dependencies": [
+        "binance_funding_rate (paradigm 170 DB)"
+      ],
+      "current_phase": "R-0_HALT",
+      "metrics_files": {
+        "r0_prescreen": "runs/research_track/alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T22:36:00+09:00",
+      "updated_at": "2026-05-21T22:36:00+09:00",
+      "graveyard_reason": null,
+      "halt_reason": "R0_INVENTORY_HALT_LESSON_62_DNA_COLLISION_LESSON_56_FAMILY_PROXY_OUTCOME (2026-05-21 22:36 KST, paradigm-architect agent dispatch). Lesson #62 HARD FAIL 0/6 strict vs paradigm 99 funding_cycle_8h_differential_velocity_per_sym (BROAD_FALSIFIED_MIRROR_ONLY 2026-05-19): statistic class proxy-isomorphic (current - mean_3d == integrated Delta-funding over 9 cycles when funding has persistence), 9/10 universe overlap, identical |z|>=2 threshold, identical mechanism story (per-sym leverage shift extreme from recent baseline -> MR). Lesson #56 OUTCOME-LEVEL family proxy 18th instance candidate: funding family Tier 4 retire 11 cumulative graveyards (paradigm 22 R-5 narrow 3-sym 8h MR exception only). Closest precedent paradigm 99 LC edge 0.24% << 2% gate, 0/13 syms ci_pos, symmetric LONG bias artifact. paradigm 172 violates 3/3 of paradigm 22 R-5 life-saving config (narrow cohort / MR endpoint exit / 8h cycle). Lesson #61 amendment retry-exemption does NOT apply (paradigm 172 is mechanism-variant retry, not substrate-blocked retry). Counter 171 -> 172, non-PASS streak 39 -> 40. paradigm 173 next-action: Option kappa paradigm 22 R-5 narrow-scope expansion. Artifacts: runs/research_track/alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h/{TASK.md,r0_prescreen.json}.",
+      "seed_spec": null
+    },
+    "paradigm_22_r5_narrow_scope_expansion_screening_10_deep_syms": {
+      "paradigm_name": "paradigm 22 R-5 narrow-scope expansion screening (10 deep syms)",
+      "track": "R-5 expansion screening",
+      "phase": "R5_EXPANSION_SCREENING_COMPLETE",
+      "verdict": "NO_R5_EXPANSION_ELIGIBLE_SYMS",
+      "paradigm_counter": "not_increased",
+      "dispatch_kst": "2026-05-21",
+      "universe": [
+        "BTCUSDT",
+        "ETHUSDT",
+        "SOLUSDT",
+        "LINKUSDT",
+        "ADAUSDT",
+        "DOTUSDT",
+        "XRPUSDT",
+        "BNBUSDT",
+        "BCHUSDT",
+        "LTCUSDT"
+      ],
+      "spec": {
+        "lookback_funding_periods": 30,
+        "entry_z": 2.5,
+        "exit_z": 0.5,
+        "max_hold_funding_periods": 7,
+        "sl_pct": 0.03,
+        "fee_rate": 0.0004
+      },
+      "results": {
+        "n_three_gate_pass": 0,
+        "n_life_changing_pass": 0,
+        "n_r5_expansion_eligible": 0
+      },
+      "lesson_candidate_70": "R-5 LIVE survivor narrow-cohort alpha does not transfer to deep-liquid universe at same spec. 1st dogfood: 0/10 deep syms eligible. 2nd dogfood (paradigm 174, 2026-05-21) confirmed: 0/10 mid-cap syms also 0 eligible. CONFIRMED 자격 (2 dogfoods, 2 cohort axes, 0/20 aggregate).",
+      "next_action_recommended": "Option α — mid-cap funding-volatile cohort screening (DOGE/LDO/UNI/ETC/AVAX/NEAR/FIL/WLD/JUP/PYTH)",
+      "artifacts_dir": "backend/runs/research_track/paradigm_22_r5_narrow_scope_expansion_screening_10_deep_syms/"
+    },
+    "paradigm_22_r5_narrow_scope_expansion_screening_10_midcap_funding_volatile_syms": {
+      "paradigm_name": "paradigm 22 R-5 narrow-scope expansion screening (10 mid-cap funding-volatile syms)",
+      "track": "R-5 expansion screening",
+      "phase": "R5_EXPANSION_SCREENING_COMPLETE",
+      "verdict": "NO_R5_EXPANSION_ELIGIBLE_SYMS",
+      "paradigm_counter": "not_increased",
+      "dispatch_kst": "2026-05-21",
+      "universe": [
+        "DOGEUSDT",
+        "LDOUSDT",
+        "UNIUSDT",
+        "ETCUSDT",
+        "AVAXUSDT",
+        "NEARUSDT",
+        "FILUSDT",
+        "WLDUSDT",
+        "JUPUSDT",
+        "PYTHUSDT"
+      ],
+      "spec": {
+        "lookback_funding_periods": 30,
+        "entry_z": 2.5,
+        "exit_z": 0.5,
+        "max_hold_funding_periods": 7,
+        "sl_pct": 0.03,
+        "fee_rate": 0.0004
+      },
+      "results": {
+        "n_three_gate_pass": 0,
+        "n_life_changing_pass": 0,
+        "n_r5_expansion_eligible": 0
+      },
+      "lesson_70_dogfood": "2nd dogfood — CONFIRMED 자격 (2 cohorts, 2 axes, 0/20 aggregate eligible). 1st = paradigm 173 deep cohort 0/10. 2nd = paradigm 174 mid-cap cohort 0/10. Cohort axis NOT the distinguishing factor; paradigm 22 alpha is HBAR/AXS/COMP post-hoc cherry-pick specific.",
+      "substrate_audit_lesson_28_9th_dogfood": "10/10 syms backfilled 2.25yr (2024-02-19 → 2026-05-21). 8/10 syms 8h cycle n=2466; 2/10 (JUP/PYTH) 4h cycle n=4932.",
+      "next_action_recommended": "Option α (Lesson #70 formal upgrade CONFIRMED 자격 → CONFIRMED) + Option γ (paradigm 175 new DNA dispatch). Option β (paradigm 24 premium_index deep expansion) optional generalization check.",
+      "artifacts_dir": "backend/runs/research_track/paradigm_22_r5_narrow_scope_expansion_screening_10_midcap_funding_volatile_syms/"
+    },
+    "updated_at": "2026-05-21T22:55:30+09:00",
+    "last_updated_at_kst": "2026-05-21"
   },
   "schema_version": 1,
-  "updated_at": "2026-05-21T22:25:00+09:00",
-  "last_updated_at_kst": "2026-05-21T22:25:00+09:00",
+  "updated_at": "2026-05-21T22:36:00+09:00",
+  "last_updated_at_kst": "2026-05-21",
   "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
     "paradigm_number": 133,
     "phase": "R-1",

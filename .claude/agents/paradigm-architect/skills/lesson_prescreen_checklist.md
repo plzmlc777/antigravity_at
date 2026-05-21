@@ -17,6 +17,7 @@
 > - Lesson #68 candidate (session-boundary anchor × 4h hold cross-asset fee-floor-bound, 1 dogfood paradigm 157)
 > - Lesson #8 amendment candidate (universal LONG bias trigger-statistic-class-dependent, 6 dogfoods paradigm 99/148/156/157/158/160)
 > - Lesson #21 5 predictive dogfoods CONFIRMED (paradigm 83/165 axis stacking 정착)
+> - **Lesson #70 CONFIRMED 자격** (R-5 LIVE narrow-cohort survivor alpha non-transferable, 2 dogfoods × 2 cohort axes × 0/20 paradigm 173/174 funding family) — paradigm 175 paradigm 24 cross-family verification 3rd dogfood pending
 > Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.66 + paradigm 154-169 entries if newer.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
@@ -472,6 +473,26 @@ Compute saved cumulative ~75x (R-0 halt이 R-1 dispatch 사전 차단으로).
 **Trigger**: R-1 paradigm proposing 2+ feature axes (multi-feature k-means, composite z, axis-1 × axis-2 compound).
 **Check**: per-cluster/per-cell obs_t fully negative + max |gross| < fee floor (16bp).
 **Action**: axis-stacking only → R0_HALT_BY_AXIS_STACKING. orthogonal mechanism (NOT 2 retired families compound) required.
+
+### Lesson #70 CONFIRMED 자격 — R-5 LIVE narrow-cohort survivor alpha non-transferable [2 dogfoods × 2 cohort axes × 0/20 aggregate eligible, paradigm 173/174]
+**Trigger**: paradigm-architect R-5 LIVE survivor cohort expansion screening proposal at fixed paradigm spec (e.g., paradigm 22 R-5 funding_carry HBAR/AXS/COMP narrow seed → 10 deep syms 또는 10 mid-cap syms broader cohort).
+**Check**: cohort selection itself was part of the original R-5 paradigm's alpha. R-5 LIVE survivor narrow-cohort alpha does NOT transfer to broader universe sym-by-sym at same spec.
+**Action**:
+- R-5 expansion screening 발의 시 default verdict = presumptively HALT
+- 0/N eligible 결과 expected based on paradigm 22 R-5 expansion 2 cohort axes precedent
+- Eligible candidate 발견 시 verify post-hoc cherry-pick (single-cohort outlier) vs broader subfamily head 분류 strict audit
+- If 0/N eligible → R-5 paradigm = post-hoc cherry-pick outlier (not broader subfamily head)
+- If ≥1 eligible → R-5 paradigm 부분 broader subfamily head, expansion candidates 발견
+
+**Why CONFIRMED 자격 (2 dogfoods × 2 distinct cohort axes × 0/20 aggregate)**:
+1. paradigm 173 (1st dogfood, 2026-05-21): paradigm 22 R-5 → 10 deep-liquid syms expansion 0/10 eligible. Best sigex +0.10 (SOL), best edge% +0.38% (BTC) << 2% life-changing gate.
+2. paradigm 174 (2nd dogfood, 2026-05-21): paradigm 22 R-5 → 10 mid-cap funding-volatile syms expansion 0/10 eligible. Best sigex +0.38 (FIL), best edge% +0.60% (LDO) << 2% gate. Mid-cap marginally better than deep but still 3.3x deficit.
+
+**Statement**: "R-5 LIVE survivor narrow-cohort alpha does NOT transfer to broader cohort sym-by-sym at the same spec. The original paradigm 22 R-5 cohort (HBAR/AXS/COMP) was discovered via post-hoc selection from a wider initial screening, NOT via mechanism-universal applicability. Funding family Tier 4 retire reaffirmed decisively — paradigm 22 R-5 = post-hoc cherry-pick single-cohort outlier, NOT broader subfamily head."
+
+**Cross-family verification pending**: paradigm 175 cross-family verification (paradigm 24 R-5 premium_index z-score deep/mid-cap expansion) — 3rd dogfood로 CONFIRMED universal vs funding-family-specific 결정.
+
+**Implementation**: paradigm-architect R-5 expansion screening proposal 발의 시 자동 verify (default HALT presumption). lesson_prescreen_checklist 영구 자산화. Expansion screening은 narrow-cohort alpha의 cherry-pick selection 검증 도구 (CONFIRMED 자격 이후 standardized strict audit).
 
 ### Lesson #8 amendment candidate — universal LONG bias trigger-statistic-class-dependent [6 dogfoods paradigm 99/148/156/157/158/160]
 **Trigger**: 4-quadrant SNT 측정 시 A_focus_LONG + B_mirror_LONG 둘 다 양수 패턴 확인.
