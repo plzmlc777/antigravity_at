@@ -7,7 +7,7 @@
         "ohlcv 1m (Binance Futures archive)",
         " listing_dates.json (exchangeInfo onboardDate)"
       ],
-      "current_phase": "R-4",
+      "current_phase": "R-5_LIVE",
       "metrics_files": {
         "R-2": "backend/runs/research_track/lifecycle_phase/r2__metrics.json",
         "R-3": "backend/runs/research_track/lifecycle_phase/r3__metrics.json"
@@ -17,9 +17,57 @@
       },
       "type": "E",
       "created_at": "2026-05-13T12:34:52+00:00",
-      "updated_at": "2026-05-13T12:35:51+00:00",
+      "updated_at": "2026-05-21T20:14:48+09:00",
       "graveyard_reason": null,
-      "seed_spec": null
+      "seed_spec": {
+        "universe": "Binance Futures USDT perpetuals (new listings)",
+        "trigger": "new listing onboardDate; entry on Day 1 close (24h post-onboard)",
+        "mandatory_filters": {
+          "bear_regime_skip": "BTC 30d cumulative return >= -0.05 (skip if bear)",
+          "pump_confirmation_soft": "Day 1 high >= +20% OR Day 1 close >= +5% (soft preference)",
+          "symbol_age_gte_0": true
+        },
+        "direction": "SHORT",
+        "entry_price": "Day 1 close UTC",
+        "position_size_pct_per_name": 5,
+        "max_concurrent_positions": 10,
+        "effective_capital_util_pct": 50,
+        "stop_loss_pct": 50,
+        "take_profit_pct": null,
+        "hold_period_days": 30,
+        "fee_rate_one_side": 0.0004,
+        "mode": "paper",
+        "session_name_prefix": "lifecycle_bearskip_",
+        "deploy_target": "Mint server PM2 cron lifecycle-spawner-daily (0 3 * * * UTC)",
+        "composer_source": "bn_lifecycle_decay_bear_skip",
+        "policy": "long_short_threshold (entry_threshold=0.5, sl_pct=0.5, tp_pct=1.0, max_hold_bars=30)",
+        "eval_freq_minutes": 1440,
+        "forward_bars": 30
+      },
+      "r5_promotion_eval": {
+        "eval_date_kst": "2026-05-21T16:30:00+09:00",
+        "verdict": "PARTIAL_PASS_BEAR_FILTER_REQUIRED",
+        "seed_proposal": "backend/runs/research_track/lifecycle_phase/SEED_PROPOSAL.md",
+        "user_approval_gate": "APPROVED",
+        "gate_summary": {
+          "r2_seven_criterion": "PASS (perm_sigma 6.8, n=167, median 21.61%, ci_lo +3.27%)",
+          "life_changing_4dim": "3/4 structural PASS (trades/yr 154 + edge 7.31% + sharpe 1.89; util requires position-cap)",
+          "ts_cv_walk_forward": "3/4 measurable folds PASS (Q3 2025 single FAIL)",
+          "r3_regime_stratify": "BEAR regime FAIL (n=38 median -50.08%) - addressed by R-5 bear-filter",
+          "r3_plateau_robustness": "27/40 grid cells PASS (strong)",
+          "concentration_gate": "structurally satisfied (167 unique symbols, no per-symbol aggregation)"
+        },
+        "listing_family_position": "first R-5 LIVE candidate in listing family (5/5 prior R-1 graveyards)",
+        "note": "INDEX phase remains R-4 until user explicit approval; will transition to R-5_ARTIFACT_READY on approval",
+        "approval_date_kst": "2026-05-21T20:14:48+09:00",
+        "approval_option": "Option 1 Approve full seed (recommended)",
+        "deployment_status": "ARTIFACTS_PRE_DEPLOYED_VIA_COMMIT_90c820ae (lifecycle-spawner-daily PM2 cron active since paradigm 127/128 dual seed commit). User approval ack 2026-05-21 20:14 KST transitions INDEX current_phase R-4 to R-5_LIVE.",
+        "listing_family_status_post_approval": "listing_family R-5 active 0->1 (first R-5 LIVE in listing family, Lesson #56 OUTCOME-LEVEL FAMILY PROXY 6th instance escape attempt)",
+        "day7_baseline_schedule": "2026-05-28",
+        "day30_full_validation_schedule": "2026-06-20",
+        "expected_per_trade_edge": "mean +7.31% / median +21.61% (R-2/R-3 baseline)"
+      },
+      "seed_date": "2026-05-21"
     },
     "funding_boundary_revertion": {
       "name": "funding_boundary_revertion",
@@ -927,9 +975,797 @@
       "deployment_status": "ARTIFACT_READY_AWAITING_MINT_DEPLOY",
       "graveyard_reason_pre_lesson_50_override": "R3_FAIL_PER_BURST_DEGRADED",
       "verdict_pre_lesson_50_override": "R3_FAIL_PER_BURST_DEGRADED"
+    },
+    "alt_parkinson_range_vol_expansion_percentile_directional_4h": {
+      "name": "alt_parkinson_range_vol_expansion_percentile_directional_4h",
+      "paradigm_number": 129,
+      "hypothesis": "Per-symbol Parkinson range-based variance estimator at 4h frame; trigger = rolling 30d p90 (range expansion regime); direction = sign(log_ret_4h at trigger bar); hold = 4h forward. Universe = 12 alts (ADA/BTC excluded per Lesson #30 short-window).",
+      "phase": "GRAVEYARD",
+      "verdict": "BROAD_FALSIFIED_FEE_FLOOR_LONG_DRIFT_ARTIFACT",
+      "sub_class": "Lesson #8 amendment 2nd dogfood (universe LONG drift artifact) + Lesson #51 candidate 1st dogfood",
+      "killed_at_phase": "R-1",
+      "killed_at_kst": "2026-05-21T09:28:00+09:00",
+      "host": "hcp_local",
+      "family_distinct_claim": "range estimator (Parkinson) vs return-based RV family (paradigm 67/68/69), explicit percentile (not HMM Lesson #45), no volume (paradigm 126/127/128 distinct), 4h frame (5m microstructure family distinct)",
+      "lessons_dogfood": [
+        "#11 PASS density",
+        "#16 0/12 syms ci_pos all quadrants",
+        "#19 SNT 4-quadrant",
+        "#28 substrate 12/12",
+        "#30 ADA/BTC excluded",
+        "#40 percentile rank",
+        "#44 11+1 xref",
+        "#45 explicit percentile",
+        "#46 REFINEMENT 4th sign-flip caught",
+        "#51 candidate 1st dogfood LONG-drift artifact"
+      ],
+      "next_paradigm_recommendation": "paradigm 130 = alt_realized_corr_breakdown_eth_per_pair_directional_4h (per-pair ETH benchmark, distinct from paradigm 75/81 cohort-aggregate)"
+    },
+    "alt_realized_corr_breakdown_eth_per_pair_directional_4h": {
+      "name": "alt_realized_corr_breakdown_eth_per_pair_directional_4h",
+      "paradigm_number": 130,
+      "hypothesis": "Per-pair (alt, ETHUSDT) realized correlation breakdown at 4h frame; trigger = rho_30d <= per-pair empirical p10 (decoupling event); direction = sign(log_ret_4h alt at trigger bar); hold = 4h forward. Universe = 11 alts (paradigm 129 cohort minus ETH benchmark). ETH benchmark NOT BTC due to local DB 142d Lesson #30 short-window.",
+      "phase": "GRAVEYARD",
+      "verdict": "BROAD_FALSIFIED_A_FOCUS_NEGATIVE",
+      "sub_class": "Lesson #52 amendment candidate 1st dogfood (INVERSE pattern: both LONG gross < 0 + both SHORT gross > 0 + 0/11 syms ci_pos any quadrant). Sub-class E candidate: trigger-conditional SHORT-bias artifact. Lesson #52 split recommendation: 52a (unconditional LONG-drift) vs 52b (conditional-overextension SHORT-bias).",
+      "killed_at_phase": "R-1",
+      "killed_at_kst": "2026-05-21T09:42:00+09:00",
+      "host": "hcp_local",
+      "family_distinct_claim": "per-pair Pearson rho vs cross-section MR (paradigm 62), cohort-aggregate lead-lag (paradigm 75), beta coefficient (paradigm 81), universe-aggregate corr (paradigm 118). ETH benchmark not BTC. Explicit Pearson percentile (Lesson #45 distinct from HMM). 4h frame stateless rolling (Lesson #22).",
+      "lessons_dogfood": [
+        "#11 PASS density 8/10 quarters",
+        "#16 0/11 syms ci_pos ALL quadrants (4-quadrant zero concentration)",
+        "#19 SNT 4-quadrant",
+        "#28 substrate 11/11 alts + ETH benchmark",
+        "#30 ADA/BTC excluded",
+        "#40 per-pair empirical percentile rank",
+        "#44 12th xref dogfood (7 paradigm xrefs)",
+        "#45 explicit Pearson NOT HMM",
+        "#46 REFINEMENT 5th dogfood — stratified misleading positive caught by full R-1",
+        "#52 amendment candidate 1st dogfood INVERSE pattern (SHORT-bias artifact)"
+      ],
+      "key_metrics": {
+        "n_triggers_total": 2592,
+        "n_triggers_pos": 1266,
+        "n_triggers_neg": 1326,
+        "candidate_pool_n": 51903,
+        "A_focus_pos_LONG_gross_bp": -8.77,
+        "A_focus_pos_LONG_ci_lower_bp": -37.51,
+        "A_focus_pos_LONG_sigex": -0.84,
+        "A_mirror_pos_SHORT_gross_bp": 8.77,
+        "A_mirror_pos_SHORT_sigex": 1.54,
+        "B_focus_neg_SHORT_gross_bp": 18.59,
+        "B_focus_neg_SHORT_sigex": 3.08,
+        "B_focus_neg_SHORT_ci_lower_bp": -12.84,
+        "B_focus_neg_SHORT_perm_p": 0.0,
+        "B_mirror_neg_LONG_gross_bp": -18.59,
+        "concentration_n_ci_pos_any_quadrant": 0
+      },
+      "family_advisory_escalation": "Cross-asset correlation family (paradigm 75/81/118/130) at 4 graveyards. Tier 4 candidate retire at next correlation paradigm graveyard. Structural issue: 30d×4h rolling correlation is second-moment derivative with built-in lag; trigger fires AFTER divergence accumulated → no forward directional info.",
+      "next_paradigm_recommendation": "PIVOT AWAY from correlation/range/structural-second-moment family. Recommend axis selection: liquidity-microstructure (book depth aggregate / spread regime) OR event-anchored (funding boundary refinement / session-aware boundary). 2-streak non-PASS — review next-candidate rigorously."
+    },
+    "alt_basis_spike_x_range_close_bidask_proxy_signed_directional_4h": {
+      "name": "alt_basis_spike_x_range_close_bidask_proxy_signed_directional_4h",
+      "paradigm_number": 131,
+      "hypothesis": "Dual-axis LIQUIDITY-STRESS conjunction at 4h frame. Axis 1: mark-index basis pct rolling-30d z-score, |basis_z|>1.5 (perp dislocation). Axis 2: (high-low)/close 4h rolling-30d z-score, range_close_z>+1.5 (bid-ask spread proxy widening, non-negative aggregate upper-tail only per Lesson #40). Joint trigger: BOTH axes extreme in same 4h bar. Direction: MEAN-REVERSION via sign(basis_z) (paradigm 111 continuation broad-falsified, MR direction tested). 4h forward hold, 8h debounce. Universe = 6 alts (SOL/HBAR/AVAX/DOGE/ETH/LINK) × 12 months 2025-05..2026-04 (paradigm 111 markPrice cache reuse).",
+      "phase": "GRAVEYARD",
+      "verdict": "BROAD_FALSIFIED_LESSON_52A_LONG_DRIFT_ARTIFACT",
+      "sub_class": "Lesson #52a universe LONG drift artifact 2nd EXPLICIT dogfood (paradigm 99 1st implicit + 129 1st explicit + 131 2nd explicit) → CONFIRMED-eligible. Lesson #21 axis stacking trap 4th dogfood (joint A_focus sigex -0.60 worse than individual basis-only -0.17). Lesson #46 REFINEMENT 6th dogfood + sub-amendment 6th.",
+      "killed_at_phase": "R-1",
+      "killed_at_kst": "2026-05-21T09:56:37+09:00",
+      "host": "hcp_local",
+      "family_distinct_claim": "Distinct from paradigm 111 (single-axis basis broad-falsified) via range_close conjunction + MR direction. Distinct from paradigm 121 (HMM filter) via explicit empirical z-thresholds. Distinct from paradigm 130/118/75/81 correlation family via no cross-asset correlation. Distinct from paradigm 129 intrinsic range via EXOGENOUS basis axis combined. Distinct from paradigm 124/125 higher-order moments (2nd-order only). Distinct from paradigm 96-99 funding family (no funding axis). Distinct from paradigm 102/103 cross-venue (single-venue Binance perp). Distinct from paradigm 127/128 volume burst (4h frame, no volume).",
+      "lessons_dogfood": [
+        "#11 R-0 halt + R-1 dispatched with caveat (1/5 measurable per quadrant)",
+        "#16 0/6 syms ci_pos ALL 4 quadrants",
+        "#19 SNT 4-quadrant single batch",
+        "#21 4th dogfood CONFIRMED axis stacking trap (joint sigex ≤ individual axis)",
+        "#28 substrate 6/6 paradigm 111 cache reuse PASS",
+        "#30 12mo/12mo full window=1.0 PASS",
+        "#34 basis_z + range_close_z empirical percentiles measured",
+        "#40 axis 2 upper-tail-only acknowledged PASS",
+        "#44 13th xref dogfood (10 paradigm xrefs + RUNBOOK)",
+        "#45 explicit empirical z-thresholds (no HMM)",
+        "#46 REFINEMENT 6th + sub-amendment 6th (R-0 stratified weak negative → R-1 broad-falsified confirmed)",
+        "#52a 2nd EXPLICIT dogfood → CONFIRMED-eligible (universe LONG drift artifact)"
+      ],
+      "key_metrics": {
+        "n_triggers_total": 209,
+        "n_triggers_A_pos_basis": 118,
+        "n_triggers_B_neg_basis": 91,
+        "candidate_pool_n": 13134,
+        "A_focus_pos_SHORT_MR_gross_bp": -15.41,
+        "A_focus_pos_SHORT_MR_net_bp": -23.41,
+        "A_focus_pos_SHORT_MR_sigex": -0.6,
+        "A_focus_pos_SHORT_MR_ci_lower_bp": -50.77,
+        "A_mirror_pos_LONG_gross_bp": 15.41,
+        "A_mirror_pos_LONG_sigex": 1.01,
+        "A_mirror_pos_LONG_ci_lower_bp": -35.21,
+        "B_focus_neg_LONG_MR_gross_bp": 8.18,
+        "B_focus_neg_LONG_MR_sigex": 0.59,
+        "B_focus_neg_LONG_MR_ci_lower_bp": -31.37,
+        "B_mirror_neg_SHORT_gross_bp": -8.18,
+        "B_mirror_neg_SHORT_sigex": -0.3,
+        "concentration_n_ci_pos_any_quadrant": 0,
+        "individual_basis_only_pos_SHORT_n": 658,
+        "individual_basis_only_pos_SHORT_sigex": -0.17,
+        "individual_basis_only_neg_LONG_n": 623,
+        "individual_basis_only_neg_LONG_sigex": 0.55,
+        "lesson_21_axis_stacking_trap_detected": true,
+        "lesson_52a_long_drift_artifact_detected": true,
+        "lesson_52b_short_bias_inverse_detected": false
+      },
+      "family_advisory_escalation": "Liquidity-microstructure single-domain 4h-frame conjunction family advisory caution at 3 graveyards (paradigm 105/111/121/131 = 3 distinct sub-mechanisms). NOT yet Tier 4 retire; need 1-2 more distinct sub-mechanism fails. Distinguishing factor: paradigm 22 premium_index_zscore R-5 SEEDED + paradigm 24 funding_carry R-5 SEEDED are liquidity-microstructure successful exceptions (different frame + different mechanism).",
+      "next_paradigm_recommendation": "PIVOT AWAY from correlation/range/liquidity-microstructure-conjunction family. Continuous-parallel 3-streak non-PASS reached (129+130+131). RECOMMENDED user decision: paradigm-architect halt for 1-2d until Day 7 baseline (2026-05-28) + Day 30 D-Day (2026-06-03). Alternative paths if continue: (1) Event-anchored funding boundary triple-confirm refinement (paradigm 22 family slice). (2) Cross-venue OI divergence × funding spread (paradigm 103 caution-class extension, Bybit V5 substrate verified). (3) Lifecycle entry-side refinement (DEFERRED to lifecycle live mode 2026-05-29+)."
+    },
+    "funding_boundary_x_oi_direction_x_funding_magnitude_triple_confirm_alt_directional_4h": {
+      "name": "funding_boundary_x_oi_direction_x_funding_magnitude_triple_confirm_alt_directional_4h",
+      "hypothesis": "Triple-confirm joint trigger at 8h funding boundary: |funding|>p70 + OI declining + funding-sign-direction. Hypothesized 'squeeze LONG bias' (funding>0+OI_decline→LONG / funding<0+OI_decline→SHORT) 4h forward hold. Claimed paradigm 22 R-5 family-slice exemption from funding family Tier 4 retire (6 sub-class graveyards).",
+      "data_dependencies": [
+        "binance_funding_rate DB (365d, 13 alts intersection)",
+        "microstructure OI 5m joblib (2.2yr, 13 alts)",
+        "ohlcv 1m DB resampled 4h"
+      ],
+      "current_phase": "GRAVEYARD",
+      "metrics_files": [
+        "funding_boundary_x_oi_direction_x_funding_magnitude_triple_confirm_alt_directional_4h/r0_prescreen.json",
+        "funding_boundary_x_oi_direction_x_funding_magnitude_triple_confirm_alt_directional_4h/r1__metrics.json"
+      ],
+      "gate_evals": [],
+      "type": "E",
+      "created_at": "2026-05-21",
+      "updated_at": "2026-05-21",
+      "graveyard_reason": "BROAD_FALSIFIED_LESSON_21_5TH_DOGFOOD_AXIS_STACKING_TRAP — V6 triple-joint sigex -2.64 < MAX individual sigex -1.81 (V2/V4 anchor+magnitude). All 4 SNT quadrants fail 3-gate. Mirror direction confirms paradigm 22 family MR direction (squeeze LONG hypothesis empirically INVERTED at 4h horizon). Funding family Tier 4 retire EXEMPTION NOT EARNED (sigex << 1.5×baseline threshold). Funding family graveyards strengthened to 7 sub-class + 1 R-5 exception (paradigm 22).",
+      "seed_spec": null,
+      "counter": 132
+    },
+    "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
+      "name": "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h",
+      "hypothesis": "NEW 2nd-order RV statistic: per-symbol 24h rolling std of 1h RV (vol-of-vol); per-sym 30d z; z>+2 trigger; direction from trigger-bar sign; 4h hold.",
+      "data_dependencies": [
+        "ohlcv 1m (12 alts)"
+      ],
+      "current_phase": "R-1",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h/r1__metrics.json",
+        "R-0": "backend/runs/research_track/alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T10:55:00+09:00",
+      "updated_at": "2026-05-21T10:55:00+09:00",
+      "graveyard_reason": "CONCENTRATED_R1_PASS narrow-scope FAIL — A_focus three-gate PASS but Concentration FAIL (2/12 syms ci_pos, sym_ratio 0.17 < 0.30) + per-trade edge < +2%/trade life-changing 4-dim FAIL (Lesson #41 amendment dual-mode + Lesson #20 narrow scope). Sub-amendment 9th dogfood TRUE POSITIVE sign-flip warning confirmed (2025Q3-Q4 sustained negative regime).",
+      "seed_spec": null,
+      "paradigm_number": 133
+    },
+    "alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h": {
+      "name": "alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h",
+      "hypothesis": "NEW asymmetric statistic class — Patton-Sheppard (2015) realized semivariance ratio: per-sym 24h rolling RV_up/RV_down (signed decomp); log transform; per-sym 30d z; |z|>2 trigger; direction from z sign; 4h hold.",
+      "data_dependencies": [
+        "ohlcv 1m (12 alts)"
+      ],
+      "current_phase": "R-1",
+      "metrics_files": {
+        "R-1": "backend/runs/research_track/alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h/r1__metrics.json",
+        "R-0": "backend/runs/research_track/alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {
+        "R-1": "backend/runs/research_track/alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h/gate_eval__r1.md"
+      },
+      "type": "E",
+      "created_at": "2026-05-21T11:04:49+09:00",
+      "updated_at": "2026-05-21T11:08:04+09:00",
+      "graveyard_reason": "BROAD_FALSIFIED_BOTH_FOCUS_NEGATIVE (Lesson #39 sub-class A) — all 4 quadrants net negative + Concentration 0/12 syms ci_pos universal across ALL quadrants (absence of mechanism, not concentration). Patton-Sheppard signed semivariance does NOT translate to crypto perp 4h directional alpha. Lesson #46 sub-amendment 10th dogfood TRUE POSITIVE warning confirmed (B_focus uniform [-1,-1,-1,-1]). Side discovery: NEW Lesson #54 candidate (signed decomposition of magnitude statistic does NOT synthesize directional alpha without independent mechanism story).",
+      "seed_spec": null,
+      "paradigm_number": 134
+    },
+    "alt_funding_implied_vs_realized_vol_premium_z_directional_4h": {
+      "name": "alt_funding_implied_vs_realized_vol_premium_z_directional_4h",
+      "paradigm_number": 135,
+      "hypothesis": "Volatility Risk Premium (VRP) NEW family entry attempt: VRP = funding_implied_vol(funding_rate*1095) - realized_vol(30d 1h log-ret std annualized); per-sym 30d z; |z|>2 trigger; 4h hold. 13 funding-DB alts cohort.",
+      "data_dependencies": [
+        "binance_funding_rate DB (13 alts ~370d)",
+        "ohlcv 1m DB resampled to 1h (13 alts ~795d)"
+      ],
+      "current_phase": "R-0",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_funding_implied_vs_realized_vol_premium_z_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T11:22:32+09:00",
+      "updated_at": "2026-05-21T11:22:32+09:00",
+      "graveyard_reason": "R0_HALT_LESSON_54_MECHANISM_INCOHERENT_FUNDING_RV_FAMILY_REDUCTION — Lesson #54 trap CONFIRMED at R-0 (sign asymmetry 37.2%>30% + family-reduction 13/13 syms collapse to funding-family or RV-family) + Lesson #44 18th xref dogfood SUCCESS (collision detected pre-dispatch) + Lesson #21 NEW sub-finding (derived single statistic two-regime composite). VRP 'implied_vol' construction is rescaled signed funding rate w/o theoretical derivation; 11/13 syms RV-dominated, 2/13 funding-extreme-dominated, 0/13 mixed. R-1 not dispatched (efficiency win for lesson framework). Lesson #54 elevation to formal CONFIRMED eligible (2 dogfoods accumulated: p134+p135).",
+      "graveyard_path": "backend/runs/research_track/graveyard__alt_funding_implied_vs_realized_vol_premium_z_directional_4h.md"
+    },
+    "alt_intraday_1h_log_return_std_24h_window_z_directional_4h": {
+      "name": "alt_intraday_1h_log_return_std_24h_window_z_directional_4h",
+      "paradigm_number": 136,
+      "hypothesis": "1st-order intraday vol NEW family (per-symbol 1h log-return rolling 24h std; per-sym 30d z; |z|>2 trigger; 4h hold; 12 alts cohort). Distinct from paradigm 67-69 (BTC 1d cross-asset RV), paradigm 133 (2nd-order vol-of-vol), paradigm 134 (signed semivariance decomposition), paradigm 129 (Parkinson high-low range), paradigm 135 (VRP composite ratio).",
+      "data_dependencies": [
+        "ohlcv 1m DB resampled to 1h (12 alts ~755-799d)"
+      ],
+      "current_phase": "R-0",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_intraday_1h_log_return_std_24h_window_z_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T11:29:19+09:00",
+      "updated_at": "2026-05-21T11:29:19+09:00",
+      "graveyard_reason": "R0_HALT_INSUFFICIENT_DENSITY_LESSON_11_23_ASYMMETRIC_Z_DISTRIBUTION — z_vol distribution right-skewed (vol 1st-order non-negative aggregate), z<-2 LOW vol regime empirically only 0.30% (179/60000 sampled) vs z>+2 HIGH vol regime 4.16% (2498/60000); B side (z<-2) per-quarter density 0/10 quarters >=30 trigger; 4-quadrant SNT (Lesson #19) structurally incomplete on B side. A side (z>+2 LONG) STRONG R-0 signal: stratified n=147 gross +88.77bp / net +72.77bp / t=+4.13, all 4 sampled quarters POSITIVE (0 sign flips, [+1,+1,+1,+1]), per-quarter peaks: 2024Q1 +267.28bp / 2025Q3 +68.92bp / 2024Q4 +33.83bp / 2026Q2 +1.34bp (recent quarter compressing toward noise). HOWEVER: mechanism is mirror-image of paradigm 69 BTC RV highvol R-5 (high vol → LONG continuation) — though frame-distinct (per-sym 1h vs BTC 1d) and source-distinct (intraday vs daily), the directional alpha mechanism overlaps. R-0 halt due to Lesson #11+#23 strict density on B side; B side cannot satisfy SNT 4-quadrant requirement. Lesson #46 sub-amendment 11th dogfood TRUE NEGATIVE warning (all signs positive = consistent A side strength); Lesson #44 19th xref dogfood SUCCESS. NEW Lesson #55 candidate: non-negative aggregate statistic z-score asymmetric distribution → one-sided trigger paradigms require explicit single-direction declaration at R-0 (not 4-quadrant SNT). Continuous-parallel policy: next dispatch.",
+      "graveyard_path": "backend/runs/research_track/graveyard__alt_intraday_1h_log_return_std_24h_window_z_directional_4h.md"
+    },
+    "alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h": {
+      "name": "alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h",
+      "paradigm_number": 137,
+      "hypothesis": "Yang-Zhang / Garman-Klass (2000) range-vs-close efficiency ratio NEW family entry: per-sym 1h OHLC; per-bar Parkinson (1/(4 ln 2))*(log(h/l))^2 + close-to-close variance (log(c/c_prev))^2; 24h rolling sums SumP_24h, SumC_24h; efficiency ratio ER = SumP/SumC; log transform log_ER; per-sym 30d (720h) rolling z-score; |z_logER|>2 trigger; regime semantics: z>+2 chop regime -> fade (A_focus), z<-2 drift regime -> continue (B_focus); 4h directional hold; debounce 8h; 12 alts cohort. Family-distinct from paradigm 129 raw Parkinson (magnitude), paradigm 135 cross-domain VRP (intra-domain), paradigm 136 raw intraday std (ratio CLASSIFIER not magnitude). Range estimator family 2nd dogfood.",
+      "data_dependencies": [
+        "ohlcv 1m DB (12 alts ~755-799d), full OHLC required for Parkinson"
+      ],
+      "current_phase": "R-1",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T11:44:00+09:00",
+      "updated_at": "2026-05-21T11:44:00+09:00",
+      "graveyard_reason": "BROAD_FALSIFIED_A_FOCUS_NEGATIVE — A_chop_fade gross +4.46bp (sigex +1.02, ci -22.67bp, perm_p 0.170) + A_mirror_chop_continue gross -4.46bp both sub-fee; B_focus_drift_continue gross +18.40bp NEAR-MISS (sigex +2.42, perm_p 0.010, BUT ci_lower -15.85bp FAIL) + B_mirror_drift_fade -18.40bp confirming drift continuation direction correctly signed but marginal; Concentration STRICT FAIL 0/12 syms ci_pos ALL 4 quadrants (universal failure). Lesson #21 sub-finding magnitude-ratio prescreen PASS (1/12 syms corr>0.95 only, log_ER std 0.26-0.30 indicates independent information in Parkinson vs close-to-close). Lesson #55 candidate 2nd dogfood SUCCESS (log-transform prescription validated): asym_ratio 2.81 vs paradigm 136 raw 16.5 - log transform restored symmetric z distribution enabling 4-quadrant SNT. Lesson #46 sub-amendment 12th dogfood: stratified R-0 warned B_focus 0/4 NEG but full-data 4/8 less alarming; A_focus full-data 3/10 NEG predominant (chop carries no fade alpha). Lesson #44 20th xref dogfood SUCCESS (paradigm 67-69/124/125/129/130/133/134/135/136 all distinct). Lesson #54 confirmed compliant (intra-domain within-OHLC ratio, Yang-Zhang established literature, distinct from paradigm 135 cross-domain ad-hoc mixing). Range estimator family Tier 4 retire CANDIDATE elevation eligible (2 dogfoods: paradigm 129 raw magnitude + paradigm 137 ratio classifier, distinct semantics both fail). 9-streak non-PASS (129-137). Cumulative graveyards 137. R-5 yield 10/137 = 7.30%. Continuous-parallel policy: next dispatch should pivot to non-RV axis to break streak.",
+      "graveyard_path": "backend/runs/research_track/graveyard__alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h.md"
+    },
+    "alt_funding_rate_x_cvd_4h_divergence_smart_money_distribution_directional_4h": {
+      "name": "alt_funding_rate_x_cvd_4h_divergence_smart_money_distribution_directional_4h",
+      "hypothesis": "Crowded LONG (funding deeply negative) + smart money distribution (CVD net SELL) = directional confluence → SHORT 4h. funding ≤ -50bp × CVD ratio ≤ -0.1 joint trigger.",
+      "data_dependencies": [
+        "binance_funding_rate DB (16 syms 2.4yr)",
+        " runs/microstructure/{SYM}_full_metrics.joblib (taker_buy_sell_ratio 5m 800d 13 syms)",
+        " ohlcv 1m"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_funding_rate_x_cvd_4h_divergence_smart_money_distribution_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T11:56:14+09:00",
+      "updated_at": "2026-05-21T11:56:14+09:00",
+      "graveyard_reason": "R-0 HALT Lesson #40 STRUCTURAL_THRESHOLD_INFEASIBLE_SYMMETRIC: funding ±50bp symmetric trigger infeasible on raw 8h frame. Binance funding rate hard-caps at +1.00bp regular tier (+0.50bp special tier TON/JUP/PYTH); 16/16 audit syms ZERO obs ≥+50bp. Only 3/16 syms reach ≤-50bp at rate >1% (AXS 2.67% / COMP 0.45% / ICP 0.18%). 3rd Lesson #40 dogfood instance (after paradigm 109+110), formal sub-amendment candidate: extend from non-negative aggregate to asymmetrically exchange-bounded scalars. CVD substrate via TBR joblib FEASIBLE (13/13 syms) but R-0 halt at STEP 1 funding axis precludes joint test. Funding family Tier 4 retire REAFFIRMED (8 graveyards 73/79*/96/97/98/99/103/132*; *exceptions paradigm 22+79). Reformulation paths offered: (1) funding per-sym z-score paradigm 22 approach × CVD-z 2-axis, (2) funding percentile rank, (3) funding Δ acceleration paradigm 96 risk, (4) CVD ratio 4h alone paradigm 72 fee-floor risk. 10-streak non-PASS (129-138).",
+      "seed_spec": null
+    },
+    "alt_funding_per_sym_30d_zscore_x_cvd_4h_divergence_directional_4h": {
+      "name": "alt_funding_per_sym_30d_zscore_x_cvd_4h_divergence_directional_4h",
+      "paradigm_number": 139,
+      "hypothesis": "paradigm 138 reformulation via paradigm 22 R-5 per-sym z-score approach. funding per-sym 30d rolling z-score (90 obs @ 8h cadence) <= -2.0 LONG-crowded normalized AND CVD ratio 4h <= -0.1 sustained taker SELL joint trigger -> SHORT 4h smart money exit confluence. 4-quadrant SNT (A_focus/A_mirror funding_z<=-2 x CVD<=-0.1 SHORT/LONG, B_focus/B_mirror funding_z>=+2 x CVD>=+0.1 LONG/SHORT). 10-sym cohort (paradigm 138 13 minus BCH/BNB/LTC zero funding DB rows). Family-distinct vs paradigm 22 (single-axis funding only). Lesson #21 6th dogfood individual-vs-joint sigex measurement obligated.",
+      "data_dependencies": [
+        "binance_funding_rate DB (10/13 cohort syms with rows, 370d span 2025-05-04 -> 2026-05-10)",
+        "runs/microstructure/{SYM}_full_metrics.joblib (taker_buy_sell_ratio 5m 800d 10 syms)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_funding_per_sym_30d_zscore_x_cvd_4h_divergence_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T12:05:39+09:00",
+      "updated_at": "2026-05-21T12:05:39+09:00",
+      "graveyard_reason": "R0_HALT_LESSON_40_PERSYM_ZSCORE_INHERITS_ASYMMETRY: per-sym 30d funding z-score symmetric +/-2.0 trigger infeasible on B-side. A-side (z<=-2.0): 10/10 syms reach at rate 4.05-5.60%. B-side (z>=+2.0): 0/10 syms reach at rate>=1.5% (6/10 syms ZERO obs, 4/10 syms 1-2 obs only, p95 max 1.41, p99 max 1.73 - never reaches +2.0). Root cause: Binance funding rate hard-cap +0.01% (+1bp) regular tier vs uncapped negative tail (-200bp AXS extreme); rolling 30d std dominated by negative tail makes z-score scaling make z>=+2 structurally rare even when raw hits +1bp cap. 4TH LESSON #40 DOGFOOD INSTANCE (after paradigm 109/110/138): per-sym z-score normalization does NOT rescue symmetric threshold feasibility when raw scalar is asymmetrically exchange-bounded. Sub-amendment elevation candidate: extend Lesson #40 scope from non-negative aggregate + asymmetrically bounded raw to ALSO include per-sym z-score of asymmetrically bounded scalar. Reformulation paths: (1) RECOMMENDED A-only z-score x CVD 2-quadrant SNT paradigm 22 alignment + Lesson #19 exception justified by Lesson #40 structural infeasibility (mirror infeasible substrate not test failure), (2) percentile rank FAIL CANDIDATE top-decile degenerates to +1bp cap ties, (3) CVD-alone separate R-0 paradigm 72 risk verify, (4) funding velocity NOT RECOMMENDED paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL, (5) sign-flip NOT RECOMMENDED paradigm 96. Funding family Tier 4 retire 9th graveyard (73/79*/96/97/98/99/103/132/138/139, *exception paradigm 22+79 R-5). CVD axis DNA-distinct from paradigm 72 (ratio not magnitude, 4h not 5m) - can be reused in future paradigms. 11-streak non-PASS (129-139). Cumulative graveyards 139. R-5 yield 10/139 = 7.19%.",
+      "graveyard_path": "backend/runs/research_track/graveyard__alt_funding_per_sym_30d_zscore_x_cvd_4h_divergence_directional_4h.md",
+      "seed_spec": null
+    },
+    "alt_funding_per_sym_30d_zscore_NEG_ONLY_x_cvd_4h_negative_2quadrant_SNT_directional_4h": {
+      "name": "alt_funding_per_sym_30d_zscore_NEG_ONLY_x_cvd_4h_negative_2quadrant_SNT_directional_4h",
+      "paradigm_number": 140,
+      "hypothesis": "paradigm 139 path 1 reformulation. funding per-sym 30d z-score ≤ -2.0 (A-side only, paradigm 22 R-5 approach) × CVD 4h ratio ≤ -0.1 joint → SHORT 4h continuation. 2-quadrant SNT (Lesson #19 exception per paradigm 139 Lesson #40 sub-class C B-side infeasibility).",
+      "data_dependencies": [
+        "binance_funding_rate DB (10-sym cohort, ~365d window)",
+        "taker_buy_sell_ratio joblib 5m (microstructure 2.4yr, 10 syms)",
+        "ohlcv 1m DB resampled 4h"
+      ],
+      "current_phase": "GRAVEYARD",
+      "metrics_files": [
+        "alt_funding_per_sym_30d_zscore_NEG_ONLY_x_cvd_4h_negative_2quadrant_SNT_directional_4h/r0_prescreen.json"
+      ],
+      "gate_evals": [],
+      "type": "E",
+      "created_at": "2026-05-21",
+      "updated_at": "2026-05-21",
+      "graveyard_reason": "R-0 HALT STEP 4 Lesson #11 joint trigger density 2026-05-21 12:14 KST. STEP 1+2+3+5 PASS (funding_z A-side 10/10 syms 4-5%, CVD A-side 5/10 syms ≥2%, corr near-zero 0.035). STEP 4 FAIL: total 55 joint A triggers / per-quarter 13.8 << 30 cutoff. ROOT CAUSE: independence-density tradeoff — funding_z 4.83% × CVD 3.31% × corr≈0 → multiplicative joint rate 0.115% (53k bars × 0.16% = ~85, observed 55). 10-sym × 365d-window funding × 4-quarter split insufficient. Lesson #21 sub-finding amendment candidate: ideal axis independence (corr<0.3) + low marginal rates (<5% each) → joint sparsity binding constraint. Funding family Tier 4 graveyards: 10 (73/79*/96/97/98/99/103/132/138/139/140). Recommended next dispatch (paradigm 141): funding_z A-side ALONE × SHORT 4h (paradigm 22 mirror direction test, single-axis no joint sparsity). metrics: backend/runs/research_track/<name>/r0_prescreen.json",
+      "seed_spec": null
+    },
+    "alt_funding_per_sym_30d_zscore_NEG_ONLY_alone_SHORT_continuation_4h": {
+      "name": "alt_funding_per_sym_30d_zscore_NEG_ONLY_alone_SHORT_continuation_4h",
+      "hypothesis": "Per-sym funding rate 30d rolling z-score <= -2.0 triggers 4h SHORT continuation as crowd capitulation cascade (paradigm 22 R-5 SEEDED mirror direction test, opposite mechanism family)",
+      "data_dependencies": [],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": null,
+      "created_at": "2026-05-21T03:25:22+00:00",
+      "updated_at": "2026-05-21T03:25:22+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED: 1-sided SNT 2-quadrant 0/2 PASS, A_focus SHORT n=530 mean=-6.37bp sigex+0.423 perm_p=0.690 ci_lo -23.78bp, A_mirror LONG mean=-9.63bp sigex-0.250. 4-dim 1/4 FAIL. paradigm 22 R-5 mirror direction inversion empirically falsified. NEW Lesson #56 candidate (3 dogfoods).",
+      "seed_spec": null
+    },
+    "alt_taker_buy_quote_vol_imbalance_z_directional_4h": {
+      "name": "alt_taker_buy_quote_vol_imbalance_z_directional_4h",
+      "hypothesis": "Per-sym 4h taker_buy_quote_volume/quote_volume imbalance ratio (centered 0.5), 30d rolling z-score on (imbalance-0.5). |z|>2.0 triggers 4h directional continuation (pos→LONG/neg→SHORT). 14 alts × 820d. Quote-vol axis NEW family entry.",
+      "data_dependencies": [
+        "binance 12-col klines archive (taker_buy_quote_volume + quote_volume), backend/runs/ohlcv_cache_12col/{SYM}USDT_4h.joblib × 14 syms"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_taker_buy_quote_vol_imbalance_z_directional_4h/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_taker_buy_quote_vol_imbalance_z_directional_4h/r1__metrics.json"
+      },
+      "gate_evals": {
+        "R-1": "runs/research_track/alt_taker_buy_quote_vol_imbalance_z_directional_4h/gate_eval__r1.md"
+      },
+      "type": null,
+      "created_at": "2026-05-21T04:07:41.046466+00:00",
+      "updated_at": "2026-05-21T04:07:41.046466+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED: 4-quadrant SNT 0/4 PASS at primary 4h hold. A_focus pos×LONG mean=-7.83bp sigex-0.76; A_mirror pos×SHORT mean=-8.17bp sigex+0.20; B_focus neg×SHORT mean=-1.69bp sigex+1.82 perm_p=0.972; B_mirror neg×LONG mean=-14.31bp sigex-2.41 perm_p=0.008. Hold sweep to 12h gives B_focus sigex+3.43 but perm_p=0.33 + ci_lower-0.45 still 1/3 gates only. Life-changing 4-dim 0/4 both sides (edge negative, sharpe negative). NEW Lesson #57 candidate 1st dogfood (taker-side aggressive flow → 4h directional continuation broad-falsified xref paradigm 72+140 = 3rd consecutive family pattern). Permanent infra: backfill_12col_klines.py + 12-col cache helper.",
+      "seed_spec": null,
+      "paradigm_counter": 142
+    },
+    "alt_taker_buy_quote_vol_percentile_rank_directional_8h": {
+      "name": "alt_taker_buy_quote_vol_percentile_rank_directional_8h",
+      "hypothesis": "Per-sym 4h taker_buy_quote_volume/quote_volume imbalance ratio (centered 0.5), 30d (180 bars × 4h) rolling PERCENTILE RANK trigger. pct_rank > 0.95 → 8h LONG continuation; pct_rank < 0.05 → 8h SHORT continuation. 14 alts × 820d. Distribution-agnostic alternative to paradigm 142-v2 z-score variant.",
+      "data_dependencies": [
+        "binance 12-col klines archive (taker_buy_quote_volume + quote_volume), backend/runs/ohlcv_cache_12col/{SYM}USDT_4h.joblib × 14 syms (reused)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_taker_buy_quote_vol_percentile_rank_directional_8h/r0_prescreen.json",
+        "R-1": "backend/runs/research_track/alt_taker_buy_quote_vol_percentile_rank_directional_8h/r1__metrics.json"
+      },
+      "gate_evals": {
+        "R-1": "runs/research_track/alt_taker_buy_quote_vol_percentile_rank_directional_8h/gate_eval__r1.md"
+      },
+      "type": null,
+      "created_at": "2026-05-21T04:15:31+00:00",
+      "updated_at": "2026-05-21T04:15:34+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED: 4-quadrant SNT 0/4 PASS at primary 8h hold. A_focus pos×LONG mean=-3.88bp sigex+0.33 perm_p=0.638; A_mirror pos×SHORT mean=-12.12bp sigex-0.79; B_focus neg×SHORT mean=-8.39bp sigex+0.26 perm_p=0.617; B_mirror neg×LONG mean=-7.61bp sigex-0.52. Hold sweep 4h/8h/12h all FAIL (best B_focus 12h sigex+1.01 still gate-fail). Lesson #39 sub-class A/B both False (general BROAD_FALSIFIED). Life-changing 4-dim 0/4 both sides (edge -0.04% to -0.08%, sharpe -0.64 to -1.31). Lesson #57 2nd POSITIVE dogfood — quote_vol axis 4h+ directional continuation family Tier 4 retire eligible (paradigm 142-v2 z-score + paradigm 143 percentile rank both BROAD_FALSIFIED with full hold sweeps). Lesson #55 candidate 3rd dogfood FAIL — distribution normalization not the root cause, signal genuinely absent/fee-saturated. Lesson #44 amendment 26th xref. Reused 12-col klines cache (zero new infra).",
+      "seed_spec": null,
+      "paradigm_counter": 143
+    },
+    "alt_avg_trade_size_quote_vol_per_n_trades_z_directional_4h": {
+      "name": "alt_avg_trade_size_quote_vol_per_n_trades_z_directional_4h",
+      "hypothesis": "Per-sym 4h avg trade size USD = quote_volume / count (n_trades count column first use). 30d rolling z-score. avg_size_z > +2 (institutional dominance) → 4h LONG continuation; avg_size_z < -2 (retail dominance) → 4h SHORT continuation. 14 alts × 820d. GENUINELY NEW axis using n_trades column 144 paradigms 중 0회 사용.",
+      "data_dependencies": [
+        "binance 12-col klines archive (quote_volume + count), backend/runs/ohlcv_cache_12col/{SYM}USDT_4h.joblib × 14 syms (reused)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_avg_trade_size_quote_vol_per_n_trades_z_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": null,
+      "created_at": "2026-05-21T04:25:28+00:00",
+      "updated_at": "2026-05-21T04:25:28+00:00",
+      "graveyard_reason": "R0_HALT_STRUCTURAL_AXIS_DEGENERACY (R-1 미실행): Lesson #21 sub-finding magnitude-ratio prescreen 14/14 syms STRONG_AXIS_DEGENERACY detection. mean corr(log_qv, log_cnt) = 0.954 (range 0.920-0.979) ≥ 0.90 threshold AND mean Var(log_ats)/Var(log_qv) = 0.102 (range 0.054-0.155) ≤ 0.20 threshold. quote_volume과 count는 거의 동일한 활동강도 정보 (corr 0.95+), avg_trade_size ratio는 잔여 ~10% 분산만 표현하는 trivial near-noise quantity. Lesson #54 paradigm 137 Yang-Zhang Parkinson/close (BROAD_FALSIFIED) 동형 antipattern strong match — same-bar same-substrate trivial ratio. axis genuinely NEW (n_trades column 144 paradigms 중 0회 사용) 하지만 mechanism informational content 부재. Lesson #11/#40/#30 모두 PASS (sample density per-cell pos 293.2 neg 120.4, z attainability 14/14 양 tail). R-1 dispatch 시 ~99% BROAD_FALSIFIED 예측 (paradigm 137 antipattern 동형) — Lesson #21 sub-finding pre-execution halt로 R-1 자원 절약. Lesson #54 3rd CONFIRMED-elevation eligible dogfood (paradigm 137 BROAD_FALSIFIED + paradigm 144 R-0 STRUCTURAL HALT). NEW Lesson #58 candidate: same-bar same-substrate ratio Lesson #54 family는 R-0 prescreen에서 corr(log component A, log component B) + residual variance share 측정 의무 (mean corr ≥ 0.90 + residual share ≤ 0.20 → R-0 STRUCTURAL_AXIS_DEGENERACY HALT, R-1 미실행). 영구 인프라 zero (12-col cache 재사용 + prescreen 로직만 추가).",
+      "seed_spec": null,
+      "paradigm_counter": 144
+    },
+    "alt_funding_carry_x_oi_decoupling_4h_cross_r5_hybrid_directional": {
+      "name": "alt_funding_carry_x_oi_decoupling_4h_cross_r5_hybrid_directional",
+      "hypothesis": "Cross-substrate R-5 hybrid: paradigm 22 funding carry z<=-2.0 AND paradigm 21 OI velocity z<=-2.0 joint trigger, SHORT 4h continuation. Lesson #21 6th dogfood + Lesson #58 candidate cross-substrate exemption",
+      "data_dependencies": [
+        "binance_funding_rate DB",
+        " microstructure joblib OI 5m",
+        " klines 12-col"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T04:33:31+00:00",
+      "updated_at": "2026-05-21T04:33:40+00:00",
+      "graveyard_reason": null,
+      "seed_spec": null
+    },
+    "alt_funding_z_neg1_x_oi_z_neg2_4h_relaxed_universe15_short": {
+      "name": "alt_funding_z_neg1_x_oi_z_neg2_4h_relaxed_universe15_short",
+      "hypothesis": "paradigm 146 — funding_z<=-1.0 (relaxed) x OI velocity z<=-2.0 (strict) joint trigger, SHORT 4h continuation (paradigm 22 R-5 mirror direction, Lesson #56 5th dogfood). Universe 15 syms (paradigm 145 base + ICP/UNI/LDO/WLD/1000LUNC). Repair attempt for paradigm 145 (joint_n=15 sparse halt) via funding threshold relaxation + universe expansion.",
+      "data_dependencies": [
+        "binance_funding_rate DB",
+        "microstructure joblib OI 5m",
+        "klines forward 4h"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T04:42:47+00:00",
+      "updated_at": "2026-05-21T04:42:53+00:00",
+      "graveyard_reason": "R-0 HALT_SAMPLE_INSUFFICIENT (relaxed-repair) — joint_n=87 / per_cell=21.8 < 30 Lesson #11. Funding 1y DB binding substrate limit, paradigm 145 strict + 146 relaxed 누적 funding-OI joint axis-cross family Tier 4 retire 강화. R-5 mirror direction (Lesson #56 candidate 5th dogfood) NOT TESTED, candidate 4 instances 유지. metrics: backend/runs/research_track/alt_funding_z_neg1_x_oi_z_neg2_4h_relaxed_universe15_short/r0_prescreen.json",
+      "seed_spec": null
+    },
+    "alt_bybit_to_binance_lead_lag_oi_delay_directional_4h": {
+      "name": "alt_bybit_to_binance_lead_lag_oi_delay_directional_4h",
+      "hypothesis": "Bybit OI velocity z(t) leads Binance OI velocity z(t+delta) by 15-60min via Asian retail front-running global institutional flow. Trigger |Bybit_z|>2.0 + sign-aligned Binance at t+delta, 4h forward directional. Time-shift dimension pivot from paradigm 147 v1 (same-bar DNA-duplicate paradigm 104).",
+      "data_dependencies": [
+        "Binance OI 1h (data.binance.vision daily archive)",
+        " Bybit V5 OI 1h (REST cursor pagination)",
+        " OHLCV 1m (joblib cache)"
+      ],
+      "current_phase": "R-0_graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_bybit_to_binance_lead_lag_oi_delay_directional_4h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T04:50:00+00:00",
+      "updated_at": "2026-05-21T04:50:00+00:00",
+      "graveyard_reason": "INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION — composite of paradigm 71 OI velocity z trigger axis (anti-alpha confirmed) + paradigm 104 cross-exchange OI substrate (upward-bias trap perm_p=0.988) + time-shift refinement (Lesson #56 5th-instance statistic reformulation antipattern formal CONFIRMED). Sign-alignment filter cannot synthesize alpha from zero-info trigger axis (Lesson #54 4th + Lesson #21 6th). Cross-exchange OI/funding family formal Tier 4 retire eligible (5 graveyards: 103+104+147v1+147v2 + paradigm 21 R-5 exception). NEW verdict category INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION first dogfood. R-1 not dispatched, ~35 min compute avoided.",
+      "seed_spec": null,
+      "paradigm_seq": 147,
+      "version": "v2_time_shift_pivot_after_v1_inventory_halt"
+    },
+    "alt_bybit_to_binance_lead_lag_PRICE_delay_directional_4h": {
+      "paradigm_id": 148,
+      "name": "alt_bybit_to_binance_lead_lag_PRICE_delay_directional_4h",
+      "phase": "R-1",
+      "verdict": "BROAD_FALSIFIED_DIRECTIONAL_BIAS_NOT_LEAD_LAG",
+      "date_kst": "2026-05-21 14:08 KST",
+      "category": "cross_exchange_PRICE_lead_lag",
+      "graveyard_path": "graveyard__alt_bybit_to_binance_lead_lag_PRICE_delay_directional_4h.md",
+      "metrics_path": "alt_bybit_to_binance_lead_lag_PRICE_delay_directional_4h/r1__metrics.json",
+      "compute_min": 4.5,
+      "lessons_dogfooded": [
+        "#8",
+        "#16",
+        "#19",
+        "#26",
+        "#32",
+        "#39",
+        "#44",
+        "#56",
+        "#58",
+        "#59_NEW_candidate"
+      ],
+      "predecessor": "paradigm 147 v2 §next-action Option B pivot",
+      "notes": "1st mechanical PASS_R1_FULL after 18-streak; 3 cells (D15min_A_focus_LONG +9.2bp, D15min_B_mirror_LONG +9.7bp, D30min_A_focus_LONG +9.4bp). Substantive antipattern: Lesson #39 sub-class A exact mirror + Lesson #8 universal LONG bias + Lesson #32 paradigm 69 family proxy. R-2 BLOCKED. NEW verdict category + Lesson #59 candidate.",
+      "permanent_assets": [
+        "backend/runs/ohlcv_cache_15m/bybit_klines/ (7 syms × 15m × 870d)",
+        "backend/runs/ohlcv_cache_15m/binance_klines/ (7 syms × 15m × 870d)"
+      ]
+    },
+    "alt_binance_1m_volatility_burst_event_sub5min_continuation": {
+      "name": "alt_binance_1m_volatility_burst_event_sub5min_continuation",
+      "hypothesis": "Binance 1m bar volatility burst (|log_ret|>p99 30d) + sign-matched sub-5min (1/2/3min) momentum continuation. Self-anchored per-symbol, single-exchange, paradigm 127/128 R-5 family-distinct via hold horizon (intra-event 1-3min vs 75min/10min).",
+      "data_dependencies": [
+        "ohlcv 1m (Binance Futures DB)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T05:19:07+00:00",
+      "updated_at": "2026-05-21T05:21:29+00:00",
+      "graveyard_reason": "BROAD_FALSIFIED_FEE_FLOOR_STRUCTURAL_R0 (R-0 halt 2026-05-21). Lesson #34 empirical distribution prescreen on 3 syms x 6mo confirms forward |ret| upper bound +1.10bp << 16bp fee floor (14.5x deficit). Lesson #40 structural threshold infeasibility on EDGE side. Lesson #56 6th OUTCOME-LEVEL FAMILY PROXY (predictive). Sub-5min momentum continuation any-axis OUTCOME family halt advisory (Lesson #60 candidate).",
+      "seed_spec": null
+    },
+    "alt_atr_normalized_range_breakout_30_120min_hold_single_exchange_directional": {
+      "name": "alt_atr_normalized_range_breakout_30_120min_hold_single_exchange_directional",
+      "paradigm_number": 150,
+      "hypothesis": "ATR-normalized range breakout (Range_current/ATR_24h>2.0) on 30min frame with 30-120min hold sweep, 4-quadrant SNT, 14-alt Binance perp universe. Claimed family-distinct vs paradigm 115 via hold horizon + statistic refinement + 4-quadrant SNT.",
+      "data_dependencies": [
+        "ohlcv 1m (Binance Futures DB) -> 30min resample",
+        "12-col klines cache 4h (alternative source)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-0": "backend/runs/research_track/alt_atr_normalized_range_breakout_30_120min_hold_single_exchange_directional/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T05:25:55+00:00",
+      "updated_at": "2026-05-21T05:25:55+00:00",
+      "graveyard_reason": "R0_HALT_BY_OUTCOME_LEVEL_FAMILY_PROXY (Lesson #56 7th instance, formal CONFIRMED). paradigm 150 statistic class (ATR-normalized range breakout) OUTCOME-equivalent to paradigm 115 graveyard (CONCENTRATION_DISPERSION_FAIL, life-changing per_trade_edge 0.21% blocking). Hold reduction 4h->30-120min strictly value-destroying on EDGE side (Lesson #40 EDGE-side 2nd dogfood). paradigm 149 next-action recommendation engine inheritance flaw (NEW Lesson #61 candidate 1st dogfood: R-0 next-action provenance audit). 21-streak non-PASS. Compute saved ~15-20x vs R-1 ritual dispatch.",
+      "seed_spec": null,
+      "verdict_code": "R0_HALT_BY_OUTCOME_LEVEL_FAMILY_PROXY",
+      "r1_dispatched": false,
+      "milestone_note": "150th paradigm dispatch attempt — R-0 halt protects milestone integrity from family-proxy duplication"
+    },
+    "alt_token_unlock_cliff_entry_side_immediate_demand_directional_24h": {
+      "name": "alt_token_unlock_cliff_entry_side_immediate_demand_directional_24h",
+      "counter": 151,
+      "hypothesis": "Token unlock cliff event (>=10% supply) within Binance Futures USDS-M perp listed alts triggers IMMEDIATE forced-sell window at unlock_ts +/- 1h; SHORT entry unlock_ts + 5min, exit unlock_ts + 24h close. Lesson #27 amendment immediate-demand-claim variant of paradigm 88 (paradigm 88 was T-72h pre-positioning delayed/indirect FAIL_SCOPE). Universe: ~26 cryptorank-discoverable tokens (paradigm 88 precedent universe). Symmetric Negative Test 4-quadrant: A focus SHORT (immediate forced-sell), A mirror LONG, B same-sign post-unlock LONG, B mirror SHORT.",
+      "data_dependencies": [
+        "CryptoRank.io public /vesting partial scrape (paradigm 88 cached) + Binance Futures USDS-M perp 5m klines archive. Freemium-blocked sources excluded: TokenUnlocks/CMC/Etherscan/Solana/Tron/DefiLlama."
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "r0_prescreen": "alt_token_unlock_cliff_entry_side_immediate_demand_directional_24h/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T05:39:22.330504+00:00",
+      "updated_at": "2026-05-21T05:39:22.330504+00:00",
+      "graveyard_reason": "R-0 SUBSTRATE_INFEASIBLE_FREEMIUM_BLOCKED_AND_SAMPLE_INSUFFICIENT + LESSON_27_AMENDMENT_RECLASSIFY. 3-layer halt: (1) Lesson #28 substrate column-axis = only CryptoRank public partial viable (8 freemium-blocked sources), yields 9 true cliff events / 2.4yr (95% linear emission); (2) Lesson #11+#26 sample density per-cell 0.64<<30, n_measurable 0/7; (3) Lesson #27 amendment first-principles eval = 'immediate demand' claim mechanistically EXIT-SIDE-like (existing-holder liquidity transition + publicly anticipated + sophisticated pre-hedging) -> reclassified paradigm 88 retiming reframe, NOT family-distinct. Counter increment 150->151 (substantive R-0 with 3 lesson dogfoods: #27 amendment 6th, #28 13th, #44 amendment 35th xref + freemium blacklist 5th cumulative + family-distinct 'retiming reframe' antipattern 1st dogfood).",
+      "seed_spec": null
+    },
+    "alt_range_volume_divergence_z_directional_4h": {
+      "name": "alt_range_volume_divergence_z_directional_4h",
+      "hypothesis": "range_z - volume_z divergence as thin/consolidation regime classifier; 4h directional, 13 alts, 12-col klines cache",
+      "data_dependencies": [
+        "binance_klines_4h_12col"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T05:46:20+00:00",
+      "updated_at": "2026-05-21T05:53:43+00:00",
+      "graveyard_reason": "R-0 SAMPLE_INSUFFICIENT_STRUCTURAL_THRESHOLD_INFEASIBLE (Lesson #40 sub-class D detection, asymmetric subtraction variant): z-score subtraction of two correlated right-skewed non-negative aggregate statistics produces negatively-skewed divergence distribution where +z>2 structurally infeasible (p99<2.0 13/13 syms). per_cell_pos=28.7<30 cutoff, per_cell_neg=62.1 PASS. Lesson #58 corr healthy zone PASS first dogfood (13/13 syms 0.65-0.78). Lesson #40 sub-pattern catalog amendment + first structured reformulate candidate (paradigm 153 pct rank trigger).",
+      "seed_spec": null
+    },
+    "alt_range_volume_divergence_percentile_rank_directional_4h": {
+      "name": "alt_range_volume_divergence_percentile_rank_directional_4h",
+      "paradigm_id": 153,
+      "hypothesis": "Percentile rank reformulate of paradigm 152 divergence (range_z - vol_z); pct_rank >0.95 → MR, <0.05 → CONT; 4h directional, 13 alts. Lesson #40 reformulate first STRUCTURED dogfood.",
+      "data_dependencies": [
+        "binance_klines_4h_12col"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "r0_prescreen": "alt_range_volume_divergence_percentile_rank_directional_4h/r0_prescreen.json",
+        "R-1": "alt_range_volume_divergence_percentile_rank_directional_4h/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T05:53:41+00:00",
+      "updated_at": "2026-05-21T05:53:43+00:00",
+      "graveyard_reason": "R-1 BROAD_FALSIFIED — Lesson #40 reformulate structural fix SUCCESS (pct rank top/bot ratio 0.99 symmetric, n=3343/3358 per cell ≫30) but mechanism alpha 부재. 4-quadrant SNT: A_focus_top_MR n=3343 mean_bp=-8.87 sigex+0.30; A_mirror_top_CONT mean_bp=-7.13 sigex+0.71; B_focus_bot_CONT mean_bp=-0.11 sigex+2.19 (sigex paradox: obs_t=-0.026 ≈ fee floor, null_mean_t=-2.22, CI lower=-8.20 negative); B_mirror_bot_MR mean_bp=-15.89 sigex-1.46. Concentration B_focus sym_ci_pos=0/13 CATEGORICAL FAIL. Hold sweep 0/6 off-primary 3-gate PASS. paradigm 110 mechanism direction inversion antipattern check AVOIDED (delta +0.41 / -3.65, mirror does not dominate). Lesson #40 sub-class D NEW outcome (structural fix + alpha-empty). NEW Lesson #63 candidate (reformulate structural fix ≠ mechanism alpha resurrection, 1st dogfood). Lesson #44 amendment 37th xref. Counter 152→153, non-PASS streak 24, R-5 yield 6.54%.",
+      "seed_spec": null,
+      "verdict_code": "BROAD_FALSIFIED_R1",
+      "r1_dispatched": true
+    },
+    "alt_range_volume_divergence_pct_rank_MTF_1d_regime_x_4h_entry_directional": {
+      "name": "alt_range_volume_divergence_pct_rank_MTF_1d_regime_x_4h_entry_directional",
+      "paradigm_id": 154,
+      "hypothesis": "MTF dual confirmation — 1d 1y rolling pct rank vol regime stratify × 4h 90d rolling pct rank entry (paradigm 153 statistic identical). Claim: 1d HIGH-vol regime isolates alpha that paradigm 153 bar-level missed. 14 alts (ADA included), 4h hold.",
+      "data_dependencies": [
+        "binance_klines_4h_12col",
+        "binance_klines_1d_resampled_from_4h"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "r0_prescreen": "alt_range_volume_divergence_pct_rank_MTF_1d_regime_x_4h_entry_directional/r0_prescreen.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T06:15:04+00:00",
+      "updated_at": "2026-05-21T06:15:04+00:00",
+      "graveyard_reason": "R-0 R0_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION — Lesson #62 candidate 2nd dogfood (family-distinct 4-dim strict audit 0/4 changes vs paradigm 153; trigger statistic class IDENTICAL, entry-side IDENTICAL, mechanism partial only, substrate partial only — regime filter overlay = retiming reframe antipattern) → Lesson #62 CONFIRMED 자격 reached + Lesson #56 CONFIRMED OUTCOME-LEVEL FAMILY PROXY 8th instance (range_volume_divergence chain 110+115+137+150+152+153+154) + Lesson #21 sub-finding 7th candidate (MTF stacking of SAME statistic class on SAME substrate degenerate; 1d divergence = aggregation of 6×4h divergence on SAME bar data, NOT axis-independent) + Lesson #63 candidate 2nd predictive dogfood (structural fix ≠ mechanism alpha resurrection; paradigm 154 = paradigm 153 + regime filter alpha resurrection attempt via stacking) → CONFIRMED 자격 reached + Lesson #61 dogfood SUCCESS (paradigm 153 §next-action option 2 explicitly recommended MTF, R-0 provenance audit REJECTED) + Lesson #44 38th xref. Range_volume_divergence family Tier 4 retire eligible (7 graveyards, 3 distinct statistic classes exhausted). Compute saved ~20-25x. Counter 153→154 substantive R-0 increment. R-5 yield 6.49%. Non-PASS streak 25.",
+      "seed_spec": null,
+      "verdict_code": "R0_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION",
+      "r1_dispatched": false
+    },
+    "alt_session_boundary_NY_close_21UTC_anchored_directional_4h": {
+      "name": "alt_session_boundary_NY_close_21UTC_anchored_directional_4h",
+      "hypothesis": "NY close (20:00 UTC bar, ≈21 UTC NY equities close anchor) session boundary × 14 syms (BTC+13 alts) directional 4h hold. Trigger: 16-20 UTC bar close sign. SNT 4-quadrant (continuation/reversal both sides). Archetype C session boundary anchor NEW axis class. Lesson #67 antipattern avoidance via structural global anchor (not macro single-asset broadcast). Family-distinct 4/4 strict vs funding family.",
+      "data_dependencies": [
+        "ohlcv 4h 12-col joblib cache (14 syms x 4920 bars x 2.25yr",
+        " 영구 자산)"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T06:41:31+00:00",
+      "updated_at": "2026-05-21T06:44:53+00:00",
+      "graveyard_reason": "R-1 4-quadrant SNT executed: BROAD_FALSIFIED_FEE_FLOOR_MECHANISM_INVERTED_LESSON39B. Q1 UP_LONG_focus_CONT +0.79bp sigex +2.98 ci_lo -3.62 (sub-fee), Q2 UP_SHORT_mirror_REV -16.79bp sigex -3.65, Q3 DOWN_SHORT_focus_CONT -15.38bp sigex -2.21 (fee-saturated negative), Q4 DOWN_LONG_mirror_REV -0.62bp sigex +2.30 (mirror dominates Q3 focus by 4.51σ). Mechanism inverted: DOWN days post-anchor REVERSAL (alt LONG-on-DOWN) beats CONTINUATION (alt SHORT-on-DOWN), but mirror still sub-fee. UP days continuation gross +16bp but net +0.79bp sub-fee 8bp. Lesson #39 sub-class B 2nd dogfood. Lesson #56 OUTCOME-LEVEL family proxy 10th instance (R-0 4/4 strict family-distinct PASS, NEW archetype C axis class, but outcome converged with sub-fee-floor broad family). Lesson #67 candidate ESCAPED (structural global anchor). Hold sweep 4h/8h/12h all FAIL (4h UP +0.79bp, 8h +3.65bp sigex 2.72 ci still neg, 12h +0.35bp sigex 0.42; DOWN side worsens with hold). metrics: backend/runs/research_track/alt_session_boundary_NY_close_21UTC_anchored_directional_4h/r1__metrics.json",
+      "seed_spec": null
+    },
+    "alt_extreme_24h_PUMP_24h_continuation_long": {
+      "name": "alt_extreme_24h_PUMP_24h_continuation_long",
+      "paradigm_number": 158,
+      "hypothesis": "Alt 24h extreme PUMP (rolling 24h return >= per-sym p90) -> 24h hold LONG continuation (FOMO momentum follow). Direct test of paradigm 117 R-3 caveat 1 mechanism CLASS asymmetric finding (only capitulation MR bounce confirmed at 24h, NEVER pump continuation).",
+      "data_dependencies": [
+        "12-col 4h joblib cache (ohlcv_cache_12col/{SYM}_4h.joblib)",
+        "13 alts × 2.25yr × 4920 bars"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {
+        "R-1": "runs/research_track/alt_extreme_24h_PUMP_24h_continuation_long/r1__metrics.json"
+      },
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T15:53:00+09:00",
+      "updated_at": "2026-05-21T15:57:00+09:00",
+      "graveyard_reason": "R-1 mechanic BROAD_FALSIFIED_NO_THREE_GATE (semantic MECHANISM_CLASS_ASYMMETRIC_CONFIRMED). A_focus PUMP x LONG continuation EXHAUSTED at 24h scale across 3 pcts x 3 holds (9 cells): p85 sigex +1.04 / p90 +0.54 / p95 +1.57 / 48h hold +2.06 ci_lower<0. NO cell achieves 3-gate PASS. B_mirror DUMP x LONG (paradigm 117 mechanism reproduction) p95 3-gate PASS sigex +3.81 net +59.94bp BUT Concentration FAIL syms_ci_pos 0/13 + lc4 FAIL edge +0.60%<2% + 2024Q1 outlier +517.7bp t+4.65 dominates. Lesson #42 candidate CONFIRMED (mechanism CLASS asymmetric explicit direct test). Lesson #8 universal LONG bias 5th dogfood CONFIRMED (A_focus_LONG + B_mirror_LONG both positive across all 3 pcts). Lesson #39 perfect mirror 3rd dogfood CONFIRMED (sum_abs 0.00bp all 3 pcts). Family-distinct strict 4-dim audit (Lesson #62) 2/5 boundary PASS. metrics: runs/research_track/alt_extreme_24h_PUMP_24h_continuation_long/r1__metrics.json",
+      "seed_spec": null,
+      "reframe_of_paradigm_117": true,
+      "reframe_context": "paradigm 117 R-3 caveat 1 mechanism CLASS asymmetric finding direct test at 24h scale. paradigm 117 only measured B_same_sign PUMP x SHORT at 4h scale (sigex +0.28); paradigm 158 is the explicit honest direct test of PUMP x LONG continuation at 24h scale. Result: FOMO continuation absent at 24h; capitulation MR direction is unique alpha-bearing direction on this cohort.",
+      "lesson_42_candidate_verification": "CONFIRMED — paradigm 117 caveat 1 mechanism CLASS asymmetric finding directly verified",
+      "lesson_8_universal_long_bias_5th_dogfood": "CONFIRMED",
+      "lesson_39_perfect_mirror_3rd_dogfood": "CONFIRMED",
+      "lesson_62_family_distinct_strict_audit_4th_dogfood": "CONFIRMED (boundary 2/5 PASS)"
+    },
+    "alt_calendar_anchor_DOW_or_HOD_directional_4h": {
+      "name": "alt_calendar_anchor_DOW_or_HOD_directional_4h",
+      "paradigm_number": 159,
+      "hypothesis": "DOW (day-of-week, UTC) or HOD (hour-of-day, 0/4/8/12/16/20 UTC for 4h bars) calendar anchor x per-sym fitted directional effect. 14 syms (BTC + 13 alts), 4h primary hold + 8h/12h robustness. SNT 4-quadrant (top-DOW/HOD LONG/SHORT + bottom-DOW/HOD SHORT/LONG). Archetype D adjacent untouched (per memory plan).",
+      "data_dependencies": [
+        "12-col 4h joblib cache (ohlcv_cache_12col/{SYM}_4h.joblib)",
+        "14 syms x 2.25yr x 4920 bars",
+        "UTC timestamp natively in cache"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T16:03:00+09:00",
+      "updated_at": "2026-05-21T16:03:00+09:00",
+      "graveyard_reason": "R0_HALT_BY_INVENTORY_DUPLICATE_LESSON_61_AMENDMENT_1ST_DOGFOOD_SUCCESS. paradigm 113 intraday_hour_of_day_anchor_alt_directional_2h (2026-05-20 R-1 BROAD_FALSIFIED) detected via Lesson #61 amendment slug duplicate search. DNA 4-dim audit: statistic PARTIAL (both calendar-anchor), universe PARTIAL (essentially same 13-14 alts), entry-side STRICT (drops |z| magnitude axis), mechanism alpha STRICT (per-sym idiosyncratic vs universe-wide). Lesson #62 strict count 2/4 marginal. paradigm 113 graveyard explicit advisory cites 'day-of-week' as advisory caution term. paradigm 157 (NY close 21UTC session anchor 4h) BROAD_FALSIFIED Lesson #39B on 2026-05-21 + Lesson #68 candidate 1st dogfood (session-boundary x 4h x cross-asset fee-floor-bound) - paradigm 159 is Lesson #68 2nd dogfood exact position. Per-sym in-sample DOW/HOD fit = Lesson #21 axis-stacking sub-class (14 syms x 7 DOW = 98 cells multiple-testing selection bias artifact, uncorrected max-of-N inflation factor 1.97x). paradigm 156+157+158 §next-action 3 consecutive stale recommendation pattern - Lesson #61 amendment 4th cumulative dogfood explicit catch (this case is 1st post-confirmation dogfood SUCCESS). R-1 NOT DISPATCHED. counter 159 used (substantive R-0 halt). Halt-eligible axes: outcome-level family proxy FAIL (Lesson #56 11th instance) + axis stacking FAIL (Lesson #21 sub-class) + Lesson #61 amendment FAIL + Lesson #68 candidate 2nd dogfood adjacency. Cumulative halt signal: 4 FAIL + 1 MARGINAL + 1 adjacency = R-0 halt strong consensus. Next paradigm 160 recommended Option beta alt_cross_exchange_volume_share_rotation_directional_4h (family-distinct strict 3/4, volume share sub-axis untouched in paradigm 103/147/148 cross-exchange family).",
+      "seed_spec": null,
+      "predecessor_paradigm": 113,
+      "predecessor_context": "paradigm 113 intraday_hour_of_day_anchor_alt_directional_2h R-1 BROAD_FALSIFIED 2026-05-20 - calendar/clock-anchor family 1st graveyard, advisory caution future temporal-axis paradigm",
+      "lesson_61_amendment_1st_dogfood_post_confirmation": "SUCCESS - inventory check caught paradigm 113 family adjacency, prevented R-1 dispatch waste",
+      "lesson_21_axis_stacking_sub_class_candidate": "per-sym in-sample fit = calendar axis x selection-bias axis stacking",
+      "lesson_56_outcome_level_family_proxy_11th_instance": "calendar/clock-anchor family 2 cumulative graveyards (113 + 157) in 2 days",
+      "lesson_68_candidate_2nd_dogfood_adjacency_avoided": "session-boundary anchor x 4h x cross-asset fee-floor-bound antipattern adjacency",
+      "stale_next_action_chain": [
+        "paradigm_157_to_158_DNA_117_duplicate_caught_at_R0",
+        "paradigm_158_to_159_DNA_113_family_caught_at_R0_this_dogfood"
+      ]
+    },
+    "alt_cross_exchange_volume_share_rotation_directional_4h": {
+      "slug": "alt_cross_exchange_volume_share_rotation_directional_4h",
+      "paradigm_number": 160,
+      "phase": "R-1",
+      "verdict": "BROAD_FALSIFIED_FEE_FLOOR",
+      "date": "2026-05-21 16:16 KST",
+      "family": "cross_exchange_bybit_binance",
+      "family_tier_retire": true,
+      "family_cumulative_count": 7,
+      "lessons_dogfood": [
+        "#56 12th instance",
+        "#39 sub-class A 4th",
+        "#8 6th",
+        "#62 5th",
+        "#16 conc 0/7",
+        "#30 0.958 PASS",
+        "#61 2nd post-confirmation amendment"
+      ],
+      "one_sentence": "Bybit/Binance 24h cumulative quote-volume share z(7d)>=|2| x 4h LONG continuation. All 4 SNT quadrants gross |bp| in [9.39, 10.03] sub-16bp fee floor, perfect mirror antipattern, 0/7 syms ci+ all quadrants. Cross-exchange family Tier 4 retire 7th cumulative reinforcement."
+    },
+    "alt_listing_pump_first60min_BTC_macro_proxy_modifier": {
+      "name": "alt_listing_pump_first60min_BTC_macro_proxy_modifier",
+      "hypothesis": "Binance Futures alt listing event first 60min × BTC 30d return regime (bull/bear) modifier × 4-quadrant SNT directional. Base: paradigm 121 listing_pump_first60min (R-1 graveyard SHORT n=161 t=-1.55 perm_p=0.522). NEW BTC macro regime conditional split modifier.",
+      "data_dependencies": [
+        "Binance Futures listing event registry (~388 events, paradigm 89 audit)",
+        "ohlcv 1m archive (first 60min window per-event)",
+        "ohlcv 4h archive (BTC 30d rolling return regime)"
+      ],
+      "current_phase": "R-0_HALT_BY_INVENTORY_DUPLICATE",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T07:27:40.177989+00:00",
+      "updated_at": "2026-05-21T07:27:40.177989+00:00",
+      "graveyard_reason": "R-0 HALT (R-1 NOT DISPATCHED). Lesson #61 amendment 3rd post-confirmation dogfood SUCCESS — dispatch context 'paradigm 121 R-5 LIVE 추정' + §6.57 next-action 'listing family R-5 active' 둘 다 FALSE inventory claim. INDEX 실제: paradigm 121 listing_pump_first60min = graveyard (R-1 SHORT n=161 t=-1.55 perm_p=0.522 perm sigma -0.04 all 12 grid cells negative). Listing event family inventory: 5/5 R-1 PoC graveyards (listing_pump_first60min + listing_volume_cliff + listing_oversold_recovery_long + listing_pre_announce_leak_long_alt + binance_delisting_announce_short_alt) + lifecycle_pump_decay R-4 only (Day-30 timescale). R-5 active 없음. Lesson #56 OUTCOME-LEVEL FAMILY PROXY 13th predictive instance avoided (paradigm 121 base intraday null → BTC regime rescue historical base rate <10%). Lesson #62 dim 1 statistic class boundary marginal. Lesson #67 candidate semi-escape (BTC conditioning filter not trigger). Listing family family-retire eligibility deferred. Counter 160→161 substantive R-0 increment. 31-streak non-PASS. Next paradigm 162 권고: Option α lifecycle_pump_decay R-4 R-5 promotion track.",
+      "seed_spec": null,
+      "provenance": {
+        "lesson_61_amendment_post_confirmation_dogfood": "3rd_success",
+        "next_action_source": "paradigm 160 §6.57 Option α",
+        "stale_claim_caught": "listing family R-5 active assumption",
+        "user_dispatch_ts_kst": "2026-05-21T16:18"
+      }
     }
   },
   "schema_version": 1,
-  "updated_at": "2026-05-20T22:59:55.916986+00:00",
-  "last_updated_at_kst": "2026-05-21T08:51:09.342025+09:00"
+  "updated_at": "2026-05-21T20:14:48+09:00",
+  "last_updated_at_kst": "2026-05-21T20:14:48+09:00",
+  "alt_realized_vol_of_vol_2nd_order_clustering_regime_directional_4h": {
+    "paradigm_number": 133,
+    "phase": "R-1",
+    "verdict": "CONCENTRATED_R1_PASS",
+    "registered_at_kst": "2026-05-21T10:54:57+09:00",
+    "last_updated_kst": "2026-05-21T10:55:36+09:00",
+    "host": "hcp_local",
+    "dna": {
+      "data_dim": "price (1m OHLCV → 1h RV → 24h RV-of-RV → 30d z)",
+      "statistic_class": "2nd_order_realized_vol_clustering (std of std on RV, NEW class)",
+      "decision_mode": "directional (trigger-bar 4h log-ret sign)",
+      "time_scale": "4h hold",
+      "universe": "12 alts (ADA excluded Lesson #30)",
+      "event_class": "continuous_rolling_no_anchor"
+    },
+    "r1_summary": {
+      "n_triggers": 1807,
+      "pass_quadrant": "A_focus_z2_pos_LONG_4h",
+      "a_focus_n": 860,
+      "a_focus_gross_bp": 37.41,
+      "a_focus_net_bp": 21.41,
+      "a_focus_sigex": 4.73,
+      "a_focus_ci_lower_bp": 2.33,
+      "a_focus_perm_p": 0.0,
+      "a_focus_three_gate_pass": true,
+      "concentration_gate_pass": false,
+      "concentration_failure_mode": "sym_ci_pos 2/12 (0.17) < 0.30; q_pos_t 7/9 (0.78) PASS but 2025Q3-Q4 sustained negative",
+      "driving_syms": [
+        "DOGEUSDT",
+        "LINKUSDT"
+      ],
+      "verdict": "CONCENTRATED_R1_PASS"
+    },
+    "lessons_applied": [
+      "#11",
+      "#16_FAIL_key",
+      "#19",
+      "#21",
+      "#22",
+      "#23",
+      "#28",
+      "#30",
+      "#34",
+      "#40",
+      "#44_16th",
+      "#45",
+      "#46_9th_dogfood_TRUE_POSITIVE",
+      "#52_neg",
+      "#53_neg"
+    ],
+    "next_action": "graveyard_recorded_continue_dispatch_path_4_realized_semivariance_asymmetry"
+  },
+  "btc_realized_vol_p90_alt_directional_4h_resume": {
+    "name": "btc_realized_vol_p90_alt_directional_4h_resume",
+    "paradigm_id": 155,
+    "hypothesis": "BTC RV p90 HIGH-vol + 13 alts sign-conditional bilateral (BTC up→LONG / BTC down→SHORT) + 240m hold + TP=+5%. paradigm 69 (R-5 active) macro proxy sign-cond reframe + paradigm 67 H5 sign-split mechanism integration.",
+    "data_dependencies": [
+      "btc_ohlcv_1m_joblib",
+      "alts_ohlcv_1m_joblib_13"
+    ],
+    "current_phase": "graveyard",
+    "metrics_files": {
+      "r0_halt": "btc_realized_vol_p90_alt_directional_4h_resume/r0_halt__metrics.json"
+    },
+    "gate_evals": {},
+    "type": "E",
+    "created_at": "2026-05-21T06:20:00+00:00",
+    "updated_at": "2026-05-21T06:20:00+00:00",
+    "graveyard_reason": "R-0 R0_HALT_BY_DNA_DUPLICATE_AND_PRIOR_FALSIFICATION — Lesson #62 CONFIRMED retiming reframe family-distinct 4-dim audit FAIL (1/6 strict dim change, sign-conditioning only; trigger/universe/regime filter/entry-side identical to paradigm 69 R-5; hold 270m→240m partial only). DNA 5/6 overlap with paradigm 69 R-5 seeded (A focus quadrant exact) + 6/6 exact overlap with paradigm 70 graveyard (B same-sign quadrant: BTC RV p90 + BTC down + 13 alts SHORT + 240m hold). paradigm 70 prior R-1 measurement: n=793 net -49bp t=-3.62 sigex -2.48 ci_lower -75.56 13/13 alts neg 5/5 holds neg + 13σ asymmetry vs paradigm 69. Lesson #19 4-quadrant prior coverage 4/4 measured (A focus PASS paradigm 69, A mirror FAIL, B same-sign FAIL paradigm 70, B mirror FAIL paradigm 67 H5) — info value 0bit. Mirror hypothesis antipattern direct violation. NEW Lesson #66 candidate (sign-conditional bilateral reframe of unidirectional R-5 paradigm = mirror antipattern + dim-count fail double-bind). btc_rv_p90_alts_directional family 5th graveyard (62+67+68+70+155), paradigm 69 R-5 exception only → Tier 4 retire recommendation. Counter 154→155 substantive R-0 increment.",
+    "seed_spec": null,
+    "verdict_code": "R0_HALT_BY_DNA_DUPLICATE_AND_PRIOR_FALSIFICATION",
+    "r1_dispatched": false
+  },
+  "btc_funding_rate_p90_regime_alt_directional_4h": {
+    "name": "btc_funding_rate_p90_regime_alt_directional_4h",
+    "paradigm_id": 156,
+    "hypothesis": "BTC funding rate가 cross-asset macro leverage skew signal. BTC funding ≥ p90 (extreme bullish) / ≤ p10 (extreme bearish) regime × 13 alts directional 4h hold. paradigm 22 R-5 (per-sym funding z MR) + funding family graveyards (96/97/98/99) family-distinct 4-dim strict 4/4 PASS via BTC-only macro broadcast (vs per-sym self-conditioning).",
+    "data_dependencies": [
+      "binance_funding_rate_db_btcusdt",
+      "alts_ohlcv_1m_db_13"
+    ],
+    "current_phase": "graveyard",
+    "metrics_files": {
+      "r1": "btc_funding_rate_p90_regime_alt_directional_4h/r1__metrics.json"
+    },
+    "gate_evals": {},
+    "type": "E",
+    "created_at": "2026-05-21T06:30:00+00:00",
+    "updated_at": "2026-05-21T06:33:00+00:00",
+    "graveyard_reason": "R-1 BROAD_FALSIFIED — 4/4 quadrants 3-gate FAIL. A_LONG_focus n=1702 mean_bp=-5.87 sigex=-0.445 perm_p=0.320 ci=[-14.12,+2.32] 0/13 syms ci_pos q_pos_t 1/4. A_SHORT_mirror -10.13bp, B_LONG_mirror -6.63bp, B_SHORT_same_sign -9.37bp 모두 net 음수. Mirror separation A_focus vs A_mirror = 4.26bp ≪ 16bp fee floor — Lesson #39 sub-class A broad-uniform-negative + trigger near-zero directional info. Hold sweep 240/480/720m all FAIL (480m worst -14.78bp sigex -2.392). Life-changing 2/4 (trades/yr 840.3 PASS + util 38.3% PASS, edge -0.059% FAIL + sharpe -0.99 FAIL). Funding axis Tier 4 retire 11 cumulative (7 sub-classes, paradigm 156 = NEW macro-cross-asset variant 1st instance). paradigm 22 R-5 exception only. NEW Lesson #67 candidate 'macro single-asset trigger × cross-asset broadcast antipattern' 1st dogfood. Lesson #39 sub-class A 4th dogfood formal CONFIRMED 자격. Lesson #56 9th instance OUTCOME-LEVEL family proxy (4/4 strict family-distinct PASS R-0 but R-1 outcome converges with funding family graveyards). Lesson #61 3rd dogfood post-confirmation (paradigm 155 §next-action option β authored own paradigm 156 dispatch). Counter 155→156 substantive R-1 increment.",
+    "seed_spec": null,
+    "verdict_code": "BROAD_FALSIFIED",
+    "r1_dispatched": true,
+    "lessons_invoked": [
+      "#11_PASS_density_115_per_cell",
+      "#19_4q_SNT_executed",
+      "#28_substrate_avail",
+      "#29_cross_proxy_obs_fund",
+      "#30_PASS_99_7pct_window",
+      "#39_sub_class_A_4th_dogfood",
+      "#56_9th_instance_OUTCOME_LEVEL",
+      "#58_cross_substrate_EXEMPT",
+      "#61_3rd_dogfood",
+      "#62_4_4_strict_passed",
+      "#66_candidate_2nd_neg_dogfood",
+      "#67_candidate_NEW_1st_dogfood"
+    ],
+    "next_action": "paradigm_157_option_alpha_NY_close_session_boundary_anchor"
+  }
 }
