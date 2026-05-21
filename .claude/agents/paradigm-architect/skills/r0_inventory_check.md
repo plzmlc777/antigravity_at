@@ -3,20 +3,82 @@
 > Parent agent: `paradigm-architect`
 > Purpose: Pre-flight checks before generating R-1 code
 > Tools: Bash, Read, Write
+> Last sync: 2026-05-21 22:09 KST — Lesson #69 CONFIRMED 5-item strict template 영구 자산화 + Lesson #61 amendment PERMANENT ASSET ELEVATION + Lesson #28 amendment CONFIRMED + 15 formal Tier 4 family retires
 
-## Step 0 — Inventory check (mandatory, no exceptions)
+## Step 0 — Lesson #69 CONFIRMED 5-item strict template (PERMANENT ASSET, 영구 의무)
 
-Before generating ANY code, run:
+**Every R-0 prescreen MUST execute all 5 items before R-1 dispatch consideration.** (CONFIRMED 2026-05-21, 4 post-CONFIRMED SUCCESSes paradigm 164/165/166/167 + 1 pre-CONFIRMED paradigm 163)
+
+### Item 1 — Lesson #61 amendment slug grep (PERMANENT ASSET ELEVATED 2026-05-21, 8-streak)
+
 ```bash
-PYTHONPATH=. python3 -m scripts.research.paradigm_index list
+ls /home/hcpark/antigravity/backend/runs/research_track/ | grep -iE "<keyword1>|<keyword2>|<keyword3>"
 ```
 
-Halt conditions:
-- Hypothesis overlaps existing R-1+ paradigm (same data dimension AND same decision mode) → STOP, report duplication
-- Partial overlap (e.g., new SL grid on existing source) → refer user to `strategy-evolver`
+Report results explicitly. Cross-reference with all prior paradigms (graveyards + R-2+/R-3+/R-4/R-5 entries). Halt conditions:
+- DNA 6/6 axis match with prior paradigm → R0_HALT_BY_DNA_DUPLICATE
+- Algebraic equivalent (sign-convention flip + normalization re-labeling) → R0_HALT_BY_DNA_DUPLICATE (paradigm 166 vs paradigm 104 precedent)
+- Family duplicate ≥ 4 prior graveyards → R0_HALT_BY_FAMILY_PROXY
 
-Then list active paper sessions:
+§next-action recommendation when writing must include slug grep execution output. **Stale recommendation chain ≥2 consecutive triggers ratification of permanent-asset elevation status.**
+
+### Item 2 — Lesson #28 amendment substrate-shape audit (CONFIRMED 2026-05-21, 4 dogfoods)
+
+Endpoint reachability (existence) ≠ data structure dimension match (shape). Separate verification mandatory:
+
+**Substrate-existence**: HTTP endpoint reachable? Free unlimited (`[[feedback-no-freemium-trial]]` compliant)?
+
+**Substrate-shape**: 
+- Data dimension matches hypothesis (e.g., multi-tenor term structure ≠ single-tenor index)
+- Historical coverage ≥ 2.25yr
+- Frame frequency matches hypothesis frame
+- Aggregation possible across hypothesis universe
+
+Fatal precedent: paradigm 164 Deribit DVOL endpoint PASS + shape FAIL (single-tenor 30d forward IV ≠ multi-tenor term structure). Halt with `R0_HALT_BY_SUBSTRATE_SHAPE_MISMATCH`.
+
+### Item 3 — Lesson #11 sample density (per-quarter n ≥ 30 cutoff)
+
+```
+expected_n_per_cell = total_windows × universe_size × trigger_rate
+expected_n_per_quarter = expected_n_per_cell / 9_quarters
+```
+
+Halt if `expected_n_per_quarter < 30` cutoff. Particularly strict for joint-trigger paradigms (4-quadrant SNT cell count multiplier).
+
+### Item 4 — Lesson #62 CONFIRMED DNA 4-dim audit table (11 boundary dogfoods)
+
+Tabulate vs all proximate prior paradigms:
+
+| Dim | Prior paradigm X | Candidate | Strict? |
+|---|---|---|---|
+| Statistic class | ... | ... | ✓/✗/partial |
+| Universe scope | ... | ... | ✓/✗/partial |
+| Entry-side class | ... | ... | ✓/✗/partial |
+| Mechanism alpha | ... | ... | ✓/✗/partial |
+| Hold timescale | ... | ... | ✓/✗/partial |
+
+Halt conditions:
+- Strict count 0-1/5 → R0_HALT_BY_DNA_DUPLICATE
+- Strict count 2/5 boundary case → boundary dispatch with explicit Lesson #62 dogfood logging
+- Retiming reframe only (1 strict dim change) → Lesson #62 retiming-reframe HALT
+
+### Item 5 — Lesson #56 CONFIRMED family-proxy OUTCOME-LEVEL cross-reference table (17+ instances cumulative)
+
+Tabulate all family-proxy intersections:
+
+| Family | Status | Cumulative members | OUTCOME-LEVEL prediction |
+|---|---|---|---|
+| <family A> | Tier 4 retire | n=X graveyards | fee-floor sub-threshold |
+| <family B> | advisory caution | n=Y | per-trade edge sub-2% |
+
+Halt conditions:
+- ≥ 2 family intersections → R0_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION
+- ≥ 4 cumulative graveyards in same family + same axis-class → OUTCOME-LEVEL family-proxy 17th+ instance prediction → R0_HALT_BY_OUTCOME_PROXY
+
+### Inventory check additional commands (cross-cutting)
+
 ```bash
+PYTHONPATH=. python3 -m scripts.research.paradigm_index list
 cd backend && source venv/bin/activate && PYTHONPATH=. python3 -m scripts.paper_session_cli status
 ```
 
@@ -76,14 +138,32 @@ Before generating R-1 code, cross-check the hypothesis against the following ret
 
 **Reference**: PARADIGM_QUEUE_2026Q3.md §6.2 #25–#28 + [[project_paradigm_binance_delisting]] + [[project_paradigm_token_unlock_cliff]] + [[project_paradigm_listing_pre_announce]] + [[project_paradigm_stablecoin_mint]]
 
-### Other Tier 4 retired families (cross-reference)
-- Funding single-signal sub-class (paradigm 73/79/96/97/98/99 — 6 graveyards) — see `lesson_prescreen_checklist.md` §Family retire Funding
-- KR equity DART entry-side family (paradigm 92/93/100/101/102 — 5 graveyards 4 axes exhausted) — see same skill §Family retire DART
-- Cross-asset volume share single-side simple-z 1d-hold (paradigm 94/95) — see same skill §Family retire Volume share
-- Cross-exchange funding family (paradigm 103) — see [[project_paradigm_103_cross_exchange_funding_spread]]
-- OHLCV magnitude-confluence × directional-follow family (paradigm 78/84/85 etc) — see `lesson_prescreen_checklist.md` Earlier lessons #25
-- Geometric path metrics alone (paradigm 78) — see `lesson_prescreen_checklist.md`
-- Taker-side aggressive volume family (paradigm 23/60/72) — see `lesson_prescreen_checklist.md`
+### Tier 4 formal retired families — 15 cumulative (2026-05-21 sync, ratified §6.66 paradigm 168 META RATIFICATION BATCH + prior commits)
+
+**Auto-halt R-0 on hypothesis match. Exceptions explicitly enumerated.**
+
+1. **Listing event family** (paradigm 87/88/89/90/100 — 4 graveyards + 1 substrate-blocked) — exception `lifecycle_pump_decay` R-5 LIVE 2026-05-21
+2. **Funding single-signal sub-class** (paradigm 73/79/96/97/98/99 — 6 graveyards) — exception paradigm 22 R-5 + funding_dispersion R-5 ETCUSDT
+3. **KR equity DART entry-side family** (paradigm 92/93/100/101/102 — 5 graveyards 4 axes exhausted)
+4. **Cross-asset volume share single-side simple-z 1d-hold** (paradigm 94/95)
+5. **Cross-exchange family** (paradigm 103/104/105 illiquid/147v1/147v2/148/160 — 7 cumulative, paradigm 166 R-0 halt 8th blocked) — OI axis decisively closed (paradigm 166 R0_HALT_BY_DNA_DUPLICATE_PARADIGM_104)
+6. **OHLCV magnitude-confluence × directional-follow** (paradigm 78/84/85 등)
+7. **Geometric path metrics alone** (paradigm 78)
+8. **Taker-side aggressive volume family** (paradigm 23/60/72 — 3 graveyards)
+9. **Taker imbalance directional family** (paradigm 142v2/143/165 — 3 dogfoods, Lesson #57 CONFIRMED formal, 12th cumulative ratified 2026-05-21)
+10. **Range_volume_divergence family** (paradigm 110/115/137/150/152/153/154 — 7 graveyards, ratified 2026-05-21 commit 45e20e5b)
+11. **btc_rv_p90_alts_directional family** (paradigm 62/67/68/70/155 — 5 graveyards + paradigm 69 R-5 LONG 270m unidirectional exception, ratified 2026-05-21)
+12. **Magnitude-event family** (paradigm 117/158/162 — 3 reformulations 24h drawdown / 24h PUMP / 24h high anchor, ratified 2026-05-21 + lifecycle_pump_decay R-5 protection 외 sub-axis 차단)
+13. **Basis/markPrice 4h MR sub-axis** (paradigm 105/111/121/131/167 — 5 cumulative blocked, ratified 2026-05-21 §6.66) — exception paradigm 22/24 R-5 daily follow momentum + term structure cross-tenor variant (paradigm 169 Option η path)
+14. **HMM unsupervised decomposition family** (paradigm 119/121 — 2 graveyards, ratified 2026-05-21 §6.66) — exception supervised regime classifier (paradigm 69 BTC RV p90 threshold) + ground-truth event anchor (paradigm 22 funding cycle 8h)
+15. **Liquidity-microstructure single-domain 4h-frame conjunction** (paradigm 105/111/121/131 — 4 graveyards, ratified 2026-05-21 §6.66) — exception microstructure 5m frame (paradigm 21/24/127/128 R-5 active) + multi-domain conjunction
+
+### Advisory caution families (not yet Tier 4, ≥2 dogfoods)
+- ATR-normalized magnitude breakout (paradigm 115 R-1 + paradigm 150 R-0)
+- 5m microstructure single-domain (paradigm 80/82/83/85 — 4 cumulative, formal retire 직전)
+- Universe-aggregate scalar statistic (paradigm 115/116/118 — 3 dogfoods, NARROW_SCOPE_LIFE_CHANGING_FAIL 일관)
+- Calendar/clock-anchor 4h cross-asset (paradigm 113/157 — Lesson #68 candidate)
+- CVD/orderflow imbalance single-domain (paradigm 138/139/140/141/142/143/163 — 7 cumulative)
 
 ## Reference
 - `.claude/plans/research_track_master.md` §0 — 8-paradigm DNA matrix

@@ -6212,3 +6212,62 @@ CONFIRMED 정식 elevation: substrate audit 시 endpoint reachability (existence
 
 **END 2026-05-21 22:05 KST paradigm 168 META RATIFICATION BATCH complete** — 3 family retires (basis/markPrice 4h MR + HMM unsupervised + liquidity-microstructure 4h-frame) + 2 lesson confirmeds (Lesson #61 amendment permanent asset + Lesson #28 amendment) + Lesson #69 5-item template 영구 자산화 + Lesson #57/#42 reaffirmed. paradigm 169 권고 Option η.
 
+
+---
+
+## §6.67 paradigm 169 — alt_perp_swap_basis_term_structure_carry_differential_directional_4h
+
+**Dispatch**: 2026-05-21 22:11 KST
+**Verdict**: `SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT` (R-0 prescreen, no R-1 dispatch)
+**Lesson #69 dogfood**: 5th post-CONFIRMED strict 5-item template — caught substrate-shape FAIL before R-1 dispatch
+
+### Hypothesis
+Cross-tenor carry differential per-sym (8h perp funding annualized − 3M quarterly futures implied basis annualized) rolling 7d z-score |z|≥2 → 4h directional arbitrage convergence (carry-rich SHORT, carry-cheap LONG). 4-quadrant SNT. Claimed cohort: 7 deep-syms × 2.25yr.
+
+### R-0 strict 5-item template execution
+
+| Item | Lesson | Verdict | Detail |
+|------|--------|---------|--------|
+| 1 | #61 amendment slug grep | PASS | No DNA 5/6 duplicate (paradigm 22 R-5 funding_carry adjacent but cross-tenor differential distinct) |
+| 2 | #28 amendment substrate-shape | **FAIL** | Quarterly archive exists (9 pairs 2.25yr+), funding DB only 4 syms × 1yr (XRP/BNB/BCH/LTC/ADA/DOT n=0), cross-source intersection ≤4 syms × ≤1yr |
+| 3 | #11 sample density | **FAIL** | 3-sym viable per-cell per-quarter n=20.5 (4-sym: 27.4) << 30 cutoff |
+| 4 | #62 DNA 4-dim | PASS | 4/5 strict distinct from paradigm 22 R-5 (statistic + universe + entry + mechanism), funding family Tier 4 retire 별 axis, basis family Tier 4 retire 별 axis |
+| 5 | #56 family-proxy OUTCOME-LEVEL | advisory caution | Sits between funding+basis retired families — would be 16th instance if executed (moot given Items 2+3 HALT) |
+
+### Substrate audit detail
+- **Binance dapi exchangeInfo** (COIN-M): 5 CURRENT_QUARTER pairs (BTCUSD/ETHUSD/XRPUSD/BNBUSD/SOLUSD)
+- **Binance Vision COIN-M monthly klines** (S3 archive): 217 quarterly contract directories, BTC/ETH/XRP/BNB: 24-25 contracts (2020+ full)
+- **SOLUSD quarterly archive**: only 9 contracts (2024-09..2026-09, 1.7yr)
+- **binance_funding_rate DB** (local antigravity_db):
+  - BTCUSDT/ETHUSDT/LINKUSDT/SOLUSDT: n=1095-1117 (range 2025-05-03..2026-05-03/10) ~1yr coverage
+  - XRPUSDT/BNBUSDT/BCHUSDT/LTCUSDT/ADAUSDT/DOTUSDT: **n=0 funding substrate missing**
+- **Cross-source intersection (funding ≥1yr ∩ quarterly futures archive)**: BTC/ETH/LINK ~1yr; SOL ~10mo overlap → 3-4 syms × ≤1yr
+
+### Cumulative status post-paradigm 169
+- Counter: graveyards 168 → **169** (R-0 halt counted)
+- Non-PASS streak: 37 → **38**
+- R-5 yield: 11/168 = 6.55% → **11/169 = 6.51%**
+- Tier 4 family retires: 15 unchanged
+- Lessons confirmed: 38 unchanged (Lesson #28 amendment dogfood +1 = 5 cumulative, Lesson #69 dogfood +1 = 5 post-CONFIRMED)
+
+### Recovery path (advisory, not auto-dispatch)
+- **Funding DB 2.25yr backfill 8 syms** (XRPUSDT/BNBUSDT/BCHUSDT/LTCUSDT/ADAUSDT/DOTUSDT + extend BTC/ETH/LINK/SOL): free unlimited Binance REST `/fapi/v1/fundingRate`, ETA 2-4hr, unlocks paradigm 169 retry + future funding-axis variants. Treated as **infrastructure task** (NOT new paradigm dispatch).
+
+### Cross-comparison: paradigm 22 R-5 funding_carry vs paradigm 169
+- **Cohort disjoint**: paradigm 22 (HBAR/AXS/COMP, no quarterly futures pairs) vs paradigm 169 (BTC/ETH/LINK/SOL, quarterly futures liquid)
+- **DNA 4/5 distinct** but cross-comparison non-overlapping (apples-to-oranges)
+- paradigm 22 R-5 baseline survives; paradigm 169 substrate-blocked
+
+### paradigm 170 next-action 권고 (Lesson #69 6th post-CONFIRMED strict)
+
+**1순위**: **funding DB 2.25yr backfill infrastructure task** (8 syms expansion, free unlimited Binance REST, 2-4hr ETA) — unlocks paradigm 169 retry + future funding-axis variants. **Treated as infrastructure, NOT new paradigm dispatch.**
+
+**2순위**: **OI term structure variant** (perp OI vs quarterly OI ratio z-score 4h directional) — substrate audit needed: Binance Vision quarterly OI 데이터 가용성 verify 의무, NEW family distinct from funding-axis
+
+**3순위**: **Volume term structure variant** (perp 4h vol vs quarterly 4h vol ratio z-score) — substrate adequate (Vision klines 자체에 volume 포함), family-distinct from funding-axis
+
+**4순위**: WS depth recorder 60+일 누적 대기 (2026-07-15+)
+
+⚠️ **dispatch 계속 — [[feedback-paradigm-campaign-continuous-parallel]] + [[feedback-persistence-over-efficiency]] 38-streak milestone 무관**
+
+**END 2026-05-21 22:30 KST paradigm 169 R-0 HALT** — Lesson #69 5th post-CONFIRMED strict template 영구 자산 적용 SUCCESSFUL (substrate-shape FAIL caught before R-1 dispatch, prevented wasted compute on n<30 cells). paradigm 170 권고: infrastructure backfill 1순위 + OI/volume term structure 2-3순위.

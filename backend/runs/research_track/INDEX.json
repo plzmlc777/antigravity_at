@@ -1791,6 +1791,24 @@
       "paradigm_number": 168,
       "phase": "R0_META_RATIFICATION_BATCH",
       "track": "meta_ratification"
+    },
+    "alt_perp_swap_basis_term_structure_carry_differential_directional_4h": {
+      "name": "alt_perp_swap_basis_term_structure_carry_differential_directional_4h",
+      "paradigm_num": 169,
+      "hypothesis": "per-symbol cross-tenor carry differential ((8h perp funding annualized) - (3M quarterly futures implied basis annualized)) rolling 7d z-score |z|>=2 -> 4h directional arbitrage convergence (carry-rich -> SHORT MR, carry-cheap -> LONG MR). 4-quadrant SNT, claimed 7 deep-syms x 2.25yr.",
+      "data_dependencies": [
+        "binance_funding_rate DB (perp 8h funding)",
+        "Binance Vision COIN-M monthly klines quarterly contracts 3M",
+        "stitched quarterly futures kline 2.25yr"
+      ],
+      "current_phase": "graveyard",
+      "metrics_files": {},
+      "gate_evals": {},
+      "type": "E",
+      "created_at": "2026-05-21T13:11:00+00:00",
+      "updated_at": "2026-05-21T13:25:00+00:00",
+      "graveyard_reason": "R-0 SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT (no R-1 dispatch). Lesson #28 amendment substrate-shape FAIL + Lesson #11 sample density FAIL joint halt. Substrate-existence: Binance Vision quarterly archive 9 pairs (BTC/ETH/XRP/BNB/BCH/LTC/ADA/DOT/LINK) full 2.25yr+. Substrate-shape: funding DB only BTC/ETH/LINK/SOL n=1095-1117 (1yr coverage 2025-05..2026-05); XRP/BNB/BCH/LTC/ADA/DOT funding n=0. Cross-source intersection: 3-4 syms x 1yr. Lesson #11: |z|>=2 trigger ~5%, 4-quadrant SNT per-quarter per-cell n=20.5 (3 syms) ~ 27.4 (4 syms) << 30 cutoff. Recovery path: funding DB 2.25yr backfill 8 syms (free unlimited Binance REST, 2-4hr) unlocks retry. Lesson #69 5th post-CONFIRMED 5-item strict template dogfood: Items 1+4 PASS (slug grep + DNA 4/5 distinct from paradigm 22 R-5 + funding family + basis family), Items 2+3 FAIL (substrate-shape + sample density), Item 5 advisory caution (potential Lesson #56 16th instance if executed). metrics: backend/runs/research_track/alt_perp_swap_basis_term_structure_carry_differential_directional_4h/TASK.md",
+      "seed_spec": null
     }
   },
   "schema_version": 1,
@@ -2067,9 +2085,9 @@
       "formal_tier_4_family_retires": 15,
       "confirmed_lessons": 38,
       "active_candidates": 20,
-      "graveyards_counter": 168,
-      "non_pass_streak": 37,
-      "r5_yield_pct": 6.55,
+      "graveyards_counter": 169,
+      "non_pass_streak": 38,
+      "r5_yield_pct": 6.51,
       "r5_live_paradigms": 11,
       "lifecycle_pump_decay_seed_status": "ACTIVE (Day 7 baseline 2026-05-28)"
     },
@@ -2080,9 +2098,12 @@
       ".claude/skills/paradigm-architect/skills/next_action_template.md (Lesson #61 amendment permanent)"
     ],
     "next_action_recommendation": {
-      "paradigm_169_priority_1": "alt_perp_swap_basis_term_structure_carry_differential_directional_4h (Option eta, family-distinct vs basis-vs-spot + funding single-rate)",
-      "paradigm_169_priority_2": "token_unlock_entry_side (lifecycle-distinct 4-dim path, freemium verify obligation)",
-      "paradigm_169_priority_3": "WS depth recorder 60d+ accumulation wait (2026-07-15+)"
+      "paradigm_169_status": "GRAVEYARD R-0 SAMPLE_INSUFFICIENT_SUBSTRATE_SHAPE_HALT 2026-05-21",
+      "paradigm_170_priority_1": "funding DB 2.25yr backfill 8-sym expansion (infrastructure task unlocks paradigm 169 retry + future funding-axis variants)",
+      "paradigm_170_priority_2": "OI term structure (perp OI vs quarterly OI ratio z-score) - substrate audit needed",
+      "paradigm_170_priority_3": "Volume term structure (perp vol vs quarterly vol ratio z-score) - substrate audit needed",
+      "lesson_69_dogfood_count": "5th post-CONFIRMED strict template (paradigm 169 successful prescreen halt)",
+      "lesson_28_amendment_dogfood_count": "5 cumulative (paradigm 164-167+169)"
     }
   }
 }

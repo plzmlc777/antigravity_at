@@ -4,7 +4,20 @@
 > Purpose: Pre-flight grid covering all cumulative Q3 lessons — block paradigm dispatch when applicable
 > Tools: Read
 
-> Last sync: 2026-05-20 KST 16:40 (lessons #1-#33 + Lesson #21 sub-finding "axis-redundancy via primary-condition saturation" candidate paradigm 116 dogfood + **Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL_LIFE_CHANGING_FAIL formal CONFIRMED amendment 3 dogfoods (paradigm 115 + 116 + 118)** + **Lesson #42 PUMP-mirror absence / mechanism CLASS asymmetry candidate 1 dogfood (paradigm 117)** + **Lesson #43 R-3 OOS holdout mandatory candidate 1 dogfood (paradigm 117)** + **Lesson #44 survivorship cohort probe candidate 1 dogfood (paradigm 117)** + **NEW Lesson #45 unsupervised decomposition w/o orthogonal mechanism candidate 2 dogfoods (paradigm 83 + 119)** + NARROW_SCOPE_LIFE_CHANGING_FAIL verdict 5 dogfoods (95+99+104+115+118) + Universe-aggregate scalar statistic axis advisory caution (3 dogfoods 115/116/118)). Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.8 + §6.9 + §6.10 + §6.11 + §6.12 + §6.13 + §6.14 + paradigm 115-119 graveyards if newer lessons exist.
+> Last sync: 2026-05-21 KST 22:30 (lessons #1-#69 + amendments). Major promotions ratified §6.66 paradigm 168 META RATIFICATION BATCH:
+> - **Lesson #42 CONFIRMED formal** (3 dogfoods paradigm 117/158/162) — capitulation MR LONG-only, FOMO continuation depleted
+> - **Lesson #57 CONFIRMED formal** + **Taker imbalance directional family Tier 4 retire** (3 dogfoods paradigm 142v2/143/165)
+> - **Lesson #61 amendment PERMANENT ASSET ELEVATION** (8 consecutive post-confirmation SUCCESS paradigm 158-167) — §next-action 권고 작성 시 slug grep + DNA 4-dim + family-retire cross-reference 영구 의무
+> - **Lesson #62 CONFIRMED 11 boundary dogfoods**
+> - **Lesson #28 amendment CONFIRMED formal** (5 cumulative dogfoods paradigm 164-169) — substrate-shape vs existence 별도 verify 영구 의무
+> - **Lesson #69 CONFIRMED formal + 5-item strict template 영구 자산화** (5 post-CONFIRMED dogfoods paradigm 163-169) — Item 1 slug grep / Item 2 substrate-shape / Item 3 per-quarter n / Item 4 DNA 4-dim / Item 5 family-proxy
+> - Lesson #56 CONFIRMED 17+ instances (axis novelty alone ≠ alpha)
+> - Lesson #66 candidate (sign-conditional bilateral reframe = mirror antipattern double-bind, 1 dogfood paradigm 155)
+> - Lesson #67 candidate (macro single-asset broadcast antipattern, 1 dogfood paradigm 156)
+> - Lesson #68 candidate (session-boundary anchor × 4h hold cross-asset fee-floor-bound, 1 dogfood paradigm 157)
+> - Lesson #8 amendment candidate (universal LONG bias trigger-statistic-class-dependent, 6 dogfoods paradigm 99/148/156/157/158/160)
+> - Lesson #21 5 predictive dogfoods CONFIRMED (paradigm 83/165 axis stacking 정착)
+> Refresh from `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.66 + paradigm 154-169 entries if newer.
 
 ## Critical Lessons (mandatory R-0 / R-1 prescreen halt grid)
 
@@ -368,6 +381,102 @@ R-1 verdict 분기 시 (Lesson #20 narrow-scope candidate 자격 충족 case):
 - life-changing 4-dim gate 측정 의무 → NARROW_SCOPE_CANDIDATE (4/4) vs NARROW_SCOPE_LIFE_CHANGING_FAIL (any FAIL)
 
 ## Reference
-- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — authoritative lesson index
+- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 + §6.66 — authoritative lesson index
 - `.claude/plans/paradigm_architect_handoff.json` — recent session deltas
-- 95 graveyard precedents — `backend/runs/research_track/graveyard__*.md`
+- 169 graveyard precedents — `backend/runs/research_track/graveyard__*.md`
+
+---
+
+## §POST-2026-05-21 META RATIFICATION BATCH lessons
+
+### Lesson #42 CONFIRMED formal — Mechanism CLASS asymmetric (capitulation-only LONG mechanism) [3 dogfoods paradigm 117/158/162]
+**Trigger**: R-1 paradigm proposing "extreme magnitude → mean-revert" 또는 "anchor event → directional continuation" class.
+**Check**: B_same_sign 또는 B_mirror orthogonal-mirror cell sigex 측정. capitulation MR LONG direction-asymmetric vs FOMO/anchor event continuation depleted입증.
+**Action**:
+- paradigm 117 R-3 PUMP × SHORT sigex +0.28 → mechanism asymmetric LONG-only
+- paradigm 158 R-1 PUMP × LONG 24h scale BROAD_FALSIFIED (4-quadrant 0/4 PASS)
+- paradigm 162 R-1 high anchor × SHORT 4h DIRECTION INVERTED (Q3 sigex -2.21 vs Q4 sigex +2.30 inversion)
+
+**Permanent application**: paradigm-architect R-3 caveat suite + R-0 prescreen at hypothesis class identification. Magnitude/anchor event continuation hypothesis는 capitulation-MR mirror만 valid alpha-bearing direction.
+
+### Lesson #57 CONFIRMED formal — Taker imbalance directional family Tier 4 retire [3 dogfoods paradigm 142v2/143/165]
+**Trigger**: R-1 paradigm proposing taker-buy/sell imbalance z-score directional axis (4h+ directional).
+**Check**: Lesson #57 candidate 3 dogfoods accumulated → family Tier 4 retire formal.
+**Action**: 다음 sub-mechanism `HALT_BEFORE_R1`:
+- taker_buy_quote_vol z-score signed directional 4h+
+- taker imbalance ratio z-score directional
+- compound taker-imbalance × OI / funding (Lesson #21 axis stacking subset)
+
+**Family-distinct path**: taker imbalance + external event (lifecycle / listing) 결합 (paradigm-distinct sub-mechanism) only valid R-1 dispatch path.
+
+### Lesson #61 amendment PERMANENT ASSET ELEVATION — next-action inventory check obligation [8 consecutive post-confirmation SUCCESS paradigm 158-167, 9 cumulative dogfoods]
+**Trigger**: §next-action recommendation 작성 시 (paradigm-architect skill `next_action_template.md`).
+**Check** (3 items 영구 의무):
+1. Slug duplicate search (Lesson #61 Item 1 grep) — execute + report
+2. DNA 4-dim audit table (Lesson #62 Item 4) — proximate prior paradigms
+3. Family-retire eligibility cross-reference (Lesson #56 Item 5) — 15 formal Tier 4 + advisory caution
+
+**Permanent application**: 모든 paradigm §next-action 권고 작성 시 위 3 items 명시 출력 의무. **Stale recommendation chain ≥2 consecutive triggers ratification of permanent-asset elevation status.**
+
+Compute saved cumulative ~75x (R-0 halt이 R-1 dispatch 사전 차단으로).
+
+### Lesson #62 CONFIRMED — Family-distinct strict 4-dim ≥2 obligation [11 boundary dogfoods]
+**Trigger**: R-0 prescreen Item 4 — paradigm vs proximate prior paradigm 4-dim audit (statistic / universe / entry-side / mechanism / hold).
+**Check**: strict count 측정 (partial이 아닌 substantive change 갯수).
+**Action**:
+- strict 0-1/5 → R0_HALT_BY_DNA_DUPLICATE
+- strict 2/5 boundary → boundary dispatch with explicit Lesson #62 dogfood logging
+- strict ≥3/5 → dispatch authorize (단 family-proxy cross-reference 필수)
+
+**Retiming reframe**: hold timescale 단독 변경 (e.g., 4h→24h)은 1 strict only — family-distinct 미충족 (paradigm 153→154 retiming reframe 사례).
+
+### Lesson #28 amendment CONFIRMED formal — substrate-shape vs substrate-existence distinction [5 cumulative dogfoods paradigm 164-169]
+**Trigger**: R-0 prescreen Item 2 substrate audit.
+**Check**: Endpoint reachability (existence) + data structure dimension match (shape) 별도 verify.
+**Action**: shape mismatch (예: single-tenor index vs multi-tenor term structure) → R0_HALT_BY_SUBSTRATE_SHAPE_MISMATCH (paradigm 164 Deribit DVOL fatal precedent).
+
+**Dogfood chain**:
+1. paradigm 164 (1st FATAL): Deribit DVOL single-tenor 30d ≠ multi-tenor term structure
+2. paradigm 165 (2nd NEUTRAL): Binance OI + aggTrade existence + shape PASS
+3. paradigm 166 (3rd NEUTRAL): cross-exchange OI substrate prior-verified
+4. paradigm 167 (4th NEUTRAL): markPriceKlines pre-verified
+5. paradigm 169 (5th FAIL): funding DB 4 syms × 1yr only ≠ 7 syms × 2.25yr hypothesis requirement
+
+### Lesson #69 CONFIRMED formal — 5-item strict template 영구 자산화 [5 post-CONFIRMED dogfoods paradigm 163-169]
+**Trigger**: 모든 R-0 prescreen execution.
+**Check**: 5 items 영구 의무 적용:
+- Item 1: Lesson #61 amendment slug grep
+- Item 2: Lesson #28 amendment substrate-shape audit (existence + shape distinction)
+- Item 3: Lesson #11 sample density (per-quarter n ≥ 30 cutoff)
+- Item 4: Lesson #62 DNA 4-dim audit table
+- Item 5: Lesson #56 family-proxy OUTCOME-LEVEL cross-reference table
+
+**Action**: 5 items 중 어느 하나라도 FAIL → R-0 HALT specific lesson cited.
+
+### Lesson #66 candidate — Sign-conditional bilateral reframe of unidirectional R-5 paradigm [1 dogfood paradigm 155]
+**Trigger**: R-1 paradigm proposing sign-conditional bilateral 4-quadrant reframe of existing unidirectional R-5 active paradigm.
+**Check**: prior R-5 LONG-only paradigm × proposed SHORT mirror quadrant = paradigm 70 SHORT mirror antipattern 동형.
+**Action**: dim count ≤ 1 strict + 6/6 DNA match with prior graveyard → R0_HALT_BY_DNA_DUPLICATE.
+
+### Lesson #67 candidate — Macro single-asset trigger × cross-asset broadcast antipattern [1 dogfood paradigm 156]
+**Trigger**: BTC (or single macro asset) trigger source × cross-asset alt broadcast continuation.
+**Check**: cross-asset correlation > 0.5 absorbs directional info via macro broadcast (paradigm 69 success required 3-axis spec; single macro broadcast threshold insufficient).
+**Action**: macro single-asset broadcast 형식 paradigm 발의 시 R-0 caution flag. 단 conditioning filter (paradigm 69 vol regime gate) ≠ trigger source — ESCAPE 가능 path.
+
+### Lesson #68 candidate — Session-boundary anchor × 4h hold cross-asset fee-floor-bound mechanism-inverted antipattern [1 dogfood paradigm 157]
+**Trigger**: session-boundary universe-wide anchor (NY close 21UTC / Asia open 00UTC / London 16UTC) × 4h hold × cross-asset directional.
+**Check**: paradigm 157 Q3 vs Q4 4.51σ inversion + Q1+Q4 LONG ~0bp / Q2+Q3 SHORT ~-16bp 동형.
+**Action**: 2nd dogfood (London 16UTC / Asia 00UTC / week boundary) 누적 시 Lesson #68 CONFIRMED + session-boundary 4h family Tier 4 retire 자격.
+
+### Lesson #21 CONFIRMED 5 predictive dogfoods — axis stacking does not synthesize alpha [paradigm 83/165 정착]
+**Trigger**: R-1 paradigm proposing 2+ feature axes (multi-feature k-means, composite z, axis-1 × axis-2 compound).
+**Check**: per-cluster/per-cell obs_t fully negative + max |gross| < fee floor (16bp).
+**Action**: axis-stacking only → R0_HALT_BY_AXIS_STACKING. orthogonal mechanism (NOT 2 retired families compound) required.
+
+### Lesson #8 amendment candidate — universal LONG bias trigger-statistic-class-dependent [6 dogfoods paradigm 99/148/156/157/158/160]
+**Trigger**: 4-quadrant SNT 측정 시 A_focus_LONG + B_mirror_LONG 둘 다 양수 패턴 확인.
+**Check**: trigger statistic class별 LONG bias 발현/depletion 분리:
+- magnitude/return class (24h drawdown/PUMP) — active LONG bias
+- anchor event class (session-boundary, calendar) — depleted
+- cross-exchange volume share — depleted
+**Action**: paradigm 발의 시 statistic class identification + LONG bias prior 적용. 7th dogfood 누적 시 amendment formal CONFIRMED.
