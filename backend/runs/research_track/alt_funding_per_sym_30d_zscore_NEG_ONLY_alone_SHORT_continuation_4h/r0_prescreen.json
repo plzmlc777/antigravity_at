@@ -1,0 +1,76 @@
+{
+  "paradigm_name": "alt_funding_per_sym_30d_zscore_NEG_ONLY_alone_SHORT_continuation_4h",
+  "paradigm_id": 141,
+  "phase": "R-0",
+  "run_ts_kst": "2026-05-21 12:19 KST",
+  "hypothesis": "Per-symbol funding rate 30d rolling z-score <= -2.0 (extreme LONG-crowded condition) triggers 4h SHORT continuation as cascade unwind (mirror direction of paradigm 22 R-5 LONG mean-reversion).",
+  "family_distinct_vs_paradigm_22_r5": {
+    "paradigm_22_r5_seeded": {
+      "trigger": "funding_z extreme",
+      "direction": "LONG mean-reversion",
+      "mechanism": "passive funding normalization",
+      "universe": "HBAR/AXS/COMP (3 alts)",
+      "hold": "8h cycle",
+      "alpha_pct_mean": 29.89
+    },
+    "paradigm_141_THIS": {
+      "trigger": "funding_z <= -2.0 (A-side only)",
+      "direction": "SHORT continuation",
+      "mechanism": "crowd capitulation cascade",
+      "universe": "10 alts (verified subset)",
+      "hold": "4h directional",
+      "distinct": "direction mechanism family OPPOSITE — MR vs continuation, mutually exclusive hypothesis"
+    },
+    "dna_overlap_dim": "trigger statistic (funding_z) only; direction + mechanism + universe + hold all distinct = 1/6 overlap, family-distinct confirmed"
+  },
+  "lesson_prescreen": {
+    "lesson_11_sample_density": {
+      "expected_n_per_cell": 144,
+      "cutoff": 30,
+      "verdict": "PASS"
+    },
+    "lesson_19_symmetric_negative_test_1sided": {
+      "type": "1-sided SNT (Lesson #19 exception)",
+      "justification": "B-side substrate empirically absent (pos2 rate 0.20%, 8/10 syms zero pos2 events)",
+      "quadrants_measured": ["A_focus_SHORT", "A_mirror_LONG"],
+      "B_side_skipped_reason": "Lesson #40 sub-class C asymmetric substrate (4th dogfood inheritance from paradigm 139)"
+    },
+    "lesson_30_data_window_ratio": {
+      "data_span_days_funding": 365,
+      "data_span_days_ohlcv": 730,
+      "data_window_ratio": 1.0,
+      "verdict": "PASS — funding full universe window"
+    },
+    "lesson_40_structural_threshold_feasibility": {
+      "negative_side_z_min_per_sym": {
+        "BTCUSDT": -4.95, "ETHUSDT": -5.70, "SOLUSDT": -52.76,
+        "AVAXUSDT": -6.31, "LINKUSDT": -6.06, "DOGEUSDT": -5.20,
+        "HBARUSDT": -6.45, "AXSUSDT": -55.90, "COMPUSDT": -49.56, "ETCUSDT": -13.75
+      },
+      "target_threshold": -2.0,
+      "all_syms_z_min_below_threshold": true,
+      "verdict": "STRUCTURAL_FEASIBLE — A-side z<=-2.0 reachable on all 10 syms"
+    },
+    "lesson_46_stratified_n50x4q": {
+      "required_total": 200,
+      "actual_a_side_total": 575,
+      "verdict": "PASS"
+    },
+    "lesson_55_one_sided_substrate_justification": {
+      "neg2_total": 575,
+      "pos2_total": 22,
+      "asymmetry_ratio": 0.96,
+      "syms_with_zero_pos2": 6,
+      "verdict": "VALID — asymmetric distribution structurally justifies 1-sided declaration"
+    },
+    "lesson_21_axis_stacking": "N/A (single-axis)",
+    "lesson_54_composite_statistic": "N/A (single transform)"
+  },
+  "universe_verified": [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "AVAXUSDT", "LINKUSDT",
+    "DOGEUSDT", "HBARUSDT", "AXSUSDT", "COMPUSDT", "ETCUSDT"
+  ],
+  "n_universe": 10,
+  "trigger_rate_a_side_pct": 5.18,
+  "verdict": "R-0_PASS_DISPATCH_R1"
+}

@@ -1,0 +1,338 @@
+{
+  "paradigm_name": "alt_funding_per_sym_30d_zscore_x_cvd_4h_divergence_directional_4h",
+  "paradigm_number": 139,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T12:05:39+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_LESSON_40_PERSYM_ZSCORE_INHERITS_ASYMMETRY",
+  "sub_class": "paradigm 139 per-sym 30d funding z-score symmetric \u00b12.0 infeasible on B-side: 0/10 syms reach z>=+2.0 at rate>=1.5% (vs 10/10 on A-side). 4th Lesson #40 dogfood instance: per-sym z-score normalization does NOT rescue symmetric threshold feasibility when raw scalar is asymmetrically exchange-bounded (Binance funding +1bp hard cap pulls std from negative tail). Reformulation: A-only 2-quadrant SNT OR percentile rank OR CVD-alone (paradigm 72 risk).",
+  "verdict_components": {
+    "step1_lesson_40_structural_threshold": "FAIL_PERSYM_ZSCORE_INHERITS_RAW_FUNDING_ASYMMETRY",
+    "step2_substrate_availability": "PASS",
+    "step3_lesson_11_sample_density": "NOT_REACHED",
+    "step4_lesson_21_magnitude_ratio": "NOT_REACHED"
+  },
+  "hypothesis": {
+    "axis_1": "funding rate per-sym 30d z-score (Z_WINDOW=90 @ 8h cadence)",
+    "axis_2": "CVD ratio 4h aggregate via TBR joblib 5m",
+    "joint_trigger_A": "funding_z \u2264 -2.0 AND CVD \u2264 -0.1",
+    "joint_trigger_B": "funding_z \u2265 +2.0 AND CVD \u2265 +0.1",
+    "direction_A_focus": "SHORT 4h (smart money exit before crowd capitulation)",
+    "direction_B_focus": "LONG 4h (mirror condition)"
+  },
+  "params": {
+    "funding_z_lower": -2.0,
+    "funding_z_upper": 2.0,
+    "cvd_lower": -0.1,
+    "cvd_upper": 0.1,
+    "z_window_obs": 90,
+    "z_min_periods": 60
+  },
+  "universe_cohort": [
+    "HBARUSDT",
+    "AXSUSDT",
+    "COMPUSDT",
+    "AVAXUSDT",
+    "SOLUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "LDOUSDT",
+    "ETCUSDT"
+  ],
+  "step1_lesson_40": {
+    "per_sym": {
+      "HBARUSDT": {
+        "n": 1054,
+        "p1": -3.307381252302062,
+        "p5": -2.0783653058703475,
+        "p50": 0.27145204942740814,
+        "p95": 1.2592760820106408,
+        "p99": 1.4538418729172715,
+        "min": -5.2764995617474915,
+        "max": 1.7762120500669365,
+        "n_below_neg2": 56,
+        "rate_below_neg2": 0.05313092979127135,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      },
+      "AXSUSDT": {
+        "n": 1549,
+        "p1": -4.285358019579699,
+        "p5": -2.0240853938789374,
+        "p50": 0.3549767111147047,
+        "p95": 1.29421202718659,
+        "p99": 1.6671935936338782,
+        "min": -9.249180660027136,
+        "max": 2.003536176779366,
+        "n_below_neg2": 78,
+        "rate_below_neg2": 0.05035506778566817,
+        "n_above_pos2": 1,
+        "rate_above_pos2": 0.0006455777921239509
+      },
+      "COMPUSDT": {
+        "n": 1054,
+        "p1": -4.792991882231161,
+        "p5": -1.8902064492575001,
+        "p50": 0.27974770440506047,
+        "p95": 0.7488174621838196,
+        "p99": 0.9554270997103627,
+        "min": -9.214172999250827,
+        "max": 1.4395585139752272,
+        "n_below_neg2": 46,
+        "rate_below_neg2": 0.04364326375711575,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      },
+      "AVAXUSDT": {
+        "n": 1036,
+        "p1": -3.466881379414169,
+        "p5": -2.068660877328548,
+        "p50": 0.355644424819788,
+        "p95": 1.1667872776579622,
+        "p99": 1.5113565825220991,
+        "min": -5.19477402845285,
+        "max": 1.930410182487726,
+        "n_below_neg2": 56,
+        "rate_below_neg2": 0.05405405405405406,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      },
+      "SOLUSDT": {
+        "n": 1058,
+        "p1": -3.2915173033054312,
+        "p5": -1.9156220990337465,
+        "p50": 0.1862448656590262,
+        "p95": 1.2692296119547,
+        "p99": 1.470163315391791,
+        "min": -9.234052574444371,
+        "max": 3.1214163053414263,
+        "n_below_neg2": 47,
+        "rate_below_neg2": 0.0444234404536862,
+        "n_above_pos2": 1,
+        "rate_above_pos2": 0.000945179584120983
+      },
+      "DOGEUSDT": {
+        "n": 1058,
+        "p1": -2.71940780429809,
+        "p5": -1.9053480680939658,
+        "p50": 0.1487572817598075,
+        "p95": 1.2855889486359138,
+        "p99": 1.6129332802519003,
+        "min": -4.50967137580592,
+        "max": 6.449132706253975,
+        "n_below_neg2": 48,
+        "rate_below_neg2": 0.045368620037807186,
+        "n_above_pos2": 1,
+        "rate_above_pos2": 0.000945179584120983
+      },
+      "ETHUSDT": {
+        "n": 1036,
+        "p1": -3.0718529193507136,
+        "p5": -1.9060463021215717,
+        "p50": 0.00998697387290393,
+        "p95": 1.4086380396343228,
+        "p99": 1.7288542711428796,
+        "min": -4.837637142777051,
+        "max": 2.1931362833547863,
+        "n_below_neg2": 42,
+        "rate_below_neg2": 0.04054054054054054,
+        "n_above_pos2": 2,
+        "rate_above_pos2": 0.0019305019305019305
+      },
+      "LINKUSDT": {
+        "n": 1036,
+        "p1": -3.1746745409247854,
+        "p5": -2.127566660913121,
+        "p50": 0.337605289466117,
+        "p95": 1.0566910622824952,
+        "p99": 1.2625052516447512,
+        "min": -5.053403153987642,
+        "max": 1.4092843024353068,
+        "n_below_neg2": 58,
+        "rate_below_neg2": 0.055984555984555984,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      },
+      "LDOUSDT": {
+        "n": 1054,
+        "p1": -3.569821224108701,
+        "p5": -2.0253436804860647,
+        "p50": 0.28759760819640856,
+        "p95": 1.235250194089966,
+        "p99": 1.5411277999939947,
+        "min": -5.441121333190812,
+        "max": 1.7073465288764276,
+        "n_below_neg2": 58,
+        "rate_below_neg2": 0.05502846299810247,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      },
+      "ETCUSDT": {
+        "n": 1054,
+        "p1": -3.4782510324323037,
+        "p5": -2.0907799227694723,
+        "p50": 0.34683875140225057,
+        "p95": 1.0689819409821608,
+        "p99": 1.3050452338879241,
+        "min": -7.725435127495635,
+        "max": 1.520804939146404,
+        "n_below_neg2": 59,
+        "rate_below_neg2": 0.055977229601518026,
+        "n_above_pos2": 0,
+        "rate_above_pos2": 0.0
+      }
+    },
+    "n_syms_audited": 10,
+    "n_syms_below_reachable": 10,
+    "n_syms_above_reachable": 0,
+    "n_syms_zero_above_pos2": 6,
+    "n_syms_zero_below_neg2": 0,
+    "cond_lower_infeasible": false,
+    "cond_upper_infeasible": true,
+    "structurally_infeasible": true,
+    "verdict": "FAIL_PERSYM_ZSCORE_INHERITS_RAW_FUNDING_ASYMMETRY",
+    "threshold_definition": "funding_z \u2264 -2.0 OR funding_z \u2265 +2.0 (per-sym 30d=90obs)"
+  },
+  "step2_substrate_audit": {
+    "funding_db": {
+      "HBARUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "AXSUSDT": {
+        "n": 1608,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 12:00:00.007000"
+      },
+      "COMPUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "AVAXUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "SOLUSDT": {
+        "n": 1117,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "DOGEUSDT": {
+        "n": 1117,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "ETHUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "LINKUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "LDOUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "ETCUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      }
+    },
+    "cvd_joblib": {
+      "HBARUSDT": {
+        "available": true,
+        "joblib_mb": 9.35
+      },
+      "AXSUSDT": {
+        "available": true,
+        "joblib_mb": 8.97
+      },
+      "COMPUSDT": {
+        "available": true,
+        "joblib_mb": 9.38
+      },
+      "AVAXUSDT": {
+        "available": true,
+        "joblib_mb": 9.16
+      },
+      "SOLUSDT": {
+        "available": true,
+        "joblib_mb": 9.48
+      },
+      "DOGEUSDT": {
+        "available": true,
+        "joblib_mb": 9.6
+      },
+      "ETHUSDT": {
+        "available": true,
+        "joblib_mb": 9.72
+      },
+      "LINKUSDT": {
+        "available": true,
+        "joblib_mb": 9.62
+      },
+      "LDOUSDT": {
+        "available": true,
+        "joblib_mb": 9.28
+      },
+      "ETCUSDT": {
+        "available": true,
+        "joblib_mb": 9.51
+      }
+    },
+    "n_funding_syms_ok": 10,
+    "n_cvd_syms_ok": 10,
+    "verdict": "PASS"
+  },
+  "lesson_44_xref_22nd_amendment": {
+    "paradigm_22_funding_carry_zscore_R5": "R-5 SEEDED HBAR/AXS/COMP \u2014 uses per-sym 30d z-score on funding (directional MR not symmetric trigger). paradigm 22 is one-sided (LONG-crowded only -> SHORT mean-reversion), avoiding the symmetric B-side infeasibility paradigm 139 hits.",
+    "paradigm_138_raw_bp_R0_halt": "GRAVEYARD 2026-05-21 11:56 KST \u2014 raw \u00b150bp threshold infeasible, Lesson #40 3rd dogfood (paradigm 109+110+138). paradigm 139 attempted reformulation via per-sym z-score; STEP 1 reveals z-score INHERITS the underlying raw funding asymmetry (B-side hard cap at +1bp pulls std dominantly from negative tail, so z \u2265 +2.0 is structurally rare).",
+    "paradigm_109_110_lesson_40_CONFIRMED": "Original dogfood \u2014 non-negative aggregate statistic + symmetric \u00b1T trigger structurally infeasible. paradigm 139 EXTENDS scope to per-sym z-score normalization of asymmetrically exchange-bounded scalars: z-score does NOT rescue symmetric trigger feasibility because std inherits the bound.",
+    "funding_family_tier_4_retire": "8 graveyards (73/79*/96/97/98/99/103/132/138 \u2014 *paradigm 22+79 R-5 exception). paradigm 139 9th funding family graveyard (regardless of CVD axis innovation).",
+    "paradigm_72_taker_volume_zscore_GRAVEYARD": "5m taker volume z-score family Tier 4 retire (Q3 \u00a76.2 #10). CVD ratio axis in paradigm 139 is DNA-distinct (ratio not magnitude) but funding axis structural failure precludes joint test."
+  },
+  "lesson_40_sub_amendment_4th_dogfood": {
+    "instance_count": 4,
+    "instances": [
+      "paradigm 109 RV symmetric z<=-T (non-negative aggregate)",
+      "paradigm 110 std symmetric z<=-T (non-negative aggregate)",
+      "paradigm 138 funding raw \u00b150bp (asymmetrically exchange-bounded)",
+      "paradigm 139 funding per-sym 30d z-score \u00b12.0 (asymmetric bound inherited via std)"
+    ],
+    "amendment_claim": "Lesson #40 sub-amendment 4th dogfood elevation candidate: Per-sym z-score normalization does NOT rescue symmetric threshold feasibility when the underlying scalar is asymmetrically exchange-bounded. The rolling std inherits the asymmetry (dominated by uncapped tail), so z-score thresholds remain structurally rare on the capped side. Reformulation alternatives for funding: (a) one-sided z-score (paradigm 22 approach, A-side only), (b) percentile rank cross-sectional per-time-stamp (removes per-sym std bias), (c) absolute funding magnitude on log scale, (d) drop B-quadrant symmetric pretense, run A-only directional R-1.",
+    "elevation_to_confirmed_path": "Lesson #40 originally CONFIRMED via 2 dogfoods (109+110). paradigm 138 was 3rd dogfood (asymmetrically bounded scalar). paradigm 139 is 4th dogfood (per-sym z-score normalization does not rescue). Sub-amendment text expansion: 'non-negative aggregate OR asymmetrically exchange-bounded OR z-score of asymmetrically bounded' all fail symmetric \u00b1T."
+  },
+  "family_distinct_audit": {
+    "Funding_single_signal_raw_bp_paradigm138": "INFEASIBLE Lesson #40 STEP 1 STAGE 1",
+    "Funding_single_signal_persym_zscore_paradigm139": "INFEASIBLE Lesson #40 STEP 1 STAGE 2",
+    "Funding_persym_zscore_one_sided_A_only": "AVAILABLE (paradigm 22 approach)",
+    "Funding_percentile_rank_cross_sectional": "AVAILABLE",
+    "Funding_velocity_zscore": "RISKY (paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL)",
+    "CVD_5m_to_4h_alone_no_funding": "AVAILABLE (paradigm 72 risk to verify)",
+    "Drop_funding_use_OI_CVD_joint": "AVAILABLE (paradigm 138 R-0 cohort + path 4)"
+  },
+  "reformulation_paths_for_user": {
+    "path_1_funding_A_only_zscore_x_CVD_A_only": "Drop B-quadrant symmetric SNT pretense. Run 2-quadrant (A_focus SHORT + A_mirror LONG) only. Recovers paradigm 22 R-5 alignment (one-sided), CVD axis = NEW. Lesson #19 SNT requires 4-quadrant by default but Lesson #40 structural infeasibility justifies asymmetric 2-quadrant on theoretical ground (mirror infeasible substrate, not test failure).",
+    "path_2_funding_percentile_rank_cross_sectional": "Replace per-sym z-score with cross-sectional percentile rank (per-time-stamp across 10 alts: bottom 10% / top 10%). Removes per-sym std asymmetry bias. Lesson #40 risk: still inherits raw funding rate hard-cap (top decile would include ZERO since p99 = +1bp universally). FAIL CANDIDATE: Top-decile trigger would degenerate to ties at +1bp cap.",
+    "path_3_drop_funding_axis_use_CVD_alone_4h": "Drop funding entirely. CVD 4h ratio z-score directional. Paradigm 72 risk (5m taker volume z-score family Tier 4 retire) \u2014 but CVD is RATIO not volume magnitude, and 4h aggregation breaks 5m fee floor (paradigm 72 was 5m bar). Verify with separate R-0 prescreen.",
+    "path_4_funding_z_velocity_per_sym": "Replace level threshold with \u0394funding_z (velocity) \u2014 paradigm 99 graveyard warned NARROW_SCOPE_LIFE_CHANGING_FAIL. NOT RECOMMENDED.",
+    "path_5_funding_event_change_sign_flip": "paradigm 96 graveyard \u2014 sign-flip lagging marker. NOT RECOMMENDED."
+  },
+  "recommended_path_for_user_dispatch": "path_1_funding_A_only_zscore_x_CVD_A_only OR path_3_CVD_alone",
+  "campaign_state": {
+    "cumulative_graveyards_after_paradigm139": 139,
+    "streak_non_pass": "11-streak (129-139)",
+    "r5_live_count": 10,
+    "lesson_40_instances": 4,
+    "funding_family_tier_4_graveyards": 9
+  }
+}

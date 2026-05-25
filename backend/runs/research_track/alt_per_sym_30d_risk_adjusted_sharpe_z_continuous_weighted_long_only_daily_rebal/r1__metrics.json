@@ -1,0 +1,334 @@
+{
+  "paradigm_id": 182,
+  "paradigm_slug": "alt_per_sym_30d_risk_adjusted_sharpe_z_continuous_weighted_long_only_daily_rebal",
+  "phase": "R-1",
+  "verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT",
+  "verdict_reason": "z_excess 0.17 < 2.0",
+  "run_ts": "2026-05-22T00:17:36.748824Z",
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "ADAUSDT",
+      "DOGEUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "BCHUSDT",
+      "NEARUSDT",
+      "FILUSDT",
+      "WIFUSDT"
+    ],
+    "n_syms": 14,
+    "return_window_d": 30,
+    "vol_window_d": 30,
+    "z_window_d": 90,
+    "z_floor": 0.5,
+    "z_cap": 3.0,
+    "fee_bp_one_way": 8.0,
+    "n_perm": 1000,
+    "rng_seed": 20260522,
+    "statistic_class": "risk_adjusted_sharpe_like"
+  },
+  "panel": {
+    "n_days_aligned": 701,
+    "date_range": [
+      "2024-05-30 00:00:00",
+      "2026-04-30 00:00:00"
+    ]
+  },
+  "metrics": {
+    "portfolio_gross": {
+      "label": "portfolio_gross",
+      "n_days": 701,
+      "mean_daily_bp": -4.5274,
+      "std_daily_bp": 302.4885,
+      "ann_return_pct": -15.235,
+      "ann_vol_pct": 57.79,
+      "sharpe": -0.286,
+      "sortino": -0.375,
+      "max_dd_pct": -81.554,
+      "total_return_pct": -47.171
+    },
+    "portfolio_net": {
+      "label": "portfolio_net",
+      "n_days": 701,
+      "mean_daily_bp": -7.0216,
+      "std_daily_bp": 302.4225,
+      "ann_return_pct": -22.615,
+      "ann_vol_pct": 57.778,
+      "sharpe": -0.444,
+      "sortino": -0.578,
+      "max_dd_pct": -82.744,
+      "total_return_pct": -55.652
+    },
+    "benchmark_equal_weight": {
+      "label": "benchmark_equal_weight_basket",
+      "n_days": 701,
+      "mean_daily_bp": -0.1653,
+      "std_daily_bp": 374.0326,
+      "ann_return_pct": -0.602,
+      "ann_vol_pct": 71.459,
+      "sharpe": -0.008,
+      "sortino": -0.012,
+      "max_dd_pct": -68.406,
+      "total_return_pct": -39.575
+    },
+    "benchmark_btc_bnh": {
+      "label": "benchmark_btc_bnh",
+      "n_days": 701,
+      "mean_daily_bp": 4.6509,
+      "std_daily_bp": 243.0306,
+      "ann_return_pct": 18.497,
+      "ann_vol_pct": 46.431,
+      "sharpe": 0.366,
+      "sortino": 0.548,
+      "max_dd_pct": -49.556,
+      "total_return_pct": 12.733
+    },
+    "alpha_vs_equal_weight": {
+      "label": "alpha_vs_equal_weight",
+      "n_days": 701,
+      "mean_daily_bp": -6.8562,
+      "std_daily_bp": 271.2456,
+      "ann_return_pct": -22.146,
+      "ann_vol_pct": 51.821,
+      "sharpe": -0.483,
+      "sortino": -0.585,
+      "max_dd_pct": -70.607,
+      "total_return_pct": -52.346
+    },
+    "alpha_vs_btc": {
+      "label": "alpha_vs_btc",
+      "n_days": 701,
+      "mean_daily_bp": -11.6724,
+      "std_daily_bp": 254.7164,
+      "ann_return_pct": -34.707,
+      "ann_vol_pct": 48.664,
+      "sharpe": -0.875,
+      "sortino": -1.309,
+      "max_dd_pct": -74.872,
+      "total_return_pct": -64.871
+    },
+    "tracking_error_annualized": 0.5182,
+    "information_ratio_vs_eq": -0.4829
+  },
+  "util_diagnostics": {
+    "avg_active_syms": 4.83,
+    "median_active_syms": 3,
+    "max_active_syms": 14,
+    "avg_total_weight": 0.6842,
+    "median_total_weight": 1.0,
+    "days_zero_weight": 203,
+    "days_total_weight_ge_0_3": 498,
+    "util_pct_days_active": 71.04,
+    "util_pct_capital_deployed_avg": 68.42
+  },
+  "turnover_diagnostics": {
+    "avg_daily_turnover": 0.312,
+    "median_daily_turnover": 0.164,
+    "max_daily_turnover": 1.6101,
+    "total_fee_drag_pct": 17.484,
+    "avg_daily_fee_bp": 2.4941
+  },
+  "permutation_test": {
+    "obs_sharpe": -0.4436,
+    "null_mean_sharpe": -0.5188,
+    "null_std_sharpe": 0.4478,
+    "sharpe_excess": 0.0753,
+    "z_excess": 0.1681,
+    "perm_p_value": 0.436,
+    "n_perm": 1000
+  },
+  "per_sym_contribution": {
+    "BTCUSDT": {
+      "abs_contrib_bp": 155.6641101388385,
+      "pct_share": 0.671,
+      "positive": true
+    },
+    "ETHUSDT": {
+      "abs_contrib_bp": 949.3532632934462,
+      "pct_share": 4.09,
+      "positive": true
+    },
+    "BNBUSDT": {
+      "abs_contrib_bp": -1271.0267341948984,
+      "pct_share": -5.476,
+      "positive": false
+    },
+    "SOLUSDT": {
+      "abs_contrib_bp": 798.3015551290398,
+      "pct_share": 3.439,
+      "positive": true
+    },
+    "XRPUSDT": {
+      "abs_contrib_bp": 4292.888576929465,
+      "pct_share": 18.495,
+      "positive": true
+    },
+    "ADAUSDT": {
+      "abs_contrib_bp": 837.3510997818927,
+      "pct_share": 3.608,
+      "positive": true
+    },
+    "DOGEUSDT": {
+      "abs_contrib_bp": 2312.5040951006736,
+      "pct_share": 9.963,
+      "positive": true
+    },
+    "AVAXUSDT": {
+      "abs_contrib_bp": 672.6628437050794,
+      "pct_share": 2.898,
+      "positive": true
+    },
+    "LINKUSDT": {
+      "abs_contrib_bp": -1807.5054016248864,
+      "pct_share": -7.787,
+      "positive": false
+    },
+    "LTCUSDT": {
+      "abs_contrib_bp": -505.99536674934166,
+      "pct_share": -2.18,
+      "positive": false
+    },
+    "BCHUSDT": {
+      "abs_contrib_bp": -572.6664288642487,
+      "pct_share": -2.467,
+      "positive": false
+    },
+    "NEARUSDT": {
+      "abs_contrib_bp": -1550.619821193661,
+      "pct_share": -6.68,
+      "positive": false
+    },
+    "FILUSDT": {
+      "abs_contrib_bp": -7309.475480670653,
+      "pct_share": -31.491,
+      "positive": false
+    },
+    "WIFUSDT": {
+      "abs_contrib_bp": -175.17478891254808,
+      "pct_share": -0.755,
+      "positive": false
+    }
+  },
+  "quarter_breakdown_portfolio_net": {
+    "2024-Q%q": {
+      "quarter": "2024Q4",
+      "n_days": 92,
+      "total_return_pct": 117.964,
+      "sharpe": 4.472,
+      "positive": true
+    },
+    "2025-Q%q": {
+      "quarter": "2025Q4",
+      "n_days": 92,
+      "total_return_pct": -59.874,
+      "sharpe": -6.036,
+      "positive": false
+    },
+    "2026-Q%q": {
+      "quarter": "2026Q2",
+      "n_days": 30,
+      "total_return_pct": 5.404,
+      "sharpe": 1.372,
+      "positive": true
+    }
+  },
+  "quarter_breakdown_equal_weight": {
+    "2024-Q%q": {
+      "quarter": "2024Q4",
+      "n_days": 92,
+      "total_return_pct": 56.353,
+      "sharpe": 2.788,
+      "positive": true
+    },
+    "2025-Q%q": {
+      "quarter": "2025Q4",
+      "n_days": 92,
+      "total_return_pct": -37.127,
+      "sharpe": -1.938,
+      "positive": false
+    },
+    "2026-Q%q": {
+      "quarter": "2026Q2",
+      "n_days": 30,
+      "total_return_pct": 4.594,
+      "sharpe": 1.476,
+      "positive": true
+    }
+  },
+  "four_cond_audit": {
+    "cond1_three_gate": {
+      "pass": false,
+      "sharpe_excess": 0.0753,
+      "z_excess": 0.1681,
+      "perm_p": 0.436
+    },
+    "cond2_concentration": {
+      "pass": true,
+      "syms_positive": 7,
+      "syms_total": 14,
+      "ratio": 0.5
+    },
+    "cond3_temporal": {
+      "pass": true,
+      "quarters_positive": 2,
+      "quarters_total": 3
+    },
+    "cond4_life_changing_4dim": {
+      "pass": false,
+      "trades_per_yr_effective": 1763.0,
+      "per_trade_edge_bp": -1.249,
+      "capital_util_pct": 68.42,
+      "sharpe": -0.444,
+      "dim_pass": {
+        "trades_per_yr_ge_12": true,
+        "per_trade_edge_ge_2pct": false,
+        "capital_util_ge_30pct": true,
+        "sharpe_ge_1_5": "False"
+      }
+    },
+    "all_4_cond_pass": false
+  },
+  "lesson_70_corollary_scope_prescreen": {
+    "verdict": "PROCEED_NEW_STATISTIC_CLASS",
+    "rationale_path_b": [
+      "paradigm 181 is R-1 GRAVEYARD (NOT R-5 LIVE survivor) - Lesson #70 applies to R-5 LIVE only",
+      "Sharpe ratio = Sharpe 1966 classical separate statistic class",
+      "vol normalization fundamentally changes signal interpretation (raw return momentum vs risk-adjusted momentum)",
+      "Lesson #70 corollary explicitly permits spec-adaptive expansion (per-sym parameter optimization), statistic class shift exceeds this scope"
+    ]
+  },
+  "lesson_71_path_c_escape": {
+    "is_state_machine": false,
+    "is_continuous_weighting": true,
+    "multi_position_simultaneous": true,
+    "signal_intensity_proportional": true,
+    "util_target_30pct": true,
+    "util_empirical_pct": 68.42,
+    "escape_verified": true
+  },
+  "lesson_72_candidate_2nd_dogfood": {
+    "purpose": "Test whether vol-normalization (Sharpe-z) recovers alpha that raw return z (paradigm 181) failed to produce",
+    "paradigm_181_sharpe_excess": 0.089,
+    "paradigm_181_perm_p": 0.414,
+    "paradigm_181_verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT",
+    "paradigm_182_obs_sharpe": -0.4436,
+    "paradigm_182_sharpe_excess": 0.0753,
+    "paradigm_182_perm_p": 0.436,
+    "lesson_72_partial_refutation": false,
+    "lesson_72_strengthened_2nd_dogfood": true
+  },
+  "memory_compliance": {
+    "no_freemium_trial": true,
+    "life_changing_4dim_audited": true,
+    "persistence_over_efficiency": true,
+    "continuous_parallel_campaign": true,
+    "lesson_70_corollary_scope_prescreen_executed": true,
+    "lesson_61_slug_grep_audited": true
+  }
+}

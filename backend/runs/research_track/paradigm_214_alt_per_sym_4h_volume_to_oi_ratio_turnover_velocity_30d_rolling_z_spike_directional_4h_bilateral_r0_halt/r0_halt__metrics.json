@@ -1,0 +1,375 @@
+{
+  "paradigm_counter": 214,
+  "paradigm_slug": "alt_per_sym_4h_volume_to_oi_ratio_turnover_velocity_30d_rolling_z_spike_directional_4h_bilateral",
+  "timestamp_kst": "2026-05-22 19:30 KST",
+  "halt_phase": "R-0 prescreen",
+  "halt_reason": "LESSON_40_STRUCTURAL_THRESHOLD_INFEASIBILITY_NON_NEGATIVE_AGGREGATE_RATIO",
+  "lesson_40_dogfood_count": "paradigm 109+110 1st/2nd CONFIRMED \uc790\uaca9 \u2192 paradigm 214 3rd dogfood RAISES TO CONFIRMED",
+  "structural_finding": {
+    "statistic": "per-sym 4h volume / 30d-mean-OI ratio (NON-NEGATIVE BY CONSTRUCTION)",
+    "z_rolling_window": "30d (180 bars)",
+    "target_negative_threshold": -2.0,
+    "empirical_z_min_range_20syms": [
+      -1.7395182249103085,
+      -1.2889840545168691
+    ],
+    "empirical_z_min_universe_max": "around -1.74 (NEAR/WIF)",
+    "empirical_z_min_universe_min": "around -1.39 (BTC)",
+    "n_syms_with_any_z_le_neg2": 0,
+    "n_syms_total": 20,
+    "cell_B_n_triggers": 0,
+    "cell_B_mirror_n_triggers": 0,
+    "cell_A_focus_n_triggers_estimate": 3986,
+    "cell_A_mirror_n_triggers_estimate": 3986,
+    "verdict": "2 of 4 SNT cells (B + B_mirror) STRUCTURALLY INFEASIBLE \u2014 zero triggers universe-wide"
+  },
+  "lesson_69_item_breakdown": {
+    "item_1_INDEX_grep_strict": {
+      "keywords": [
+        "turnover",
+        "volume_oi_ratio",
+        "volume_to_oi",
+        "active_rotation",
+        "passive_stake",
+        "rotational_flow"
+      ],
+      "INDEX_matches": 0,
+      "directory_matches": 0,
+      "verdict": "PASS (no DNA duplicate)"
+    },
+    "item_2_substrate_shape": {
+      "px_cache": "ohlcv_cache_12col 20 syms \u00d7 819d \u00d7 4920 4h bars",
+      "oi_cache": "microstructure/cache 5min OI 20 syms \u00d7 541-801d",
+      "universe_mean_substrate": 2.15,
+      "substrate_maturity_ge_2yr": true,
+      "rolling_6m_consistency_check_required": "(deferred \u2014 Item 9 STRUCTURAL fail blocks dispatch)",
+      "verdict": "PASS \u2014 substrate available 20 syms \u00d7 2.15yr universe mean"
+    },
+    "item_3_sample_density": {
+      "empirical_pos2_rate_pct": 4.71,
+      "empirical_neg2_rate_pct": 0.0,
+      "per_cell_pos": "~206 (>= 30 cutoff)",
+      "per_cell_neg": "0 (FAIL Lesson #11 STRUCTURAL)",
+      "verdict": "FAIL B side \u2014 STRUCTURAL INFEASIBILITY"
+    },
+    "item_4_family_distinct": {
+      "vs_paradigm_73_funding_oi_bipolar": "DISTINCT (funding \u00d7 OI joint event NOT volume/OI ratio)",
+      "vs_paradigm_79_funding_oi_level": "DISTINCT (funding-anchored NOT volume-anchored)",
+      "vs_paradigm_104_cross_ex_oi_diff": "DISTINCT (cross-exchange OI NOT single-venue vol/OI)",
+      "vs_paradigm_127_128_volume_burst": "DISTINCT (1m intra5m vol > p99 NOT 4h vol/OI ratio z)",
+      "vs_paradigm_196_oi_velocity": "DISTINCT (OI ratio z NOT vol/OI ratio z)",
+      "vs_funding_family_9_subclass_retire": "DISTINCT (volume-axis NOT funding-axis)",
+      "verdict": "5/5 strict distinct PASS \u2014 statistic class fresh (turnover velocity composite)"
+    },
+    "item_5_family_proxy": "turnover velocity composite class (NEW \u2014 not existing family proxy)",
+    "item_6_alpha_decay_5pattern_audit_deferred": "DEFERRED \u2014 Item 9 STRUCTURAL fail blocks dispatch",
+    "item_7_snt_structural_integrity_deferred": "DEFERRED \u2014 2 of 4 cells infeasible, |A|/|B| asymmetric N/A",
+    "item_8_concentration_temporal_independence_deferred": "DEFERRED",
+    "item_9_life_changing_4dim_structural_prescreen": {
+      "broad_scope_universe_trades_per_yr_estimate": 1712,
+      "capital_util_4h_hold_20syms_pct": 78.2,
+      "per_trade_edge_unknown": "cannot estimate \u2014 Item 9 STRUCTURAL prescreen blocks at SNT infeasibility upstream",
+      "verdict": "DEFERRED to Lesson #40 STRUCTURAL halt upstream"
+    }
+  },
+  "reformulation_test_results": {
+    "reform_1_log_transform": {
+      "method": "log-transform on ratio",
+      "z_min": -3.1017015101086804,
+      "z_p01": -2.1814249677746815,
+      "z_p99": 2.3299091044832942,
+      "z_max": 3.773797573751153,
+      "n_z_le_neg2": 59,
+      "n_z_ge_pos2": 71,
+      "symmetric_threshold_feasible": true
+    },
+    "reform_2_percentile_rank": {
+      "method": "percentile rank in rolling 30d window",
+      "rank_min": 0.005555555555555556,
+      "rank_max": 1.0,
+      "n_rank_le_005": 156,
+      "n_rank_ge_095": 157,
+      "symmetric_threshold_feasible": true
+    },
+    "prescription_per_lesson_40": [
+      "Option A (log-transform): BTC log(vol/OI) z_min=-3.10 z_max=+3.77 \u2014 SYMMETRIC FEASIBLE",
+      "Option B (percentile rank): BTC rank<=0.05 156 events / rank>=0.95 157 events \u2014 SYMMETRIC FEASIBLE",
+      "Option C (absolute threshold): drop z-score, use absolute ratio thresholds based on empirical distribution",
+      "Option D (asymmetric formulation): A_focus z>=+2 only, drop B/B_mirror, lose 4-quadrant SNT structural integrity (violates Lesson #19)"
+    ],
+    "recommended_reformulation": "Option A log-transform \u2014 preserves z-score framework + 4-quadrant SNT + symmetric threshold feasibility"
+  },
+  "per_sym_diagnostics": {
+    "BTC": {
+      "n_valid": 2881,
+      "z_min": -1.3909675044403573,
+      "z_p01": -1.1322778176722006,
+      "z_p99": 3.7546874449114487,
+      "z_max": 9.610595177558766,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 141,
+      "ratio_p1": 0.04944550741214129,
+      "ratio_p50": 0.25245898764535996,
+      "ratio_p99": 1.427714947931758
+    },
+    "ETH": {
+      "n_valid": 4442,
+      "z_min": -1.4289383321878657,
+      "z_p01": -1.177872854400124,
+      "z_p99": 3.897723560484809,
+      "z_max": 10.316841148442647,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 207,
+      "ratio_p1": 0.07174996292959498,
+      "ratio_p50": 0.3691851047719932,
+      "ratio_p99": 1.8489654272457083
+    },
+    "SOL": {
+      "n_valid": 4442,
+      "z_min": -1.4720808514063308,
+      "z_p01": -1.2304351160784428,
+      "z_p99": 3.943710797071588,
+      "z_max": 9.046851995986021,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 204,
+      "ratio_p1": 0.11084387341283349,
+      "ratio_p50": 0.41454642376965406,
+      "ratio_p99": 1.870105199525216
+    },
+    "BNB": {
+      "n_valid": 4430,
+      "z_min": -1.4593643430524554,
+      "z_p01": -1.1896952266458802,
+      "z_p99": 4.224344383166907,
+      "z_max": 10.168728144296079,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 216,
+      "ratio_p1": 0.05119688116447197,
+      "ratio_p50": 0.20084650157447823,
+      "ratio_p99": 1.2550348432665765
+    },
+    "XRP": {
+      "n_valid": 4430,
+      "z_min": -1.4366631088983197,
+      "z_p01": -1.137510291163379,
+      "z_p99": 4.277709115240735,
+      "z_max": 12.077870753903037,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 213,
+      "ratio_p1": 0.09266833553056467,
+      "ratio_p50": 0.38155756904143195,
+      "ratio_p99": 3.017150892442658
+    },
+    "DOGE": {
+      "n_valid": 4430,
+      "z_min": -1.4887438932180708,
+      "z_p01": -1.1482189778511043,
+      "z_p99": 4.097717508699344,
+      "z_max": 10.009008556523023,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 241,
+      "ratio_p1": 0.130425510187074,
+      "ratio_p50": 0.4689718435816793,
+      "ratio_p99": 2.666224264413546
+    },
+    "ADA": {
+      "n_valid": 4430,
+      "z_min": -1.4187161088428115,
+      "z_p01": -1.1819565180066829,
+      "z_p99": 3.8011963883465754,
+      "z_max": 12.330117674329426,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 189,
+      "ratio_p1": 0.13139082414411052,
+      "ratio_p50": 0.4260362432611132,
+      "ratio_p99": 2.965216256009335
+    },
+    "AVAX": {
+      "n_valid": 4430,
+      "z_min": -1.5230149339379908,
+      "z_p01": -1.260136732170825,
+      "z_p99": 3.7315369602285084,
+      "z_max": 8.829105560752446,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 2,
+      "n_z_ge_pos2": 204,
+      "ratio_p1": 0.11268683168754455,
+      "ratio_p50": 0.3976062805936953,
+      "ratio_p99": 1.6655891208734719
+    },
+    "LINK": {
+      "n_valid": 4430,
+      "z_min": -1.4914759715940145,
+      "z_p01": -1.2014560828253285,
+      "z_p99": 4.120645014522567,
+      "z_max": 11.70678589417221,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 212,
+      "ratio_p1": 0.1108693705839456,
+      "ratio_p50": 0.4239248454642293,
+      "ratio_p99": 2.233779179087671
+    },
+    "LTC": {
+      "n_valid": 4430,
+      "z_min": -1.5537223718454685,
+      "z_p01": -1.2476771858415348,
+      "z_p99": 4.072822342605994,
+      "z_max": 11.619598348425157,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 2,
+      "n_z_ge_pos2": 208,
+      "ratio_p1": 0.06715827136210074,
+      "ratio_p50": 0.2631064709688943,
+      "ratio_p99": 1.8310888813004225
+    },
+    "BCH": {
+      "n_valid": 4430,
+      "z_min": -1.2889840545168691,
+      "z_p01": -1.1125085031759392,
+      "z_p99": 4.0255236592694645,
+      "z_max": 10.92639760836185,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 201,
+      "ratio_p1": 0.03408073415864293,
+      "ratio_p50": 0.16554360424707512,
+      "ratio_p99": 1.25239720335273
+    },
+    "NEAR": {
+      "n_valid": 4430,
+      "z_min": -1.7395182249103085,
+      "z_p01": -1.3556208097494808,
+      "z_p99": 3.869070020539514,
+      "z_max": 10.625291476680808,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 20,
+      "n_z_ge_pos2": 191,
+      "ratio_p1": 0.09033387248299318,
+      "ratio_p50": 0.3281610368293441,
+      "ratio_p99": 1.5800685286477676
+    },
+    "FIL": {
+      "n_valid": 4430,
+      "z_min": -1.5145981838722278,
+      "z_p01": -1.2206790481749554,
+      "z_p99": 4.264900111683326,
+      "z_max": 11.627765953399157,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 2,
+      "n_z_ge_pos2": 211,
+      "ratio_p1": 0.12664710902981635,
+      "ratio_p50": 0.39102820375650255,
+      "ratio_p99": 2.381434500394716
+    },
+    "WIF": {
+      "n_valid": 4430,
+      "z_min": -1.7382989682722163,
+      "z_p01": -1.3324171680358279,
+      "z_p99": 4.002556225840465,
+      "z_max": 12.433562857198181,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 8,
+      "n_z_ge_pos2": 199,
+      "ratio_p1": 0.15687920003413347,
+      "ratio_p50": 0.6219405743122794,
+      "ratio_p99": 2.734771199990094
+    },
+    "JUP": {
+      "n_valid": 4424,
+      "z_min": -1.4250590364801148,
+      "z_p01": -1.1812164182613691,
+      "z_p99": 4.4487062705833935,
+      "z_max": 12.53062315230446,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 191,
+      "ratio_p1": 0.05803043709036319,
+      "ratio_p50": 0.2746623720497696,
+      "ratio_p99": 2.740632404718224
+    },
+    "PYTH": {
+      "n_valid": 4430,
+      "z_min": -1.4271157904762328,
+      "z_p01": -1.1240882901802765,
+      "z_p99": 5.026230239297032,
+      "z_max": 13.319675075544714,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 202,
+      "ratio_p1": 0.08203192824735735,
+      "ratio_p50": 0.2922617844524704,
+      "ratio_p99": 2.8994493477417387
+    },
+    "DOT": {
+      "n_valid": 4424,
+      "z_min": -1.4560276747351137,
+      "z_p01": -1.1381357820072253,
+      "z_p99": 3.91534731022249,
+      "z_max": 12.254620727761255,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 178,
+      "ratio_p1": 0.11228021694001888,
+      "ratio_p50": 0.3413801832322311,
+      "ratio_p99": 1.827242994744606
+    },
+    "ETC": {
+      "n_valid": 4424,
+      "z_min": -1.4742049603519096,
+      "z_p01": -1.1457045812619833,
+      "z_p99": 4.291650805040343,
+      "z_max": 12.40674150159293,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 203,
+      "ratio_p1": 0.09615699014197117,
+      "ratio_p50": 0.3293097924776703,
+      "ratio_p99": 2.3500676336238997
+    },
+    "UNI": {
+      "n_valid": 4430,
+      "z_min": -1.5033080513419796,
+      "z_p01": -1.113719536909097,
+      "z_p99": 4.233898778949496,
+      "z_max": 12.600507180048803,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 1,
+      "n_z_ge_pos2": 173,
+      "ratio_p1": 0.05138189411204597,
+      "ratio_p50": 0.25012065085671314,
+      "ratio_p99": 2.05512579722253
+    },
+    "WLD": {
+      "n_valid": 4424,
+      "z_min": -1.3597775396277914,
+      "z_p01": -1.1647732545851452,
+      "z_p99": 3.9317932558290782,
+      "z_max": 12.855009098630932,
+      "n_z_le_neg2": 0,
+      "n_z_le_neg1p5": 0,
+      "n_z_ge_pos2": 202,
+      "ratio_p1": 0.1080087258663582,
+      "ratio_p50": 0.4662885368032125,
+      "ratio_p99": 2.995104037754445
+    }
+  },
+  "next_action_recommendation": {
+    "immediate": "paradigm 215 = reformulated paradigm 214 with log-transform (Option A) per Lesson #40 prescription",
+    "rationale": "log(volume/OI) preserves turnover velocity mechanism intent + restores symmetric z bilateral threshold. Volume/OI ratio is multiplicative by construction, log-transform is natural reformulation.",
+    "alternative": "paradigm 215 = new axis class entirely (turnover velocity DNA exhausted via structural infeasibility)",
+    "not_recommended": "reformulate within paradigm 214 counter (R-0 HALT is terminal verdict per architect convention)"
+  },
+  "lesson_status_update": {
+    "lesson_40_status_pre": "2 dogfoods CONFIRMED \uc790\uaca9 (paradigm 109 + 110)",
+    "lesson_40_status_post": "3 dogfoods CONFIRMED FORMAL (paradigm 109 + 110 + 214) \u2014 promoted from candidate-eligible to confirmed-formal",
+    "lesson_40_amendment_candidate": "volume/OI ratio class explicitly added to non-negative aggregate statistics list (prev: std/var/count/magnitude/ATR/|return|/drawdown/RV) \u2014 ADD volume/OI ratio, volume/turnover ratio, trade_count/OI ratio class"
+  }
+}

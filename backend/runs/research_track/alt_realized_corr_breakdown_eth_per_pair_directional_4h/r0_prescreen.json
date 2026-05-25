@@ -1,0 +1,228 @@
+{
+  "paradigm_name": "alt_realized_corr_breakdown_eth_per_pair_directional_4h",
+  "paradigm_number": 130,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T09:39:42+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_READY_FOR_R1",
+  "benchmark": "ETHUSDT",
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_loaded": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_excluded": {
+    "ADAUSDT": "Lesson #30 short-window (143d << 30% of 798d)",
+    "BTCUSDT": "Lesson #30 short-window (142d), local DB stale",
+    "ETHUSDT": "benchmark (excluded from alt cohort)"
+  },
+  "params": {
+    "corr_rolling_bars_4h": 180,
+    "corr_percentile": 10.0,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0
+  },
+  "per_sym_days": {
+    "ETHUSDT": 795,
+    "AVAXUSDT": 755,
+    "BCHUSDT": 798,
+    "BNBUSDT": 798,
+    "DOGEUSDT": 767,
+    "FILUSDT": 798,
+    "LINKUSDT": 767,
+    "LTCUSDT": 798,
+    "NEARUSDT": 798,
+    "SOLUSDT": 795,
+    "WIFUSDT": 799,
+    "XRPUSDT": 798
+  },
+  "short_window_syms_lesson_30": {},
+  "per_pair_p10_thresholds": {
+    "AVAXUSDT": 0.671228939651269,
+    "BCHUSDT": 0.49338349220205924,
+    "BNBUSDT": 0.6164730920131017,
+    "DOGEUSDT": 0.6380709033113806,
+    "FILUSDT": 0.6111633057668227,
+    "LINKUSDT": 0.6976198580703367,
+    "LTCUSDT": 0.5770131625820982,
+    "NEARUSDT": 0.5733782364718959,
+    "SOLUSDT": 0.6762824128112532,
+    "WIFUSDT": 0.5255119675035328,
+    "XRPUSDT": 0.4874163130493695
+  },
+  "n_triggers_total": 2592,
+  "n_triggers_pos": 1266,
+  "n_triggers_neg": 1326,
+  "n_per_sym_min": 228,
+  "per_quarter_pos": {
+    "2024Q1": 72,
+    "2024Q2": 329,
+    "2024Q3": 38,
+    "2024Q4": 448,
+    "2025Q1": 48,
+    "2025Q2": 16,
+    "2025Q3": 98,
+    "2025Q4": 111,
+    "2026Q1": 106
+  },
+  "per_quarter_neg": {
+    "2024Q1": 81,
+    "2024Q2": 369,
+    "2024Q3": 38,
+    "2024Q4": 417,
+    "2025Q1": 56,
+    "2025Q2": 24,
+    "2025Q3": 99,
+    "2025Q4": 124,
+    "2026Q1": 116,
+    "2026Q2": 2
+  },
+  "measurable_quarters_pos": 8,
+  "measurable_quarters_neg": 8,
+  "n_quarters": 10,
+  "lesson_11_density_pass": true,
+  "lesson_34_empirical_rho_percentiles": {
+    "10": 0.5699918629238917,
+    "25": 0.6721112060072996,
+    "50": 0.7555550394664168,
+    "75": 0.8296172993593964,
+    "90": 0.8695171822653838
+  },
+  "lesson_40": {
+    "threshold_definition": "per-pair empirical p10 of rolling 30d Pearson correlation",
+    "threshold_class": "empirical percentile rank (per-pair, NOT z-score on aggregate)",
+    "structurally_reachable": true,
+    "reformulation_class": "percentile_rank",
+    "verdict": "PASS"
+  },
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=152",
+  "lesson_46_quarters_used": [
+    "2024Q1",
+    "2024Q4",
+    "2025Q3",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_rho_p10_pos_LONG_4h": {
+      "label": "A_focus_rho_p10_pos_LONG_4h",
+      "n": 78,
+      "gross_bp": 31.733339569102565,
+      "net_bp": 15.733339569102565,
+      "t": 1.058421441484524
+    },
+    "A_mirror_rho_p10_pos_SHORT_4h": {
+      "label": "A_mirror_rho_p10_pos_SHORT_4h",
+      "n": 78,
+      "gross_bp": -31.733339569102565,
+      "net_bp": -47.73333956910257,
+      "t": -1.058421441484524
+    },
+    "B_focus_rho_p10_neg_SHORT_4h": {
+      "label": "B_focus_rho_p10_neg_SHORT_4h",
+      "n": 74,
+      "gross_bp": 20.742021565053133,
+      "net_bp": 4.7420215650531325,
+      "t": 0.39249073831995057
+    },
+    "B_mirror_rho_p10_neg_LONG_4h": {
+      "label": "B_mirror_rho_p10_neg_LONG_4h",
+      "n": 74,
+      "gross_bp": -20.742021565053133,
+      "net_bp": -36.742021565053136,
+      "t": -0.39249073831995057
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2024Q1": {
+      "n_total": 50,
+      "A_focus_n": 23,
+      "A_focus_gross_bp": 113.10971637157282,
+      "B_focus_n": 27,
+      "B_focus_gross_bp": 57.47993571256194
+    },
+    "2024Q4": {
+      "n_total": 50,
+      "A_focus_n": 26,
+      "A_focus_gross_bp": 16.292260955215358,
+      "B_focus_n": 24,
+      "B_focus_gross_bp": 1.4933652519406888
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 29,
+      "A_focus_gross_bp": -18.962819827302585,
+      "B_focus_n": 21,
+      "B_focus_gross_bp": -18.302138318618027
+    },
+    "2026Q2": {
+      "n_total": 2,
+      "A_focus_n": 0,
+      "A_focus_gross_bp": null,
+      "B_focus_n": 2,
+      "B_focus_gross_bp": 165.72773510958066
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 1,
+    "A_signs": [
+      1,
+      1,
+      -1
+    ],
+    "B_focus_flips": 2,
+    "B_signs": [
+      1,
+      1,
+      -1,
+      1
+    ]
+  },
+  "lesson_44_xref": {
+    "paradigm_62_cross_sec_weekly_mr": "GRAVEYARD \u2014 cross-section weekly MR rank rotation. DISTINCT: per-pair correlation breakdown vs cross-section rank-based MR.",
+    "paradigm_75_cross_symbol_lead_lag": "GRAVEYARD \u2014 cohort-aggregate lead-lag. DISTINCT: per-pair (alt, ETH) Pearson NOT cohort-aggregate lag.",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD lesson #20 narrow scope \u2014 rolling beta vs BTC (regression coefficient). DISTINCT: Pearson rho (corr coefficient, not regression beta), ETH benchmark not BTC.",
+    "paradigm_118_realized_correlation_regime_universe": "GRAVEYARD \u2014 universe-aggregate correlation regime (mean rho across all pairs). DISTINCT: per-pair stratified breakdown (NOT universe-aggregate scalar).",
+    "paradigm_99_funding_per_sym_velocity": "GRAVEYARD \u2014 Lesson #8 amendment candidate (LONG drift artifact A focus + B mirror both positive). PRECEDENT: must explicitly detect LONG-side both-positive gross artifact.",
+    "paradigm_129_alt_parkinson_range_vol_expansion": "GRAVEYARD 2026-05-21 \u2014 2nd dogfood of Lesson #52 candidate (universe LONG drift artifact). DISTINCT: cross-asset correlation NOT intrinsic range. Must replicate explicit LONG-drift detection.",
+    "RUNBOOK_3M_volume_extraction": "ANTIPATTERN avoided \u2014 no volume axis. Pure price correlation (alt, ETH)."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit Pearson + empirical p10, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (price correlation only, no OI)",
+    "Stateful_CP": "AVOIDED (stateless rolling quantile, Lesson #22)",
+    "Higher_order_moment": "AVOIDED (2nd-order correlation)",
+    "Funding_single_signal": "AVOIDED (price correlation only)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Magnitude_confluence": "AVOIDED (single trigger axis)",
+    "Listing_event": "AVOIDED (continuous rolling)",
+    "5m_microstructure_single_domain": "AVOIDED (4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-pair, NOT universe-mean)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed_deviation": "AVOIDED (raw correlation, no smoothing)",
+    "paradigm_81_rolling_beta": "AVOIDED (Pearson rho vs beta=cov/var)",
+    "paradigm_118_universe_aggregate_corr": "AVOIDED (per-pair stratified)",
+    "paradigm_129_intrinsic_range": "AVOIDED (cross-asset correlation, not range)"
+  }
+}

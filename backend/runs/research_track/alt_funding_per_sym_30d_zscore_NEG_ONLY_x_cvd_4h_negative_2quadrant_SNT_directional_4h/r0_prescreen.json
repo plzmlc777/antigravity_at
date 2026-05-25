@@ -1,0 +1,471 @@
+{
+  "paradigm_name": "alt_funding_per_sym_30d_zscore_NEG_ONLY_x_cvd_4h_negative_2quadrant_SNT_directional_4h",
+  "paradigm_number": 140,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T12:14:15+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_STEP4_LESSON_11_JOINT_DENSITY",
+  "sub_class": "R-0 halt at step4_lesson_11_joint_density = FAIL_SAMPLE_INSUFFICIENT",
+  "verdict_components": {
+    "step1_funding_z_a_side": "PASS",
+    "step2_substrate": "PASS",
+    "step3_cvd_distribution": "PASS",
+    "step4_lesson_11_joint_density": "FAIL_SAMPLE_INSUFFICIENT",
+    "step5_lesson_21_correlation": "PASS"
+  },
+  "hypothesis": {
+    "axis_1": "funding rate per-sym 30d z-score \u2264 -2.0 (A-side only)",
+    "axis_2": "CVD 4h aggregate \u2264 -0.1 (A-side only)",
+    "joint_trigger_A": "funding_z \u2264 -2.0 AND CVD \u2264 -0.1",
+    "direction_A_focus": "SHORT 4h (smart distribution preceding cascade)",
+    "direction_A_mirror": "LONG 4h (mean-reversion contrary)",
+    "snt_structure": "2-quadrant (Lesson #19 exception, paradigm 139 inheritance)"
+  },
+  "params": {
+    "funding_z_lower": -2.0,
+    "cvd_lower": -0.1,
+    "z_window_obs": 90,
+    "fee_per_trade": 0.0008
+  },
+  "universe_cohort": [
+    "HBARUSDT",
+    "AXSUSDT",
+    "COMPUSDT",
+    "AVAXUSDT",
+    "SOLUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "LDOUSDT",
+    "ETCUSDT"
+  ],
+  "step1_funding_z_a_side": {
+    "per_sym": {
+      "HBARUSDT": {
+        "n": 1054,
+        "p1": -3.307381252302062,
+        "p5": -2.0783653058703475,
+        "p50": 0.27145204942740814,
+        "min": -5.2764995617474915,
+        "n_below_neg2": 56,
+        "rate_below_neg2": 0.05313092979127135
+      },
+      "AXSUSDT": {
+        "n": 1549,
+        "p1": -4.285358019579699,
+        "p5": -2.0240853938789374,
+        "p50": 0.3549767111147047,
+        "min": -9.249180660027136,
+        "n_below_neg2": 78,
+        "rate_below_neg2": 0.05035506778566817
+      },
+      "COMPUSDT": {
+        "n": 1054,
+        "p1": -4.792991882231161,
+        "p5": -1.8902064492575001,
+        "p50": 0.27974770440506047,
+        "min": -9.214172999250827,
+        "n_below_neg2": 46,
+        "rate_below_neg2": 0.04364326375711575
+      },
+      "AVAXUSDT": {
+        "n": 1036,
+        "p1": -3.466881379414169,
+        "p5": -2.068660877328548,
+        "p50": 0.355644424819788,
+        "min": -5.19477402845285,
+        "n_below_neg2": 56,
+        "rate_below_neg2": 0.05405405405405406
+      },
+      "SOLUSDT": {
+        "n": 1058,
+        "p1": -3.2915173033054312,
+        "p5": -1.9156220990337465,
+        "p50": 0.1862448656590262,
+        "min": -9.234052574444371,
+        "n_below_neg2": 47,
+        "rate_below_neg2": 0.0444234404536862
+      },
+      "DOGEUSDT": {
+        "n": 1058,
+        "p1": -2.71940780429809,
+        "p5": -1.9053480680939658,
+        "p50": 0.1487572817598075,
+        "min": -4.50967137580592,
+        "n_below_neg2": 48,
+        "rate_below_neg2": 0.045368620037807186
+      },
+      "ETHUSDT": {
+        "n": 1036,
+        "p1": -3.0718529193507136,
+        "p5": -1.9060463021215717,
+        "p50": 0.00998697387290393,
+        "min": -4.837637142777051,
+        "n_below_neg2": 42,
+        "rate_below_neg2": 0.04054054054054054
+      },
+      "LINKUSDT": {
+        "n": 1036,
+        "p1": -3.1746745409247854,
+        "p5": -2.127566660913121,
+        "p50": 0.337605289466117,
+        "min": -5.053403153987642,
+        "n_below_neg2": 58,
+        "rate_below_neg2": 0.055984555984555984
+      },
+      "LDOUSDT": {
+        "n": 1054,
+        "p1": -3.569821224108701,
+        "p5": -2.0253436804860647,
+        "p50": 0.28759760819640856,
+        "min": -5.441121333190812,
+        "n_below_neg2": 58,
+        "rate_below_neg2": 0.05502846299810247
+      },
+      "ETCUSDT": {
+        "n": 1054,
+        "p1": -3.4782510324323037,
+        "p5": -2.0907799227694723,
+        "p50": 0.34683875140225057,
+        "min": -7.725435127495635,
+        "n_below_neg2": 59,
+        "rate_below_neg2": 0.055977229601518026
+      }
+    },
+    "n_syms_audited": 10,
+    "n_syms_below_reachable": 10,
+    "verdict": "PASS",
+    "threshold": "funding_z \u2264 -2.0 A-side only (B-side dropped per paradigm 139)"
+  },
+  "step2_substrate": {
+    "funding_db": {
+      "HBARUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "AXSUSDT": {
+        "n": 1608,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 12:00:00.007000"
+      },
+      "COMPUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "AVAXUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "SOLUSDT": {
+        "n": 1117,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "DOGEUSDT": {
+        "n": 1117,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "ETHUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "LINKUSDT": {
+        "n": 1095,
+        "mn": "2025-05-03 08:00:00",
+        "mx": "2026-05-03 00:00:00.005000"
+      },
+      "LDOUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      },
+      "ETCUSDT": {
+        "n": 1113,
+        "mn": "2025-05-04 16:00:00.002000",
+        "mx": "2026-05-10 08:00:00"
+      }
+    },
+    "cvd_joblib": {
+      "HBARUSDT": {
+        "available": true
+      },
+      "AXSUSDT": {
+        "available": true
+      },
+      "COMPUSDT": {
+        "available": true
+      },
+      "AVAXUSDT": {
+        "available": true
+      },
+      "SOLUSDT": {
+        "available": true
+      },
+      "DOGEUSDT": {
+        "available": true
+      },
+      "ETHUSDT": {
+        "available": true
+      },
+      "LINKUSDT": {
+        "available": true
+      },
+      "LDOUSDT": {
+        "available": true
+      },
+      "ETCUSDT": {
+        "available": true
+      }
+    },
+    "n_funding_syms_ok": 10,
+    "n_cvd_syms_ok": 10,
+    "verdict": "PASS"
+  },
+  "step3_cvd_distribution": {
+    "per_sym": {
+      "HBARUSDT": {
+        "n": 4795,
+        "p1": -0.13548417099542395,
+        "p5": -0.09639941627172378,
+        "p50": -0.01155236496145836,
+        "min": -0.2345307324799046,
+        "n_below_cvd_lower": 211,
+        "rate_below_cvd_lower": 0.044004171011470285
+      },
+      "AXSUSDT": {
+        "n": 4795,
+        "p1": -0.15878092061407464,
+        "p5": -0.10966531779938657,
+        "p50": -0.013355654844159246,
+        "min": -0.2551055105952818,
+        "n_below_cvd_lower": 334,
+        "rate_below_cvd_lower": 0.06965589155370178
+      },
+      "COMPUSDT": {
+        "n": 4795,
+        "p1": -0.17294615748936726,
+        "p5": -0.12034812163161608,
+        "p50": -0.013586989638314126,
+        "min": -0.34999344862008264,
+        "n_below_cvd_lower": 400,
+        "rate_below_cvd_lower": 0.08342022940563086
+      },
+      "AVAXUSDT": {
+        "n": 4795,
+        "p1": -0.11826634506617142,
+        "p5": -0.07913068428352002,
+        "p50": -0.012745226902183793,
+        "min": -0.20823859982009485,
+        "n_below_cvd_lower": 93,
+        "rate_below_cvd_lower": 0.019395203336809178
+      },
+      "SOLUSDT": {
+        "n": 4807,
+        "p1": -0.09303733380791793,
+        "p5": -0.06807968470835873,
+        "p50": -0.01274664506071776,
+        "min": -0.1604622322072028,
+        "n_below_cvd_lower": 34,
+        "rate_below_cvd_lower": 0.007073018514666112
+      },
+      "DOGEUSDT": {
+        "n": 4795,
+        "p1": -0.10680599190717216,
+        "p5": -0.07495128448125483,
+        "p50": -0.013475807886306318,
+        "min": -0.20885846943225136,
+        "n_below_cvd_lower": 73,
+        "rate_below_cvd_lower": 0.015224191866527632
+      },
+      "ETHUSDT": {
+        "n": 4807,
+        "p1": -0.08828788134573881,
+        "p5": -0.061198730228600506,
+        "p50": -0.009704538395789738,
+        "min": -0.1563060660679416,
+        "n_below_cvd_lower": 23,
+        "rate_below_cvd_lower": 0.004784688995215311
+      },
+      "LINKUSDT": {
+        "n": 4795,
+        "p1": -0.10622101381563251,
+        "p5": -0.07627740814152975,
+        "p50": -0.009995035232116735,
+        "min": -0.18985271086089292,
+        "n_below_cvd_lower": 70,
+        "rate_below_cvd_lower": 0.014598540145985401
+      },
+      "LDOUSDT": {
+        "n": 4795,
+        "p1": -0.125213403577655,
+        "p5": -0.08673224060184821,
+        "p50": -0.014659798124905405,
+        "min": -0.237046629863105,
+        "n_below_cvd_lower": 147,
+        "rate_below_cvd_lower": 0.030656934306569343
+      },
+      "ETCUSDT": {
+        "n": 4795,
+        "p1": -0.13768810725509337,
+        "p5": -0.09679025533397567,
+        "p50": -0.0175196495345383,
+        "min": -0.22300784553574457,
+        "n_below_cvd_lower": 204,
+        "rate_below_cvd_lower": 0.042544316996871744
+      }
+    },
+    "n_syms_audited": 10,
+    "n_syms_cvd_reachable": 5,
+    "verdict": "PASS",
+    "threshold": "CVD \u2264 -0.1 A-side reachable at \u2265 2% per-sym"
+  },
+  "step4_lesson_11_joint_density": {
+    "per_sym_joint": {
+      "HBARUSDT": {
+        "n_common_4h_bars": 2063,
+        "n_a_joint": 12,
+        "rate_a": 0.0058167716917111
+      },
+      "AXSUSDT": {
+        "n_common_4h_bars": 2063,
+        "n_a_joint": 11,
+        "rate_a": 0.005332040717401842
+      },
+      "COMPUSDT": {
+        "n_common_4h_bars": 2063,
+        "n_a_joint": 11,
+        "rate_a": 0.005332040717401842
+      },
+      "AVAXUSDT": {
+        "n_common_4h_bars": 2064,
+        "n_a_joint": 6,
+        "rate_a": 0.0029069767441860465
+      },
+      "SOLUSDT": {
+        "n_common_4h_bars": 2064,
+        "n_a_joint": 1,
+        "rate_a": 0.00048449612403100775
+      },
+      "DOGEUSDT": {
+        "n_common_4h_bars": 2064,
+        "n_a_joint": 1,
+        "rate_a": 0.00048449612403100775
+      },
+      "ETHUSDT": {
+        "n_common_4h_bars": 2064,
+        "n_a_joint": 0,
+        "rate_a": 0.0
+      },
+      "LINKUSDT": {
+        "n_common_4h_bars": 2064,
+        "n_a_joint": 1,
+        "rate_a": 0.00048449612403100775
+      },
+      "LDOUSDT": {
+        "n_common_4h_bars": 2063,
+        "n_a_joint": 2,
+        "rate_a": 0.0009694619486185168
+      },
+      "ETCUSDT": {
+        "n_common_4h_bars": 2063,
+        "n_a_joint": 10,
+        "rate_a": 0.004847309743092583
+      }
+    },
+    "total_a_joint_triggers": 55,
+    "per_cell_a_per_quarter": 13.8,
+    "verdict": "FAIL_SAMPLE_INSUFFICIENT",
+    "threshold": "per-cell n \u2265 30 across 4 quarters (Lesson #11)"
+  },
+  "step5_lesson_21_correlation": {
+    "per_sym_corr": {
+      "HBARUSDT": {
+        "n": 2063,
+        "pearson_r": 0.04751315690509993,
+        "abs_r": 0.04751315690509993
+      },
+      "AXSUSDT": {
+        "n": 2063,
+        "pearson_r": 0.0532351156354238,
+        "abs_r": 0.0532351156354238
+      },
+      "COMPUSDT": {
+        "n": 2063,
+        "pearson_r": 0.002720139385870247,
+        "abs_r": 0.002720139385870247
+      },
+      "AVAXUSDT": {
+        "n": 2064,
+        "pearson_r": -0.02538097641803763,
+        "abs_r": 0.02538097641803763
+      },
+      "SOLUSDT": {
+        "n": 2064,
+        "pearson_r": 0.074446588730177,
+        "abs_r": 0.074446588730177
+      },
+      "DOGEUSDT": {
+        "n": 2064,
+        "pearson_r": 0.003205608503046319,
+        "abs_r": 0.003205608503046319
+      },
+      "ETHUSDT": {
+        "n": 2064,
+        "pearson_r": -0.022670622291129847,
+        "abs_r": 0.022670622291129847
+      },
+      "LINKUSDT": {
+        "n": 2064,
+        "pearson_r": -0.04186434960744205,
+        "abs_r": 0.04186434960744205
+      },
+      "LDOUSDT": {
+        "n": 2063,
+        "pearson_r": -0.011577166565866583,
+        "abs_r": 0.011577166565866583
+      },
+      "ETCUSDT": {
+        "n": 2063,
+        "pearson_r": 0.06874321859290979,
+        "abs_r": 0.06874321859290979
+      }
+    },
+    "mean_abs_pearson_r": 0.035135694263500314,
+    "max_abs_pearson_r": 0.074446588730177,
+    "verdict": "PASS"
+  },
+  "lesson_44_xref_23rd_amendment": {
+    "paradigm_22_funding_carry_R5_SEEDED": "HBAR/AXS/COMP R-5 LIVE. paradigm 22 = single-axis funding_z LONG MR. paradigm 140 = funding_z \u00d7 CVD joint SHORT continuation. DIRECTION-DISTINCT.",
+    "paradigm_72_taker_volume_5m_GRAVEYARD": "5m taker volume family Tier 4 retire. paradigm 140 CVD = 4h aggregated RATIO (not 5m volume magnitude). DNA-distinct dimension.",
+    "paradigm_132_R1_GRAVEYARD_LESSON_21_5TH_DOGFOOD": "Triple joint axis stacking trap. paradigm 140 = 2-axis only (funding_z + CVD), less aggressive stacking. Lesson #21 6th dogfood: V1 funding_z alone \u00d7 SHORT vs V2 CVD alone \u00d7 SHORT vs V3 joint \u00d7 SHORT \u2014 V3 must outperform max(V1,V2) \u00d7 1.2.",
+    "paradigm_138_funding_raw_bp_R0_HALT": "Lesson #40 sub-class C 3rd dogfood. paradigm 140 inherits this halt by adopting per-sym z-score (paradigm 22 R-5 approach).",
+    "paradigm_139_funding_persym_z_R0_HALT": "Lesson #40 sub-class C 4th dogfood. paradigm 140 direct reformulation via path 1: drop B-quadrant (substrate infeasible), recover A-only one-sided z-score.",
+    "funding_family_tier_4_retire": "9 graveyards (73/79*/96/97/98/99/103/132/138/139). paradigm 22+79 R-5 exception. paradigm 140 = one-sided + joint CVD axis attempt within Tier 4 retire envelope."
+  },
+  "lesson_19_snt_exception_justification": {
+    "default_requirement": "4-quadrant SNT (A_focus + A_mirror + B_focus + B_mirror)",
+    "exception_invoked": "2-quadrant SNT (A_focus + A_mirror only)",
+    "justification_basis": "paradigm 139 R-0 STEP 1 Lesson #40 4th dogfood CONFIRMED: funding_z \u2265 +2.0 substrate-infeasible (0/10 syms reach \u2265 1.5% rate, p95-p99 universally < +2.0). B-quadrant test is measurement of infeasibility, not test of mechanism. Lesson #40 sub-class C (per-sym z-score of asymmetrically exchange-bounded scalar) is STRUCTURAL barrier \u2014 Lesson #19 SNT presumes both sides measurable.",
+    "precedent": "paradigm 22 R-5 SEEDED HBAR/AXS/COMP is itself one-sided directional (funding-negative \u2192 LONG MR), same A-only structural design.",
+    "lesson_19_amendment_candidate": "When Lesson #40 confirms substrate infeasibility for one quadrant, 2-quadrant SNT (focus + mirror on the feasible side) replaces 4-quadrant requirement."
+  },
+  "family_distinct_audit": {
+    "paradigm_22_R5_direction": "LONG MR (mean-reversion on funding-neg)",
+    "paradigm_140_direction": "SHORT continuation (joint with CVD smart-selling)",
+    "direction_distinct": true,
+    "axis_count_distinct": "paradigm 22 single-axis funding vs paradigm 140 2-axis joint",
+    "mechanism_distinct": "MR vs continuation (opposite direction on same trigger sign)"
+  },
+  "campaign_state": {
+    "cumulative_graveyards_before_paradigm140": 139,
+    "streak_non_pass": "11-streak (129-139)",
+    "r5_live_count": 10,
+    "lesson_40_instances_pre_paradigm140": 4,
+    "funding_family_tier_4_graveyards": 9
+  }
+}

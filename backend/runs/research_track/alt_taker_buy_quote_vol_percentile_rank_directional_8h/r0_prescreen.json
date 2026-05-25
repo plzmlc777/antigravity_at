@@ -1,0 +1,74 @@
+{
+  "paradigm_name": "alt_taker_buy_quote_vol_percentile_rank_directional_8h",
+  "paradigm_id": 143,
+  "ts_kst": "2026-05-21T13:11:59+09:00",
+  "dispatch_mode": "continuous_parallel",
+  "trigger_lesson": [
+    "57_2nd_dogfood_opportunity_quote_vol_axis_family_retire_eligible",
+    "55_candidate_3rd_dogfood_eligible_percentile_rank_prescription",
+    "44_amendment_26th_xref"
+  ],
+  "lesson_57_dogfood_target": {
+    "family": "quote_vol_axis_directional_continuation_4h_plus",
+    "prior_sub_classes": {
+      "z_score_4h": "paradigm 142-v2 BROAD_FALSIFIED 2026-05-21 13:09 KST",
+      "raw_5m_base": "paradigm 72 BROAD_FALSIFIED_FEE_FLOOR (different tf, weakly related)"
+    },
+    "this_attempt_sub_class": "percentile_rank_4h_primary_8h_hold",
+    "if_broad_falsified": "Lesson #57 2nd dogfood -> family Tier 4 retire eligible (3 sub-classes 2 BROAD_FALSIFIED)",
+    "if_pass": "Lesson #55 candidate 3rd dogfood TRUE POSITIVE -> percentile rank distribution-agnostic prescription validated"
+  },
+  "differentiation_from_paradigm_142v2": {
+    "trigger_statistic": "30d rolling percentile rank of imbalance vs 30d rolling z-score",
+    "primary_hold": "8h (2 bars) vs 4h (1 bar)",
+    "rationale_hold_change": "paradigm 142-v2 B_focus SHORT 12h sigex +3.43 hint (off-primary lesson 37 signal), 8h is midpoint between 4h primary fail and 12h hint",
+    "rationale_trigger_change": "percentile rank is distribution-agnostic (no mean/std assumptions), bounded [0,1] structural attainability (Lesson #40 N/A), avoids z asymmetry trap (Lesson #55 candidate prescription)",
+    "substrate_reuse": "12-col klines cache 14 syms x 820d (zero new infra)"
+  },
+  "lessons_applied": {
+    "lesson_11_sample_density": {
+      "expected_trigger_rate_per_side": 0.05,
+      "expected_n_total_per_side": "14 syms * 6 bars/day * 820d * 0.05 = ~3444",
+      "expected_n_per_cell_q10": "~344",
+      "prescreen_pass": true
+    },
+    "lesson_19_4quadrant_SNT": "mandatory; A_focus rank>0.95 LONG, A_mirror rank>0.95 SHORT, B_focus rank<0.05 SHORT, B_mirror rank<0.05 LONG",
+    "lesson_30_data_window_ratio": {
+      "data_window_days_per_sym_avg": 820,
+      "universe_full_window_days": 820,
+      "ratio": 1.0,
+      "advisory": "no flag"
+    },
+    "lesson_40_structural_threshold_feasibility": "N/A - percentile rank is bounded [0,1], both tails always attainable",
+    "lesson_37_full_sweep_verdict_scan": "hold sweep 4h/8h/12h applied on both focus directions",
+    "lesson_39_subclass_detection": "sub-class A broad-uniform-negative + sub-class B mechanism-inverted scan in R-1",
+    "lesson_44_amendment_26th_xref": {
+      "paradigm_72_taker_buy_vol_5m_BROAD_FALSIFIED": "distinct: 4h primary frame + percentile rank (vs raw 5m absolute)",
+      "paradigm_127_128_volume_burst_R5_LIVE_30m": "distinct: continuous percentile (vs burst spike) + 4h/8h (vs 30m)",
+      "paradigm_140_CVD_ratio": "distinct: percentile rank quote-imbalance (vs raw CVD ratio cumulative)",
+      "paradigm_142v2_z_score_4h": "distinct: percentile rank distribution-agnostic + 8h primary hold (vs z 4h primary)",
+      "funding_family_22_132_138_141_137": "distinct axis entirely (taker side vs perp financing)"
+    },
+    "lesson_45_no_hmm_unsupervised": "compliant - purely percentile rank deterministic",
+    "lesson_46_stratified_n50x4q_plus_sign_flip": "applied with strong warning if sign flips >= n-1"
+  },
+  "infra": {
+    "substrate": "backend/scripts/binance/backfill_12col_klines.py load_12col_cached",
+    "cache_path": "12col klines parquet 14 syms x 820d (reuse paradigm 142-v2 cache)",
+    "new_infra": "none"
+  },
+  "halt_conditions": {
+    "r1_only_halt": "explicit user directive - no R-2 auto-promote",
+    "broad_falsified": "BROAD_FALSIFIED -> Lesson #57 2nd dogfood, family Tier 4 retire candidate formal elevation",
+    "pass_r1": "halt at R-1, await user R-2 dispatch approval"
+  },
+  "verdict_tree_priority": [
+    "lesson39_subclass_A_broad_uniform_negative",
+    "lesson39_subclass_B_mechanism_inverted",
+    "both_focus_pass + life_changing",
+    "one_focus_pass + life_changing",
+    "narrow_scope_life_changing_fail",
+    "concentrated_r1_pass_concentration_fail",
+    "broad_falsified"
+  ]
+}

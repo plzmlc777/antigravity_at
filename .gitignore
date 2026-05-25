@@ -121,3 +121,10 @@ backend/runs/ohlcv_cache/
 
 # Track 3 DART pipeline runtime artifacts (joblib cache + per-run metrics, regeneratable)
 backend/runs/dart_track/
+
+# Paradigm research caches (영구 자산, binary joblib)
+backend/runs/ohlcv_cache_12col/
+backend/runs/ohlcv_cache_15m/
+
+# INDEX.json backup files (paradigm-architect debug 잔재)
+backend/runs/research_track/INDEX.json.bak_*

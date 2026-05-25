@@ -1,0 +1,219 @@
+{
+  "paradigm_name": "alt_parkinson_range_vol_expansion_percentile_directional_4h",
+  "paradigm_number": 129,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T09:25:25+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_READY_FOR_R1",
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_loaded": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_excluded": {
+    "ADAUSDT": "Lesson #30 short-window (143d << 30% of 798d)",
+    "BTCUSDT": "Lesson #30 short-window (142d), local DB stale"
+  },
+  "params": {
+    "park_rolling_bars_4h": 180,
+    "park_percentile": 90.0,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0
+  },
+  "per_sym_days": {
+    "AVAXUSDT": 755,
+    "BCHUSDT": 798,
+    "BNBUSDT": 798,
+    "DOGEUSDT": 767,
+    "ETHUSDT": 795,
+    "FILUSDT": 798,
+    "LINKUSDT": 767,
+    "LTCUSDT": 798,
+    "NEARUSDT": 798,
+    "SOLUSDT": 795,
+    "WIFUSDT": 799,
+    "XRPUSDT": 798
+  },
+  "short_window_syms_lesson_30": {},
+  "n_triggers_total": 4344,
+  "n_triggers_pos": 2008,
+  "n_triggers_neg": 2336,
+  "n_per_sym_min": 341,
+  "per_quarter_pos": {
+    "2024Q1": 46,
+    "2024Q2": 194,
+    "2024Q3": 239,
+    "2024Q4": 307,
+    "2025Q1": 160,
+    "2025Q2": 251,
+    "2025Q3": 297,
+    "2025Q4": 247,
+    "2026Q1": 209,
+    "2026Q2": 58
+  },
+  "per_quarter_neg": {
+    "2024Q1": 49,
+    "2024Q2": 209,
+    "2024Q3": 264,
+    "2024Q4": 349,
+    "2025Q1": 304,
+    "2025Q2": 267,
+    "2025Q3": 270,
+    "2025Q4": 309,
+    "2026Q1": 274,
+    "2026Q2": 41
+  },
+  "measurable_quarters_pos": 10,
+  "measurable_quarters_neg": 10,
+  "n_quarters": 10,
+  "lesson_11_density_pass": true,
+  "lesson_34_empirical_park_percentiles": {
+    "50": 0.00017753352775354067,
+    "70": 0.0003420196635361684,
+    "90": 0.0009406494301209403,
+    "95": 0.0015487061222662036,
+    "99": 0.004440093311974815
+  },
+  "lesson_40": {
+    "threshold_definition": "per-symbol 30-day rolling Parkinson percentile p90",
+    "threshold_class": "empirical rolling percentile (NOT z-score on non-negative aggregate)",
+    "structurally_reachable": true,
+    "reformulation_class": "percentile_rank",
+    "verdict": "PASS"
+  },
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=200",
+  "lesson_46_quarters_used": [
+    "2024Q1",
+    "2024Q4",
+    "2025Q3",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_park_p90_pos_LONG_4h": {
+      "label": "A_focus_park_p90_pos_LONG_4h",
+      "n": 93,
+      "gross_bp": -5.726705827228597,
+      "net_bp": -21.726705827228596,
+      "t": -0.2403134279687862
+    },
+    "A_mirror_park_p90_pos_SHORT_4h": {
+      "label": "A_mirror_park_p90_pos_SHORT_4h",
+      "n": 93,
+      "gross_bp": 5.726705827228597,
+      "net_bp": -10.273294172771404,
+      "t": 0.2403134279687862
+    },
+    "B_focus_park_p90_neg_SHORT_4h": {
+      "label": "B_focus_park_p90_neg_SHORT_4h",
+      "n": 107,
+      "gross_bp": -22.46508784925112,
+      "net_bp": -38.46508784925112,
+      "t": -1.228174978265566
+    },
+    "B_mirror_park_p90_neg_LONG_4h": {
+      "label": "B_mirror_park_p90_neg_LONG_4h",
+      "n": 107,
+      "gross_bp": 22.46508784925112,
+      "net_bp": 6.46508784925112,
+      "t": 1.228174978265566
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2024Q1": {
+      "n_total": 50,
+      "A_focus_n": 18,
+      "A_focus_gross_bp": 2.3244845337726097,
+      "B_focus_n": 32,
+      "B_focus_gross_bp": -131.56379304596874
+    },
+    "2024Q4": {
+      "n_total": 50,
+      "A_focus_n": 13,
+      "A_focus_gross_bp": -56.01836336055317,
+      "B_focus_n": 37,
+      "B_focus_gross_bp": 97.25922283995902
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 35,
+      "A_focus_gross_bp": 27.197761228378138,
+      "B_focus_n": 15,
+      "B_focus_gross_bp": -113.61629957164898
+    },
+    "2026Q2": {
+      "n_total": 50,
+      "A_focus_n": 27,
+      "A_focus_gross_bp": -29.55952899430406,
+      "B_focus_n": 23,
+      "B_focus_gross_bp": -3.829120604461732
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 3,
+    "A_signs": [
+      1,
+      -1,
+      1,
+      -1
+    ],
+    "B_focus_flips": 2,
+    "B_signs": [
+      -1,
+      1,
+      -1,
+      -1
+    ]
+  },
+  "lesson_44_xref": {
+    "paradigm_67_btc_rv_spike_alt_recovery": "GRAVEYARD \u2014 close-to-close RV at 1d. DISTINCT: range info (H/L) vs return-based RV. Per-sym, no BTC.",
+    "paradigm_68_btc_rv_spike_up_conditional": "GRAVEYARD R-3.5 \u2014 BTC RV sign-cond. DISTINCT: per-sym range, no cross-asset, no sign-cond filter.",
+    "paradigm_69_btc_rv_spike_highvol_filter": "R-5 SEEDED \u2014 BTC RV p90 + 13 alt LONG. DISTINCT: per-sym intrinsic range (no BTC dependency), 4h frame vs 240m hold.",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD lesson #20 narrow scope \u2014 rolling beta vs BTC. DISTINCT: range info, not beta vs benchmark.",
+    "paradigm_116_alt_volume_confirmed_atr_breakout": "GRAVEYARD \u2014 ATR+volume composite. DISTINCT: pure range info (no volume, no breakout level).",
+    "paradigm_121_hmm_realized_vol_state": "GRAVEYARD lesson #45 HMM \u2014 HMM unsup decomp on RV. DISTINCT: explicit p90 percentile (Lesson #45 family-distinct).",
+    "paradigm_123_alt_volume_cusum_change_point": "GRAVEYARD lesson #19 SNT broad-falsified. DISTINCT: stateless percentile vs stateful Page-Hinkley, range vs volume.",
+    "paradigm_124_alt_realized_kurtosis": "GRAVEYARD \u2014 4th moment. DISTINCT: 2nd-order range, NOT higher-order moment family (advisory caution).",
+    "paradigm_125_alt_realized_quarticity_bipower": "R-0 HALT lesson #40 \u2014 B-N test. DISTINCT: percentile rank reformulation (Lesson #40 compliant).",
+    "paradigm_126_127_128_volume_burst_family": "R-5 SEEDED paradigm 127+128 \u2014 1m volume burst. DISTINCT: pure range info, 4h frame (not 5m, not volume).",
+    "RUNBOOK_3M_volume_extraction": "ANTIPATTERN avoided \u2014 no volume axis used. Range info is independent dimension from volume."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit p90 percentile, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (range info, no OI)",
+    "Stateful_CP": "AVOIDED (stateless quantile, Lesson #22)",
+    "Higher_order_moment": "AVOIDED (2nd-order range)",
+    "Funding_single_signal": "AVOIDED (price-range only)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Magnitude_confluence": "AVOIDED (single trigger axis)",
+    "Listing_event": "AVOIDED (continuous rolling, no event anchor)",
+    "5m_microstructure_single_domain": "AVOIDED (4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-symbol)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed_deviation": "AVOIDED (raw range, no smoothing)",
+    "paradigm_126_127_128_volume_burst": "AVOIDED (4h frame + range info, distinct dimension)"
+  }
+}

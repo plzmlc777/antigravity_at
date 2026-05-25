@@ -1,0 +1,957 @@
+{
+  "paradigm_id": 218,
+  "slug": "alt_btc_macro_release_window_pm_4h_event_anchored_4h_vol_burst_alt_directional_4h_to_24h_bilateral",
+  "phase": "R-1",
+  "fee_per_trade": 0.0008,
+  "n_universe": 13,
+  "btc_cache_span_days": 819,
+  "event_count": {
+    "fomc_raw": 19,
+    "cpi_raw": 27,
+    "events_in_span": 45,
+    "event_bars_aligned": 45,
+    "events_with_vol_spike": 10,
+    "up_spike": 5,
+    "dn_spike": 5
+  },
+  "cross_set_asymmetry": {
+    "n_up_spike": 5,
+    "n_dn_spike": 5,
+    "ratio_up_over_dn": 1.0,
+    "ratio_dn_over_up": 1.0
+  },
+  "primary_4h_cells": {
+    "A_focus": {
+      "cell": "A_focus_LONG_after_UP_spike",
+      "n_obs": 65,
+      "obs_mean_bp": 221.13667606328352,
+      "obs_t": 15.356629822166344,
+      "null_mean_t": -0.34696316163684043,
+      "signal_t_excess": 15.703592983803183,
+      "perm_p_two_sided": 0.0,
+      "ci_lower_bp": 194.5047824105699,
+      "ci_upper_bp": 249.60089014620954,
+      "prob_positive": 1.0,
+      "three_gate_pass": true,
+      "desc": "LONG_after_UP_spike"
+    },
+    "A_mirror": {
+      "cell": "A_mirror_SHORT_after_UP_spike",
+      "n_obs": 65,
+      "obs_mean_bp": -237.1366760632835,
+      "obs_t": -16.467734870540795,
+      "null_mean_t": -0.34696316163684043,
+      "signal_t_excess": -16.120771708903955,
+      "perm_p_two_sided": 0.0,
+      "ci_lower_bp": -265.60089014620957,
+      "ci_upper_bp": -210.5047824105699,
+      "prob_positive": 0.0,
+      "three_gate_pass": false,
+      "desc": "SHORT_after_UP_spike"
+    },
+    "B_same": {
+      "cell": "B_same_SHORT_after_DN_spike",
+      "n_obs": 65,
+      "obs_mean_bp": 351.6765942247126,
+      "obs_t": 13.43690273674795,
+      "null_mean_t": -0.34696316163684043,
+      "signal_t_excess": 13.78386589838479,
+      "perm_p_two_sided": 0.0,
+      "ci_lower_bp": 299.75896533235556,
+      "ci_upper_bp": 403.64226020049375,
+      "prob_positive": 1.0,
+      "three_gate_pass": true,
+      "desc": "SHORT_after_DN_spike"
+    },
+    "B_mirror": {
+      "cell": "B_mirror_LONG_after_DN_spike",
+      "n_obs": 65,
+      "obs_mean_bp": -367.67659422471246,
+      "obs_t": -14.048232712409034,
+      "null_mean_t": -0.34696316163684043,
+      "signal_t_excess": -13.701269550772194,
+      "perm_p_two_sided": 0.0,
+      "ci_lower_bp": -419.64226020049387,
+      "ci_upper_bp": -315.7589653323555,
+      "prob_positive": 0.0,
+      "three_gate_pass": false,
+      "desc": "LONG_after_DN_spike"
+    }
+  },
+  "hold_sweep": {
+    "hold4h": {
+      "hold_bars": 1,
+      "hold_hours": 4,
+      "n_event_bars": 45,
+      "n_event_bars_with_spike": 10,
+      "n_up_spike": 5,
+      "n_dn_spike": 5,
+      "cells": {
+        "A_focus": {
+          "cell": "A_focus_LONG_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 221.13667606328352,
+          "obs_t": 15.356629822166344,
+          "null_mean_t": -0.34696316163684043,
+          "signal_t_excess": 15.703592983803183,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 194.5047824105699,
+          "ci_upper_bp": 249.60089014620954,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "LONG_after_UP_spike"
+        },
+        "A_mirror": {
+          "cell": "A_mirror_SHORT_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -237.1366760632835,
+          "obs_t": -16.467734870540795,
+          "null_mean_t": -0.34696316163684043,
+          "signal_t_excess": -16.120771708903955,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -265.60089014620957,
+          "ci_upper_bp": -210.5047824105699,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "SHORT_after_UP_spike"
+        },
+        "B_same": {
+          "cell": "B_same_SHORT_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 351.6765942247126,
+          "obs_t": 13.43690273674795,
+          "null_mean_t": -0.34696316163684043,
+          "signal_t_excess": 13.78386589838479,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 299.75896533235556,
+          "ci_upper_bp": 403.64226020049375,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "SHORT_after_DN_spike"
+        },
+        "B_mirror": {
+          "cell": "B_mirror_LONG_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -367.67659422471246,
+          "obs_t": -14.048232712409034,
+          "null_mean_t": -0.34696316163684043,
+          "signal_t_excess": -13.701269550772194,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -419.64226020049387,
+          "ci_upper_bp": -315.7589653323555,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "LONG_after_DN_spike"
+        }
+      }
+    },
+    "hold8h": {
+      "hold_bars": 2,
+      "hold_hours": 8,
+      "n_event_bars": 45,
+      "n_event_bars_with_spike": 10,
+      "n_up_spike": 5,
+      "n_dn_spike": 5,
+      "cells": {
+        "A_focus": {
+          "cell": "A_focus_LONG_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 231.12769938231804,
+          "obs_t": 8.022344197501377,
+          "null_mean_t": -0.1940321432189083,
+          "signal_t_excess": 8.216376340720286,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 177.24067377510093,
+          "ci_upper_bp": 290.7965126901988,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "LONG_after_UP_spike"
+        },
+        "A_mirror": {
+          "cell": "A_mirror_SHORT_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -247.127699382318,
+          "obs_t": -8.577697396200856,
+          "null_mean_t": -0.1940321432189083,
+          "signal_t_excess": -8.383665252981947,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -306.7965126901988,
+          "ci_upper_bp": -193.2406737751009,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "SHORT_after_UP_spike"
+        },
+        "B_same": {
+          "cell": "B_same_SHORT_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 232.90729279523262,
+          "obs_t": 8.974383557692288,
+          "null_mean_t": -0.1940321432189083,
+          "signal_t_excess": 9.168415700911197,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 183.01298134196256,
+          "ci_upper_bp": 284.85555963396206,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "SHORT_after_DN_spike"
+        },
+        "B_mirror": {
+          "cell": "B_mirror_LONG_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -248.90729279523265,
+          "obs_t": -9.590895540635296,
+          "null_mean_t": -0.1940321432189083,
+          "signal_t_excess": -9.396863397416388,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -300.85555963396206,
+          "ci_upper_bp": -199.0129813419626,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "LONG_after_DN_spike"
+        }
+      }
+    },
+    "hold12h": {
+      "hold_bars": 3,
+      "hold_hours": 12,
+      "n_event_bars": 45,
+      "n_event_bars_with_spike": 10,
+      "n_up_spike": 5,
+      "n_dn_spike": 5,
+      "cells": {
+        "A_focus": {
+          "cell": "A_focus_LONG_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 252.14403594992302,
+          "obs_t": 7.350178375235123,
+          "null_mean_t": -0.1436894627969234,
+          "signal_t_excess": 7.493867838032046,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 186.08986311536182,
+          "ci_upper_bp": 322.8337944368833,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "LONG_after_UP_spike"
+        },
+        "A_mirror": {
+          "cell": "A_mirror_SHORT_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -268.144035949923,
+          "obs_t": -7.81658977997332,
+          "null_mean_t": -0.1436894627969234,
+          "signal_t_excess": -7.6729003171763965,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -338.8337944368831,
+          "ci_upper_bp": -202.08986311536194,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "SHORT_after_UP_spike"
+        },
+        "B_same": {
+          "cell": "B_same_SHORT_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 242.63068714705037,
+          "obs_t": 6.718082004640711,
+          "null_mean_t": -0.1436894627969234,
+          "signal_t_excess": 6.861771467437634,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 168.46994037030836,
+          "ci_upper_bp": 311.93807582430304,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "SHORT_after_DN_spike"
+        },
+        "B_mirror": {
+          "cell": "B_mirror_LONG_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -258.6306871470503,
+          "obs_t": -7.1610981512714345,
+          "null_mean_t": -0.1436894627969234,
+          "signal_t_excess": -7.017408688474511,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -327.938075824303,
+          "ci_upper_bp": -184.46994037030845,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "LONG_after_DN_spike"
+        }
+      }
+    },
+    "hold24h": {
+      "hold_bars": 6,
+      "hold_hours": 24,
+      "n_event_bars": 45,
+      "n_event_bars_with_spike": 10,
+      "n_up_spike": 5,
+      "n_dn_spike": 5,
+      "cells": {
+        "A_focus": {
+          "cell": "A_focus_LONG_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 267.4193177210568,
+          "obs_t": 6.518754556572802,
+          "null_mean_t": -0.0847688748885378,
+          "signal_t_excess": 6.60352343146134,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 191.438843991206,
+          "ci_upper_bp": 349.4082312551281,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "LONG_after_UP_spike"
+        },
+        "A_mirror": {
+          "cell": "A_mirror_SHORT_after_UP_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -283.4193177210568,
+          "obs_t": -6.908779008785187,
+          "null_mean_t": -0.0847688748885378,
+          "signal_t_excess": -6.824010133896649,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -365.4082312551282,
+          "ci_upper_bp": -207.43884399120606,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "SHORT_after_UP_spike"
+        },
+        "B_same": {
+          "cell": "B_same_SHORT_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": 508.97613288818366,
+          "obs_t": 7.390628444593676,
+          "null_mean_t": -0.0847688748885378,
+          "signal_t_excess": 7.475397319482214,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": 367.5420104319308,
+          "ci_upper_bp": 643.5751596427933,
+          "prob_positive": 1.0,
+          "three_gate_pass": true,
+          "desc": "SHORT_after_DN_spike"
+        },
+        "B_mirror": {
+          "cell": "B_mirror_LONG_after_DN_spike",
+          "n_obs": 65,
+          "obs_mean_bp": -524.9761328881837,
+          "obs_t": -7.622957717957614,
+          "null_mean_t": -0.0847688748885378,
+          "signal_t_excess": -7.538188843069076,
+          "perm_p_two_sided": 0.0,
+          "ci_lower_bp": -659.5751596427932,
+          "ci_upper_bp": -383.54201043193086,
+          "prob_positive": 0.0,
+          "three_gate_pass": false,
+          "desc": "LONG_after_DN_spike"
+        }
+      }
+    }
+  },
+  "concentration_quarterly_era_per_cell": {
+    "A_focus": {
+      "concentration": {
+        "n_syms_measurable": 13,
+        "n_syms_ci_pos": 13,
+        "syms_ci_pos": [
+          "ETHUSDT",
+          "SOLUSDT",
+          "DOGEUSDT",
+          "AVAXUSDT",
+          "LINKUSDT",
+          "ADAUSDT",
+          "BCHUSDT",
+          "BNBUSDT",
+          "FILUSDT",
+          "LTCUSDT",
+          "NEARUSDT",
+          "XRPUSDT",
+          "DOTUSDT"
+        ],
+        "ratio_ci_pos": 1.0,
+        "per_sym": {
+          "ETHUSDT": {
+            "n": 5,
+            "mean_bp": 213.21345289035997,
+            "ci_lower_bp": 135.31451979435823,
+            "ci_pos": true
+          },
+          "SOLUSDT": {
+            "n": 5,
+            "mean_bp": 326.4545356593524,
+            "ci_lower_bp": 232.9492329056405,
+            "ci_pos": true
+          },
+          "DOGEUSDT": {
+            "n": 5,
+            "mean_bp": 298.15437995250613,
+            "ci_lower_bp": 208.1380952147402,
+            "ci_pos": true
+          },
+          "AVAXUSDT": {
+            "n": 5,
+            "mean_bp": 270.4290883061718,
+            "ci_lower_bp": 143.6117611462164,
+            "ci_pos": true
+          },
+          "LINKUSDT": {
+            "n": 5,
+            "mean_bp": 201.56251324394262,
+            "ci_lower_bp": 137.46630395447457,
+            "ci_pos": true
+          },
+          "ADAUSDT": {
+            "n": 5,
+            "mean_bp": 177.4473486678203,
+            "ci_lower_bp": 131.39403372243737,
+            "ci_pos": true
+          },
+          "BCHUSDT": {
+            "n": 5,
+            "mean_bp": 245.57292240722305,
+            "ci_lower_bp": 116.60254494287595,
+            "ci_pos": true
+          },
+          "BNBUSDT": {
+            "n": 5,
+            "mean_bp": 210.9671727937222,
+            "ci_lower_bp": 151.6567536865605,
+            "ci_pos": true
+          },
+          "FILUSDT": {
+            "n": 5,
+            "mean_bp": 223.23653833724998,
+            "ci_lower_bp": 121.48432890356813,
+            "ci_pos": true
+          },
+          "LTCUSDT": {
+            "n": 5,
+            "mean_bp": 123.38474646622937,
+            "ci_lower_bp": 81.86861870812542,
+            "ci_pos": true
+          },
+          "NEARUSDT": {
+            "n": 5,
+            "mean_bp": 246.73153385071706,
+            "ci_lower_bp": 154.19409591627237,
+            "ci_pos": true
+          },
+          "XRPUSDT": {
+            "n": 5,
+            "mean_bp": 137.18184687308394,
+            "ci_lower_bp": 97.66482847251437,
+            "ci_pos": true
+          },
+          "DOTUSDT": {
+            "n": 5,
+            "mean_bp": 200.4407093743062,
+            "ci_lower_bp": 125.55081614174998,
+            "ci_pos": true
+          }
+        }
+      },
+      "quarterly": {
+        "n_quarters": 3,
+        "n_pos_t": 3,
+        "ratio_pos_t": 1.0,
+        "per_quarter": {
+          "2024Q1": {
+            "n": 13,
+            "mean_bp": 225.65423031958719,
+            "t": 5.836598972420906
+          },
+          "2024Q2": {
+            "n": 39,
+            "mean_bp": 188.5185220787997,
+            "t": 12.79540404227853
+          },
+          "2024Q3": {
+            "n": 13,
+            "mean_bp": 314.47358376043115,
+            "t": 10.05020605126681
+          }
+        }
+      },
+      "era_stratify": {
+        "2024": {
+          "n": 65,
+          "mean_bp": 221.13667606328352,
+          "t": 15.356629822166344
+        }
+      }
+    },
+    "A_mirror": {
+      "concentration": {
+        "n_syms_measurable": 13,
+        "n_syms_ci_pos": 0,
+        "syms_ci_pos": [],
+        "ratio_ci_pos": 0.0,
+        "per_sym": {
+          "ETHUSDT": {
+            "n": 5,
+            "mean_bp": -229.21345289036,
+            "ci_lower_bp": -327.75264294953774,
+            "ci_pos": false
+          },
+          "SOLUSDT": {
+            "n": 5,
+            "mean_bp": -342.45453565935236,
+            "ci_lower_bp": -433.8454706565078,
+            "ci_pos": false
+          },
+          "DOGEUSDT": {
+            "n": 5,
+            "mean_bp": -314.15437995250613,
+            "ci_lower_bp": -404.1706646902722,
+            "ci_pos": false
+          },
+          "AVAXUSDT": {
+            "n": 5,
+            "mean_bp": -286.4290883061719,
+            "ci_lower_bp": -425.3074788605397,
+            "ci_pos": false
+          },
+          "LINKUSDT": {
+            "n": 5,
+            "mean_bp": -217.5625132439426,
+            "ci_lower_bp": -278.7093895801846,
+            "ci_pos": false
+          },
+          "ADAUSDT": {
+            "n": 5,
+            "mean_bp": -193.4473486678203,
+            "ci_lower_bp": -253.95661245614244,
+            "ci_pos": false
+          },
+          "BCHUSDT": {
+            "n": 5,
+            "mean_bp": -261.5729224072231,
+            "ci_lower_bp": -390.54329987157024,
+            "ci_pos": false
+          },
+          "BNBUSDT": {
+            "n": 5,
+            "mean_bp": -226.96717279372217,
+            "ci_lower_bp": -279.0673964307102,
+            "ci_pos": false
+          },
+          "FILUSDT": {
+            "n": 5,
+            "mean_bp": -239.23653833725,
+            "ci_lower_bp": -340.9887477709318,
+            "ci_pos": false
+          },
+          "LTCUSDT": {
+            "n": 5,
+            "mean_bp": -139.38474646622936,
+            "ci_lower_bp": -180.89525227150096,
+            "ci_pos": false
+          },
+          "NEARUSDT": {
+            "n": 5,
+            "mean_bp": -262.7315338507171,
+            "ci_lower_bp": -345.76878774412853,
+            "ci_pos": false
+          },
+          "XRPUSDT": {
+            "n": 5,
+            "mean_bp": -153.18184687308388,
+            "ci_lower_bp": -185.78573586581066,
+            "ci_pos": false
+          },
+          "DOTUSDT": {
+            "n": 5,
+            "mean_bp": -216.44070937430612,
+            "ci_lower_bp": -270.8593475746624,
+            "ci_pos": false
+          }
+        }
+      },
+      "quarterly": {
+        "n_quarters": 3,
+        "n_pos_t": 0,
+        "ratio_pos_t": 0.0,
+        "per_quarter": {
+          "2024Q1": {
+            "n": 13,
+            "mean_bp": -241.65423031958719,
+            "t": -6.250442681118391
+          },
+          "2024Q2": {
+            "n": 39,
+            "mean_bp": -204.51852207879966,
+            "t": -13.881379374669907
+          },
+          "2024Q3": {
+            "n": 13,
+            "mean_bp": -330.4735837604312,
+            "t": -10.561547242146519
+          }
+        }
+      },
+      "era_stratify": {
+        "2024": {
+          "n": 65,
+          "mean_bp": -237.1366760632835,
+          "t": -16.467734870540795
+        }
+      }
+    },
+    "B_same": {
+      "concentration": {
+        "n_syms_measurable": 13,
+        "n_syms_ci_pos": 13,
+        "syms_ci_pos": [
+          "ETHUSDT",
+          "SOLUSDT",
+          "DOGEUSDT",
+          "AVAXUSDT",
+          "LINKUSDT",
+          "ADAUSDT",
+          "BCHUSDT",
+          "BNBUSDT",
+          "FILUSDT",
+          "LTCUSDT",
+          "NEARUSDT",
+          "XRPUSDT",
+          "DOTUSDT"
+        ],
+        "ratio_ci_pos": 1.0,
+        "per_sym": {
+          "ETHUSDT": {
+            "n": 5,
+            "mean_bp": 352.1314551327347,
+            "ci_lower_bp": 229.1542688203016,
+            "ci_pos": true
+          },
+          "SOLUSDT": {
+            "n": 5,
+            "mean_bp": 305.7014235052571,
+            "ci_lower_bp": 133.57392489011627,
+            "ci_pos": true
+          },
+          "DOGEUSDT": {
+            "n": 5,
+            "mean_bp": 471.4564019207693,
+            "ci_lower_bp": 245.47641985584946,
+            "ci_pos": true
+          },
+          "AVAXUSDT": {
+            "n": 5,
+            "mean_bp": 425.1205899600565,
+            "ci_lower_bp": 251.42249465560505,
+            "ci_pos": true
+          },
+          "LINKUSDT": {
+            "n": 5,
+            "mean_bp": 453.65869847021264,
+            "ci_lower_bp": 264.86717410151897,
+            "ci_pos": true
+          },
+          "ADAUSDT": {
+            "n": 5,
+            "mean_bp": 314.4421712213011,
+            "ci_lower_bp": 152.65491663310704,
+            "ci_pos": true
+          },
+          "BCHUSDT": {
+            "n": 5,
+            "mean_bp": 301.40177975527047,
+            "ci_lower_bp": 157.66560738711982,
+            "ci_pos": true
+          },
+          "BNBUSDT": {
+            "n": 5,
+            "mean_bp": 262.055209282546,
+            "ci_lower_bp": 163.5195323219759,
+            "ci_pos": true
+          },
+          "FILUSDT": {
+            "n": 5,
+            "mean_bp": 299.0078505473695,
+            "ci_lower_bp": 121.04507633840903,
+            "ci_pos": true
+          },
+          "LTCUSDT": {
+            "n": 5,
+            "mean_bp": 276.58675605335526,
+            "ci_lower_bp": 132.81420513139446,
+            "ci_pos": true
+          },
+          "NEARUSDT": {
+            "n": 5,
+            "mean_bp": 423.50402743986314,
+            "ci_lower_bp": 218.87408748445628,
+            "ci_pos": true
+          },
+          "XRPUSDT": {
+            "n": 5,
+            "mean_bp": 339.4028565819139,
+            "ci_lower_bp": 235.06309344275604,
+            "ci_pos": true
+          },
+          "DOTUSDT": {
+            "n": 5,
+            "mean_bp": 347.326505050613,
+            "ci_lower_bp": 122.75779471468832,
+            "ci_pos": true
+          }
+        }
+      },
+      "quarterly": {
+        "n_quarters": 3,
+        "n_pos_t": 3,
+        "ratio_pos_t": 1.0,
+        "per_quarter": {
+          "2024Q2": {
+            "n": 13,
+            "mean_bp": 248.84240998347013,
+            "t": 8.305943232141733
+          },
+          "2024Q4": {
+            "n": 39,
+            "mean_bp": 326.4066157362215,
+            "t": 8.875944356113456
+          },
+          "2025Q4": {
+            "n": 13,
+            "mean_bp": 530.3207139314281,
+            "t": 18.504556949384725
+          }
+        }
+      },
+      "era_stratify": {
+        "2024": {
+          "n": 52,
+          "mean_bp": 307.01556429803355,
+          "t": 10.652550902091962
+        },
+        "2025": {
+          "n": 13,
+          "mean_bp": 530.3207139314281,
+          "t": 18.504556949384725
+        }
+      }
+    },
+    "B_mirror": {
+      "concentration": {
+        "n_syms_measurable": 13,
+        "n_syms_ci_pos": 0,
+        "syms_ci_pos": [],
+        "ratio_ci_pos": 0.0,
+        "per_sym": {
+          "ETHUSDT": {
+            "n": 5,
+            "mean_bp": -368.1314551327347,
+            "ci_lower_bp": -484.39624770196923,
+            "ci_pos": false
+          },
+          "SOLUSDT": {
+            "n": 5,
+            "mean_bp": -321.70142350525714,
+            "ci_lower_bp": -516.6456667764968,
+            "ci_pos": false
+          },
+          "DOGEUSDT": {
+            "n": 5,
+            "mean_bp": -487.4564019207693,
+            "ci_lower_bp": -705.1997550216264,
+            "ci_pos": false
+          },
+          "AVAXUSDT": {
+            "n": 5,
+            "mean_bp": -441.1205899600566,
+            "ci_lower_bp": -607.047266011058,
+            "ci_pos": false
+          },
+          "LINKUSDT": {
+            "n": 5,
+            "mean_bp": -469.65869847021264,
+            "ci_lower_bp": -653.7790334691778,
+            "ci_pos": false
+          },
+          "ADAUSDT": {
+            "n": 5,
+            "mean_bp": -330.4421712213011,
+            "ci_lower_bp": -490.8351828702722,
+            "ci_pos": false
+          },
+          "BCHUSDT": {
+            "n": 5,
+            "mean_bp": -317.40177975527047,
+            "ci_lower_bp": -484.43506267189366,
+            "ci_pos": false
+          },
+          "BNBUSDT": {
+            "n": 5,
+            "mean_bp": -278.055209282546,
+            "ci_lower_bp": -384.32348221445733,
+            "ci_pos": false
+          },
+          "FILUSDT": {
+            "n": 5,
+            "mean_bp": -315.00785054736957,
+            "ci_lower_bp": -434.1449522374595,
+            "ci_pos": false
+          },
+          "LTCUSDT": {
+            "n": 5,
+            "mean_bp": -292.58675605335526,
+            "ci_lower_bp": -436.359306975316,
+            "ci_pos": false
+          },
+          "NEARUSDT": {
+            "n": 5,
+            "mean_bp": -439.5040274398632,
+            "ci_lower_bp": -643.9646957023866,
+            "ci_pos": false
+          },
+          "XRPUSDT": {
+            "n": 5,
+            "mean_bp": -355.40285658191397,
+            "ci_lower_bp": -450.5948677974421,
+            "ci_pos": false
+          },
+          "DOTUSDT": {
+            "n": 5,
+            "mean_bp": -363.326505050613,
+            "ci_lower_bp": -586.2710928828005,
+            "ci_pos": false
+          }
+        }
+      },
+      "quarterly": {
+        "n_quarters": 3,
+        "n_pos_t": 0,
+        "ratio_pos_t": 0.0,
+        "per_quarter": {
+          "2024Q2": {
+            "n": 13,
+            "mean_bp": -264.8424099834701,
+            "t": -8.839996457727736
+          },
+          "2024Q4": {
+            "n": 39,
+            "mean_bp": -342.4066157362214,
+            "t": -9.311030849006668
+          },
+          "2025Q4": {
+            "n": 13,
+            "mean_bp": -546.320713931428,
+            "t": -19.06284725072951
+          }
+        }
+      },
+      "era_stratify": {
+        "2024": {
+          "n": 52,
+          "mean_bp": -323.0155642980336,
+          "t": -11.207704562862128
+        },
+        "2025": {
+          "n": 13,
+          "mean_bp": -546.320713931428,
+          "t": -19.06284725072951
+        }
+      }
+    }
+  },
+  "unconditional_baseline": {
+    "unconditional_BTC_UP_LONG_hold4h": {
+      "n": 32838,
+      "mean_bp": 77.29158394076947,
+      "t": 89.53674601156372
+    },
+    "unconditional_BTC_UP_SHORT_hold4h": {
+      "n": 32838,
+      "mean_bp": -93.2915839407695,
+      "t": -108.07159629077202
+    },
+    "unconditional_BTC_DN_LONG_hold4h": {
+      "n": 31109,
+      "mean_bp": -96.00800944571868,
+      "t": -98.99295444896372
+    },
+    "unconditional_BTC_DN_SHORT_hold4h": {
+      "n": 31109,
+      "mean_bp": 80.00800944571867,
+      "t": 82.49550511814593
+    },
+    "unconditional_BTC_UP_LONG_hold8h": {
+      "n": 32838,
+      "mean_bp": 76.87816462365059,
+      "t": 56.255452460952625
+    },
+    "unconditional_BTC_UP_SHORT_hold8h": {
+      "n": 32838,
+      "mean_bp": -92.87816462365059,
+      "t": -67.96342238689363
+    },
+    "unconditional_BTC_DN_LONG_hold8h": {
+      "n": 31096,
+      "mean_bp": -93.49009004618007,
+      "t": -66.28801695667975
+    },
+    "unconditional_BTC_DN_SHORT_hold8h": {
+      "n": 31096,
+      "mean_bp": 77.49009004618007,
+      "t": 54.94341058414357
+    },
+    "unconditional_BTC_UP_LONG_hold12h": {
+      "n": 32838,
+      "mean_bp": 78.45708818441297,
+      "t": 46.32381235685369
+    },
+    "unconditional_BTC_UP_SHORT_hold12h": {
+      "n": 32838,
+      "mean_bp": -94.45708818441297,
+      "t": -55.77077266167047
+    },
+    "unconditional_BTC_DN_LONG_hold12h": {
+      "n": 31083,
+      "mean_bp": -93.05718118093677,
+      "t": -52.3526944327716
+    },
+    "unconditional_BTC_DN_SHORT_hold12h": {
+      "n": 31083,
+      "mean_bp": 77.05718118093678,
+      "t": 43.351313773113915
+    },
+    "unconditional_BTC_UP_LONG_hold24h": {
+      "n": 32812,
+      "mean_bp": 85.6232863796667,
+      "t": 34.84975231064403
+    },
+    "unconditional_BTC_UP_SHORT_hold24h": {
+      "n": 32812,
+      "mean_bp": -101.6232863796667,
+      "t": -41.36195314463022
+    },
+    "unconditional_BTC_DN_LONG_hold24h": {
+      "n": 31070,
+      "mean_bp": -94.55297303671925,
+      "t": -37.13799362146974
+    },
+    "unconditional_BTC_DN_SHORT_hold24h": {
+      "n": 31070,
+      "mean_bp": 78.55297303671925,
+      "t": 30.853602143765933
+    }
+  },
+  "lesson_42_20th_dogfood": {
+    "B_mirror_obs_t": -14.048232712409034,
+    "B_mirror_signal_t_excess": -13.701269550772194,
+    "B_mirror_ci_lower_bp": -419.64226020049387,
+    "B_mirror_three_gate_pass": false,
+    "chain_position": 20,
+    "chain_3tier_before": "10 CONFIRMED / 8 NEGATIVE / 1 PASS_AS_ARTIFACT"
+  },
+  "sweep_pass_cells": [
+    "hold4h/A_focus",
+    "hold4h/B_same",
+    "hold8h/A_focus",
+    "hold8h/B_same",
+    "hold12h/A_focus",
+    "hold12h/B_same",
+    "hold24h/A_focus",
+    "hold24h/B_same"
+  ],
+  "verdict": "R1_PASS_SWEEP_CELL",
+  "wall_time_s": 1.6
+}

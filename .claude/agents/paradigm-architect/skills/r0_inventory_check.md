@@ -3,7 +3,7 @@
 > Parent agent: `paradigm-architect`
 > Purpose: Pre-flight checks before generating R-1 code
 > Tools: Bash, Read, Write
-> Last sync: 2026-05-21 22:09 KST — Lesson #69 CONFIRMED 5-item strict template 영구 자산화 + Lesson #61 amendment PERMANENT ASSET ELEVATION + Lesson #28 amendment CONFIRMED + 15 formal Tier 4 family retires
+> Last sync: 2026-05-22 16:34 KST — paradigm 203 MEMORIAL formal ratification: 20 cumulative Tier 4 family retires (entry 18 listing post-onboard reinforcement absorbed + entry 19 cross-substrate ratio family advisory absorbed + entry 20 rv_intraday_1st_order_family NEW formal). Alpha decay informational learning cross-family universal documented (2 cross-family evidence paradigm 87 delisting + paradigm 136/202 RV intraday). Lesson #55 prescription rescue scope NEW candidate 1st dogfood paradigm 202. Agent SELF-RECOMMEND saturation default fallback formal evidence 5 consecutive non-PASS paradigm 178/199/200/201/202. Item 6 alpha decay prescreen 5-item template extension. Prior 2026-05-22 10:25 KST sync: paradigm 188 MEMORIAL formal ratification: 17 cumulative Tier 4 family retires (entry 16 cross-exchange family reinforcement 9 cumulative absorbed via paradigm 187 R-0 halt + entry 17 continuous_weighting_14sym_daily_rebal_framework formal NEW). Lesson #71 corollary 4-dogfood CONFIRMED-eligible (util_estimated formula permanent asset). Lesson #72 strict universal REJECTED + partial conditional confirmed (paradigm 184/185 SHORT-side +0.604/+0.501 partial alpha). Lesson #21 6-dogfood amendment (axis stacking can DESTROY alpha, paradigm 186 active destruction). Prior: Lesson #69 CONFIRMED 5-item strict template 영구 자산화 + Lesson #61 amendment PERMANENT ASSET ELEVATION + Lesson #28 amendment CONFIRMED + 15 formal Tier 4 family retires (paradigm 168 ratification batch).
 
 ## Step 0 — Lesson #69 CONFIRMED 5-item strict template (PERMANENT ASSET, 영구 의무)
 
@@ -75,6 +75,30 @@ Halt conditions:
 - ≥ 2 family intersections → R0_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION
 - ≥ 4 cumulative graveyards in same family + same axis-class → OUTCOME-LEVEL family-proxy 17th+ instance prediction → R0_HALT_BY_OUTCOME_PROXY
 
+### Item 6 — Alpha decay informational learning prescreen (NEW 2026-05-22 paradigm 203 MEMORIAL, 1st explicit dogfood paradigm 202)
+
+**Trigger**: R-0 prescreen Item 1 slug grep returns prior graveyard with documented temporal decay pattern.
+
+**Check**: Scan predecessor R-0/R-1/R-2 graveyard reason text for:
+- Keywords: "monotonic temporal decay" / "era stratification sign-flipped" / "Q1 +X bp → Qn 200x compression" / "alpha decay (informational learning)" / "sign-flipped 2024→2026" / "200x compression"
+- Quantitative pattern: predecessor era-stratified statistic shows monotonic decay (e.g., Q1 +267bp → Qn +1.34bp / t+5.84 → t-3.61 sign-flipped)
+- Cross-family evidence: paradigm 87 delisting family + paradigm 136/202 RV intraday family (2 distinct families documented)
+
+**Action**:
+- If predecessor monotonic temporal decay documented + candidate proposes reformulation intervention (universe expansion / direction-flip / one-sided trigger / hold spec sweep) → `R0_HALT_BY_INFORMATIONAL_DECAY_LESSON_55_PRESCRIPTION_OUT_OF_SCOPE`
+- Statement: "Spatial fix (universe expansion) ≠ temporal fix (alpha decay). Reformulation interventions cannot rescue mechanism with documented monotonic temporal decay."
+- Lesson #55 prescription scope: STRUCTURAL infeasibility (asymmetric z distributions) ONLY. NOT informational decay.
+
+**Dogfood evidence**:
+- paradigm 202 (1st dogfood) — Lesson #55 prescription compliant (one-sided right-tail z≥+2 LONG-only) — prescription mechanically operates correctly per Lesson #55. BUT three-gate PASS sigex +6.76 + Concentration FAIL 1/18 syms + life-changing edge 0.169%/trade + 2024→2026 era t+5.84→t-3.61 sign-flipped. CONCENTRATED_R1_PASS_NSLC_FAIL outcome predictable from paradigm 136 predecessor temporal decay (200x compression).
+
+**Cross-family universal pattern**:
+- paradigm 87 delisting family — paradigm 191 universe expansion HALT_SUBSTRATE_PARTIAL_PLUS_PARADIGM_CLASS_MISMATCH (root cause = alpha decay informational learning, NOT small-sample blind spot)
+- paradigm 136/202 RV intraday family — sign-flipped 2024→2026 confirmed
+- R-5 LIVE paradigms (paradigm 69/22/24/127/128/174) → alpha decay risk flag, ops-monitor task domain (Day 7 baseline 2026-05-28). paradigm-architect dispatch 부적절 (measurement domain mismatch).
+
+**Confirmation gate**: 2nd dogfood (Lesson #55 prescription applied to another predecessor with documented temporal decay) → formal CONFIRMED Lesson #55 prescription rescue scope candidate.
+
 ### Inventory check additional commands (cross-cutting)
 
 ```bash
@@ -110,6 +134,24 @@ expected_n_per_cell = total_windows × universe_size × trigger_rate
 
 If `expected_n_per_cell < 30` → halt at R-0, request sample-density expansion (universe widen or threshold relax) before proceeding.
 
+## Lesson #71 corollary CONFIRMED-eligible — util_estimated prescreen formula (PERMANENT ASSET, 4 dogfoods 2026-05-22)
+
+**Status**: CONFIRMED-eligible (paradigm 179 spike-trigger 1st + paradigm 180 regime-carry 2nd + paradigm 181 continuous-weighting long-only 3rd path-C-ESCAPE-verified util 71% + paradigm 185 continuous-weighting short-only 4th path-C-ESCAPE-verified short-side binding). 5th dogfood (any non-continuous-weighting axis exempt path) → formal CONFIRMED.
+
+**Formula (permanent asset)**:
+```
+expected_util_pct = mean(active_position_share_per_day) * 100
+where:
+  active_position_share = sum(|weight_i|) / max_concurrent_capacity
+  measured across (n_days, n_syms, weighting_scheme)
+```
+
+Path C ESCAPE 자격: `estimated_util >= 30%` pre-R-1 dispatch verify (life-changing 4-dim capital util threshold).
+
+**Application**:
+- Sparse-trigger R-5 family (1d-hold, per-sym 15-35 trades/yr) → util typically 5-22% → R-0 HALT_BY_SAMPLE_INSUFFICIENT or path-C-ESCAPE-FAIL
+- Continuous-weighting daily-rebal (overlapping positions) → util typically 70-85% → path-C-ESCAPE-PASS (but alpha not guaranteed, paradigm 181/183/185 dogfood)
+
 ## Family retire blocklist (mandatory R-0 halt)
 
 Before generating R-1 code, cross-check the hypothesis against the following retired families. **Any match → HALT_BEFORE_R1 without dispatch**. Exceptions are enumerated explicitly.
@@ -138,7 +180,7 @@ Before generating R-1 code, cross-check the hypothesis against the following ret
 
 **Reference**: PARADIGM_QUEUE_2026Q3.md §6.2 #25–#28 + [[project_paradigm_binance_delisting]] + [[project_paradigm_token_unlock_cliff]] + [[project_paradigm_listing_pre_announce]] + [[project_paradigm_stablecoin_mint]]
 
-### Tier 4 formal retired families — 15 cumulative (2026-05-21 sync, ratified §6.66 paradigm 168 META RATIFICATION BATCH + prior commits)
+### Tier 4 formal retired families — 20 cumulative (2026-05-22 sync, ratified paradigm 203 MEMORIAL + paradigm 188 MEMORIAL + paradigm 168 META RATIFICATION BATCH + prior commits)
 
 **Auto-halt R-0 on hypothesis match. Exceptions explicitly enumerated.**
 
@@ -146,7 +188,7 @@ Before generating R-1 code, cross-check the hypothesis against the following ret
 2. **Funding single-signal sub-class** (paradigm 73/79/96/97/98/99 — 6 graveyards) — exception paradigm 22 R-5 + funding_dispersion R-5 ETCUSDT
 3. **KR equity DART entry-side family** (paradigm 92/93/100/101/102 — 5 graveyards 4 axes exhausted)
 4. **Cross-asset volume share single-side simple-z 1d-hold** (paradigm 94/95)
-5. **Cross-exchange family** (paradigm 103/104/105 illiquid/147v1/147v2/148/160 — 7 cumulative, paradigm 166 R-0 halt 8th blocked) — OI axis decisively closed (paradigm 166 R0_HALT_BY_DNA_DUPLICATE_PARADIGM_104)
+5. **Cross-exchange family** (paradigm 103/104/105 illiquid/147v1/147v2/148/160/166/187 — 9 cumulative blocked, paradigm 166 + 187 R-0 halts reinforce OI/funding/lead-lag/volume share all axes closed) — OI axis decisively closed via paradigm 166+187 R0_HALT_BY_DNA_DUPLICATE_PARADIGM_104, sole exception paradigm 22 R-5 funding_dispersion ETCUSDT
 6. **OHLCV magnitude-confluence × directional-follow** (paradigm 78/84/85 등)
 7. **Geometric path metrics alone** (paradigm 78)
 8. **Taker-side aggressive volume family** (paradigm 23/60/72 — 3 graveyards)
@@ -157,6 +199,11 @@ Before generating R-1 code, cross-check the hypothesis against the following ret
 13. **Basis/markPrice 4h MR sub-axis** (paradigm 105/111/121/131/167 — 5 cumulative blocked, ratified 2026-05-21 §6.66) — exception paradigm 22/24 R-5 daily follow momentum + term structure cross-tenor variant (paradigm 169 Option η path)
 14. **HMM unsupervised decomposition family** (paradigm 119/121 — 2 graveyards, ratified 2026-05-21 §6.66) — exception supervised regime classifier (paradigm 69 BTC RV p90 threshold) + ground-truth event anchor (paradigm 22 funding cycle 8h)
 15. **Liquidity-microstructure single-domain 4h-frame conjunction** (paradigm 105/111/121/131 — 4 graveyards, ratified 2026-05-21 §6.66) — exception microstructure 5m frame (paradigm 21/24/127/128 R-5 active) + multi-domain conjunction
+16. **Cross-exchange family reinforcement absorbed entry** (paradigm 166 + 187 R-0 halts 9 cumulative blocked, position consolidated into entry 5 above with paradigm 22 funding_dispersion ETCUSDT sole exception — listed as explicit ratification anchor 2026-05-22 between paradigm 168 batch and paradigm 188 MEMORIAL)
+17. **continuous_weighting_14sym_daily_rebal_framework** (paradigm 181/182/183/184/185/186 — 6 sub-modes 4/4 life-changing 4-dim FAIL, ratified 2026-05-22 paradigm 188 MEMORIAL) — **HALT condition**: `universe == 14 AND continuous_weighting == True AND daily_rebal == True AND statistic_class IN ('return_z', 'sharpe_z', 'autocorr_z')` → `HALT_FAMILY_RETIRED`. **ESCAPE conditions** (explicit exemptions): (a) universe ≥ 50 syms (depth-broadening universe widening — Lesson #71 candidate path B); (b) top-k = 3 discrete-trigger reformulation (NOT continuous-weighting); (c) weekly rebal frequency (1d → 7d cadence); (d) strong-prior-alpha axis (mechanism-grade signal class outside return_z/sharpe_z/autocorr_z, NOT universe-aggregate z-score). **Evidence**: paradigm 181 LONG z_excess +0.20 PORTFOLIO_ALPHA_INSIGNIFICANT (util 71% path-C-ESCAPE-PASS but alpha absent) + paradigm 182 sharpe-z LONG -0.4436 + paradigm 183 autocorr-z LONG 1.87 (Lesson #72 3rd dogfood 6_neg_overlap 0.833 universe-level regime void) + paradigm 184 LONG-SHORT balanced sharpe_net 0.027 (short_only_isolate +0.604 partial alpha surfaced) + paradigm 185 SHORT-only sharpe +0.501 z_excess 2.27 LIFE-CHANGING NSLC (per-trade edge sub-2% + max_dd -47.30%) + paradigm 186 SHORT + BTC 90d downtrend regime filter AXIS_STACKING_TRAP (Lesson #21 2nd dogfood Δsharpe -0.509 active alpha destruction).
+18. **Listing post-onboard reinforcement absorbed entry** (paradigm 189 R-1 10-cell hold sweep all FAIL + paradigm 191 universe expansion HALT_SUBSTRATE_PARTIAL_PLUS_PARADIGM_CLASS_MISMATCH — listing event family entry 1 reinforcement with paradigm 87 sub-mechanism asymmetry empirically confirmed: forced-EXIT delisting monotonic vs forced-ENTRY listing bimodal/dispersed)
+19. **Cross-substrate ratio family advisory absorbed** (paradigm 195/196/197 advisory — RV term-structure + OI ratio + further axis exhaustion paradigm 69+86+193+194+195+196 cumulative, fee-floor universe-level concentration limit class)
+20. **rv_intraday_1st_order_family** (paradigm 136 R-0 + paradigm 201 DNA-duplicate R-0 + paradigm 202 R-1 CONCENTRATED_R1_PASS_NSLC_FAIL — 3 dogfoods cumulative, ratified 2026-05-22 paradigm 203 MEMORIAL, re-review 2027-05-22) — **HALT condition**: `statistic_class == 'per_sym_intraday_vol_smoother_z_spike' AND direction IN ('bilateral_4_quadrant', 'one_sided_long', 'one_sided_short') AND frame IN ('1h', '4h', '8h')` → `HALT_FAMILY_RETIRED`. **ESCAPE conditions** (explicit exemptions): (a) mechanism-grade NEW signal class (NOT vol-smoother z) integrated as conditioning filter (not primary trigger); (b) external orthogonal axis (funding/OI/liquidation/cross-asset) combined — Lesson #21 axis stacking strict required; (c) different temporal regime conditioning (paradigm 69 BTC RV p90 mechanism extension, NOT pure intraday vol replication); (d) tick-level WS recorder substrate frame (2026-07-15+ pivot, NOT 1h aggregation). **Evidence**: paradigm 136 R0_HALT_INSUFFICIENT_DENSITY (A side stratified t=+4.13 BUT temporal decay 2024Q1 +267bp → 2026Q2 +1.34bp 200x compression) + paradigm 201 DNA 6/6 duplicate (universe expansion 12→20 fails to recover) + paradigm 202 Lesson #55 candidate 1st dogfood prescription compliant three-gate PASS sigex +6.76 ci_lower +4.29bp perm_p 0.0000 but Concentration FAIL 1/18 syms + life-changing edge 0.169%/trade + ALPHA DECAY 2024 era +75.92bp t+5.84 → 2025 +11.57bp t-0.41 → 2026 -23.84bp t-3.61 sign-flipped CONFIRMED.
 
 ### Advisory caution families (not yet Tier 4, ≥2 dogfoods)
 - ATR-normalized magnitude breakout (paradigm 115 R-1 + paradigm 150 R-0)
@@ -165,9 +212,34 @@ Before generating R-1 code, cross-check the hypothesis against the following ret
 - Calendar/clock-anchor 4h cross-asset (paradigm 113/157 — Lesson #68 candidate)
 - CVD/orderflow imbalance single-domain (paradigm 138/139/140/141/142/143/163 — 7 cumulative)
 
+## Agent SELF-RECOMMEND saturation default fallback (NEW 2026-05-22 paradigm 203 MEMORIAL, formal evidence 5 consecutive non-PASS paradigm 178/199/200/201/202)
+
+**Trigger**: paradigm-architect agent dispatched in SELF-RECOMMEND mode (no user-provided hypothesis, agent generates candidate from internal next_action recommendation chain).
+
+**Default fallback rule**:
+- If agent SELF-RECOMMEND mode produces 5 consecutive non-PASS results (any combination of R-0 HALT or R-1 graveyard) within same session/queue → **user-provided hypothesis mode 의무**
+- Next dispatch MUST be sourced from user-provided fresh hypothesis (axis-class outside agent constraint set)
+- OR defer until substrate pivot (WS recorder forward-collection 2026-07-15+) / new data axis introduction
+
+**Formal evidence (paradigm 203 MEMORIAL, 1st session)**:
+- paradigm 178 (DNA duplicate R-0 HALT) → paradigm 199 (DNA duplicate R-0 HALT) → paradigm 200 (Lesson #54 family reduction R-0 HALT) → paradigm 201 (DNA duplicate R-0 HALT) → paradigm 202 (dispatched, R-1 CONCENTRATED_R1_PASS_NSLC_FAIL with alpha decay confirmation) — 4 consecutive R-0 HALT + 1 dispatch graveyard = **5 consecutive non-PASS streak**
+
+**Confirmation gate**: 2nd session of agent SELF-RECOMMEND 5 consecutive non-PASS streak → formal CONFIRMED. Until then: candidate status with paradigm 203 MEMORIAL precedent default fallback applicable.
+
+**Application semantics**:
+- Continuous-parallel campaign policy ([[feedback_paradigm_campaign_continuous_parallel]]) is preserved — dispatch does NOT pause. But default mode shifts from agent SELF-RECOMMEND to user-hypothesis dispatch.
+- persistence-over-efficiency mandate ([[feedback_persistence_over_efficiency]]) is preserved — n-streak non-PASS is statistical noise, NOT dispatch halt signal. Default fallback is mode-switch, not pause.
+- Agent SELF-RECOMMEND remains available when user provides fresh hypothesis (axis-class outside agent constraint set).
+
 ## Reference
 - `.claude/plans/research_track_master.md` §0 — 8-paradigm DNA matrix
 - `.claude/plans/day30_decision_protocol.md` §2 트랙 L — lifecycle cohort methodology + variant baselines
 - `backend/scripts/research/paradigm_index.py`
 - Lesson #11 (Q3 sample-density prescreen)
 - Lesson #41 DIFFUSE_POSITIVE_CONCENTRATION_FAIL verdict (2026-05-20 confirmed-with-amendment) — see `lesson_prescreen_checklist.md`
+- Lesson #55 1st dogfood SUCCESS prescription rescue scope NEW candidate (2026-05-22 paradigm 203 MEMORIAL, paradigm 202 1st explicit dogfood)
+- Lesson #71 corollary util_estimated formula (2026-05-22 paradigm 188 MEMORIAL CONFIRMED-eligible 4 dogfoods)
+- Lesson #72 strict universal REJECTED + partial conditional confirmed (2026-05-22 paradigm 188 MEMORIAL, paradigm 184/185 SHORT-side partial alpha extraction)
+- Lesson #21 6-dogfood amendment axis stacking can DESTROY alpha (2026-05-22 paradigm 186 active destruction precedent)
+- Alpha decay informational learning cross-family universal documented (2026-05-22 paradigm 203 MEMORIAL — paradigm 87 delisting + paradigm 136/202 RV intraday 2 cross-family evidence)
+- Agent SELF-RECOMMEND saturation default fallback (2026-05-22 paradigm 203 MEMORIAL, 5 consecutive non-PASS paradigm 178/199/200/201/202 formal evidence)

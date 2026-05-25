@@ -1,0 +1,60 @@
+{
+  "paradigm_number": 180,
+  "paradigm_name": "alt_per_sym_30d_rv_p25_compression_regime_continuous_long_carry_directional",
+  "phase_halted_at": "R-0",
+  "verdict": "HALT_LESSON_71_CANDIDATE_PRESCREEN_FAIL_STRUCTURAL_TRADE_OFF",
+  "host": "local_paradigm_architect_agent",
+  "halt_kst": "2026-05-22 08:55 KST",
+  "wall_clock_min": 4,
+  "hypothesis": "per-sym 30d realized vol (close-to-close daily) p25 entry (90d rolling) + p50 exit, continuous LONG carry, 14 alt cohort",
+  "lesson_69_5_item_template": {
+    "item_1_slug_grep_lesson_61": "PASS_BUT_ADVISORY — no exact match for `per_sym_rv_p25_compression_regime_continuous_carry`. Adjacent: paradigm 109 cohort_dispersion_compression_zscore (SAMPLE_INSUFFICIENT_STRUCTURAL Lesson #40) + paradigm 110 cohort_dispersion_compression_percentile_rank (BROAD_FALSIFIED_FEE_FLOOR mechanism inverted). DNA distinct (per-sym vs cohort-cross-section, continuous-carry vs fixed-240m hold).",
+    "item_2_substrate_shape_lesson_28": "PASS — 14 syms × 4920 4h bars × 2.25yr (2024-02-01 → 2026-04-30) joblib cache fully present.",
+    "item_3_sample_density_lesson_11": "FAIL — empirical 183 total regime entries / (2 directions × 9 quarters) = 10.2/cell ≪ 30 cutoff (3x deficit). Even at relaxed entry≤0.40/exit≥0.80 cutoff: 100 entries → 5.6/cell.",
+    "item_4_dna_4_dim_lesson_62": "PASS (claimed 5/5 strict distinct vs 16 Tier 4 retires; statistic=per-sym RV percentile + mechanism=continuous regime carry both NEW)",
+    "item_5_family_proxy_lesson_56": "ADVISORY — cohort-side compression family graveyard pattern (109+110) suggests per-sym variant remains untested but underlying RV-mean-reversion mechanism inherits fee-floor + direction-inversion risk."
+  },
+  "lesson_71_candidate_escape_prescreen_1순위": {
+    "claim_in_hypothesis": "util_est 50%+ (avg regime duration 10-14d × 14 syms × 6 cycles/yr/sym → 50%+ aggregate)",
+    "measured_empirical": {
+      "primary_cutoff_p25_entry_p50_exit": {
+        "total_entries": 183,
+        "entries_per_yr_per_sym": 5.8,
+        "entries_per_yr_cohort": 81.5,
+        "avg_dur_days": 13.7,
+        "median_dur_days": 9.4,
+        "max_dur_days": 52,
+        "util_pct_per_sym_mean": 22.2,
+        "util_pct_portfolio_concurrent": 22.2
+      },
+      "alt_cutoffs_to_force_util_30plus": {
+        "entry_0.25_exit_0.50_stateful": {"entries_per_sym_yr": 3.1, "util_pct": 32.3, "avg_dur_d": 35.3, "per_cell": 5.4},
+        "entry_0.30_exit_0.60_stateful": {"entries_per_sym_yr": 3.0, "util_pct": 38.5, "avg_dur_d": 43.4, "per_cell": 5.2},
+        "entry_0.35_exit_0.70_stateful": {"entries_per_sym_yr": 3.1, "util_pct": 44.3, "avg_dur_d": 48.5, "per_cell": 5.4},
+        "entry_0.40_exit_0.80_stateful": {"entries_per_sym_yr": 3.2, "util_pct": 52.6, "avg_dur_d": 55.4, "per_cell": 5.6}
+      }
+    },
+    "verdict": "FAIL — claimed 50%+ util empirically 22.2% (2.3x deficit); to force util ≥30% via stateful regime (longer hold), entries collapse to 3/sym/yr (4x life-changing trades/yr fail) and per-cell collapses to 5/30 (6x Lesson #11 fail)."
+  },
+  "structural_trade_off_discovered": {
+    "axis_1_util_pct": "monotone increasing with avg_dur (long carry = more time in regime)",
+    "axis_2_entries_per_sym_yr": "monotone decreasing with avg_dur (fewer cycle boundaries per unit time)",
+    "axis_3_per_cell_density": "monotone decreasing with avg_dur (fewer total entries / yr / sym × 14 syms)",
+    "frontier_pareto": "NO point in (util ≥30%, trades/sym/yr ≥12, per_cell ≥30) intersection exists across full cutoff sensitivity sweep",
+    "structural_root_cause": "Per-sym RV percentile regime is a SLOW low-frequency state machine; entries are bounded by ~5-10/sym/yr regardless of cutoff. To reach 30% util the cycles must be long enough that entries are sparse. This is structurally similar to Lesson #24 (boundary-event horizon density antipattern, paradigm 86 multi_day_vol_persistence) — slow regime boundaries are inherently sparse-event."
+  },
+  "lesson_71_candidate_2nd_dogfood_proposal": {
+    "lesson_71_candidate_statement": "Continuous-carry / regime-persistence mechanism class does NOT automatically escape util cap. Empirical util scales as avg_dur × n_entries / panel_days. Increasing util requires increasing avg_dur (long carry), which directly REDUCES n_entries (fewer cycle boundaries). The triple constraint (util ≥30% ∧ trades/yr ≥12 ∧ per_cell ≥30) is provably infeasible for any slow regime statistic (e.g., 30d RV percentile rolling 90d) on a 2.25yr 14-sym panel.",
+    "previous_dogfood": "paradigm 179 spike-trigger 4h continuous direction: util~5-7% (sparse trigger cap)",
+    "this_dogfood_paradigm_180": "regime-carry 14d continuous direction: util~22% if cycle-natural OR util ≥30% only by collapsing entries to ≤3/sym/yr",
+    "candidate_status": "2nd dogfood (paradigm 179 spike axis + paradigm 180 regime axis BOTH fail) — Lesson #71 candidate CONFIRMED 자격 ready (independent fail mechanism: spike axis util cap by trigger sparsity, regime axis util cap by entry-rate vs avg-dur trade-off)",
+    "implied_corollary": "Util ≥30% AND trades/yr ≥12 AND per_cell ≥30 jointly require: (i) fast statistic with dense triggers (~1+ entries/sym/day) OR (ii) cross-asset/portfolio concurrent diversification (n_syms ≥ 50 to multiplicatively boost). Slow per-sym idiosyncratic statistics on small 14-sym cohorts CANNOT satisfy all three."
+  },
+  "no_r1_dispatch_reason": [
+    "Lesson #71 candidate 1순위 prescreen FAIL (claim 50%+, measured 22.2%, structural ceiling at ~22-25% for cycle-natural cutoffs)",
+    "Lesson #11 sample density FAIL across full cutoff sensitivity sweep (best per_cell 10.2 ≪ 30)",
+    "Life-changing trades/yr/sym 5.8 ≪ 12 (cohort 81.5 OK but per-sym = strategy unit = fail)",
+    "Pareto-infeasible structural trade-off — no parameter tuning fixes (cutoff sweep covered p25/p30/p35/p40 entry × p50/p60/p70/p80 exit)"
+  ],
+  "verdict_taxonomy": "HALT_LESSON_71_CANDIDATE_PRESCREEN_FAIL_STRUCTURAL_TRADE_OFF — new sub-class of pre-R-1 halt (distinct from Lesson #11 alone since the fail spans full cutoff sensitivity, distinct from Lesson #28 substrate absence since substrate is present and measurable)"
+}

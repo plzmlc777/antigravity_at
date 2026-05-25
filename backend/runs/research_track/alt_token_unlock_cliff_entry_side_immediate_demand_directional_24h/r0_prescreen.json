@@ -1,0 +1,84 @@
+{
+  "paradigm_counter": 151,
+  "paradigm_name": "alt_token_unlock_cliff_entry_side_immediate_demand_directional_24h",
+  "dispatch_ts_kst": "2026-05-21T14:35:54+09:00",
+  "phase": "R-0",
+  "verdict": "SUBSTRATE_INFEASIBLE_FREEMIUM_BLOCKED_AND_SAMPLE_INSUFFICIENT",
+  "counter_decision": "INCREMENT_TO_151 (substantive R-0 prescreen with Lesson dogfood value, not inventory-halt-only)",
+  "hypothesis_dna": {
+    "data_dim": "token_unlock_schedule × perp 5m klines",
+    "decision_mode": "directional SHORT at unlock_ts +/- 1h immediate forced-sell window",
+    "time_scale": "24h forward hold",
+    "universe": "Binance Futures USDS-M perp listed alts with known unlock schedule (~26 tokens from cryptorank precedent)",
+    "trigger": "≥10% supply unlock cliff event",
+    "entry_side_class": "IMMEDIATE_DEMAND (Lesson #27 amendment compliant — unlock_ts ±1h window forced sell pressure, NOT delayed/indirect)",
+    "differentiator_from_paradigm_88": "paradigm 88 was entry-side delayed/indirect 72h pre-positioning (FAIL_SCOPE prescreen); paradigm 151 = immediate window forced-sell at unlock_ts itself"
+  },
+  "lesson_28_substrate_availability": {
+    "time_axis": {
+      "perp_klines_substrate": "PRESENT — Binance Futures USDS-M perp klines 5m archive available from onboardDate forward, all 26 candidate alts in trading window 2024-01-01..2026-05-21",
+      "verdict": "PASS_TIME_AXIS"
+    },
+    "column_axis_unlock_schedule": {
+      "candidate_sources": [
+        {"source": "TokenUnlocks.app", "access": "commercial freemium (free tier + paid upgrade pressure)", "memory_rule": "feedback_no_freemium_trial", "verdict": "BLOCKED"},
+        {"source": "CryptoRank.io public /price/{slug}/vesting", "access": "Next.js __NEXT_DATA__ JSON embed, public", "memory_rule": "no auth required for partial", "verdict": "PARTIAL_PASS but isAuthProtected=True restricts to 1 allocation cohort per coin (paradigm 88 precedent: 26/26 tokens × single cohort, 206 events 95% linear / 5% cliff)"},
+        {"source": "CoinMarketCap unlock schedule", "access": "freemium with upgrade pressure", "memory_rule": "feedback_no_freemium_trial", "verdict": "BLOCKED"},
+        {"source": "Tokenomist.ai", "access": "Next.js App Router RSC streaming + api.cryptorank.io/v2 = 401 auth-gated", "verdict": "BLOCKED for value comparison, archive URL only"},
+        {"source": "Etherscan/Solana/Tron vesting contract trace", "access": "paid trace API tier", "memory_rule": "feedback_no_freemium_trial (paradigm 90 precedent)", "verdict": "BLOCKED"},
+        {"source": "DefiLlama unlocks ($300/mo)", "access": "paid", "memory_rule": "feedback_no_freemium_trial", "verdict": "BLOCKED"},
+        {"source": "Binance announcements RSS/HTML", "access": "public", "verdict": "AMBIGUOUS — Binance posts coin-specific unlock notices irregularly (~10-30/yr coverage <30% of universe), quality low for precise schedule + cliff_amount + token_universe matching"},
+        {"source": "Project whitepaper manual ingestion + GitHub vesting contracts", "access": "manual person-day scale", "verdict": "OUT_OF_SCOPE for autonomous R-1 ETA"}
+      ],
+      "fallback_only_viable": "CryptoRank.io partial scrape (paradigm 88 precedent reuse) — yields 26 tokens × 206 events × 95% linear emission / 5% (9 events) true cliff",
+      "verdict": "PARTIAL_PASS_BUT_SCHEMA_MISMATCH — substrate exists for ≥10% cliff trigger only on ~9 events in 2.4yr universe-wide. Hypothesis claims ≥10% cliff explicitly; paradigm 88 ALL cliff_only scope was 9 events / 7 quarters (per-cell 1.3, n_measurable 0/7)"
+    },
+    "verdict": "FAIL_COLUMN_AXIS — viable column-axis substrate (CryptoRank partial) yields ≤9 true cliff events at ≥10% threshold over 2.4yr × 26 tokens, makes Lesson #11 + #26 prescreen mathematically unrecoverable for cliff-only mechanism"
+  },
+  "lesson_11_sample_density_prescreen": {
+    "expected_events_at_10pct_cliff_threshold": 9,
+    "n_quadrants_required": "min 2 (focus SHORT + mirror LONG); Lesson #19 4-quadrant required if any other signal axis (none here, pure event-trigger)",
+    "expected_n_per_cell_per_quarter": "9 events / 7 quarters / 2 quadrants ≈ 0.64",
+    "lesson_11_cutoff": 30,
+    "lesson_26_n_measurable_quarters_cutoff": 4,
+    "verdict": "FAIL — per-cell 0.64 << 30, n_measurable_quarters 0/7 << 4"
+  },
+  "lesson_27_amendment_immediate_vs_delayed": {
+    "paradigm_151_claim": "immediate demand mechanism (forced-sell at unlock_ts ±1h)",
+    "first_principles_evaluation": "Token unlock at unlock_ts is NOT a fresh new-cohort demand entry like lifecycle listing. Recipients are EXISTING vesting cohort whose liquidity status transitions from locked to liquid. Sell decision is recipient discretion (HODL ratio / OTC routing / staggered timing) → realized supply pressure at ±1h window is highly variable, not deterministic. Market sophistication: unlock schedule is PUBLICLY KNOWN (CryptoRank/Tokenomist/project blog publish months ahead) → smart money pre-hedges via SHORT positioning DAYS-WEEKS before unlock_ts → by unlock_ts itself, expected supply impulse already priced in. This is the EXACT exit-side fragility pattern paradigm 87 binance_delisting exhibited (announce-side positioning consumed alpha before forced-flow window).",
+    "verdict": "FAIL_RECLASSIFY — paradigm 151 claim of 'immediate demand' is mechanistically EXIT-SIDE-like (existing-holder liquidity status transition + publicly anticipated event + sophisticated pre-hedging) NOT immediate-demand lifecycle-listing-like. Lesson #27 amendment dictates this candidate is delayed/indirect mechanism mislabeled as immediate."
+  },
+  "lesson_30_data_window_ratio": {
+    "ad_hoc_window_full_window_ratio_applicable": false,
+    "reason": "Substrate FAIL_COLUMN_AXIS makes data window question moot — there is no viable window with sufficient events under freemium constraints"
+  },
+  "family_distinct_check": {
+    "paradigm_88_token_unlock_cliff_short_alt": "SAME FAMILY — same trigger (unlock cliff), distinguished only by entry timing (88 = T-72h pre-positioning, 151 = T±1h immediate). Lesson #27 amendment evaluation reclassifies 151 as same delayed/indirect class. NOT family-distinct.",
+    "paradigm_87_binance_delisting": "Different event class (delisting vs unlock) but identical exit-side fragility pattern by Lesson #27 amendment evaluation",
+    "paradigm_89_listing_pre_announce": "DATA_INFRASTRUCTURE_IMPOSSIBLE precedent, paradigm 151 hits parallel substrate column-axis fail",
+    "paradigm_90_stablecoin_mint": "SAME freemium blacklist pattern (Etherscan + Solana + Tron all paid); paradigm 151 hits identical TokenUnlocks/CryptoRank/CMC/DefiLlama freemium blacklist",
+    "paradigm_100": "entry-side external event family lineage (xref)",
+    "paradigm_103": "cross_exchange family precedent (xref)",
+    "verdict": "NOT_FAMILY_DISTINCT — paradigm 151 is paradigm 88 with retiming reframe, not a distinct mechanism. Lesson #27 amendment reclassification confirms this."
+  },
+  "dogfood_value": {
+    "lesson_27_amendment_dogfood": "6th dogfood — immediate vs delayed/indirect entry classification, paradigm 151 'immediate demand' claim is rebutted by first-principles (existing-holder liquidity transition + publicly anticipated + sophisticated pre-hedging = EXIT-SIDE-like)",
+    "lesson_28_dogfood": "13th dogfood — substrate availability column-axis sub-class: free public viable source (CryptoRank partial) is schema-mismatched to ≥10% cliff trigger (yields 9 events / 2.4yr); all higher-coverage sources (TokenUnlocks/CMC/Etherscan/DefiLlama) freemium-blocked",
+    "lesson_44_amendment_xref_dogfood": "35th xref dogfood — entry-side external event family precedent chain (paradigm 87/88/89/90/100/103/151) confirms 7-paradigm pattern of substrate or mechanism prescreen halt",
+    "freemium_blacklist_pattern_strengthening": "5th cumulative confirmation — TokenUnlocks/CryptoRank-full-auth/CMC/Etherscan-paid/Solana-paid/Tron-paid/DefiLlama all blacklisted, only CryptoRank public partial remains viable, insufficient for cliff-grade trigger"
+  },
+  "halt_decision": {
+    "verdict": "R-0 HALT_BY_SUBSTRATE_AND_MECHANISM_RECLASSIFICATION",
+    "rationale_layered": [
+      "Layer 1 (Lesson #28 substrate column-axis): only freemium-compliant source (CryptoRank public partial) yields 9 true cliff events / 2.4yr — Lesson #11 (per-cell 0.64 << 30) + Lesson #26 (n_measurable 0/7 << 4) auto-fail mathematically unrecoverable",
+      "Layer 2 (Lesson #27 amendment): paradigm 151 'immediate demand' claim is mechanistically EXIT-SIDE-like by first-principles (existing-holder liquidity transition + publicly anticipated + sophisticated pre-hedging) — reclassified as paradigm 88 delayed/indirect family member, not distinct",
+      "Layer 3 (family-distinct): paradigm 151 = paradigm 88 retiming reframe, not a distinct mechanism after Lesson #27 amendment evaluation"
+    ],
+    "graveyard": "alt_token_unlock_cliff_entry_side_immediate_demand_directional_24h"
+  },
+  "counter_update": {
+    "from": 150,
+    "to": 151,
+    "rationale": "Substantive R-0 prescreen with 3 Lesson dogfoods (#27 amendment + #28 + #44 xref) + 5th freemium blacklist pattern confirmation = counter increment per [project_paradigm_97_funding_dispersion_inventory_halt] policy distinction (counter-incrementing R-0 vs counter-static inventory-halt). This is counter-incrementing R-0 (substrate verification work performed, novel lesson dogfood value extracted)."
+  }
+}

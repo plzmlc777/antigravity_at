@@ -1,0 +1,83 @@
+{
+  "paradigm_name": "alt_bybit_to_binance_lead_lag_oi_delay_directional_4h",
+  "paradigm_seq": 147,
+  "version": "v2_after_v1_inventory_halt",
+  "v1_note": "paradigm 147 v1 (cross_exchange OI imbalance same-bar variant) inventory-halted with DNA 6/6 duplicate paradigm 104; counter unassigned per [[project-paradigm-97-funding-dispersion-inventory-halt-dogfood]] convention. v2 (this) reassigns counter to time-shift dimension pivot.",
+  "phase": "R-0 prescreen",
+  "verdict": "INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION",
+  "halt_reason_class": "lesson_56_statistic_reformulation_of_confirmed_falsified_family",
+  "executed_at_kst": "2026-05-21 13:50 KST",
+  "wall_clock_s": 0,
+  "r1_compute_avoided_s_est": 1200,
+  "backfill_compute_avoided_s_est": 900,
+  "total_compute_avoided_s_est": 2100,
+
+  "hypothesis_summary": {
+    "mechanism_claim": "Bybit OI velocity z(t) leads Binance OI velocity z(t+Δ) by 15-60min; cross-exchange lead-lag via Asian retail front-running global institutional flow",
+    "trigger": "|Bybit_OI_velocity_z[t]| > 2.0 AND sign-aligned Binance OI velocity at t+Δ (Δ ∈ {15,30,60,120}min)",
+    "direction": "sign(Bybit_OI_velocity_z[t]) → 4h forward LONG/SHORT",
+    "universe": "deep-7 (AVAX/BCH/BNB/DOGE/LINK/SOL/XRP) — paradigm 103/104 verified",
+    "hold": "4h directional",
+    "time_shift_novelty_claim": "paradigm 104 same-bar Δ=0 OI level differential vs paradigm 147 lead-lag Δ>0 velocity correlation — mechanism dimension substantively different"
+  },
+
+  "r0_substrate_audit_lesson28": {
+    "binance_oi_1h_cache_local": "MISSING (paradigm 104 graveyard reported as Mint server permanent asset; local agent env stale per [paradigm-architect local context] memory)",
+    "bybit_oi_1h_cache_local": "MISSING (Bybit V5 REST openInterest 1h cursor pagination not yet backfilled locally)",
+    "ohlcv_1m_cache_local": "present (load_ohlcv_1m_cached helper available)",
+    "backfill_eta_local_minutes": "15-30 (borderline halt threshold; Bybit 7 syms × 870d cursor pagination + Binance archive 6090 daily zip files)",
+    "substrate_decision": "backfill would be feasible (within 30min halt limit) but is not the binding constraint — substantive family-distinct gate FAIL precedes compute commitment"
+  },
+
+  "r0_family_distinct_gate_substantive": {
+    "claim_under_test": "time-shift dimension (Δ>0) constitutes genuine mechanism class novelty separating paradigm 147 from paradigm 104 (Δ=0) and paradigm 71 (single-exchange OI velocity)",
+    "verdict": "FAIL",
+    "rationale_primary": "paradigm 147 hypothesis is a composite of TWO independently falsified mechanism families: (1) OI velocity trigger axis = paradigm 71 family (graveyard 71 confirmed OI velocity carries NO directional information, BTC OI z=2.5 → -12.62bp anti-alpha), and (2) cross-exchange OI substrate = paradigm 104 family (graveyard 104 confirmed candidate-pool upward-bias trap at primary 4h hold, perm_p=0.988 despite gross +25.70bp). The 'time-shift Δ' axis is a refinement filter on top of both falsified mechanisms — NOT a novel mechanism class.",
+    "rationale_lesson_56_dogfood": "Lesson #56 4-instance formal CONFIRMED 자격 criterion: 'statistic reformulation of confirmed-falsified family does not constitute mechanism class novelty; 6th-instance trap indicator'. paradigm 147 v2 satisfies criterion — Δ shift sweep is exactly the same statistic (OI velocity z + sign alignment) reformulated with a temporal offset, applied to two already-falsified substrate combinations.",
+    "rationale_lesson_54_axis_stacking": "Per Lesson #54 (axis stacking sub-finding, 3 dogfoods CONFIRMED): paradigm 147 stacks (a) |Bybit_z|>2 trigger axis + (b) sign-alignment-at-t+Δ filter axis. Axis (a) is identically falsified by paradigm 71 (single-exchange OI velocity z anti-alpha). Sign-alignment filter cannot synthesize alpha from a zero-information trigger axis.",
+    "rationale_lesson_21_confirmed": "Per Lesson #21 confirmed bidirectional (6 dogfoods): axis stacking does NOT synthesize alpha. The Bybit-specific axis is structurally identical mechanism to Binance OI velocity (both are derivatives venue OI velocity z); cross-venue swap of substrate provider does not introduce new alpha-bearing dynamics.",
+    "rationale_lesson_44_xref": "31st cross-reference dogfood — paradigms 71+103+104 + paradigm 21 R-5 exception. paradigm 21 R-5 distinguishes itself by being (i) single-exchange (no cross-venue), (ii) OI-vs-PRICE decoupling (not OI-vs-OI), (iii) 5m microstructure frame (not 1h). paradigm 147 does NOT inherit these distinguishing features."
+  },
+
+  "r0_time_shift_dimension_analysis": {
+    "claim": "Δ ∈ {15,30,60,120}min lead-lag is fundamental mechanism dimension distinct from Δ=0",
+    "counter_analysis": [
+      "Mechanism premise (Asian retail front-running global institutional flow) is unverified ex ante and would require its OWN independent substantiation BEFORE bolting onto a 2x-falsified OI velocity substrate.",
+      "If Asian retail leads global institutional, the alpha mechanism would manifest in PRICE lead-lag (Bybit price t leads Binance price t+Δ), NOT in OI lead-lag. OI is a stock derivative variable lagging price action; OI velocity correlation lead-lag is double-derivative and would lose any embedded signal.",
+      "The candidate-pool perm_p trap that destroyed paradigm 104 at primary 4h hold operates on forward returns regardless of which exchange's OI triggered selection. Selection mechanism (Bybit OI vs Binance OI vs cross-exchange differential vs lead-lag) narrows the trigger subset; the forward-return pool drift is unchanged. perm_p will remain >> 0.10 at 4h hold."
+    ],
+    "verdict": "time-shift dimension is a refinement axis, not a novel mechanism class. Per Lesson #56 4-instance criterion, this is exactly the 'statistic reformulation' antipattern."
+  },
+
+  "r0_lesson_grid_application": {
+    "lesson_11_sample_density": "WOULD PASS — |Bybit_z|>2 (~5%) × sign-align (~50%) × 7 syms × 2.5yr × 24/day = ~3000-5000 events per shift variant ≥ 30/cell",
+    "lesson_19_4quadrant_snt": "would-be-applied (single-batch 4-quadrant × 4 shift variants = 16 cells)",
+    "lesson_30_data_window_ratio": "1.000 (Bybit 2.5yr × Binance 2.4yr aligned overlap window)",
+    "lesson_40_structural_threshold_feasibility": "PASS — |z|>2 attainable bidirectional on OI velocity",
+    "lesson_46_stratified_n50x4q": "would-be-applied",
+    "lesson_56_statistic_reformulation_trap_6th_instance": "FAIL — this paradigm IS the 6th-instance trap dogfood. paradigm 147 = (paradigm 71 OI velocity z trigger) ⊗ (paradigm 104 cross-exchange substrate) ⊗ (time-shift refinement). Statistic reformulation of confirmed-falsified composite.",
+    "lesson_58_candidate_cross_substrate_exemption": "NOT APPLICABLE — exemption is for genuine cross-substrate mechanism class (paradigm 21 OI-vs-PRICE), not for cross-venue same-substrate (OI-vs-OI)",
+    "lesson_44_amendment_31st_xref": "DOGFOOD — paradigms 71+103+104+21 cross-reference completed; family-distinct gate enforced before R-1 compute"
+  },
+
+  "decision": {
+    "halt_phase": "R-0 inventory prescreen (pre-execution)",
+    "compute_committed": "0 seconds (substantive R-0 verdict precedes substrate backfill commitment)",
+    "verdict_category": "INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION",
+    "counter_assignment_note": "paradigm 147 counter is HEREBY ASSIGNED (graveyard recorded). Note this differs from paradigm 147 v1 (cross_exchange OI imbalance same-bar) which inventory-halted with DNA 6/6 duplicate paradigm 104 and per convention did NOT advance the counter. paradigm 147 v2 (time-shift) is a substantive family-distinct attempt that warrants counter advance + formal graveyard entry, but FAILS the substantive R-0 family-distinct gate due to composite of 2 already-falsified mechanism families."
+  },
+
+  "next_recommendation": {
+    "do_not_pursue": [
+      "Δ-shift sweep on cross-exchange OI velocity (Lesson #56 6th-instance trap)",
+      "Bybit-side single-venue OI velocity (paradigm 71 family, identical falsification expected)",
+      "Cross-exchange OI level differential variant on different universe/hold (paradigm 104 family upward-bias trap structural)"
+    ],
+    "may_be_substantive_alternatives": [
+      "Cross-exchange PRICE lead-lag (Bybit price velocity → Binance price velocity at t+Δ) — different substrate axis (price not OI), tests Asian-retail-front-running hypothesis directly. Lesson #21 axis stacking warning still applies — would need to be SINGLE axis with strong standalone evidence.",
+      "Cross-exchange volume lead-lag (Bybit taker buy volume → Binance taker buy volume at t+Δ) — but taker-side volume family also Tier 4 retired per paradigm 72.",
+      "Liquidation cascade cross-exchange lead-lag (Bybit liquidation event → Binance forced-flow at t+Δ) — distinct substrate (liquidation), would need separate R-0 prescreen for substrate availability."
+    ],
+    "recommended_pivot": "Day 7 baseline 2026-05-28 priority — 10 R-5 LIVE paradigms generating active measurement signal more valuable than continued R-1 dispatch on increasingly composite-falsified candidates. paradigm 127+128 Mint deploy Day 7 measurement decisive for closing rate trajectory."
+  }
+}

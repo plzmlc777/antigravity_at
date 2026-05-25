@@ -1,0 +1,270 @@
+{
+  "paradigm_name": "alt_atr_normalized_range_breakout_30_120min_hold_single_exchange_directional",
+  "paradigm_number": 150,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T14:25:55+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_BY_OUTCOME_LEVEL_FAMILY_PROXY",
+  "verdict_authority": "Lesson #56 OUTCOME-LEVEL FAMILY PROXY 7th instance (formal CONFIRMED 5 instances + paradigm 148 6th outcome-level)",
+  "halt_phase": "R-0",
+  "r1_dispatched": false,
+  "compute_saved_vs_r1": "~15-20x (R-1 full execution ~75 sec saved)",
+  "milestone_note": "150th paradigm dispatch attempt — R-0 halt protects milestone integrity from family-proxy duplication",
+
+  "candidate_design": {
+    "substrate": "Binance 12-col klines 30min frame (aggregation from 4h cache or 1m cache resample required)",
+    "statistic": "ATR-normalized range breakout (Range_current / ATR_24h_30min)",
+    "threshold": "Range_z > 2.0 + breakout direction (close > prior bar high OR close < prior bar low)",
+    "hold_sweep_minutes": [30, 60, 90, 120],
+    "primary_hold_minutes": 60,
+    "direction_mode": "4-quadrant SNT (Lesson #19): A_focus LONG-cont, A_mirror SHORT-MR, B_focus SHORT-cont, B_mirror LONG-MR",
+    "universe": "14 Binance perp alts (12-col klines cache)",
+    "fee_per_round_trip": 0.0016,
+    "design_origin": "paradigm 149 §6.46 next-action recommendation Option (a) — but paradigm 115 graveyard not cross-referenced in paradigm 149 recommendation"
+  },
+
+  "r0_family_distinct_audit": {
+    "vs_paradigm_115_critical_review": {
+      "paradigm_115_name": "alt_atr_normalized_range_breakout_continuation_long_2h",
+      "paradigm_115_phase": "graveyard",
+      "paradigm_115_verdict": "CONCENTRATION_DISPERSION_FAIL (verdict-tree BROAD_FALSIFIED)",
+      "paradigm_115_executed_date": "2026-05-20",
+      "paradigm_115_substrate": "1h klines + ATR_14d (336 bars on 1h)",
+      "paradigm_115_statistic": "close > prior_24h_max + k * ATR_norm * prev_close (Donchian + ATR k-buffer)",
+      "paradigm_115_k_sweep_tested": [0.5, 1.0, 1.5],
+      "paradigm_115_hold_sweep_tested_hours": [1, 2, 4],
+      "paradigm_115_best_cell": {
+        "k": 1.5,
+        "hold_h": 4,
+        "n": 1082,
+        "gross_bp": 29.11,
+        "net_bp": 21.11,
+        "ci_lower_bp": 5.58,
+        "ci_upper_bp": 35.87,
+        "sigex": 4.28,
+        "perm_p_1s_above": 0.000,
+        "q_pos": "6/9",
+        "syms_ci_pos": "0/13",
+        "sharpe_ann": 1.90,
+        "capital_util_pct": 25.29
+      },
+      "paradigm_115_life_changing_4dim_at_best_cell": {
+        "trades_per_yr": 554,
+        "trades_per_yr_pass": true,
+        "per_trade_edge_pct": 0.21,
+        "per_trade_edge_pass": false,
+        "capital_util_pct": 25.3,
+        "capital_util_pass": false,
+        "annualized_sharpe": 1.90,
+        "sharpe_pass": true,
+        "overall_pass_count": "2/4",
+        "blocking_failures": ["per_trade_edge 0.21% << 2% threshold (10x deficit)", "capital_util 25.3% < 30%"]
+      },
+      "paradigm_150_proposed_diffs": {
+        "statistic": "Range_current / ATR_24h_30min > 2.0 (NOT Donchian + ATR-buffer)",
+        "frame": "30min (vs paradigm 115 1h)",
+        "hold_sweep_min": [30, 60, 90, 120],
+        "k_threshold": 2.0,
+        "direction_mode": "4-quadrant SNT (paradigm 115 only tested k=1.5 with SNT)"
+      },
+      "distinct_dimension_count": {
+        "claimed_distinct": ["statistic refinement (range vs Donchian breakout)", "frame (30min vs 1h)", "hold horizon (30-120min vs 1-4h)", "k=2.0 stricter"],
+        "substantive_distinct_assessment": "WEAK — all 4 differences are quantitative refinements within same volatility-magnitude breakout family",
+        "lesson_56_outcome_equivalence": "ATR-normalized range breakout statistic class is OUTCOME-equivalent to paradigm 115 ATR-normalized Donchian breakout (both = volatility-magnitude conditioned price-level breakout)"
+      }
+    },
+
+    "paradigm_115_outcome_predicts_paradigm_150_outcome": {
+      "prediction_basis": [
+        "paradigm 115 k=1.0→1.5 monotonic gross increase (paradigm 150 k=2.0 likely yields HIGHER gross_bp at lower n)",
+        "paradigm 115 hold=1h→2h→4h monotonic gross increase (paradigm 150 30-120min would yield LOWER gross than 4h — hold reduction loses 4h paradigm 115 best-cell advantage)",
+        "paradigm 115 per_trade_edge 0.21% blocking life-changing — 30min/60min/90min/120min holds yield STRICTLY SMALLER hold-window gross integration (fee constant 16bp)",
+        "paradigm 115 0/13 syms ci_pos at best 4h cell — paradigm 150 30-120min hold with stricter k=2.0 yields FEWER trigger events per sym (per-sym n likely 30-60 vs paradigm 115 75) → bootstrap CI WIDER → fewer ci_pos symbols expected"
+      ],
+      "predicted_paradigm_150_outcome": {
+        "predicted_best_cell_hold_min": 120,
+        "predicted_best_cell_gross_bp": "8-15 (lower than paradigm 115 4h 29bp due to shorter integration window)",
+        "predicted_best_cell_net_bp": "-8 to -1 (LIKELY SUB-FEE)",
+        "predicted_per_trade_edge_pct": "0.08-0.15 (10-20x deficit vs life-changing 2% threshold)",
+        "predicted_syms_ci_pos": "0-1/14 (CONCENTRATION_DISPERSION inheritance from paradigm 115)",
+        "predicted_verdict": "BROAD_FALSIFIED_FEE_FLOOR (k=2.0 + short hold reduces both n and integrated gross) OR CONCENTRATION_DISPERSION_FAIL (if best cell clears fee but per-sym dispersion)",
+        "predicted_life_changing_4dim_pass_count": "≤2/4 (per_trade_edge structurally blocked)"
+      },
+      "lesson_56_outcome_proxy_verdict": "paradigm 150 outcome PREDICTED equivalent to paradigm 115 outcome class. Statistic-class equivalence (ATR-normalized range = ATR-normalized Donchian breakout sibling) + hold reduction (30-120min < paradigm 115 4h best cell) = strictly worse expected outcome."
+    },
+
+    "vs_paradigm_127_r5_distinct_check": {
+      "paradigm_127_axis": "1m volume burst event-anchored × 60-90min LONG continuation",
+      "paradigm_150_axis": "30min range breakout × 30-120min hold both directions",
+      "distinct_axis": true,
+      "distinct_direction_mode": true,
+      "note": "paradigm 149 §6.46 cited paradigm 127 R-5 as 60-90min hold precedent — TRUE, but axis is volume-event (NOT range-magnitude) and direction is LONG-only (NOT 4-quadrant). paradigm 150 borrows paradigm 127 HOLD frame, NOT axis."
+    },
+
+    "vs_paradigm_69_r5_distinct_check": {
+      "paradigm_69_axis": "BTC RV cross-asset 4h hold (p90 vol filter)",
+      "paradigm_150_axis": "per-symbol ATR-normalized range breakout 30-120min hold",
+      "distinct_axis": "partial — both use volatility magnitude conditioning, but paradigm 69 cross-asset BTC-anchored vs paradigm 150 per-sym self-anchored",
+      "distinct_frame": true,
+      "lesson_56_outcome_proxy_risk": "MEDIUM — paradigm 148 dogfooded 'mechanism class equivalence to paradigm 69 family' at R-1 outcome level for cross-exchange PRICE; paradigm 150 ATR-range is similar volatility-magnitude class but per-sym self-anchored not cross-asset"
+    },
+
+    "vs_paradigm_133_distinct_check": {
+      "paradigm_133_axis": "vol-of-vol (1h frame) regime classification",
+      "paradigm_150_axis": "ATR-normalized range breakout (30min frame)",
+      "distinct_axis": true,
+      "distinct_frame": "partial (30min vs 1h)",
+      "note": "paradigm 150 = volatility level / paradigm 133 = volatility of volatility (2nd moment of vol). statistically distinct."
+    }
+  },
+
+  "r0_lesson_prescreen_grid": {
+    "lesson_11_sample_density": {
+      "expected_trigger_rate_pct": 3.0,
+      "expected_n_per_cell_per_quadrant": "14 syms × 800d × 48 bars/day × 0.03 × 0.25 (per quadrant) ≈ 4,032 per quadrant per quarter",
+      "verdict": "PASS overwhelming",
+      "note": "Lesson #11 cleared but does NOT rescue Lesson #56 outcome proxy"
+    },
+    "lesson_19_symmetric_negative_test": {
+      "design_includes_4_quadrant": true,
+      "verdict": "DESIGN COMPLIANT"
+    },
+    "lesson_28_substrate_availability": {
+      "substrate_30min_frame_exists": false,
+      "substrate_4h_klines_cache": "present at /home/hcpark/antigravity/backend/runs/ohlcv_cache_12col/ (14 syms)",
+      "substrate_1m_DB_cache_for_resample": "present (paradigm 127/128 R-5 substrate, 12/13 syms 750-800d)",
+      "substrate_required_for_paradigm_150": "30min frame — requires 1m resample (~30-60 sec backfill ETA) OR 15min frame upsample (lossy)",
+      "verdict": "POSSIBLE with 1m resample, but NOT independent advantage over paradigm 115 1h frame"
+    },
+    "lesson_30_data_window_ratio": {
+      "expected_full_window_days": "~820 (14 syms × 2.2yr)",
+      "verdict": "PASS"
+    },
+    "lesson_34_empirical_distribution_prescreen": {
+      "expected_threshold_attainable": true,
+      "expected_edge_attainable": false,
+      "verdict": "predicted FAIL on edge-side (Lesson #40 EDGE-side sub-variant inherited from paradigm 149)"
+    },
+    "lesson_40_structural_threshold_feasibility_edge_side": {
+      "trigger_attainable": true,
+      "edge_attainable_at_30min_hold": "predicted < 5bp gross (3x deficit vs 16bp fee floor)",
+      "edge_attainable_at_120min_hold": "predicted 10-15bp gross (marginal sub-fee or fee-equivalent)",
+      "verdict": "predicted EDGE-side INFEASIBLE for hold < 120min, MARGINAL at hold=120min",
+      "note": "paradigm 115 at 1h hold yielded gross 14.73bp net 6.73bp (clears fee MARGINALLY at sweep edge, NOT primary). paradigm 150 30min hold yields strictly LESS gross than paradigm 115 1h."
+    },
+    "lesson_44_amendment_xref_dogfood_34th": {
+      "xref_paradigms_r5_or_falsified": ["paradigm 115 (ATR-range graveyard SAME STATISTIC CLASS)", "paradigm 116 (volume-confirmed ATR breakout graveyard)", "paradigm 117 (extreme drawdown reversion graveyard)", "paradigm 127 R-5 (1m volume burst 60-90min LONG)", "paradigm 69 R-5 (BTC RV cross-asset)", "paradigm 133 (vol-of-vol)"],
+      "xref_count": 6,
+      "verdict": "34th cumulative xref dogfood satisfied"
+    },
+    "lesson_45_hmm_prohibition": {
+      "hmm_used": false,
+      "verdict": "COMPLIANT"
+    },
+    "lesson_46_refinement_sub_amendment_18th": {
+      "stratified_n_50x4q_design": "N/A (R-0 halt prevents R-1 execution)",
+      "sign_flip_strong_warning_design": "would be active in R-1 if dispatched",
+      "verdict": "moot due to R-0 halt"
+    },
+    "lesson_56_outcome_level_family_proxy_7th_instance": {
+      "axis_mapping_to_confirmed_falsified_family": "paradigm 115 ATR-normalized breakout statistic class CONFIRMED CONCENTRATION_DISPERSION_FAIL + life-changing 4-dim 2/4 FAIL",
+      "outcome_equivalence_to_paradigm_115": "HIGH (statistic class same, hold reduction makes outcome strictly worse)",
+      "verdict": "FAIL — paradigm 150 falls into paradigm 115 OUTCOME family with strictly worse expected metrics (shorter hold = smaller gross integration window, fee constant)",
+      "note": "7th OUTCOME-LEVEL instance (5 R-0 candidates 141-146 + paradigm 148 R-1 outcome + paradigm 149 R-0 6th predictive + paradigm 150 R-0 7th predictive)"
+    },
+    "lesson_59_candidate_avoidance": {
+      "single_exchange": true,
+      "frame": "30min (NOT cross-exchange 15min+)",
+      "verdict": "COMPLIANT"
+    },
+    "lesson_60_candidate_avoidance": {
+      "hold_min_range": [30, 120],
+      "min_hold_min": 30,
+      "above_5min_threshold": true,
+      "verdict": "COMPLIANT (hold ≥ 30min, avoids sub-5min momentum continuation OUTCOME family)"
+    }
+  },
+
+  "halt_decision_rationale": {
+    "primary_cause": "Lesson #56 OUTCOME-LEVEL FAMILY PROXY 7th instance — paradigm 150 statistic class (ATR-normalized range breakout) is OUTCOME-equivalent to paradigm 115 ATR-normalized Donchian breakout family (graveyard 2026-05-20, CONCENTRATION_DISPERSION_FAIL, life-changing 2/4 with per_trade_edge 0.21% blocking)",
+    "secondary_cause": "Lesson #40 EDGE-side structural infeasibility predictive — hold reduction from paradigm 115 4h to paradigm 150 30-120min strictly REDUCES gross integration window while fee floor (16bp) remains constant. paradigm 115 4h best cell yielded gross 29.11bp; paradigm 150 120min would integrate ~50% the time, predicted gross ~8-15bp marginally above or below fee.",
+    "tertiary_cause": "paradigm 149 §6.46 next-action recommendation (Option (a) 30-120min ATR-normalized range breakout) DID NOT cross-reference paradigm 115 graveyard — recommendation generated from paradigm 127 R-5 hold-frame precedent only. paradigm 115 family-distinct critical review reveals this omission.",
+    "rationale_summary": "paradigm 150 = paradigm 115 statistic-class outcome family + hold-window reduction (strictly worse on edge dimension) + concentration dispersion inheritance (smaller per-sym n at stricter k=2.0). Dispatching R-1 would consume compute to re-discover paradigm 115's documented fail mode under harder conditions. R-0 halt is correct scientific response, R-1 dispatch would be ritual compliance.",
+    "milestone_consideration": "paradigm 150 milestone integrity better served by R-0 halt with rigorous OUTCOME-level family-proxy analysis than by ritual R-1 dispatch yielding predicted BROAD_FALSIFIED outcome. Honest non-PASS streak count (21) preferred to manufactured PASS_R1 followed by R-2 walk-forward FAIL (paradigm 87 antipattern)."
+  },
+
+  "lesson_promotions_and_candidates": {
+    "lesson_56_outcome_level_family_proxy_7th_instance": {
+      "status": "formal CONFIRMED (already 5 instances) — 7th instance reinforces",
+      "instances_cumulative": 7,
+      "instances_breakdown": ["paradigm 141 R-0", "paradigm 142 R-0", "paradigm 143 R-0", "paradigm 145 R-0", "paradigm 147 R-0", "paradigm 148 R-1 outcome", "paradigm 149 R-0 predictive", "paradigm 150 R-0 predictive"]
+    },
+    "lesson_40_edge_side_structural_infeasibility_sub_variant_2nd_dogfood": {
+      "status": "candidate — 2nd dogfood (paradigm 149 1st)",
+      "promotion_eligibility": "1 more dogfood for formal CONFIRMED",
+      "statement": "Structural infeasibility on EDGE side: fee floor (16bp) constant while hold-window gross integration scales sub-linearly with hold. Hold reduction from R-5 best cell (paradigm 115 4h 29bp gross) to candidate (paradigm 150 120min) is strictly value-destroying when statistic class equivalent."
+    },
+    "new_lesson_61_candidate_1st_dogfood": {
+      "statement": "R-0 next-action recommendations from prior-paradigm graveyards (e.g. paradigm 149 §6.46 → paradigm 150 recommendation) MUST cross-reference adjacent-axis confirmed-graveyard paradigms (e.g. paradigm 115) BEFORE proposing as 'Surviving direction'. paradigm 149 recommendation cited paradigm 127 R-5 hold-frame precedent only — missed paradigm 115 statistic-class graveyard.",
+      "rationale": "Recommendation engine inheriting from prior paradigm next-action without xref'ing full graveyard family produces zombie-paradigm proposals that R-0 must catch.",
+      "promotion_pathway": "candidate awaiting 2nd dogfood. Spec amendment: paradigm-architect R-0 inventory_check skill should add 'next-action-recommendation provenance audit' — re-verify all adjacent-axis paradigms in INDEX.json graveyard list against proposed candidate statistic+frame+hold combination."
+    }
+  },
+
+  "next_action_recommendation": {
+    "do_not_dispatch_paradigm_150_r1_as_proposed": true,
+    "reformulation_paths_for_paradigm_151": [
+      {
+        "path": "A",
+        "name": "ATR-normalized range breakout WITH life-changing edge precondition",
+        "design": "Re-use paradigm 115 statistic class BUT at 4h hold k=1.5 best cell, expand universe to 25+ alts to test if Concentration Gate per-sym ci_pos issue resolves at per-sym n ≥ 150. This is paradigm 115 R-2 EXPANSION explicitly suggested in paradigm 115 graveyard §Recommended Next Action Option A.",
+        "blocker": "per_trade_edge 0.21% structural — even if Concentration PASSES with universe expansion, life-changing 4-dim still 2/4 (per_trade_edge << 2%). Path A graveyard-eligible at design.",
+        "tier": "⭐ low (rediscovers paradigm 115 life-changing block)"
+      },
+      {
+        "path": "B",
+        "name": "8h funding boundary cross-symbol contagion (paradigm 22 R-5 adjacent)",
+        "design": "paradigm 149 §6.46 Option (b) recommendation. Single-substrate funding, distinct universe partitioning vs paradigm 22 sym set.",
+        "blocker": "Funding family Tier 4 retire 12 cumulative (paradigm 22 R-5 exception). High R-0 risk.",
+        "tier": "⭐ low"
+      },
+      {
+        "path": "C",
+        "name": "BTC-anchored cross-asset alt overshoot at 4-6h hold (paradigm 69 R-5 adjacent)",
+        "design": "paradigm 149 §6.46 Option (c). Distinct universe partitioning (different cohort subset) or distinct trigger (RV instead of p90 vol filter).",
+        "blocker": "paradigm 148 R-1 outcome-level confirmed 'mechanism class equivalence to paradigm 69 family' as Lesson #56 trap. Cross-asset PRICE proxy risk HIGH.",
+        "tier": "⭐ low (Lesson #56 OUTCOME-LEVEL repeat risk)"
+      },
+      {
+        "path": "D",
+        "name": "Token unlock cliff entry-side IMMEDIATE demand (Lesson #27 amendment compliant)",
+        "design": "Lifecycle entry-side, requires fresh onboardDate + unlock schedule audit, distinct from paradigm 87+88+90 graveyard family.",
+        "blocker": "Lesson #27 amendment confirmed delayed/indirect entry-side fails. IMMEDIATE entry-side requires substrate verification.",
+        "tier": "⭐⭐ medium (genuinely-new entry-side family if Lesson #27 IMMEDIATE qualifier satisfied)"
+      },
+      {
+        "path": "E",
+        "name": "NEW genuinely-unexplored axis brainstorm",
+        "design": "Open user brainstorm — exhausted axes (cross-exchange + funding + microstructure single-domain + sub-5min momentum + ATR-normalized magnitude breakout) suggest 21-streak non-PASS signals search-space saturation requiring genuinely-novel data domain not yet attempted.",
+        "blocker": "requires user input or systematic INDEX axis-graveyard mapping",
+        "tier": "⭐⭐⭐ exploratory but high uncertainty"
+      }
+    ],
+    "meta_recommendation": "RECOMMENDED: Path D (token unlock cliff entry-side IMMEDIATE demand) if onboardDate + unlock schedule substrate verifiable, else Path E (user brainstorm session). Paths A/B/C are zombie-paradigm risks per Lesson #56 OUTCOME-LEVEL family proxy 7-instance evidence base. 21-streak non-PASS suggests adjacent-axis refinement search-space exhausted; genuinely-new data domain required."
+  },
+
+  "campaign_state_update": {
+    "cumulative_graveyards": 150,
+    "r5_live_count": 10,
+    "non_pass_streak": 21,
+    "r5_yield_pct": 6.67,
+    "lessons_confirmed_count": 34,
+    "lessons_candidates_count": 13,
+    "new_candidate_lessons": ["Lesson #61 candidate: R-0 next-action provenance audit"],
+    "tier_4_family_retires": ["cross-exchange Bybit↔Binance 6 cumulative", "funding family 12 cumulative", "ATR-normalized magnitude breakout family eligibility (2 graveyards: paradigm 115 + paradigm 150 R-0)"],
+    "infrastructure_assets_unchanged": ["12-col klines cache 14 syms × 820d", "15m klines Bybit+Binance 7 syms × 870d"],
+    "compute_efficiency": "R-0 halt saved ~15-20x compute vs R-1 full dispatch (~75 sec)",
+    "d_day_2026_06_03_d_minus": 13,
+    "paradigm_127_128_day_7_baseline_d_minus": 7
+  }
+}

@@ -1,0 +1,810 @@
+{
+  "paradigm_id": 183,
+  "paradigm_slug": "alt_per_sym_30d_return_autocorrelation_lag1_z_continuous_weighted_long_only_daily_rebal",
+  "phase": "R-1",
+  "verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT",
+  "verdict_reason": "z_excess 1.87 < 2.0",
+  "lesson_72_3rd_dogfood_verdict": "CONFIRMED_universal_3rd_dogfood",
+  "lesson_72_3rd_dogfood_reason": "3rd statistical axis (autocorr) fails AND 6_neg_overlap 0.83 >= 0.5 \u2192 universe-level regime void confirmed (statistic axis-invariant)",
+  "run_ts": "2026-05-22T00:28:46.766871Z",
+  "config": {
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "ADAUSDT",
+      "DOGEUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "BCHUSDT",
+      "NEARUSDT",
+      "FILUSDT",
+      "WIFUSDT"
+    ],
+    "n_syms": 14,
+    "autocorr_window_d": 30,
+    "autocorr_lag": 1,
+    "z_window_d": 90,
+    "z_floor": 0.5,
+    "z_cap": 3.0,
+    "fee_bp_one_way": 8.0,
+    "n_perm": 1000,
+    "rng_seed": 20260522,
+    "statistic_class": "per_sym_30d_lag1_return_autocorrelation_zscore"
+  },
+  "panel": {
+    "n_days_aligned": 701,
+    "date_range": [
+      "2024-05-30 00:00:00",
+      "2026-04-30 00:00:00"
+    ]
+  },
+  "metrics": {
+    "portfolio_gross": {
+      "label": "portfolio_gross",
+      "n_days": 701,
+      "mean_daily_bp": 5.2574,
+      "std_daily_bp": 377.2904,
+      "ann_return_pct": 21.148,
+      "ann_vol_pct": 72.081,
+      "sharpe": 0.266,
+      "sortino": 0.381,
+      "max_dd_pct": -69.959,
+      "total_return_pct": -12.037
+    },
+    "portfolio_net": {
+      "label": "portfolio_net",
+      "n_days": 701,
+      "mean_daily_bp": 2.9596,
+      "std_daily_bp": 377.2578,
+      "ann_return_pct": 11.406,
+      "ann_vol_pct": 72.075,
+      "sharpe": 0.15,
+      "sortino": 0.214,
+      "max_dd_pct": -71.42,
+      "total_return_pct": -25.13
+    },
+    "benchmark_equal_weight": {
+      "label": "benchmark_equal_weight_basket",
+      "n_days": 701,
+      "mean_daily_bp": -0.1653,
+      "std_daily_bp": 374.0326,
+      "ann_return_pct": -0.602,
+      "ann_vol_pct": 71.459,
+      "sharpe": -0.008,
+      "sortino": -0.012,
+      "max_dd_pct": -68.406,
+      "total_return_pct": -39.575
+    },
+    "benchmark_btc_bnh": {
+      "label": "benchmark_btc_bnh",
+      "n_days": 701,
+      "mean_daily_bp": 4.6509,
+      "std_daily_bp": 243.0306,
+      "ann_return_pct": 18.497,
+      "ann_vol_pct": 46.431,
+      "sharpe": 0.366,
+      "sortino": 0.548,
+      "max_dd_pct": -49.556,
+      "total_return_pct": 12.733
+    },
+    "alpha_vs_equal_weight": {
+      "label": "alpha_vs_equal_weight",
+      "n_days": 701,
+      "mean_daily_bp": 3.125,
+      "std_daily_bp": 194.242,
+      "ann_return_pct": 12.08,
+      "ann_vol_pct": 37.11,
+      "sharpe": 0.307,
+      "sortino": 0.376,
+      "max_dd_pct": -37.284,
+      "total_return_pct": 9.011
+    },
+    "alpha_vs_btc": {
+      "label": "alpha_vs_btc",
+      "n_days": 701,
+      "mean_daily_bp": -1.6912,
+      "std_daily_bp": 260.8428,
+      "ann_return_pct": -5.987,
+      "ann_vol_pct": 49.834,
+      "sharpe": -0.124,
+      "sortino": -0.205,
+      "max_dd_pct": -56.029,
+      "total_return_pct": -29.815
+    },
+    "tracking_error_annualized": 0.3711,
+    "information_ratio_vs_eq": 0.3074
+  },
+  "util_diagnostics": {
+    "avg_active_syms": 5.086,
+    "median_active_syms": 5,
+    "max_active_syms": 14,
+    "avg_total_weight": 0.8471,
+    "median_total_weight": 1.0,
+    "days_zero_weight": 94,
+    "days_total_weight_ge_0_3": 607,
+    "util_pct_days_active": 86.59,
+    "util_pct_capital_deployed_avg": 84.71
+  },
+  "turnover_diagnostics": {
+    "avg_daily_turnover": 0.2874,
+    "median_daily_turnover": 0.1751,
+    "max_daily_turnover": 2.0,
+    "total_fee_drag_pct": 16.107,
+    "avg_daily_fee_bp": 2.2978
+  },
+  "permutation_test": {
+    "obs_sharpe": 0.1499,
+    "null_mean_sharpe": -0.5311,
+    "null_std_sharpe": 0.3645,
+    "sharpe_excess": 0.681,
+    "z_excess": 1.8685,
+    "perm_p_value": 0.038,
+    "n_perm": 1000
+  },
+  "per_sym_contribution": {
+    "BTCUSDT": {
+      "abs_contrib_bp": 569.1648328321447,
+      "pct_share": 3.062,
+      "positive": true
+    },
+    "ETHUSDT": {
+      "abs_contrib_bp": 1202.6956702776372,
+      "pct_share": 6.47,
+      "positive": true
+    },
+    "BNBUSDT": {
+      "abs_contrib_bp": -2590.8832655320925,
+      "pct_share": -13.937,
+      "positive": false
+    },
+    "SOLUSDT": {
+      "abs_contrib_bp": 578.0977512022018,
+      "pct_share": 3.11,
+      "positive": true
+    },
+    "XRPUSDT": {
+      "abs_contrib_bp": 3139.9388174012033,
+      "pct_share": 16.891,
+      "positive": true
+    },
+    "ADAUSDT": {
+      "abs_contrib_bp": 1452.9783547213199,
+      "pct_share": 7.816,
+      "positive": true
+    },
+    "DOGEUSDT": {
+      "abs_contrib_bp": 3273.9066742442296,
+      "pct_share": 17.611,
+      "positive": true
+    },
+    "AVAXUSDT": {
+      "abs_contrib_bp": -617.2956719082435,
+      "pct_share": -3.321,
+      "positive": false
+    },
+    "LINKUSDT": {
+      "abs_contrib_bp": -114.49998174432264,
+      "pct_share": -0.616,
+      "positive": false
+    },
+    "LTCUSDT": {
+      "abs_contrib_bp": -7.907704413122815,
+      "pct_share": -0.043,
+      "positive": false
+    },
+    "BCHUSDT": {
+      "abs_contrib_bp": 36.980437434147134,
+      "pct_share": 0.199,
+      "positive": true
+    },
+    "NEARUSDT": {
+      "abs_contrib_bp": -2659.774514968416,
+      "pct_share": -14.308,
+      "positive": false
+    },
+    "FILUSDT": {
+      "abs_contrib_bp": -1461.7938198383515,
+      "pct_share": -7.863,
+      "positive": false
+    },
+    "WIFUSDT": {
+      "abs_contrib_bp": 883.8331157974858,
+      "pct_share": 4.754,
+      "positive": true
+    }
+  },
+  "negative_syms_overlap_analysis": {
+    "paradigm_183_negative_syms": [
+      "BNBUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "FILUSDT"
+    ],
+    "n_paradigm_183_negative": 6,
+    "reference_paradigm_181_182_negative_syms": [
+      "BNBUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "BCHUSDT",
+      "NEARUSDT",
+      "FILUSDT"
+    ],
+    "n_reference_negative": 6,
+    "overlap_syms": [
+      "BNBUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "NEARUSDT",
+      "FILUSDT"
+    ],
+    "n_overlap": 5,
+    "overlap_ratio": 0.833,
+    "high_overlap_ge_50pct": true
+  },
+  "monthly_top_weights": {
+    "2024-05": [
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.4869
+      }
+    ],
+    "2024-06": [
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.2904
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.1881
+      },
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.1578
+      }
+    ],
+    "2024-07": [
+      {
+        "sym": "AVAXUSDT",
+        "mean_weight": 0.1846
+      },
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.1753
+      },
+      {
+        "sym": "BTCUSDT",
+        "mean_weight": 0.1276
+      }
+    ],
+    "2024-08": [
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.2001
+      },
+      {
+        "sym": "XRPUSDT",
+        "mean_weight": 0.1927
+      },
+      {
+        "sym": "SOLUSDT",
+        "mean_weight": 0.1748
+      }
+    ],
+    "2024-09": [
+      {
+        "sym": "ADAUSDT",
+        "mean_weight": 0.1879
+      },
+      {
+        "sym": "FILUSDT",
+        "mean_weight": 0.1808
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.1624
+      }
+    ],
+    "2024-10": [
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.2233
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.1368
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.1194
+      }
+    ],
+    "2024-11": [
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.3622
+      },
+      {
+        "sym": "SOLUSDT",
+        "mean_weight": 0.1489
+      },
+      {
+        "sym": "XRPUSDT",
+        "mean_weight": 0.1459
+      }
+    ],
+    "2024-12": [
+      {
+        "sym": "XRPUSDT",
+        "mean_weight": 0.4846
+      },
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.1823
+      },
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.127
+      }
+    ],
+    "2025-01": [
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.2434
+      },
+      {
+        "sym": "AVAXUSDT",
+        "mean_weight": 0.1271
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.1268
+      }
+    ],
+    "2025-02": [
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.2688
+      },
+      {
+        "sym": "FILUSDT",
+        "mean_weight": 0.2077
+      },
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.1525
+      }
+    ],
+    "2025-03": [
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.0845
+      },
+      {
+        "sym": "NEARUSDT",
+        "mean_weight": 0.0654
+      },
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.0312
+      }
+    ],
+    "2025-04": [
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.2294
+      },
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.1179
+      },
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.0592
+      }
+    ],
+    "2025-05": [
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.297
+      },
+      {
+        "sym": "ETHUSDT",
+        "mean_weight": 0.1183
+      },
+      {
+        "sym": "SOLUSDT",
+        "mean_weight": 0.0913
+      }
+    ],
+    "2025-06": [
+      {
+        "sym": "ADAUSDT",
+        "mean_weight": 0.1104
+      },
+      {
+        "sym": "BTCUSDT",
+        "mean_weight": 0.1082
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.108
+      }
+    ],
+    "2025-07": [
+      {
+        "sym": "XRPUSDT",
+        "mean_weight": 0.1756
+      },
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.1547
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.1405
+      }
+    ],
+    "2025-08": [
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.4478
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.0947
+      },
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.0905
+      }
+    ],
+    "2025-09": [
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.4779
+      },
+      {
+        "sym": "SOLUSDT",
+        "mean_weight": 0.026
+      },
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.0176
+      }
+    ],
+    "2025-10": [
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.279
+      },
+      {
+        "sym": "BTCUSDT",
+        "mean_weight": 0.1261
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.1091
+      }
+    ],
+    "2025-11": [
+      {
+        "sym": "NEARUSDT",
+        "mean_weight": 0.2318
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.2147
+      },
+      {
+        "sym": "FILUSDT",
+        "mean_weight": 0.1784
+      }
+    ],
+    "2025-12": [
+      {
+        "sym": "AVAXUSDT",
+        "mean_weight": 0.4057
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.125
+      },
+      {
+        "sym": "LTCUSDT",
+        "mean_weight": 0.0789
+      }
+    ],
+    "2026-01": [
+      {
+        "sym": "DOGEUSDT",
+        "mean_weight": 0.2248
+      },
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.1671
+      },
+      {
+        "sym": "LINKUSDT",
+        "mean_weight": 0.1234
+      }
+    ],
+    "2026-02": [
+      {
+        "sym": "BNBUSDT",
+        "mean_weight": 0.0695
+      },
+      {
+        "sym": "ETHUSDT",
+        "mean_weight": 0.0667
+      },
+      {
+        "sym": "BTCUSDT",
+        "mean_weight": 0.0195
+      }
+    ],
+    "2026-03": [
+      {
+        "sym": "SOLUSDT",
+        "mean_weight": 0.2188
+      },
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.2024
+      },
+      {
+        "sym": "WIFUSDT",
+        "mean_weight": 0.1491
+      }
+    ],
+    "2026-04": [
+      {
+        "sym": "NEARUSDT",
+        "mean_weight": 0.1092
+      },
+      {
+        "sym": "BCHUSDT",
+        "mean_weight": 0.0835
+      },
+      {
+        "sym": "ETHUSDT",
+        "mean_weight": 0.0539
+      }
+    ]
+  },
+  "quarter_breakdown_portfolio_net": {
+    "2024Q2": {
+      "quarter": "2024Q2",
+      "n_days": 32,
+      "total_return_pct": -13.1,
+      "sharpe": -2.492,
+      "positive": false
+    },
+    "2024Q3": {
+      "quarter": "2024Q3",
+      "n_days": 92,
+      "total_return_pct": -21.264,
+      "sharpe": -0.968,
+      "positive": false
+    },
+    "2024Q4": {
+      "quarter": "2024Q4",
+      "n_days": 92,
+      "total_return_pct": 154.875,
+      "sharpe": 4.81,
+      "positive": true
+    },
+    "2025Q1": {
+      "quarter": "2025Q1",
+      "n_days": 90,
+      "total_return_pct": -28.938,
+      "sharpe": -1.619,
+      "positive": false
+    },
+    "2025Q2": {
+      "quarter": "2025Q2",
+      "n_days": 91,
+      "total_return_pct": 14.758,
+      "sharpe": 1.057,
+      "positive": true
+    },
+    "2025Q3": {
+      "quarter": "2025Q3",
+      "n_days": 92,
+      "total_return_pct": 40.898,
+      "sharpe": 2.523,
+      "positive": true
+    },
+    "2025Q4": {
+      "quarter": "2025Q4",
+      "n_days": 92,
+      "total_return_pct": -46.189,
+      "sharpe": -2.741,
+      "positive": false
+    },
+    "2026Q1": {
+      "quarter": "2026Q1",
+      "n_days": 90,
+      "total_return_pct": -31.252,
+      "sharpe": -2.26,
+      "positive": false
+    },
+    "2026Q2": {
+      "quarter": "2026Q2",
+      "n_days": 30,
+      "total_return_pct": 1.002,
+      "sharpe": 0.497,
+      "positive": true
+    }
+  },
+  "quarter_breakdown_equal_weight": {
+    "2024Q2": {
+      "quarter": "2024Q2",
+      "n_days": 32,
+      "total_return_pct": -16.953,
+      "sharpe": -4.101,
+      "positive": false
+    },
+    "2024Q3": {
+      "quarter": "2024Q3",
+      "n_days": 92,
+      "total_return_pct": -2.427,
+      "sharpe": 0.194,
+      "positive": false
+    },
+    "2024Q4": {
+      "quarter": "2024Q4",
+      "n_days": 92,
+      "total_return_pct": 56.353,
+      "sharpe": 2.788,
+      "positive": true
+    },
+    "2025Q1": {
+      "quarter": "2025Q1",
+      "n_days": 90,
+      "total_return_pct": -34.577,
+      "sharpe": -1.575,
+      "positive": false
+    },
+    "2025Q2": {
+      "quarter": "2025Q2",
+      "n_days": 91,
+      "total_return_pct": 15.384,
+      "sharpe": 1.144,
+      "positive": true
+    },
+    "2025Q3": {
+      "quarter": "2025Q3",
+      "n_days": 92,
+      "total_return_pct": 31.049,
+      "sharpe": 2.036,
+      "positive": true
+    },
+    "2025Q4": {
+      "quarter": "2025Q4",
+      "n_days": 92,
+      "total_return_pct": -37.127,
+      "sharpe": -1.938,
+      "positive": false
+    },
+    "2026Q1": {
+      "quarter": "2026Q1",
+      "n_days": 90,
+      "total_return_pct": -26.688,
+      "sharpe": -1.4,
+      "positive": false
+    },
+    "2026Q2": {
+      "quarter": "2026Q2",
+      "n_days": 30,
+      "total_return_pct": 4.594,
+      "sharpe": 1.476,
+      "positive": true
+    }
+  },
+  "four_cond_audit": {
+    "cond1_three_gate": {
+      "pass": false,
+      "sharpe_excess": 0.681,
+      "z_excess": 1.8685,
+      "perm_p": 0.038
+    },
+    "cond2_concentration": {
+      "pass": true,
+      "syms_positive": 8,
+      "syms_total": 14,
+      "ratio": 0.571
+    },
+    "cond3_temporal": {
+      "pass": false,
+      "quarters_positive": 4,
+      "quarters_total": 9
+    },
+    "cond4_life_changing_4dim": {
+      "pass": false,
+      "trades_per_yr_effective": 1856.4,
+      "per_trade_edge_bp": 0.647,
+      "capital_util_pct": 84.71,
+      "sharpe": 0.15,
+      "dim_pass": {
+        "trades_per_yr_ge_12": true,
+        "per_trade_edge_ge_2pct": false,
+        "capital_util_ge_30pct": true,
+        "sharpe_ge_1_5": "False"
+      }
+    },
+    "all_4_cond_pass": false
+  },
+  "lesson_61_slug_grep_audit": {
+    "existing_autocorr_paradigm": "autocorr_regime (paradigm 18)",
+    "existing_dna": {
+      "frame": "5min OHLCV 288-bar window",
+      "decision_mode": "discrete trigger entry SL/TP",
+      "universe": "10-sym alt subset (no BTC)"
+    },
+    "paradigm_183_dna": {
+      "frame": "daily 30d window",
+      "decision_mode": "continuous-weighting portfolio (no SL/TP)",
+      "universe": "14-sym incl BTC",
+      "z_normalization": "90d z layer added"
+    },
+    "dimensional_distinctness": "5/6 axes (statistic root same lag-1 autocorr; daily-frame + z-norm + decision mode + universe + hold all different)",
+    "user_claim_correction": "User claimed campaign \ub204\uc801 \ubbf8\ud0d0\uc0c9 \u2014 FALSE. paradigm 18 ran R-3. Dispatch proceeds based on 5/6 axis distinctness threshold."
+  },
+  "lesson_70_corollary_scope_prescreen": {
+    "verdict": "PROCEED_NEW_STATISTIC_CLASS",
+    "rationale_path_b": [
+      "paradigm 181/182 are R-1 GRAVEYARDS (NOT R-5 LIVE) - Lesson #70 corollary applies to R-5 LIVE only",
+      "Autocorrelation = regime characteristic class (trending vs mean-reverting), fundamentally different from magnitude characteristic (return / Sharpe)",
+      "Different universe ranking expected (high autocorr syms != high return / Sharpe syms)"
+    ]
+  },
+  "lesson_71_path_c_escape": {
+    "is_state_machine": false,
+    "is_continuous_weighting": true,
+    "multi_position_simultaneous": true,
+    "signal_intensity_proportional": true,
+    "util_target_30pct": true,
+    "util_empirical_pct": 84.71,
+    "escape_verified": true
+  },
+  "lesson_72_3rd_dogfood": {
+    "purpose": "Test whether fresh statistical axis (autocorrelation) recovers alpha where raw return (181) and Sharpe (182) failed",
+    "paradigm_181_verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT (sharpe_excess +0.089, perm_p 0.414)",
+    "paradigm_182_verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT (sharpe_excess +0.075, z_excess +0.17, perm_p 0.436)",
+    "paradigm_181_182_6_neg_syms": [
+      "BNBUSDT",
+      "LINKUSDT",
+      "LTCUSDT",
+      "BCHUSDT",
+      "NEARUSDT",
+      "FILUSDT"
+    ],
+    "paradigm_183_obs_sharpe": 0.1499,
+    "paradigm_183_sharpe_excess": 0.681,
+    "paradigm_183_z_excess": 1.8685,
+    "paradigm_183_perm_p": 0.038,
+    "paradigm_183_6_neg_overlap": 0.833,
+    "verdict_assignment": "CONFIRMED_universal_3rd_dogfood",
+    "verdict_assignment_reason": "3rd statistical axis (autocorr) fails AND 6_neg_overlap 0.83 >= 0.5 \u2192 universe-level regime void confirmed (statistic axis-invariant)"
+  },
+  "memory_compliance": {
+    "no_freemium_trial": true,
+    "life_changing_4dim_audited": true,
+    "persistence_over_efficiency": true,
+    "continuous_parallel_campaign": true,
+    "lesson_61_slug_grep_audited": true,
+    "lesson_70_corollary_scope_prescreen_executed": true,
+    "lesson_71_path_c_escape_verified": true
+  },
+  "post_run_correction": {
+    "issue": "quarter_breakdown used invalid strftime %q directive, dict keys collided to literal 'Y-Q%q' causing only 3 visible quarters (last write wins per literal key)",
+    "fix_applied": "recomputed quarter_breakdown with correct key f-string {year}Q{quarter}",
+    "impact": "cond3_temporal correctly evaluated; main verdict unchanged (cond1 still FAIL z_excess 1.87 < 2.0)"
+  }
+}

@@ -1,0 +1,361 @@
+{
+  "paradigm": "alt_range_volume_divergence_z_directional_4h",
+  "paradigm_id": 152,
+  "phase": "R-0",
+  "verdict": "HALT_R0",
+  "halt_reasons": [
+    "L11_sample_density per_cell_min=28.7 < 30",
+    "L40_threshold_attainability_fail (some syms p99<2 or p01>-2)"
+  ],
+  "substrate": "binance_klines_4h_12col (paradigm 142 cache reuse)",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_syms": 13,
+  "lookback_bars": 180,
+  "threshold": 2.0,
+  "per_sym_window": [
+    {
+      "sym": "ADAUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "AVAXUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "BCHUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "BNBUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "DOGEUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "ETHUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "FILUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "LINKUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "LTCUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "NEARUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "SOLUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "WIFUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    },
+    {
+      "sym": "XRPUSDT",
+      "start": "2024-03-01 20:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4741
+    }
+  ],
+  "lesson58_corr_check": {
+    "records": [
+      {
+        "sym": "ADAUSDT",
+        "corr_range_volume": 0.6944605156599226
+      },
+      {
+        "sym": "AVAXUSDT",
+        "corr_range_volume": 0.6812751108122185
+      },
+      {
+        "sym": "BCHUSDT",
+        "corr_range_volume": 0.6953678821537116
+      },
+      {
+        "sym": "BNBUSDT",
+        "corr_range_volume": 0.7360752941323933
+      },
+      {
+        "sym": "DOGEUSDT",
+        "corr_range_volume": 0.6545490090388905
+      },
+      {
+        "sym": "ETHUSDT",
+        "corr_range_volume": 0.7250830069430426
+      },
+      {
+        "sym": "FILUSDT",
+        "corr_range_volume": 0.7747722509366752
+      },
+      {
+        "sym": "LINKUSDT",
+        "corr_range_volume": 0.6855792454086711
+      },
+      {
+        "sym": "LTCUSDT",
+        "corr_range_volume": 0.7687643567047137
+      },
+      {
+        "sym": "NEARUSDT",
+        "corr_range_volume": 0.7174827853091467
+      },
+      {
+        "sym": "SOLUSDT",
+        "corr_range_volume": 0.7542859227255195
+      },
+      {
+        "sym": "WIFUSDT",
+        "corr_range_volume": 0.6680438565392502
+      },
+      {
+        "sym": "XRPUSDT",
+        "corr_range_volume": 0.7439469219189035
+      }
+    ],
+    "healthy_zone": [
+      0.05,
+      0.9
+    ],
+    "n_healthy": 13,
+    "n_degeneracy_high_corr": 0,
+    "n_near_zero": 0,
+    "pass": true
+  },
+  "lesson11_sample_density": {
+    "total_n_bars": 61633,
+    "total_pos_gt_2": 258,
+    "total_neg_lt_neg2": 559,
+    "rate_pos": 0.004186069151266367,
+    "rate_neg": 0.009069816494410462,
+    "n_quarters_est": 9,
+    "per_cell_pos_est": 28.666666666666668,
+    "per_cell_neg_est": 62.111111111111114,
+    "per_cell_min": 28.666666666666668,
+    "pass": false
+  },
+  "lesson40_threshold_attainability": {
+    "records": [
+      {
+        "sym": "ADAUSDT",
+        "n": 4741,
+        "div_p01": -1.7848865154581093,
+        "div_p99": 1.4537150327304869,
+        "div_min": -7.161671890672504,
+        "div_max": 5.811140390358809,
+        "n_pos_gt_2": 16,
+        "n_neg_lt_neg2": 41,
+        "rate_pos": 0.003374815439780637,
+        "rate_neg": 0.008647964564437883
+      },
+      {
+        "sym": "AVAXUSDT",
+        "n": 4741,
+        "div_p01": -1.7470186489532649,
+        "div_p99": 1.3886639340115938,
+        "div_min": -4.74532061493071,
+        "div_max": 6.415909437991052,
+        "n_pos_gt_2": 22,
+        "n_neg_lt_neg2": 34,
+        "rate_pos": 0.004640371229698376,
+        "rate_neg": 0.007171482809533854
+      },
+      {
+        "sym": "BCHUSDT",
+        "n": 4741,
+        "div_p01": -2.2612850566286324,
+        "div_p99": 1.7485816946497519,
+        "div_min": -5.222744520585435,
+        "div_max": 4.926075383201244,
+        "n_pos_gt_2": 35,
+        "n_neg_lt_neg2": 60,
+        "rate_pos": 0.007382408774520143,
+        "rate_neg": 0.012655557899177388
+      },
+      {
+        "sym": "BNBUSDT",
+        "n": 4741,
+        "div_p01": -1.974490711017441,
+        "div_p99": 1.364137069478363,
+        "div_min": -6.624074734589991,
+        "div_max": 5.424708266527413,
+        "n_pos_gt_2": 17,
+        "n_neg_lt_neg2": 47,
+        "rate_pos": 0.003585741404766927,
+        "rate_neg": 0.009913520354355622
+      },
+      {
+        "sym": "DOGEUSDT",
+        "n": 4741,
+        "div_p01": -2.0564321401499637,
+        "div_p99": 1.3519859329105033,
+        "div_min": -4.437907328796442,
+        "div_max": 4.578401330343947,
+        "n_pos_gt_2": 17,
+        "n_neg_lt_neg2": 50,
+        "rate_pos": 0.003585741404766927,
+        "rate_neg": 0.01054629824931449
+      },
+      {
+        "sym": "ETHUSDT",
+        "n": 4741,
+        "div_p01": -1.4997375028068125,
+        "div_p99": 1.244143277153884,
+        "div_min": -4.1179277033626995,
+        "div_max": 3.5620277533047355,
+        "n_pos_gt_2": 9,
+        "n_neg_lt_neg2": 20,
+        "rate_pos": 0.0018983336848766082,
+        "rate_neg": 0.004218519299725796
+      },
+      {
+        "sym": "FILUSDT",
+        "n": 4741,
+        "div_p01": -1.8117424850709227,
+        "div_p99": 1.4127166583242943,
+        "div_min": -5.61226749381379,
+        "div_max": 4.929383900721608,
+        "n_pos_gt_2": 22,
+        "n_neg_lt_neg2": 35,
+        "rate_pos": 0.004640371229698376,
+        "rate_neg": 0.007382408774520143
+      },
+      {
+        "sym": "LINKUSDT",
+        "n": 4741,
+        "div_p01": -2.0331020950146987,
+        "div_p99": 1.474086674128573,
+        "div_min": -5.651508954473872,
+        "div_max": 6.062400637931422,
+        "n_pos_gt_2": 21,
+        "n_neg_lt_neg2": 49,
+        "rate_pos": 0.004429445264712086,
+        "rate_neg": 0.0103353722843282
+      },
+      {
+        "sym": "LTCUSDT",
+        "n": 4741,
+        "div_p01": -2.011989058242672,
+        "div_p99": 1.4969504508003462,
+        "div_min": -4.488645696721639,
+        "div_max": 4.936116155646107,
+        "n_pos_gt_2": 22,
+        "n_neg_lt_neg2": 51,
+        "rate_pos": 0.004640371229698376,
+        "rate_neg": 0.010757224214300781
+      },
+      {
+        "sym": "NEARUSDT",
+        "n": 4741,
+        "div_p01": -2.056362965988232,
+        "div_p99": 1.5089555555125385,
+        "div_min": -6.100014618221369,
+        "div_max": 5.267999480139096,
+        "n_pos_gt_2": 20,
+        "n_neg_lt_neg2": 50,
+        "rate_pos": 0.004218519299725796,
+        "rate_neg": 0.01054629824931449
+      },
+      {
+        "sym": "SOLUSDT",
+        "n": 4741,
+        "div_p01": -1.6238757796288494,
+        "div_p99": 1.4134370104437273,
+        "div_min": -4.313806119572237,
+        "div_max": 4.296921216066177,
+        "n_pos_gt_2": 14,
+        "n_neg_lt_neg2": 24,
+        "rate_pos": 0.002952963509808057,
+        "rate_neg": 0.0050622231596709555
+      },
+      {
+        "sym": "WIFUSDT",
+        "n": 4741,
+        "div_p01": -2.057515158539993,
+        "div_p99": 1.5862755866438953,
+        "div_min": -3.931041865504538,
+        "div_max": 4.086827431495109,
+        "n_pos_gt_2": 25,
+        "n_neg_lt_neg2": 56,
+        "rate_pos": 0.005273149124657245,
+        "rate_neg": 0.011811854039232229
+      },
+      {
+        "sym": "XRPUSDT",
+        "n": 4741,
+        "div_p01": -1.9086888525380203,
+        "div_p99": 1.373226606366934,
+        "div_min": -6.541587782721087,
+        "div_max": 3.6937640383582906,
+        "n_pos_gt_2": 18,
+        "n_neg_lt_neg2": 42,
+        "rate_pos": 0.0037966673697532164,
+        "rate_neg": 0.008858890529424172
+      }
+    ],
+    "pass": false
+  },
+  "lesson44_36th_xref": {
+    "paradigm_116_volume_confirmed_atr_breakout": "distinct: ATR breakout (continuation) vs range-volume divergence (regime classifier)",
+    "paradigm_129_parkinson_range_vol": "distinct: single-axis raw range vs divergence (range_z - vol_z)",
+    "paradigm_137_yang_zhang_close_ratio": "distinct: vol-of-vol close ratio vs range-volume joint z",
+    "paradigm_142_quote_vol_imbalance": "distinct: taker_buy filter on quote_vol vs range_z - vol_z subtraction",
+    "paradigm_144_quote_vol_count_ratio": "distinct: avg_trade_size ratio vs range \u00d7 volume joint",
+    "axis_genuinely_new": true,
+    "axis_first_use_paradigm": 152
+  },
+  "lesson54_same_bar_check": {
+    "type": "subtraction not ratio (range_z - vol_z)",
+    "same_bar": true,
+    "independent_mechanism_story": "thin/consolidation regime classifier (range-volume joint state)",
+    "note": "subtraction of two normalized z-scores; not ratio degeneracy"
+  }
+}

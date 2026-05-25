@@ -1,0 +1,111 @@
+{
+  "paradigm_id": 148,
+  "paradigm_name": "alt_bybit_to_binance_lead_lag_PRICE_delay_directional_4h",
+  "date_kst": "2026-05-21 14:02 KST",
+  "phase": "R-0 prescreen",
+  "verdict": "PASS_WITH_STRONG_WARNING_substrate_cost_user_gating_required",
+  "predecessor": "paradigm 147 v2 INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION (2026-05-21 13:50 KST) — §next-action Option B pivot",
+  "streak_context": "18-streak non-PASS (paradigms 129-147)",
+
+  "hypothesis": {
+    "premise": "Bybit (Asian-retail-dominated venue) PRICE velocity z[t] leads Binance (global institutional+retail) PRICE velocity z[t+Δ] at Δ ∈ {15,30,60,120}min",
+    "trigger": "|Bybit_PRICE_velocity_z[t]| > 2.0 where velocity = (close[t] - close[t-4bars]) / 30d_rolling_std (15min frame)",
+    "direction": "sign(Bybit_velocity_z[t]) → 4h forward LONG/SHORT continuation on Binance",
+    "universe": "deep-7 [AVAXUSDT, BCHUSDT, BNBUSDT, DOGEUSDT, LINKUSDT, SOLUSDT, XRPUSDT] (paradigm 103/104/147 Bybit V5 verified)",
+    "frame": "15min (substrate) → 4h forward hold"
+  },
+
+  "family_distinct_gate": {
+    "vs_paradigm_71_BTC_OI_velocity": {
+      "claim": "cross-exchange substrate composition + PRICE axis (not OI)",
+      "audit": "paradigm 71 = single-exchange OI velocity z trigger anti-alpha. paradigm 148 = cross-exchange PRICE velocity z trigger. BOTH substrate composition (single vs cross venue) AND statistic axis (OI vs PRICE) genuinely different",
+      "verdict": "PASS"
+    },
+    "vs_paradigm_75_cohort_lead_lag": {
+      "claim": "cross-exchange (NOT cross-symbol)",
+      "audit": "paradigm 75 = cohort-aggregate cross-SYMBOL lead-lag within Binance. paradigm 148 = cross-EXCHANGE same-symbol lead-lag (Bybit↔Binance). Substrate composition genuinely different. HOWEVER: broad PRICE lead-lag mechanism class shares failure-mode risk (HFT venue arbitrage closes <1s in liquid perp markets, alpha may not exist at 15min+ frame)",
+      "verdict": "PASS_WITH_STRONG_WARNING"
+    },
+    "vs_paradigm_103_cross_ex_funding_spread": {
+      "claim": "PRICE axis (NOT funding)",
+      "audit": "paradigm 103 = cross-exchange funding rate spread (8h cycle). paradigm 148 = cross-exchange PRICE velocity (15min). Statistic axis genuinely different",
+      "verdict": "PASS"
+    },
+    "vs_paradigm_104_cross_ex_OI_differential": {
+      "claim": "PRICE axis (NOT OI level differential)",
+      "audit": "paradigm 104 = cross-exchange OI LEVEL same-bar (Δ=0) differential. paradigm 148 = cross-exchange PRICE VELOCITY time-shifted (Δ>0). Both statistic axis (OI level vs PRICE velocity) AND temporal structure (same-bar vs lead-lag) different",
+      "verdict": "PASS"
+    },
+    "vs_paradigm_147v2_cross_ex_OI_lead_lag": {
+      "claim": "PRICE axis (NOT OI velocity); cross-substrate not composite-falsified",
+      "audit": "paradigm 147 v2 = cross-exchange OI VELOCITY lead-lag (composite of paradigm 71 trigger + paradigm 104 substrate, both individually falsified). paradigm 148 = cross-exchange PRICE VELOCITY lead-lag. PRICE velocity trigger NOT in confirmed-falsified family. Cross-exchange PRICE composition NOT in confirmed-falsified family. INVENTORY_HALT_BY_COMPOSITE_FAMILY_FALSIFICATION criteria NOT met",
+      "verdict": "PASS"
+    },
+    "vs_paradigm_81_rolling_beta_regime": {
+      "claim": "lead-lag (time-shifted) NOT correlation regime (synchronous)",
+      "audit": "paradigm 81 = synchronous rolling beta cross-exchange. paradigm 148 = time-shifted velocity lead-lag. Mechanism class different (synchronous correlation vs temporal causation)",
+      "verdict": "PASS"
+    },
+    "lesson_56_6th_instance_trap_test": {
+      "criterion": "statistic reformulation of confirmed-falsified family",
+      "audit": "PRICE velocity z trigger at cross-exchange dimension NOT in confirmed-falsified family (only OI velocity is). NOT a refinement on falsified base. Genuinely NEW mechanism class (Asian-retail-front-running) explicitly untested ex ante",
+      "verdict": "PASS (not 6th-instance trap)"
+    }
+  },
+
+  "lesson_grid": {
+    "L11_sample_density": {
+      "user_estimate": "7 syms × 2.5yr × 15min × 5% |z|>2 × 4 quadrants × 4 Δ shifts ≈ 3500-7000/cell",
+      "paradigm_85_correction": "empirical |z|>2 on always-on rolling z is 1.0-1.5% NOT 5% (4.3x overestimate dogfooded)",
+      "corrected_estimate": "7 × 912 × 96 × 0.012 ≈ 7350 events × align_rate(~50%) ÷ (4 quadrants × 4 Δ) ≈ 230/cell ≥ 30 cutoff",
+      "verdict": "PASS pending empirical measurement in R-1",
+      "Lesson_58_subfinding": "cross-substrate exemption applies for Lesson #21 ONLY, Lesson #11 must be re-verified empirically"
+    },
+    "L19_4quadrant_SNT": "MANDATORY one batch: A focus (+z LONG), A mirror (+z SHORT), B focus (-z SHORT), B mirror (-z LONG) × 4 Δ shifts = 16 cells",
+    "L21_axis_stacking": {
+      "single_axis": true,
+      "note": "Trigger axis (Bybit PRICE velocity z) only. Sign-based direction selection is NOT an additional axis under Lesson #58 cross-substrate exemption (Bybit klines + Binance klines = 2 substrates)",
+      "verdict": "EXEMPT via Lesson #58"
+    },
+    "L28_substrate": {
+      "Bybit_V5_klines_15min": "VERIFIED LIVE (curl test 2026-05-21 14:00 KST retCode=0 OK)",
+      "Binance_15m_archive": "VERIFIED LIVE (HTTP 200 BTCUSDT-15m-2025-01-15.zip 5166 bytes)",
+      "local_cache_status": {
+        "Bybit_15m_klines": "MISSING (backfill required ~5 min via Bybit V5 REST pagination)",
+        "Binance_15m_klines": "MISSING (backfill required ~25 min via data.binance.vision archive, 7 syms × 912 days × ~2s/day)"
+      },
+      "total_backfill_ETA": "~25-30 min (at halt threshold but feasible)",
+      "verdict": "FEASIBLE — substrate available, cost borderline"
+    },
+    "L30_data_window_ratio": "Bybit V5 history ≥2yr verified for deep-7 (paradigm 103/104). Binance 15m archive ≥2.5yr verified. Full-window dispatch. Ratio = 1.000",
+    "L40_threshold_attainability": "PRICE velocity z is bidirectionally unbounded (PRICE returns symmetric around 0). |z|>2 attainable both tails. PASS",
+    "L44_amendment_xref": "32nd cross-reference dogfood: paradigm 71+75+81+103+104+147v2 family enforced ex ante. Family-distinct gate PASS at substantive level",
+    "L46_REFINEMENT_subamendment": "stratified n=50×4q + sign-flip STRONG WARNING applies. R-1 must verify per-quadrant per-Δ stratification",
+    "L54_axis_stacking_subfinding": "single axis (Lesson #21 EXEMPT via #58). Not applicable",
+    "L56_5th_instance_formal_CONFIRMED": "NOT 6th-instance trap — PRICE velocity z trigger NOT in confirmed-falsified family. Genuine mechanism class novelty",
+    "L58_cross_substrate_exemption": {
+      "audit": "Bybit klines (Bybit V5 REST) + Binance klines (data.binance.vision archive) = 2 substrates (different exchange, different liquidity pool, different participant base)",
+      "verdict": "EXEMPT from Lesson #21 axis stacking; Lesson #11 still mandatory"
+    },
+    "HMM_unsupervised_prohibition": "NO unsupervised methods used. Pure parametric z-score trigger (Lesson #45 CONFIRMED compliant)"
+  },
+
+  "substrate_compute_budget": {
+    "Bybit_V5_klines_15m_pagination": "~5 min (7 syms × 88 pages × 200ms latency)",
+    "Binance_15m_archive_concurrent_download": "~20-25 min (7 syms × 912 days × concurrent 8)",
+    "R-1_compute": "~5-7 min (16 cells × stratified perm + bootstrap CI)",
+    "total_ETA": "30-37 min — AT HALT THRESHOLD",
+    "halt_decision": "USER GATING RECOMMENDED before substrate backfill commitment"
+  },
+
+  "strong_warnings": [
+    "WARNING 1 (paradigm 75 broad-class proximity): Cross-exchange PRICE lead-lag inherits 'lead-lag mechanism class' from paradigm 75 graveyard. Even though substrate composition is genuinely different (cross-venue vs cross-symbol), the broad failure-mode risk persists: HFT venue arbitrage closes <1s in liquid perp markets, alpha may not exist at 15+ min frame",
+    "WARNING 2 (Asian-retail-front-running premise unverified): No prior paradigm substantiated cross-exchange retail-vs-institutional lead-lag in this universe. Premise is plausible but not empirically supported ex ante",
+    "WARNING 3 (substrate cost at halt threshold): 25-37 min total compute commitment, 18-streak non-PASS context, low base rate. Expected value calculation: R-5 yield 6.80% (10/147) × this dispatch ≈ 0.068 R-5 expected, vs ~30 min compute opportunity cost",
+    "WARNING 4 (15min frame structurally challenging): Binance + Bybit are top-2 venues with deepest cross-arbitrage liquidity. PRICE lead-lag at ≥15min is the 'least likely to find' regime. paradigm 21 R-5 finding worked at 5m OI×PRICE (single-exchange microstructure), NOT cross-exchange PRICE"
+  ],
+
+  "verdict_final": "R-0 substantive family-distinct gate PASS WITH STRONG WARNINGS. Lesson #56 6th-instance trap NOT triggered. Substrate available but cost borderline. RECOMMEND user gating decision before substrate backfill commitment.",
+
+  "next_action_recommended": "USER DECISION REQUIRED: (A) Proceed with substrate backfill + R-1 dispatch (~30-37 min compute, 18-streak context, paradigm 75 broad-class proximity warning), OR (B) HALT paradigm 148 at R-0 with PASS verdict documented + pivot to alternative candidate with lower compute cost or stronger ex ante mechanism support, OR (C) defer until Day 7 baseline 2026-05-28 (D-7) measurement complete for paradigm 127+128 (active R-5 LIVE measurement may offer higher expected value than R-1 dispatch on borderline candidate)"
+}

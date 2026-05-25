@@ -1,0 +1,238 @@
+{
+  "paradigm_name": "alt_funding_carry_x_oi_decoupling_4h_cross_r5_hybrid_directional",
+  "paradigm_id": 145,
+  "phase": "R-0",
+  "run_ts": "2026-05-21 04:33:09.194072+00:00",
+  "wall_clock_seconds": 0.9633126258850098,
+  "config": {
+    "universe": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "DOGEUSDT",
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "ETCUSDT"
+    ],
+    "n_syms_universe": 10,
+    "n_syms_measured": 10,
+    "rolling_lb_cycles_funding": 90,
+    "rolling_win_5m_oi": 288,
+    "z_threshold_funding_neg": -2.0,
+    "z_threshold_oi_neg": -2.0
+  },
+  "lesson_21_sub_finding_independence": {
+    "per_sym_corr": {
+      "BTCUSDT": 0.01293469633063219,
+      "ETHUSDT": -0.015026970984141396,
+      "SOLUSDT": 0.01273517241628587,
+      "AVAXUSDT": -0.020604255768166536,
+      "LINKUSDT": 0.04991763103385401,
+      "DOGEUSDT": 0.018957882878180864,
+      "HBARUSDT": -0.011719864074391345,
+      "AXSUSDT": -0.035331341645413746,
+      "COMPUSDT": 0.019540336868082465,
+      "ETCUSDT": -0.004503640400899302
+    },
+    "per_sym_resid_frac": {
+      "BTCUSDT": 0.9998326936308344,
+      "ETHUSDT": 0.9997741901430418,
+      "SOLUSDT": 0.9998378153835275,
+      "AVAXUSDT": 0.99957546464424,
+      "LINKUSDT": 0.997508230111968,
+      "DOGEUSDT": 0.9996405986767771,
+      "HBARUSDT": 0.9998626447860778,
+      "AXSUSDT": 0.998751696297535,
+      "COMPUSDT": 0.9996181752350819,
+      "ETCUSDT": 0.9999797172231394
+    },
+    "mean_corr": 0.0026899646654023066,
+    "max_abs_corr": 0.04991763103385401,
+    "mean_resid": 0.9994381226132223,
+    "min_resid": 0.997508230111968,
+    "indep_corr_max_threshold": 0.5,
+    "indep_corr_strong_fail_threshold": 0.9,
+    "indep_resid_min_threshold": 0.2,
+    "axis_degen_strong_halt": false,
+    "indep_soft_pass": true
+  },
+  "lesson_11_sample_density": {
+    "joint_n_total": 15,
+    "n_quarters_assumed": 4,
+    "per_cell_estimate": 3.75,
+    "min_per_cell_n": 30,
+    "min_joint_n_total": 50,
+    "density_pass": false
+  },
+  "lesson_40_structural_threshold_feasibility": {
+    "n_syms_funding_reachable": 10,
+    "n_syms_oi_reachable": 10,
+    "n_syms_measured": 10,
+    "funding_z_min_per_sym": {
+      "BTCUSDT": -4.950111637209053,
+      "ETHUSDT": -5.703984370824191,
+      "SOLUSDT": -52.76210806874532,
+      "AVAXUSDT": -6.3067082213241275,
+      "LINKUSDT": -6.06383609369579,
+      "DOGEUSDT": -5.196767834304174,
+      "HBARUSDT": -6.44630274040717,
+      "AXSUSDT": -55.90134656430668,
+      "COMPUSDT": -49.564552569507384,
+      "ETCUSDT": -13.74869280242451
+    },
+    "oi_velocity_z_min_per_sym": {
+      "BTCUSDT": -7.293438544206211,
+      "ETHUSDT": -9.180295893100958,
+      "SOLUSDT": -13.438642568778917,
+      "AVAXUSDT": -15.205529117113528,
+      "LINKUSDT": -12.025335463370924,
+      "DOGEUSDT": -11.365125189438414,
+      "HBARUSDT": -13.7801366108711,
+      "AXSUSDT": -8.379468506538718,
+      "COMPUSDT": -13.710896655420655,
+      "ETCUSDT": -16.059922171119492
+    },
+    "reach_pass": true
+  },
+  "lesson_58_candidate_exemption": {
+    "applies": false,
+    "reason": "cross-substrate hybrid (funding DB + OI 5m joblib) \u2014 NOT same-bar same-substrate ratio antipattern",
+    "substrate_1": "binance_funding_rate (DB, 8h cycle)",
+    "substrate_2": "microstructure joblib open_interest (5m frame, file)",
+    "substrate_3": "klines (forward 4h return computation, future R-1 step)"
+  },
+  "lesson_30_data_window_ratio": {
+    "funding_span_estimated_days": 365,
+    "oi_span_estimated_days": 730,
+    "ratio_funding_vs_oi": 0.5,
+    "binding_substrate": "funding (1y, limiting factor)",
+    "advisory": "verdict scoped to funding-available window"
+  },
+  "per_symbol": {
+    "BTCUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": 0.01293469633063219,
+      "resid_frac_1_minus_r2": 0.9998326936308344,
+      "n_funding_neg_z2": 52,
+      "n_oi_neg_z2": 31,
+      "n_joint_both_neg_z2": 1,
+      "funding_z_min": -4.950111637209053,
+      "oi_velocity_z_min": -7.293438544206211,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "ETHUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": -0.015026970984141396,
+      "resid_frac_1_minus_r2": 0.9997741901430418,
+      "n_funding_neg_z2": 49,
+      "n_oi_neg_z2": 24,
+      "n_joint_both_neg_z2": 0,
+      "funding_z_min": -5.703984370824191,
+      "oi_velocity_z_min": -9.180295893100958,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "SOLUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": 0.01273517241628587,
+      "resid_frac_1_minus_r2": 0.9998378153835275,
+      "n_funding_neg_z2": 53,
+      "n_oi_neg_z2": 29,
+      "n_joint_both_neg_z2": 2,
+      "funding_z_min": -52.76210806874532,
+      "oi_velocity_z_min": -13.438642568778917,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "AVAXUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": -0.020604255768166536,
+      "resid_frac_1_minus_r2": 0.99957546464424,
+      "n_funding_neg_z2": 56,
+      "n_oi_neg_z2": 30,
+      "n_joint_both_neg_z2": 2,
+      "funding_z_min": -6.3067082213241275,
+      "oi_velocity_z_min": -15.205529117113528,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "LINKUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": 0.04991763103385401,
+      "resid_frac_1_minus_r2": 0.997508230111968,
+      "n_funding_neg_z2": 60,
+      "n_oi_neg_z2": 26,
+      "n_joint_both_neg_z2": 1,
+      "funding_z_min": -6.06383609369579,
+      "oi_velocity_z_min": -12.025335463370924,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "DOGEUSDT": {
+      "n_aligned": 1046,
+      "corr_funding_oi_z": 0.018957882878180864,
+      "resid_frac_1_minus_r2": 0.9996405986767771,
+      "n_funding_neg_z2": 51,
+      "n_oi_neg_z2": 33,
+      "n_joint_both_neg_z2": 0,
+      "funding_z_min": -5.196767834304174,
+      "oi_velocity_z_min": -11.365125189438414,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "HBARUSDT": {
+      "n_aligned": 1045,
+      "corr_funding_oi_z": -0.011719864074391345,
+      "resid_frac_1_minus_r2": 0.9998626447860778,
+      "n_funding_neg_z2": 60,
+      "n_oi_neg_z2": 22,
+      "n_joint_both_neg_z2": 0,
+      "funding_z_min": -6.44630274040717,
+      "oi_velocity_z_min": -13.7801366108711,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "AXSUSDT": {
+      "n_aligned": 1517,
+      "corr_funding_oi_z": -0.035331341645413746,
+      "resid_frac_1_minus_r2": 0.998751696297535,
+      "n_funding_neg_z2": 85,
+      "n_oi_neg_z2": 62,
+      "n_joint_both_neg_z2": 5,
+      "funding_z_min": -55.90134656430668,
+      "oi_velocity_z_min": -8.379468506538718,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "COMPUSDT": {
+      "n_aligned": 1045,
+      "corr_funding_oi_z": 0.019540336868082465,
+      "resid_frac_1_minus_r2": 0.9996181752350819,
+      "n_funding_neg_z2": 46,
+      "n_oi_neg_z2": 31,
+      "n_joint_both_neg_z2": 3,
+      "funding_z_min": -49.564552569507384,
+      "oi_velocity_z_min": -13.710896655420655,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    },
+    "ETCUSDT": {
+      "n_aligned": 1045,
+      "corr_funding_oi_z": -0.004503640400899302,
+      "resid_frac_1_minus_r2": 0.9999797172231394,
+      "n_funding_neg_z2": 60,
+      "n_oi_neg_z2": 39,
+      "n_joint_both_neg_z2": 1,
+      "funding_z_min": -13.74869280242451,
+      "oi_velocity_z_min": -16.059922171119492,
+      "funding_z_reachable": true,
+      "oi_z_reachable": true
+    }
+  },
+  "verdict": "R0_HALT_SAMPLE_INSUFFICIENT",
+  "reason": "joint_n_total=15 or per_cell_estimate=3.8 < 30 (Lesson #11)"
+}

@@ -1,0 +1,290 @@
+{
+  "paradigm_name": "alt_basis_spike_x_range_close_bidask_proxy_signed_directional_4h",
+  "paradigm_number": 131,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T09:54:07+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_INSUFFICIENT_DENSITY",
+  "cohort": [
+    "SOLUSDT",
+    "HBARUSDT",
+    "AVAXUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT"
+  ],
+  "universe_loaded": [
+    "SOLUSDT",
+    "HBARUSDT",
+    "AVAXUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT"
+  ],
+  "months_window": [
+    "2025-05",
+    "2026-04"
+  ],
+  "params": {
+    "rolling_bars_4h": 180,
+    "basis_z_threshold": 1.5,
+    "range_close_z_threshold": 1.5,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0,
+    "direction_mode": "mean_reversion_via_basis_sign"
+  },
+  "per_sym_days": {
+    "SOLUSDT": 364,
+    "HBARUSDT": 364,
+    "AVAXUSDT": 364,
+    "DOGEUSDT": 364,
+    "ETHUSDT": 364,
+    "LINKUSDT": 364
+  },
+  "short_window_syms_lesson_30": {},
+  "per_sym_trigger_diagnostics": {
+    "SOLUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 140,
+      "n_cond_basis_lo": 112,
+      "n_cond_range_hi": 150,
+      "n_joint_A_pos_basis_wide_range": 27,
+      "n_joint_B_neg_basis_wide_range": 16,
+      "indep_expected_A": 9.58904109589041,
+      "indep_expected_B": 7.671232876712328
+    },
+    "HBARUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 144,
+      "n_cond_basis_lo": 127,
+      "n_cond_range_hi": 137,
+      "n_joint_A_pos_basis_wide_range": 27,
+      "n_joint_B_neg_basis_wide_range": 17,
+      "indep_expected_A": 9.008219178082191,
+      "indep_expected_B": 7.944748858447489
+    },
+    "AVAXUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 140,
+      "n_cond_basis_lo": 132,
+      "n_cond_range_hi": 131,
+      "n_joint_A_pos_basis_wide_range": 18,
+      "n_joint_B_neg_basis_wide_range": 13,
+      "indep_expected_A": 8.374429223744292,
+      "indep_expected_B": 7.895890410958904
+    },
+    "DOGEUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 157,
+      "n_cond_basis_lo": 109,
+      "n_cond_range_hi": 149,
+      "n_joint_A_pos_basis_wide_range": 35,
+      "n_joint_B_neg_basis_wide_range": 16,
+      "indep_expected_A": 10.681735159817352,
+      "indep_expected_B": 7.415981735159817
+    },
+    "ETHUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 125,
+      "n_cond_basis_lo": 98,
+      "n_cond_range_hi": 154,
+      "n_joint_A_pos_basis_wide_range": 22,
+      "n_joint_B_neg_basis_wide_range": 25,
+      "indep_expected_A": 8.789954337899543,
+      "indep_expected_B": 6.891324200913242
+    },
+    "LINKUSDT": {
+      "n_4h_bars": 2190,
+      "n_cond_basis_hi": 128,
+      "n_cond_basis_lo": 151,
+      "n_cond_range_hi": 134,
+      "n_joint_A_pos_basis_wide_range": 9,
+      "n_joint_B_neg_basis_wide_range": 17,
+      "indep_expected_A": 7.831963470319635,
+      "indep_expected_B": 9.239269406392694
+    }
+  },
+  "n_triggers_total": 209,
+  "n_triggers_A_pos_basis": 118,
+  "n_triggers_B_neg_basis": 91,
+  "n_per_sym_min": 25,
+  "per_quarter_A_pos": {
+    "2025Q2": 8,
+    "2025Q3": 49,
+    "2025Q4": 23,
+    "2026Q1": 29,
+    "2026Q2": 9
+  },
+  "per_quarter_B_neg": {
+    "2025Q2": 15,
+    "2025Q3": 7,
+    "2025Q4": 22,
+    "2026Q1": 42,
+    "2026Q2": 5
+  },
+  "measurable_quarters_A": 1,
+  "measurable_quarters_B": 1,
+  "n_quarters": 5,
+  "lesson_11_density_pass": false,
+  "lesson_34_basis_z_percentiles": {
+    "1": -2.3652292826444135,
+    "5": -1.5717436375657337,
+    "10": -1.2261119991419906,
+    "50": -0.061469461700702686,
+    "90": 1.266739046260159,
+    "95": 1.6535581148984027,
+    "99": 2.685371910958173
+  },
+  "lesson_34_range_close_z_percentiles": {
+    "1": -1.2946628225791041,
+    "5": -1.1000106606298545,
+    "10": -0.9762569500349272,
+    "50": -0.27401676148122667,
+    "90": 1.1406288707122465,
+    "95": 1.788809462990999,
+    "99": 3.5828375176215483
+  },
+  "lesson_34_range_close_raw_percentiles": {
+    "10": 0.008132199811427071,
+    "25": 0.011491829783168032,
+    "50": 0.016970729692757064,
+    "75": 0.025304495321838403,
+    "90": 0.03638364933194081,
+    "99": 0.06736308273847552
+  },
+  "lesson_40": {
+    "threshold_definition_axis_1": "|basis_z| > 1.5 on signed basis_pct \u2192 BOTH tails reachable",
+    "threshold_definition_axis_2": "range_close_z > +1.5 on non-negative aggregate \u2192 UPPER tail only (z<-1.5 unreachable structurally)",
+    "axis_1_structurally_reachable": true,
+    "axis_2_lower_tail_reachable": false,
+    "axis_2_upper_tail_used_only": true,
+    "design_acknowledges_lesson_40": true,
+    "empirical_attainability": {
+      "basis_z_p99": 2.685371910958173,
+      "basis_z_p01": -2.3652292826444135,
+      "basis_z_p99_above_1_5": true,
+      "basis_z_p01_below_neg_1_5": true,
+      "range_close_z_p99": 3.5828375176215483,
+      "range_close_z_p99_above_1_5": true
+    },
+    "verdict": "PASS"
+  },
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=137",
+  "lesson_46_quarters_used": [
+    "2025Q2",
+    "2025Q3",
+    "2026Q1",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_pos_basis_wide_range_SHORT_4h_MR": {
+      "label": "A_focus_pos_basis_wide_range_SHORT_4h_MR",
+      "n": 76,
+      "gross_bp": -29.79085117787945,
+      "net_bp": -45.790851177879446,
+      "t": -1.1124510792047086
+    },
+    "A_mirror_pos_basis_wide_range_LONG_4h": {
+      "label": "A_mirror_pos_basis_wide_range_LONG_4h",
+      "n": 76,
+      "gross_bp": 29.79085117787945,
+      "net_bp": 13.79085117787945,
+      "t": 1.1124510792047086
+    },
+    "B_focus_neg_basis_wide_range_LONG_4h_MR": {
+      "label": "B_focus_neg_basis_wide_range_LONG_4h_MR",
+      "n": 61,
+      "gross_bp": 19.67893633315311,
+      "net_bp": 3.6789363331531106,
+      "t": 0.6757142060743567
+    },
+    "B_mirror_neg_basis_wide_range_SHORT_4h": {
+      "label": "B_mirror_neg_basis_wide_range_SHORT_4h",
+      "n": 61,
+      "gross_bp": -19.67893633315311,
+      "net_bp": -35.67893633315311,
+      "t": -0.6757142060743567
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2025Q2": {
+      "n_total": 23,
+      "A_focus_n": 8,
+      "A_focus_gross_bp": 14.313801838984336,
+      "B_focus_n": 15,
+      "B_focus_gross_bp": -16.958996083441765
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 44,
+      "A_focus_gross_bp": -48.737221474129164,
+      "B_focus_n": 6,
+      "B_focus_gross_bp": 133.1252699443967
+    },
+    "2026Q1": {
+      "n_total": 50,
+      "A_focus_n": 15,
+      "A_focus_gross_bp": -71.5082748109907,
+      "B_focus_n": 35,
+      "B_focus_gross_bp": 26.578742762370997
+    },
+    "2026Q2": {
+      "n_total": 14,
+      "A_focus_n": 9,
+      "A_focus_gross_bp": 93.16075142175892,
+      "B_focus_n": 5,
+      "B_focus_gross_bp": -54.841511755079786
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 2,
+    "A_signs": [
+      1,
+      -1,
+      -1,
+      1
+    ],
+    "B_focus_flips": 2,
+    "B_signs": [
+      -1,
+      1,
+      1,
+      -1
+    ]
+  },
+  "lesson_44_xref": {
+    "paradigm_111_mark_index_basis_extreme_single_axis": "GRAVEYARD BROAD_FALSIFIED. Single-axis basis percentile rank without range_close conjunction. DISTINCT: paradigm 131 adds range_close axis + MEAN-REVERSION direction (paradigm 111 was continuation on basis sign). Lesson #21 individual-vs-joint comparison mandatory in R-1.",
+    "paradigm_121_hmm_realized_vol_state_x_markprice_basis": "GRAVEYARD BROAD_FALSIFIED. HMM-filter ineffective. DISTINCT: paradigm 131 uses explicit empirical z-score threshold (Lesson #45 HMM avoidance). range_close is intra-bar spread proxy, not regime filter.",
+    "paradigm_118_universe_aggregate_correlation_regime": "GRAVEYARD BROAD_FALSIFIED. Universe-aggregate correlation scalar. DISTINCT: paradigm 131 per-symbol intra-bar conjunction, no cross-asset correlation.",
+    "paradigm_75_cohort_dispersion_lead_lag": "GRAVEYARD BROAD_FALSIFIED. Cohort-aggregate dispersion. DISTINCT: per-symbol basis + range.",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD narrow-scope. Rolling beta vs BTC. DISTINCT: liquidity microstructure conjunction, no beta.",
+    "paradigm_130_alt_realized_corr_breakdown_eth_per_pair": "GRAVEYARD 2026-05-21 BROAD_FALSIFIED_A_FOCUS_NEGATIVE. Lesson #52 INVERSE 1st dogfood (SHORT-bias artifact conditional on overextension). DISTINCT: different family (no correlation axis), but explicit dual-detection Lesson #52 a/b MANDATORY at R-1.",
+    "paradigm_129_alt_parkinson_range_vol_expansion": "GRAVEYARD 2026-05-21 BROAD_FALSIFIED_FEE_FLOOR_LONG_DRIFT_ARTIFACT. Lesson #51 1st explicit dogfood (universe LONG drift artifact). DISTINCT: paradigm 131 uses MEAN-REVERSION direction (not continuation), 2-axis conjunction with EXOGENOUS basis.",
+    "paradigm_124_realized_kurtosis_extreme_signed": "GRAVEYARD higher-order moment. DISTINCT: 2nd-order range:close only, not kurtosis.",
+    "paradigm_125_quarticity_normalized_bipower": "R0_HALT structural threshold infeasible (Lesson #40 non-negative aggregate). DISTINCT: paradigm 131 EXPLICITLY restricts axis 2 to upper tail only (acknowledges Lesson #40).",
+    "paradigm_96_99_funding_family": "GRAVEYARD 4 sub-classes (96/97/98/99). DISTINCT: no funding axis.",
+    "paradigm_127_128_volume_burst_intra5m_event": "R-5 SEEDED Mint deploy 2026-05-21. DISTINCT: paradigm 127/128 are 5m+1m intra-bar volume bursts, paradigm 131 is 4h frame liquidity-microstructure conjunction (different time-scale + different mechanism). NO overlap on capacity class.",
+    "paradigm_102_103_cross_venue": "GRAVEYARD. DISTINCT: single-venue Binance perp only.",
+    "RUNBOOK_3M_volume_extraction": "ANTIPATTERN avoided \u2014 no volume axis."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit empirical z-score thresholds, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (basis + range only, no OI)",
+    "Stateful_CP": "AVOIDED (stateless rolling z-score, Lesson #22)",
+    "Higher_order_moment": "AVOIDED (basis level + 2nd-order range:close only)",
+    "Funding_single_signal": "AVOIDED (no funding axis)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Volume_burst_intra5m": "AVOIDED (4h frame, no volume axis)",
+    "Magnitude_confluence_simple": "DISTINCT \u2014 directional via basis sign with mean-reversion",
+    "Listing_event": "AVOIDED (continuous rolling)",
+    "5m_microstructure_single_domain": "AVOIDED (4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-sym)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed": "AVOIDED (raw 4h closes)",
+    "paradigm_111_single_axis_basis": "DISTINCT via range_close conjunction + MR direction",
+    "paradigm_121_HMM_x_basis": "AVOIDED (no HMM)",
+    "Correlation_beta_lead_lag_family": "AVOIDED (no cross-asset correlation, retire candidate post-130)",
+    "Range_only_intrinsic": "DISTINCT via EXOGENOUS basis axis combined"
+  }
+}

@@ -1,0 +1,364 @@
+{
+  "paradigm_name": "alt_intraday_realized_range_close_to_close_efficiency_ratio_z_directional_4h",
+  "paradigm_number": 137,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T11:41:15+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_READY_FOR_R1",
+  "verdict_pass_conditions": {
+    "n_total_ge_200": true,
+    "measurable_q_a_ge_3": true,
+    "measurable_q_b_ge_3": true,
+    "n_syms_ge_5": true,
+    "lesson_40_pass": true,
+    "lesson_21_sub_finding_pass": true
+  },
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_loaded": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_excluded": {
+    "ADAUSDT": "Lesson #30 short-window (143d << 30%)"
+  },
+  "params": {
+    "rolling_sum_hours": 24,
+    "zscore_rolling_hours": 720,
+    "z_threshold_absolute": 2.0,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0,
+    "parkinson_const": 0.36067376022224085
+  },
+  "per_sym_days": {
+    "AVAXUSDT": 755,
+    "BCHUSDT": 798,
+    "BNBUSDT": 798,
+    "DOGEUSDT": 767,
+    "ETHUSDT": 795,
+    "FILUSDT": 798,
+    "LINKUSDT": 767,
+    "LTCUSDT": 798,
+    "NEARUSDT": 798,
+    "SOLUSDT": 795,
+    "WIFUSDT": 799,
+    "XRPUSDT": 798
+  },
+  "short_window_syms_lesson_30": {},
+  "n_triggers_total": 1905,
+  "n_triggers_chop_fade_A": 1265,
+  "n_triggers_drift_continue_B": 640,
+  "n_per_sym_min": 142,
+  "per_quarter_chop_fade_A": {
+    "2024Q1": 30,
+    "2024Q2": 159,
+    "2024Q3": 129,
+    "2024Q4": 185,
+    "2025Q1": 145,
+    "2025Q2": 126,
+    "2025Q3": 155,
+    "2025Q4": 153,
+    "2026Q1": 146,
+    "2026Q2": 37
+  },
+  "per_quarter_drift_continue_B": {
+    "2024Q1": 9,
+    "2024Q2": 52,
+    "2024Q3": 50,
+    "2024Q4": 81,
+    "2025Q1": 34,
+    "2025Q2": 106,
+    "2025Q3": 77,
+    "2025Q4": 100,
+    "2026Q1": 108,
+    "2026Q2": 23
+  },
+  "measurable_quarters_A": 10,
+  "measurable_quarters_B": 8,
+  "n_quarters": 10,
+  "lesson_11_density_pass": true,
+  "lesson_21_sub_finding_magnitude_ratio": {
+    "n_syms_audited": 12,
+    "halt_threshold_n_of_12": 10,
+    "n_syms_corr_above_0.95": 1,
+    "n_syms_log_ER_std_below_0.20": 0,
+    "ratio_p50_mean_across_syms": 1.1601060790717643,
+    "ratio_p50_max_dev_across_syms": 0.06371131698061361,
+    "per_sym": {
+      "AVAXUSDT": {
+        "corr_SumP_SumC": 0.5209857030235877,
+        "ratio_ER_p50": 1.0963947620911507,
+        "log_ER_overall_std": 0.2937601458115959,
+        "n_log_ER": 18096
+      },
+      "BCHUSDT": {
+        "corr_SumP_SumC": 0.9017722654459575,
+        "ratio_ER_p50": 1.1941882925033627,
+        "log_ER_overall_std": 0.29265107335629037,
+        "n_log_ER": 19158
+      },
+      "BNBUSDT": {
+        "corr_SumP_SumC": 0.7580297488998256,
+        "ratio_ER_p50": 1.1116604188087398,
+        "log_ER_overall_std": 0.26514696169476887,
+        "n_log_ER": 19158
+      },
+      "DOGEUSDT": {
+        "corr_SumP_SumC": 0.6060021090989492,
+        "ratio_ER_p50": 1.1738883466996766,
+        "log_ER_overall_std": 0.28889444526237024,
+        "n_log_ER": 18393
+      },
+      "ETHUSDT": {
+        "corr_SumP_SumC": 0.9219532567381693,
+        "ratio_ER_p50": 1.2229032427117665,
+        "log_ER_overall_std": 0.303406135751691,
+        "n_log_ER": 19068
+      },
+      "FILUSDT": {
+        "corr_SumP_SumC": 0.9716520430979683,
+        "ratio_ER_p50": 1.197519541568113,
+        "log_ER_overall_std": 0.28560198148824445,
+        "n_log_ER": 19158
+      },
+      "LINKUSDT": {
+        "corr_SumP_SumC": 0.562184406568768,
+        "ratio_ER_p50": 1.1323230658790564,
+        "log_ER_overall_std": 0.27735252486756895,
+        "n_log_ER": 18393
+      },
+      "LTCUSDT": {
+        "corr_SumP_SumC": 0.7250522691620285,
+        "ratio_ER_p50": 1.1697720797476494,
+        "log_ER_overall_std": 0.2800504163996339,
+        "n_log_ER": 19158
+      },
+      "NEARUSDT": {
+        "corr_SumP_SumC": 0.8065074928994147,
+        "ratio_ER_p50": 1.1351797313781224,
+        "log_ER_overall_std": 0.26423799066839293,
+        "n_log_ER": 19158
+      },
+      "SOLUSDT": {
+        "corr_SumP_SumC": 0.8238008682618461,
+        "ratio_ER_p50": 1.1349271848265703,
+        "log_ER_overall_std": 0.2742024526920233,
+        "n_log_ER": 19068
+      },
+      "WIFUSDT": {
+        "corr_SumP_SumC": 0.7014089518371514,
+        "ratio_ER_p50": 1.1367811449985892,
+        "log_ER_overall_std": 0.2793260417146038,
+        "n_log_ER": 19173
+      },
+      "XRPUSDT": {
+        "corr_SumP_SumC": 0.5334069994535772,
+        "ratio_ER_p50": 1.215735137648376,
+        "log_ER_overall_std": 0.30149242176463037,
+        "n_log_ER": 19158
+      }
+    },
+    "cond_a_high_corr_halt": false,
+    "cond_c_low_log_ER_std_halt": false,
+    "verdict": "PASS"
+  },
+  "lesson_34_empirical_z_logER_percentiles": {
+    "1": -2.0572256335066585,
+    "5": -1.5340195018231462,
+    "10": -1.2353801184554656,
+    "50": -0.11974754492366305,
+    "70": 0.4296844271995064,
+    "90": 1.2845833703383749,
+    "95": 1.7276020003467392,
+    "99": 2.7182900139741184
+  },
+  "lesson_34_empirical_log_ER_percentiles": {
+    "1": -0.3480184664248359,
+    "5": -0.20770768172765935,
+    "10": -0.13659397861396266,
+    "50": 0.16381606304553178,
+    "70": 0.3157333687713424,
+    "90": 0.5445646464357048,
+    "95": 0.6697851760539505,
+    "99": 0.9581071231619902
+  },
+  "lesson_34_z_min": -3.767251846401068,
+  "lesson_34_z_max": 7.3557884101436075,
+  "lesson_40": {
+    "threshold_definition": "|z| > 2.0 on per-symbol 30d-rolling z of log_ER (24h)",
+    "stat_class": "log_ratio_of_two_non_negative_rolling_sums_with_zscore",
+    "z_score_applied": true,
+    "log_transform_applied": true,
+    "symmetric_negative_use": true,
+    "reformulation": "log(ratio) + z-score makes z symmetric for diffusion (YZ 2000)",
+    "empirical_z_max": 7.3557884101436075,
+    "empirical_z_min": -3.767251846401068,
+    "z_max_reachable_pos2": true,
+    "z_min_reachable_neg2": true,
+    "n_above_pos2": 1969,
+    "n_below_neg2": 701,
+    "pct_above_pos2": 0.03281666666666667,
+    "pct_below_neg2": 0.011683333333333334,
+    "asymmetry_ratio": 2.8088445078459343,
+    "verdict": "PASS"
+  },
+  "lesson_55_asymmetric_z_detected": false,
+  "lesson_55_asymmetry_ratio": 2.8088445078459343,
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=189",
+  "lesson_46_quarters_used": [
+    "2024Q1",
+    "2024Q4",
+    "2025Q3",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_chop_fade": {
+      "label": "A_focus_chop_fade",
+      "n": 131,
+      "gross_bp": -2.277073906018463,
+      "net_bp": -18.27707390601846,
+      "t": -0.11768463663224035
+    },
+    "A_mirror_chop_continue": {
+      "label": "A_mirror_chop_continue",
+      "n": 131,
+      "gross_bp": 2.277073906018463,
+      "net_bp": -13.722926093981537,
+      "t": 0.11768463663224035
+    },
+    "B_focus_drift_continue": {
+      "label": "B_focus_drift_continue",
+      "n": 58,
+      "gross_bp": -37.62471341742686,
+      "net_bp": -53.62471341742686,
+      "t": -1.1306238547348795
+    },
+    "B_mirror_drift_fade": {
+      "label": "B_mirror_drift_fade",
+      "n": 58,
+      "gross_bp": 37.62471341742686,
+      "net_bp": 21.62471341742686,
+      "t": 1.1306238547348795
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2024Q1": {
+      "n_total": 39,
+      "A_focus_n": 30,
+      "A_focus_gross_bp": -79.26841572741813,
+      "B_focus_n": 9,
+      "B_focus_gross_bp": -69.29586069345712
+    },
+    "2024Q4": {
+      "n_total": 50,
+      "A_focus_n": 37,
+      "A_focus_gross_bp": 13.472041588431392,
+      "B_focus_n": 13,
+      "B_focus_gross_bp": -41.20222474371451
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 36,
+      "A_focus_gross_bp": 28.68713250508995,
+      "B_focus_n": 14,
+      "B_focus_gross_bp": -31.13193723504278
+    },
+    "2026Q2": {
+      "n_total": 50,
+      "A_focus_n": 28,
+      "A_focus_gross_bp": 19.59119575639018,
+      "B_focus_n": 22,
+      "B_focus_gross_bp": -26.686117682307113
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 1,
+    "A_signs": [
+      -1,
+      1,
+      1,
+      1
+    ],
+    "B_focus_flips": 0,
+    "B_signs": [
+      -1,
+      -1,
+      -1,
+      -1
+    ]
+  },
+  "lesson_44_xref_20th_dogfood": {
+    "paradigm_65_skewness_mr": "GRAVEYARD \u2014 3rd moment cross-sec. DISTINCT: range/close decomposition.",
+    "paradigm_66_skewness_momentum": "GRAVEYARD \u2014 3rd moment momentum. DISTINCT: 2nd-order RV decomposition.",
+    "paradigm_67_btc_rv_spike_alt_recovery": "GRAVEYARD \u2014 BTC 1d close RV cross-asset. DISTINCT: per-sym 1h intra-OHLC ratio.",
+    "paradigm_68_btc_rv_spike_up_conditional": "GRAVEYARD R-3.5 \u2014 BTC RV sign-cond. DISTINCT: per-sym, range/close ratio.",
+    "paradigm_69_btc_rv_spike_highvol_filter": "R-5 SEEDED \u2014 BTC 1d RV p90 LONG. DISTINCT: ratio classifier (NOT level filter).",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD \u2014 rolling beta vs BTC. DISTINCT: intrinsic per-sym OHLC ratio.",
+    "paradigm_84_book_depth_cusum": "SAMPLE_INSUFFICIENT \u2014 Page-Hinkley CP. DISTINCT: stateless rolling z on log_ER.",
+    "paradigm_118_realized_correlation_regime": "GRAVEYARD \u2014 cross-corr matrix. DISTINCT: per-sym ratio decomp.",
+    "paradigm_121_hmm_realized_vol_state": "GRAVEYARD Lesson #45 \u2014 HMM unsup. DISTINCT: explicit z on log_ER (Lesson #45 compliant).",
+    "paradigm_124_alt_realized_kurtosis_skewness": "GRAVEYARD \u2014 3rd \u00d7 4th moment. DISTINCT: 2nd-order ratio decomp.",
+    "paradigm_125_alt_realized_quarticity_bipower": "R-0 HALT Lesson #40 \u2014 B-N jump test ratio. DISTINCT: log-transform applied per Lesson #40.",
+    "paradigm_129_alt_parkinson_range": "GRAVEYARD \u2014 RAW Parkinson high-low (vol magnitude). DISTINCT: Parkinson AS NUMERATOR of efficiency ratio (regime classifier).",
+    "paradigm_130_alt_atr_normalized_range_breakout": "GRAVEYARD \u2014 ATR + level breakout. DISTINCT: pure RV decomposition ratio.",
+    "paradigm_131_alt_volume_burst_intra5m_signed": "GRAVEYARD \u2014 5m volume burst. DISTINCT: 1h OHLC + 4h frame, no volume.",
+    "paradigm_132_funding_oi_magnitude_triple": "GRAVEYARD Lesson #21 \u2014 3-way axis stacking. DISTINCT: single trigger axis (ratio).",
+    "paradigm_133_alt_realized_vol_of_vol": "GRAVEYARD CONCENTRATED_R1_PASS \u2014 2nd-order std-of-std. DISTINCT: 1st-order ratio (NOT 2nd-order temporal).",
+    "paradigm_134_alt_realized_semivariance_asymmetry": "GRAVEYARD \u2014 UP/DOWN ratio. DISTINCT: RANGE/CLOSE ratio (different decomp axis).",
+    "paradigm_135_alt_funding_implied_vs_realized_vol_premium": "R-0 HALT Lesson #54 \u2014 funding-derived implied / realized (CROSS-DOMAIN). DISTINCT: paradigm 137 is INTRA-DOMAIN (both estimators on same 1h OHLC). Yang-Zhang (2000) established within-OHLC decomposition.",
+    "paradigm_136_alt_intraday_1h_log_return_std": "R-0 HALT Lesson #55 \u2014 magnitude only. DISTINCT: 137 is RATIO (regime classifier), NOT magnitude.",
+    "paradigm_126_127_128_volume_burst_family": "R-5 SEEDED 127+128 \u2014 1m volume burst. DISTINCT: 4h frame + OHLC ratio."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit z-threshold on log_ER, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (price-based OHLC)",
+    "Stateful_CP_Page_Hinkley": "AVOIDED (stateless rolling z, Lesson #22)",
+    "Higher_order_moment_kurtosis_skewness": "AVOIDED (2nd-order RV components)",
+    "Signed_decomposition_semivariance": "AVOIDED (range/close decomp, NOT up/down)",
+    "High_low_range_Parkinson_RAW": "AVOIDED (Parkinson AS NUMERATOR of ratio, NOT raw)",
+    "Second_order_vol_of_vol": "AVOIDED (1st-order ratio)",
+    "Funding_single_signal": "AVOIDED (no funding)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Magnitude_confluence": "AVOIDED (single trigger axis, ratio)",
+    "Listing_event": "AVOIDED (continuous rolling)",
+    "5m_microstructure_single_domain": "AVOIDED (1h base + 4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-symbol)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed_deviation": "AVOIDED (rolling sums + log + z, no smoothing)",
+    "paradigm_67_68_69_BTC_RV_1d_cross_asset": "AVOIDED (per-sym 1h intra-OHLC)",
+    "paradigm_118_realized_corr_matrix": "AVOIDED (per-sym ratio, NOT cross-corr)",
+    "paradigm_129_raw_Parkinson_vol_magnitude": "AVOIDED (ratio classifier, NOT raw magnitude)",
+    "paradigm_133_vol_of_vol_2nd_order": "AVOIDED (1st-order ratio decomp)",
+    "paradigm_134_signed_UP_DOWN_semivariance": "AVOIDED (RANGE/CLOSE decomp)",
+    "paradigm_135_VRP_cross_domain_ratio": "AVOIDED (INTRA-domain within-OHLC ratio)",
+    "paradigm_136_intraday_1h_std_magnitude": "AVOIDED (regime classifier, NOT magnitude)",
+    "Funding_family_3way_stack": "AVOIDED (single ratio axis)",
+    "Lesson_21_sub_finding_magnitude_ratio": "MEASURED IN R-0 \u2014 verdict above",
+    "Lesson_54_composite_ratio_division_cross_domain": "COMPLIANT \u2014 intra-domain ratio (within-OHLC), Yang-Zhang 2000 established"
+  },
+  "range_estimator_family_dogfood_count": 2,
+  "range_estimator_family_retire_status": "PENDING \u2014 2nd dogfood; 137 distinct from raw 129 (ratio CLASSIFIER not magnitude)"
+}

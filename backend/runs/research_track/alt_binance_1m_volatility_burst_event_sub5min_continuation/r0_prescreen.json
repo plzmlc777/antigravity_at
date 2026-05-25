@@ -1,0 +1,116 @@
+{
+  "paradigm_id": 149,
+  "paradigm_name": "alt_binance_1m_volatility_burst_event_sub5min_continuation",
+  "dispatch_ts_kst": "2026-05-21T14:16:00+09:00",
+  "verdict": "BROAD_FALSIFIED_FEE_FLOOR_STRUCTURAL_R0",
+  "halt_phase": "R-0",
+  "halt_reason": "Lesson #34 empirical distribution prescreen + Lesson #40 structural threshold feasibility — sub-5min hold conditional forward |ret| upper bound +1.10bp << 16bp fee floor (~15x deficit). R-1 dispatch would consume compute on confirmed sub-fee outcome.",
+
+  "hypothesis_summary": {
+    "substrate": "Binance 1m klines (Postgres ohlcv DB, time_frame='1m', 13 alt cohort)",
+    "trigger": "|log_ret_1m[t]| > rolling p99 (30d)",
+    "direction_matching": "sign(log_ret_1m[t]) -> N-min forward LONG/SHORT continuation",
+    "hold_horizons": [1, 2, 3],
+    "frame": "1m bar self-anchored",
+    "universe": ["ADAUSDT", "AVAXUSDT", "BCHUSDT", "BNBUSDT", "DOGEUSDT", "ETHUSDT", "FILUSDT", "LINKUSDT", "LTCUSDT", "NEARUSDT", "SOLUSDT", "WIFUSDT", "XRPUSDT"],
+    "snt_quadrants": ["A_focus_pos_LONG", "A_mirror_pos_SHORT", "B_focus_neg_SHORT", "B_mirror_neg_LONG"],
+    "snt_cells_total": 12
+  },
+
+  "family_distinct_audit": {
+    "lesson_44_amendment_32nd_xref": {
+      "vs_paradigm_127_R5": "axis distinct (volume p99 -> volatility p99) AND hold distinct (60-90min -> 1-3min sub-5min intra-event)",
+      "vs_paradigm_128_R5": "axis distinct (volume -> volatility) AND direction distinct (positive continuation NOT negative reversion 10min) AND hold distinct",
+      "vs_paradigm_69_R5": "frame distinct (per-sym self-anchored sub-5min vs BTC-anchored cross-asset 240m)",
+      "vs_paradigm_21_R5": "axis distinct (OI velocity 5m -> price volatility 1m)",
+      "lesson_56_outcome_family_proxy_check": "axis (volatility magnitude burst) distinct from confirmed-falsified families; substrate distinct from paradigms 80/82/83/85 (5m microstructure advisory caution family). Sub-5min momentum continuation NOT yet attempted as standalone paradigm."
+    },
+    "verdict_distinct": "NOT_TRAP_FAMILY_DISTINCT_VALID"
+  },
+
+  "prescreen_results": {
+    "lesson_28_substrate_availability": {
+      "status": "PASS",
+      "evidence": "12/13 syms with 750-800d 1m OHLCV, ADAUSDT 143d (still adequate)",
+      "per_sym_days": {
+        "ADAUSDT": 143, "AVAXUSDT": 755, "BCHUSDT": 798, "BNBUSDT": 798,
+        "DOGEUSDT": 767, "ETHUSDT": 795, "FILUSDT": 798, "LINKUSDT": 767,
+        "LTCUSDT": 798, "NEARUSDT": 798, "SOLUSDT": 795, "WIFUSDT": 799, "XRPUSDT": 798
+      }
+    },
+    "lesson_11_sample_density": {
+      "status": "PASS_OVERWHELMING",
+      "evidence": "Empirical trigger rate ~0.85%/bar bidirectional (3 sym sample). 13 alts x 750d x 1440 bars/day x 0.5%/side per quadrant per quarter >> 30 cutoff. ~8,775 per quadrant per quarter avg.",
+      "sample_syms_6mo": {
+        "BCHUSDT": {"n_bars": 262080, "n_burst": 2237, "rate_pct": 0.854, "n_pos": 1253, "n_neg": 984},
+        "SOLUSDT": {"n_bars": 262080, "n_burst": 2311, "rate_pct": 0.882, "n_pos": 1192, "n_neg": 1119},
+        "DOGEUSDT": {"n_bars": 262080, "n_burst": 2168, "rate_pct": 0.827, "n_pos": 1142, "n_neg": 1026}
+      }
+    },
+    "lesson_40_structural_threshold_feasibility": {
+      "status": "PASS_THRESHOLD_ATTAINABLE",
+      "note": "p99 of |1m_ret| is empirically positive on both sides; threshold attainable. Burst trigger structurally feasible per se."
+    },
+    "lesson_34_empirical_distribution_prescreen": {
+      "status": "FAIL_FEE_FLOOR_STRUCTURAL",
+      "fee_per_trade_bp": 16.0,
+      "burst_magnitude_p99_pct": {"BCHUSDT": 0.357, "SOLUSDT": 0.391, "DOGEUSDT": 0.403},
+      "forward_ret_conditional_on_burst_3sym_6mo": {
+        "BCHUSDT": {
+          "hold_1min": {"A_focus_pos_LONG_gross_bp": 0.25, "A_focus_net_bp": -15.75, "B_focus_neg_SHORT_gross_bp": 0.16, "B_focus_net_bp": -15.84},
+          "hold_2min": {"A_focus_pos_LONG_gross_bp": 0.22, "A_focus_net_bp": -15.78, "B_focus_neg_SHORT_gross_bp": -0.91, "B_focus_net_bp": -16.91},
+          "hold_3min": {"A_focus_pos_LONG_gross_bp": 0.21, "A_focus_net_bp": -15.79, "B_focus_neg_SHORT_gross_bp": -0.74, "B_focus_net_bp": -16.74},
+          "hold_5min": {"A_focus_pos_LONG_gross_bp": 0.97, "A_focus_net_bp": -15.03, "B_focus_neg_SHORT_gross_bp": -1.65, "B_focus_net_bp": -17.65}
+        },
+        "SOLUSDT": {
+          "hold_1min": {"A_focus_pos_LONG_gross_bp": -0.95, "A_focus_net_bp": -16.95, "B_focus_neg_SHORT_gross_bp": -2.53, "B_focus_net_bp": -18.53},
+          "hold_2min": {"A_focus_pos_LONG_gross_bp": 0.38, "A_focus_net_bp": -15.62, "B_focus_neg_SHORT_gross_bp": -3.64, "B_focus_net_bp": -19.64},
+          "hold_3min": {"A_focus_pos_LONG_gross_bp": 0.65, "A_focus_net_bp": -15.35, "B_focus_neg_SHORT_gross_bp": -2.53, "B_focus_net_bp": -18.53},
+          "hold_5min": {"A_focus_pos_LONG_gross_bp": 1.10, "A_focus_net_bp": -14.90, "B_focus_neg_SHORT_gross_bp": -4.26, "B_focus_net_bp": -20.26}
+        },
+        "DOGEUSDT": {
+          "hold_1min": {"A_focus_pos_LONG_gross_bp": -1.60, "A_focus_net_bp": -17.60, "B_focus_neg_SHORT_gross_bp": -2.53, "B_focus_net_bp": -18.53},
+          "hold_2min": {"A_focus_pos_LONG_gross_bp": 0.15, "A_focus_net_bp": -15.85, "B_focus_neg_SHORT_gross_bp": -3.75, "B_focus_net_bp": -19.75},
+          "hold_3min": {"A_focus_pos_LONG_gross_bp": 0.18, "A_focus_net_bp": -15.82, "B_focus_neg_SHORT_gross_bp": -3.57, "B_focus_net_bp": -19.57},
+          "hold_5min": {"A_focus_pos_LONG_gross_bp": 0.30, "A_focus_net_bp": -15.70, "B_focus_neg_SHORT_gross_bp": -5.83, "B_focus_net_bp": -21.83}
+        }
+      },
+      "best_gross_bp_observed": 1.10,
+      "fee_floor_deficit_ratio": "1.10bp / 16bp = 14.5x DEFICIT",
+      "structural_diagnosis": "Sub-5min holds capture noise + bid-ask traversal; 1m bar burst momentum decays within first 1-2 ticks (sub-bar microstructure absorbed into bursting bar itself). Forward residual conditional momentum is ~0.1-1bp range, an order of magnitude below 16bp round-trip fee floor."
+    },
+    "lesson_21_axis_stacking_check": {
+      "status": "WARNING_PRE_DOGFOOD",
+      "note": "Reducing hold from 5min/10min/60min to 1-3min while keeping magnitude trigger reduces signal-noise integration window in proportion to fee. Axis stacking (short hold + intra-event horizon) does not synthesize alpha; same fee absorbs equal amount of expected gross."
+    },
+    "lesson_56_outcome_family_proxy_predictive": {
+      "status": "PREDICTED_OUTCOME_FAMILY_PROXY_IF_R1_RUN",
+      "prediction": "If R-1 dispatched, expected verdict would be BROAD_FALSIFIED_FEE_FLOOR across all 12 cells (3 holds x 4 quadrants), with all gross_bp << 16bp. Outcome-level equivalent to paradigms 80/82/83 (5m microstructure single-domain advisory caution family) AND also to all sub-5min volume burst variants. 6th OUTCOME-LEVEL FAMILY PROXY instance trigger.",
+      "lesson_56_instance_count_advance": "5 -> 6 (predictive — R-0 halt prevents materialization, but predictive evidence still counts toward confirmed sub-class trap definition)"
+    },
+    "lesson_30_data_window_ratio": {
+      "status": "N/A_FULL_WINDOW_USED_IN_PRESCREEN",
+      "note": "Prescreen ran on 6mo window (262,080 1m bars/sym = 25% of full 750d). However, fee-floor structural deficit is order-of-magnitude (~15x), not marginal — full-window run would not invert verdict per Lesson #30 advisory."
+    },
+    "lesson_45_hmm_check": {"status": "PASS", "note": "Pure parametric rolling p99 threshold; no HMM/unsupervised classifier."},
+    "lesson_46_sub_amendment_check": {"status": "N/A", "note": "Halt at R-0; stratified n=50x4q + sign-flip warning would apply only at R-1+."}
+  },
+
+  "verdict_rationale": "Two-stage prescreen halt: (1) Lesson #34 empirical distribution prescreen on 3 representative symbols (BCH/SOL/DOGE) x 6mo confirms conditional forward |ret| upper bound +1.10bp at sub-5min holds. (2) Lesson #40 structural threshold infeasibility: 16bp fee floor requires ~15x larger gross edge — fundamentally incompatible with sub-5min momentum continuation horizon. Running R-1 would consume compute (13 syms x 2yr x 12 cells) producing already-known BROAD_FALSIFIED_FEE_FLOOR outcome.",
+
+  "predicted_outcome_if_dispatched": {
+    "verdict": "BROAD_FALSIFIED_FEE_FLOOR",
+    "expected_cells_all_negative_net": 12,
+    "expected_best_cell_signal_t_excess_band": "< 0.5 (well below 2.0 PASS threshold)",
+    "expected_concentration_pass": false,
+    "confidence": "HIGH (15x fee deficit is structural, not marginal)"
+  },
+
+  "infrastructure_status": "1m OHLCV DB cache adequate (12/13 syms 750-800d). No backfill needed. Cache reuse from paradigm 127/128 R-5 substrate.",
+
+  "next_candidate_recommendation": {
+    "discard_direction": "Sub-5min momentum continuation horizon (any axis) — fee floor structurally incompatible.",
+    "suggested_pivot_direction": "Either (a) reduce fee assumption (e.g., maker-only execution model — requires separate R-0 design + Lesson #57 microstructure feasibility validation), OR (b) increase hold horizon to >=30min where paradigm 127 R-5 demonstrated alpha possibility, OR (c) explore NON-momentum mechanisms at sub-5min (e.g., very-short reversion as continuation-of-paradigm-128 family but with stricter trigger). All three require new R-0 design.",
+    "lesson_56_advisory": "Sub-5min momentum continuation OUTCOME-LEVEL family proxy advisory STRENGTHENED — future candidates with hold_min < 5 + magnitude trigger should mandatorily run Lesson #34 6mo 3-sym prescreen pre-R-1 dispatch."
+  }
+}

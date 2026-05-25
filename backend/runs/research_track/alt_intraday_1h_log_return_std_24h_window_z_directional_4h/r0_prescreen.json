@@ -1,0 +1,257 @@
+{
+  "paradigm_name": "alt_intraday_1h_log_return_std_24h_window_z_directional_4h",
+  "paradigm_number": 136,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T11:29:19+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_INSUFFICIENT_DENSITY",
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_loaded": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_excluded": {
+    "ADAUSDT": "Lesson #30 short-window (143d << 30%)"
+  },
+  "params": {
+    "vol_rolling_hours": 24,
+    "zscore_rolling_hours": 720,
+    "z_threshold_absolute": 2.0,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0
+  },
+  "per_sym_days": {
+    "AVAXUSDT": 755,
+    "BCHUSDT": 798,
+    "BNBUSDT": 798,
+    "DOGEUSDT": 767,
+    "ETHUSDT": 795,
+    "FILUSDT": 798,
+    "LINKUSDT": 767,
+    "LTCUSDT": 798,
+    "NEARUSDT": 798,
+    "SOLUSDT": 795,
+    "WIFUSDT": 799,
+    "XRPUSDT": 798
+  },
+  "short_window_syms_lesson_30": {},
+  "n_triggers_total": 1695,
+  "n_triggers_pos": 1598,
+  "n_triggers_neg": 97,
+  "n_per_sym_min": 125,
+  "per_quarter_pos": {
+    "2024Q1": 30,
+    "2024Q2": 149,
+    "2024Q3": 158,
+    "2024Q4": 323,
+    "2025Q1": 162,
+    "2025Q2": 214,
+    "2025Q3": 198,
+    "2025Q4": 139,
+    "2026Q1": 204,
+    "2026Q2": 21
+  },
+  "per_quarter_neg": {
+    "2024Q2": 16,
+    "2024Q3": 13,
+    "2024Q4": 14,
+    "2025Q2": 2,
+    "2025Q3": 22,
+    "2025Q4": 9,
+    "2026Q1": 2,
+    "2026Q2": 19
+  },
+  "measurable_quarters_pos": 9,
+  "measurable_quarters_neg": 0,
+  "n_quarters": 10,
+  "lesson_11_density_pass": false,
+  "lesson_34_empirical_z_percentiles": {
+    "1": -1.684480418906535,
+    "5": -1.293874996792185,
+    "10": -1.0808662953248633,
+    "50": -0.33168049182056597,
+    "70": 0.1003539513513315,
+    "90": 1.0319996846252624,
+    "95": 1.7880833845638389,
+    "99": 4.141862129743127
+  },
+  "lesson_34_empirical_vol_percentiles": {
+    "1": 0.00221248781132978,
+    "5": 0.003273327538297267,
+    "10": 0.003974267670309046,
+    "50": 0.00755767188673643,
+    "70": 0.010142985249094566,
+    "90": 0.01644650972799368,
+    "95": 0.020774988164385,
+    "99": 0.03422000437729184
+  },
+  "lesson_34_z_min": -2.5279277478010407,
+  "lesson_34_z_max": 8.236961902771428,
+  "lesson_40": {
+    "threshold_definition": "|z| > 2.0 on per-symbol 30d-rolling z of 24h-rolling std(1h log_ret)",
+    "stat_class": "non_negative_aggregate_std_with_zscore_reformulation",
+    "z_score_applied": true,
+    "symmetric_negative_use": true,
+    "reformulation": "z_score_per_lesson_40_makes_symmetric_z_feasible_if_vol_floats",
+    "empirical_z_max": 8.236961902771428,
+    "empirical_z_min": -2.5279277478010407,
+    "z_max_reachable_pos2": true,
+    "z_min_reachable_neg2": true,
+    "n_above_pos2": 2498,
+    "n_below_neg2": 179,
+    "pct_above_pos2": 0.041633333333333335,
+    "pct_below_neg2": 0.0029833333333333335,
+    "verdict": "PASS"
+  },
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=170",
+  "lesson_46_quarters_used": [
+    "2024Q1",
+    "2024Q4",
+    "2025Q3",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_z_pos_LONG_4h": {
+      "label": "A_focus_z_pos_LONG_4h",
+      "n": 147,
+      "gross_bp": 88.76646939007519,
+      "net_bp": 72.76646939007519,
+      "t": 4.130221655267467
+    },
+    "A_mirror_z_pos_SHORT_4h": {
+      "label": "A_mirror_z_pos_SHORT_4h",
+      "n": 147,
+      "gross_bp": -88.76646939007519,
+      "net_bp": -104.76646939007519,
+      "t": -4.130221655267467
+    },
+    "B_focus_z_neg_SHORT_4h": {
+      "label": "B_focus_z_neg_SHORT_4h",
+      "n": 23,
+      "gross_bp": 8.27363733469808,
+      "net_bp": -7.72636266530192,
+      "t": 0.9598485457261514
+    },
+    "B_mirror_z_neg_LONG_4h": {
+      "label": "B_mirror_z_neg_LONG_4h",
+      "n": 23,
+      "gross_bp": -8.27363733469808,
+      "net_bp": -24.27363733469808,
+      "t": -0.9598485457261514
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2024Q1": {
+      "n_total": 30,
+      "A_focus_n": 30,
+      "A_focus_gross_bp": 267.27653764611534,
+      "B_focus_n": 0,
+      "B_focus_gross_bp": null
+    },
+    "2024Q4": {
+      "n_total": 50,
+      "A_focus_n": 46,
+      "A_focus_gross_bp": 33.82909620696703,
+      "B_focus_n": 4,
+      "B_focus_gross_bp": 33.084431818988236
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 50,
+      "A_focus_gross_bp": 68.92241270666575,
+      "B_focus_n": 0,
+      "B_focus_gross_bp": null
+    },
+    "2026Q2": {
+      "n_total": 40,
+      "A_focus_n": 21,
+      "A_focus_gross_bp": 1.3388481001818233,
+      "B_focus_n": 19,
+      "B_focus_gross_bp": 3.0503121801106787
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 0,
+    "A_signs": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "B_focus_flips": 0,
+    "B_signs": [
+      1,
+      1
+    ]
+  },
+  "lesson_44_xref_19th_dogfood": {
+    "paradigm_65_skewness_mr": "GRAVEYARD \u2014 3rd moment cross-sec MR. DISTINCT: 2nd-order total std (NOT 3rd moment).",
+    "paradigm_66_skewness_momentum": "GRAVEYARD \u2014 3rd moment momentum. DISTINCT: 2nd-order total std (NOT 3rd moment).",
+    "paradigm_67_btc_rv_spike_alt_recovery": "GRAVEYARD \u2014 BTC 1d total RV. DISTINCT: per-sym 1h intraday std (NOT BTC 1d cross-asset).",
+    "paradigm_68_btc_rv_spike_up_conditional": "GRAVEYARD R-3.5 \u2014 BTC RV sign-cond. DISTINCT: intrinsic per-sym 1h vol (no BTC dep).",
+    "paradigm_69_btc_rv_spike_highvol_filter": "R-5 SEEDED \u2014 BTC RV p90 LONG. DISTINCT: per-sym 1h intraday std, NOT BTC 1d RV level.",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD \u2014 rolling beta vs BTC. DISTINCT: intrinsic per-sym vol, no beta.",
+    "paradigm_84_book_depth_cusum": "SAMPLE_INSUFFICIENT \u2014 Page-Hinkley CP. DISTINCT: stateless rolling std z, return-based.",
+    "paradigm_118_realized_correlation_regime": "GRAVEYARD \u2014 universe-aggregate corr. DISTINCT: per-sym vol, no cross-corr.",
+    "paradigm_121_hmm_realized_vol_state": "GRAVEYARD Lesson #45 \u2014 HMM unsup on RV. DISTINCT: explicit z on rolling std (Lesson #45 compliant).",
+    "paradigm_124_alt_realized_kurtosis_skewness": "GRAVEYARD \u2014 3rd \u00d7 4th moment joint. DISTINCT: 2nd-order total std (NOT higher-order moment).",
+    "paradigm_125_alt_realized_quarticity_bipower": "R-0 HALT Lesson #40 \u2014 B-N jump test ratio. DISTINCT: total std (NOT jump test ratio).",
+    "paradigm_129_alt_parkinson_range": "GRAVEYARD \u2014 Parkinson high-low range. DISTINCT: close-to-close std (NOT high-low range).",
+    "paradigm_130_alt_atr_normalized_range_breakout": "GRAVEYARD \u2014 ATR + breakout. DISTINCT: pure std stat, NOT level breakout/ATR.",
+    "paradigm_131_alt_volume_burst_intra5m_signed": "GRAVEYARD \u2014 5m volume burst. DISTINCT: 1h base + 4h frame, return-based NOT 5m volume.",
+    "paradigm_132_funding_oi_magnitude_triple": "GRAVEYARD Lesson #21 \u2014 3-way axis stacking. DISTINCT: single trigger axis (Lesson #21 compliant).",
+    "paradigm_133_alt_realized_vol_of_vol": "GRAVEYARD CONCENTRATED_R1_PASS \u2014 vol-of-vol 2nd-order clustering. DISTINCT: 1st-order TOTAL std (NOT 2nd-order std-of-std). KEY DISTINCTION: simpler base stat.",
+    "paradigm_134_alt_realized_semivariance_asymmetry": "GRAVEYARD \u2014 signed up/down semivariance ratio. DISTINCT: TOTAL std (NOT up/down decomposed).",
+    "paradigm_135_alt_funding_implied_vs_realized_vol_premium": "R-0 HALT Lesson #54 \u2014 VRP composite ratio (funding-implied / realized). DISTINCT: single raw stat (rolling std), NO division/composite ratio.",
+    "paradigm_126_127_128_volume_burst_family": "R-5 SEEDED 127+128 \u2014 1m volume burst. DISTINCT: 4h frame + return-based vol stat, NOT 1m volume."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit z-threshold on rolling std, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (price-based)",
+    "Stateful_CP_Page_Hinkley": "AVOIDED (stateless rolling z, Lesson #22)",
+    "Higher_order_moment_kurtosis_skewness": "AVOIDED (2nd-order std, NOT 3rd/4th moment)",
+    "Signed_decomposition_semivariance": "AVOIDED (total std, NOT signed)",
+    "High_low_range_Parkinson": "AVOIDED (close-to-close std, NOT high-low)",
+    "Second_order_vol_of_vol": "AVOIDED (1st-order std, NOT std-of-std)",
+    "Funding_single_signal": "AVOIDED (no funding)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Magnitude_confluence": "AVOIDED (single trigger axis, Lesson #21)",
+    "Listing_event": "AVOIDED (continuous rolling)",
+    "5m_microstructure_single_domain": "AVOIDED (1h base + 4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-symbol)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed_deviation": "AVOIDED (rolling sums, no smoothing)",
+    "paradigm_67_68_69_BTC_RV_1d_cross_asset": "AVOIDED (per-sym 1h intraday)",
+    "paradigm_118_realized_corr_matrix": "AVOIDED (per-sym, NOT cross-corr)",
+    "paradigm_133_vol_of_vol_2nd_order": "AVOIDED (1st-order std)",
+    "paradigm_134_signed_semivariance": "AVOIDED (total std, NOT decomposed)",
+    "paradigm_135_VRP_composite_ratio": "AVOIDED (single raw stat, NO division)",
+    "Funding_family_3way_stack": "AVOIDED (single axis)",
+    "Lesson_21_sub_finding_magnitude_ratio": "COMPLIANT (single raw signal, NOT 2-signal composite)",
+    "Lesson_54_composite_division": "COMPLIANT (single std stat, NO ratio/division)"
+  }
+}

@@ -1,0 +1,429 @@
+{
+  "paradigm_name": "alt_funding_rate_x_cvd_4h_divergence_smart_money_distribution_directional_4h",
+  "paradigm_number": 138,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T11:56:15+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_HALT_LESSON_40_STRUCTURAL_THRESHOLD_INFEASIBLE_SYMMETRIC",
+  "sub_class": "funding \u00b1-50.0bp symmetric trigger infeasible on raw 8h frame: only 1/16 syms reach \u2264-50bp at rate>1%, and 0/16 syms reach \u2265+50bp (Binance hard cap +1bp). Lesson #40 paradigm 109+110 antipattern dogfood (3rd instance). Reformulation: funding per-sym z-score (paradigm 22 approach) or percentile rank.",
+  "verdict_components": {
+    "lesson_40_structural_threshold_attainability": "FAIL_STRUCTURAL_THRESHOLD_INFEASIBLE_SYMMETRIC",
+    "lesson_28_substrate_availability": "PASS"
+  },
+  "hypothesis": {
+    "axis_1": "funding rate (raw bp, 8h frame)",
+    "axis_2": "CVD ratio 4h aggregate via TBR joblib 5m",
+    "joint_trigger_A": "funding \u2264 -50.0bp AND CVD \u2264 -0.1",
+    "joint_trigger_B": "funding \u2265 +50.0bp AND CVD \u2265 +0.1",
+    "direction_A_focus": "SHORT 4h (smart money exit before crowd capitulation)",
+    "direction_B_focus": "LONG 4h (mirror condition)"
+  },
+  "params": {
+    "funding_lower_bp": -50.0,
+    "funding_upper_bp": 50.0,
+    "cvd_lower": -0.1,
+    "cvd_upper": 0.1
+  },
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "SOLUSDT",
+    "HBARUSDT",
+    "AXSUSDT",
+    "COMPUSDT",
+    "LDOUSDT",
+    "ETCUSDT"
+  ],
+  "universe_audit_syms": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "SOLUSDT",
+    "HBARUSDT",
+    "AXSUSDT",
+    "COMPUSDT",
+    "LDOUSDT",
+    "ETCUSDT",
+    "UNIUSDT",
+    "ICPUSDT",
+    "WLDUSDT",
+    "TONUSDT",
+    "JUPUSDT",
+    "PYTHUSDT"
+  ],
+  "lesson_40_structural_threshold": {
+    "threshold_definition": "funding \u2264 -50.0bp OR funding \u2265 +50.0bp (raw 8h frame)",
+    "stat_class": "funding_rate_raw_bp_symmetric_trigger",
+    "n_syms_audited": 16,
+    "n_syms_reach_lower": 1,
+    "n_syms_reach_upper": 0,
+    "n_syms_zero_above_upper": 16,
+    "n_syms_zero_below_lower": 13,
+    "cond_lower_infeasible": true,
+    "cond_upper_infeasible": true,
+    "structurally_infeasible": true,
+    "verdict": "FAIL_STRUCTURAL_THRESHOLD_INFEASIBLE_SYMMETRIC",
+    "per_sym_funding_distribution": {
+      "AVAXUSDT": {
+        "n_obs": 1095,
+        "p1_bp": -3.9858020000000005,
+        "p5_bp": -2.26789,
+        "p10_bp": -1.62612,
+        "p50_bp": 0.34069999999999995,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -6.627999999999999,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "DOGEUSDT": {
+        "n_obs": 1117,
+        "p1_bp": -1.361588,
+        "p5_bp": -0.89312,
+        "p10_bp": -0.6278599999999999,
+        "p50_bp": 0.4318,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -2.6033000000000004,
+        "max_bp": 4.5253,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "ETHUSDT": {
+        "n_obs": 1095,
+        "p1_bp": -1.5072760000000003,
+        "p5_bp": -0.69869,
+        "p10_bp": -0.37556,
+        "p50_bp": 0.3618,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -3.6526,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "LINKUSDT": {
+        "n_obs": 1095,
+        "p1_bp": -1.713284,
+        "p5_bp": -0.8387199999999999,
+        "p10_bp": -0.46981999999999996,
+        "p50_bp": 0.6415,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -3.0061999999999998,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "SOLUSDT": {
+        "n_obs": 1117,
+        "p1_bp": -4.650659999999999,
+        "p5_bp": -1.6419000000000001,
+        "p10_bp": -1.01434,
+        "p50_bp": 0.1765,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -30.2761,
+        "max_bp": 2.5876,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "HBARUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -2.724492,
+        "p5_bp": -1.4933,
+        "p10_bp": -1.06976,
+        "p50_bp": 0.3049,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -4.8138,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "AXSUSDT": {
+        "n_obs": 1608,
+        "p1_bp": -68.31148900000001,
+        "p5_bp": -30.618979999999997,
+        "p10_bp": -16.64501,
+        "p50_bp": -1.267,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -200.0,
+        "max_bp": 1.0,
+        "n_below_lower": 43,
+        "pct_below_lower": 0.026741293532338308,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "COMPUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -33.91571999999999,
+        "p5_bp": -6.12756,
+        "p10_bp": -3.6864000000000003,
+        "p50_bp": 0.24769999999999998,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -147.177,
+        "max_bp": 1.0,
+        "n_below_lower": 5,
+        "pct_below_lower": 0.004492362982929021,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "LDOUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -1.348092,
+        "p5_bp": -0.78798,
+        "p10_bp": -0.47331999999999996,
+        "p50_bp": 0.479,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -3.4421,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "ETCUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -2.488232,
+        "p5_bp": -1.5320599999999998,
+        "p10_bp": -0.94256,
+        "p50_bp": 0.5688,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -8.8868,
+        "max_bp": 1.0,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "UNIUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -1.46776,
+        "p5_bp": -0.76844,
+        "p10_bp": -0.3987,
+        "p50_bp": 0.6557,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -3.0206999999999997,
+        "max_bp": 3.1086,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "ICPUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -10.820243999999999,
+        "p5_bp": -4.3621,
+        "p10_bp": -2.8676,
+        "p50_bp": 0.2107,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -74.0802,
+        "max_bp": 1.0,
+        "n_below_lower": 2,
+        "pct_below_lower": 0.0017969451931716084,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "WLDUSDT": {
+        "n_obs": 1113,
+        "p1_bp": -8.266663999999999,
+        "p5_bp": -3.4304,
+        "p10_bp": -1.9309800000000001,
+        "p50_bp": 0.4846,
+        "p90_bp": 1.0,
+        "p99_bp": 1.0,
+        "min_bp": -12.6628,
+        "max_bp": 2.0909999999999997,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "TONUSDT": {
+        "n_obs": 2227,
+        "p1_bp": -2.13384,
+        "p5_bp": -1.1783899999999998,
+        "p10_bp": -0.8035,
+        "p50_bp": 0.2998,
+        "p90_bp": 0.5,
+        "p99_bp": 0.5,
+        "min_bp": -5.4144000000000005,
+        "max_bp": 1.112,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "JUPUSDT": {
+        "n_obs": 2227,
+        "p1_bp": -4.23269,
+        "p5_bp": -2.3502,
+        "p10_bp": -1.60634,
+        "p50_bp": 0.0004,
+        "p90_bp": 0.5,
+        "p99_bp": 0.5,
+        "min_bp": -10.1524,
+        "max_bp": 0.5,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      },
+      "PYTHUSDT": {
+        "n_obs": 2227,
+        "p1_bp": -3.230242,
+        "p5_bp": -1.4982799999999998,
+        "p10_bp": -1.00926,
+        "p50_bp": 0.3063,
+        "p90_bp": 0.5,
+        "p99_bp": 0.5,
+        "min_bp": -46.5582,
+        "max_bp": 0.5326,
+        "n_below_lower": 0,
+        "pct_below_lower": 0.0,
+        "n_above_upper": 0,
+        "pct_above_upper": 0.0
+      }
+    },
+    "binance_funding_rate_hard_cap_observation": "p99 = +1.00 bp on 13/19 syms, p99 = +0.50 bp on 3 syms (TON/JUP/PYTH 2227 obs each), +5bp max on 1 sym (DOGE 1117 obs), max 4.53bp on DOGE. Binance regular tier funding rate hard-caps at +0.01% = +1bp. Funding rate B-side (long-pay-short) is structurally floor-bounded; \u00b150bp symmetric threshold infeasible on raw 8h-frame funding. Reformulate alternatives: (a) percentile rank, (b) per-sym z-score (paradigm 22 R-5 seed approach), (c) absolute funding magnitude on log scale."
+  },
+  "lesson_28_substrate_availability": {
+    "substrate_source": "runs/microstructure/{SYM}_full_metrics.joblib (taker_buy_sell_ratio column)",
+    "frequency": "5m (CVD per-bar via (TBR-1)/(TBR+1)); 4h aggregation = mean over 48 \u00d7 5m",
+    "span": "~800d (2024-02-23 to 2026-05-02)",
+    "n_syms_available": 13,
+    "n_syms_required": 13,
+    "per_sym": {
+      "AVAXUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/AVAXUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.16
+      },
+      "BCHUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/BCHUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.52
+      },
+      "BNBUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/BNBUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.4
+      },
+      "DOGEUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/DOGEUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.6
+      },
+      "ETHUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/ETHUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.72
+      },
+      "LINKUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/LINKUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.62
+      },
+      "LTCUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/LTCUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.63
+      },
+      "SOLUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/SOLUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.48
+      },
+      "HBARUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/HBARUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.35
+      },
+      "AXSUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/AXSUSDT_full_metrics.joblib",
+        "joblib_size_mb": 8.97
+      },
+      "COMPUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/COMPUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.38
+      },
+      "LDOUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/LDOUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.28
+      },
+      "ETCUSDT": {
+        "available": true,
+        "joblib_path": "/home/hcpark/antigravity/backend/runs/microstructure/ETCUSDT_full_metrics.joblib",
+        "joblib_size_mb": 9.51
+      }
+    },
+    "verdict": "PASS",
+    "ohlcv_taker_buy_column_absent": "OHLCV DB has NO taker_buy_base_asset_volume column. Raw CVD CANNOT be computed from DB volume \u00d7 side. Proxy via TBR joblib is FEASIBLE but indirect."
+  },
+  "lesson_44_xref_21st_amendment": {
+    "paradigm_22_funding_carry_zscore": "R-5 SEEDED HBAR/AXS/COMP \u2014 uses PER-SYM z-score normalized funding (NOT raw bp threshold). paradigm 138 raw \u00b150bp infeasible; paradigm 22 z-score approach is exact reformulation guidance.",
+    "paradigm_72_taker_buy_volume_5m_zscore": "GRAVEYARD BROAD_FALSIFIED \u2014 5m taker volume z-score, all 13 alts negative, Q3 \u00a76.2 #10 taker-side aggressive volume family Tier 4 retire. paradigm 138 CVD axis = ratio (NOT volume magnitude) \u2192 distinct in DNA BUT funding axis disqualifies before substrate question.",
+    "paradigm_73_funding_oi_bipolar": "GRAVEYARD \u2014 funding \u00d7 OI joint, sub-fee. Funding family Tier 4 dogfood #1.",
+    "paradigm_79_funding_dispersion_etcusdt": "EXCEPTION R-5 SEED \u2014 funding dispersion ETC narrow scope.",
+    "paradigm_96_funding_sign_flip": "GRAVEYARD BROAD_FALSIFIED \u2014 funding single signal sub-family Tier 4 retire.",
+    "paradigm_97_funding_term_structure_dispersion": "INVENTORY-HALT (DNA 5/6 vs paradigm 79). Funding family dogfood evidence.",
+    "paradigm_98_funding_regime_stratify": "GRAVEYARD BROAD_FALSIFIED \u2014 funding axis variant exhaustion.",
+    "paradigm_99_funding_per_sym_velocity": "GRAVEYARD NARROW_SCOPE_LIFE_CHANGING_FAIL.",
+    "paradigm_103_cross_exchange_funding_spread": "GRAVEYARD BROAD_FALSIFIED_FEE_FLOOR \u2014 cross-exchange axis exception soaked.",
+    "paradigm_132_funding_oi_magnitude_triple": "GRAVEYARD Lesson #21 \u2014 3-way axis stacking trap.",
+    "paradigm_109_110_lesson_40_dogfood": "CONFIRMED \u2014 non-negative aggregate statistic symmetric z\u2264\u2212T structurally infeasible. paradigm 138 \u00b150bp on raw funding is IDENTICAL antipattern (funding hard-capped at +1bp regular tier).",
+    "paradigm_127_128_volume_burst_r5_live": "R-5 LIVE Mint \u2014 1m volume burst directional. Distinct from CVD ratio axis.",
+    "paradigm_137_yang_zhang_efficiency_ratio": "GRAVEYARD 2026-05-21 \u2014 9-streak non-PASS predecessor. paradigm 138 was user-requested non-RV pivot to break streak; halts at R-0 for orthogonal reason (funding raw threshold infeasibility, NOT vol family saturation).",
+    "funding_family_tier_4_retire_status": "REAFFIRMED \u2014 paradigm 73+79+96+97+98+99+103+132 cumulative funding axis exhaustion. paradigm 22 R-5 (z-score) and paradigm 79 ETC (dispersion) are sole exceptions. paradigm 138 raw bp threshold variant FAILS Lesson #40 prescreen before reaching the 2-way confluence test; funding axis cannot be probed with raw bp thresholds."
+  },
+  "family_avoidance_verification": {
+    "Funding_single_signal_raw_bp": "INFEASIBLE \u2014 Lesson #40 structural halt",
+    "Funding_zscore_per_sym": "AVAILABLE alternative (paradigm 22 R-5 approach)",
+    "Funding_percentile_rank": "AVAILABLE alternative (Lesson #40 reformulation guidance)",
+    "CVD_5m_to_4h_aggregation": "FEASIBLE substrate (TBR joblib)",
+    "Taker_volume_magnitude_zscore": "AVOIDED (paradigm 72 graveyard; CVD ratio NOT volume)",
+    "OI_velocity_axis": "AVOIDED",
+    "Magnitude_confluence_3way": "AVOIDED (2-axis only, paradigm 132 trap distinct)",
+    "Listing_event_axis": "AVOIDED",
+    "HMM_unsupervised": "AVOIDED (explicit threshold)"
+  },
+  "reformulation_paths_for_user": {
+    "path_1_funding_zscore_per_sym": "Replace raw funding \u2264 -50bp with per-sym 30d z-score \u2264 -2.0. This is paradigm 22 R-5 SEED approach (funding-carry HBAR/AXS/COMP). Distinct from paradigm 22 by ADDING CVD axis confluence. Lesson #21 axis stacking risk: 2-axis (funding-z \u00d7 CVD-z) is admissible (paradigm 132 trap was 3-way: funding \u00d7 OI \u00d7 magnitude). RISK: funding family Tier 4 retire applies \u2014 paradigm 22 exception stands precisely because z-score normalized; adding CVD must demonstrate individual-vs-joint sigex synthesis (Lesson #21 6th dogfood).",
+    "path_2_funding_percentile_rank": "Replace raw funding \u2264 -50bp with cross-sectional percentile rank (per-time-stamp across 13 alts) bottom 10%. Distinct mechanism: relative position vs cohort, not absolute level. Avoids hard-cap +1bp ceiling issue.",
+    "path_3_funding_event_change": "Replace level threshold with funding rate \u0394 \u2265 X bp per-period (acceleration), captures direction of change rather than absolute level. Risk: paradigm 96 funding sign flip already graveyard (sign-flip lagging marker).",
+    "path_4_drop_funding_axis_use_CVD_alone": "CVD ratio 4h alone (1-axis) \u2014 but CVD ratio is essentially TBR derivative and paradigm 72 (5m taker volume z) graveyard suggests taker-side fee floor. Need to verify 4h aggregation breaks that constraint (paradigm 72 was 5m bar)."
+  },
+  "recommended_path_for_user_dispatch": "path_2_funding_percentile_rank OR path_4 CVD alone"
+}

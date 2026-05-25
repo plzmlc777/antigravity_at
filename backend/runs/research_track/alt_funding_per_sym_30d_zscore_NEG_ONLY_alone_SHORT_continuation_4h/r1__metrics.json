@@ -1,0 +1,546 @@
+{
+  "paradigm_name": "alt_funding_per_sym_30d_zscore_NEG_ONLY_alone_SHORT_continuation_4h",
+  "paradigm_id": 141,
+  "phase": "R-1",
+  "run_ts": "2026-05-21 03:24:19.448052+00:00",
+  "wall_clock_seconds": 48.53020000457764,
+  "config": {
+    "universe": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "AVAXUSDT",
+      "LINKUSDT",
+      "DOGEUSDT",
+      "HBARUSDT",
+      "AXSUSDT",
+      "COMPUSDT",
+      "ETCUSDT"
+    ],
+    "n_syms_universe": 10,
+    "n_syms_loaded": 10,
+    "fee_per_trade": 0.0008,
+    "hold_minutes_primary": 240,
+    "hold_sweep": [
+      120,
+      240,
+      480
+    ],
+    "z_threshold_neg": -2.0,
+    "rolling_lb_cycles": 90,
+    "data_span_days_ohlcv": 721.9127083333333,
+    "data_span_days_funding": 368.55000002199074,
+    "data_window_ratio": 1.0
+  },
+  "sample_density": {
+    "n_events_total": 575,
+    "n_events_per_sym": {
+      "AVAXUSDT": 56,
+      "AXSUSDT": 85,
+      "BTCUSDT": 52,
+      "COMPUSDT": 46,
+      "DOGEUSDT": 52,
+      "ETCUSDT": 61,
+      "ETHUSDT": 49,
+      "HBARUSDT": 61,
+      "LINKUSDT": 60,
+      "SOLUSDT": 53
+    },
+    "lesson11_prescreen_pass": true,
+    "lesson46_pass": true
+  },
+  "snt_1sided_2quadrant": {
+    "A_focus_SHORT": {
+      "direction": "SHORT",
+      "hold_minutes": 240,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -6.368352730852649,
+        "obs_t": -0.7020862935972672,
+        "signal_t_excess": 0.42252038181951046,
+        "perm_p": 0.69,
+        "ci_lower_bp": -23.78389676695697,
+        "ci_upper_bp": 11.234823035698161,
+        "prob_positive": 0.227,
+        "null_mean_t": -1.1246066754167776,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration": {
+        "per_quarter": {
+          "2025Q2": {
+            "n": 62,
+            "t": -0.490756159428687,
+            "mean_bp": -9.305460358204943,
+            "measurable": true
+          },
+          "2025Q3": {
+            "n": 145,
+            "t": -0.9047172432064301,
+            "mean_bp": -10.830507091203936,
+            "measurable": true
+          },
+          "2025Q4": {
+            "n": 138,
+            "t": -1.0740482514463447,
+            "mean_bp": -19.805607401106972,
+            "measurable": true
+          },
+          "2026Q1": {
+            "n": 163,
+            "t": 0.4428773192212694,
+            "mean_bp": 8.608398342475187,
+            "measurable": true
+          },
+          "2026Q2": {
+            "n": 22,
+            "t": 0.0666348163437825,
+            "mean_bp": 4.642727936849072,
+            "measurable": true
+          }
+        },
+        "per_symbol": {
+          "AVAXUSDT": {
+            "n": 52,
+            "mean_bp": -5.527555306620605,
+            "ci_lower_bp": -49.17457035632889,
+            "ci_upper_bp": 41.918108104847896,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "AXSUSDT": {
+            "n": 85,
+            "mean_bp": -0.7011067914812029,
+            "ci_lower_bp": -76.2329434473046,
+            "ci_upper_bp": 73.40842620530873,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "BTCUSDT": {
+            "n": 17,
+            "mean_bp": -3.675743842036141,
+            "ci_lower_bp": -75.19510265916999,
+            "ci_upper_bp": 63.53462670511772,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "COMPUSDT": {
+            "n": 46,
+            "mean_bp": 5.64812557897221,
+            "ci_lower_bp": -57.81363221582991,
+            "ci_upper_bp": 68.40087909427635,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "DOGEUSDT": {
+            "n": 51,
+            "mean_bp": 2.4817443120739666,
+            "ci_lower_bp": -41.93075008744543,
+            "ci_upper_bp": 43.85602981610673,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "ETCUSDT": {
+            "n": 60,
+            "mean_bp": -17.65949954965766,
+            "ci_lower_bp": -57.54312655147686,
+            "ci_upper_bp": 17.80578932470289,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "ETHUSDT": {
+            "n": 49,
+            "mean_bp": 6.0939106206168345,
+            "ci_lower_bp": -45.18522323791822,
+            "ci_upper_bp": 55.753670106968286,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "HBARUSDT": {
+            "n": 60,
+            "mean_bp": -32.82243831369572,
+            "ci_lower_bp": -77.80089524879244,
+            "ci_upper_bp": 11.61174563249301,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "LINKUSDT": {
+            "n": 57,
+            "mean_bp": -15.821936767544397,
+            "ci_lower_bp": -51.431029716929345,
+            "ci_upper_bp": 18.93683898812066,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "SOLUSDT": {
+            "n": 53,
+            "mean_bp": 5.284338901422597,
+            "ci_lower_bp": -35.54846665195192,
+            "ci_upper_bp": 49.959969768291835,
+            "ci_pos": false,
+            "measurable": true
+          }
+        },
+        "n_quarters_measurable": 5,
+        "n_quarters_pos_t": 2,
+        "quarter_pos_t_ratio": 0.4,
+        "n_symbols_measurable": 10,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": 0.0,
+        "gate_quarter_pass": false,
+        "gate_symbol_ratio_pass": false,
+        "gate_symbol_min_pass": false,
+        "concentration_gate_pass": false
+      }
+    },
+    "A_mirror_LONG_paradigm22_alignment_baseline": {
+      "direction": "LONG",
+      "hold_minutes": 240,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -9.631647269147345,
+        "obs_t": -1.0618519133952735,
+        "signal_t_excess": -0.25010202093780143,
+        "perm_p": 0.439,
+        "ci_lower_bp": -27.234823035698174,
+        "ci_upper_bp": 7.783896766956965,
+        "prob_positive": 0.139,
+        "null_mean_t": -0.8117498924574721,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration": {
+        "per_quarter": {
+          "2025Q2": {
+            "n": 62,
+            "t": -0.3530600784144552,
+            "mean_bp": -6.69453964179506,
+            "measurable": true
+          },
+          "2025Q3": {
+            "n": 145,
+            "t": -0.43182921481299474,
+            "mean_bp": -5.169492908796067,
+            "measurable": true
+          },
+          "2025Q4": {
+            "n": 138,
+            "t": 0.2063761990264317,
+            "mean_bp": 3.8056074011069816,
+            "measurable": true
+          },
+          "2026Q1": {
+            "n": 163,
+            "t": -1.2660312702386947,
+            "mean_bp": -24.608398342475176,
+            "measurable": true
+          },
+          "2026Q2": {
+            "n": 22,
+            "t": -0.2962750356291924,
+            "mean_bp": -20.642727936849067,
+            "measurable": true
+          }
+        },
+        "per_symbol": {
+          "AVAXUSDT": {
+            "n": 52,
+            "mean_bp": -10.472444693379396,
+            "ci_lower_bp": -57.91810810484792,
+            "ci_upper_bp": 33.17457035632887,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "AXSUSDT": {
+            "n": 85,
+            "mean_bp": -15.298893208518793,
+            "ci_lower_bp": -89.40842620530874,
+            "ci_upper_bp": 60.232943447304564,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "BTCUSDT": {
+            "n": 17,
+            "mean_bp": -12.32425615796386,
+            "ci_lower_bp": -79.53462670511783,
+            "ci_upper_bp": 59.195102659169926,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "COMPUSDT": {
+            "n": 46,
+            "mean_bp": -21.648125578972213,
+            "ci_lower_bp": -84.40087909427646,
+            "ci_upper_bp": 41.81363221582985,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "DOGEUSDT": {
+            "n": 51,
+            "mean_bp": -18.481744312073953,
+            "ci_lower_bp": -59.856029816106755,
+            "ci_upper_bp": 25.93075008744537,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "ETCUSDT": {
+            "n": 60,
+            "mean_bp": 1.6594995496576677,
+            "ci_lower_bp": -33.80578932470292,
+            "ci_upper_bp": 41.543126551476846,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "ETHUSDT": {
+            "n": 49,
+            "mean_bp": -22.093910620616835,
+            "ci_lower_bp": -71.75367010696833,
+            "ci_upper_bp": 29.18522323791821,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "HBARUSDT": {
+            "n": 60,
+            "mean_bp": 16.822438313695724,
+            "ci_lower_bp": -27.611745632493033,
+            "ci_upper_bp": 61.80089524879242,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "LINKUSDT": {
+            "n": 57,
+            "mean_bp": -0.1780632324556122,
+            "ci_lower_bp": -34.93683898812067,
+            "ci_upper_bp": 35.43102971692935,
+            "ci_pos": false,
+            "measurable": true
+          },
+          "SOLUSDT": {
+            "n": 53,
+            "mean_bp": -21.28433890142259,
+            "ci_lower_bp": -65.95996976829187,
+            "ci_upper_bp": 19.54846665195189,
+            "ci_pos": false,
+            "measurable": true
+          }
+        },
+        "n_quarters_measurable": 5,
+        "n_quarters_pos_t": 1,
+        "quarter_pos_t_ratio": 0.2,
+        "n_symbols_measurable": 10,
+        "n_symbols_ci_pos": 0,
+        "symbol_ci_pos_ratio": 0.0,
+        "gate_quarter_pass": false,
+        "gate_symbol_ratio_pass": false,
+        "gate_symbol_min_pass": false,
+        "concentration_gate_pass": false
+      }
+    },
+    "lesson19_exception_justification": "B-side substrate empirically absent (pos2 rate 0.20%, Lesson #40 sub-class C asymmetric inheritance from paradigm 139)"
+  },
+  "paradigm_22_mirror_direction_test": {
+    "A_focus_sigex": 0.42252038181951046,
+    "A_mirror_sigex": -0.25010202093780143,
+    "criterion": "A_focus_sigex >= A_mirror_sigex \u00d7 1.5",
+    "mirror_dominance_pass": true
+  },
+  "hold_sweep_focus_SHORT": [
+    {
+      "hold_minutes": 120,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -5.109866691211517,
+        "obs_t": -0.7015332075987339,
+        "signal_t_excess": 0.6030561598806516,
+        "perm_p": 0.765,
+        "ci_lower_bp": -19.58567394744052,
+        "ci_upper_bp": 8.692639637876134,
+        "prob_positive": 0.2315,
+        "null_mean_t": -1.3045893674793856,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    },
+    {
+      "hold_minutes": 240,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -6.368352730852649,
+        "obs_t": -0.7020862935972672,
+        "signal_t_excess": 0.42252038181951046,
+        "perm_p": 0.69,
+        "ci_lower_bp": -23.78389676695697,
+        "ci_upper_bp": 11.234823035698161,
+        "prob_positive": 0.227,
+        "null_mean_t": -1.1246066754167776,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    },
+    {
+      "hold_minutes": 480,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -21.983715649745825,
+        "obs_t": -1.5766211970265005,
+        "signal_t_excess": -0.823418319859117,
+        "perm_p": 0.198,
+        "ci_lower_bp": -50.05298184678844,
+        "ci_upper_bp": 4.818425545376684,
+        "prob_positive": 0.0535,
+        "null_mean_t": -0.7532028771673835,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    }
+  ],
+  "hold_sweep_mirror_LONG": [
+    {
+      "hold_minutes": 120,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -10.890133308788482,
+        "obs_t": -1.4951055698638689,
+        "signal_t_excess": -0.019381459201651463,
+        "perm_p": 0.485,
+        "ci_lower_bp": -24.692639637876137,
+        "ci_upper_bp": 3.58567394744053,
+        "prob_positive": 0.0655,
+        "null_mean_t": -1.4757241106622174,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    },
+    {
+      "hold_minutes": 240,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": -9.631647269147345,
+        "obs_t": -1.0618519133952735,
+        "signal_t_excess": -0.25010202093780143,
+        "perm_p": 0.439,
+        "ci_lower_bp": -27.234823035698174,
+        "ci_upper_bp": 7.783896766956965,
+        "prob_positive": 0.139,
+        "null_mean_t": -0.8117498924574721,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    },
+    {
+      "hold_minutes": 480,
+      "three_gate": {
+        "n": 530,
+        "mean_bp": 5.983715649745845,
+        "obs_t": 0.42913823489513586,
+        "signal_t_excess": 1.0726690423284995,
+        "perm_p": 0.734,
+        "ci_lower_bp": -20.8184255453767,
+        "ci_upper_bp": 34.052981846788455,
+        "prob_positive": 0.6785,
+        "null_mean_t": -0.6435308074333637,
+        "gate_sig_t_excess_pass": false,
+        "gate_perm_p_pass": false,
+        "gate_ci_lower_pass": false,
+        "three_gate_pass": false
+      },
+      "concentration_pass": false
+    }
+  ],
+  "lesson37_full_sweep_scan": {
+    "primary_hold_minutes": 240,
+    "any_off_primary_3gate_pass": false,
+    "off_primary_pass_cells": []
+  },
+  "life_changing_4dim_focus_SHORT": {
+    "trades_per_yr": 525.2543752230342,
+    "per_trade_edge_net_pct": -0.09631647269147345,
+    "capital_util_pct": 23.967801744149405,
+    "annualized_sharpe": -1.0570873080314338,
+    "gate_trades_per_yr_pass": true,
+    "gate_edge_pass": false,
+    "gate_capital_util_pass": false,
+    "gate_sharpe_pass": false,
+    "life_changing_all_pass": false,
+    "n_dims_pass": 1
+  },
+  "lesson46_stratified_sign_flip": {
+    "per_quarter_stratified": {
+      "2025Q2": {
+        "n": 62,
+        "sample_n": 50,
+        "mean_bp": 7.3714284065582305,
+        "sign": 1,
+        "measurable": true
+      },
+      "2025Q3": {
+        "n": 145,
+        "sample_n": 50,
+        "mean_bp": 5.603430905744782,
+        "sign": 1,
+        "measurable": true
+      },
+      "2025Q4": {
+        "n": 138,
+        "sample_n": 50,
+        "mean_bp": 50.62671203944982,
+        "sign": 1,
+        "measurable": true
+      },
+      "2026Q1": {
+        "n": 163,
+        "sample_n": 50,
+        "mean_bp": 34.88619375439933,
+        "sign": 1,
+        "measurable": true
+      },
+      "2026Q2": {
+        "n": 22,
+        "sample_n": 22,
+        "mean_bp": -20.642727936849067,
+        "sign": -1,
+        "measurable": true
+      }
+    },
+    "n_quarters_measurable": 5,
+    "n_pos_quarters": 4,
+    "n_neg_quarters": 1,
+    "n_sign_flips": 1,
+    "max_possible_flips": 4,
+    "warning_strong_alternating": false
+  },
+  "verdict": "BROAD_FALSIFIED",
+  "family_distinct_paradigms": {
+    "paradigm_22_funding_carry_R5_seeded": "z-score MR LONG continuous transform (3 alts HBAR/AXS/COMP, 8h hold)",
+    "paradigm_141_THIS": "z<=-2.0 SHORT continuation 4h (10 alts, opposite direction mechanism)",
+    "dna_overlap_dim": "trigger statistic only (1/6); direction + mechanism + universe + hold all distinct"
+  },
+  "lessons_applied": {
+    "lesson_11_sample_density_prescreen": "PASS (per-cell 144)",
+    "lesson_19_symmetric_negative_test_1sided_exception": "B-side substrate absent justification",
+    "lesson_30_data_window_ratio": "1.0 PASS",
+    "lesson_40_structural_threshold_feasibility": "z<=-2.0 reachable on all 10 syms",
+    "lesson_46_stratified_n50x4q_plus_sign_flip": "see lesson46_stratified_sign_flip",
+    "lesson_55_one_sided_substrate_justification_dogfood_3rd": "VALID asymmetry 0.96",
+    "lesson_37_full_sweep_verdict_scan": "see lesson37_full_sweep_scan"
+  }
+}

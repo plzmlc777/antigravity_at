@@ -1,0 +1,256 @@
+{
+  "paradigm_name": "alt_realized_semivariance_asymmetry_up_down_ratio_z_directional_4h",
+  "paradigm_number": 134,
+  "phase": "R-0",
+  "executed_at_kst": "2026-05-21T11:05:28+09:00",
+  "host": "hcp_local",
+  "verdict": "R0_READY_FOR_R1",
+  "universe_cohort": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_loaded": [
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "universe_excluded": {
+    "ADAUSDT": "Lesson #30 short-window (143d << 30%)"
+  },
+  "params": {
+    "rv_window_5m_per_1h": 12,
+    "semivar_rolling_hours": 24,
+    "zscore_rolling_hours": 720,
+    "z_threshold_absolute": 2.0,
+    "forward_hold_4h_bars": 1,
+    "debounce_hours": 8,
+    "fee_bp": 16.0,
+    "log_epsilon": 1e-12
+  },
+  "per_sym_days": {
+    "AVAXUSDT": 755,
+    "BCHUSDT": 798,
+    "BNBUSDT": 798,
+    "DOGEUSDT": 767,
+    "ETHUSDT": 795,
+    "FILUSDT": 798,
+    "LINKUSDT": 767,
+    "LTCUSDT": 798,
+    "NEARUSDT": 798,
+    "SOLUSDT": 795,
+    "WIFUSDT": 799,
+    "XRPUSDT": 798
+  },
+  "short_window_syms_lesson_30": {},
+  "n_triggers_total": 1981,
+  "n_triggers_pos": 973,
+  "n_triggers_neg": 1008,
+  "n_per_sym_min": 147,
+  "per_quarter_pos": {
+    "2024Q1": 30,
+    "2024Q2": 110,
+    "2024Q3": 101,
+    "2024Q4": 95,
+    "2025Q1": 128,
+    "2025Q2": 148,
+    "2025Q3": 116,
+    "2025Q4": 94,
+    "2026Q1": 144,
+    "2026Q2": 7
+  },
+  "per_quarter_neg": {
+    "2024Q1": 9,
+    "2024Q2": 191,
+    "2024Q3": 107,
+    "2024Q4": 89,
+    "2025Q1": 116,
+    "2025Q2": 122,
+    "2025Q3": 97,
+    "2025Q4": 116,
+    "2026Q1": 139,
+    "2026Q2": 22
+  },
+  "measurable_quarters_pos": 9,
+  "measurable_quarters_neg": 8,
+  "n_quarters": 10,
+  "lesson_11_density_pass": true,
+  "lesson_34_empirical_z_percentiles": {
+    "1": -3.0165271195268706,
+    "5": -1.697550764882925,
+    "10": -1.1981115134065152,
+    "50": 0.007719213925046024,
+    "70": 0.49033230105349795,
+    "90": 1.2063613118053884,
+    "95": 1.5871426521394194,
+    "99": 2.545435808178241
+  },
+  "lesson_34_empirical_log_ratio_percentiles": {
+    "1": -1.2038571290398052,
+    "5": -0.6681497953620639,
+    "10": -0.46076589399344425,
+    "50": -0.009910316400428072,
+    "70": 0.16615753681190315,
+    "90": 0.42785421306672183,
+    "95": 0.5743279764632764,
+    "99": 0.89862466663992
+  },
+  "lesson_34_z_min": -8.422550558983575,
+  "lesson_34_z_max": 6.787724671972602,
+  "lesson_40": {
+    "threshold_definition": "|z| > 2.0 on per-symbol 30d-rolling z of 24h-rolling log(RV_up/RV_down)",
+    "stat_class": "log_transformed_positive_ratio_symmetric",
+    "log_transform_applied": true,
+    "symmetric_negative_use": true,
+    "reformulation": "log_transform_per_lesson_40_makes_symmetric_z_feasible",
+    "empirical_z_max": 6.787724671972602,
+    "empirical_z_min": -8.422550558983575,
+    "z_max_reachable_pos2": true,
+    "z_min_reachable_neg2": true,
+    "n_above_pos2": 1601,
+    "n_below_neg2": 2070,
+    "pct_above_pos2": 0.026683333333333333,
+    "pct_below_neg2": 0.0345,
+    "verdict": "PASS"
+  },
+  "lesson_46_amendment_refinement_strategy": "temporally_stratified_n50x4q_total_n=168",
+  "lesson_46_quarters_used": [
+    "2024Q1",
+    "2024Q4",
+    "2025Q3",
+    "2026Q2"
+  ],
+  "r0_4quadrant_stratified_estimate": {
+    "A_focus_z_pos_LONG_4h": {
+      "label": "A_focus_z_pos_LONG_4h",
+      "n": 99,
+      "gross_bp": -12.715675108762172,
+      "net_bp": -28.71567510876217,
+      "t": -0.6329658093425853
+    },
+    "A_mirror_z_pos_SHORT_4h": {
+      "label": "A_mirror_z_pos_SHORT_4h",
+      "n": 99,
+      "gross_bp": 12.715675108762172,
+      "net_bp": -3.2843248912378282,
+      "t": 0.6329658093425853
+    },
+    "B_focus_z_neg_SHORT_4h": {
+      "label": "B_focus_z_neg_SHORT_4h",
+      "n": 69,
+      "gross_bp": -66.47655671054865,
+      "net_bp": -82.47655671054865,
+      "t": -2.5850787237326545
+    },
+    "B_mirror_z_neg_LONG_4h": {
+      "label": "B_mirror_z_neg_LONG_4h",
+      "n": 69,
+      "gross_bp": 66.47655671054865,
+      "net_bp": 50.47655671054865,
+      "t": 2.5850787237326545
+    }
+  },
+  "per_quarter_r0_detail": {
+    "2024Q1": {
+      "n_total": 39,
+      "A_focus_n": 30,
+      "A_focus_gross_bp": -6.080146984360181,
+      "B_focus_n": 9,
+      "B_focus_gross_bp": -432.7310581734401
+    },
+    "2024Q4": {
+      "n_total": 50,
+      "A_focus_n": 27,
+      "A_focus_gross_bp": -4.5185309689284745,
+      "B_focus_n": 23,
+      "B_focus_gross_bp": -10.890844217225613
+    },
+    "2025Q3": {
+      "n_total": 50,
+      "A_focus_n": 35,
+      "A_focus_gross_bp": 10.341215526420594,
+      "B_focus_n": 15,
+      "B_focus_gross_bp": -23.99234401327557
+    },
+    "2026Q2": {
+      "n_total": 29,
+      "A_focus_n": 7,
+      "A_focus_gross_bp": -188.05566192861446,
+      "B_focus_n": 22,
+      "B_focus_gross_bp": -3.7240141941624882
+    }
+  },
+  "lesson_46_sign_flips": {
+    "A_focus_flips": 2,
+    "A_signs": [
+      -1,
+      -1,
+      1,
+      -1
+    ],
+    "B_focus_flips": 0,
+    "B_signs": [
+      -1,
+      -1,
+      -1,
+      -1
+    ]
+  },
+  "lesson_44_xref_17th_dogfood": {
+    "paradigm_65_skewness_mr": "GRAVEYARD \u2014 3rd moment cross-sec MR. DISTINCT: semivariance RATIO (2nd-order signed decomp), NOT 3rd moment.",
+    "paradigm_66_skewness_momentum": "GRAVEYARD \u2014 3rd moment momentum. DISTINCT: signed semivariance ratio, NOT 3rd moment.",
+    "paradigm_67_btc_rv_spike_alt_recovery": "GRAVEYARD \u2014 BTC 1d total RV. DISTINCT: per-sym up/down semivariance decomp, NOT BTC total RV.",
+    "paradigm_68_btc_rv_spike_up_conditional": "GRAVEYARD R-3.5 \u2014 BTC RV sign-cond. DISTINCT: intrinsic semivariance ratio (no BTC dep).",
+    "paradigm_69_btc_rv_spike_highvol_filter": "R-5 SEEDED \u2014 BTC RV p90 LONG. DISTINCT: per-sym signed semivariance, NOT BTC RV level.",
+    "paradigm_81_rolling_beta_regime": "GRAVEYARD \u2014 rolling beta vs BTC. DISTINCT: intrinsic asymmetric semivariance, no beta.",
+    "paradigm_84_book_depth_cusum": "SAMPLE_INSUFFICIENT \u2014 Page-Hinkley CP. DISTINCT: stateless ratio z, return-based.",
+    "paradigm_118_realized_correlation_regime": "GRAVEYARD \u2014 universe-aggregate corr. DISTINCT: per-sym ratio, no cross-corr.",
+    "paradigm_121_hmm_realized_vol_state": "GRAVEYARD Lesson #45 \u2014 HMM unsup on RV. DISTINCT: explicit z on signed log-ratio (Lesson #45 compliant).",
+    "paradigm_123_alt_volume_cusum_change_point": "GRAVEYARD Lesson #19 SNT \u2014 stateful CP on volume. DISTINCT: stateless ratio z, return-based.",
+    "paradigm_124_alt_realized_kurtosis_skewness": "GRAVEYARD \u2014 3rd \u00d7 4th moment joint. DISTINCT: 2nd-order signed semivariance decomp (NOT higher-order moment).",
+    "paradigm_125_alt_realized_quarticity_bipower": "R-0 HALT Lesson #40 \u2014 B-N jump test ratio. DISTINCT: semivariance ratio (signed asymmetry NOT jump test).",
+    "paradigm_129_alt_parkinson_range": "GRAVEYARD \u2014 Parkinson high-low range. DISTINCT: signed up/down decomposition (sign info preserved, NOT lost via high-low).",
+    "paradigm_130_alt_atr_normalized_range_breakout": "GRAVEYARD \u2014 ATR + breakout. DISTINCT: pure semivariance ratio, NOT level breakout/ATR.",
+    "paradigm_131_alt_volume_burst_intra5m_signed": "GRAVEYARD \u2014 5m volume burst. DISTINCT: 4h frame + return-based, NOT 5m volume.",
+    "paradigm_132_funding_oi_magnitude_triple": "GRAVEYARD Lesson #21 \u2014 3-way axis stacking. DISTINCT: single trigger axis (Lesson #21 compliant).",
+    "paradigm_133_alt_realized_vol_of_vol": "GRAVEYARD CONCENTRATED_R1_PASS \u2014 vol-of-vol 2nd-order clustering (magnitude only, direction separate). DISTINCT: signed up/down semivariance ratio (direction NATIVELY embedded in stat) \u2014 key advantage over p133 separable mag/dir.",
+    "paradigm_126_127_128_volume_burst_family": "R-5 SEEDED 127+128 \u2014 1m volume burst. DISTINCT: 4h frame + signed semivariance stat, NOT 1m volume."
+  },
+  "family_avoidance_verification": {
+    "HMM_unsupervised": "AVOIDED (explicit z-threshold on log_ratio, Lesson #45)",
+    "OI_velocity_directional": "AVOIDED (price-based)",
+    "Stateful_CP_Page_Hinkley": "AVOIDED (stateless rolling z, Lesson #22)",
+    "Higher_order_moment_kurtosis_skewness": "AVOIDED (2nd-order signed semivariance decomp, NOT 3rd/4th moment)",
+    "Funding_single_signal": "AVOIDED (no funding)",
+    "Volume_share": "AVOIDED (no volume)",
+    "Magnitude_confluence": "AVOIDED (single trigger axis, Lesson #21)",
+    "Listing_event": "AVOIDED (continuous rolling)",
+    "5m_microstructure_single_domain": "AVOIDED (1h base + 4h frame)",
+    "Universe_aggregate_scalar": "AVOIDED (per-symbol)",
+    "Session_anchor": "AVOIDED (continuous rolling)",
+    "VWAP_EWMA_smoothed_deviation": "AVOIDED (rolling sums, no smoothing)",
+    "paradigm_118_realized_corr_matrix": "AVOIDED (per-sym, NOT cross-corr)",
+    "paradigm_124_higher_order_moments": "AVOIDED (2nd-order signed decomp, NOT 3rd/4th moment)",
+    "paradigm_129_Parkinson_range": "AVOIDED (signed semivariance, NOT high-low range)",
+    "paradigm_133_vol_of_vol_magnitude_clustering": "AVOIDED (signed asymmetric decomp NATIVELY directional, NOT magnitude clustering with direction proxy)",
+    "Funding_family_3way_stack": "AVOIDED (single axis)"
+  }
+}

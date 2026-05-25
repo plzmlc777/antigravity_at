@@ -1,0 +1,1699 @@
+{
+  "paradigm_name": "binance_futures_perp_listing_event_post_onboard_4h_entry_side_forced_buy_directional_bilateral",
+  "paradigm_counter": 189,
+  "generated_at": "2026-05-22T01:50:28.346629+00:00",
+  "n_events_universe": 422,
+  "fee_baseline_per_trade": 0.0008,
+  "fee_stress_per_trade": 0.0025,
+  "entry_offset_min": 15,
+  "holds_hrs_swept": [
+    4,
+    8,
+    12,
+    24,
+    48
+  ],
+  "per_half_year_event_counts": {
+    "2023H1": 29,
+    "2023H2": 41,
+    "2024H1": 35,
+    "2024H2": 66,
+    "2025H1": 99,
+    "2025H2": 116,
+    "2026H1": 36
+  },
+  "lesson_11_prescreen": {
+    "n_total_events": 422,
+    "scope": "bilateral 2-cell A focus LONG + A mirror SHORT (NO 4-quadrant SNT, sample density compression per user spec)",
+    "per_half_year_measurable_count": 7,
+    "per_half_year_total": 7,
+    "verdict": "PASS_n_over_30_avg_33",
+    "rationale": "468 listings in window; 2 cells x 7 half-years = 14 cells; per-cell avg 33.4 >= 30 cutoff"
+  },
+  "hold_sweep_results": {
+    "hold_4h": {
+      "n_trades": 393,
+      "cells": {
+        "A_focus_LONG": {
+          "side": "long",
+          "n_trades": 393,
+          "fee_baseline": {
+            "label": "A_focus_LONG_h4_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 393,
+            "obs_mean_bp": 25.492403084974363,
+            "obs_t": 0.2905927327611122,
+            "null_mean_t": -0.397790400045615,
+            "signal_t_excess": 0.6883831328067271,
+            "perm_p_two_sided": 0.804,
+            "perm_p_one_sided_above": 0.265,
+            "ci_lower_bp": -139.34511269711598,
+            "ci_upper_bp": 200.44762987175113,
+            "prob_positive": 0.611,
+            "n_candidate_pool": 11223,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_focus_LONG_h4_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 393,
+            "obs_mean_bp": 8.492403084974377,
+            "obs_t": 0.09680651180453771,
+            "null_mean_t": -0.7699273483650805,
+            "signal_t_excess": 0.8667338601696182,
+            "perm_p_two_sided": 0.943,
+            "perm_p_one_sided_above": 0.219,
+            "ci_lower_bp": -156.34511269711592,
+            "ci_upper_bp": 183.44762987175116,
+            "prob_positive": 0.53,
+            "n_candidate_pool": 11223,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "long",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 3,
+                "mean_bp": -310.64789350570345,
+                "t_stat": -1.292681984834275
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": 78.7900233633355,
+                "t_stat": 0.5474910860872121
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -10.95749235501172,
+                "t_stat": -0.0857966046305601
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": 243.58496035462568,
+                "t_stat": 1.5352735745834971
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": -186.22098187553874,
+                "t_stat": -1.2088479735070523
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": 75.84972620442215,
+                "t_stat": 0.3301477810874797
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": 51.180314006034216,
+                "t_stat": 0.17752498603347833
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 4,
+            "half_year_pos_t_ratio": 0.6666666666666666,
+            "n_pos": 176,
+            "n_neg": 217,
+            "sign_ratio_positive": 0.44783715012722647,
+            "top3_abs_concentration_pct": 6.260482843039025,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": false,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "long",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1142.3958333333333,
+            "n_events": 393,
+            "trades_per_year": 125.56505881280204,
+            "per_trade_net_edge_pct": -1.1132409972299118,
+            "capital_utilization_pct": 5.705297711315765,
+            "mean_hold_days": 0.16584499575911787,
+            "single_trade_sharpe_annualized": 0.6876757667862679,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-1.11%<2.0%",
+              "util=5.71%<30.0%",
+              "sharpe=0.69<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-1.11%<2.0%",
+              "sharpe=0.69<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "long",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1142.3958333333333,
+            "n_events": 393,
+            "trades_per_year": 125.56505881280204,
+            "per_trade_net_edge_pct": -1.2832409972299117,
+            "capital_utilization_pct": 5.705297711315765,
+            "mean_hold_days": 0.16584499575911787,
+            "single_trade_sharpe_annualized": 0.22908863412567113,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-1.28%<2.0%",
+              "util=5.71%<30.0%",
+              "sharpe=0.23<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-1.28%<2.0%",
+              "sharpe=0.23<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        },
+        "A_mirror_SHORT": {
+          "side": "short",
+          "n_trades": 393,
+          "fee_baseline": {
+            "label": "A_mirror_SHORT_h4_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 393,
+            "obs_mean_bp": -41.49240308497436,
+            "obs_t": -0.47297976424965305,
+            "null_mean_t": 0.04754386045082337,
+            "signal_t_excess": -0.5205236247004764,
+            "perm_p_two_sided": 0.64,
+            "perm_p_one_sided_above": 0.688,
+            "ci_lower_bp": -216.44762987175122,
+            "ci_upper_bp": 123.34511269711588,
+            "prob_positive": 0.3165,
+            "n_candidate_pool": 11223,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_mirror_SHORT_h4_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 393,
+            "obs_mean_bp": -58.49240308497435,
+            "obs_t": -0.6667659852062274,
+            "null_mean_t": -0.3245930878686421,
+            "signal_t_excess": -0.3421728973375853,
+            "perm_p_two_sided": 0.538,
+            "perm_p_one_sided_above": 0.625,
+            "ci_lower_bp": -233.4476298717511,
+            "ci_upper_bp": 106.34511269711597,
+            "prob_positive": 0.2495,
+            "n_candidate_pool": 11223,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "short",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 3,
+                "mean_bp": 294.64789350570345,
+                "t_stat": 1.2261020652863297
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": -94.79002336333542,
+                "t_stat": -0.6586708649914498
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -5.042507644988224,
+                "t_stat": -0.03948257692059952
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": -259.58496035462565,
+                "t_stat": -1.6361187875127912
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": 170.22098187553866,
+                "t_stat": 1.1049844486705227
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": -91.84972620442242,
+                "t_stat": -0.3997902802991881
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": -67.18031400603418,
+                "t_stat": -0.2330228826700789
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 1,
+            "half_year_pos_t_ratio": 0.16666666666666666,
+            "n_pos": 214,
+            "n_neg": 179,
+            "sign_ratio_positive": 0.544529262086514,
+            "top3_abs_concentration_pct": 6.279266554076939,
+            "concentration_gate": {
+              "half_year_pass": false,
+              "sign_pass": true,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "short",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1142.3958333333333,
+            "n_events": 393,
+            "trades_per_year": 125.56505881280204,
+            "per_trade_net_edge_pct": 0.9532409972299116,
+            "capital_utilization_pct": 5.705297711315765,
+            "mean_hold_days": 0.16584499575911787,
+            "single_trade_sharpe_annualized": -1.1192871857609474,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=0.95%<2.0%",
+              "util=5.71%<30.0%",
+              "sharpe=-1.12<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=0.95%<2.0%",
+              "sharpe=-1.12<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "short",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1142.3958333333333,
+            "n_events": 393,
+            "trades_per_year": 125.56505881280204,
+            "per_trade_net_edge_pct": 0.7832409972299117,
+            "capital_utilization_pct": 5.705297711315765,
+            "mean_hold_days": 0.16584499575911787,
+            "single_trade_sharpe_annualized": -1.577874318421544,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=0.78%<2.0%",
+              "util=5.71%<30.0%",
+              "sharpe=-1.58<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=0.78%<2.0%",
+              "sharpe=-1.58<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        }
+      }
+    },
+    "hold_8h": {
+      "n_trades": 394,
+      "cells": {
+        "A_focus_LONG": {
+          "side": "long",
+          "n_trades": 394,
+          "fee_baseline": {
+            "label": "A_focus_LONG_h8_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 394,
+            "obs_mean_bp": -5.398878718753449,
+            "obs_t": -0.04490204988126506,
+            "null_mean_t": -0.520466730233397,
+            "signal_t_excess": 0.4755646803521319,
+            "perm_p_two_sided": 0.972,
+            "perm_p_one_sided_above": 0.326,
+            "ci_lower_bp": -234.07920737238322,
+            "ci_upper_bp": 231.1963822692634,
+            "prob_positive": 0.4675,
+            "n_candidate_pool": 5323,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_focus_LONG_h8_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 394,
+            "obs_mean_bp": -22.398878718753405,
+            "obs_t": -0.18628971345851822,
+            "null_mean_t": -0.7782398051079706,
+            "signal_t_excess": 0.5919500916494524,
+            "perm_p_two_sided": 0.89,
+            "perm_p_one_sided_above": 0.293,
+            "ci_lower_bp": -251.0792073723831,
+            "ci_upper_bp": 214.19638226926347,
+            "prob_positive": 0.4085,
+            "n_candidate_pool": 5323,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "long",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 4,
+                "mean_bp": -165.81741733649625,
+                "t_stat": -0.3942411376652597
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": -93.70664896105221,
+                "t_stat": -0.4581270316759442
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": 5.640420671180345,
+                "t_stat": 0.03340563217323362
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": 28.248637531960423,
+                "t_stat": 0.14334601097490451
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": -256.988612539164,
+                "t_stat": -1.37388371047663
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": 292.9096006285446,
+                "t_stat": 0.8579456510855518
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": -233.1315344101712,
+                "t_stat": -0.8679493741756413
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 3,
+            "half_year_pos_t_ratio": 0.5,
+            "n_pos": 157,
+            "n_neg": 237,
+            "sign_ratio_positive": 0.39847715736040606,
+            "top3_abs_concentration_pct": 8.394473227531272,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": false,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "long",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1147.9479166666667,
+            "n_events": 394,
+            "trades_per_year": 125.27571844686622,
+            "per_trade_net_edge_pct": -2.195103106504218,
+            "capital_utilization_pct": 11.38444506955346,
+            "mean_hold_days": 0.3316941624365482,
+            "single_trade_sharpe_annualized": -0.07504047512297388,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-2.20%<2.0%",
+              "util=11.38%<30.0%",
+              "sharpe=-0.08<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-2.20%<2.0%",
+              "sharpe=-0.08<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "long",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1147.9479166666667,
+            "n_events": 394,
+            "trades_per_year": 125.27571844686622,
+            "per_trade_net_edge_pct": -2.365103106504218,
+            "capital_utilization_pct": 11.38444506955346,
+            "mean_hold_days": 0.3316941624365482,
+            "single_trade_sharpe_annualized": -0.31132807177880273,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-2.37%<2.0%",
+              "util=11.38%<30.0%",
+              "sharpe=-0.31<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-2.37%<2.0%",
+              "sharpe=-0.31<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        },
+        "A_mirror_SHORT": {
+          "side": "short",
+          "n_trades": 394,
+          "fee_baseline": {
+            "label": "A_mirror_SHORT_h8_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 394,
+            "obs_mean_bp": -10.601121281246597,
+            "obs_t": -0.08816869230909156,
+            "null_mean_t": 0.27785677741026693,
+            "signal_t_excess": -0.3660254697193585,
+            "perm_p_two_sided": 0.921,
+            "perm_p_one_sided_above": 0.637,
+            "ci_lower_bp": -247.19638226926358,
+            "ci_upper_bp": 218.0792073723828,
+            "prob_positive": 0.4775,
+            "n_candidate_pool": 5323,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_mirror_SHORT_h8_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 394,
+            "obs_mean_bp": -27.601121281246545,
+            "obs_t": -0.22955635588634463,
+            "null_mean_t": 0.020083702535693155,
+            "signal_t_excess": -0.2496400584220378,
+            "perm_p_two_sided": 0.804,
+            "perm_p_one_sided_above": 0.588,
+            "ci_lower_bp": -264.19638226926344,
+            "ci_upper_bp": 201.07920737238288,
+            "prob_positive": 0.4285,
+            "n_candidate_pool": 5323,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "short",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 4,
+                "mean_bp": 149.81741733649633,
+                "t_stat": 0.35620015075347183
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": 77.70664896105222,
+                "t_stat": 0.3799038470024455
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -21.640420671180266,
+                "t_stat": -0.12816631509582221
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": -44.2486375319605,
+                "t_stat": -0.2245370479940734
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": 240.98861253916382,
+                "t_stat": 1.2883463041673273
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": -308.90960062854475,
+                "t_stat": -0.904810384736864
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": 217.13153441017127,
+                "t_stat": 0.808381328085501
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 3,
+            "half_year_pos_t_ratio": 0.5,
+            "n_pos": 232,
+            "n_neg": 162,
+            "sign_ratio_positive": 0.5888324873096447,
+            "top3_abs_concentration_pct": 8.4205471043796,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": true,
+              "blowup_pass": true,
+              "overall_pass": true
+            }
+          },
+          "life_changing_baseline": {
+            "side": "short",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1147.9479166666667,
+            "n_events": 394,
+            "trades_per_year": 125.27571844686622,
+            "per_trade_net_edge_pct": 2.035103106504218,
+            "capital_utilization_pct": 11.38444506955346,
+            "mean_hold_days": 0.3316941624365482,
+            "single_trade_sharpe_annualized": -0.1473478511413368,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "util=11.38%<30.0%",
+              "sharpe=-0.15<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=-0.15<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "short",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1147.9479166666667,
+            "n_events": 394,
+            "trades_per_year": 125.27571844686622,
+            "per_trade_net_edge_pct": 1.8651031065042183,
+            "capital_utilization_pct": 11.38444506955346,
+            "mean_hold_days": 0.3316941624365482,
+            "single_trade_sharpe_annualized": -0.38363544779716546,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=1.87%<2.0%",
+              "util=11.38%<30.0%",
+              "sharpe=-0.38<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=1.87%<2.0%",
+              "sharpe=-0.38<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": true,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        }
+      }
+    },
+    "hold_12h": {
+      "n_trades": 394,
+      "cells": {
+        "A_focus_LONG": {
+          "side": "long",
+          "n_trades": 394,
+          "fee_baseline": {
+            "label": "A_focus_LONG_h12_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 394,
+            "obs_mean_bp": 60.17278119821491,
+            "obs_t": 0.3649797019541316,
+            "null_mean_t": -0.4494143123540456,
+            "signal_t_excess": 0.8143940143081771,
+            "perm_p_two_sided": 0.724,
+            "perm_p_one_sided_above": 0.218,
+            "ci_lower_bp": -238.81089980483978,
+            "ci_upper_bp": 398.36231538753947,
+            "prob_positive": 0.6095,
+            "n_candidate_pool": 3345,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_focus_LONG_h12_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 394,
+            "obs_mean_bp": 43.17278119821504,
+            "obs_t": 0.26186572234960803,
+            "null_mean_t": -0.6455247628471138,
+            "signal_t_excess": 0.9073904851967218,
+            "perm_p_two_sided": 0.814,
+            "perm_p_one_sided_above": 0.2,
+            "ci_lower_bp": -255.81089980483964,
+            "ci_upper_bp": 381.3623153875394,
+            "prob_positive": 0.573,
+            "n_candidate_pool": 3345,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "long",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 4,
+                "mean_bp": -214.91739484478586,
+                "t_stat": -0.5703962433326362
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": -100.83776251173617,
+                "t_stat": -0.42560823066651693
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -283.9319568900866,
+                "t_stat": -1.9311724737425382
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": 145.93063310899154,
+                "t_stat": 0.6176405621494606
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": -215.1512757115206,
+                "t_stat": -0.9597801246056676
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": 560.0448625393666,
+                "t_stat": 1.1287056571814544
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": -414.6144869461769,
+                "t_stat": -1.5092647260413916
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 2,
+            "half_year_pos_t_ratio": 0.3333333333333333,
+            "n_pos": 146,
+            "n_neg": 248,
+            "sign_ratio_positive": 0.37055837563451777,
+            "top3_abs_concentration_pct": 11.609188629703745,
+            "concentration_gate": {
+              "half_year_pass": false,
+              "sign_pass": false,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "long",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1148.1145833333333,
+            "n_events": 394,
+            "trades_per_year": 125.25753273029152,
+            "per_trade_net_edge_pct": -3.2364588954834996,
+            "capital_utilization_pct": 17.10231448298388,
+            "mean_hold_days": 0.49836082910321494,
+            "single_trade_sharpe_annualized": 0.4976168567908839,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-3.24%<2.0%",
+              "util=17.10%<30.0%",
+              "sharpe=0.50<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-3.24%<2.0%",
+              "sharpe=0.50<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "long",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1148.1145833333333,
+            "n_events": 394,
+            "trades_per_year": 125.25753273029152,
+            "per_trade_net_edge_pct": -3.4064588954834996,
+            "capital_utilization_pct": 17.10231448298388,
+            "mean_hold_days": 0.49836082910321494,
+            "single_trade_sharpe_annualized": 0.35703025937936317,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-3.41%<2.0%",
+              "util=17.10%<30.0%",
+              "sharpe=0.36<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-3.41%<2.0%",
+              "sharpe=0.36<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        },
+        "A_mirror_SHORT": {
+          "side": "short",
+          "n_trades": 394,
+          "fee_baseline": {
+            "label": "A_mirror_SHORT_h12_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 394,
+            "obs_mean_bp": -76.1727811982149,
+            "obs_t": -0.46202815334662506,
+            "null_mean_t": 0.26483977071350906,
+            "signal_t_excess": -0.7268679240601341,
+            "perm_p_two_sided": 0.64,
+            "perm_p_one_sided_above": 0.759,
+            "ci_lower_bp": -414.3623153875395,
+            "ci_upper_bp": 222.81089980483952,
+            "prob_positive": 0.354,
+            "n_candidate_pool": 3345,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_mirror_SHORT_h12_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 394,
+            "obs_mean_bp": -93.1727811982149,
+            "obs_t": -0.5651421329511495,
+            "null_mean_t": 0.0687293202204408,
+            "signal_t_excess": -0.6338714531715902,
+            "perm_p_two_sided": 0.568,
+            "perm_p_one_sided_above": 0.726,
+            "ci_lower_bp": -431.36231538753947,
+            "ci_upper_bp": 205.81089980483958,
+            "prob_positive": 0.3105,
+            "n_candidate_pool": 3345,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "short",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 4,
+                "mean_bp": 198.9173948447858,
+                "t_stat": 0.5279318355544139
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": 84.83776251173614,
+                "t_stat": 0.35807666787651826
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": 267.93195689008667,
+                "t_stat": 1.8223479514227705
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": -161.9306331089914,
+                "t_stat": -0.6853593733671883
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": 199.1512757115205,
+                "t_stat": 0.8884048471739824
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": -576.0448625393665,
+                "t_stat": -1.1609518069506328
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": 398.61448694617695,
+                "t_stat": 1.451022102165596
+              }
+            ],
+            "n_half_years_measurable": 6,
+            "n_half_years_pos_t": 4,
+            "half_year_pos_t_ratio": 0.6666666666666666,
+            "n_pos": 244,
+            "n_neg": 150,
+            "sign_ratio_positive": 0.6192893401015228,
+            "top3_abs_concentration_pct": 11.644611291457062,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": true,
+              "blowup_pass": true,
+              "overall_pass": true
+            }
+          },
+          "life_changing_baseline": {
+            "side": "short",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1148.1145833333333,
+            "n_events": 394,
+            "trades_per_year": 125.25753273029152,
+            "per_trade_net_edge_pct": 3.0764588954834995,
+            "capital_utilization_pct": 17.10231448298388,
+            "mean_hold_days": 0.49836082910321494,
+            "single_trade_sharpe_annualized": -0.6299336543546691,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "util=17.10%<30.0%",
+              "sharpe=-0.63<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=-0.63<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "short",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1148.1145833333333,
+            "n_events": 394,
+            "trades_per_year": 125.25753273029152,
+            "per_trade_net_edge_pct": 2.9064588954834996,
+            "capital_utilization_pct": 17.10231448298388,
+            "mean_hold_days": 0.49836082910321494,
+            "single_trade_sharpe_annualized": -0.770520251766191,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "util=17.10%<30.0%",
+              "sharpe=-0.77<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=-0.77<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": true,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        }
+      }
+    },
+    "hold_24h": {
+      "n_trades": 400,
+      "cells": {
+        "A_focus_LONG": {
+          "side": "long",
+          "n_trades": 400,
+          "fee_baseline": {
+            "label": "A_focus_LONG_h24_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 400,
+            "obs_mean_bp": -31.817366475568555,
+            "obs_t": -0.19095452727373144,
+            "null_mean_t": -0.3769164761709385,
+            "signal_t_excess": 0.18596194889720705,
+            "perm_p_two_sided": 0.838,
+            "perm_p_one_sided_above": 0.449,
+            "ci_lower_bp": -351.76192944598637,
+            "ci_upper_bp": 315.1868239209261,
+            "prob_positive": 0.4125,
+            "n_candidate_pool": 1377,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_focus_LONG_h24_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 400,
+            "obs_mean_bp": -48.81736647556848,
+            "obs_t": -0.29298141771879965,
+            "null_mean_t": -0.5025479917481515,
+            "signal_t_excess": 0.2095665740293518,
+            "perm_p_two_sided": 0.765,
+            "perm_p_one_sided_above": 0.443,
+            "ci_lower_bp": -368.7619294459863,
+            "ci_upper_bp": 298.1868239209262,
+            "prob_positive": 0.3725,
+            "n_candidate_pool": 1377,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "long",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 10,
+                "mean_bp": -561.6216080573358,
+                "t_stat": -1.0772480735273557
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": -213.31922221319314,
+                "t_stat": -0.7399600892191924
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -262.57460068872814,
+                "t_stat": -0.8193238633493755
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": 250.01459023945478,
+                "t_stat": 0.9025123974377062
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": -78.04112562448067,
+                "t_stat": -0.1981785641119583
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": 197.0330663794138,
+                "t_stat": 0.48049727211758736
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": -606.1242802182551,
+                "t_stat": -2.253999743846347
+              }
+            ],
+            "n_half_years_measurable": 7,
+            "n_half_years_pos_t": 2,
+            "half_year_pos_t_ratio": 0.2857142857142857,
+            "n_pos": 147,
+            "n_neg": 253,
+            "sign_ratio_positive": 0.3675,
+            "top3_abs_concentration_pct": 8.50063248095807,
+            "concentration_gate": {
+              "half_year_pass": false,
+              "sign_pass": false,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "long",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1186.1354166666667,
+            "n_events": 400,
+            "trades_per_year": 123.08881258288032,
+            "per_trade_net_edge_pct": -5.1407731828725245,
+            "capital_utilization_pct": 33.36553407863421,
+            "mean_hold_days": 0.9894010416666665,
+            "single_trade_sharpe_annualized": -0.18338348185034067,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-5.14%<2.0%",
+              "sharpe=-0.18<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-5.14%<2.0%",
+              "sharpe=-0.18<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "long",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1186.1354166666667,
+            "n_events": 400,
+            "trades_per_year": 123.08881258288032,
+            "per_trade_net_edge_pct": -5.310773182872524,
+            "capital_utilization_pct": 33.36553407863421,
+            "mean_hold_days": 0.9894010416666665,
+            "single_trade_sharpe_annualized": -0.2813651672248864,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-5.31%<2.0%",
+              "sharpe=-0.28<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-5.31%<2.0%",
+              "sharpe=-0.28<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        },
+        "A_mirror_SHORT": {
+          "side": "short",
+          "n_trades": 400,
+          "fee_baseline": {
+            "label": "A_mirror_SHORT_h24_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 400,
+            "obs_mean_bp": 15.817366475568498,
+            "obs_t": 0.09492921861954878,
+            "null_mean_t": 0.2586750497453246,
+            "signal_t_excess": -0.16374583112577584,
+            "perm_p_two_sided": 0.928,
+            "perm_p_one_sided_above": 0.543,
+            "ci_lower_bp": -331.1868239209262,
+            "ci_upper_bp": 335.761929445986,
+            "prob_positive": 0.5535,
+            "n_candidate_pool": 1377,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_mirror_SHORT_h24_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 400,
+            "obs_mean_bp": -1.1826335244314146,
+            "obs_t": -0.007097671825519377,
+            "null_mean_t": 0.1330435341681116,
+            "signal_t_excess": -0.14014120599363097,
+            "perm_p_two_sided": 0.992,
+            "perm_p_one_sided_above": 0.535,
+            "ci_lower_bp": -348.18682392092614,
+            "ci_upper_bp": 318.76192944598614,
+            "prob_positive": 0.519,
+            "n_candidate_pool": 1377,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "short",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 10,
+                "mean_bp": 545.6216080573358,
+                "t_stat": 1.0465584260330982
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": 197.3192222131931,
+                "t_stat": 0.6844594113868181
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": 246.57460068872805,
+                "t_stat": 0.769398311604443
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": -266.01459023945483,
+                "t_stat": -0.9602698200952122
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": 62.0411256244807,
+                "t_stat": 0.15754797350452784
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": -213.03306637941395,
+                "t_stat": -0.5195158820146554
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": 590.1242802182549,
+                "t_stat": 2.1945004017501084
+              }
+            ],
+            "n_half_years_measurable": 7,
+            "n_half_years_pos_t": 5,
+            "half_year_pos_t_ratio": 0.7142857142857143,
+            "n_pos": 253,
+            "n_neg": 147,
+            "sign_ratio_positive": 0.6325,
+            "top3_abs_concentration_pct": 8.52450097504369,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": true,
+              "blowup_pass": true,
+              "overall_pass": true
+            }
+          },
+          "life_changing_baseline": {
+            "side": "short",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1186.1354166666667,
+            "n_events": 400,
+            "trades_per_year": 123.08881258288032,
+            "per_trade_net_edge_pct": 4.980773182872524,
+            "capital_utilization_pct": 33.36553407863421,
+            "mean_hold_days": 0.9894010416666665,
+            "single_trade_sharpe_annualized": 0.09116542502723805,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "sharpe=0.09<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=0.09<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "short",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1186.1354166666667,
+            "n_events": 400,
+            "trades_per_year": 123.08881258288032,
+            "per_trade_net_edge_pct": 4.810773182872524,
+            "capital_utilization_pct": 33.36553407863421,
+            "mean_hold_days": 0.9894010416666665,
+            "single_trade_sharpe_annualized": -0.00681626034730762,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "sharpe=-0.01<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=-0.01<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": true,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        }
+      }
+    },
+    "hold_48h": {
+      "n_trades": 415,
+      "cells": {
+        "A_focus_LONG": {
+          "side": "long",
+          "n_trades": 415,
+          "fee_baseline": {
+            "label": "A_focus_LONG_h48_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 415,
+            "obs_mean_bp": -133.84292990642433,
+            "obs_t": -0.768327443835556,
+            "null_mean_t": NaN,
+            "signal_t_excess": NaN,
+            "perm_p_two_sided": NaN,
+            "perm_p_one_sided_above": NaN,
+            "ci_lower_bp": -473.9909771800085,
+            "ci_upper_bp": 214.81801586320512,
+            "prob_positive": 0.2005,
+            "n_candidate_pool": 399,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_focus_LONG_h48_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 415,
+            "obs_mean_bp": -150.84292990642425,
+            "obs_t": -0.8659162111640681,
+            "null_mean_t": NaN,
+            "signal_t_excess": NaN,
+            "perm_p_two_sided": NaN,
+            "perm_p_one_sided_above": NaN,
+            "ci_lower_bp": -490.99097718000826,
+            "ci_upper_bp": 197.8180158632052,
+            "prob_positive": 0.1735,
+            "n_candidate_pool": 399,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "long",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 25,
+                "mean_bp": -125.63002337396148,
+                "t_stat": -0.4447199671653008
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": -64.55239464749133,
+                "t_stat": -0.16271875300564548
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": -130.18807536304888,
+                "t_stat": -0.3061154617446102
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": 934.1833206110183,
+                "t_stat": 1.579415175352627
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": -565.1482642803443,
+                "t_stat": -1.6900151848038107
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": -192.1695196466992,
+                "t_stat": -0.5165474028397635
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": -847.2870807578212,
+                "t_stat": -2.111572185622968
+              }
+            ],
+            "n_half_years_measurable": 7,
+            "n_half_years_pos_t": 1,
+            "half_year_pos_t_ratio": 0.14285714285714285,
+            "n_pos": 155,
+            "n_neg": 260,
+            "sign_ratio_positive": 0.37349397590361444,
+            "top3_abs_concentration_pct": 6.043196158770314,
+            "concentration_gate": {
+              "half_year_pass": false,
+              "sign_pass": false,
+              "blowup_pass": true,
+              "overall_pass": false
+            }
+          },
+          "life_changing_baseline": {
+            "side": "long",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1215.1354166666667,
+            "n_events": 415,
+            "trades_per_year": 124.65688837835287,
+            "per_trade_net_edge_pct": -6.727616182884641,
+            "capital_utilization_pct": 66.19889758514569,
+            "mean_hold_days": 1.938328313253012,
+            "single_trade_sharpe_annualized": -0.5175532738181648,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-6.73%<2.0%",
+              "sharpe=-0.52<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-6.73%<2.0%",
+              "sharpe=-0.52<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "long",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1215.1354166666667,
+            "n_events": 415,
+            "trades_per_year": 124.65688837835287,
+            "per_trade_net_edge_pct": -6.897616182884642,
+            "capital_utilization_pct": 66.19889758514569,
+            "mean_hold_days": 1.938328313253012,
+            "single_trade_sharpe_annualized": -0.5832900718773536,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "edge=-6.90%<2.0%",
+              "sharpe=-0.58<1.5"
+            ],
+            "fail_dims_sparse": [
+              "edge=-6.90%<2.0%",
+              "sharpe=-0.58<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": false,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        },
+        "A_mirror_SHORT": {
+          "side": "short",
+          "n_trades": 415,
+          "fee_baseline": {
+            "label": "A_mirror_SHORT_h48_fee_baseline",
+            "fee_per_trade": 0.0008,
+            "n_obs": 415,
+            "obs_mean_bp": 117.84292990642427,
+            "obs_t": 0.67647919223225,
+            "null_mean_t": NaN,
+            "signal_t_excess": NaN,
+            "perm_p_two_sided": NaN,
+            "perm_p_one_sided_above": NaN,
+            "ci_lower_bp": -230.81801586320555,
+            "ci_upper_bp": 457.99097718000803,
+            "prob_positive": 0.7695,
+            "n_candidate_pool": 399,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "fee_stress": {
+            "label": "A_mirror_SHORT_h48_fee_stress",
+            "fee_per_trade": 0.0025,
+            "n_obs": 415,
+            "obs_mean_bp": 100.84292990642433,
+            "obs_t": 0.5788904249037377,
+            "null_mean_t": NaN,
+            "signal_t_excess": NaN,
+            "perm_p_two_sided": NaN,
+            "perm_p_one_sided_above": NaN,
+            "ci_lower_bp": -247.81801586320546,
+            "ci_upper_bp": 440.9909771800081,
+            "prob_positive": 0.728,
+            "n_candidate_pool": 399,
+            "gate_a_sigex_pass": false,
+            "gate_b_ci_pass": false,
+            "gate_c_perm_p_pass": false,
+            "three_gate_pass": false
+          },
+          "concentration_baseline": {
+            "side": "short",
+            "per_half_year_t_stats": [
+              {
+                "half_year": "2023H1",
+                "n_trades": 25,
+                "mean_bp": 109.63002337396145,
+                "t_stat": 0.3880812809376932
+              },
+              {
+                "half_year": "2023H2",
+                "n_trades": 41,
+                "mean_bp": 48.552394647491255,
+                "t_stat": 0.12238717332827535
+              },
+              {
+                "half_year": "2024H1",
+                "n_trades": 35,
+                "mean_bp": 114.18807536304877,
+                "t_stat": 0.268494140634705
+              },
+              {
+                "half_year": "2024H2",
+                "n_trades": 66,
+                "mean_bp": -950.1833206110183,
+                "t_stat": -1.6064662286610008
+              },
+              {
+                "half_year": "2025H1",
+                "n_trades": 99,
+                "mean_bp": 549.1482642803442,
+                "t_stat": 1.6421689032775035
+              },
+              {
+                "half_year": "2025H2",
+                "n_trades": 115,
+                "mean_bp": 176.16951964669903,
+                "t_stat": 0.4735397580237129
+              },
+              {
+                "half_year": "2026H1",
+                "n_trades": 34,
+                "mean_bp": 831.2870807578207,
+                "t_stat": 2.071697678224896
+              }
+            ],
+            "n_half_years_measurable": 7,
+            "n_half_years_pos_t": 6,
+            "half_year_pos_t_ratio": 0.8571428571428571,
+            "n_pos": 259,
+            "n_neg": 156,
+            "sign_ratio_positive": 0.6240963855421687,
+            "top3_abs_concentration_pct": 6.0586767776752435,
+            "concentration_gate": {
+              "half_year_pass": true,
+              "sign_pass": true,
+              "blowup_pass": true,
+              "overall_pass": true
+            }
+          },
+          "life_changing_baseline": {
+            "side": "short",
+            "fee_per_trade": 0.0008,
+            "oos_days": 1215.1354166666667,
+            "n_events": 415,
+            "trades_per_year": 124.65688837835287,
+            "per_trade_net_edge_pct": 6.567616182884642,
+            "capital_utilization_pct": 66.19889758514569,
+            "mean_hold_days": 1.938328313253012,
+            "single_trade_sharpe_annualized": 0.4556833462330457,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "sharpe=0.46<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=0.46<1.5"
+            ]
+          },
+          "life_changing_stress": {
+            "side": "short",
+            "fee_per_trade": 0.0025,
+            "oos_days": 1215.1354166666667,
+            "n_events": 415,
+            "trades_per_year": 124.65688837835287,
+            "per_trade_net_edge_pct": 6.397616182884641,
+            "capital_utilization_pct": 66.19889758514569,
+            "mean_hold_days": 1.938328313253012,
+            "single_trade_sharpe_annualized": 0.3899465481738569,
+            "cutoffs": {
+              "trades_per_year": 12,
+              "per_trade_net_edge_pct": 2.0,
+              "capital_utilization_pct_diffuse": 30.0,
+              "capital_utilization_pct_sparse": 1.0,
+              "single_trade_sharpe": 1.5
+            },
+            "diffuse_mode_verdict": "FAIL",
+            "sparse_strict_mode_verdict": "FAIL",
+            "fail_dims_diffuse": [
+              "sharpe=0.39<1.5"
+            ],
+            "fail_dims_sparse": [
+              "sharpe=0.39<1.5"
+            ]
+          },
+          "three_gate_verdict": "FAIL",
+          "concentration_gate_overall_pass": true,
+          "life_changing_sparse_verdict_baseline": "FAIL",
+          "life_changing_sparse_verdict_stress": "FAIL",
+          "life_changing_diffuse_verdict_baseline": "FAIL"
+        }
+      }
+    }
+  },
+  "overall_verdict": "PORTFOLIO_ALPHA_INSIGNIFICANT",
+  "sigex_max_per_side": {
+    "long": 0.8143940143081771,
+    "short": -0.16374583112577584
+  },
+  "sigex_max_cell": {
+    "long": "hold_12h/A_focus_LONG",
+    "short": "hold_24h/A_mirror_SHORT"
+  },
+  "pass_cells_full": [],
+  "narrow_pass_cells": []
+}

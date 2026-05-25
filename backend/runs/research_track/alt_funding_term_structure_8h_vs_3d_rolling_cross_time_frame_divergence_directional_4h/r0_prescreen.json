@@ -1,0 +1,142 @@
+{
+  "paradigm": "alt_funding_term_structure_8h_vs_3d_rolling_cross_time_frame_divergence_directional_4h",
+  "paradigm_number": 172,
+  "phase": "R-0",
+  "verdict": "R0_INVENTORY_HALT_LESSON_62_DNA_COLLISION_LESSON_56_FAMILY_PROXY_OUTCOME",
+  "date_kst": "2026-05-21T22:36+09:00",
+  "dispatched_r1": false,
+  "session": "paradigm-architect agent dispatch — Option γ2 from paradigm 171 next-action",
+  "hypothesis": {
+    "statistic": "per-sym (current 8h funding) - (3-day rolling mean funding, 24-bar at 4h cadence / 9-cycle at 8h cadence)",
+    "trigger": "|z| >= 2.0",
+    "universe": ["ADAUSDT", "BCHUSDT", "BNBUSDT", "BTCUSDT", "DOTUSDT", "ETHUSDT", "LINKUSDT", "LTCUSDT", "SOLUSDT", "XRPUSDT"],
+    "hold_primary_min": 240,
+    "hold_sweep_min": [240, 480, 720],
+    "substrate": "binance_funding_rate DB (paradigm 170 asset, 10 syms x 2.25yr x 24,660 records)",
+    "direction": "MR (4-quadrant SNT): A high z SHORT focus / A high z LONG mirror / B low z LONG same-sign / B low z SHORT mirror"
+  },
+  "lesson_69_five_item_strict_template": {
+    "item_1_lesson_61_amendment_slug_grep": {
+      "result": "PASS",
+      "matches": [],
+      "adjacent_slugs": [
+        "funding_cycle_8h_differential_velocity_per_sym (paradigm 99 graveyard)",
+        "funding_velocity_cross_section_dispersion (paradigm 97 graveyard)",
+        "funding_carry (paradigm 22 R-5 LIVE)"
+      ],
+      "note": "no slug match, but adjacent paradigm 99 demands deep DNA audit"
+    },
+    "item_2_lesson_28_amendment_substrate_shape": {
+      "result": "PASS_STRONG",
+      "substrate_existence": "binance_funding_rate DB verified (paradigm 170 asset)",
+      "substrate_shape": "10 syms x 2.25yr x 24,660 rows; 9-cycle rolling lookback feasible; per-sym divergence computation straightforward",
+      "single_source": true,
+      "external_api_dependency": false
+    },
+    "item_3_lesson_11_sample_density": {
+      "result": "PASS_EXPECTED",
+      "panel_total_events": 24660,
+      "trigger_rate_expected_pct": 5.0,
+      "expected_triggers": 1233,
+      "per_cell_n_expected": 308,
+      "per_quarter_n_expected": 34,
+      "lesson_11_floor": 30,
+      "lesson_26_floor_measurable_quarters": 4
+    },
+    "item_4_lesson_62_dna_4dim_audit": {
+      "result": "HARD_FAIL_0_OF_6_STRICT",
+      "boundary_floor": 3,
+      "vs_paradigm_99": {
+        "axis_1_data_domain": "SAME (both binance_funding_rate DB)",
+        "axis_2_statistic_class": "PROXY_SAME (per-sym self-relative funding deviation magnitude over recent window; current - mean_3d and Delta-f rolling-z(30d) measure proxy-isomorphic constructs when funding has persistence)",
+        "axis_3_trigger_threshold": "SAME (|z|>=2.0)",
+        "axis_4_universe": "OVERLAP_HIGH (9/10 paradigm 172 syms in paradigm 99 universe; only DOT new)",
+        "axis_5_entry_side": "PROXY_SAME (both triggered by per-sym z-outlier construct on funding-rate-derived statistic)",
+        "axis_6_mechanism": "PROXY_SAME (both: per-sym leverage shift extreme from recent baseline -> expected MR)",
+        "strict_distinct_count": 0,
+        "verdict": "Lesson #62 boundary HARD FAIL (>=3/5 required)"
+      },
+      "user_stated_distinction": "3d window vs 30d window, rolling mean vs Delta velocity",
+      "audit_finding": "User's surface-level claim does not survive proxy-isomorphism analysis. When funding rates exhibit persistence (paradigm 22 R-5 exploits this), current - mean_3d is highly correlated with integrated path of Delta-funding over last 9 cycles. Both statistics fire on the same underlying events: per-sym funding deviation from recent self. Different technical form != different mechanism axis."
+    },
+    "item_5_lesson_56_family_proxy_outcome_level": {
+      "result": "FAIL_18TH_INSTANCE_CANDIDATE",
+      "funding_family_tier_4_retire_count": 13,
+      "graveyards": [
+        "73 (funding x OI bipolar)",
+        "79 (extreme level retry)",
+        "96 (sign flip)",
+        "97 (cs velocity dispersion)",
+        "98 (regime stratify dispersion)",
+        "99 (per-sym velocity z — closest precedent)",
+        "103 (cross-exchange Bybit)",
+        "132 (funding x OI x magnitude triple)",
+        "138 (raw bp threshold)",
+        "139 (per-sym z x CVD)",
+        "141 (per-sym z NEG-only SHORT)",
+        "167 (cross-exchange Bitget)"
+      ],
+      "r5_live_exception": "paradigm 22 (narrow 3-sym HBAR/AXS/COMP, 8h MR endpoint exit, NOT broad 10-sym 4h directional)",
+      "closest_precedent_outcome": {
+        "paradigm": 99,
+        "verdict": "BROAD_FALSIFIED_MIRROR_ONLY",
+        "focus_a_high_long": {
+          "n": 1295,
+          "mean_bp": 12.44,
+          "sigex": 2.03,
+          "ci_lower_bp": -4.31,
+          "perm_p": 0.205,
+          "three_gate": "FAIL (ci marginal)"
+        },
+        "b_mirror_low_long": {
+          "n": 1304,
+          "mean_bp": 24.00,
+          "sigex": 3.19,
+          "ci_lower_bp": 5.88,
+          "perm_p": 0.028,
+          "three_gate": "PASS but life-changing FAIL"
+        },
+        "life_changing_per_trade_edge_pct": 0.24,
+        "life_changing_gate_pct": 2.0,
+        "deficit_multiplier": "8x below gate",
+        "concentration": "0/13 syms ci_pos (FAIL)",
+        "symmetric_long_bias": "both A LONG + B LONG positive = directional drift artifact, NOT mechanism alpha"
+      },
+      "predicted_outcome_paradigm_172": "BROAD_FALSIFIED_MIRROR_ONLY or NARROW_SCOPE_LIFE_CHANGING_FAIL with per-trade edge 0.2-0.5% range, Concentration FAIL, symmetric directional bias artifact"
+    }
+  },
+  "halt_verdict": "R0_INVENTORY_HALT_LESSON_62_DNA_COLLISION_LESSON_56_FAMILY_PROXY_OUTCOME",
+  "halt_justification": "Joint failure modes: (1) Lesson #62 HARD FAIL 0/6 strict vs paradigm 99 — statistic class proxy-isomorphic, 9/10 universe overlap, identical threshold, identical mechanism story; (2) Lesson #56 OUTCOME-LEVEL family proxy 18th instance candidate — funding family Tier 4 retire 11 cumulative graveyards, closest precedent paradigm 99 explicitly NARROW_SCOPE_LIFE_CHANGING_FAIL (edge 0.24% <<  2% gate, 0/13 syms ci_pos, symmetric LONG bias).",
+  "paradigm_22_r5_vs_paradigm_172": {
+    "paradigm_22_config": "narrow 3-sym HBAR/AXS/COMP, per-sym 30d z level, |z|>=2.5, 8h hold, exit_z=1.0 MR endpoint",
+    "paradigm_172_config": "broad 10-sym, current vs 3d mean, |z|>=2.0, 4h hold, time-based exit (no MR endpoint)",
+    "verdict": "paradigm 172 violates 3/3 of paradigm 22's life-saving configuration choices (narrow cohort / MR endpoint exit / 8h cycle alignment). Maps directly to falsified broad variants, not to paradigm 22 R-5 narrow exception."
+  },
+  "lesson_dogfoods": {
+    "lesson_62_boundary_12th_case": "DNA 4-dim audit table HARD FAIL captured pre-R-1. Proxy-isomorphism analysis correctly classified two statistics as proxy-same family despite surface-level technical-form difference.",
+    "lesson_56_18th_instance_candidate": "Funding family Tier 4 retire 11 cumulative graveyards + closest precedent paradigm 99 NARROW_SCOPE_LIFE_CHANGING_FAIL provide HIGH-confidence outcome prediction.",
+    "lesson_61_amendment_retry_exemption_scope": "Confirms Lesson #61 amendment retry-exemption applies only to substrate-blocked retries (paradigm 171 = paradigm 169 retry post-paradigm 170 unblock), NOT to mechanism-variant retries. paradigm 172 is statistical-form variant of falsified paradigm 99, not substrate retry.",
+    "lesson_69_7th_post_confirmed_success": "5-item strict template caught DNA collision before R-1 dispatch. Item 4 (Lesson #62 4-dim audit table) was the decisive gate."
+  },
+  "counter": {
+    "graveyards": 170,
+    "non_pass_streak": 40,
+    "paradigm_counter": 172,
+    "r5_live": 11,
+    "r5_yield_pct": 6.40,
+    "tier_4_family_retires": 15,
+    "halt_type": "R-0 inventory (not graveyard, not mechanism falsification)"
+  },
+  "paradigm_173_next_action": {
+    "rank_1_option_kappa_recommended": "paradigm 22 R-5 narrow-scope expansion to deep syms (BTC/ETH/SOL/LINK/ADA/DOT). Replicate paradigm 22 narrow-cohort + MR endpoint exit + 8h hold configuration to test which subset of 10-sym paradigm 170 DB sustains paradigm 22-style alpha. DNA 3/5 strict distinct vs paradigm 22 R-5 (universe expansion is core new axis).",
+    "rank_2_option_mu": "substrate-distinct paradigm — exit funding axis entirely. WS recorder forward-collection candidates (2026-07-15+ maturity) or microstructure DB sub-axis with explicit Lesson #56 family-proxy audit.",
+    "rank_3_option_nu": "paper baseline priority transition — Day 7 2026-05-28 / Day 30 2026-06-03, focus on R-5 LIVE 11 paradigm diagnostics."
+  },
+  "memory_policy_compliance": {
+    "no_freemium_trial": "PASS (paradigm 170 DB only)",
+    "life_changing_strategy_criterion": "applied (Lesson #56 predicts LC FAIL per paradigm 99 evidence)",
+    "direct_recommendation": "single recommended next-action (Option kappa)",
+    "campaign_continuous_parallel": "no pause; redirect to paradigm 173 Option kappa",
+    "persistence_over_efficiency": "40-streak milestone unaffected"
+  }
+}

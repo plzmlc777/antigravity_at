@@ -1,0 +1,103 @@
+{
+  "paradigm_id": 217,
+  "paradigm_name": "alt_btc_macro_release_window_pm_15min_event_anchored_vol_burst_alt_directional_5min_to_2h_bilateral",
+  "run_ts_kst": "2026-05-23T08:49:31+09:00",
+  "verdict": "R0_HALT_BY_SUBSTRATE_GAP_BTC_1M_INSUFFICIENT_LESSON_11_PLUS_LESSON_28",
+  "halt_phase": "R-0_pre_R-1_dispatch",
+  "lesson_69_9_item_template": {
+    "item_1_lesson_61_index_grep": {
+      "result": "PASS",
+      "note": "INDEX.json + dir grep: no prior macro_release|cpi|fomc|nfp|calendar_event|fred|fed_release|event_anchored_vol_burst paradigm. paradigm 217 is fresh slot."
+    },
+    "item_2_lesson_28_substrate_shape": {
+      "fred_api_classification": {
+        "verdict": "PASS_GOVERNMENT_FREEMIUM_EXCEPTION",
+        "note": "FRED (St. Louis Fed Federal Reserve) = US government public data, free signup no-trial-to-paid, classified equivalent to DART OpenAPI per [[feedback-no-freemium-trial-dart-exception]]. Classification PASS for substrate but key not registered in this session."
+      },
+      "binance_1m_substrate_audit": {
+        "verdict": "FAIL_CRITICAL",
+        "btc_1m_window_days": 142,
+        "btc_1m_range": "2025-12-22 -> 2026-05-13",
+        "btc_required_for_30d_rolling_p90": "30d warmup minimum, ideally 1yr+ for stable p90",
+        "btc_1m_usable_after_warmup_days": 112,
+        "btc_4h_window_days_alt_substrate": 819,
+        "btc_4h_granularity_vs_event_window": "FAIL — event window is ±15min, 4h bar overlap = 1 bar/event, granularity 16x too coarse",
+        "btc_5m_15m_cache": "NOT_AVAILABLE in DB ohlcv table (only 1m exists for BTCUSDT)",
+        "alts_1m_window_days": {
+          "ADAUSDT": 143,
+          "AVAXUSDT": 755,
+          "BCHUSDT": 798,
+          "BNBUSDT": 798,
+          "DOGEUSDT": 767,
+          "DOTUSDT": 799,
+          "ETCUSDT": 799,
+          "ETHUSDT": 795,
+          "FILUSDT": 798,
+          "LINKUSDT": 767,
+          "LTCUSDT": 798,
+          "SOLUSDT": 795,
+          "XRPUSDT": 798
+        },
+        "alts_window_note": "12/13 alts have 2.1+ yr 1m data BUT BTC trigger source is bottleneck"
+      }
+    },
+    "item_3_lesson_11_sample_density": {
+      "verdict": "FAIL_STRUCTURAL",
+      "macro_events_per_year": 48,
+      "btc_window_yr_fraction": 0.389,
+      "btc_window_after_warmup_yr_fraction": 0.307,
+      "expected_macro_events_in_btc_window": 18.7,
+      "usable_events_after_30d_warmup": 14.7,
+      "per_cell_per_quarter_estimate": 2.5,
+      "lesson_11_cutoff": 30,
+      "failure_ratio": "2.5 / 30 = 8.3% of required density",
+      "note": "Even pooling all 4 quarters × 4 cells × 13 alts × 14.7 events = ~191 trigger×alt × cell-direction, distributed across 4 cells = 47.7/cell pool, BUT per-quarter ≤8 cells/Q ≪ 30 cutoff. UP/DOWN split halves again."
+    },
+    "item_4_lesson_62_dna_5_5_strict": {
+      "verdict": "NOT_REACHED_DUE_TO_ITEM_2_FAIL",
+      "note": "Family-distinct audit not executed because Item 2 substrate fail is fatal R-0 HALT. Skipped to preserve audit clarity."
+    },
+    "item_5_lesson_56_family_proxy": "NOT_REACHED",
+    "item_6_alpha_decay_5plus_pattern_audit": "NOT_REACHED",
+    "item_7_snt_structural_integrity": "NOT_REACHED",
+    "item_8_concentration_temporal_independence": "NOT_REACHED",
+    "item_9_life_changing_4dim_structural_prescreen": "NOT_REACHED"
+  },
+  "decisive_halt_reasoning": {
+    "primary_cause": "BTC 1m substrate window 142d (2025-12-22 -> 2026-05-13) — only 4.7 months",
+    "secondary_compound": "30d rolling p90 z-score requires 30d warmup -> usable 112d -> 14.7 macro release events",
+    "tertiary_compound": "Per-quadrant per-quarter per-cell density 2.5 vs Lesson #11 cutoff 30 — 12x below threshold",
+    "alternative_substrate_check": {
+      "btc_4h_819d": "REJECTED — granularity 4h vs event window ±15min, structurally too coarse",
+      "btc_5m_15m_db": "NOT_AVAILABLE — only 1m timeframe stored for BTCUSDT",
+      "btc_archive_backfill": "OUT_OF_SCOPE — 2.25yr 1m backfill required (~250M rows BTC alone), 30+ min ETA, halt per paradigm-architect spec",
+      "fred_freemium_classification": "PASS_GOVERNMENT_EXCEPTION but moot due to Binance substrate fail"
+    }
+  },
+  "lesson_29_cross_proxy": "NOT_TRIGGERED — single substrate fail, no proxy-axis ambiguity",
+  "lesson_30_data_window_ratio_advisory": {
+    "btc_1m_window_ratio": "142d / 819d (BTC 4h full window) = 17.3%",
+    "verdict": "FAIL — ratio 17.3% well below 30% advisory threshold + structural infeasibility",
+    "note": "Lesson #30 short-data verdict advisory is satisfied because we halt at R-0 (no R-1 dispatch), no advisory verdict to issue downstream."
+  },
+  "memorial_chain_dogfood_status": {
+    "paradigm_203_memorial_mode_switch": "ACTIVE_USER_PROVIDED_HYPOTHESIS",
+    "user_recommendation_option_3_received": true,
+    "agent_self_recommend_chain_break": "confirmed by user direct recommendation"
+  },
+  "lesson_42_b_mirror_dogfood": "NOT_REACHED (R-0 HALT precedes 4-quadrant SNT execution). chain 20th dogfood DEFERRED to paradigm 218.",
+  "alpha_decay_pattern_p1_streak_status": {
+    "current_streak_pre_paradigm_217": "6 consecutive (paradigm 87+136+202+210+211+212)",
+    "paradigm_217_test_outcome": "NOT_TESTED (R-0 HALT pre-R-1)",
+    "streak_unchanged": "6 consecutive — paradigm 218 remains 7th-consecutive test slot"
+  },
+  "next_action_recommendation": {
+    "primary": "paradigm 218 dispatch with alternative substrate-feasible event-anchor (NOT BTC RV requiring 1m)",
+    "candidates_archive": [
+      "macro-event proxy using BTC 4h close ±1bar (819d full window, 48 events/yr × 2.25yr ≈ 108 events, but 4h granularity ≠ ±15min spec)",
+      "backfill BTC 1m to 2.25yr full window via archive (~30min ETA, halt per spec) — defer to dedicated infrastructure session",
+      "event-anchor reformulation: weekly major release (FOMC + CPI only ~20/yr, BTC 4h closer match)"
+    ],
+    "user_provided_mode_continued": "yes, paradigm 203 MEMORIAL precedent active"
+  }
+}

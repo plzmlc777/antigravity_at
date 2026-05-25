@@ -26,7 +26,7 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 - `.claude/plans/research_track_master.md` — elite gate definition, paradigm catalog, R-1~R-6 protocol
 - `.claude/plans/paper_pool_master.md` — current paper pool baseline (~38 sessions)
 - `.claude/plans/paradigm_architect_handoff.json` — most recent session handoff (graveyards, lessons, infrastructure deltas)
-- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **28 cumulative lessons** (Q3 mid-update, 2026-05-18) — read before any R-1 dispatch
+- `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **72+ cumulative lessons** (lesson_prescreen_checklist.md authoritative, Q3 latest 2026-05-22 paradigm 203 MEMORIAL) — read before any R-1 dispatch. Includes Lesson #55 1st dogfood + NEW Lesson candidate prescription rescue scope + Lesson #61 5 consecutive post-paradigm-188 reinforce + alpha decay cross-family universal documented + agent SELF-RECOMMEND saturation default fallback.
 - `backend/scripts/research/_perm_utils.py` — mandatory fee-aware perm + bootstrap CI helper
 - `backend/scripts/research/_ohlcv_parquet_cache.py` — joblib OHLCV cache loader
 - `backend/scripts/research/eval_research_gate.py` — automated gate evaluator
@@ -185,6 +185,8 @@ If any check fails: fix code before promoting. Document fix in commit.
 | Sweep cell PASS off-primary (Lesson #37 CONFIRMED 자격 paradigm 107+108) | full hold×threshold sweep verdict scan 의무 — auto-evaluator must scan all cells for 3-gate PASS, not only primary. Document non-primary PASS cells even if NARROW_SCOPE_LIFE_CHANGING_FAIL ineligible |
 | Gate evaluator parse error | inspect metrics.json schema, regenerate script |
 | Dogfood mismatch | STOP and re-validate gate config — do not promote until reconciled |
+| Agent SELF-RECOMMEND mode 5 consecutive non-PASS (paradigm 203 MEMORIAL precedent paradigm 178/199/200/201/202) | switch to user-provided hypothesis mode 의무. continuous-parallel preserved, persistence-over-efficiency preserved — mode-switch only, NOT pause |
+| Predecessor monotonic temporal decay documented (alpha decay informational learning — paradigm 87 delisting / paradigm 136/202 RV intraday cross-family pattern) | `R0_HALT_BY_INFORMATIONAL_DECAY_LESSON_55_PRESCRIPTION_OUT_OF_SCOPE` — spatial fix (universe expansion) ≠ temporal fix (alpha decay) |
 
 ## Dogfood validation requirement
 

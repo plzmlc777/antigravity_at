@@ -1,0 +1,48 @@
+{
+  "paradigm_number": 201,
+  "slug": "alt_per_sym_intraday_1h_log_return_std_24h_rolling_window_z_spike_directional_4h_bilateral",
+  "phase": "R-0",
+  "verdict": "R0_HALT_DNA_DUPLICATE_PRIOR_GRAVEYARD",
+  "halt_reason": "Lesson #61 amendment slug grep 4th post-confirmation success — proposed slug shares DNA 6/6 with paradigm 136 prior R-0 graveyard (alt_intraday_1h_log_return_std_24h_window_z_directional_4h, 2026-05-21).",
+  "predecessor": {
+    "paradigm_number": 136,
+    "slug": "alt_intraday_1h_log_return_std_24h_window_z_directional_4h",
+    "verdict": "R0_HALT_INSUFFICIENT_DENSITY_LESSON_11_23_ASYMMETRIC_Z_DISTRIBUTION",
+    "graveyard_date_kst": "2026-05-21T11:29:00+09:00"
+  },
+  "dna_dim_matches": {
+    "statistic_class": "IDENTICAL (24h rolling std of per-sym 1h log-return, 30d z-score)",
+    "frame": "IDENTICAL (1h granularity intraday)",
+    "trigger": "IDENTICAL (|z|>=+2 spike)",
+    "direction": "IDENTICAL (4-quadrant SNT bilateral)",
+    "hold": "IDENTICAL (4h primary)",
+    "universe": "EQUIVALENT (12 alts paradigm 133/134 cohort vs 20 alts paradigm 198 cohort — universe expansion only)",
+    "overlap_score": "6/6"
+  },
+  "lesson_61_grep_query": "ls backend/runs/research_track/ | grep -iE 'intraday_1h|1h_log_return|24h_rolling|intraday_vol_smoother|1h_vol_std|hourly_vol_std'",
+  "lesson_61_grep_hit": true,
+  "lesson_61_post_confirmation_target": "4th consecutive success (paradigm 178/199/200/201)",
+  "predecessor_finding": {
+    "z_distribution_asymmetry": "13.9x (z>+2 4.16% vs z<-2 0.30%, n=60000 sample)",
+    "trigger_count_asymmetry": "16.5x (pos 1598 vs neg 97 across 12 syms × 799d)",
+    "per_quarter_density_b_side": "0/10 quarters >= 30 cutoff (max single quarter 22)",
+    "stratified_a_focus_result": "gross +88.77bp t +4.13, 4/4 quarters positive BUT temporal decay 2024Q1 +267bp -> 2026Q2 +1.34bp (200x compression)",
+    "mechanism_overlap_caution": "A side mechanism overlaps paradigm 69 R-5 LIVE (HIGH vol -> LONG continuation) frame-distinct but family-same"
+  },
+  "universe_expansion_recovery_check": {
+    "claim": "20 syms (paradigm 198 cohort) vs 12 syms (paradigm 136) recovers B side density",
+    "verdict": "FALSE",
+    "reasoning": "z<-2 empirical rate 0.30% is STRUCTURAL property of non-negative aggregate (std lower bound 0). 20 syms × 0.30% × 2.25yr × 24h ~= 11,826 obs → 4 quadrants × 9 quarters = 36 cells per-cell 36 marginally above 30 cutoff. BUT predecessor finding 'temporal decay 2024Q1 +267 -> 2026Q2 +1.34bp' invalidates fresh dispatch — universe expansion does not reset temporal decay."
+  },
+  "frame_class_shift_claim_audit": {
+    "user_hypothesis_claim": "1h frame fresh class vs paradigm 69 1d frame",
+    "predecessor_paradigm_136_already_uses_1h_frame": true,
+    "frame_shift_already_executed_at_paradigm_136": true,
+    "verdict": "NOT a fresh frame-class shift — paradigm 136 already covered 1h frame variant. Proposed paradigm 201 = repeat dispatch of same frame+statistic+trigger+direction+hold+universe."
+  },
+  "wall_clock_seconds": 1.5,
+  "r1_dispatched": false,
+  "host": "hcp_local",
+  "completed_at_kst": "2026-05-22T16:15:30+09:00",
+  "next_action": "Continuous-parallel campaign per [Persistence over efficiency]. Pivot to genuinely fresh frame/statistic/direction class. Candidates: (a) reformulate intraday vol via percentile-rank (Lesson #40 prescription) — but predecessor warned temporal decay independent of asymmetry. (b) shift to entirely different axis class (non-vol microstructure: e.g., per-sym 1h orderbook imbalance, taker buy ratio z-spike). (c) paradigm 134 §6.31 Rank 3+ pending candidate."
+}

@@ -1,0 +1,315 @@
+{
+  "paradigm": "alt_range_volume_divergence_percentile_rank_directional_4h",
+  "paradigm_id": 153,
+  "phase": "R-0",
+  "verdict": "PASS_R0",
+  "halt_reasons": [],
+  "substrate": "binance_klines_4h_12col (paradigm 142/152 cache reuse)",
+  "universe": [
+    "ADAUSDT",
+    "AVAXUSDT",
+    "BCHUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "FILUSDT",
+    "LINKUSDT",
+    "LTCUSDT",
+    "NEARUSDT",
+    "SOLUSDT",
+    "WIFUSDT",
+    "XRPUSDT"
+  ],
+  "n_syms": 13,
+  "lookback_bars": 180,
+  "rank_lookback_bars": 180,
+  "rank_upper": 0.95,
+  "rank_lower": 0.05,
+  "per_sym_window": [
+    {
+      "sym": "ADAUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "AVAXUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "BCHUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "BNBUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "DOGEUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "ETHUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "FILUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "LINKUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "LTCUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "NEARUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "SOLUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "WIFUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    },
+    {
+      "sym": "XRPUSDT",
+      "start": "2024-03-11 16:00:00",
+      "end": "2026-04-30 20:00:00",
+      "n": 4682
+    }
+  ],
+  "lesson40_reformulate_fix_verification": {
+    "fix_type": "percentile rank top/bottom 5% (paradigm 110 precedent)",
+    "rationale": "paradigm 152 z-score subtraction asymmetric distribution (p99<2 13/13) \u2192 pct rank bounded [0,1] both sides structurally attainable by construction",
+    "records": [
+      {
+        "sym": "ADAUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 256,
+        "n_bot_lt_p05": 249,
+        "rate_top": 0.054677488252883384,
+        "rate_bot": 0.053182400683468606
+      },
+      {
+        "sym": "AVAXUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 237,
+        "n_bot_lt_p05": 246,
+        "rate_top": 0.05061939342161469,
+        "rate_bot": 0.05254164886800513
+      },
+      {
+        "sym": "BCHUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 253,
+        "n_bot_lt_p05": 269,
+        "rate_top": 0.05403673643741991,
+        "rate_bot": 0.057454079453225115
+      },
+      {
+        "sym": "BNBUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.005555555555555556,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 246,
+        "n_bot_lt_p05": 256,
+        "rate_top": 0.05254164886800513,
+        "rate_bot": 0.054677488252883384
+      },
+      {
+        "sym": "DOGEUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 248,
+        "n_bot_lt_p05": 285,
+        "rate_top": 0.05296881674498078,
+        "rate_bot": 0.06087142246903033
+      },
+      {
+        "sym": "ETHUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 245,
+        "n_bot_lt_p05": 220,
+        "rate_top": 0.0523280649295173,
+        "rate_bot": 0.04698846646732166
+      },
+      {
+        "sym": "FILUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 255,
+        "n_bot_lt_p05": 266,
+        "rate_top": 0.05446390431439556,
+        "rate_bot": 0.05681332763776164
+      },
+      {
+        "sym": "LINKUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 248,
+        "n_bot_lt_p05": 278,
+        "rate_top": 0.05296881674498078,
+        "rate_bot": 0.05937633489961555
+      },
+      {
+        "sym": "LTCUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 269,
+        "n_bot_lt_p05": 278,
+        "rate_top": 0.057454079453225115,
+        "rate_bot": 0.05937633489961555
+      },
+      {
+        "sym": "NEARUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 245,
+        "n_bot_lt_p05": 243,
+        "rate_top": 0.0523280649295173,
+        "rate_bot": 0.051900897052541646
+      },
+      {
+        "sym": "SOLUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 244,
+        "n_bot_lt_p05": 236,
+        "rate_top": 0.05211448099102947,
+        "rate_bot": 0.05040580948312687
+      },
+      {
+        "sym": "WIFUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 275,
+        "n_bot_lt_p05": 240,
+        "rate_top": 0.058735583084152075,
+        "rate_bot": 0.05126014523707817
+      },
+      {
+        "sym": "XRPUSDT",
+        "n": 4682,
+        "pr_min": 0.005555555555555556,
+        "pr_max": 1.0,
+        "pr_p01": 0.011111111111111112,
+        "pr_p99": 0.9944444444444445,
+        "n_top_gt_p95": 261,
+        "n_bot_lt_p05": 256,
+        "rate_top": 0.05574540794532251,
+        "rate_bot": 0.054677488252883384
+      }
+    ],
+    "total_top": 3282,
+    "total_bot": 3322,
+    "rate_top": 0.05392172970131108,
+    "rate_bot": 0.054578911050504386,
+    "asymmetry_ratio": 0.9879590608067429,
+    "syms_with_both_sides": 13,
+    "n_syms": 13,
+    "pass_balanced_attainability": true,
+    "pass_per_sym_both_sides": true
+  },
+  "lesson11_sample_density": {
+    "total_n_bars": 60866,
+    "total_top_gt_p95": 3282,
+    "total_bot_lt_p05": 3322,
+    "rate_top": 0.05392172970131108,
+    "rate_bot": 0.054578911050504386,
+    "n_quarters_est": 9,
+    "per_cell_top_est": 364.6666666666667,
+    "per_cell_bot_est": 369.1111111111111,
+    "per_cell_min": 364.6666666666667,
+    "pass": true
+  },
+  "lesson58_corr_xref_paradigm152": {
+    "status": "paradigm 152 PASS confirmed (corr 0.65-0.78 healthy zone), identical substrate, no rerun needed",
+    "n_healthy_prior": 13
+  },
+  "lesson44_37th_xref": {
+    "paradigm_110_funding_neg_z_pct_rank": "1st natural reformulate precedent (z\u2192pct rank structural fix SUCCESS, BUT mechanism direction inverted graveyard \u2014 direction inversion risk for p153)",
+    "paradigm_152_range_vol_divergence_z": "1st sub-class D dogfood (z subtraction asymmetric distribution graveyard) \u2014 paradigm 153 structured reformulate response",
+    "paradigm_116_volume_confirmed_atr_breakout": "distinct: ATR breakout (continuation) vs range-volume regime classifier",
+    "paradigm_129_parkinson_range_vol": "distinct: single-axis raw range vs joint divergence + pct rank",
+    "paradigm_137_yang_zhang_close_ratio": "distinct: vol-of-vol close ratio vs range-volume joint",
+    "paradigm_142_quote_vol_imbalance": "distinct: taker_buy filter on quote_vol vs range_z-vol_z+pct rank",
+    "paradigm_144_quote_vol_count_ratio": "distinct: avg_trade_size ratio vs range \u00d7 volume joint",
+    "axis_genuinely_new_vs_p152": true,
+    "axis_distinct_from_p152": "trigger formulation (pct rank vs z-score), same underlying mechanism (thin/consolidation regime)"
+  },
+  "lesson54_same_bar_check": {
+    "type": "subtraction not ratio (range_z - vol_z) \u2192 pct rank",
+    "same_bar": true,
+    "independent_mechanism_story": "thin/consolidation regime classifier (range-volume joint state) reformulated trigger",
+    "note": "identical to p152, no change"
+  },
+  "paradigm_110_direction_inversion_risk": {
+    "warning": "paradigm 110 (funding neg z \u2192 pct rank \u22640.10) structural reformulate SUCCESS but mechanism direction inverted graveyard. paradigm 153 must validate mechanism direction in R-1 (top pct rank \u2192 MR vs continuation; bottom pct rank \u2192 continuation vs MR). 4-quadrant SNT mandatory."
+  }
+}
