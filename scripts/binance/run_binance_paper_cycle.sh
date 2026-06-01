@@ -58,6 +58,13 @@ PYTHONPATH=. python3 -m scripts.paper_session_cli run --all --exchange binance 2
 EC="${PIPESTATUS[0]}"
 echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 
+# 3-track lifecycle short deploy (.claude/plans/lifecycle_short_real_deploy.md §3.5):
+# mirror System-2 lifecycle decisions (BACKTEST track, just advanced above) to the
+# linked v2 live PAPER sessions via /submit-signal. --submit posts to PAPER
+# (is_paper) targets only; REAL stays gated (no --include-real here).
+echo "[binance-paper] lifecycle live signal mirror (paper)..." | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit 2>&1 | tee -a "${LOG_FILE}"
+
 # Append a status snapshot for monitoring
 echo "" | tee -a "${LOG_FILE}"
 echo "[binance-paper] post-cycle status:" | tee -a "${LOG_FILE}"
