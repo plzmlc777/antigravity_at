@@ -224,6 +224,21 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    // S67 (061090, S/R dual-trigger): S1 pivot bounce + PDH breakout-retest, EOD-flat, 15m.
+    // Backtest (thru 2026-04): 2026 71 trades +19.35% sharpe 2.28, WF 5/6. PAPER forward
+    // test — first cycle (May) -6.89% vs BH +11.78%: regime flipped up, strategy is a
+    // down/choppy specialist. Kept on paper to accumulate regime-transition evidence.
+    {
+        name: "kr-paper-cycle-s67-061090",
+        script: SAS_WRAPPER,
+        args: `'45 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        env: { KR_PAPER_SESSION: "061090_s67_seed" },
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
     // ─── Composer framework (Phase 6, 2026-05-02) ───
     // Pattern + KR investor flow + LightGBM combination, validated OOS:
     //   122630 sharpe 2.20 PF 2.21 +30pts vs BH
