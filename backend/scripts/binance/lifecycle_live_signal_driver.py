@@ -58,6 +58,34 @@ LINKS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "live_links.
 STATE_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "live_signal_state.json"
 
 SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
+MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
+
+
+def _real_available_usdt(account_id: int) -> float:
+    """Query a real account's available USDT margin (shared cross-margin pool).
+    Builds an adapter from the account row (decrypts keys) — Mint-only path."""
+    import asyncio
+    try:
+        from app.db.session import SessionLocal
+        from app.models.account import ExchangeAccount
+        from app.api.endpoints import create_adapter_from_account
+    except Exception as exc:  # not on backend host / import unavailable
+        log.error("REAL balance import failed (%s) — cannot size REAL", exc)
+        return 0.0
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            log.error("REAL account_id=%s not found", account_id)
+            return 0.0
+        adapter = create_adapter_from_account(acc)
+        bal = asyncio.run(adapter.get_balance())
+        return float((bal or {}).get("cash", {}).get("USDT", 0.0))
+    except Exception as exc:
+        log.error("REAL balance query failed for account %s: %s", account_id, exc)
+        return 0.0
+    finally:
+        db.close()
 
 
 def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
@@ -121,6 +149,11 @@ def run(args) -> int:
         return 0
     state: dict[str, dict] = _load_json(STATE_PATH, {})
 
+    # REAL full-compound sizing: deploy the shared account's available margin.
+    # Fetched once per account per run; decremented as we fund REAL shorts so
+    # concurrent entries in one cycle don't over-allocate the shared pool.
+    real_budget: dict[int, float] = {}
+
     n_actions = 0
     for s2_id, link in links.items():
         cycle = _read_last_cycle(s2_id)
@@ -152,9 +185,28 @@ def run(args) -> int:
                 log.info("%s %s (%s): in sync (side=%s)", s2_id, track, symbol, desired)
                 continue
 
+            margin_used = 0.0  # REAL: how much of the shared budget this short consumes
             if desired == "short":
                 side = "short"
-                qty = (notional / ref_price) if ref_price > 0 else 0.0
+                if track == "real":
+                    # full-compound: deploy the shared account's available margin.
+                    acc_id = link.get("real_account_id")
+                    lev = int(link.get("real_leverage", 1) or 1)
+                    if acc_id is None:
+                        log.error("%s real: missing real_account_id in link — skip", s2_id)
+                        continue
+                    if acc_id not in real_budget:
+                        real_budget[acc_id] = _real_available_usdt(int(acc_id))
+                        log.info("REAL account %s available margin: %.2f USDT", acc_id, real_budget[acc_id])
+                    avail = real_budget[acc_id]
+                    if avail < MIN_REAL_NOTIONAL or ref_price <= 0:
+                        log.info("%s real (%s): available %.2f < min %.2f (or no price) — skip, retry next cycle",
+                                 s2_id, symbol, avail, MIN_REAL_NOTIONAL)
+                        continue
+                    margin_used = avail               # deploy full available margin
+                    qty = (avail * lev) / ref_price   # notional = margin × leverage
+                else:  # paper: fixed notional from link
+                    qty = (notional / ref_price) if ref_price > 0 else 0.0
             else:  # flat
                 side = "close_position"
                 qty = 0.0
@@ -170,8 +222,9 @@ def run(args) -> int:
             }
             n_actions += 1
             if args.dry_run:
-                log.info("[DRY] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f @~%.6g",
-                         track, symbol, intended, desired, live_id, side, qty, ref_price)
+                log.info("[DRY] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f @~%.6g%s",
+                         track, symbol, intended, desired, live_id, side, qty, ref_price,
+                         (f" (margin≈{margin_used:.2f})" if margin_used else ""))
                 continue
             try:
                 res = _submit(args.api_url, live_id, side=side, symbol=symbol,
@@ -179,6 +232,8 @@ def run(args) -> int:
                 result = res.get("result", res)
                 # success "No position to close" is benign for close → still in sync
                 link_state[track] = desired  # update ONLY on success → failures retry next cycle
+                if track == "real" and margin_used and link.get("real_account_id") in real_budget:
+                    real_budget[link["real_account_id"]] -= margin_used  # consume shared budget
                 log.info("[SENT] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f result=%s",
                          track, symbol, intended, desired, live_id, side, qty, result)
             except requests.HTTPError as exc:

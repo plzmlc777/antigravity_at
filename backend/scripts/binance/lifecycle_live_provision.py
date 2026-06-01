@@ -166,6 +166,10 @@ def _provision_one(*, system2_id: str, symbol: str, track: str, account_id: int,
     entry["symbol"] = symbol
     entry["notional_usdt"] = notional
     entry[track] = sid
+    if track == "real":
+        # driver sizes REAL by the account's live available margin (full-compound)
+        entry["real_account_id"] = account_id
+        entry["real_leverage"] = leverage
     links[system2_id] = entry
     _save_links(links)
     log.info("[LINKED] %s.%s = %s (notional=%.2f)", system2_id, track, sid, notional)
@@ -174,20 +178,40 @@ def _provision_one(*, system2_id: str, symbol: str, track: str, account_id: int,
 
 def auto_link(args) -> int:
     """Scan System-2 lifecycle earlyexit_d14 sessions and provision+link a PAPER
-    session for any not yet linked. Idempotent — safe to run every cycle.
-    REAL track is never auto-provisioned (Phase 1, manual)."""
+    (and optionally REAL) session for any **brand-new** listing not yet tracked.
+    Idempotent — safe to run every cycle.
+
+    A System-2 id already present in live_links.json is SKIPPED entirely — this
+    protects in-flight positions (e.g. STAR/PHAROS/CTR entered days ago) from a
+    stale REAL entry. REAL (account given via --real-account-id) is provisioned
+    ONLY alongside a fresh PAPER link, so REAL only ever enters new listings at
+    their Day-1, never catches up into an established short."""
     sessions = _scan_lifecycle_sessions(args.name_filter)
-    log.info("auto-link scan: %d active '%s' System-2 sessions", len(sessions), args.name_filter)
+    log.info("auto-link scan: %d active '%s' System-2 sessions (real_account=%s)",
+             len(sessions), args.name_filter, args.real_account_id)
     rc = 0
     for s in sessions:
-        if not s.get("session_id") or not s.get("symbol"):
+        sid2 = s.get("session_id")
+        sym = s.get("symbol")
+        if not sid2 or not sym:
             continue
+        if sid2 in _load_links():
+            log.info("[SKIP] %s already tracked — protects in-flight position", sid2)
+            continue
+        # brand-new listing → PAPER (+ REAL if configured)
         r = _provision_one(
-            system2_id=s["session_id"], symbol=s["symbol"], track="paper",
+            system2_id=sid2, symbol=sym, track="paper",
             account_id=args.account_id, notional=args.notional,
             initial_capital=args.initial_capital, leverage=args.leverage,
             session_id=None, commit=args.commit)
         rc = rc or r
+        if args.real_account_id:
+            r2 = _provision_one(
+                system2_id=sid2, symbol=sym, track="real",
+                account_id=int(args.real_account_id), notional=args.notional,
+                initial_capital=args.real_initial_capital, leverage=args.leverage,
+                session_id=None, commit=args.commit)
+            rc = rc or r2
     return rc
 
 
@@ -215,6 +239,11 @@ def build_parser() -> argparse.ArgumentParser:
                         "session for any not yet linked (idempotent; REAL never auto-provisioned)")
     p.add_argument("--name-filter", default="earlyexit_d14",
                    help="System-2 session name substring to auto-link (default: earlyexit_d14)")
+    p.add_argument("--real-account-id", dest="real_account_id", type=int, default=None,
+                   help="if set, auto-link also provisions a REAL (is_paper=false) session on this "
+                        "account for each BRAND-NEW listing (REAL never catches up into existing links)")
+    p.add_argument("--real-initial-capital", dest="real_initial_capital", type=float, default=100.0,
+                   help="REAL session equity baseline (driver sizes by live available margin, not this)")
     # single-provision args (ignored in --auto-link mode)
     p.add_argument("--system2-id", default=None, help="System-2 lifecycle paper session id to link")
     p.add_argument("--symbol", default=None, help="e.g. STARUSDT")
