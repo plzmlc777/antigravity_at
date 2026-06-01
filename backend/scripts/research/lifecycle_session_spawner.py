@@ -144,6 +144,11 @@ def update_listings(known: dict) -> tuple[dict, list[str]]:
             continue
         if s.get("status") != "TRADING":
             continue
+        # Crypto-only: the lifecycle pump-decay paradigm targets crypto listings,
+        # NOT tokenized stocks (underlyingType=='EQUITY' / contractType=='TRADIFI_PERPETUAL').
+        # Their dynamics track the underlying equity, not a crypto listing pump-decay.
+        if s.get("underlyingType") != "COIN" or s.get("contractType") != "PERPETUAL":
+            continue
         onboard_ms = s.get("onboardDate")
         if not onboard_ms:
             continue

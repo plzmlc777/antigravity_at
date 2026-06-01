@@ -85,6 +85,25 @@ def _save_links(links: dict) -> None:
     LINKS_PATH.write_text(json.dumps(links, indent=2))
 
 
+_EXCHANGE_INFO_URL = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+
+
+def _crypto_perp_symbols() -> Optional[set]:
+    """Set of Binance Futures symbols that are CRYPTO perps (underlyingType=='COIN').
+    Excludes tokenized stocks (underlyingType=='EQUITY' / contractType=='TRADIFI_PERPETUAL'),
+    which the lifecycle pump-decay paradigm was NOT designed for. Returns None on fetch
+    failure → caller must FAIL-CLOSED (skip provisioning) rather than risk a stock short."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(_EXCHANGE_INFO_URL, timeout=20) as r:
+            data = json.loads(r.read())
+    except Exception as exc:
+        log.error("exchangeInfo fetch failed (%s) — cannot verify crypto-only", exc)
+        return None
+    return {s["symbol"] for s in data.get("symbols", [])
+            if s.get("underlyingType") == "COIN" and s.get("contractType") == "PERPETUAL"}
+
+
 def _scan_lifecycle_sessions(name_filter: str) -> list[dict]:
     """Scan System-2 paper-session store for active sessions whose name contains
     `name_filter`. Returns [{session_id, symbol, name}] (filesystem-only, no heavy import)."""
@@ -187,13 +206,23 @@ def auto_link(args) -> int:
     ONLY alongside a fresh PAPER link, so REAL only ever enters new listings at
     their Day-1, never catches up into an established short."""
     sessions = _scan_lifecycle_sessions(args.name_filter)
-    log.info("auto-link scan: %d active '%s' System-2 sessions (real_account=%s)",
-             len(sessions), args.name_filter, args.real_account_id)
+    # Crypto-only gate: the lifecycle pump-decay paradigm is for crypto listings,
+    # NOT tokenized stocks (EQUITY/TRADIFI_PERPETUAL). FAIL-CLOSED if exchangeInfo
+    # is unavailable — never risk provisioning a (REAL) stock short.
+    crypto = _crypto_perp_symbols()
+    if crypto is None:
+        log.error("crypto-only gate unavailable (exchangeInfo failed) — aborting auto-link (fail-closed)")
+        return 1
+    log.info("auto-link scan: %d active '%s' System-2 sessions (real_account=%s, %d crypto perps)",
+             len(sessions), args.name_filter, args.real_account_id, len(crypto))
     rc = 0
     for s in sessions:
         sid2 = s.get("session_id")
         sym = s.get("symbol")
         if not sid2 or not sym:
+            continue
+        if sym not in crypto:
+            log.info("[SKIP-EQUITY] %s (%s) not a crypto perp (tokenized stock/other) — excluded", sid2, sym)
             continue
         if sid2 in _load_links():
             log.info("[SKIP] %s already tracked — protects in-flight position", sid2)
