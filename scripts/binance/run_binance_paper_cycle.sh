@@ -61,13 +61,17 @@ echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 # 3-track lifecycle short deploy (.claude/plans/lifecycle_short_real_deploy.md §3.5).
 # (1) auto-link: provision+link a PAPER v2 session for any new lifecycle earlyexit_d14
 #     System-2 session not yet tracked (idempotent; account 12 = paper, REAL never auto).
-echo "[binance-paper] lifecycle auto-link new listings (paper)..." | tee -a "${LOG_FILE}"
+# BRAND-NEW listings get PAPER (account 12) + REAL (account 8) sessions. Already-tracked
+# listings (in-flight positions) are skipped → REAL never catches up into an existing short,
+# only enters fresh listings at Day-1.
+echo "[binance-paper] lifecycle auto-link new listings (paper+real)..." | tee -a "${LOG_FILE}"
 PYTHONPATH=. python3 scripts/binance/lifecycle_live_provision.py \
-  --auto-link --account-id 12 --notional 200 --initial-capital 10000 --commit 2>&1 | tee -a "${LOG_FILE}"
-# (2) reconcile: drive linked v2 live PAPER sessions to System-2's current side via
-#     /submit-signal. --submit posts to PAPER only; REAL gated (no --include-real).
-echo "[binance-paper] lifecycle live signal reconcile (paper)..." | tee -a "${LOG_FILE}"
-PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit 2>&1 | tee -a "${LOG_FILE}"
+  --auto-link --account-id 12 --notional 200 --initial-capital 10000 \
+  --real-account-id 8 --real-initial-capital 100 --commit 2>&1 | tee -a "${LOG_FILE}"
+# (2) reconcile: drive linked v2 live sessions to System-2's current side via /submit-signal.
+#     PAPER = fixed notional; REAL = full-compound (account 8 available margin, 전체 금액 복리).
+echo "[binance-paper] lifecycle live signal reconcile (paper+real)..." | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
 
 # Append a status snapshot for monitoring
 echo "" | tee -a "${LOG_FILE}"
