@@ -1,39 +1,40 @@
 #!/usr/bin/env python3
-"""Lifecycle decay short — live signal driver (Phase 0, 3-track parallel).
+"""Lifecycle decay short — live signal driver (3-track parallel, STATE-RECONCILE).
 
 설계 (`.claude/plans/lifecycle_short_real_deploy.md` §3.5):
-  하나의 결정 소스(System-2 lifecycle paper 세션 = BACKTEST 트랙)가 매일 산출하는
-  포지션 전이를, 페어링된 v2 noop 라이브 세션(PAPER + REAL)에 `/submit-signal`로
-  그대로 미러링한다. 시그널 계산은 검증된 `BinanceLifecycleDecayEarlyExitSource` +
+  하나의 결정 소스(System-2 lifecycle paper 세션 = BACKTEST 트랙)의 **현재 포지션
+  상태**를, 페어링된 v2 noop 라이브 세션(PAPER + REAL)에 `/submit-signal`로
+  맞춰 동기화한다. 시그널 계산은 검증된 `BinanceLifecycleDecayEarlyExitSource` +
   `LifecycleDecayEarlyExitPolicy`가 이미 daily 사이클에서 수행하므로 재구현이 없다
   (트랙 B 사망원인인 backtest→live divergence를 구조적으로 제거).
 
-실행 순서 (PM2 binance-paper-cycle 직후):
-  1. `paper_session_cli run --all` 이 System-2 lifecycle 세션 사이클을 돌려
-     `runs/paper_sessions/<id>/predictions.jsonl` 에 최신 CycleResult를 append.
-  2. 본 드라이버가 그 최신 CycleResult의 side_before→side_after 전이를 읽어
-     SHORT(진입) / CLOSE(청산) 시그널로 매핑, 링크된 라이브 세션에 POST.
+왜 transition이 아니라 state reconcile인가:
+  진입 전이(flat→short)는 상장 Day-1에 1회만 발생 → 그 순간 라이브 세션 엔진이
+  로드돼 있지 않으면(신규 INSERT는 백엔드 재시작 전 미로드) 영구히 놓친다. 또한
+  세션을 포지션 보유 도중에 편입하면(예: STAR 파일럿) 진입을 못 잡는다.
+  대신 매 사이클 "System-2의 현재 side"와 "각 라이브 세션에 내가 의도한 side"를
+  비교해 불일치만 보정하면: 놓친 진입을 다음 사이클에 catch-up, 재시도 안전,
+  도중 편입도 정상 진입.
 
-전이 → 시그널 매핑:
-  flat  → short  : side="short"           (Day-1 종가 숏 진입)
-  short → flat   : side="close_position"  (Day14 vol_cliff early-exit / Day30 / SL)
-  그 외          : 시그널 없음 (hold)
+상태:
+  desired = System-2 최신 CycleResult.side_after ("short"이면 short, 그 외 flat)
+  intended[track] = 내가 그 트랙에 마지막으로 성사시킨 side (live_signal_state.json)
+  desired != intended → 보정:
+    desired short, intended flat  → side="short"          (entry / catch-up)
+    desired flat,  intended short → side="close_position"  (exit)
+  intended은 **제출 성공 시에만** 갱신 → 404(엔진 미로드)/실패 시 다음 사이클 재시도.
+
+실행: PM2 binance-paper-cycle가 `paper_session_cli run --all` 직후 본 드라이버
+  `--submit` 실행 (run_binance_paper_cycle.sh).
 
 안전장치:
-  - 기본 --dry-run: POST하지 않고 의도만 출력.
-  - --submit 있어야 실제 POST. 그래도 REAL 세션은 --include-real 추가 필요.
-  - 상태파일(last_submitted.json)로 동일 cycle 중복 제출 방지.
+  - 기본 --dry-run: POST 안 함, 의도만 출력.
+  - --submit 있어야 실제 POST. REAL 세션은 추가로 --include-real 필요.
 
 링크 레지스트리 (runs/research_track/lifecycle_phase/live_links.json):
-  {
-    "<system2_session_id>": {
-      "symbol": "STARUSDT",
-      "paper": "<live_bot_session_id|null>",
-      "real":  "<live_bot_session_id|null>",
-      "notional_usdt": 200.0
-    }, ...
-  }
-  paper/real이 null이면 해당 트랙으로는 제출하지 않는다 (단계적 활성화).
+  { "<system2_session_id>": {"symbol","paper","real","notional_usdt"}, ... }
+상태 파일 (live_signal_state.json):
+  { "<system2_session_id>": {"paper": "short"|"flat", "real": "short"|"flat"} }
 """
 from __future__ import annotations
 
@@ -80,18 +81,10 @@ def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
         return None
 
 
-def _transition_to_signal(cycle: dict[str, Any]) -> Optional[str]:
-    """Map a CycleResult position transition to an external-signal side.
-
-    Returns "short", "close_position", or None (hold / no actionable transition).
-    """
-    before = (cycle.get("side_before") or "flat").lower()
+def _desired_side(cycle: dict[str, Any]) -> str:
+    """System-2 current position side → desired live side. 'short' or 'flat'."""
     after = (cycle.get("side_after") or "flat").lower()
-    if before == "flat" and after == "short":
-        return "short"
-    if before == "short" and after == "flat":
-        return "close_position"
-    return None
+    return "short" if after == "short" else "flat"
 
 
 def _load_json(path: Path, default: Any) -> Any:
@@ -126,97 +119,97 @@ def run(args) -> int:
     if not links:
         log.warning("No live links registered at %s — nothing to mirror.", LINKS_PATH)
         return 0
-    state: dict[str, str] = _load_json(STATE_PATH, {})
+    state: dict[str, dict] = _load_json(STATE_PATH, {})
 
-    n_planned = 0
+    n_actions = 0
     for s2_id, link in links.items():
         cycle = _read_last_cycle(s2_id)
         if cycle is None:
             continue
-        side = _transition_to_signal(cycle)
-        if side is None:
-            log.info("%s (%s): hold — no transition (%s→%s)", s2_id, link.get("symbol"),
-                     cycle.get("side_before"), cycle.get("side_after"))
-            continue
-
-        ts = str(cycle.get("timestamp", ""))
-        # Dedup key includes the side: predictions.jsonl can hold several rows
-        # at the same daily timestamp (multiple intraday cron fires). Keying on
-        # ts alone would let a same-day entry mask a later forced exit; ts|side
-        # dedups identical repeats while still allowing a distinct transition.
-        dedup_key = f"{ts}|{side}"
-        if state.get(s2_id) == dedup_key:
-            log.info("%s: transition %s already submitted — skip", s2_id, dedup_key)
-            continue
-
+        desired = _desired_side(cycle)
         symbol = link.get("symbol") or cycle.get("symbol") or ""
         ref_price = float(cycle.get("bar_close") or 0.0)
         notional = float(link.get("notional_usdt", 0.0))
 
-        targets: list[tuple[str, str]] = []  # (track, live_session_id)
+        link_state = state.setdefault(s2_id, {})
+        # migrate any legacy non-dict state value
+        if not isinstance(link_state, dict):
+            link_state = {}
+            state[s2_id] = link_state
+
+        targets: list[tuple[str, str]] = []
         if link.get("paper"):
-            targets.append(("PAPER", link["paper"]))
+            targets.append(("paper", link["paper"]))
         if link.get("real"):
             if args.include_real:
-                targets.append(("REAL", link["real"]))
+                targets.append(("real", link["real"]))
             else:
                 log.info("%s: REAL target present but --include-real not set — skipping REAL", s2_id)
 
         for track, live_id in targets:
-            if side == "short":
+            intended = link_state.get(track, "flat")
+            if intended == desired:
+                log.info("%s %s (%s): in sync (side=%s)", s2_id, track, symbol, desired)
+                continue
+
+            if desired == "short":
+                side = "short"
                 qty = (notional / ref_price) if ref_price > 0 else 0.0
-            else:  # close_position
-                qty = 0.0  # engine closes full position
+            else:  # flat
+                side = "close_position"
+                qty = 0.0
+
             metadata = {
                 "driver": "lifecycle_decay_d14",
                 "track": track,
                 "system2_session": s2_id,
-                "cycle_ts": ts,
+                "cycle_ts": str(cycle.get("timestamp", "")),
                 "ref_price": ref_price,
-                "forced_exit_reason": cycle.get("forced_exit_reason"),
+                "reconcile": f"{intended}->{desired}",
                 "action_kind": cycle.get("action_kind"),
             }
-            n_planned += 1
+            n_actions += 1
             if args.dry_run:
-                log.info("[DRY] %s %s → session=%s side=%s qty=%.6f @~%.6g notional=%.2f",
-                         track, symbol, live_id, side, qty, ref_price, notional)
+                log.info("[DRY] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f @~%.6g",
+                         track, symbol, intended, desired, live_id, side, qty, ref_price)
                 continue
             try:
                 res = _submit(args.api_url, live_id, side=side, symbol=symbol,
                               quantity=qty, metadata=metadata)
-                log.info("[SENT] %s %s → session=%s side=%s qty=%.6f result=%s",
-                         track, symbol, live_id, side, qty, res.get("result", res))
+                result = res.get("result", res)
+                # success "No position to close" is benign for close → still in sync
+                link_state[track] = desired  # update ONLY on success → failures retry next cycle
+                log.info("[SENT] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f result=%s",
+                         track, symbol, intended, desired, live_id, side, qty, result)
             except requests.HTTPError as exc:
-                log.error("[FAIL] %s %s → session=%s: HTTP %s %s", track, symbol, live_id,
+                log.error("[FAIL] %s %s → session=%s: HTTP %s %s (intended kept=%s, will retry)",
+                          track, symbol, live_id,
                           getattr(exc.response, "status_code", "?"),
-                          getattr(exc.response, "text", str(exc))[:200])
+                          getattr(exc.response, "text", str(exc))[:200], intended)
             except requests.RequestException as exc:
-                log.error("[FAIL] %s %s → session=%s: %s", track, symbol, live_id, exc)
-
-        # Mark submitted only when we actually POSTed (not dry-run) for at least the paper track.
-        if not args.dry_run and targets:
-            state[s2_id] = dedup_key
+                log.error("[FAIL] %s %s → session=%s: %s (intended kept=%s, will retry)",
+                          track, symbol, live_id, exc, intended)
 
     if not args.dry_run:
         STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
         STATE_PATH.write_text(json.dumps(state, indent=2))
 
-    log.info("Planned %d signal(s). mode=%s include_real=%s",
-             n_planned, "DRY-RUN" if args.dry_run else "SUBMIT", args.include_real)
+    log.info("Planned %d reconcile action(s). mode=%s include_real=%s",
+             n_actions, "DRY-RUN" if args.dry_run else "SUBMIT", args.include_real)
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Mirror System-2 lifecycle decisions to live v2 sessions.")
+    p = argparse.ArgumentParser(description="Reconcile linked v2 live sessions to System-2 lifecycle state.")
     p.add_argument("--api-url", default="http://localhost:8001",
                    help="Backend base URL (default: http://localhost:8001)")
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", dest="dry_run", action="store_true", default=True,
-                      help="(default) print intended signals, do not POST")
+                      help="(default) print intended actions, do not POST")
     mode.add_argument("--submit", dest="dry_run", action="store_false",
                       help="actually POST signals to live sessions")
     p.add_argument("--include-real", action="store_true", default=False,
-                   help="also submit to REAL (is_paper=false) sessions — requires --submit")
+                   help="also reconcile REAL (is_paper=false) sessions — requires --submit")
     return p
 
 
