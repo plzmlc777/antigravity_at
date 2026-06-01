@@ -56,6 +56,7 @@ log = logging.getLogger("lifecycle_live_signal_driver")
 STORE_ROOT = ROOT / "runs" / "paper_sessions"
 LINKS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "live_links.json"
 STATE_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "live_signal_state.json"
+TELEGRAM_CHATS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "telegram_chats.json"
 
 SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
 MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
@@ -88,33 +89,56 @@ def _real_available_usdt(account_id: int) -> float:
         db.close()
 
 
+def _real_notify_chats(default_chat: Optional[str]) -> list:
+    """REAL alert destination chat_ids. Reads telegram_chats.json (list) for
+    multi-group fan-out; falls back to the account's single chat_id."""
+    try:
+        if TELEGRAM_CHATS_PATH.exists():
+            chats = [str(c) for c in json.loads(TELEGRAM_CHATS_PATH.read_text()) if c]
+            if chats:
+                return chats
+    except Exception as exc:
+        log.error("telegram_chats.json read failed (%s) — fallback to account chat", exc)
+    return [str(default_chat)] if default_chat else []
+
+
 def _telegram_notify(account_id: int, text: str) -> None:
-    """Send a Telegram message via the account's configured bot/chat. No-op if
-    unconfigured. REAL-track only (entry/exit/analysis). Mint-only path."""
-    import asyncio
+    """Send a Telegram message to ALL configured REAL chats (multi-group). Uses the
+    account's bot token; destinations from telegram_chats.json (or account chat_id).
+    No-op if unconfigured. REAL-track only. Mint-only path."""
+    import urllib.request
+    import urllib.parse
     try:
         from app.db.session import SessionLocal
         from app.models.user import User  # noqa: F401 — resolves ExchangeAccount.user mapper
         from app.models.account import ExchangeAccount
-        from app.core.telegram_service import TelegramNotificationService
+        from app.core import security
     except Exception as exc:
         log.error("telegram import failed (%s)", exc)
         return
     db = SessionLocal()
     try:
         acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
-        if not acc:
-            return
-        svc = TelegramNotificationService(db, user_id=acc.user_id, account_id=int(account_id))
-        if not svc.is_configured():
+        if not acc or not acc.encrypted_telegram_bot_token:
             log.info("telegram not configured for account %s — skip notify", account_id)
             return
-        asyncio.run(svc.send_message(text))
-        log.info("telegram notify sent (account %s)", account_id)
-    except Exception as exc:
-        log.error("telegram notify failed: %s", exc)
+        token = security.decrypt_key(acc.encrypted_telegram_bot_token)
+        chats = _real_notify_chats(acc.telegram_chat_id)
     finally:
         db.close()
+    if not token or not chats:
+        log.info("telegram token/chats missing — skip notify")
+        return
+    for cid in chats:
+        try:
+            data = urllib.parse.urlencode(
+                {"chat_id": cid, "text": text, "parse_mode": "HTML"}).encode()
+            urllib.request.urlopen(
+                urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data),
+                timeout=12)
+            log.info("telegram sent → %s", cid)
+        except Exception as exc:
+            log.error("telegram send failed → %s: %s", cid, exc)
 
 
 def _real_trade_result(session_id: str) -> Optional[tuple]:
