@@ -14,6 +14,9 @@ from .strategies.s50_supertrend_adx_1m1h import S50_Supertrend_ADX_1m1h
 from .strategies.s51_williams_volume_5m import S51_Williams_Volume_5m
 from .strategies.s52_natr_low_revert_5m import S52_NATR_Low_Revert_5m
 from .strategies.s53_volume_breakout_1m1h import S53_Volume_Breakout_1m1h
+from .strategies.s62_open_drive_flow import S62OpenDriveFlow
+from .strategies.s64_support_resistance import S64SupportResistance
+from .strategies.s67_sr_dual import S67SRDual
 
 META_STRATEGY_REGISTRY: Dict[str, Type[KrStrategyBase]] = {
     "s40_vwap_atr_1m5m": S40_VWAP_ATR_1m5m,
@@ -28,6 +31,9 @@ META_STRATEGY_REGISTRY: Dict[str, Type[KrStrategyBase]] = {
     "s51_williams_volume_5m": S51_Williams_Volume_5m,
     "s52_natr_low_revert_5m": S52_NATR_Low_Revert_5m,
     "s53_volume_breakout_1m1h": S53_Volume_Breakout_1m1h,
+    "s62_open_drive_flow": S62OpenDriveFlow,
+    "s64_support_resistance": S64SupportResistance,
+    "s67_sr_dual": S67SRDual,
 }
 
 
