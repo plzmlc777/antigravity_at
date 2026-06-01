@@ -31,6 +31,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[2]  # backend/
 sys.path.insert(0, str(ROOT))
@@ -39,6 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger("lifecycle_live_provision")
 
 LINKS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "live_links.json"
+STORE_ROOT = ROOT / "runs" / "paper_sessions"
 
 
 def _noop_v2_config(*, leverage: int = 1) -> dict:
@@ -83,35 +85,58 @@ def _save_links(links: dict) -> None:
     LINKS_PATH.write_text(json.dumps(links, indent=2))
 
 
-def provision(args) -> int:
-    track = args.track.lower()
-    if track not in ("paper", "real"):
-        log.error("--track must be paper|real")
-        return 2
+def _scan_lifecycle_sessions(name_filter: str) -> list[dict]:
+    """Scan System-2 paper-session store for active sessions whose name contains
+    `name_filter`. Returns [{session_id, symbol, name}] (filesystem-only, no heavy import)."""
+    out: list[dict] = []
+    if not STORE_ROOT.exists():
+        return out
+    for d in sorted(STORE_ROOT.iterdir()):
+        sj = d / "session.json"
+        if not sj.is_file():
+            continue
+        try:
+            s = json.loads(sj.read_text())
+        except json.JSONDecodeError:
+            continue
+        if s.get("status") != "active":
+            continue
+        if name_filter not in (s.get("name") or ""):
+            continue
+        out.append({"session_id": s.get("session_id"), "symbol": s.get("symbol"),
+                    "name": s.get("name")})
+    return out
+
+
+def _provision_one(*, system2_id: str, symbol: str, track: str, account_id: int,
+                   notional: float, initial_capital: float, leverage: int,
+                   session_id: Optional[str], commit: bool) -> int:
+    """Provision one v2 noop live session for (system2_id, symbol, track) and link it.
+    Idempotent: skips if the track is already linked for this system2_id."""
     is_paper = (track == "paper")
+    links = _load_links()
+    existing = links.get(system2_id, {})
+    if existing.get(track):
+        log.info("[SKIP] %s.%s already linked → %s", system2_id, track, existing[track])
+        return 0
 
-    session_id = args.session_id or f"lifecycle-{track}-{args.symbol.lower()}-{uuid.uuid4().hex[:6]}"
-    config = _noop_v2_config(leverage=args.leverage)
-    name = f"lifecycle_{track}_{args.symbol}"
-
+    sid = session_id or f"lifecycle-{track}-{symbol.lower()}-{uuid.uuid4().hex[:6]}"
+    config = _noop_v2_config(leverage=leverage)
     log.info("Plan: session_id=%s symbol=%s track=%s is_paper=%s account_id=%s "
-             "initial_capital=%s leverage=%s notional=%.2f link→system2=%s",
-             session_id, args.symbol, track, is_paper, args.account_id,
-             args.initial_capital, args.leverage, args.notional, args.system2_id)
-    log.info("config=%s", json.dumps(config))
+             "cap=%s lev=%s notional=%.2f link→system2=%s",
+             sid, symbol, track, is_paper, account_id, initial_capital, leverage,
+             notional, system2_id)
 
-    if not args.commit:
-        log.info("[DRY-RUN] no DB write, no link update. Re-run with --commit to apply.")
+    if not commit:
+        log.info("[DRY-RUN] no DB write, no link update.")
         return 0
 
     from sqlalchemy import text
     engine = _db_engine()
     with engine.connect() as conn:
-        exists = conn.execute(
-            text("SELECT id FROM live_bot_sessions WHERE id = :id"), {"id": session_id}
-        ).fetchone()
-        if exists:
-            log.error("Session %s already exists — aborting (idempotency guard).", session_id)
+        if conn.execute(text("SELECT id FROM live_bot_sessions WHERE id = :id"),
+                        {"id": sid}).fetchone():
+            log.error("Session %s already exists — aborting (idempotency guard).", sid)
             return 1
         conn.execute(text("""
             INSERT INTO live_bot_sessions (
@@ -128,32 +153,72 @@ def provision(args) -> int:
                 :symbol, :symbol
             )
         """), {
-            "id": session_id, "account_id": args.account_id, "symbol": args.symbol,
-            "config": json.dumps(config), "cap": args.initial_capital,
-            "is_paper": is_paper, "leverage": args.leverage,
+            "id": sid, "account_id": account_id, "symbol": symbol,
+            "config": json.dumps(config), "cap": initial_capital,
+            "is_paper": is_paper, "leverage": leverage,
         })
         conn.commit()
-    log.info("[COMMITTED] created live_bot_session %s", session_id)
+    log.info("[COMMITTED] created live_bot_session %s", sid)
 
-    # Update link registry
-    links = _load_links()
-    entry = links.get(args.system2_id, {"symbol": args.symbol, "paper": None,
-                                         "real": None, "notional_usdt": args.notional})
-    entry["symbol"] = args.symbol
-    entry["notional_usdt"] = args.notional
-    entry[track] = session_id
-    links[args.system2_id] = entry
+    links = _load_links()  # reload (avoid clobber if changed)
+    entry = links.get(system2_id, {"symbol": symbol, "paper": None,
+                                    "real": None, "notional_usdt": notional})
+    entry["symbol"] = symbol
+    entry["notional_usdt"] = notional
+    entry[track] = sid
+    links[system2_id] = entry
     _save_links(links)
-    log.info("[LINKED] %s.%s = %s (notional=%.2f) → %s", args.system2_id, track,
-             session_id, args.notional, LINKS_PATH)
+    log.info("[LINKED] %s.%s = %s (notional=%.2f)", system2_id, track, sid, notional)
     return 0
 
 
+def auto_link(args) -> int:
+    """Scan System-2 lifecycle earlyexit_d14 sessions and provision+link a PAPER
+    session for any not yet linked. Idempotent — safe to run every cycle.
+    REAL track is never auto-provisioned (Phase 1, manual)."""
+    sessions = _scan_lifecycle_sessions(args.name_filter)
+    log.info("auto-link scan: %d active '%s' System-2 sessions", len(sessions), args.name_filter)
+    rc = 0
+    for s in sessions:
+        if not s.get("session_id") or not s.get("symbol"):
+            continue
+        r = _provision_one(
+            system2_id=s["session_id"], symbol=s["symbol"], track="paper",
+            account_id=args.account_id, notional=args.notional,
+            initial_capital=args.initial_capital, leverage=args.leverage,
+            session_id=None, commit=args.commit)
+        rc = rc or r
+    return rc
+
+
+def provision(args) -> int:
+    if getattr(args, "auto_link", False):
+        return auto_link(args)
+    track = args.track.lower() if args.track else None
+    if track not in ("paper", "real"):
+        log.error("--track must be paper|real (or use --auto-link)")
+        return 2
+    if not args.system2_id or not args.symbol:
+        log.error("--system2-id and --symbol required (or use --auto-link)")
+        return 2
+    return _provision_one(
+        system2_id=args.system2_id, symbol=args.symbol, track=track,
+        account_id=args.account_id, notional=args.notional,
+        initial_capital=args.initial_capital, leverage=args.leverage,
+        session_id=args.session_id, commit=args.commit)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Provision a v2 noop live session for a lifecycle listing.")
-    p.add_argument("--system2-id", required=True, help="System-2 lifecycle paper session id (BACKTEST track) to link")
-    p.add_argument("--symbol", required=True, help="e.g. STARUSDT")
-    p.add_argument("--track", required=True, choices=["paper", "real"])
+    p = argparse.ArgumentParser(description="Provision v2 noop live session(s) for lifecycle listings.")
+    p.add_argument("--auto-link", dest="auto_link", action="store_true", default=False,
+                   help="scan System-2 lifecycle earlyexit_d14 sessions and provision+link a PAPER "
+                        "session for any not yet linked (idempotent; REAL never auto-provisioned)")
+    p.add_argument("--name-filter", default="earlyexit_d14",
+                   help="System-2 session name substring to auto-link (default: earlyexit_d14)")
+    # single-provision args (ignored in --auto-link mode)
+    p.add_argument("--system2-id", default=None, help="System-2 lifecycle paper session id to link")
+    p.add_argument("--symbol", default=None, help="e.g. STARUSDT")
+    p.add_argument("--track", default=None, choices=["paper", "real"])
     p.add_argument("--account-id", type=int, required=True, help="exchange_accounts.id to bind")
     p.add_argument("--notional", type=float, default=200.0, help="USDT notional per short (link config)")
     p.add_argument("--initial-capital", dest="initial_capital", type=float, default=1_000_000.0,
