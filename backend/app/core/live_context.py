@@ -565,12 +565,19 @@ class LiveContext:
             return {"status": "failed", "reason": "not_futures_adapter"}
         # Queue a close-position signal (handled in process_queue)
         current_price = self.get_current_price(symbol)
-        qty = abs(self._holdings.get(symbol, 0))
+        holding = self._holdings.get(symbol, 0)
+        qty = abs(holding)
         if qty == 0:
             return {"status": "success", "message": "No position to close"}
-        side = OrderSide.SELL if self._holdings.get(symbol, 0) > 0 else OrderSide.BUY
+        # position_side tags WHICH side we are closing so cash-delta / realized_pnl
+        # accounting branches correctly (calc_cash_delta + the BUY short-cover P&L
+        # block in process_queue). Without this, a short cover (BUY) is misread as
+        # a long entry → cash_delta = -margin and realized_pnl = 0.
+        side = OrderSide.SELL if holding > 0 else OrderSide.BUY
+        pos_side = "long" if holding > 0 else "short"
         return self._execute_order(symbol, side, qty, 0,
-                                   {**(metadata or {}), "close_position": True}, None)
+                                   {**(metadata or {}), "close_position": True,
+                                    "position_side": pos_side}, None)
 
     def _execute_order(self, symbol: str, side: OrderSide, quantity: float, price: float, metadata: Dict[str, Any] = None, on_filled: Callable = None) -> Dict[str, Any]:
         """
@@ -896,8 +903,13 @@ class LiveContext:
                         p.executed_price = res.get("price") or p.theoretical_price
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
 
-                        # 2. Calculate realized_pnl for SELL orders
-                        if p.signal_type == Signal.SELL:
+                        # 2. Calculate realized_pnl for SELL orders.
+                        #    Exclude SHORT-entry SELLs (position_side=="short") — those
+                        #    open a position and have no realized P&L; letting this
+                        #    long-close block run on them would book a bogus P&L by
+                        #    matching the prior short cover. Their P&L is booked on the
+                        #    BUY cover in block 2b below.
+                        if p.signal_type == Signal.SELL and (p.trade_metadata or {}).get("position_side") != "short":
                             try:
                                 # Find last CLOSE before current sell to scope BUYs to current cycle only
                                 last_close = db.query(LiveTradeExecution).filter(
@@ -932,6 +944,44 @@ class LiveContext:
                                     self.log(f"PnL: {p.realized_pnl:+,.0f} (avg_cost={avg_buy_price:,.4f}, sell={p.executed_price:,.4f}, qty={sell_qty}, fees={total_fees:,.0f})")
                             except Exception as pnl_err:
                                 logger.error(f"PnL calc error: {pnl_err}")
+
+                        # 2b. realized_pnl for SHORT covers (BUY that closes a short).
+                        #     Mirror of the SELL/long block above. Without this a short
+                        #     never books P&L → current_capital (= initial + Σrealized_pnl)
+                        #     stays flat regardless of outcome. Short-cycle SELL-opens are
+                        #     scoped to SELLs since the last short cover.
+                        elif p.signal_type == Signal.BUY and (p.trade_metadata or {}).get("position_side") == "short":
+                            try:
+                                last_cover = db.query(LiveTradeExecution).filter(
+                                    LiveTradeExecution.session_id == self.session_id,
+                                    LiveTradeExecution.symbol == p.symbol,
+                                    LiveTradeExecution.signal_type == Signal.BUY,
+                                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                    LiveTradeExecution.id != p.id,
+                                ).order_by(LiveTradeExecution.signal_timestamp.desc()).first()
+                                sell_filter = [
+                                    LiveTradeExecution.session_id == self.session_id,
+                                    LiveTradeExecution.symbol == p.symbol,
+                                    LiveTradeExecution.signal_type == Signal.SELL,
+                                    LiveTradeExecution.status == ExecutionStatus.FILLED,
+                                ]
+                                if last_cover:
+                                    sell_filter.append(LiveTradeExecution.signal_timestamp > last_cover.signal_timestamp)
+                                sells = db.query(LiveTradeExecution).filter(*sell_filter).all()
+                                total_sell_proceeds = sum((s.executed_price or 0) * (s.filled_quantity or 0) for s in sells)
+                                total_sell_qty = sum(s.filled_quantity or 0 for s in sells)
+                                total_sell_fees = sum(s.fees or 0 for s in sells)
+                                if total_sell_qty > 0:
+                                    avg_sell_price = total_sell_proceeds / total_sell_qty
+                                    buy_qty = p.filled_quantity or 0
+                                    total_fees = total_sell_fees + (p.fees or 0)
+                                    # SHORT P&L: (avg short-entry price − cover price) × qty − fees
+                                    p.realized_pnl = round(avg_sell_price * buy_qty - (p.executed_price or 0) * buy_qty - total_fees, 2)
+                                    p.slippage = round(p.executed_price - p.theoretical_price, 2)
+                                    p.slippage_percent = round((p.slippage / p.theoretical_price) * 100, 4) if p.theoretical_price else 0
+                                    self.log(f"PnL(short): {p.realized_pnl:+,.0f} (avg_short={avg_sell_price:,.4f}, cover={p.executed_price:,.4f}, qty={buy_qty}, fees={total_fees:,.0f})")
+                            except Exception as pnl_err:
+                                logger.error(f"Short PnL calc error: {pnl_err}")
 
                         # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
