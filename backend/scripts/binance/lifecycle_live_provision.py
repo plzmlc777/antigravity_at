@@ -49,7 +49,9 @@ def _noop_v2_config(*, leverage: int = 1) -> dict:
         "engine_version": "v2",
         "leverage": int(leverage),
         "position_side": "short",
-        "margin_type": "ISOLATED",
+        # CROSSED: account이 Multi-Assets 모드면 ISOLATED 설정이 -4168로 거부됨
+        # (Phase 0 배관 점검에서 확인). leverage 1x라 격리 효과는 동일.
+        "margin_type": "CROSSED",
         "qty_mode": "external",  # quantity comes from submitted signals
         "orders_enabled": True,
     }
@@ -122,7 +124,7 @@ def provision(args) -> int:
                 :id, :account_id, :symbol, 'noop', cast(:config as json),
                 '1d', :cap, :cap,
                 :is_paper, true, true, 'RUNNING', NOW(),
-                :leverage, 'ISOLATED', 'ONE_WAY',
+                :leverage, 'CROSSED', 'ONE_WAY',
                 :symbol, :symbol
             )
         """), {
