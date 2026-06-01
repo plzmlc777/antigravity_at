@@ -139,14 +139,21 @@ def update_listings(known: dict) -> tuple[dict, list[str]]:
     """Returns (updated_dict, new_symbol_list)."""
     info = fetch_exchange_info()
     new_syms = []
+    now_ms = datetime.now(timezone.utc).timestamp() * 1000
+    upcoming = []  # crypto listings whose onboardDate is still in the future
     for s in info.get("symbols", []):
         if s.get("quoteAsset") != "USDT":
             continue
-        if s.get("status") != "TRADING":
+        # Capture both live (TRADING) and scheduled (PENDING_TRADING) listings.
+        # PENDING_TRADING + future onboardDate = a forward-announced listing visible
+        # in exchangeInfo before go-live (e.g. SLXUSDT). It is recorded now for
+        # forward visibility; eligible_for_session is age-based (onboard_date), so a
+        # future onboard → age<1 → it is NOT spawned until it has been live ≥1 day.
+        st = s.get("status")
+        if st not in ("TRADING", "PENDING_TRADING"):
             continue
         # Crypto-only: the lifecycle pump-decay paradigm targets crypto listings,
         # NOT tokenized stocks (underlyingType=='EQUITY' / contractType=='TRADIFI_PERPETUAL').
-        # Their dynamics track the underlying equity, not a crypto listing pump-decay.
         if s.get("underlyingType") != "COIN" or s.get("contractType") != "PERPETUAL":
             continue
         onboard_ms = s.get("onboardDate")
@@ -154,6 +161,9 @@ def update_listings(known: dict) -> tuple[dict, list[str]]:
             continue
         sym = s["symbol"]
         if sym in known:
+            # refresh status (PENDING→TRADING transition) without re-adding
+            if known[sym].get("status") != st:
+                known[sym]["status"] = st
             continue
         dt = datetime.fromtimestamp(onboard_ms / 1000, tz=timezone.utc)
         known[sym] = {
@@ -161,13 +171,24 @@ def update_listings(known: dict) -> tuple[dict, list[str]]:
             "onboard_ts_ms": onboard_ms,
             "contract_type": s.get("contractType", ""),
             "base": s.get("baseAsset", ""),
+            "status": st,
         }
         new_syms.append(sym)
+        if onboard_ms > now_ms:
+            upcoming.append((onboard_ms, sym))
+    for onboard_ms, sym in sorted(upcoming):
+        dt = datetime.fromtimestamp(onboard_ms / 1000, tz=timezone.utc)
+        log.info("UPCOMING crypto listing: %s onboard=%s (forward-detected, PENDING_TRADING)",
+                 sym, dt.strftime("%Y-%m-%d %H:%M UTC"))
     return known, new_syms
 
 
 def eligible_for_session(sym: str, meta: dict, today: date) -> tuple[bool, str]:
     """Returns (eligible, reason_if_not)."""
+    # Only spawn once the listing is actually live (forward-detected PENDING_TRADING
+    # entries wait here until they transition to TRADING + accrue ≥1 day of data).
+    if meta.get("status") not in (None, "TRADING"):
+        return False, f"status={meta.get('status')!r} (not yet trading)"
     if meta.get("contract_type") != "PERPETUAL":
         return False, f"contract_type={meta.get('contract_type')!r} (not PERPETUAL)"
     if not re.fullmatch(r"[A-Z0-9]+USDT", sym):
@@ -491,7 +512,30 @@ def main() -> int:
                    help=("BTC 30d pre-listing return threshold below which the "
                          "bear_skip variant suppresses entry (default -0.05 per "
                          "R-3 regime analysis: BEAR cohort n=38 median -50.08%)."))
+    p.add_argument("--list-upcoming", action="store_true",
+                   help="just report forward-detected crypto listings (PENDING_TRADING + "
+                        "future onboardDate) from exchangeInfo and exit (no spawning)")
     args = p.parse_args()
+
+    if args.list_upcoming:
+        info = fetch_exchange_info()
+        now_ms = datetime.now(timezone.utc).timestamp() * 1000
+        rows = []
+        for s in info.get("symbols", []):
+            if s.get("underlyingType") != "COIN" or s.get("contractType") != "PERPETUAL":
+                continue
+            ob = s.get("onboardDate") or 0
+            if s.get("status") == "PENDING_TRADING" or ob > now_ms:
+                rows.append((ob, s.get("status"), s["symbol"]))
+        rows.sort()
+        future = [(ob, st, sym) for ob, st, sym in rows if ob > now_ms]
+        log.info("forward-detected upcoming crypto listings: %d", len(future))
+        for ob, st, sym in future:
+            dt = datetime.fromtimestamp(ob / 1000, tz=timezone.utc)
+            log.info("  %s  onboard=%s  status=%s", sym, dt.strftime("%Y-%m-%d %H:%M UTC"), st)
+        if not future:
+            log.info("  (none scheduled with future onboardDate)")
+        return 0
 
     if args.policy == "both":
         variants = [POLICY_BASELINE, POLICY_EARLY_EXIT]
