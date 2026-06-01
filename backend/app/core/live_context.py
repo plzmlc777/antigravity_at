@@ -793,11 +793,17 @@ class LiveContext:
                     # No capital allocation — sync from exchange (legacy/single-session mode)
                     self.cash = fetched_cash
                 
-                simple_holdings = {}
-                for sym, data in bal['holdings'].items():
-                    simple_holdings[sym] = data['quantity']
-                self._holdings = simple_holdings
-                
+                # Holdings: in PAPER or parallel (allocated-capital) mode, _holdings is
+                # tracked internally via fills — do NOT overwrite from exchange. paper
+                # orders never reach the exchange, so its holdings are empty and would
+                # wipe simulated positions (lifecycle short 배관 점검에서 발견). Only the
+                # legacy single-session REAL mode reconciles holdings from the exchange.
+                if not self.is_paper and self.initial_capital <= 0:
+                    simple_holdings = {}
+                    for sym, data in bal['holdings'].items():
+                        simple_holdings[sym] = data['quantity']
+                    self._holdings = simple_holdings
+
                 # Update price map for all holdings to ensure get_total_equity is accurate
                 for sym, data in bal['holdings'].items():
                     if 'current_price' in data and data['current_price'] > 0:
