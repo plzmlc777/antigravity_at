@@ -211,9 +211,12 @@ class SignalInterceptContext:
                 signal.order_type, signal.metadata, on_filled, **kwargs
             )
         elif signal.side == SignalSide.SHORT:
+            # NOTE: LiveContext.short() has no order_type param (unlike buy/sell),
+            # so it is omitted here — short is market-only for now. Limit-order
+            # short (entry slippage guard) requires adding order_type to short().
             return self._inner.short(
                 signal.symbol, int(signal.quantity), signal.price,
-                signal.order_type, signal.metadata, on_filled, **kwargs
+                signal.metadata, on_filled, **kwargs
             )
         else:
             return {"status": "failed", "reason": f"Unknown side: {signal.side}"}
