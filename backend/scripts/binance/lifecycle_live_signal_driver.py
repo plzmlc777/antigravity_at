@@ -88,6 +88,61 @@ def _real_available_usdt(account_id: int) -> float:
         db.close()
 
 
+def _telegram_notify(account_id: int, text: str) -> None:
+    """Send a Telegram message via the account's configured bot/chat. No-op if
+    unconfigured. REAL-track only (entry/exit/analysis). Mint-only path."""
+    import asyncio
+    try:
+        from app.db.session import SessionLocal
+        from app.models.user import User  # noqa: F401 — resolves ExchangeAccount.user mapper
+        from app.models.account import ExchangeAccount
+        from app.core.telegram_service import TelegramNotificationService
+    except Exception as exc:
+        log.error("telegram import failed (%s)", exc)
+        return
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            return
+        svc = TelegramNotificationService(db, user_id=acc.user_id, account_id=int(account_id))
+        if not svc.is_configured():
+            log.info("telegram not configured for account %s — skip notify", account_id)
+            return
+        asyncio.run(svc.send_message(text))
+        log.info("telegram notify sent (account %s)", account_id)
+    except Exception as exc:
+        log.error("telegram notify failed: %s", exc)
+    finally:
+        db.close()
+
+
+def _real_trade_result(session_id: str) -> Optional[tuple]:
+    """(last_cover_realized_pnl, current_capital, initial_capital) for a REAL session."""
+    try:
+        from app.db.session import SessionLocal
+        from sqlalchemy import text as sqltext
+    except Exception:
+        return None
+    db = SessionLocal()
+    try:
+        row = db.execute(sqltext(
+            "SELECT realized_pnl FROM live_trade_executions WHERE session_id=:s "
+            "AND status='FILLED' AND signal_type='BUY' ORDER BY signal_timestamp DESC LIMIT 1"
+        ), {"s": session_id}).fetchone()
+        cap = db.execute(sqltext(
+            "SELECT initial_capital, current_capital FROM live_bot_sessions WHERE id=:s"
+        ), {"s": session_id}).fetchone()
+        last = float(row[0]) if row and row[0] is not None else None
+        init = float(cap[0]) if cap and cap[0] is not None else None
+        cur = float(cap[1]) if cap and cap[1] is not None else None
+        return (last, cur, init)
+    except Exception:
+        return None
+    finally:
+        db.close()
+
+
 def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
     """Return the last CycleResult dict from a System-2 session's predictions.jsonl."""
     path = STORE_ROOT / session_id / "predictions.jsonl"
@@ -236,6 +291,29 @@ def run(args) -> int:
                     real_budget[link["real_account_id"]] -= margin_used  # consume shared budget
                 log.info("[SENT] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f result=%s",
                          track, symbol, intended, desired, live_id, side, qty, result)
+                # Telegram: REAL-track entry/exit/analysis (immediate). PAPER excluded.
+                if track == "real" and link.get("real_account_id"):
+                    acc_id = link["real_account_id"]
+                    if desired == "short":
+                        lev = int(link.get("real_leverage", 1) or 1)
+                        _telegram_notify(acc_id,
+                            f"🔴 <b>REAL 숏 진입</b> — lifecycle 신규상장 decay\n"
+                            f"종목: <b>{symbol}</b>\n진입가: ~{ref_price:g}\n"
+                            f"투입(전체 가용 마진): ${margin_used:,.2f}  (qty {qty:,.4f}, {lev}x)\n"
+                            f"전략: 상장 Day-1 종가 공매도, Day-14 vol_cliff/Day-30/SL+50% 청산\n"
+                            f"BACKTEST(System-2): {s2_id}  ts={cycle.get('timestamp','')}")
+                    else:  # close_position
+                        res = _real_trade_result(live_id)
+                        pnl = ""
+                        if res:
+                            last, cur, init = res
+                            if last is not None:
+                                pnl += f"\n실현손익(직전 청산): <b>{last:+,.2f} USDT</b>"
+                            if cur is not None and init:
+                                pnl += f"\n세션 누적: {cur - init:+,.2f} USDT ({(cur / init - 1) * 100:+.2f}%)"
+                        reason = cycle.get("forced_exit_reason") or cycle.get("action_kind") or "exit"
+                        _telegram_notify(acc_id,
+                            f"🟢 <b>REAL 청산</b> — lifecycle\n종목: <b>{symbol}</b>\n사유: {reason}{pnl}")
             except requests.HTTPError as exc:
                 log.error("[FAIL] %s %s → session=%s: HTTP %s %s (intended kept=%s, will retry)",
                           track, symbol, live_id,
