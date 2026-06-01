@@ -1177,17 +1177,25 @@ class LiveContext:
 
                         # ===== FILLED 후처리: _holdings 동기화 + PnL 계산 =====
                         if p.status == ExecutionStatus.FILLED:
-                            # Holdings: sync from exchange for accurate position tracking
-                            try:
-                                sync_balance = await self.adapter.get_balance()
-                                sync_holdings = sync_balance.get("holdings", {})
-                                self._holdings[p.symbol] = sync_holdings.get(p.symbol, {}).get("quantity", 0)
-                            except Exception as sync_err:
-                                logger.warning(f"Post-fill holdings sync failed: {sync_err}")
+                            # Holdings: sync from exchange for accurate position tracking.
+                            # PAPER는 거래소에 주문이 도달하지 않으므로 동기화하면 시뮬
+                            # 포지션이 0으로 지워진다 → in-memory 델타로만 갱신.
+                            if self.is_paper:
                                 if p.signal_type == Signal.BUY:
                                     self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
                                 else:
-                                    self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
+                                    self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) - p.filled_quantity
+                            else:
+                                try:
+                                    sync_balance = await self.adapter.get_balance()
+                                    sync_holdings = sync_balance.get("holdings", {})
+                                    self._holdings[p.symbol] = sync_holdings.get(p.symbol, {}).get("quantity", 0)
+                                except Exception as sync_err:
+                                    logger.warning(f"Post-fill holdings sync failed: {sync_err}")
+                                    if p.signal_type == Signal.BUY:
+                                        self._holdings[p.symbol] = self._holdings.get(p.symbol, 0) + p.filled_quantity
+                                    else:
+                                        self._holdings[p.symbol] = max(0, self._holdings.get(p.symbol, 0) - p.filled_quantity)
 
                             # SELL PnL 계산 (must run BEFORE _calc_cash_delta for futures)
                             if p.signal_type == Signal.SELL:

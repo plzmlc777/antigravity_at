@@ -894,6 +894,12 @@ class LiveTradingEngine:
         if not self.strategy_instance or not self.context:
             return
 
+        # PAPER 모드는 시뮬레이션 holdings가 source of truth — 거래소 실제 포지션
+        # (paper 주문은 거래소에 도달하지 않으므로 0)으로 동기화하면 시뮬 포지션이
+        # 지워진다. lifecycle short 배관 점검에서 발견 (paper 숏이 sync로 wipe됨).
+        if self.is_paper:
+            return
+
         # 장 시간(09:00~15:30 KST)에만 실행
         now = datetime.now()
         if not (9 <= now.hour < 15 or (now.hour == 15 and now.minute <= 30)):
