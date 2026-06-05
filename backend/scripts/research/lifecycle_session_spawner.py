@@ -270,10 +270,36 @@ def backfill_ohlcv_for(symbol: str, days: int = 30, dry_run: bool = False) -> bo
         log.info("  [dry-run] would REST-fetch %s 1m %dd", symbol, days)
         return True
     try:
-        import asyncio
-        from app.services.binance_market_data import BinanceMarketDataService
-        svc = BinanceMarketDataService(is_futures=True)
-        asyncio.run(svc.fetch_history(symbol, "1m", days, backfill=True))
+        import time as _time
+        import pandas as pd
+        import requests
+        from scripts.backfill_ohlcv_archive import insert_to_db
+        end_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        cur = end_ms - days * 86_400_000
+        url = "https://fapi.binance.com/fapi/v1/klines"
+        rows: list = []
+        # Synchronous paginated fetch — self-contained (no asyncio/global HTTP client,
+        # which broke on per-symbol asyncio.run loops with "Event loop is closed").
+        while cur < end_ms:
+            resp = requests.get(url, params={"symbol": symbol, "interval": "1m",
+                                             "startTime": cur, "limit": 1000}, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                break
+            rows.extend(data)
+            cur = data[-1][0] + 60_000
+            if len(data) < 1000:
+                break
+            _time.sleep(0.12)
+        if not rows:
+            log.info("[%s] no klines returned (pre-listing/empty) — ok", symbol)
+            return True
+        cols = ["open_time", "open", "high", "low", "close", "volume",
+                "close_time", "qav", "n_trades", "tbbav", "tbqav", "ignore"]
+        df = pd.DataFrame(rows, columns=cols)
+        n = insert_to_db(symbol, df[["open_time", "open", "high", "low", "close", "volume"]])
+        log.info("[%s] REST backfill: %d rows fetched, inserted (new) into ohlcv", symbol, len(df))
         return True
     except Exception as exc:
         log.error("[%s] REST backfill exception: %s", symbol, exc)
