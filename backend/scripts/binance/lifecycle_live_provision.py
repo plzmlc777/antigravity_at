@@ -104,6 +104,32 @@ def _crypto_perp_symbols() -> Optional[set]:
             if s.get("underlyingType") == "COIN" and s.get("contractType") == "PERPETUAL"}
 
 
+def _account_available_usdt(account_id: int) -> Optional[float]:
+    """Available USDT margin for a real account (sets REAL session initial_capital so
+    the cash-guard allows max-purchasable sizing). None on failure."""
+    import asyncio
+    try:
+        from app.db.session import SessionLocal
+        from app.models.user import User  # noqa: F401 — mapper
+        from app.models.account import ExchangeAccount
+        from app.api.endpoints import create_adapter_from_account
+    except Exception as exc:
+        log.error("balance import failed (%s)", exc)
+        return None
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            return None
+        bal = asyncio.run(create_adapter_from_account(acc).get_balance())
+        return float((bal or {}).get("cash", {}).get("USDT", 0.0))
+    except Exception as exc:
+        log.error("balance query failed for account %s: %s", account_id, exc)
+        return None
+    finally:
+        db.close()
+
+
 def _scan_lifecycle_sessions(name_filter: str) -> list[dict]:
     """Scan System-2 paper-session store for active sessions whose name contains
     `name_filter`. Returns [{session_id, symbol, name}] (filesystem-only, no heavy import)."""
@@ -235,10 +261,16 @@ def auto_link(args) -> int:
             session_id=None, commit=args.commit)
         rc = rc or r
         if args.real_account_id:
+            # REAL initial_capital = live available margin so the cash-guard permits
+            # max-purchasable sizing (driver deploys ~97% of available). Fallback to
+            # the --real-initial-capital arg if the balance query fails.
+            avail = _account_available_usdt(int(args.real_account_id))
+            real_cap = avail if (avail and avail > 0) else args.real_initial_capital
+            log.info("REAL initial_capital for %s = %.2f (available margin)", sym, real_cap)
             r2 = _provision_one(
                 system2_id=sid2, symbol=sym, track="real",
                 account_id=int(args.real_account_id), notional=args.notional,
-                initial_capital=args.real_initial_capital, leverage=args.leverage,
+                initial_capital=real_cap, leverage=args.leverage,
                 session_id=None, commit=args.commit)
             rc = rc or r2
     return rc

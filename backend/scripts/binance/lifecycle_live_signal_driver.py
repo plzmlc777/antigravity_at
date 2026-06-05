@@ -60,6 +60,7 @@ TELEGRAM_CHATS_PATH = ROOT / "runs" / "research_track" / "lifecycle_phase" / "te
 
 SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
 MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
+REAL_MARGIN_FRACTION = 0.97  # deploy 97% of available margin (3% buffer: taker fee + price drift between size-time and fill)
 
 
 def _real_available_usdt(account_id: int) -> float:
@@ -282,8 +283,10 @@ def run(args) -> int:
                         log.info("%s real (%s): available %.2f < min %.2f (or no price) — skip, retry next cycle",
                                  s2_id, symbol, avail, MIN_REAL_NOTIONAL)
                         continue
-                    margin_used = avail               # deploy full available margin
-                    qty = (avail * lev) / ref_price   # notional = margin × leverage
+                    # max purchasable: deploy (almost all) available margin × leverage.
+                    # 3% buffer prevents exchange rejection for fee/margin shortfall.
+                    margin_used = avail * REAL_MARGIN_FRACTION
+                    qty = (margin_used * lev) / ref_price
                 else:  # paper: fixed notional from link
                     qty = (notional / ref_price) if ref_price > 0 else 0.0
             else:  # flat
