@@ -27,6 +27,17 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
+# STEP 0: spawn lifecycle sessions for NEW listings BEFORE the cycle runs, so a
+# fresh listing is spawned (REST-backfilled) → cycled (entry signal) → auto-linked
+# → reconciled (live entry) all in THIS single run = Day-1 entry. Previously the
+# spawner ran on its own cron (12:00 KST) AFTER this cycle (11:30), so new sessions
+# only entered the NEXT day (~Day-2). Idempotent: re-spawn finds 0 new.
+echo "[binance-paper] lifecycle spawn new listings (REST backfill)..." | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 -m scripts.research.lifecycle_session_spawner \
+  --refresh-listings --policy all \
+  --baseline-hold-days 30,21 --early-exit-check-days 7,14 \
+  --early-exit-vc-threshold 0.40 --bear-skip-threshold -0.05 2>&1 | tail -25 | tee -a "${LOG_FILE}"
+
 # Backfill funding rates (last 7 days) for all 14 paper-pool symbols.
 # Required by funding_carry paradigm sessions (AXS/HBAR/COMP) — daily fetch
 # captures all 3 daily funding periods (00/08/16 UTC).
