@@ -257,26 +257,26 @@ def session_exists_for(
 
 
 def backfill_ohlcv_for(symbol: str, days: int = 30, dry_run: bool = False) -> bool:
-    """Idempotent backfill. Uses backend/scripts/backfill_ohlcv_archive.py.
-    Returns True if at least 1 row inserted OR data already present."""
-    cmd = [
-        sys.executable, "-m", "scripts.backfill_ohlcv_archive",
-        "--symbols", symbol,
-        "--days", str(days),
-        "--parallel", "8",
-    ]
-    log.info("[%s] backfilling 1m ohlcv (%d days)", symbol, days)
+    """Idempotent 1m ohlcv backfill via Binance REST klines (fapi/v1/klines).
+
+    Switched from data.binance.vision archive (backfill_ohlcv_archive) to REST:
+    the archive publishes daily ZIPs at T+1, so a brand-new listing had NO archive
+    data for days → System-2 cycle failed "insufficient eval bars" → no entry signal
+    for ~4 days (SLXUSDT 2026-06-01→06-05). REST klines return live data immediately,
+    so a fresh listing has usable daily bars at spawn time. fetch_history is
+    smart-incremental + ON CONFLICT DO NOTHING (idempotent)."""
+    log.info("[%s] backfilling 1m ohlcv (%d days) via REST klines", symbol, days)
     if dry_run:
-        log.info("  [dry-run] would run: %s", " ".join(cmd))
+        log.info("  [dry-run] would REST-fetch %s 1m %dd", symbol, days)
         return True
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT), timeout=300)
-        if result.returncode != 0:
-            log.error("[%s] backfill stderr: %s", symbol, result.stderr[:500])
-            return False
+        import asyncio
+        from app.services.binance_market_data import BinanceMarketDataService
+        svc = BinanceMarketDataService(is_futures=True)
+        asyncio.run(svc.fetch_history(symbol, "1m", days, backfill=True))
         return True
     except Exception as exc:
-        log.error("[%s] backfill exception: %s", symbol, exc)
+        log.error("[%s] REST backfill exception: %s", symbol, exc)
         return False
 
 
