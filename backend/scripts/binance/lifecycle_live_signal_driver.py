@@ -39,6 +39,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import logging
 import sys
@@ -62,6 +63,21 @@ SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
 MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
 REAL_MARGIN_FRACTION = 0.97  # deploy 97% of available margin (3% buffer: taker fee + price drift between size-time and fill)
 
+_ASYNC_LOOP = None
+
+
+def _run_async(coro):
+    """Run a coroutine on a persistent event loop reused across all calls in this
+    process. The Binance async adapter binds a global HTTP client to the running
+    loop; asyncio.run() closes its loop each call, so a 2nd adapter call hits
+    'Event loop is closed'. Reusing one loop keeps the client valid for the whole
+    driver run (balance + per-symbol position queries)."""
+    global _ASYNC_LOOP
+    if _ASYNC_LOOP is None or _ASYNC_LOOP.is_closed():
+        _ASYNC_LOOP = asyncio.new_event_loop()
+        asyncio.set_event_loop(_ASYNC_LOOP)
+    return _ASYNC_LOOP.run_until_complete(coro)
+
 
 def _real_available_usdt(account_id: int) -> float:
     """Query a real account's available USDT margin (shared cross-margin pool).
@@ -81,7 +97,7 @@ def _real_available_usdt(account_id: int) -> float:
             log.error("REAL account_id=%s not found", account_id)
             return 0.0
         adapter = create_adapter_from_account(acc)
-        bal = asyncio.run(adapter.get_balance())
+        bal = _run_async(adapter.get_balance())
         return float((bal or {}).get("cash", {}).get("USDT", 0.0))
     except Exception as exc:
         log.error("REAL balance query failed for account %s: %s", account_id, exc)
@@ -166,6 +182,45 @@ def _real_trade_result(session_id: str) -> Optional[tuple]:
         return None
     finally:
         db.close()
+
+
+def _real_symbol_state(account_id: int, symbol: str) -> tuple[float, float]:
+    """(mark_price, signed_position_qty) for a symbol on a REAL account.
+
+    mark_price ← PUBLIC premiumIndex (no auth) — reliable for live-price sizing
+    even when flat (positionRisk returns markPrice 0 for a flat symbol, so it
+    can't be used for sizing). position_qty ← signed positionRisk via the account
+    adapter (neg=short → double-entry guard + fill confirmation; 0.0 = flat).
+    mark_price 0.0 only on public-endpoint failure → caller skips. Mint-only path."""
+    # 1) live mark price (public, no auth)
+    mark = 0.0
+    try:
+        r = requests.get("https://fapi.binance.com/fapi/v1/premiumIndex",
+                         params={"symbol": symbol}, timeout=10)
+        r.raise_for_status()
+        mark = float(r.json().get("markPrice") or 0.0)
+    except Exception as exc:
+        log.error("mark price fetch failed for %s: %s", symbol, exc)
+    # 2) signed position quantity
+    qty = 0.0
+    try:
+        from app.db.session import SessionLocal
+        from app.models.account import ExchangeAccount
+        from app.api.endpoints import create_adapter_from_account
+        db = SessionLocal()
+        try:
+            acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+            if acc:
+                adapter = create_adapter_from_account(acc)
+                pos = _run_async(adapter.get_position(symbol))
+                qty = float((pos or {}).get("quantity") or 0.0)
+            else:
+                log.error("REAL account_id=%s not found", account_id)
+        finally:
+            db.close()
+    except Exception as exc:
+        log.error("REAL position query failed for %s/%s: %s", account_id, symbol, exc)
+    return (mark, qty)
 
 
 def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
@@ -269,24 +324,39 @@ def run(args) -> int:
             if desired == "short":
                 side = "short"
                 if track == "real":
-                    # full-compound: deploy the shared account's available margin.
+                    # full-compound: deploy the shared account's available margin,
+                    # sized on the LIVE exchange mark price (not the stale System-2
+                    # ref_price) so a post-signal pump can't blow through the 3%
+                    # buffer and trigger -2019. Idempotency-guard against double entry.
                     acc_id = link.get("real_account_id")
                     lev = int(link.get("real_leverage", 1) or 1)
                     if acc_id is None:
                         log.error("%s real: missing real_account_id in link — skip", s2_id)
                         continue
+                    mark_price, pos_qty = _real_symbol_state(int(acc_id), symbol)
+                    if pos_qty < 0:
+                        # already short on the exchange (state desync or prior fill)
+                        # → mark in-sync, never re-enter (double-entry guard).
+                        log.info("%s real (%s): already short on exchange (qty=%.6f) — mark in-sync, skip re-entry",
+                                 s2_id, symbol, pos_qty)
+                        link_state[track] = "short"
+                        continue
+                    if mark_price <= 0:
+                        log.info("%s real (%s): live mark/position unavailable — skip, retry next cycle",
+                                 s2_id, symbol)
+                        continue
                     if acc_id not in real_budget:
                         real_budget[acc_id] = _real_available_usdt(int(acc_id))
                         log.info("REAL account %s available margin: %.2f USDT", acc_id, real_budget[acc_id])
                     avail = real_budget[acc_id]
-                    if avail < MIN_REAL_NOTIONAL or ref_price <= 0:
-                        log.info("%s real (%s): available %.2f < min %.2f (or no price) — skip, retry next cycle",
+                    if avail < MIN_REAL_NOTIONAL:
+                        log.info("%s real (%s): available %.2f < min %.2f — skip, retry next cycle",
                                  s2_id, symbol, avail, MIN_REAL_NOTIONAL)
                         continue
-                    # max purchasable: deploy (almost all) available margin × leverage.
-                    # 3% buffer prevents exchange rejection for fee/margin shortfall.
+                    # max purchasable on LIVE mark price: deploy (almost all) margin × lev.
+                    # 3% buffer absorbs taker fee + ms-scale fill drift from mark.
                     margin_used = avail * REAL_MARGIN_FRACTION
-                    qty = (margin_used * lev) / ref_price
+                    qty = (margin_used * lev) / mark_price
                 else:  # paper: fixed notional from link
                     qty = (notional / ref_price) if ref_price > 0 else 0.0
             else:  # flat
@@ -312,6 +382,17 @@ def run(args) -> int:
                 res = _submit(args.api_url, live_id, side=side, symbol=symbol,
                               quantity=qty, metadata=metadata)
                 result = res.get("result", res)
+                # REAL short entry: /submit-signal returns HTTP 200 even when the
+                # exchange order is rejected — process_queue swallows OrderExecutionError
+                # into status='failed' (e.g. -2019 insufficient margin). Confirm a short
+                # actually opened on the exchange before marking done; else keep flat so
+                # next cycle retries (no false "in sync" that silently skips entry).
+                if track == "real" and desired == "short":
+                    _, pos_after = _real_symbol_state(int(link["real_account_id"]), symbol)
+                    if pos_after >= 0:
+                        log.error("[FAIL] real %s short NOT opened (exchange qty=%.6f, rejected/partial?) "
+                                  "— keep flat, retry next cycle. result=%s", symbol, pos_after, result)
+                        continue
                 # success "No position to close" is benign for close → still in sync
                 link_state[track] = desired  # update ONLY on success → failures retry next cycle
                 if track == "real" and margin_used and link.get("real_account_id") in real_budget:
@@ -325,7 +406,7 @@ def run(args) -> int:
                         lev = int(link.get("real_leverage", 1) or 1)
                         _telegram_notify(acc_id,
                             f"🔴 <b>REAL 숏 진입</b> — lifecycle 신규상장 decay\n"
-                            f"종목: <b>{symbol}</b>\n진입가: ~{ref_price:g}\n"
+                            f"종목: <b>{symbol}</b>\n진입가(라이브 마크): ~{mark_price:g}  (신호가 {ref_price:g})\n"
                             f"투입(전체 가용 마진): ${margin_used:,.2f}  (qty {qty:,.4f}, {lev}x)\n"
                             f"전략: 상장 Day-1 종가 공매도, Day-14 vol_cliff/Day-30/SL+50% 청산\n"
                             f"BACKTEST(System-2): {s2_id}  ts={cycle.get('timestamp','')}")
