@@ -59,7 +59,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from app.composer_framework.signal_source import SignalSource, SourceContext
+from app.composer_framework.signal_source import (
+    InsufficientSourceDataError,
+    SignalSource,
+    SourceContext,
+)
 
 log = logging.getLogger("bn_btc_rv_highvol_long")
 
@@ -77,6 +81,15 @@ class BinanceBTCRVHighvolLongSource(SignalSource):
     VOL_LOOKBACK_BARS = 30 * 24 * 60  # current 30d vol
     VOL_DIST_BARS = 90 * 24 * 60      # 90d distribution
     VOL_PCT_CUTOFF = 0.90       # p90 of past 90d (HIGH vol regime)
+
+    # vol_pct needs VOL_LOOKBACK_BARS warmup for vol_30d, then VOL_DIST_BARS
+    # more to rank it within the 90d window → ~120d of BTC 1m before the FIRST
+    # bar can ever fire. Demand at least this much usable eval window beyond
+    # that warmup, else the signal is structurally suppressed (the failure that
+    # left 13 btc_rv sessions silently at 0 trades on a 139d BTC leader).
+    MIN_EVAL_WINDOW_BARS = 30 * 24 * 60   # ≥30d usable window after warmup
+    # 1m leader may lag the eval window by at most this before it's "stale".
+    STALE_TOLERANCE_MIN = 2 * 24 * 60     # 2 days
 
     def __init__(
         self,
@@ -166,9 +179,43 @@ class BinanceBTCRVHighvolLongSource(SignalSource):
 
         leader = self._get_leader(ctx)
         if leader is None or len(leader) == 0:
-            log.warning("bn_btc_rv_highvol_long: leader BTC ohlcv missing — emitting zero signal")
-            return out
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: leader BTC 1m ohlcv missing "
+                f"(leader_ohlcv_1m not injected). Refusing to emit a fake zero "
+                f"signal."
+            )
 
+        # History-sufficiency guard: vol_pct needs warmup + a usable window.
+        # Below this, the vol-regime filter is NaN over (almost) the whole eval
+        # span and the source can only ever emit zeros — indistinguishable from
+        # a real "no high-vol cascade" period unless we fail loudly here.
+        min_leader_bars = (
+            self.VOL_LOOKBACK_BARS + self.VOL_DIST_BARS + self.MIN_EVAL_WINDOW_BARS
+        )
+        if len(leader) < min_leader_bars:
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: BTC 1m leader too short — have "
+                f"{len(leader)} bars (~{len(leader) // 1440}d), need "
+                f"≥{min_leader_bars} (~{min_leader_bars // 1440}d) for "
+                f"{(self.VOL_LOOKBACK_BARS + self.VOL_DIST_BARS) // 1440}d vol "
+                f"warmup + {self.MIN_EVAL_WINDOW_BARS // 1440}d usable window. "
+                f"Backfill BTCUSDT 1m before trusting this session."
+            )
+
+        # Staleness guard: leader must overlap the eval window, else recent
+        # triggers can't be mapped and the signal silently flatlines.
+        eval_end = eval_idx.max()
+        leader_end = pd.to_datetime(leader.index).max()
+        lag_min = (eval_end - leader_end).total_seconds() / 60.0
+        if lag_min > self.STALE_TOLERANCE_MIN:
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: BTC 1m leader stale — last bar "
+                f"{leader_end} lags eval end {eval_end} by {lag_min / 1440:.1f}d "
+                f"(> {self.STALE_TOLERANCE_MIN / 1440:.0f}d tolerance)."
+            )
+
+        # Data is sufficient: an empty trigger set here is a LEGITIMATE
+        # "no high-vol up-cascade fired" period → valid all-zero signal.
         triggers = self._compute_btc_triggers(leader)
         if len(triggers) == 0:
             return out

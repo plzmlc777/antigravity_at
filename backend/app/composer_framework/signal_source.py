@@ -39,6 +39,21 @@ class SourceContext:
     extras: dict[str, Any] = field(default_factory=dict)
 
 
+class InsufficientSourceDataError(ValueError):
+    """Raised when a source's required runtime data is missing, stale, or too
+    short to produce a valid signal series over the eval window.
+
+    Hardening contract: a data-deficient source MUST raise this instead of
+    silently emitting an all-zero signal. An all-zero signal is reserved for
+    the legitimate "data present and sufficient, but no trigger fired" case.
+    Silently returning zero on missing/insufficient data makes a broken or
+    data-starved strategy indistinguishable from a dormant one — the failure
+    mode that hid btc_rv_highvol (139d BTC leader vs 150d warmup requirement)
+    and premium_index_zscore (joblib absent during the session's live run)
+    for months while they recorded fake "0 trades / +0.00%" results.
+    """
+
+
 def source_feature_prefix(name: str) -> str:
     """Standard prefix from source name; "pattern" → "pat_", "kr_flow" → "flow_" etc.
     Convention: lowercase short prefix + underscore."""

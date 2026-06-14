@@ -38,7 +38,16 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.composer_framework.signal_source import SignalSource, SourceContext
+from app.composer_framework.signal_source import (
+    InsufficientSourceDataError,
+    SignalSource,
+    SourceContext,
+)
+
+# Daily premium is a 1d series; tolerate up to this much lag behind the eval
+# window end before declaring the joblib stale (covers normal aggregation
+# latency without masking a genuinely frozen/stale cache).
+_STALE_TOLERANCE_DAYS = 3
 
 
 class BinancePremiumIndexZScoreSource(SignalSource):
@@ -61,9 +70,11 @@ class BinancePremiumIndexZScoreSource(SignalSource):
 
         if (self.premium_df is None or len(self.premium_df) == 0
                 or "close" not in self.premium_df.columns):
-            out["bnpiz_signal"] = 0.0
-            out["bnpiz_z"] = np.nan
-            return out
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: premium_df missing/empty or lacks "
+                f"'close' column (premium joblib not injected). Cannot compute "
+                f"z-score; refusing to emit a fake zero signal."
+            )
 
         df = self.premium_df[["close"]].copy()
         df["close"] = pd.to_numeric(df["close"], errors="coerce")
@@ -73,9 +84,26 @@ class BinancePremiumIndexZScoreSource(SignalSource):
         df = df[~df.index.duplicated(keep="last")]
 
         if len(df) < self.zwin + 5:
-            out["bnpiz_signal"] = 0.0
-            out["bnpiz_z"] = np.nan
-            return out
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: premium history too short for "
+                f"{self.zwin}d z-score — have {len(df)} daily rows, need "
+                f"≥{self.zwin + 5}."
+            )
+
+        # Staleness guard: if the premium cache ends well before the eval window,
+        # the daily signal would be forward-filled from a stale value, silently
+        # suppressing real triggers in the gap (the failure that hid the
+        # premium_index paper seeds when the joblib lagged the live run).
+        eval_end = eval_idx.max().normalize()
+        prem_end = df.index.max()
+        lag_days = (eval_end - prem_end).days
+        if lag_days > _STALE_TOLERANCE_DAYS:
+            raise InsufficientSourceDataError(
+                f"{self.name}[{ctx.symbol}]: premium cache stale — last premium "
+                f"{prem_end.date()} lags eval end {eval_end.date()} by "
+                f"{lag_days}d (> {_STALE_TOLERANCE_DAYS}d tolerance). Refresh the "
+                f"premium joblib before trusting this session."
+            )
 
         rmean = df["close"].rolling(self.zwin).mean()
         rstd = df["close"].rolling(self.zwin).std()

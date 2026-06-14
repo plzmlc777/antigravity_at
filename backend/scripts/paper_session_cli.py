@@ -51,6 +51,9 @@ from app.composer_framework import (  # noqa: E402
     SessionStore,
     validate_spec,
 )
+from app.composer_framework.signal_source import (  # noqa: E402
+    InsufficientSourceDataError,
+)
 from app.db.session import SessionLocal  # noqa: E402
 from app.microstructure.kr_investor_flow import fetch_investor_flow  # noqa: E402
 from app.pattern_scanner import PatternScanner  # noqa: E402
@@ -363,6 +366,7 @@ def cmd_run(args) -> int:
         return 0
 
     orch = PaperOrchestrator(store)
+    degraded: list[tuple[str, str, str]] = []  # (session_id, name, reason)
     for s in sessions:
         sources_used = [src["type"] for src in s.pipeline_spec.get("sources", [])]
         eval_freq = s.pipeline_spec.get("config", {}).get("eval_freq_minutes", 1440)
@@ -372,8 +376,21 @@ def cmd_run(args) -> int:
             cycle = orch.run_cycle(s, bundle)
             print(f"  {s.session_id} {s.symbol}: pred={cycle.prediction:+.4f} "
                   f"action={cycle.action_kind} side={cycle.side_after} equity={cycle.equity_after:,.0f}")
+        except InsufficientSourceDataError as exc:
+            # Data-deficient session: the source refused to emit a fake zero.
+            # Do NOT advance the session (no bogus "hold" recorded). Surface it
+            # loudly so a starved strategy cannot masquerade as dormant.
+            degraded.append((s.session_id, s.name, str(exc)))
+            log.error("DATA-DEGRADED (skipped, not advanced): %s (%s) — %s",
+                      s.session_id, s.name, exc)
         except Exception as exc:
             log.error("Cycle failed for %s: %s", s.session_id, exc)
+
+    if degraded:
+        print(f"\n⚠️  {len(degraded)} session(s) DATA-DEGRADED — emitting NO signal "
+              f"(missing/insufficient/stale runtime data, NOT a real 0-trade result):")
+        for sid, name, reason in degraded:
+            print(f"  ✗ {sid} {name}\n      {reason}")
     return 0
 
 
