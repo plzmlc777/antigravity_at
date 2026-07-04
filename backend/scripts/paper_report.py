@@ -1,0 +1,179 @@
+"""Paper-mode weekly/monthly report → Telegram, split by the two categories.
+
+Category A = lifecycle family (paper shadow of the strategy running in real).
+Category B = competition pool (everything else, competing for promotion).
+
+Data source: the SessionStore forward-sim paper sessions (runs/paper_sessions/*)
+— per-trade trades.jsonl (entry/exit ts, return_pct, pnl_cash). Mirrors the
+real_trading_report cadence/format so the user gets paper + real in one style.
+
+A "trade" = a completed round-trip in trades.jsonl whose exit_ts falls in the
+period window. Absolute pnl_cash is NOT summed across strategies (mixed capital
+bases $10k–$1M); the report uses per-trade return_pct, win rate, and best/worst
+strategy by period return.
+
+Usage:
+  python -m scripts.paper_report --period week
+  python -m scripts.paper_report --period month
+  python -m scripts.paper_report --period week --dry
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+STORE = ROOT / "runs" / "paper_sessions"
+sys.path.insert(0, str(ROOT))
+
+REAL_ACCOUNT_ID = 8  # telegram destination (same REAL alert chats)
+_KR = re.compile(r"^\d{6}$")
+MIN_TRADES_TO_RANK = 5
+
+
+def _month_bounds(y: int, m: int) -> tuple[date, date]:
+    start = date(y, m, 1)
+    end = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+    return start, end
+
+
+def _prev_month(y: int, m: int) -> tuple[int, int]:
+    return (y - 1, 12) if m == 1 else (y, m - 1)
+
+
+def _load_sessions() -> list[dict]:
+    out = []
+    for sj in STORE.glob("*/session.json"):
+        try:
+            s = json.loads(sj.read_text())
+        except Exception:
+            continue
+        if s.get("status") != "active":
+            continue
+        sid = sj.parent.name
+        name = s.get("name", "")
+        sym = s.get("symbol", "")
+        cat = "A" if "lifecycle" in name else "B"
+        trades = []
+        tp = STORE / sid / "trades.jsonl"
+        if tp.exists():
+            for ln in tp.read_text().splitlines():
+                ln = ln.strip()
+                if ln:
+                    try:
+                        trades.append(json.loads(ln))
+                    except Exception:
+                        pass
+        out.append({"sid": sid, "symbol": sym, "name": name, "cat": cat, "trades": trades})
+    return out
+
+
+def _cat_stats(sessions: list[dict], start: date, end: date) -> dict:
+    """Aggregate stats for one category over [start, end) by trade exit date."""
+    s_iso, e_iso = start.isoformat(), end.isoformat()
+    n_active = len(sessions)
+    all_rets, all_pnl = [], []
+    per_sess_ret: dict[str, float] = {}
+    per_sess_label: dict[str, str] = {}
+    for sess in sessions:
+        sret = 0.0
+        hit = False
+        for t in sess["trades"]:
+            ex = str(t.get("exit_ts", ""))[:10]
+            if ex and s_iso <= ex < e_iso:
+                r = float(t.get("return_pct", 0))
+                all_rets.append(r)
+                all_pnl.append(float(t.get("pnl_cash", 0)))
+                sret += r
+                hit = True
+        if hit:
+            per_sess_ret[sess["sid"]] = sret * 100.0
+            per_sess_label[sess["sid"]] = sess["symbol"]
+    n = len(all_rets)
+    wins = [p for p in all_pnl if p > 0]
+    best = max(per_sess_ret.items(), key=lambda kv: kv[1]) if per_sess_ret else None
+    worst = min(per_sess_ret.items(), key=lambda kv: kv[1]) if per_sess_ret else None
+    return {
+        "n_active": n_active,
+        "n_trades": n,
+        "win_rate": (len(wins) / n * 100.0) if n else 0.0,
+        "avg_ret": (sum(all_rets) / n * 100.0) if n else 0.0,
+        "best": (per_sess_label[best[0]], best[1]) if best else None,
+        "worst": (per_sess_label[worst[0]], worst[1]) if worst else None,
+        "n_traded_sessions": len(per_sess_ret),
+    }
+
+
+def _cat_block(title: str, cur: dict, prev: dict) -> list[str]:
+    L = [f"━━ {title} ━━"]
+    L.append(f"  활성 {cur['n_active']} · 거래 <b>{cur['n_trades']}</b>회 (전기간 {prev['n_trades']})")
+    if cur["n_trades"]:
+        L.append(f"  승률 {cur['win_rate']:.0f}% · 평균 <b>{cur['avg_ret']:+.2f}%</b>/거래")
+        if cur["best"]:
+            L.append(f"  최고 {cur['best'][0]} {cur['best'][1]:+.1f}% · 최저 {cur['worst'][0]} {cur['worst'][1]:+.1f}%")
+    else:
+        L.append("  이번 기간 완결 거래 없음")
+    return L
+
+
+def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b_prev) -> str:
+    L = [f"📄 <b>페이퍼 {kind_ko} 리포트</b>", f"<b>{label}</b> ({cmp_ko} 대비)", ""]
+    L += _cat_block("🅰️ 실거래 병행 (lifecycle)", a_cur, a_prev)
+    L.append("")
+    L += _cat_block("🅱️ 승격 경쟁", b_cur, b_prev)
+    return "\n".join(L)
+
+
+def _windows(period: str):
+    if period == "month":
+        today = datetime.utcnow().date()
+        y, m = _prev_month(today.year, today.month)
+        ts, te = _month_bounds(y, m)
+        py, pm = _prev_month(y, m)
+        ps, pe = _month_bounds(py, pm)
+        return "월간", "전월", f"{y}-{m:02d}", (ts, te), (ps, pe)
+    end = datetime.utcnow().date()
+    ts, te = end - timedelta(days=7), end
+    ps, pe = end - timedelta(days=14), end - timedelta(days=7)
+    label = f"{ts.isoformat()}~{(end - timedelta(days=1)).isoformat()}"
+    return "주간", "전주", label, (ts, te), (ps, pe)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--period", choices=["week", "month"], default="week")
+    ap.add_argument("--dry", action="store_true")
+    args = ap.parse_args()
+
+    kind_ko, cmp_ko, label, (ts, te), (ps, pe) = _windows(args.period)
+    sessions = _load_sessions()
+    A = [s for s in sessions if s["cat"] == "A"]
+    B = [s for s in sessions if s["cat"] == "B"]
+    a_cur, a_prev = _cat_stats(A, ts, te), _cat_stats(A, ps, pe)
+    b_cur, b_prev = _cat_stats(B, ts, te), _cat_stats(B, ps, pe)
+    msg = build_message(kind_ko, cmp_ko, label, a_cur, a_prev, b_cur, b_prev)
+
+    print(msg)
+    print("\n---")
+    if args.dry:
+        print("[DRY] not sending")
+        return 0
+    if a_cur["n_trades"] == 0 and b_cur["n_trades"] == 0 and a_prev["n_trades"] == 0 and b_prev["n_trades"] == 0:
+        print("[SKIP] no paper trades in window")
+        return 0
+    try:
+        from scripts.binance.lifecycle_live_signal_driver import _telegram_notify
+        _telegram_notify(REAL_ACCOUNT_ID, msg)
+        print("[SENT] telegram dispatched")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[FAIL] telegram send: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

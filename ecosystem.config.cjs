@@ -426,6 +426,30 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    {
+        // Weekly paper-mode report (Category A lifecycle / B competition split)
+        // → Telegram — Mon 07:20 KST (22:20 UTC Sun). Read-only. No trading.
+        name: "paper-weekly-report",
+        script: SAS_WRAPPER,
+        args: `'20 22 * * 0' ./scripts/binance/run_paper_weekly_report.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Monthly paper-mode report (Category A/B split) → Telegram —
+        // 1st 22:20 UTC (= 2nd 07:20 KST). Read-only. No trading.
+        name: "paper-monthly-report",
+        script: SAS_WRAPPER,
+        args: `'20 22 1 * *' ./scripts/binance/run_paper_monthly_report.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
 ];
 
 // Crypto Meta-Strategy MoE (held back: enable via ENABLE_CRYPTO_META=1).
