@@ -747,6 +747,28 @@ class LiveContext:
             if executions:
                 logger.info(f"Context {self.session_id}: Restored {len(executions)} trades from DB")
 
+                # Reconstruct net in-memory holdings per symbol (shorts = negative)
+                # so close_position and short-cover P&L survive a restart. Without
+                # this, a daily-backend-restart between a short entry (SELL) and its
+                # cover (BUY) left _holdings empty → close_position read 0 → "no
+                # position to close" → the short was NEVER covered (lifecycle PAPER
+                # open-never-close bug: paper booked SELL-only, +0.00% forever).
+                # Mirror of the process_queue fill update (BUY +qty / SELL -qty).
+                # PAPER-scoped: REAL re-verifies against the live exchange on entry
+                # (lifecycle driver _real_symbol_state) and works today — don't risk
+                # drifting its holdings from a DB reconstruction.
+                if self.is_paper:
+                    holdings: Dict[str, float] = {}
+                    for ex in executions:
+                        q = ex.filled_quantity or ex.requested_quantity or 0
+                        if ex.signal_type == Signal.BUY:
+                            holdings[ex.symbol] = holdings.get(ex.symbol, 0) + q
+                        else:  # SELL
+                            holdings[ex.symbol] = holdings.get(ex.symbol, 0) - q
+                    self._holdings = {s: q for s, q in holdings.items() if abs(q) > 1e-9}
+                    if self._holdings:
+                        logger.info(f"Context {self.session_id}: Holdings restored = {self._holdings}")
+
                 # Recalculate cash from initial_capital and trade history
                 if self.initial_capital > 0:
                     cash = self.initial_capital
