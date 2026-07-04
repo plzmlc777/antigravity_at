@@ -369,7 +369,8 @@ const agentApps = [
     // single Markdown message. Mode (pre|post) passed via env (sas_loop_wrapper
     // parses cron + script only — see wrapper note).
     {
-        // Pre-market brief — KST 08:30 (= UTC 23:30 Sun-Thu = KST Mon-Fri).
+        // Sole daily brief — KST 08:30 (= UTC 23:30 Sun-Thu = KST Mon-Fri).
+        // Consolidated to a single pre-market run (post-market brief removed 2026-06-14).
         name: "sena-brief-premarket",
         script: SAS_WRAPPER,
         args: `'30 23 * * 0-4' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh`,
@@ -381,13 +382,17 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // Post-market brief — KST 16:30 (= UTC 07:30 Mon-Fri).
-        name: "sena-brief-postmarket",
+        // Monthly REAL trading report → Telegram — 1st of month 09:00 UTC (18:00 KST).
+        // Deterministic worker: computes last complete calendar month's realized-PnL
+        // stats for acct8 (Binance Futures REAL) from live_trade_executions, compares
+        // to the prior month, appends live total equity, and telegrams the REAL alert
+        // chats. Read-only (DB + one balance query). No trading. Established 2026-07-04
+        // as the automated month-over-month comparison the user requested.
+        name: "monthly-real-report",
         script: SAS_WRAPPER,
-        args: `'30 7 * * 1-5' ./.claude/skills/at-orchestrator/scripts/sena_brief/run_sena_brief.sh`,
+        args: `'0 9 1 * *' ./scripts/binance/run_monthly_real_trading_report.sh`,
         interpreter: "bash",
         cwd: ".",
-        env: { SENA_BRIEF_MODE: "post" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
