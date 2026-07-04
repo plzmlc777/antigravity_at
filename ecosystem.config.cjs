@@ -382,15 +382,29 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // Monthly REAL trading report → Telegram — 1st of month 09:00 UTC (18:00 KST).
-        // Deterministic worker: computes last complete calendar month's realized-PnL
-        // stats for acct8 (Binance Futures REAL) from live_trade_executions, compares
-        // to the prior month, appends live total equity, and telegrams the REAL alert
-        // chats. Read-only (DB + one balance query). No trading. Established 2026-07-04
-        // as the automated month-over-month comparison the user requested.
+        // Monthly REAL trading report → Telegram — 1st 22:00 UTC (= 2nd 07:00 KST).
+        // Deterministic worker: last complete calendar month's realized-PnL stats
+        // for acct8 (Binance Futures REAL) from live_trade_executions, vs prior
+        // month, + live total equity, telegrammed to the REAL alert chats.
+        // Read-only. No trading. 07:00 KST delivery (07:00 KST on the 1st = 22:00
+        // UTC on the last day of prev month, not cron-expressible → lands 2nd 07:00).
         name: "monthly-real-report",
         script: SAS_WRAPPER,
-        args: `'0 9 1 * *' ./scripts/binance/run_monthly_real_trading_report.sh`,
+        args: `'0 22 1 * *' ./scripts/binance/run_monthly_real_trading_report.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Weekly REAL trading report → Telegram — Sun 22:00 UTC (= Mon 07:00 KST).
+        // Same worker as monthly (scripts.real_trading_report --period week): last
+        // 7 days' realized-PnL stats for acct8 vs the prior 7 days, + live equity.
+        // Read-only. No trading. Established 2026-07-04.
+        name: "weekly-real-report",
+        script: SAS_WRAPPER,
+        args: `'0 22 * * 0' ./scripts/binance/run_weekly_real_trading_report.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,

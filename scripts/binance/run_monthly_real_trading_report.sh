@@ -15,7 +15,7 @@ echo "[monthly-real-report] ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee -a "${LOG_F
 cd "$(pwd)/backend" || exit 1
 # shellcheck disable=SC1091
 source venv/bin/activate
-PYTHONPATH=. python3 -m scripts.monthly_real_trading_report 2>&1 | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 -m scripts.real_trading_report --period month 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[monthly-real-report] exit_code=${EC}" | tee -a "${LOG_FILE}"
 exit "${EC}"
