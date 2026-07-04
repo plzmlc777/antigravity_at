@@ -145,81 +145,114 @@ class PaperOrchestrator:
             pipeline.fit(train_df)
             session.last_fit_ts = datetime.utcnow().isoformat(timespec="seconds")
 
-        # Predict for the LATEST bar
-        latest = feat.iloc[[-1]]
+        # ── Catch-up replay ──────────────────────────────────────────────
+        # Process EVERY un-processed eval bar since last_cycle_ts, not just the
+        # latest one. A once-daily cron on a 5m-eval session would otherwise
+        # evaluate 1 of 288 bars/day (intraday under-sampling): the source emits
+        # signals but the loop never sees them → 0 trades / +0.00% forever.
+        # Daily-eval sessions are unaffected (their gap is ~1 bar/run, so the
+        # loop runs once = identical to the old single-bar behavior). Position,
+        # cash, bars_held, and SL/TP state carry across the replayed bars.
+        eval_index = df_eval.index
+        n_bars = len(eval_index)
+        if session.last_cycle_ts:
+            try:
+                last_ts = pd.Timestamp(session.last_cycle_ts)
+                start_pos = int(eval_index.searchsorted(last_ts, side="right"))
+            except Exception:
+                start_pos = n_bars - 1
+        else:
+            # fresh session: start clean from the latest bar (do NOT replay all
+            # of history — this is a live paper session, not a backtest).
+            start_pos = n_bars - 1
+        gap_positions = list(range(max(start_pos, 0), n_bars))
+        # Safety bound: cap one cycle's replay at ~1 week of 5m bars (e.g. the
+        # first run after a long outage) so a single cycle stays bounded.
+        MAX_CATCHUP_BARS = 2016
+        if len(gap_positions) > MAX_CATCHUP_BARS:
+            gap_positions = gap_positions[-MAX_CATCHUP_BARS:]
+        if not gap_positions:
+            # Already up to date (no new bar) — no-op, do not re-execute.
+            return self._record_no_op(session, feat, "no_new_bar")
+
+        # Predict the whole gap at once (vectorized), then step bar-by-bar for
+        # the inherently-sequential policy/position/execution logic.
         try:
-            pred_arr = pipeline.predict(latest)
-            prediction = float(pred_arr[0])
+            pred_all = pipeline.predict(feat.iloc[gap_positions])
         except Exception as exc:
             logger.warning("Session %s predict failed: %s", session.session_id, exc)
             return self._record_no_op(session, feat, f"predict_error: {exc}")
 
-        # Build policy context
-        latest_bar = df_eval.iloc[-1]
-        ts_iso = pd.Timestamp(df_eval.index[-1]).isoformat()
-        policy_ctx = PolicyContext(
-            timestamp=df_eval.index[-1].to_pydatetime() if hasattr(df_eval.index[-1], "to_pydatetime") else df_eval.index[-1],
-            prediction=prediction,
-            open_price=float(latest_bar["open"]),
-            high_price=float(latest_bar["high"]),
-            low_price=float(latest_bar["low"]),
-            close_price=float(latest_bar["close"]),
-            in_position=(session.side != "flat"),
-            side=session.side,
-            entry_price=session.entry_price,
-            bars_held=session.bars_held,
-        )
+        cycle: Optional[CycleResult] = None
+        for k, pos in enumerate(gap_positions):
+            prediction = float(pred_all[k])
+            bar = df_eval.iloc[pos]
+            bar_ts = eval_index[pos]
+            ts_iso = pd.Timestamp(bar_ts).isoformat()
+            policy_ctx = PolicyContext(
+                timestamp=bar_ts.to_pydatetime() if hasattr(bar_ts, "to_pydatetime") else bar_ts,
+                prediction=prediction,
+                open_price=float(bar["open"]),
+                high_price=float(bar["high"]),
+                low_price=float(bar["low"]),
+                close_price=float(bar["close"]),
+                in_position=(session.side != "flat"),
+                side=session.side,
+                entry_price=session.entry_price,
+                bars_held=session.bars_held,
+            )
 
-        # Forced-exit check (SL/TP hit intra-bar) BEFORE policy.decide
-        forced_exit = self._check_forced_exit(session, latest_bar)
+            # Forced-exit check (SL/TP hit intra-bar) BEFORE policy.decide
+            forced_exit = self._check_forced_exit(session, bar)
 
-        action = pipeline.policy.decide(policy_ctx)
+            action = pipeline.policy.decide(policy_ctx)
 
-        side_before = session.side
-        trade_id: Optional[str] = None
+            side_before = session.side
+            trade_id: Optional[str] = None
 
-        if forced_exit:
-            trade = self._close_position(session, forced_exit["price"], df_eval.index[-1], forced_exit["reason"], prediction)
-            trade_id = trade.trade_id
-            self.store.append_trade(session.session_id, trade)
-        elif action.kind == "exit" and session.side != "flat":
-            trade = self._close_position(session, float(latest_bar["open"]), df_eval.index[-1], action.note or "policy_exit", prediction)
-            trade_id = trade.trade_id
-            self.store.append_trade(session.session_id, trade)
+            if forced_exit:
+                trade = self._close_position(session, forced_exit["price"], bar_ts, forced_exit["reason"], prediction)
+                trade_id = trade.trade_id
+                self.store.append_trade(session.session_id, trade)
+            elif action.kind == "exit" and session.side != "flat":
+                trade = self._close_position(session, float(bar["open"]), bar_ts, action.note or "policy_exit", prediction)
+                trade_id = trade.trade_id
+                self.store.append_trade(session.session_id, trade)
 
-        # Apply entry if flat now
-        if session.side == "flat" and action.kind == "enter_long":
-            self._open_long(session, float(latest_bar["open"]), df_eval.index[-1], action, prediction)
-        elif session.side == "flat" and action.kind == "enter_short":
-            self._open_short(session, float(latest_bar["open"]), df_eval.index[-1], action, prediction)
-        elif session.side != "flat" and action.kind == "hold":
-            session.bars_held += 1
+            # Apply entry if flat now
+            if session.side == "flat" and action.kind == "enter_long":
+                self._open_long(session, float(bar["open"]), bar_ts, action, prediction)
+            elif session.side == "flat" and action.kind == "enter_short":
+                self._open_short(session, float(bar["open"]), bar_ts, action, prediction)
+            elif session.side != "flat" and action.kind == "hold":
+                session.bars_held += 1
 
-        # Mark equity
-        if session.side == "long":
-            equity = session.cash + session.qty * float(latest_bar["close"])
-        elif session.side == "short":
-            equity = session.cash + session.qty * (session.entry_price - float(latest_bar["close"])) + session.qty * session.entry_price
-        else:
-            equity = session.cash
+            # Mark equity
+            if session.side == "long":
+                equity = session.cash + session.qty * float(bar["close"])
+            elif session.side == "short":
+                equity = session.cash + session.qty * (session.entry_price - float(bar["close"])) + session.qty * session.entry_price
+            else:
+                equity = session.cash
 
-        session.final_equity = equity
-        session.total_return_pct = (equity - session.initial_capital) / session.initial_capital
-        session.last_cycle_ts = ts_iso
-        session.n_cycles += 1
-        self.store.append_equity(session.session_id, ts_iso, equity)
+            session.final_equity = equity
+            session.total_return_pct = (equity - session.initial_capital) / session.initial_capital
+            session.last_cycle_ts = ts_iso
+            session.n_cycles += 1
+            self.store.append_equity(session.session_id, ts_iso, equity)
 
-        cycle = CycleResult(
-            timestamp=ts_iso, prediction=prediction,
-            action_kind=action.kind, action_note=action.note,
-            bar_open=float(latest_bar["open"]), bar_close=float(latest_bar["close"]),
-            side_before=side_before, side_after=session.side,
-            cash_after=session.cash, equity_after=equity,
-            sl_price=session.sl_price, tp_price=session.tp_price,
-            trade_id=trade_id,
-            forced_exit_reason=forced_exit["reason"] if forced_exit else None,
-        )
-        self.store.append_cycle(session.session_id, cycle)
+            cycle = CycleResult(
+                timestamp=ts_iso, prediction=prediction,
+                action_kind=action.kind, action_note=action.note,
+                bar_open=float(bar["open"]), bar_close=float(bar["close"]),
+                side_before=side_before, side_after=session.side,
+                cash_after=session.cash, equity_after=equity,
+                sl_price=session.sl_price, tp_price=session.tp_price,
+                trade_id=trade_id,
+                forced_exit_reason=forced_exit["reason"] if forced_exit else None,
+            )
+            self.store.append_cycle(session.session_id, cycle)
+
         self.store.save(session)
         return cycle
 
