@@ -411,6 +411,21 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    {
+        // Weekly competition-pool ranking snapshot — Mon 07:10 KST (22:10 UTC Sun).
+        // Phase 1 of the strategy tournament: ranks Category B (non-lifecycle)
+        // paper strategies by per-trade Sharpe (min-5-trade gate) and writes a
+        // dated snapshot to record the accumulation trajectory. Read-only, no
+        // elimination (Phase 2's tournament_controller will act on these).
+        name: "competition-snapshot",
+        script: SAS_WRAPPER,
+        args: `'10 22 * * 0' ./scripts/binance/run_competition_snapshot.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
 ];
 
 // Crypto Meta-Strategy MoE (held back: enable via ENABLE_CRYPTO_META=1).
