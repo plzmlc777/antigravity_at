@@ -900,6 +900,14 @@ class LiveTradingEngine:
         if self.is_paper:
             return
 
+        # noop/external-qty 세션 (lifecycle 신규상장 숏 등)은 포지션을 전략
+        # 인스턴스가 아니라 외부 드라이버(lifecycle_live_signal_driver)가 거래소에
+        # 직접 관리한다. strategy_instance 내부 포지션은 항상 0이므로 이 Kiwoom용
+        # 동기화가 "strategy=0 vs 거래소=숏"을 매 사이클 불일치로 오탐 → 텔레그램
+        # 스팸(SLXUSDT strategy=0 vs kiwoom=-455 사례). 외부관리 세션은 skip.
+        if getattr(self, "strategy_name", "") in ("noop", ""):
+            return
+
         # 장 시간(09:00~15:30 KST)에만 실행
         now = datetime.now()
         if not (9 <= now.hour < 15 or (now.hour == 15 and now.minute <= 30)):
