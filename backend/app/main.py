@@ -16,6 +16,11 @@ from .core.http_client import HttpClientManager # New Import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+# Quiet per-request HTTP client noise — lifecycle sessions poll Binance
+# positionRisk every tick, and httpx/httpcore log every request at INFO, which
+# flooded at-backend-error.log to 2.4GB. Keep WARNING+ only.
+for _noisy in ("httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
