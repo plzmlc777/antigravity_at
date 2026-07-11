@@ -227,6 +227,19 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // 텔레그램 Q&A 봇 — 리포트 그룹에서 @coinAtsProject_bot 멘션/답장 질문에
+        // 즉답 (참가자 전원, 조회 전용, 도구 전면 차단 + 사전수집 컨텍스트).
+        // 상주 long-polling 데몬 (cron 아님). 2026-07-11 구축.
+        name: "telegram-qa-bot",
+        script: "./venv/bin/python3",
+        args: "scripts/telegram/qa_bot.py",
+        cwd: "./backend",
+        env: { PYTHONPATH: ".", PYTHONUNBUFFERED: "1" },
+        autorestart: true,
+        max_restarts: 20,
+        restart_delay: 10000
+    },
+    {
         // 3군 paradigm dispatch — 매일 03:45 KST 가설 1건 자율 발굴 (Phase B).
         // queue.json pending 소비, 비면 SELF-RECOMMEND. headless claude로
         // paradigm-architect 투입 (R-0→R-4), R-4 PASS는 승격 큐 등록. 2026-07-11 배선.
