@@ -150,13 +150,15 @@ Execute R-1 PoC end-to-end, report verdict, halt at appropriate phase.
 On R-4 PASS enqueue R-5 candidates into tier_promotion_queue.json (paper specs only).""")
 ```
 
-### Autonomous (cron-triggered; Phase B — not yet wired)
-A PM2 cron will run `paradigm-architect-weekly` that:
-1. Loads pending hypotheses from `backend/runs/research_track/queue.json`
-2. Invokes architect with next hypothesis
-3. Sends Telegram alert on R-4 PASS
-
-Phase B deferred — current MVP is interactive only.
+### Autonomous (cron-triggered; Phase B — WIRED 2026-07-11)
+PM2 cron `paradigm-dispatch-daily` (Mint, 03:30 KST daily) runs
+`scripts/research/run_paradigm_dispatch.sh`:
+1. Pops one pending hypothesis from `backend/runs/research_track/queue.json`
+   (empty queue → SELF-RECOMMEND mode: architect proposes a novel hypothesis
+   itself, non-OHLCV substrate preferred per Lesson #77)
+2. Invokes this agent headless (claude -p, long-lived token auth)
+3. R-4 PASS → tier_promotion_queue.json enqueue (2군 리그가 시드)
+4. PARADIGM_RESULT line → Telegram
 
 ## Self-evaluation gate (run before each promotion)
 

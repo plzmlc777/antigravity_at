@@ -1,0 +1,4 @@
+{
+  "_doc": "3군 paradigm dispatch 대기열 (2026-07-11 Phase B 배선). run_paradigm_dispatch.sh가 매일 1건 소비. status: pending → in_progress → done/failed. 비어 있으면 SELF-RECOMMEND 모드로 디스패치 (architect가 INDEX/lessons 기반 novel 가설 자체 발의 — Lesson #77 non-OHLCV substrate 우선).",
+  "queue": []
+}

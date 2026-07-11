@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# 3군 paradigm dispatch — 매일 1건 자율 발굴 (Phase B, 2026-07-11 배선).
+# Wrapped by sas_loop_wrapper.sh.
+#
+# Flow:
+#   1. backend/runs/research_track/queue.json에서 pending 가설 1건 pop
+#      (비어 있으면 SELF-RECOMMEND 모드 — architect가 novel 가설 자체 발의)
+#   2. headless claude -p로 paradigm-architect 서브에이전트 투입
+#      → R-0 prescreen → R-1 → R-2 → R-3 → R-4 자율 수행
+#      → R-4 PASS 시 tier_promotion_queue.json 등록 (2군 리그가 시드)
+#      → FAIL 시 graveyard 문서 생성
+#   3. PARADIGM_RESULT 라인 파싱 → Telegram 통보
+#
+# Schedule: daily 18:45 UTC (03:45 KST) — keepalive(18:00)·backend-restart(18:30) 이후.
+# Auth: ~/.claude/oauth_token.env (독립 grant 장기 토큰).
+# Smoke test: PARADIGM_DISPATCH_SMOKE=1 → 플러밍만 검증 (architect 미투입).
+
+set -uo pipefail
+
+export PATH="${HOME}/.npm-global/bin:${PATH}"
+# shellcheck disable=SC1091
+[ -f "${HOME}/.claude/oauth_token.env" ] && source "${HOME}/.claude/oauth_token.env"
+
+PROJECT_ROOT="$(pwd)"
+QUEUE="${PROJECT_ROOT}/backend/runs/research_track/queue.json"
+RUNS_DIR="${PROJECT_ROOT}/backend/runs/research_track/dispatch_logs"
+LOCK_FILE="${RUNS_DIR}/.dispatch.lock"
+mkdir -p "${RUNS_DIR}"
+
+# Single-instance guard — R 파이프라인은 수 시간 걸릴 수 있음.
+if [ -f "${LOCK_FILE}" ]; then
+  PREV_PID=$(cat "${LOCK_FILE}" 2>/dev/null || echo "")
+  if [ -n "${PREV_PID}" ] && kill -0 "${PREV_PID}" 2>/dev/null; then
+    echo "[paradigm-dispatch] previous run still active (pid ${PREV_PID}), skipping"
+    exit 0
+  fi
+  rm -f "${LOCK_FILE}"
+fi
+echo "$$" > "${LOCK_FILE}"
+trap 'rm -f "${LOCK_FILE}"' EXIT
+
+TS="$(date -u +%Y%m%dT%H%M%SZ)"
+LOG_FILE="${RUNS_DIR}/dispatch_${TS}.log"
+echo "[paradigm-dispatch] start ${TS}"
+echo "[paradigm-dispatch] log ${LOG_FILE}"
+
+# ── 1. 큐에서 pending 1건 pop (없으면 SELF-RECOMMEND) ─────────────────
+HYPO=$(python3 - "$QUEUE" <<'PYEOF'
+import json, sys
+from datetime import datetime, timezone
+path = sys.argv[1]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = {"queue": []}
+for e in d.get("queue", []):
+    if e.get("status", "pending") == "pending":
+        e["status"] = "in_progress"
+        e["dispatched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        json.dump(d, open(path, "w"), indent=1, ensure_ascii=False)
+        print(e.get("hypothesis", ""))
+        break
+PYEOF
+)
+
+if [ -n "${HYPO}" ]; then
+  HYPO_BLOCK="Hypothesis (from queue): ${HYPO}"
+else
+  HYPO_BLOCK="SELF-RECOMMEND mode: no queued hypothesis. Read backend/runs/research_track/INDEX.json, backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md (lessons + family retires). Propose ONE novel hypothesis yourself — respect all family retires and the 77+ lesson prescreen, prefer non-OHLCV substrate per Lesson #77 (event/announcement/microstructure/positioning over raw price patterns). No DNA duplicate (5/6 dim overlap → pick another)."
+fi
+echo "[paradigm-dispatch] mode: $([ -n "${HYPO}" ] && echo queue || echo self-recommend)"
+
+# ── 2. architect 투입 ────────────────────────────────────────────────
+if [ "${PARADIGM_DISPATCH_SMOKE:-0}" = "1" ]; then
+  PROMPT='Print exactly this one line and nothing else: PARADIGM_RESULT: {"smoke": true}'
+  TIMEOUT=120
+else
+  PROMPT=$(cat <<PROMPT_EOF
+Paradigm dispatch (daily cron, 3군 자동 발굴. No user present — never ask questions).
+
+${HYPO_BLOCK}
+
+Dispatch Agent(subagent_type="paradigm-architect") with a prompt to:
+1. Run the full Research Track pipeline per research_track_master.md:
+   R-0 inventory + lesson prescreen -> R-1 PoC -> R-2 multi-symbol -> R-3 robustness -> R-4 elite gate.
+2. On R-4 PASS: follow Step 7.1 (promotion_graveyard.md skill) — write per-symbol
+   paper specs and enqueue top-3 symbols into backend/configs/tier_promotion_queue.json.
+   Paper specs ONLY. NEVER create live/real sessions, never touch live_bot_sessions or exchange accounts.
+3. On any FAIL: graveyard document per convention, update INDEX.
+4. Respect backfill discipline (archive-first, <10GB, no parallel downloaders).
+
+After the subagent returns, print exactly one line starting with:
+PARADIGM_RESULT: {"paradigm": "<name>", "final_phase": "<R-x|GRAVEYARD|R5_ENQUEUED>", "verdict": "<one-line summary>"}
+Nothing else after that line.
+PROMPT_EOF
+)
+  TIMEOUT="${PARADIGM_DISPATCH_TIMEOUT:-14400}"
+fi
+
+timeout "${TIMEOUT}" claude -p "${PROMPT}" \
+  --permission-mode bypassPermissions \
+  < /dev/null > "${LOG_FILE}" 2>&1
+EXIT_CODE=$?
+echo "[paradigm-dispatch] claude exit=${EXIT_CODE}"
+
+RESULT_LINE=$(grep -E "^PARADIGM_RESULT:" "${LOG_FILE}" 2>/dev/null | tail -1 || true)
+echo "[paradigm-dispatch] ${RESULT_LINE:-no result line}"
+
+# ── 3. 큐 상태 갱신 ──────────────────────────────────────────────────
+python3 - "$QUEUE" "${RESULT_LINE:-}" "${HYPO:-}" <<'PYEOF'
+import json, sys
+from datetime import datetime, timezone
+queue_path, result_line, hypo = sys.argv[1], sys.argv[2], sys.argv[3]
+if hypo:
+    try:
+        d = json.load(open(queue_path))
+        for e in d.get("queue", []):
+            if e.get("status") == "in_progress" and e.get("hypothesis") == hypo:
+                e["status"] = "done" if result_line else "failed"
+                e["result"] = result_line[:500]
+                e["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        json.dump(d, open(queue_path, "w"), indent=1, ensure_ascii=False)
+    except Exception as exc:
+        print(f"queue update failed: {exc}")
+PYEOF
+
+# ── 4. Telegram 통보 (backend venv 필요) ─────────────────────────────
+MODE_KO=$([ -n "${HYPO}" ] && echo "큐" || echo "SELF-RECOMMEND")
+if [ -n "${RESULT_LINE:-}" ]; then
+  MSG="🔬 3군 디스패치 완료 (${MODE_KO})
+${RESULT_LINE#PARADIGM_RESULT:}"
+else
+  MSG="🔬 3군 디스패치 실패 (${MODE_KO}) — exit=${EXIT_CODE}, 로그: ${LOG_FILE}"
+fi
+(
+  cd "${PROJECT_ROOT}/backend" || exit 1
+  # shellcheck disable=SC1091
+  source venv/bin/activate
+  PYTHONPATH=. python3 -c "
+import sys
+from scripts.binance.lifecycle_live_signal_driver import _telegram_notify
+_telegram_notify(8, sys.argv[1])
+print('telegram sent')
+" "${MSG}"
+) || echo "[paradigm-dispatch] telegram notify failed"
+
+# Prune logs older than 90 days
+find "${RUNS_DIR}" -name 'dispatch_*.log' -mtime +90 -delete 2>/dev/null || true
+
+exit "${EXIT_CODE}"

@@ -227,6 +227,19 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // 3군 paradigm dispatch — 매일 03:45 KST 가설 1건 자율 발굴 (Phase B).
+        // queue.json pending 소비, 비면 SELF-RECOMMEND. headless claude로
+        // paradigm-architect 투입 (R-0→R-4), R-4 PASS는 승격 큐 등록. 2026-07-11 배선.
+        name: "paradigm-dispatch-daily",
+        script: SAS_WRAPPER,
+        args: `'45 18 * * *' ./scripts/research/run_paradigm_dispatch.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
