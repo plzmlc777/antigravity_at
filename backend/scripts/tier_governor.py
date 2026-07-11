@@ -312,7 +312,7 @@ def main():
             actions.append(f"🔴 TERMINATE {s['name']} (Day-{m['age_days']}): {reason}")
         elif action == "PROMOTE":
             actions.append(f"🟢 PROMOTE 후보 {s['name']} (Day-{m['age_days']}): {reason}\n"
-                           f"   → 1군 진입은 대표님 수동 승인 대기")
+                           f"   → 기록만 함. 1군 승격은 대표님이 자금 사정 고려해 요청하실 때 진행")
         elif action == "RESEED":
             actions.append(f"⚫ RESEED 검토 {s['name']} (Day-{m['age_days']}): {reason}")
     seated = [s for s in seated if s["sid"] not in terminated_ids]
