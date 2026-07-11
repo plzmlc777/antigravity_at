@@ -36,7 +36,11 @@ source venv/bin/activate
 # Paper-pool universe (14 alts) + BTCUSDT/ETHUSDT used as cross-symbol leaders
 # (bn_cross_lead_lag / bn_cross_eth sources). Without BTC/ETH fresh, leader
 # bars stall and cross paradigms emit pred=0 indefinitely.
-SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT,AVAXUSDT,LINKUSDT}"
+# + paradigm 127/128 volume_burst universe (13 alts, deployed 2026-05-21):
+# ADA/BCH/BNB/FIL/LTC/NEAR/WIF/XRP were missing here, so their 1m bars froze
+# at 2026-05-12 and 16/26 sessions stalled (found 2026-07-11 — same failure
+# mode as the 2026-05-13 incident above).
+SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT,AVAXUSDT,LINKUSDT,ADAUSDT,BCHUSDT,BNBUSDT,FILUSDT,LTCUSDT,NEARUSDT,WIFUSDT,XRPUSDT}"
 DAYS="${BINANCE_OHLCV_DAYS:-3}"
 
 echo "[binance-ohlcv] symbols=${SYMBOLS} days=${DAYS}" | tee -a "${LOG_FILE}"
