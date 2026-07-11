@@ -75,37 +75,6 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // KR — daily EOD paper cycle for 061090 (Mon-Fri 17:00 KST = 08:00 UTC).
-        // Legacy session: S2 BB Reversion baseline (kept for comparison).
-        name: "kr-paper-cycle",
-        script: SAS_WRAPPER,
-        args: `'0 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: {
-            KR_PAPER_SESSION: "061090_s2_seed"
-        },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // KR — paper cycle for S31 1m_period_x3 (mb=4, ms=1).
-        // OOS-validated winner: +19.15% / Sharpe 5.42 / WinR 87% / maxDD -2.26%.
-        // Runs 5 minutes after the legacy cycle to avoid DB contention.
-        name: "kr-paper-cycle-s31",
-        script: SAS_WRAPPER,
-        args: `'5 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: {
-            KR_PAPER_SESSION: "061090_s31_1m_x3_seed"
-        },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
         // KR — daily dynamic strategy selector (Mon-Fri 18:00 KST = 09:00 UTC).
         // Evaluates 7-strategy pool over last 30 days, applies hard filters (maxDD<-25%
         // reject, min_trades=5), persists selection JSON for downstream paper/live use.
@@ -114,84 +83,6 @@ const agentApps = [
         args: `'0 9 * * 1-5' ./scripts/kr/run_kr_selector.sh`,
         interpreter: "bash",
         cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // KR — Meta-Strategy MoE paper cycle (Mon-Fri 17:10 KST = 08:10 UTC).
-        // Phase 5 wire-in: env_encoder + meta_lgbm picks 1 of 12 strategies + safety gates.
-        // Runs 10 minutes after kr-paper-cycle-s31 to avoid DB contention.
-        name: "kr-paper-cycle-meta",
-        script: SAS_WRAPPER,
-        args: `'10 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: {
-            KR_META_SESSION: "061090_meta_seed"
-        },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // KR — Weekly meta-learner retrain for 061090 (Sundays 09:00 KST = 00:00 UTC).
-        // Rebuilds perf_matrix on latest data, retrains LightGBM, atomic-swaps the
-        // canonical model path consumed by kr-paper-cycle-meta.
-        name: "kr-meta-retrain",
-        script: SAS_WRAPPER,
-        args: `'0 0 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    // ─── Multi-symbol expansion (2026-05-01): 005930 (Samsung) + 122630 (KODEX leverage) ───
-    // Per-symbol meta_lgbm models; daily paper cycles + weekly retrain.
-    {
-        // 005930 baseline only — meta-strategy held back; pool/symbol mismatch
-        // (top-1 acc 0% on walk-forward CV; oracle +602 shows potential but
-        // current 12-strategy pool doesn't fit blue-chip Samsung).
-        name: "kr-paper-cycle-s31-005930",
-        script: SAS_WRAPPER,
-        args: `'15 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_PAPER_SESSION: "005930_s31_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        name: "kr-paper-cycle-s31-122630",
-        script: SAS_WRAPPER,
-        args: `'25 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_PAPER_SESSION: "122630_s31_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        name: "kr-paper-cycle-meta-122630",
-        script: SAS_WRAPPER,
-        args: `'30 8 * * 1-5' ./scripts/kr/run_kr_meta_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_META_SESSION: "122630_meta_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        name: "kr-meta-retrain-122630",
-        script: SAS_WRAPPER,
-        args: `'0 1 * * 0' ./scripts/kr/run_kr_meta_retrain.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_META_RETRAIN_SYMBOL: "122630" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
@@ -220,21 +111,6 @@ const agentApps = [
         interpreter: "bash",
         cwd: ".",
         env: { KR_PAPER_SESSION: "122630_s61_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    // S67 (061090, S/R dual-trigger): S1 pivot bounce + PDH breakout-retest, EOD-flat, 15m.
-    // Backtest (thru 2026-04): 2026 71 trades +19.35% sharpe 2.28, WF 5/6. PAPER forward
-    // test — first cycle (May) -6.89% vs BH +11.78%: regime flipped up, strategy is a
-    // down/choppy specialist. Kept on paper to accumulate regime-transition evidence.
-    {
-        name: "kr-paper-cycle-s67-061090",
-        script: SAS_WRAPPER,
-        args: `'45 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_PAPER_SESSION: "061090_s67_seed" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
