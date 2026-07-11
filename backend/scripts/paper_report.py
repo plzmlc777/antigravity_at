@@ -36,14 +36,22 @@ MIN_TRADES_TO_RANK = 5
 ALIAS_PATH = ROOT / "configs" / "strategy_aliases.json"
 
 
-def _load_aliases() -> dict:
+def _load_alias_file() -> dict:
     try:
-        return json.loads(ALIAS_PATH.read_text()).get("aliases", {})
+        return json.loads(ALIAS_PATH.read_text())
     except Exception:
         return {}
 
 
-ALIASES = _load_aliases()
+_ALIAS_FILE = _load_alias_file()
+ALIASES = _ALIAS_FILE.get("aliases", {})
+ALIAS_DESC = _ALIAS_FILE.get("descriptions", {})
+
+
+def _alias_full(alias: str) -> str:
+    """'파도타기(거래량폭발 추세 LONG)' 표기."""
+    d = ALIAS_DESC.get(alias)
+    return f"{alias}({d})" if d else alias
 
 
 def _paradigm_key(name: str, sym: str) -> str:
@@ -161,15 +169,15 @@ def _cat_block(title: str, cur: dict, prev: dict, show_groups: bool = False) -> 
     if show_groups and len(cur.get("groups", {})) > 1:
         for k, g in sorted(cur["groups"].items(), key=lambda kv: -kv[1]["n_active"]):
             if g["n_trades"]:
-                L.append(f"    · {k} {g['n_active']}석 — {g['n_trades']}회, 평균 {g['avg_ret']:+.2f}%")
+                L.append(f"    · {_alias_full(k)} {g['n_active']}석 — {g['n_trades']}회, 평균 {g['avg_ret']:+.2f}%")
             else:
-                L.append(f"    · {k} {g['n_active']}석 — 거래 없음")
+                L.append(f"    · {_alias_full(k)} {g['n_active']}석 — 거래 없음")
     return L
 
 
 def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b_prev) -> str:
     L = [f"📄 <b>페이퍼 {kind_ko} 리포트</b>", f"<b>{label}</b> ({cmp_ko} 대비)", ""]
-    L += _cat_block("🅰️ 신상저격수 실거래 병행 (lifecycle)", a_cur, a_prev)
+    L += _cat_block(f"🅰️ {_alias_full('신상저격수')} — 실거래 병행", a_cur, a_prev)
     L.append("")
     L += _cat_block("🅱️ 승격 경쟁 (2군 리그)", b_cur, b_prev, show_groups=True)
     return "\n".join(L)

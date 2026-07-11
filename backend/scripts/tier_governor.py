@@ -84,23 +84,28 @@ def save_json(path: str, data, dry: bool) -> None:
         json.dump(data, f, indent=1, ensure_ascii=False, default=str)
 
 
-def load_aliases() -> dict:
+def load_alias_file() -> dict:
     try:
         with open(ALIAS_PATH) as f:
-            return json.load(f).get("aliases", {})
+            return json.load(f)
     except Exception:
         return {}
 
 
-ALIASES = load_aliases()
+_ALIAS_FILE = load_alias_file()
+ALIASES = _ALIAS_FILE.get("aliases", {})
+ALIAS_DESC = _ALIAS_FILE.get("descriptions", {})
 
 
 def disp(name: str, symbol: str) -> str:
-    """'파도타기·SOLUSDT' 표기 (별칭 없으면 원래 이름)."""
+    """'파도타기(거래량폭발 추세 LONG)·SOLUSDT' 표기 (별칭 없으면 원래 이름)."""
     key = name[len(symbol) + 1:] if name.startswith(symbol + "_") else name
     key = key.removesuffix("_paper_seed")
     alias = ALIASES.get("lifecycle" if "lifecycle" in name else key)
-    return f"{alias}·{symbol}" if alias else name
+    if not alias:
+        return name
+    d = ALIAS_DESC.get(alias)
+    return f"{alias}({d})·{symbol}" if d else f"{alias}·{symbol}"
 
 
 def load_baselines() -> dict:

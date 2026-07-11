@@ -1,5 +1,5 @@
 {
-  "_doc": "전략군 별칭 (2026-07-11 대표님 지시). paradigm key → 한글 별칭. 세션 표기는 '별칭·심볼'. tier_governor / paper_report / real_trading_report가 공용으로 사용.",
+  "_doc": "전략군 별칭 (2026-07-11 대표님 지시). paradigm key → 한글 별칭. 리포트 표기는 '별칭(설명)' — descriptions 맵 참조. 세션 표기는 '별칭·심볼'. tier_governor / paper_report / real_trading_report가 공용으로 사용.",
   "aliases": {
     "lifecycle": "신상저격수",
     "alt_volume_burst_pos_continuation_long": "파도타기",
@@ -8,5 +8,13 @@
     "premium_index_zscore": "저울잡이",
     "S+T+O+V": "사중주",
     "V": "독주자"
+  },
+  "descriptions": {
+    "신상저격수": "신규상장 Day-1 숏",
+    "파도타기": "거래량폭발 추세 LONG",
+    "되치기": "거래량폭발 역추세 숏",
+    "저울잡이": "프리미엄 괴리 평균회귀",
+    "사중주": "4시그널 앙상블",
+    "독주자": "볼륨 단일 팩터"
   }
 }
