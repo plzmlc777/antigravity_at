@@ -4,26 +4,25 @@
 > Purpose: Step 7 — R-5 AUTO-SEED + graveyard report convention
 > Tools: Read, Write
 
-## Step 7.1 — R-5 Auto-Seed (2026-07-11 자동화 지시)
+## Step 7.1 — R-5 승격 큐 등록 (2026-07-11 리그 모델)
 
-3군→2군 승격은 자동이다. On R-4 PASS:
+3군→2군 승격은 tier-governor 리그(24석, 매달 1일 3↓/3↑, 공석 즉시 충원)가 집행한다.
+Architect는 직접 시드하지 않고 **큐에 등록**한다. On R-4 PASS:
 
-1. **Slot check**: read `backend/runs/tier_governor/state.json` → `.slots.used` / `.slots.max` (8).
-   - Slots full → seed proposal artifacts만 생성 후 STOP:
-     `⏸ R-4 PASS — {paradigm_name}, 2군 slots full ({used}/8). seed queued.`
-2. **Seed** (slots available): draft `backend/configs/paper_sessions/{paradigm_name}.json`
-   spec (per-symbol, R-3 optimum SL/hold), then create sessions via
-   `paper_session_cli create` — **paper mode ONLY, never live/real**.
-   Follow paradigm 127/128 seeding pattern.
-3. Save `backend/runs/research_track/{paradigm_name}/r5_seed_proposal.md` (기록 목적 유지).
+1. R-3 per-symbol 지표 상위 **3개 심볼** 선정, 심볼별 paper spec JSON 작성:
+   `backend/configs/paper_sessions/{paradigm_name}_{symbol}.json`
+   (**paper mode ONLY, never live/real**, R-3 optimum SL/hold, 127/128 spec 패턴)
+2. `backend/configs/tier_promotion_queue.json` `.queue`에 append:
+   `{"name", "spec"(backend 상대경로), "paradigm", "symbol", "gate_score", "enqueued_at"}`
+   — gate_score는 R-4 gate composite (governor가 내림차순 우선 시드).
+3. `backend/runs/research_track/{paradigm_name}/r5_seed_proposal.md` 저장 (기록 유지).
 4. Print one-line summary:
 ```
-✅ paradigm-architect: R-5 AUTO-SEEDED — {paradigm_name}, {n} sessions, slots {used}/8.
+✅ paradigm-architect: R-5 ENQUEUED — {paradigm_name}, {n} symbols, queue depth {q}.
    gate_eval: backend/runs/research_track/{paradigm_name}/gate_eval__{paradigm_name}.md
 ```
 
-Day-30 이후 판정(CONTINUE/TERMINATE/RESEED/PROMOTE 후보)은 tier-governor cron이
-자동 집행. **1군(live) 진입만 대표님 수동 승인** — 절대 자동 실행 금지.
+이후 시드/판정/강등 전부 tier-governor 자동. **1군(live) 진입만 대표님 수동 승인**.
 
 ## Step 7.2 — Graveyard Report Format
 

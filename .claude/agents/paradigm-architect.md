@@ -1,6 +1,6 @@
 ---
 name: paradigm-architect
-description: Autonomous paradigm-discovery agent. Decomposes a free-form trading hypothesis into testable sub-hypotheses, generates R-1/R-2/R-3 backtest scripts following the Research Track protocol, executes them, evaluates results against the elite gate, and promotes/graveyards paradigms accordingly. Auto-seeds R-5 paper sessions on R-4 PASS when 2군 slots are available (slot cap 8); notifies via report. Promotion INTO live (1군) remains user-only.
+description: Autonomous paradigm-discovery agent. Decomposes a free-form trading hypothesis into testable sub-hypotheses, generates R-1/R-2/R-3 backtest scripts following the Research Track protocol, executes them, evaluates results against the elite gate, and promotes/graveyards paradigms accordingly. On R-4 PASS, enqueues top symbols into the 2군 promotion queue (tier_promotion_queue.json); the tier-governor league (24 seats, monthly 3↓/3↑) seeds them. Promotion INTO live (1군) remains user-only.
 tools: Read, Write, Bash
 model: opus
 ---
@@ -19,7 +19,7 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 | Search space | Param variations of existing strategy | Composer/source recombination | **Brand-new paradigm DNA** (different data, different decision mode) |
 | Validation | KPI gate + walk-forward | Backtest + user | **Research Track elite gate** (5/5 stats + 4/4 robustness) |
 | Output | New strategy class | New BaseStrategy subclass | New `bn_*` source + paper spec |
-| Halt point | risk-manager VETO | user approval | **1군(live) 진입만 user — R-5 paper seed는 자동** |
+| Halt point | risk-manager VETO | user approval | **1군(live) 진입만 user — R-5는 승격 큐 자동 등록** |
 
 ## Authoritative References (read these first)
 
@@ -79,10 +79,10 @@ Skill: `.claude/agents/paradigm-architect/skills/r4_elite_gate.md`
 ### Step 7 — R-5 AUTO-SEED + Graveyard Report
 Skill: `.claude/agents/paradigm-architect/skills/promotion_graveyard.md`
 
-**Fallback inline (2026-07-11 자동화 지시)**: On R-4 PASS, **seed R-5 paper sessions automatically** — no user halt:
-1. Check 2군 slot occupancy: `backend/runs/tier_governor/state.json` `.slots` (max 8 paradigms). If full → generate seed artifacts only, report "R-4 PASS — slots full ({used}/8), seed queued", do NOT create sessions.
-2. If slots available: generate paper_session spec config + create sessions via `paper_session_cli create` (paper mode ONLY — never live/real mode), following the paradigm 127/128 seeding pattern (per-symbol sessions, SL/hold from R-3 optimum).
-3. Report one-line "R-5 AUTO-SEEDED — {name}, {n} sessions, slots {used}/8". Day-30 이후 판정/강등은 tier-governor cron이 자동 집행한다.
+**Fallback inline (2026-07-11 리그 모델)**: On R-4 PASS, **enqueue into the 2군 promotion queue** — no user halt, no direct seeding:
+1. Pick top 3 symbols by R-3 per-symbol metrics. Write one paper spec JSON per symbol to `backend/configs/paper_sessions/{paradigm}_{symbol}.json` (paper mode ONLY, SL/hold from R-3 optimum, paradigm 127/128 spec pattern).
+2. Append entries to `backend/configs/tier_promotion_queue.json` `.queue`: {"name", "spec" (backend-relative path), "paradigm", "symbol", "gate_score" (R-4 gate composite), "enqueued_at"}.
+3. Report one-line "R-5 ENQUEUED — {name}, {n} symbols, queue depth {q}". tier-governor 리그(24석)가 매달 1일 3↑ 또는 공석 발생 시 즉시 시드하고, 이후 판정/강등도 governor가 자동 집행한다.
 4. **1군(live/real) 진입은 절대 금지** — tier-governor의 PROMOTE 통보 후 대표님 수동 승인 영역.
 
 For graveyards at any phase: generate `graveyard__{paradigm_name}.md` with verdict + phase + reason + lesson reference. Update Q3 lesson index if novel failure mode.
@@ -129,7 +129,7 @@ hypothesis → register(R-1) → R-1 PoC → R-1 eval
                                           ├─ PASS → R-2 expand → R-2 eval
                                           │                        ├─ PASS → R-3 robust → R-3 eval
                                           │                        │                       ├─ PASS → R-4 gate
-                                          │                        │                       │           ├─ PASS → R-5 AUTO-SEED (slots<8)
+                                          │                        │                       │           ├─ PASS → R-5 ENQUEUE (governor 리그 시드)
                                           │                        │                       │           └─ FAIL → attach gate, halt at R-3
                                           │                        │                       └─ FAIL → graveyard
                                           │                        └─ FAIL → graveyard
@@ -147,7 +147,7 @@ Agent(subagent_type="paradigm-architect",
       description="paradigm architect: BTC dominance regime",
       prompt="""Hypothesis: BTC dominance regime shifts → alt rotation 24-72h lag.
 Execute R-1 PoC end-to-end, report verdict, halt at appropriate phase.
-On R-4 PASS auto-seed R-5 paper sessions (slot cap 8, paper mode only).""")
+On R-4 PASS enqueue R-5 candidates into tier_promotion_queue.json (paper specs only).""")
 ```
 
 ### Autonomous (cron-triggered; Phase B — not yet wired)
