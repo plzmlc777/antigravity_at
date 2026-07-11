@@ -142,29 +142,15 @@ const agentApps = [
     },
     {
         // Daily KR investor flow backfill (ka10059). 16:30 KST (07:30 UTC) Mon-Fri.
-        // Runs ~1 hour after market close, before composer-paper-cycle and the
-        // KR per-symbol paper cycles read the data. Symbols cover BOTH the
-        // composer pool (122630/007210/055550) AND the dedicated KR sessions
-        // (005930/061090/122630) — S60 needs 005930 flow, S61 needs 122630 flow,
-        // and meta sessions ingest flow as a feature for 061090/122630.
+        // Runs ~1 hour after market close, before the KR per-symbol paper cycles
+        // read the data — S60 needs 005930 flow, S61 needs 122630 flow.
+        // (Composer/pattern KR paper track retired 2026-07-11 — symbols trimmed.)
         name: "composer-flow-backfill",
         script: SAS_WRAPPER,
         args: `'30 7 * * 1-5' ./scripts/kr/run_composer_flow_backfill.sh`,
         interpreter: "bash",
         cwd: ".",
-        env: { COMPOSER_FLOW_SYMBOLS: "005930,061090,122630,000660,007210,055550,196170" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // Composer paper cycle — runs paper_session_cli run --all.
-        // 16:50 KST (07:50 UTC) Mon-Fri, 20 minutes after flow-backfill.
-        name: "composer-paper-cycle",
-        script: SAS_WRAPPER,
-        args: `'50 7 * * 1-5' ./scripts/kr/run_composer_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
+        env: { COMPOSER_FLOW_SYMBOLS: "005930,122630" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
