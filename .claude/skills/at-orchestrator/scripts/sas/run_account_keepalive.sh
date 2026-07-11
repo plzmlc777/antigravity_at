@@ -18,6 +18,12 @@ set -uo pipefail
 # Defensive PATH export (manual triggers without the wrapper).
 export PATH="${HOME}/.npm-global/bin:${PATH}"
 
+# Headless auth: long-lived OAuth token (independent grant, valid ~1yr,
+# issued 2026-07-11). Avoids the 8h credentials-file rotation that killed
+# keepalive 2026-06-21..07-11.
+# shellcheck disable=SC1091
+[ -f "${HOME}/.claude/oauth_token.env" ] && source "${HOME}/.claude/oauth_token.env"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 RUNS_DIR="${PROJECT_ROOT}/.claude/skills/at-orchestrator/runs/keepalive"
