@@ -240,6 +240,20 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    {
+        // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
+        // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
+        // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
+        // 당일 최신 equity/trades 반영 상태에서 판정. 2026-07-11 신설.
+        name: "tier-governor",
+        script: SAS_WRAPPER,
+        args: `'40 3 * * *' ./scripts/binance/run_tier_governor.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
     // ─── Sena Technology (061090) daily Telegram brief ───
     // Aggregates Naver quote/news/discussion + OpenDART disclosures into a
     // single Markdown message. Mode (pre|post) passed via env (sas_loop_wrapper

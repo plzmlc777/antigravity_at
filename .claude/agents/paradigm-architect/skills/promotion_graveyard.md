@@ -1,26 +1,29 @@
 # Skill: Promotion to R-5 + Graveyard Report Format
 
 > Parent agent: `paradigm-architect`
-> Purpose: Step 7 — R-5 HALT + graveyard report convention
+> Purpose: Step 7 — R-5 AUTO-SEED + graveyard report convention
 > Tools: Read, Write
 
-## Step 7.1 — R-5 User Approval HALT (mandatory)
+## Step 7.1 — R-5 Auto-Seed (2026-07-11 자동화 지시)
 
-**You DO NOT seed paper sessions.** Generate seed proposal artifacts only:
+3군→2군 승격은 자동이다. On R-4 PASS:
 
-1. Draft `backend/configs/paper_sessions/{paradigm_name}.json`
-2. Recommended `ecosystem.config.cjs` entry (pm2 cron)
-3. Save proposal to `backend/runs/research_track/{paradigm_name}/r5_seed_proposal.md`
-
-Then STOP and print one-line summary:
+1. **Slot check**: read `backend/runs/tier_governor/state.json` → `.slots.used` / `.slots.max` (8).
+   - Slots full → seed proposal artifacts만 생성 후 STOP:
+     `⏸ R-4 PASS — {paradigm_name}, 2군 slots full ({used}/8). seed queued.`
+2. **Seed** (slots available): draft `backend/configs/paper_sessions/{paradigm_name}.json`
+   spec (per-symbol, R-3 optimum SL/hold), then create sessions via
+   `paper_session_cli create` — **paper mode ONLY, never live/real**.
+   Follow paradigm 127/128 seeding pattern.
+3. Save `backend/runs/research_track/{paradigm_name}/r5_seed_proposal.md` (기록 목적 유지).
+4. Print one-line summary:
 ```
-✅ paradigm-architect: R-4 PASS — {paradigm_name} ready for R-5 seed.
+✅ paradigm-architect: R-5 AUTO-SEEDED — {paradigm_name}, {n} sessions, slots {used}/8.
    gate_eval: backend/runs/research_track/{paradigm_name}/gate_eval__{paradigm_name}.md
-   seed proposal: backend/runs/research_track/{paradigm_name}/r5_seed_proposal.md
-   awaiting user approval.
 ```
 
-User then decides whether to actually seed.
+Day-30 이후 판정(CONTINUE/TERMINATE/RESEED/PROMOTE 후보)은 tier-governor cron이
+자동 집행. **1군(live) 진입만 대표님 수동 승인** — 절대 자동 실행 금지.
 
 ## Step 7.2 — Graveyard Report Format
 
