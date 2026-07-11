@@ -57,6 +57,10 @@ def _load_sessions() -> list[dict]:
         sid = sj.parent.name
         name = s.get("name", "")
         sym = s.get("symbol", "")
+        if _KR.match(sym):
+            # KR 주식 페이퍼(pattern_flow 등)는 바이낸스 리포트 대상 아님
+            # (2026-07-11 대표님 지시 — 🅱️ 승격 경쟁은 바이낸스 2군 리그만)
+            continue
         cat = "A" if "lifecycle" in name else "B"
         trades = []
         tp = STORE / sid / "trades.jsonl"
