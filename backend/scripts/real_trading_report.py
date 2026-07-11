@@ -128,7 +128,7 @@ def _delta(cur: float, prev: float) -> str:
 def build_message(kind_ko: str, cmp_ko: str, this_p: dict, prev_p: dict,
                   eq: dict | None) -> str:
     L = []
-    L.append(f"📊 <b>바이낸스 실거래 {kind_ko} 리포트</b>")
+    L.append(f"📊 <b>바이낸스 실거래 {kind_ko} 리포트</b> — 신상저격수 (1군)")
     L.append(f"<b>{this_p['label']}</b> ({cmp_ko} {prev_p['label']} 대비)")
     L.append("")
     L.append(f"💰 <b>이번 {kind_ko[0]} 실현손익</b>")

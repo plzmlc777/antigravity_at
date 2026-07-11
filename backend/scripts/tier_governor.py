@@ -46,6 +46,7 @@ STATE_DIR = os.path.join(BACKEND, "runs", "tier_governor")
 STATE_PATH = os.path.join(STATE_DIR, "state.json")
 BASELINE_CSV = os.path.join(BACKEND, "runs", "paper_spec_backtest.csv")
 QUEUE_PATH = os.path.join(BACKEND, "configs", "tier_promotion_queue.json")
+ALIAS_PATH = os.path.join(BACKEND, "configs", "strategy_aliases.json")
 
 VALID_FROM_FLOOR = datetime(2026, 7, 1)
 SEATS = 24
@@ -81,6 +82,25 @@ def save_json(path: str, data, dry: bool) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         json.dump(data, f, indent=1, ensure_ascii=False, default=str)
+
+
+def load_aliases() -> dict:
+    try:
+        with open(ALIAS_PATH) as f:
+            return json.load(f).get("aliases", {})
+    except Exception:
+        return {}
+
+
+ALIASES = load_aliases()
+
+
+def disp(name: str, symbol: str) -> str:
+    """'파도타기·SOLUSDT' 표기 (별칭 없으면 원래 이름)."""
+    key = name[len(symbol) + 1:] if name.startswith(symbol + "_") else name
+    key = key.removesuffix("_paper_seed")
+    alias = ALIASES.get("lifecycle" if "lifecycle" in name else key)
+    return f"{alias}·{symbol}" if alias else name
 
 
 def load_baselines() -> dict:
@@ -290,7 +310,8 @@ def main():
         m = measure(sdir, meta, now)
         if m is None:
             continue
-        seated.append({"sid": meta["session_id"], "name": meta["name"], "m": m})
+        seated.append({"sid": meta["session_id"], "name": meta["name"],
+                       "symbol": meta["symbol"], "m": m})
 
     # ── 2. 절대 안전선 체크포인트 판정 (Day-30 간격) ─────────────────────
     terminated_ids = set()
@@ -309,12 +330,12 @@ def main():
         if action == "TERMINATE":
             if terminate_session(s["sid"], dry):
                 terminated_ids.add(s["sid"])
-            actions.append(f"🔴 TERMINATE {s['name']} (Day-{m['age_days']}): {reason}")
+            actions.append(f"🔴 TERMINATE {disp(s['name'], s['symbol'])} (Day-{m['age_days']}): {reason}")
         elif action == "PROMOTE":
-            actions.append(f"🟢 PROMOTE 후보 {s['name']} (Day-{m['age_days']}): {reason}\n"
+            actions.append(f"🟢 PROMOTE 후보 {disp(s['name'], s['symbol'])} (Day-{m['age_days']}): {reason}\n"
                            f"   → 기록만 함. 1군 승격은 대표님이 자금 사정 고려해 요청하실 때 진행")
         elif action == "RESEED":
-            actions.append(f"⚫ RESEED 검토 {s['name']} (Day-{m['age_days']}): {reason}")
+            actions.append(f"⚫ RESEED 검토 {disp(s['name'], s['symbol'])} (Day-{m['age_days']}): {reason}")
     seated = [s for s in seated if s["sid"] not in terminated_ids]
 
     # ── 3. 리그 라운드 (매달 1일 KST, 또는 --league-now / --trim) ────────
@@ -332,7 +353,7 @@ def main():
         for s in drop:
             if terminate_session(s["sid"], dry):
                 terminated_ids.add(s["sid"])
-            actions.append(f"⬇️ 리그 강등 {s['name']} (30d {s['m']['league_ret_pct']:+.2f}%, "
+            actions.append(f"⬇️ 리그 강등 {disp(s['name'], s['symbol'])} (30d {s['m']['league_ret_pct']:+.2f}%, "
                            f"trades {s['m']['n_trades']})")
         seated = [s for s in seated if s["sid"] not in terminated_ids]
         if monthly_due or args.league_now:

@@ -33,6 +33,28 @@ sys.path.insert(0, str(ROOT))
 REAL_ACCOUNT_ID = 8  # telegram destination (same REAL alert chats)
 _KR = re.compile(r"^\d{6}$")
 MIN_TRADES_TO_RANK = 5
+ALIAS_PATH = ROOT / "configs" / "strategy_aliases.json"
+
+
+def _load_aliases() -> dict:
+    try:
+        return json.loads(ALIAS_PATH.read_text()).get("aliases", {})
+    except Exception:
+        return {}
+
+
+ALIASES = _load_aliases()
+
+
+def _paradigm_key(name: str, sym: str) -> str:
+    if "lifecycle" in name:
+        return "lifecycle"
+    key = name[len(sym) + 1:] if name.startswith(sym + "_") else name
+    return key.removesuffix("_paper_seed")
+
+
+def _alias(name: str, sym: str) -> str:
+    return ALIASES.get(_paradigm_key(name, sym), "")
 
 
 def _month_bounds(y: int, m: int) -> tuple[date, date]:
@@ -96,7 +118,17 @@ def _cat_stats(sessions: list[dict], start: date, end: date) -> dict:
                 hit = True
         if hit:
             per_sess_ret[sess["sid"]] = sret * 100.0
-            per_sess_label[sess["sid"]] = sess["symbol"]
+            al = _alias(sess["name"], sess["symbol"])
+            per_sess_label[sess["sid"]] = f"{al}·{sess['symbol']}" if al else sess["symbol"]
+    groups: dict[str, dict] = {}
+    for sess in sessions:
+        al = _alias(sess["name"], sess["symbol"]) or _paradigm_key(sess["name"], sess["symbol"])
+        g = groups.setdefault(al, {"n_active": 0, "rets": []})
+        g["n_active"] += 1
+        for t in sess["trades"]:
+            ex = str(t.get("exit_ts", ""))[:10]
+            if ex and s_iso <= ex < e_iso:
+                g["rets"].append(float(t.get("return_pct", 0)))
     n = len(all_rets)
     wins = [p for p in all_pnl if p > 0]
     best = max(per_sess_ret.items(), key=lambda kv: kv[1]) if per_sess_ret else None
@@ -109,10 +141,15 @@ def _cat_stats(sessions: list[dict], start: date, end: date) -> dict:
         "best": (per_sess_label[best[0]], best[1]) if best else None,
         "worst": (per_sess_label[worst[0]], worst[1]) if worst else None,
         "n_traded_sessions": len(per_sess_ret),
+        "groups": {
+            k: {"n_active": g["n_active"], "n_trades": len(g["rets"]),
+                "avg_ret": (sum(g["rets"]) / len(g["rets"]) * 100.0) if g["rets"] else 0.0}
+            for k, g in groups.items()
+        },
     }
 
 
-def _cat_block(title: str, cur: dict, prev: dict) -> list[str]:
+def _cat_block(title: str, cur: dict, prev: dict, show_groups: bool = False) -> list[str]:
     L = [f"━━ {title} ━━"]
     L.append(f"  활성 {cur['n_active']} · 거래 <b>{cur['n_trades']}</b>회 (전기간 {prev['n_trades']})")
     if cur["n_trades"]:
@@ -121,14 +158,20 @@ def _cat_block(title: str, cur: dict, prev: dict) -> list[str]:
             L.append(f"  최고 {cur['best'][0]} {cur['best'][1]:+.1f}% · 최저 {cur['worst'][0]} {cur['worst'][1]:+.1f}%")
     else:
         L.append("  이번 기간 완결 거래 없음")
+    if show_groups and len(cur.get("groups", {})) > 1:
+        for k, g in sorted(cur["groups"].items(), key=lambda kv: -kv[1]["n_active"]):
+            if g["n_trades"]:
+                L.append(f"    · {k} {g['n_active']}석 — {g['n_trades']}회, 평균 {g['avg_ret']:+.2f}%")
+            else:
+                L.append(f"    · {k} {g['n_active']}석 — 거래 없음")
     return L
 
 
 def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b_prev) -> str:
     L = [f"📄 <b>페이퍼 {kind_ko} 리포트</b>", f"<b>{label}</b> ({cmp_ko} 대비)", ""]
-    L += _cat_block("🅰️ 실거래 병행 (lifecycle)", a_cur, a_prev)
+    L += _cat_block("🅰️ 신상저격수 실거래 병행 (lifecycle)", a_cur, a_prev)
     L.append("")
-    L += _cat_block("🅱️ 승격 경쟁", b_cur, b_prev)
+    L += _cat_block("🅱️ 승격 경쟁 (2군 리그)", b_cur, b_prev, show_groups=True)
     return "\n".join(L)
 
 
