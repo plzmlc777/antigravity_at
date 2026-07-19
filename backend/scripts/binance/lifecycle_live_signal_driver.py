@@ -150,10 +150,17 @@ def _telegram_notify(account_id: int, text: str) -> None:
         try:
             data = urllib.parse.urlencode(
                 {"chat_id": cid, "text": text, "parse_mode": "HTML"}).encode()
-            urllib.request.urlopen(
+            resp = urllib.request.urlopen(
                 urllib.request.Request(f"https://api.telegram.org/bot{token}/sendMessage", data=data),
                 timeout=12)
             log.info("telegram sent → %s", cid)
+            try:
+                import json as _json
+                from app.core.telegram_sent_log import record_sent, extract_message_id
+                mid = extract_message_id(_json.loads(resp.read().decode()))
+                record_sent(cid, mid, text, source="lifecycle_notify")
+            except Exception:
+                pass
         except Exception as exc:
             log.error("telegram send failed → %s: %s", cid, exc)
 

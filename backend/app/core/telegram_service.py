@@ -100,6 +100,12 @@ class TelegramNotificationService:
 
                 if response.status_code == 200:
                     logger.info("Telegram message sent successfully")
+                    try:
+                        from .telegram_sent_log import record_sent, extract_message_id
+                        mid = extract_message_id(response.json())
+                        record_sent(self.chat_id, mid, text, source="telegram_service")
+                    except Exception:
+                        pass
                     return True
                 else:
                     logger.error(f"Telegram API error: {response.status_code} - {response.text}")

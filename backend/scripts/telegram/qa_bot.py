@@ -278,11 +278,16 @@ def main():
                 except Exception as exc:
                     log.error("answer failed: %s", exc)
                     ans = "답변 생성 중 오류가 발생했습니다."
-                tg_api(token, "sendMessage",
+                send_resp = tg_api(token, "sendMessage",
                        {"chat_id": chat_id, "text": ans,
                         "reply_to_message_id": msg.get("message_id", ""),
                         "disable_web_page_preview": "true"}, timeout=30)
                 log.info("answered in %s (%d chars)", cfg["groups"][chat_id]["name"], len(ans))
+                try:
+                    from app.core.telegram_sent_log import record_sent, extract_message_id
+                    record_sent(chat_id, extract_message_id(send_resp), ans, source="qa_bot")
+                except Exception:
+                    pass
             save_state(state)
         except KeyboardInterrupt:
             break
