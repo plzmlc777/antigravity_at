@@ -199,22 +199,29 @@ class FuturesMonitorService:
         adl = data.get("adl_quantile", 0)
         now = time.monotonic()
 
-        if adl < 4:
-            # Calm. Only re-arm (forget the remembered level) after the cooldown
-            # has elapsed — otherwise a quantile oscillating across the 4
-            # boundary would keep re-arming and re-firing every poll.
+        # quantile 4/5 is informational, not actionable — a profitable short on
+        # a low-liquidity new listing naturally ranks high in the ADL queue.
+        # Keep it in the log for visibility but do NOT ping Telegram (incident
+        # 2026-07-19: ARXUSDT/REUSDT both steady at 4/5 spammed the chat, and a
+        # per-restart one-shot kept re-firing). Telegram alerts only at 5/5 =
+        # imminent auto-deleveraging, which is genuinely actionable.
+        if adl >= 4:
+            logger.info(f"ADL: {self.symbol} quantile={adl}/5")
+
+        if adl < 5:
+            # Below the alert threshold. Re-arm only after the cooldown so a
+            # quantile oscillating across the 5 boundary can't re-fire per poll.
             if now - self._last_adl_alert_ts >= ADL_ALERT_COOLDOWN_SEC:
                 self._last_adl_alert_level = 0
             return
 
-        # adl >= 4. Alert only on genuine escalation to a higher quantile
-        # (e.g. 4 -> 5, imminent deleveraging) or once the cooldown elapses.
+        # adl == 5. Alert on escalation into 5 or once the cooldown elapses.
         escalated = adl > self._last_adl_alert_level
         cooled = (now - self._last_adl_alert_ts) >= ADL_ALERT_COOLDOWN_SEC
         if escalated or cooled:
             self._last_adl_alert_level = adl
             self._last_adl_alert_ts = now
-            logger.warning(f"ADL RISK: {self.symbol} quantile={adl}/5")
+            logger.warning(f"ADL RISK: {self.symbol} quantile={adl}/5 (imminent)")
             await self._send_adl_alert(data)
 
     async def _send_liquidation_alert(self, level: str, data: Dict[str, Any], distance_pct: float):
