@@ -9,6 +9,7 @@ Runs as an asyncio task per futures session.
 
 import asyncio
 import logging
+import time
 from typing import Dict, Any, Optional, Callable, List
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,14 @@ ALERT_LEVELS = {
     "WARNING": 0.05,    # 5% from liquidation
     "CAUTION": 0.10,    # 10% from liquidation
 }
+
+# ADL alert re-fire cooldown. The quantile oscillates around the threshold
+# every poll, so a level-only dedup re-fires forever once it bounces below and
+# back (incident 2026-07-19: ARXUSDT quantile 4/5 spammed the Binance chat).
+# quantile>=4 is informational (profitable position ranks high in the ADL
+# queue), not an emergency — so throttle to once per this window, and only
+# escalation to 5 (imminent deleveraging) bypasses it.
+ADL_ALERT_COOLDOWN_SEC = 6 * 3600
 
 
 class FuturesMonitorService:
@@ -47,6 +56,7 @@ class FuturesMonitorService:
         # Alert dedup: prevent repeat alerts for same level
         self._last_liq_alert_level: Optional[str] = None
         self._last_adl_alert_level: int = 0
+        self._last_adl_alert_ts: float = 0.0
 
         # Funding rate cache (changes only every 8 hours)
         self._cached_funding_rate: float = 0
@@ -187,13 +197,25 @@ class FuturesMonitorService:
         Alert when quantile >= 4 (out of 5).
         """
         adl = data.get("adl_quantile", 0)
+        now = time.monotonic()
 
-        if adl >= 4 and adl > self._last_adl_alert_level:
+        if adl < 4:
+            # Calm. Only re-arm (forget the remembered level) after the cooldown
+            # has elapsed — otherwise a quantile oscillating across the 4
+            # boundary would keep re-arming and re-firing every poll.
+            if now - self._last_adl_alert_ts >= ADL_ALERT_COOLDOWN_SEC:
+                self._last_adl_alert_level = 0
+            return
+
+        # adl >= 4. Alert only on genuine escalation to a higher quantile
+        # (e.g. 4 -> 5, imminent deleveraging) or once the cooldown elapses.
+        escalated = adl > self._last_adl_alert_level
+        cooled = (now - self._last_adl_alert_ts) >= ADL_ALERT_COOLDOWN_SEC
+        if escalated or cooled:
             self._last_adl_alert_level = adl
+            self._last_adl_alert_ts = now
             logger.warning(f"ADL RISK: {self.symbol} quantile={adl}/5")
             await self._send_adl_alert(data)
-        elif adl < 4:
-            self._last_adl_alert_level = 0
 
     async def _send_liquidation_alert(self, level: str, data: Dict[str, Any], distance_pct: float):
         """Send liquidation proximity alert via Telegram."""
