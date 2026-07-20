@@ -65,6 +65,84 @@ def _alias(name: str, sym: str) -> str:
     return ALIASES.get(_paradigm_key(name, sym), "")
 
 
+# 누적 기준일. A(신상저격수 페이퍼 미러)는 실거래 개시일과 맞추고,
+# B(2군 리그)는 substrate 결함으로 6월까지가 무효라 유효 시계 시작일을 쓴다
+# (project_vb_127_128_substrate_stall_fix).
+BASE_A = date(2026, 6, 1)
+BASE_B = date(2026, 7, 1)
+
+
+# ── 고정폭 표 (Telegram <pre>) ────────────────────────────────────────────
+# 한글은 monospace에서도 2칸이므로 East-Asian width로 패딩해야 열이 맞는다.
+
+def _dwidth(s: str) -> int:
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in s)
+
+
+def _pad(s: str, width: int, right: bool = False) -> str:
+    gap = max(0, width - _dwidth(s))
+    return (" " * gap + s) if right else (s + " " * gap)
+
+
+def _table(cols: list[tuple], rows: list[list[str]]) -> list[str]:
+    """cols = [(헤더, 폭, 우측정렬)], rows = [[셀...]]"""
+    width = sum(c[1] for c in cols) + len(cols) - 1
+    head = " ".join(_pad(n, w, r) for n, w, r in cols)
+    L = ["<pre>", head, "─" * width]
+    for row in rows:
+        L.append(" ".join(_pad(c, w, r) for c, (_, w, r) in zip(row, cols)))
+    L.append("</pre>")
+    return L
+
+
+def _short_sym(sym: str) -> str:
+    return sym[:-4] if sym.endswith("USDT") else sym
+
+
+def _sess_label(sess: dict) -> str:
+    al = _alias(sess["name"], sess["symbol"])
+    sym = _short_sym(sess["symbol"])
+    return f"{al}·{sym}" if al else sym
+
+
+def _rank(sessions: list[dict], start: date, end: date, topn: int = 5) -> list[dict]:
+    """구간 내 완결 거래 수익률 합으로 세션 순위."""
+    s_iso, e_iso = start.isoformat(), end.isoformat()
+    rows = []
+    for sess in sessions:
+        rets = [float(t.get("return_pct", 0)) for t in sess["trades"]
+                if s_iso <= str(t.get("exit_ts", ""))[:10] < e_iso]
+        if not rets:
+            continue
+        rows.append({"label": _sess_label(sess), "ret": sum(rets) * 100.0, "n": len(rets)})
+    rows.sort(key=lambda r: -r["ret"])
+    return rows[:topn]
+
+
+def _rank_table(title: str, ranked: list[dict]) -> list[str]:
+    if not ranked:
+        return [f"  {title} — 완결 거래 없음"]
+    cols = [("#", 2, False), ("전략·심볼", 14, False), ("수익률", 8, True), ("거래", 4, True)]
+    rows = [[str(i), r["label"], f"{r['ret']:+.2f}%", str(r["n"])]
+            for i, r in enumerate(ranked, 1)]
+    return [f"  <b>{title}</b>"] + _table(cols, rows)
+
+
+def _summary_table(sessions: list[dict], base: date, today: date) -> list[str]:
+    """최근7일 / 최근30일 / 누적 요약."""
+    cols = [("기간", 10, False), ("거래", 5, True), ("승률", 5, True), ("평균/거래", 9, True)]
+    rows = []
+    for label, start in (("최근7일", today - timedelta(days=7)),
+                         ("최근30일", today - timedelta(days=30)),
+                         (f"누적", base)):
+        st = _cat_stats(sessions, start, today + timedelta(days=1))
+        rows.append([label, str(st["n_trades"]),
+                     f"{st['win_rate']:.0f}%" if st["n_trades"] else "-",
+                     f"{st['avg_ret']:+.2f}%" if st["n_trades"] else "-"])
+    return _table(cols, rows)
+
+
 def _month_bounds(y: int, m: int) -> tuple[date, date]:
     start = date(y, m, 1)
     end = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
@@ -175,11 +253,41 @@ def _cat_block(title: str, cur: dict, prev: dict, show_groups: bool = False) -> 
     return L
 
 
-def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b_prev) -> str:
+def build_message(kind_ko: str, cmp_ko: str, label: str, a_cur, a_prev, b_cur, b_prev,
+                  A: list[dict] | None = None, B: list[dict] | None = None) -> str:
+    today = datetime.utcnow().date()
     L = [f"📄 <b>페이퍼 {kind_ko} 리포트</b>", f"<b>{label}</b> ({cmp_ko} 대비)", ""]
-    L += _cat_block(f"🅰️ {_alias_full('신상저격수')} — 실거래 병행", a_cur, a_prev)
+
+    # ── 🅰️ 신상저격수 (실거래 병행) ──
+    L.append(f"━━ 🅰️ {_alias_full('신상저격수')} ━━")
+    L.append(f"  활성 {a_cur['n_active']}석 · 이번 {kind_ko[0]} <b>{a_cur['n_trades']}</b>회 "
+             f"({cmp_ko} {a_prev['n_trades']})")
+    if A is not None:
+        L += _summary_table(A, BASE_A, today)
+        L.append(f"  <i>누적 기준일 {BASE_A.isoformat()}</i>")
     L.append("")
-    L += _cat_block("🅱️ 승격 경쟁 (2군 리그)", b_cur, b_prev, show_groups=True)
+
+    # ── 🅱️ 승격 경쟁 (2군 리그) ──
+    L.append("━━ 🅱️ 승격 경쟁 (2군 리그) ━━")
+    L.append(f"  활성 {b_cur['n_active']}석 · 이번 {kind_ko[0]} <b>{b_cur['n_trades']}</b>회 "
+             f"({cmp_ko} {b_prev['n_trades']})")
+    if B is not None:
+        L += _summary_table(B, BASE_B, today)
+        L.append(f"  <i>누적 기준일 {BASE_B.isoformat()}</i>")
+        L.append("")
+        L += _rank_table("주간 순위 TOP5 (최근 7일)", _rank(B, today - timedelta(days=7), today + timedelta(days=1)))
+        L += _rank_table("월간 순위 TOP5 (최근 30일)", _rank(B, today - timedelta(days=30), today + timedelta(days=1)))
+        L += _rank_table(f"누적 순위 TOP5 ({BASE_B.isoformat()}~)", _rank(B, BASE_B, today + timedelta(days=1)))
+
+    # 전략군별 요약 (별칭 기준)
+    if len(b_cur.get("groups", {})) > 1:
+        L.append("")
+        L.append("  <b>전략군별</b>")
+        for k, g in sorted(b_cur["groups"].items(), key=lambda kv: -kv[1]["n_active"]):
+            if g["n_trades"]:
+                L.append(f"    · {_alias_full(k)} {g['n_active']}석 — {g['n_trades']}회, 평균 {g['avg_ret']:+.2f}%")
+            else:
+                L.append(f"    · {_alias_full(k)} {g['n_active']}석 — 거래 없음")
     return "\n".join(L)
 
 
@@ -210,7 +318,7 @@ def main() -> int:
     B = [s for s in sessions if s["cat"] == "B"]
     a_cur, a_prev = _cat_stats(A, ts, te), _cat_stats(A, ps, pe)
     b_cur, b_prev = _cat_stats(B, ts, te), _cat_stats(B, ps, pe)
-    msg = build_message(kind_ko, cmp_ko, label, a_cur, a_prev, b_cur, b_prev)
+    msg = build_message(kind_ko, cmp_ko, label, a_cur, a_prev, b_cur, b_prev, A=A, B=B)
 
     print(msg)
     print("\n---")
