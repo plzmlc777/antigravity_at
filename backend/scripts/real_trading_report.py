@@ -48,7 +48,7 @@ def recent_windows() -> tuple[list[dict], list[dict], dict]:
         e = today - timedelta(days=7 * i)
         s = e - timedelta(days=7)
         weeks.append(period_stats(
-            s, e, f"{s.strftime('%m/%d')}~{(e - timedelta(days=1)).strftime('%m/%d')}"))
+            s, e, f"{s.strftime('%m/%d')}~{(e - timedelta(days=1)).strftime('%d')}"))
     months = []
     y, m = today.year, today.month
     for _ in range(3):
@@ -160,26 +160,36 @@ def _pad(s: str, width: int, right: bool = False) -> str:
     return (" " * gap + s) if right else (s + " " * gap)
 
 
-def build_table(weeks: list[dict], months: list[dict], cum: dict) -> list[str]:
-    """주간 3 / 월간 3 / 누적을 한 표로. 열 4개(모바일 폭 고려)."""
-    cols = [("기간", 13, False), ("손익", 10, True), ("거래", 5, True), ("승률", 5, True)]
+def build_table(weeks: list[dict], months: list[dict], cum: dict,
+                unrealized: float | None = None) -> list[str]:
+    """주간 3 / 월간 3 / 누적을 한 표로. 열 4개(모바일 폭 고려).
 
-    def row(label: str, st: dict) -> str:
+    진행 중인 구간(최근 주·이번 달·누적)은 `실현(미실현)`으로 표시한다 —
+    미실현은 현재 오픈 포지션의 평가손익이라 종료된 과거 구간에는 없다.
+    """
+    cols = [("기간", 8, False), ("손익", 17, True), ("거래", 4, True), ("승률", 4, True)]
+
+    def row(label: str, st: dict, live: bool = False) -> str:
         wr = f"{st['win_rate']:.0f}%" if st["n"] else "-"
-        cells = [label, f"{st['total']:+,.2f}", str(st["n"]), wr]
+        pnl = f"{st['total']:+,.2f}"
+        if live and unrealized is not None:
+            pnl += f"({unrealized:+,.2f})"
+        cells = [label, pnl, str(st["n"]), wr]
         return " ".join(_pad(c, w, r) for c, (_, w, r) in zip(cells, cols))
 
     head = " ".join(_pad(n, w, r) for n, w, r in cols)
-    sep = "─" * 34
+    sep = "─" * 36
     L = ["<pre>", head, sep]
-    for st in weeks:
-        L.append(row(st["label"], st))
+    for i, st in enumerate(weeks):
+        L.append(row(st["label"], st, live=(i == 0)))
     L.append(sep)
-    for st in months:
-        L.append(row(st["label"], st))
+    for i, st in enumerate(months):
+        L.append(row(st["label"], st, live=(i == 0)))
     L.append(sep)
-    L.append(row("누적", cum))
+    L.append(row("누적", cum, live=True))
     L.append("</pre>")
+    if unrealized is not None:
+        L.append("  <i>괄호 = 현재 오픈 포지션 미실현손익</i>")
     return L
 
 
@@ -255,7 +265,8 @@ def main() -> int:
     eq = current_equity()
     weeks, months, cum = recent_windows()
     msg = build_message(kind_ko, cmp_ko, this_p, prev_p, eq,
-                        table=build_table(weeks, months, cum))
+                        table=build_table(weeks, months, cum,
+                                          unrealized=eq.get("unrealized") if eq else None))
 
     print(msg)
     print("\n---")
