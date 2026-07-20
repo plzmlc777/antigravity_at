@@ -47,8 +47,10 @@ def recent_windows() -> tuple[list[dict], list[dict], dict]:
     for i in range(3):
         e = today - timedelta(days=7 * i)
         s = e - timedelta(days=7)
-        weeks.append(period_stats(
-            s, e, f"{s.strftime('%m/%d')}~{(e - timedelta(days=1)).strftime('%d')}"))
+        le = e - timedelta(days=1)
+        # 월 경계를 넘는 주는 끝 날짜에도 월을 표기해야 모호하지 않다(06/29~07/05).
+        end_lbl = le.strftime("%d") if le.month == s.month else le.strftime("%m/%d")
+        weeks.append(period_stats(s, e, f"{s.strftime('%m/%d')}~{end_lbl}"))
     months = []
     y, m = today.year, today.month
     for _ in range(3):
@@ -167,7 +169,7 @@ def build_table(weeks: list[dict], months: list[dict], cum: dict,
     진행 중인 구간(최근 주·이번 달·누적)은 `실현(미실현)`으로 표시한다 —
     미실현은 현재 오픈 포지션의 평가손익이라 종료된 과거 구간에는 없다.
     """
-    cols = [("기간", 8, False), ("손익", 17, True), ("거래", 4, True), ("승률", 4, True)]
+    cols = [("기간", 11, False), ("손익", 17, True), ("거래", 4, True), ("승률", 4, True)]
 
     def row(label: str, st: dict, live: bool = False) -> str:
         wr = f"{st['win_rate']:.0f}%" if st["n"] else "-"
@@ -178,7 +180,7 @@ def build_table(weeks: list[dict], months: list[dict], cum: dict,
         return " ".join(_pad(c, w, r) for c, (_, w, r) in zip(cells, cols))
 
     head = " ".join(_pad(n, w, r) for n, w, r in cols)
-    sep = "─" * 36
+    sep = "─" * 39
     L = ["<pre>", head, sep]
     for i, st in enumerate(weeks):
         L.append(row(st["label"], st, live=(i == 0)))
