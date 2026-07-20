@@ -36,6 +36,28 @@ from sqlalchemy import text  # noqa: E402
 from app.db.session import engine  # noqa: E402
 
 REAL_ACCOUNT_ID = 8
+# 실거래(신상저격수) 개시일 — 누적 손익 기준일.
+BASELINE_DATE = date(2026, 6, 1)
+
+
+def recent_windows() -> tuple[list[dict], list[dict], dict]:
+    """최근 3주 / 최근 3개월 / BASELINE_DATE 이후 누적."""
+    today = datetime.utcnow().date()
+    weeks = []
+    for i in range(3):
+        e = today - timedelta(days=7 * i)
+        s = e - timedelta(days=7)
+        weeks.append(period_stats(
+            s, e, f"{s.strftime('%m/%d')}~{(e - timedelta(days=1)).strftime('%m/%d')}"))
+    months = []
+    y, m = today.year, today.month
+    for _ in range(3):
+        ms, me = _month_bounds(y, m)
+        months.append(period_stats(ms, me, f"{y}-{m:02d}"))
+        y, m = _prev_month(y, m)
+    # 누적은 오늘 체결분까지 포함해야 하므로 exclusive end를 내일로.
+    cum = period_stats(BASELINE_DATE, today + timedelta(days=1), "누적")
+    return weeks, months, cum
 
 
 def _month_bounds(y: int, m: int) -> tuple[date, date]:
@@ -125,12 +147,52 @@ def _delta(cur: float, prev: float) -> str:
     return f"{sign} {d:+,.2f}"
 
 
+# ── 고정폭 표 (Telegram <pre>) ────────────────────────────────────────────
+# 한글은 monospace에서도 2칸을 차지하므로 East-Asian width로 패딩해야 열이 맞는다.
+
+def _dwidth(s: str) -> int:
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in s)
+
+
+def _pad(s: str, width: int, right: bool = False) -> str:
+    gap = max(0, width - _dwidth(s))
+    return (" " * gap + s) if right else (s + " " * gap)
+
+
+def build_table(weeks: list[dict], months: list[dict], cum: dict) -> list[str]:
+    """주간 3 / 월간 3 / 누적을 한 표로. 열 4개(모바일 폭 고려)."""
+    cols = [("기간", 13, False), ("손익", 10, True), ("거래", 5, True), ("승률", 5, True)]
+
+    def row(label: str, st: dict) -> str:
+        wr = f"{st['win_rate']:.0f}%" if st["n"] else "-"
+        cells = [label, f"{st['total']:+,.2f}", str(st["n"]), wr]
+        return " ".join(_pad(c, w, r) for c, (_, w, r) in zip(cells, cols))
+
+    head = " ".join(_pad(n, w, r) for n, w, r in cols)
+    sep = "─" * 34
+    L = ["<pre>", head, sep]
+    for st in weeks:
+        L.append(row(st["label"], st))
+    L.append(sep)
+    for st in months:
+        L.append(row(st["label"], st))
+    L.append(sep)
+    L.append(row("누적", cum))
+    L.append("</pre>")
+    return L
+
+
 def build_message(kind_ko: str, cmp_ko: str, this_p: dict, prev_p: dict,
-                  eq: dict | None) -> str:
+                  eq: dict | None, table: list[str] | None = None) -> str:
     L = []
     L.append(f"📊 <b>바이낸스 실거래 {kind_ko} 리포트</b> — 신상저격수(신규상장 Day-1 숏) 1군")
     L.append(f"<b>{this_p['label']}</b> ({cmp_ko} {prev_p['label']} 대비)")
     L.append("")
+    if table:
+        L.append(f"🗂 <b>기간별 실현손익</b> (누적 기준일 {BASELINE_DATE.isoformat()})")
+        L += table
+        L.append("")
     L.append(f"💰 <b>이번 {kind_ko[0]} 실현손익</b>")
     L.append(f"  <b>{this_p['total']:+,.2f} USDT</b>  ({_delta(this_p['total'], prev_p['total'])} vs {cmp_ko})")
     L.append("")
@@ -191,7 +253,9 @@ def main() -> int:
 
     kind_ko, cmp_ko, this_p, prev_p = _windows(args.period, args.month)
     eq = current_equity()
-    msg = build_message(kind_ko, cmp_ko, this_p, prev_p, eq)
+    weeks, months, cum = recent_windows()
+    msg = build_message(kind_ko, cmp_ko, this_p, prev_p, eq,
+                        table=build_table(weeks, months, cum))
 
     print(msg)
     print("\n---")
