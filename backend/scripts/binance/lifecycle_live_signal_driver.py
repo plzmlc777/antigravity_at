@@ -63,6 +63,15 @@ SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
 MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
 REAL_MARGIN_FRACTION = 0.97  # deploy 97% of available margin (3% buffer: taker fee + price drift between size-time and fill)
 
+# Hard final-exit after the lifecycle hold window. The decay source oscillates
+# short↔flat every bar (vol_cliff early-exit fires then re-enters); the daily
+# reconcile only sees the LAST bar, so a position whose last bar is short reads
+# "in sync (short)" and is NEVER closed — it sits open past Day-30 with the P&L
+# stuck unrealized (incident 2026-07-27: REU/ARX/OUSDT held 32-38d). Once a
+# driving session is older than this, force flat AND retire the link so it can
+# never re-enter. 30 = baseline hold; +1 grace bar.
+HARD_EXIT_DAYS = 31
+
 _ASYNC_LOOP = None
 
 
@@ -257,6 +266,28 @@ def _desired_side(cycle: dict[str, Any]) -> str:
     return "short" if after == "short" else "flat"
 
 
+def _session_age_days(session_id: str) -> Optional[int]:
+    """Days since the driving System-2 session's FIRST bar (≈ Day-1 entry).
+    None if unreadable. Uses UTC date of the first predictions.jsonl row."""
+    path = STORE_ROOT / session_id / "predictions.jsonl"
+    if not path.exists():
+        return None
+    try:
+        from datetime import date as _date, datetime as _dt
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    ts = json.loads(line).get("timestamp", "")[:10]
+                    if ts:
+                        y, m, d = map(int, ts.split("-"))
+                        return (_dt.utcnow().date() - _date(y, m, d)).days
+                    break
+    except Exception as exc:
+        log.warning("age lookup failed for %s: %s", session_id, exc)
+    return None
+
+
 def _load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
@@ -311,6 +342,19 @@ def run(args) -> int:
         if not isinstance(link_state, dict):
             link_state = {}
             state[s2_id] = link_state
+
+        # Hard final-exit: once past the lifecycle hold window, force flat and
+        # retire the link permanently so the oscillating source can never
+        # re-enter. A retired link stays flat for the rest of its life.
+        if link_state.get("retired"):
+            desired = "flat"
+        else:
+            age = _session_age_days(s2_id)
+            if age is not None and age >= HARD_EXIT_DAYS and desired == "short":
+                log.warning("%s (%s): age %dd >= %dd hold cap — force final exit + retire",
+                            s2_id, symbol, age, HARD_EXIT_DAYS)
+                desired = "flat"
+                link_state["retired"] = True
 
         targets: list[tuple[str, str]] = []
         if link.get("paper"):
