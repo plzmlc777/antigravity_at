@@ -239,6 +239,79 @@ def _real_symbol_state(account_id: int, symbol: str) -> tuple[float, float]:
     return (mark, qty)
 
 
+def _real_realized_since(adapter, symbol: str, minutes: int = 15) -> float:
+    """Sum REALIZED_PNL income for a symbol over the last N minutes (exchange
+    is the source of truth for realized P&L on a direct close)."""
+    try:
+        import time as _time
+        from app.adapters.binance_futures import FAPI
+        start_ms = int((_time.time() - minutes * 60) * 1000)
+        inc = _run_async(adapter._signed_get(
+            f"{FAPI}/income",
+            {"incomeType": "REALIZED_PNL", "symbol": symbol, "startTime": start_ms, "limit": 100}))
+        return sum(float(i.get("income", 0)) for i in (inc or []))
+    except Exception as exc:
+        log.warning("realized income lookup failed for %s: %s", symbol, exc)
+        return 0.0
+
+
+def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optional[float]:
+    """Close a REAL position DIRECTLY on the exchange (engine-independent) and
+    record the fill into live_trade_executions so reports stay accurate.
+
+    Why not the engine: these lifecycle sessions are qty_mode=external, so the
+    engine keeps no position_snapshot; after a backend restart it forgets the
+    position and its close_position is a no-op ('No position to close') while
+    the exchange short is orphaned (incident 2026-07-27). Closing via the
+    adapter uses the exchange's own position, so it always works.
+
+    Returns realized_pnl (USDT), 0.0 if already flat, None on failure."""
+    from datetime import datetime as _dt
+    from app.db.session import SessionLocal
+    from app.models.account import ExchangeAccount
+    from app.models.live_trading import LiveTradeExecution
+    from app.api.endpoints import create_adapter_from_account
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            log.error("direct close: account %s not found", account_id)
+            return None
+        adapter = create_adapter_from_account(acc)
+        pos = _run_async(adapter.get_position(symbol))
+        qty = float((pos or {}).get("quantity") or 0.0)
+        if qty == 0:
+            return 0.0  # already flat on the exchange
+        res = _run_async(adapter.close_position(symbol))
+        if res.get("status") != "success":
+            log.error("direct close failed %s: %s", symbol, res)
+            return None
+        exec_price = float(res.get("price") or 0.0)
+        fqty = float(res.get("quantity") or abs(qty))
+        realized = _real_realized_since(adapter, symbol)
+        row = LiveTradeExecution(
+            session_id=session_id, symbol=symbol,
+            signal_type="BUY" if qty < 0 else "SELL",  # cover a short = BUY
+            signal_timestamp=_dt.utcnow(), theoretical_price=exec_price or 0.0,
+            requested_quantity=fqty, order_submitted_at=_dt.utcnow(),
+            order_filled_at=_dt.utcnow(), executed_price=exec_price,
+            filled_quantity=fqty, realized_pnl=realized, status="FILLED",
+            is_paper=False, position_side="SHORT" if qty < 0 else "LONG",
+            trade_metadata={"driver": "lifecycle_direct_close", "source": "adapter_close_position"},
+        )
+        db.add(row)
+        db.commit()
+        log.info("[DIRECT-CLOSE] real %s closed on exchange qty=%.6f realized=%.2f (recorded)",
+                 symbol, fqty, realized)
+        return realized
+    except Exception as exc:
+        log.error("direct close error %s/%s: %s", account_id, symbol, exc)
+        db.rollback()
+        return None
+    finally:
+        db.close()
+
+
 def _read_last_cycle(session_id: str) -> Optional[dict[str, Any]]:
     """Return the last CycleResult dict from a System-2 session's predictions.jsonl."""
     path = STORE_ROOT / session_id / "predictions.jsonl"
@@ -428,6 +501,31 @@ def run(args) -> int:
                 log.info("[DRY] %s %s reconcile %s→%s: session=%s side=%s qty=%.6f @~%.6g%s",
                          track, symbol, intended, desired, live_id, side, qty, ref_price,
                          (f" (margin≈{margin_used:.2f})" if margin_used else ""))
+                continue
+
+            # REAL final exit → close DIRECTLY on the exchange (engine-independent),
+            # bypassing the engine's no-op close for external-qty sessions.
+            # Gated on `retired` (the Day-31 hard exit): the decay source
+            # oscillates short↔flat every bar, so honoring every transient flat
+            # would churn the real position (close→re-short daily = fee drag).
+            # The position is held through oscillation and closed once, for good,
+            # at the hold-window backstop.
+            if track == "real" and desired == "flat" and link_state.get("retired"):
+                acc_id = link.get("real_account_id")
+                realized = _real_direct_close(int(acc_id), symbol, live_id) if acc_id is not None else None
+                if realized is None:
+                    log.error("[FAIL] real %s direct close failed — intended kept, retry next cycle", symbol)
+                    continue
+                link_state[track] = "flat"
+                n_actions += 0  # already counted above
+                log.info("[SENT] real %s reconcile %s→flat via direct exchange close, realized=%.2f",
+                         symbol, intended, realized)
+                if acc_id:
+                    reason = ("hard_exit(retired)" if link_state.get("retired")
+                              else cycle.get("forced_exit_reason") or cycle.get("action_kind") or "exit")
+                    _telegram_notify(int(acc_id),
+                        f"🟢 <b>REAL 청산</b> — 신상저격수(lifecycle)\n종목: <b>{symbol}</b>\n"
+                        f"사유: {reason}\n실현손익: <b>{realized:+,.2f} USDT</b>")
                 continue
             try:
                 res = _submit(args.api_url, live_id, side=side, symbol=symbol,
