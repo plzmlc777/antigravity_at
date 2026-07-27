@@ -43,9 +43,12 @@ BASELINE_DATE = date(2026, 6, 1)
 def recent_windows() -> tuple[list[dict], list[dict], dict]:
     """최근 3주 / 최근 3개월 / BASELINE_DATE 이후 누적."""
     today = datetime.utcnow().date()
+    # 최근 주는 오늘 체결분까지 포함(exclusive end = 내일). 창이 7일씩 슬라이드하며
+    # 겹치지 않는다: 이번 [today-6, today+1) / 다음주 [today+1, today+8).
+    end0 = today + timedelta(days=1)
     weeks = []
     for i in range(3):
-        e = today - timedelta(days=7 * i)
+        e = end0 - timedelta(days=7 * i)
         s = e - timedelta(days=7)
         le = e - timedelta(days=1)
         # 월 경계를 넘는 주는 끝 날짜에도 월을 표기해야 모호하지 않다(06/29~07/05).
@@ -248,7 +251,8 @@ def _windows(period: str, month: str | None):
         prev_p = period_stats(ps, pe, f"{py}-{pm:02d}")
         return "월간", "전월", this_p, prev_p
     # week: last 7 days ending at run date (exclusive), vs the 7 days before
-    end = datetime.utcnow().date()
+    # 오늘 체결분까지 포함(exclusive end = 내일). 창이 7일씩 슬라이드하며 안 겹침.
+    end = datetime.utcnow().date() + timedelta(days=1)
     this_s = end - timedelta(days=7)
     prev_s = end - timedelta(days=14)
     this_p = period_stats(this_s, end, f"{this_s.isoformat()}~{(end - timedelta(days=1)).isoformat()}")
