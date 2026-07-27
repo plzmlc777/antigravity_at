@@ -276,8 +276,11 @@ def main() -> int:
         print("[DRY] not sending Telegram")
         return 0
 
-    if this_p["n"] == 0 and prev_p["n"] == 0:
-        print("[SKIP] no real trades in either period — not sending")
+    # 발송 스킵은 "정말 아무것도 없을 때"만 — 누적 거래 0건 AND 오픈 포지션 0개.
+    # (포지션을 Day-30까지 홀드하면 주간 완결거래가 0이어도 누적·미실현 표는 유효.)
+    open_pos = eq.get("open_positions", 0) if eq else 0
+    if cum["n"] == 0 and open_pos == 0:
+        print("[SKIP] no cumulative trades and no open positions — not sending")
         return 0
 
     try:
