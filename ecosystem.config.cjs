@@ -47,13 +47,45 @@ const agentApps = [
     // sas-paper-scheduler, sas-live-monitor, sas-meta-observer, sas-weekly-judge,
     // sas-monthly-resurrect, sas-watchdog. account-keepalive kept (different track).
     {
-        // Account keepalive — daily 18:00 UTC (= 03:00 KST).
+        // Account keepalive — daily 01:00 UTC (= 10:00 KST, 장중).
+        // 03:00 KST였으나 키움 계좌조회 API가 장외 시간대에 HTTP 200 + 빈 페이로드를
+        // 반환해 잔고 검증이 무의미했음(2026-07-31 규명: 스케줄 실행분 전량 cash={}).
+        // 장중으로 옮겨 토큰 보온 + 실제 잔고 검증을 동시에 달성.
         // Pings real Kiwoom/Binance accounts via balance-query so Kiwoom OAuth
         // tokens don't expire from inactivity. Worker writes account_keepalive_logs
         // and sends Telegram alert on hard failure; agent layers anomaly detection.
         name: "account-keepalive",
         script: SAS_WRAPPER,
-        args: `'0 18 * * *' ${SAS_SCRIPTS}/run_account_keepalive.sh`,
+        args: `'0 1 * * *' ${SAS_SCRIPTS}/run_account_keepalive.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Local DB backup to the USB-attached external disk, 18:00 UTC (= 03:00 KST).
+        // Replaces the ubuntu-side pull backup (sync_from_mint.sh); same time slot.
+        // Script aborts + alerts if /mnt/backup is not mounted, so a detached USB
+        // disk can never silently dump 1.2GB into the root filesystem.
+        name: "db-backup-usb",
+        script: SAS_WRAPPER,
+        args: `'0 18 * * *' ./scripts/maintenance/backup_to_usb.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // Off-site core-tables backup to Cloudflare R2, 18:20 UTC (= 03:20 KST).
+        // Runs 20 min after db-backup-usb so the two never contend for pg_dump CPU.
+        // Excludes the 4 market-data tables (14.94 GB, refetchable from exchange
+        // APIs); the resulting core dump is ~2.1 MB, permanently inside R2's 10 GB
+        // free tier. This is the only copy that survives loss of the mint machine.
+        name: "db-backup-r2",
+        script: SAS_WRAPPER,
+        args: `'20 18 * * *' ./scripts/maintenance/backup_core_to_r2.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -68,19 +100,6 @@ const agentApps = [
         name: "daily-backend-restart",
         script: SAS_WRAPPER,
         args: `'30 18 * * *' ./scripts/maintenance/daily_backend_restart.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    {
-        // KR — daily dynamic strategy selector (Mon-Fri 18:00 KST = 09:00 UTC).
-        // Evaluates 7-strategy pool over last 30 days, applies hard filters (maxDD<-25%
-        // reject, min_trades=5), persists selection JSON for downstream paper/live use.
-        name: "kr-selector",
-        script: SAS_WRAPPER,
-        args: `'0 9 * * 1-5' ./scripts/kr/run_kr_selector.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
