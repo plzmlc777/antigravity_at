@@ -1,0 +1,223 @@
+{
+ "paradigm": "us_etf_daily_swing_feasibility",
+ "phase": "R-0",
+ "generated_at": "2026-07-31T15:33:04",
+ "fee_one_way": 0.0025,
+ "fee_round_trip": 0.0050206,
+ "edge_target": 0.02,
+ "groups": {
+  "core": {
+   "n_symbols": 59,
+   "holds": {
+    "1": {
+     "hold_days": 1,
+     "n_bars": 99063,
+     "n_symbols": 59,
+     "ret_mean": 0.00044711084216803216,
+     "abs_ret_p50": 0.006076069128372996,
+     "abs_ret_p75": 0.012905937259229727,
+     "abs_ret_p90": 0.022660946678119645,
+     "abs_ret_p95": 0.03099263788390023,
+     "abs_ret_mean": 0.009769435456815861,
+     "frac_gross_above_target": 0.08182671633203113,
+     "perfect_direction_edge": 0.004748835456815861,
+     "selective_top30_edge": 0.01780791068742287,
+     "gate_reachable_perfect": false,
+     "gate_reachable_selective": false,
+     "trades_per_yr_if_always_in": 252.0,
+     "util_at_12_trades": 0.048
+    },
+    "3": {
+     "hold_days": 3,
+     "n_bars": 98945,
+     "n_symbols": 59,
+     "ret_mean": 0.0013224932292396025,
+     "abs_ret_p50": 0.01083883129123464,
+     "abs_ret_p75": 0.022454629344817123,
+     "abs_ret_p90": 0.03856828194621875,
+     "abs_ret_p95": 0.052720769021709475,
+     "abs_ret_mean": 0.016788100299835355,
+     "frac_gross_above_target": 0.21486684521703978,
+     "perfect_direction_edge": 0.011767500299835355,
+     "selective_top30_edge": 0.03362106573622376,
+     "gate_reachable_perfect": false,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 84.0,
+     "util_at_12_trades": 0.143
+    },
+    "5": {
+     "hold_days": 5,
+     "n_bars": 98827,
+     "n_symbols": 59,
+     "ret_mean": 0.0021869502976002504,
+     "abs_ret_p50": 0.014039155074703769,
+     "abs_ret_p75": 0.029216326544416527,
+     "abs_ret_p90": 0.04993269665312436,
+     "abs_ret_p95": 0.06748988733431623,
+     "abs_ret_mean": 0.021628530382805558,
+     "frac_gross_above_target": 0.3026500855029496,
+     "perfect_direction_edge": 0.016607930382805558,
+     "selective_top30_edge": 0.044522767894552805,
+     "gate_reachable_perfect": false,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 50.4,
+     "util_at_12_trades": 0.238
+    },
+    "10": {
+     "hold_days": 10,
+     "n_bars": 98532,
+     "n_symbols": 59,
+     "ret_mean": 0.0043347133950916075,
+     "abs_ret_p50": 0.02042985356636745,
+     "abs_ret_p75": 0.04122366882851197,
+     "abs_ret_p90": 0.07044152236821064,
+     "abs_ret_p95": 0.09359989427344736,
+     "abs_ret_mean": 0.030459073138097884,
+     "frac_gross_above_target": 0.43039824625502376,
+     "perfect_direction_edge": 0.025438473138097883,
+     "selective_top30_edge": 0.06408623703725984,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 25.2,
+     "util_at_12_trades": 0.476
+    },
+    "20": {
+     "hold_days": 20,
+     "n_bars": 97942,
+     "n_symbols": 59,
+     "ret_mean": 0.008755082133767928,
+     "abs_ret_p50": 0.030326205804702133,
+     "abs_ret_p75": 0.058851194679033186,
+     "abs_ret_p90": 0.09836393930645783,
+     "abs_ret_p95": 0.13225759239107607,
+     "abs_ret_mean": 0.043838125388638585,
+     "frac_gross_above_target": 0.5649670212983194,
+     "perfect_direction_edge": 0.038817525388638585,
+     "selective_top30_edge": 0.09310624880546914,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 12.6,
+     "util_at_12_trades": 0.952
+    }
+   }
+  },
+  "leveraged": {
+   "n_symbols": 29,
+   "holds": {
+    "1": {
+     "hold_days": 1,
+     "n_bars": 41644,
+     "n_symbols": 29,
+     "ret_mean": 0.0001741047919840688,
+     "abs_ret_p50": 0.016615849407390082,
+     "abs_ret_p75": 0.0350927506129009,
+     "abs_ret_p90": 0.06251953254210353,
+     "abs_ret_p95": 0.08585383917608558,
+     "abs_ret_mean": 0.026974922049674853,
+     "frac_gross_above_target": 0.3609403515512439,
+     "perfect_direction_edge": 0.021954322049674853,
+     "selective_top30_edge": 0.05763699609519389,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 252.0,
+     "util_at_12_trades": 0.048
+    },
+    "3": {
+     "hold_days": 3,
+     "n_bars": 41586,
+     "n_symbols": 29,
+     "ret_mean": 0.00031761945979358824,
+     "abs_ret_p50": 0.029788678591832873,
+     "abs_ret_p75": 0.06129297614953355,
+     "abs_ret_p90": 0.10842794166320951,
+     "abs_ret_p95": 0.14560716789849543,
+     "abs_ret_mean": 0.046549617066723954,
+     "frac_gross_above_target": 0.5587697782907709,
+     "perfect_direction_edge": 0.041529017066723954,
+     "selective_top30_edge": 0.10102956236414536,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 84.0,
+     "util_at_12_trades": 0.143
+    },
+    "5": {
+     "hold_days": 5,
+     "n_bars": 41528,
+     "n_symbols": 29,
+     "ret_mean": 0.0004216075759766769,
+     "abs_ret_p50": 0.03879789115638005,
+     "abs_ret_p75": 0.07940687980348737,
+     "abs_ret_p90": 0.1372500468174535,
+     "abs_ret_p95": 0.18538683707299833,
+     "abs_ret_mean": 0.059842335264360114,
+     "frac_gross_above_target": 0.645708919283375,
+     "perfect_direction_edge": 0.054821735264360114,
+     "selective_top30_edge": 0.1301617767805971,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 50.4,
+     "util_at_12_trades": 0.238
+    },
+    "10": {
+     "hold_days": 10,
+     "n_bars": 41383,
+     "n_symbols": 29,
+     "ret_mean": 0.000786111957874347,
+     "abs_ret_p50": 0.05634417995195462,
+     "abs_ret_p75": 0.11174734951421139,
+     "abs_ret_p90": 0.1943986007945043,
+     "abs_ret_p95": 0.2595754592308708,
+     "abs_ret_mean": 0.08471480211362976,
+     "frac_gross_above_target": 0.7511296909358915,
+     "perfect_direction_edge": 0.07969420211362976,
+     "selective_top30_edge": 0.18408946627399647,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 25.2,
+     "util_at_12_trades": 0.476
+    },
+    "20": {
+     "hold_days": 20,
+     "n_bars": 41093,
+     "n_symbols": 29,
+     "ret_mean": 0.0025390936266091453,
+     "abs_ret_p50": 0.08328940432261467,
+     "abs_ret_p75": 0.1594936708860759,
+     "abs_ret_p90": 0.2698031423924186,
+     "abs_ret_p95": 0.3652230021203481,
+     "abs_ret_mean": 0.1228903891018916,
+     "frac_gross_above_target": 0.8348623853211009,
+     "perfect_direction_edge": 0.1178697891018916,
+     "selective_top30_edge": 0.26703219669767553,
+     "gate_reachable_perfect": true,
+     "gate_reachable_selective": true,
+     "trades_per_yr_if_always_in": 12.6,
+     "util_at_12_trades": 0.952
+    }
+   }
+  }
+ },
+ "verdicts": {
+  "core": {
+   "selective_reachable_holds": [
+    "3",
+    "5",
+    "10",
+    "20"
+   ],
+   "perfect_only_holds": [],
+   "verdict": "FEASIBLE"
+  },
+  "leveraged": {
+   "selective_reachable_holds": [
+    "1",
+    "3",
+    "5",
+    "10",
+    "20"
+   ],
+   "perfect_only_holds": [],
+   "verdict": "FEASIBLE"
+  }
+ }
+}

@@ -20,6 +20,13 @@ EXCHANGE_QTY_RULES = {
         "min_notional": 0,
         "qty_type": "int",
     },
+    # 미국주식: 정수주 1주 단위 (소수점 매매 미지원), 최소 주문금액 없음
+    "KiwoomUS": {
+        "min_qty": 1,
+        "step_size": 1,
+        "min_notional": 0,
+        "qty_type": "int",
+    },
     "Binance": {
         "min_qty": 0.00001,
         "step_size": 0.00001,
@@ -178,6 +185,11 @@ def adjust_price(
         adjusted = round(price / tick_size) * tick_size
         decimals = _count_decimals(tick_size)
         return round(adjusted, decimals)
+
+    # 미국 주식: SEC Rule 612 — $1.00 이상은 $0.01, 미만은 $0.0001 호가단위
+    if exchange_name == "KiwoomUS":
+        tick_size = 0.01 if price >= 1.0 else 0.0001
+        return round(round(price / tick_size) * tick_size, 4)
 
     # 한국 주식 (Kiwoom, KIS): 호가단위 규칙
     if exchange_name in ("Kiwoom", "KIS"):

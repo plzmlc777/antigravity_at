@@ -40,6 +40,17 @@ def create_adapter(exchange_name: str, app_key: str = None, secret_key: str = No
             api_url=api_url,
             is_virtual=is_virtual,
         )
+    elif exchange in ("kiwoomus", "kiwoom_us", "kiwoom-us", "키움미국"):
+        # 미국주식(/api/us/*)은 국내주식(/api/dostk/*)과 api-id·응답 스키마가
+        # 달라 별도 어댑터를 쓴다. 주문 미지원(Paper 전용) — kiwoom_us.py 참조.
+        from .kiwoom_us import KiwoomUSAdapter
+        return KiwoomUSAdapter(
+            app_key=app_key,
+            secret_key=secret_key,
+            account_no=account_no,
+            account_name=account_name,
+            api_url=api_url,
+        )
     elif exchange in ("kis", "korean_investment", "한국투자", "한국투자증권"):
         from .kis_real import KISRealAdapter
         return KISRealAdapter(

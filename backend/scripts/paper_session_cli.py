@@ -29,13 +29,28 @@ from pathlib import Path
 from typing import Optional
 
 _KR_SYMBOL_RE = re.compile(r"^\d{6}$")
+# Binance perp symbols always carry a quote-asset suffix; US equity tickers
+# never do. Anything alphabetic without a quote suffix is a US ticker.
+_BINANCE_QUOTE_RE = re.compile(r"(USDT|USDC|BUSD|FDUSD|TUSD|BTC|ETH|BNB)$")
+_US_SYMBOL_RE = re.compile(r"^[A-Z][A-Z.\-]{0,6}$")
 
 
 def classify_exchange(symbol: str) -> str:
-    """KR Kiwoom symbols are 6-digit numeric tickers; everything else is treated
-    as Binance (USDT/USDC perp). Used by `run --exchange` to route sessions to
-    the correct cycle (binance-paper-cycle vs composer-paper-cycle)."""
-    return "kr" if _KR_SYMBOL_RE.match(symbol or "") else "binance"
+    """Route a session to its market: 'kr' | 'us' | 'binance'.
+
+    KR  = 6-digit numeric ticker (Kiwoom domestic).
+    US  = alphabetic ticker with no Binance quote-asset suffix (AAPL, SPY, BRK.B).
+    else = Binance USDS perp.
+
+    Used by `run --exchange` so each market's cron cycle picks up only its own
+    sessions (binance-paper-cycle vs us-paper-cycle vs kr flow backfill).
+    """
+    sym = (symbol or "").strip().upper()
+    if _KR_SYMBOL_RE.match(sym):
+        return "kr"
+    if _US_SYMBOL_RE.match(sym) and not _BINANCE_QUOTE_RE.search(sym):
+        return "us"
+    return "binance"
 
 import joblib
 import pandas as pd
@@ -85,6 +100,56 @@ def load_1m(symbol: str, days: int = 800) -> pd.DataFrame:
         return df.dropna(subset=["open", "high", "low", "close", "volume"])
     finally:
         db.close()
+
+
+def load_daily(symbol: str, days: int = 2600) -> pd.DataFrame:
+    """미국 ETF 일봉 로더 (time_frame='1d').
+
+    미국주식은 키움이 분봉을 약 7개월(2026-01-01 이후)만 제공한다. 장기
+    백테스트가 가능한 시계열은 일봉뿐(실측 6.7년)이라, US 세션은 1m 대신
+    1d 를 원본으로 쓴다. 타임스탬프는 ET naive.
+    """
+    db = SessionLocal()
+    try:
+        end = datetime.now()
+        start = end - timedelta(days=days)
+        sql = text("SELECT timestamp, open, high, low, close, volume FROM ohlcv "
+                   "WHERE symbol = :sym AND time_frame = '1d' "
+                   "AND timestamp >= :start ORDER BY timestamp")
+        rows = db.execute(sql, {"sym": symbol, "start": start}).fetchall()
+        df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.set_index("timestamp").sort_index()
+        for c in ("open", "high", "low", "close", "volume"):
+            df[c] = pd.to_numeric(df[c])
+        return df.dropna(subset=["open", "high", "low", "close", "volume"])
+    finally:
+        db.close()
+
+
+US_BENCHMARK_SYMBOL = "SPY"
+
+
+def build_us_runtime_bundle(symbol: str, sources_used: list[str]) -> RuntimeBundle:
+    """미국 ETF 세션용 번들 — 일봉을 eval 프레임으로 그대로 쓴다.
+
+    바이낸스/KR 경로처럼 1m 을 리샘플하지 않는다. 미국은 분봉 깊이가 7개월뿐이라
+    일봉이 원본이고, 리샘플할 상위 프레임도 없다.
+    """
+    df_daily = load_daily(symbol)
+    bundle = RuntimeBundle(ohlcv_1m=df_daily, ohlcv_eval=df_daily)
+
+    if "us_rs" in sources_used:
+        bench = load_daily(US_BENCHMARK_SYMBOL)
+        if len(bench):
+            bundle.leader_ohlcv_eval = bench
+        else:
+            log.warning("us_rs requested but %s daily load empty", US_BENCHMARK_SYMBOL)
+
+    if "pattern" in sources_used:
+        bundle.signals_df = get_or_scan_signals(symbol, df_daily)
+
+    return bundle
 
 
 FUNDING_DISPERSION_UNIVERSE = [
@@ -207,6 +272,10 @@ def get_or_scan_signals(symbol: str, df_1m: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_runtime_bundle(symbol: str, eval_freq_minutes: int, sources_used: list[str]) -> RuntimeBundle:
+    # 미국 ETF 세션은 일봉이 원본 — 분봉 리샘플 경로를 타지 않는다.
+    if classify_exchange(symbol) == "us":
+        return build_us_runtime_bundle(symbol, sources_used)
+
     df_1m = load_1m(symbol)
     if eval_freq_minutes >= 1440:
         eval_tf = "1d"
@@ -354,8 +423,8 @@ def cmd_run(args) -> int:
         return 2
     sessions = [s for s in sessions if s.status == "active"]
     exchange_filter = (getattr(args, "exchange", "all") or "all").lower()
-    if exchange_filter not in ("all", "binance", "kr"):
-        log.error("--exchange must be one of: all, binance, kr (got %r)", exchange_filter)
+    if exchange_filter not in ("all", "binance", "kr", "us"):
+        log.error("--exchange must be one of: all, binance, kr, us (got %r)", exchange_filter)
         return 2
     if exchange_filter != "all":
         before = len(sessions)
@@ -485,9 +554,10 @@ def main() -> int:
     p_run.add_argument("--all", action="store_true")
     p_run.add_argument(
         "--exchange",
-        choices=["all", "binance", "kr"],
+        choices=["all", "binance", "kr", "us"],
         default="all",
-        help="Filter sessions by exchange (KR=6-digit symbol, else Binance). Default: all (backward compatible)",
+        help=("Filter sessions by market: kr=6-digit symbol, us=alphabetic ticker "
+              "without Binance quote suffix, binance=rest. Default: all (backward compatible)"),
     )
     p_run.set_defaults(func=cmd_run)
 

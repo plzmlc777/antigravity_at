@@ -96,6 +96,13 @@ EXCHANGE_URLS: dict[str, dict[str, Optional[str]]] = {
         "virtual": "https://mockapi.kiwoom.com",
         "paper": None,
     },
+    # 미국주식은 모의투자 서버(mockapi)가 없다. paper 도 시세는 실서버에서
+    # 받아야 하므로 real 과 동일한 URL 을 준다 (주문은 어댑터가 차단).
+    "KiwoomUS": {
+        "real": "https://api.kiwoom.com",
+        "virtual": None,
+        "paper": "https://api.kiwoom.com",
+    },
     "KIS": {
         "real": "https://openapi.koreainvestment.com:9443",
         "virtual": "https://openapivts.koreainvestment.com:29443",

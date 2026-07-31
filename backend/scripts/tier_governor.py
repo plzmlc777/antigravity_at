@@ -32,6 +32,7 @@ import glob
 import json
 import logging
 import os
+import re
 import statistics as st
 import subprocess
 import sys
@@ -43,13 +44,43 @@ logger = logging.getLogger("tier_governor")
 BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SESS_DIR = os.path.join(BACKEND, "runs", "paper_sessions")
 STATE_DIR = os.path.join(BACKEND, "runs", "tier_governor")
-STATE_PATH = os.path.join(STATE_DIR, "state.json")
 BASELINE_CSV = os.path.join(BACKEND, "runs", "paper_spec_backtest.csv")
-QUEUE_PATH = os.path.join(BACKEND, "configs", "tier_promotion_queue.json")
 ALIAS_PATH = os.path.join(BACKEND, "configs", "strategy_aliases.json")
 
+# ── 시장별 리그 분리 (2026-07-31) ──────────────────────────────────
+# 미국 ETF 트랙이 붙으면서 하나의 순위표를 공유할 수 없게 됐다. 미국은 일봉
+# 스윙이라 거래 빈도가 구조적으로 낮아, 분봉 intraday 인 바이낸스와 같은 표에서
+# 30일 수익률로 겨루면 일방적으로 밀린다. 좌석·순위표·승격큐를 시장별로 분리한다.
+MARKETS = {
+    "binance": {
+        "seats": 24,
+        "state": os.path.join(STATE_DIR, "state.json"),          # 기존 경로 유지
+        "queue": os.path.join(BACKEND, "configs", "tier_promotion_queue.json"),
+        "label": "2군 (Binance)",
+    },
+    "us": {
+        "seats": 12,
+        "state": os.path.join(STATE_DIR, "state_us.json"),
+        "queue": os.path.join(BACKEND, "configs", "tier_promotion_queue_us.json"),
+        "label": "2군 (US ETF)",
+    },
+}
+
+_KR_SYMBOL_RE = re.compile(r"^\d{6}$")
+_BINANCE_QUOTE_RE = re.compile(r"(USDT|USDC|BUSD|FDUSD|TUSD|BTC|ETH|BNB)$")
+_US_SYMBOL_RE = re.compile(r"^[A-Z][A-Z.\-]{0,6}$")
+
+
+def market_of(symbol: str) -> str:
+    """심볼 → 시장. paper_session_cli.classify_exchange 와 동일 규칙."""
+    sym = (symbol or "").strip().upper()
+    if _KR_SYMBOL_RE.match(sym):
+        return "kr"
+    if _US_SYMBOL_RE.match(sym) and not _BINANCE_QUOTE_RE.search(sym):
+        return "us"
+    return "binance"
+
 VALID_FROM_FLOOR = datetime(2026, 7, 1)
-SEATS = 24
 LEAGUE_DEMOTE = 3
 LEAGUE_PROMOTE = 3
 CHECKPOINT_DAYS = 30
@@ -118,14 +149,13 @@ def load_baselines() -> dict:
     return out
 
 
-def is_governed(meta: dict) -> bool:
+def is_governed(meta: dict, market: str) -> bool:
+    """해당 시장 리그의 관리 대상인지. 다른 시장 세션은 순위표에 섞지 않는다."""
     if meta.get("status") != "active":
         return False
     if "lifecycle" in meta.get("name", ""):
         return False
-    if meta.get("symbol", "").isdigit():  # KR
-        return False
-    return True
+    return market_of(meta.get("symbol", "")) == market
 
 
 def read_jsonl(path: str):
@@ -251,9 +281,9 @@ def terminate_session(session_id: str, dry: bool) -> bool:
     return r.returncode == 0
 
 
-def promote_from_queue(n: int, dry: bool):
+def promote_from_queue(n: int, dry: bool, queue_path: str):
     """승격 큐 상위 n개 시드. Returns list of promoted names."""
-    qdata = load_json(QUEUE_PATH, {"queue": []})
+    qdata = load_json(queue_path, {"queue": []})
     queue = qdata.get("queue", [])
     if not queue:
         return []
@@ -283,7 +313,7 @@ def promote_from_queue(n: int, dry: bool):
             logger.error("promote failed %s: %s", entry["name"], r.stderr[-300:])
             remain.append(entry)
     qdata["queue"] = remain
-    save_json(QUEUE_PATH, qdata, dry)
+    save_json(queue_path, qdata, dry)
     return promoted
 
 
@@ -294,12 +324,17 @@ def main():
                     help="좌석 초과분(seats-24) 하위부터 즉시 강등 (일회성 정리)")
     ap.add_argument("--league-now", action="store_true",
                     help="월례 리그 라운드(3↓/3↑) 강제 실행")
+    ap.add_argument("--market", choices=sorted(MARKETS), default="binance",
+                    help="리그 시장 (좌석·순위표·승격큐가 시장별로 분리됨)")
     args = ap.parse_args()
     dry = args.dry_run
+    market = args.market
+    mcfg = MARKETS[market]
+    seats_max, state_path, queue_path = mcfg["seats"], mcfg["state"], mcfg["queue"]
     now = datetime.utcnow()
     kst = now + KST_OFFSET
 
-    state = load_json(STATE_PATH, {"sessions": {}, "league": {}})
+    state = load_json(state_path, {"sessions": {}, "league": {}})
     baselines = load_baselines()
     actions = []
 
@@ -310,7 +345,7 @@ def main():
         if not os.path.exists(sj):
             continue
         meta = json.load(open(sj))
-        if not is_governed(meta):
+        if not is_governed(meta, market):
             continue
         m = measure(sdir, meta, now)
         if m is None:
@@ -347,8 +382,8 @@ def main():
     ym = kst.strftime("%Y-%m")
     monthly_due = kst.day == 1 and state["league"].get("last_round_ym") != ym
     demote_n = 0
-    if args.trim and len(seated) > SEATS:
-        demote_n = len(seated) - SEATS
+    if args.trim and len(seated) > seats_max:
+        demote_n = len(seated) - seats_max
     elif monthly_due or args.league_now:
         demote_n = LEAGUE_DEMOTE
 
@@ -368,27 +403,27 @@ def main():
             "demoted": [s["name"] for s in drop]})
 
     # ── 4. 공석 충원 (승격 큐 → 좌석 24 유지; 월례는 최대 3, 공석 backfill 무제한) ──
-    vacancy = SEATS - len(seated)
+    vacancy = seats_max - len(seated)
     cap = LEAGUE_PROMOTE if (monthly_due or args.league_now) else max(vacancy, 0)
     if vacancy > 0:
-        promoted = promote_from_queue(min(vacancy, cap) if cap else vacancy, dry)
+        promoted = promote_from_queue(min(vacancy, cap) if cap else vacancy, dry, queue_path)
         for name in promoted:
             actions.append(f"⬆️ 리그 승격 {name} (3군 R-4 PASS → 2군 시드)")
         seated_count = len(seated) + len(promoted)
     else:
         seated_count = len(seated)
 
-    queue_len = len(load_json(QUEUE_PATH, {"queue": []}).get("queue", []))
-    state["seats"] = {"max": SEATS, "used": seated_count, "queue": queue_len,
+    queue_len = len(load_json(queue_path, {"queue": []}).get("queue", []))
+    state["seats"] = {"max": seats_max, "used": seated_count, "queue": queue_len,
                       "updated_at": now.isoformat(timespec="seconds")}
-    save_json(STATE_PATH, state, dry)
+    save_json(state_path, state, dry)
 
-    logger.info("seats %d/%d, queue %d", seated_count, SEATS, queue_len)
+    logger.info("[%s] seats %d/%d, queue %d", market, seated_count, seats_max, queue_len)
     if actions:
-        notify("🏟 Tier Governor 리그 (2군)\n" + "\n".join(actions)
-               + f"\n\n좌석 {seated_count}/{SEATS} | 승격 큐 {queue_len}", dry)
-    print(json.dumps({"actions": len(actions), "seats_used": seated_count,
-                      "seats_max": SEATS, "queue": queue_len, "dry_run": dry}))
+        notify(f"🏟 Tier Governor 리그 {mcfg['label']}\n" + "\n".join(actions)
+               + f"\n\n좌석 {seated_count}/{seats_max} | 승격 큐 {queue_len}", dry)
+    print(json.dumps({"market": market, "actions": len(actions), "seats_used": seated_count,
+                      "seats_max": seats_max, "queue": queue_len, "dry_run": dry}))
 
 
 if __name__ == "__main__":

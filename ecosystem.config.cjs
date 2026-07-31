@@ -259,6 +259,35 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
+    {
+        // 미국 ETF 순위 스냅샷 — 매일 21:10 UTC (서머타임 06:10 KST / 표준시 07:10 KST).
+        // 키움 순위 API 는 과거 시계열이 없어 오늘 안 받으면 영영 못 쓴다.
+        // 고유 substrate 3종(키움 거래상위=한국 개인 수급, 주간거래 괴리율=Blue
+        // Ocean vs 정규장, 연속 상승/하락) + 유동성 유지용 3종을 us_rank_snapshot
+        // 에 적재하고, 이어서 코어 60종 일봉을 갱신한다. 2026-07-31 신설.
+        name: "us-rank-snapshot",
+        script: SAS_WRAPPER,
+        args: `'10 21 * * *' ./scripts/us/run_us_rank_snapshot.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // 미국 ETF 페이퍼 사이클 + US 리그 거버너 — 매일 21:40 UTC.
+        // us-rank-snapshot(21:10)이 일봉·순위를 갱신한 뒤 실행. 미국은 일봉
+        // 기준이라 하루 1사이클이면 충분하다. 리그는 바이낸스와 분리(12석,
+        // --market us) — 일봉 스윙과 분봉 intraday 를 같은 순위표에 둘 수 없다.
+        name: "us-paper-cycle",
+        script: SAS_WRAPPER,
+        args: `'40 21 * * *' ./scripts/us/run_us_paper_cycle.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
     // ─── Sena Technology (061090) daily Telegram brief ───
     // Aggregates Naver quote/news/discussion + OpenDART disclosures into a
     // single Markdown message. Mode (pre|post) passed via env (sas_loop_wrapper

@@ -37,6 +37,8 @@ from .binance_alt_volume_burst_pos_continuation_long_source import (
 from .binance_alt_volume_burst_neg_reversion_short_source import (
     BinanceAltVolumeBurstNegReversionShortSource,
 )
+from .us_daily_source import USDailySource
+from .us_relative_strength_source import USRelativeStrengthSource
 
 __all__ = [
     "PatternSource",
@@ -68,4 +70,6 @@ __all__ = [
     "BinanceBTCRVHighvolLongSource",
     "BinanceAltVolumeBurstPosContinuationLongSource",
     "BinanceAltVolumeBurstNegReversionShortSource",
+    "USDailySource",
+    "USRelativeStrengthSource",
 ]

@@ -87,6 +87,68 @@ Skill: `.claude/agents/paradigm-architect/skills/promotion_graveyard.md`
 
 For graveyards at any phase: generate `graveyard__{paradigm_name}.md` with verdict + phase + reason + lesson reference. Update Q3 lesson index if novel failure mode.
 
+## US ETF Track Scope (2026-07-31 신설)
+
+바이낸스 외에 **미국 ETF 일봉 스윙** 트랙이 추가됐다. 시장이 다르면 substrate·비용·
+게이트 도달 가능 범위가 전부 달라지므로 아래 제약을 R-0 단계에서 먼저 적용한다.
+
+### Substrate
+
+| 항목 | 값 (전부 실측) |
+|---|---|
+| 일봉 | `ohlcv` time_frame='1d', 2019-10-23~, 코어 59종 + 레버리지 29종 (≥500봉) |
+| 분봉 | **2026-01-01 이후 약 7개월뿐** — 장기 검증 불가. intraday 패러다임은 봉인 |
+| 유니버스 | `backend/configs/us_universe.json` (core / leveraged 분리) |
+| 고유 substrate | `us_rank_snapshot` 테이블 — 키움 거래상위(한국 개인 수급), 주간거래 괴리율(Blue Ocean vs 정규장), 연속 상승/하락. **2026-07-31부터 축적 시작 → 그 전 구간 없음** |
+| 소스 | `us_daily`(갭·52주위치·거래량z·연속일), `us_rs`(SPY 대비 상대강도) |
+
+### 비용 (키움 공식 수수료표 확인)
+
+```
+편도 0.25% (온라인) + SEC Fee 매도 0.00206%
+왕복 = 0.502%  ← 바이낸스(0.08%)의 6.3배
+spec fee_rate = 0.0025
+```
+
+### R-0 필수 프리스크린 — 구조적 도달 가능성 (US 전용)
+
+`scripts/research/us_r0_structural_feasibility.py` 결과가 기준이다.
+
+| 그룹 | 1일 | 3일 | 5일 | 10일 | 20일 |
+|---|---|---|---|---|---|
+| core (비레버리지) | **불가 (+1.78%)** | +3.36% | +4.45% | +6.41% | +9.31% |
+| leveraged | +5.76% | +10.10% | +13.02% | +18.41% | +26.70% |
+
+(상위 30% 강도만 선별했을 때 도달 가능한 edge 상한, 수수료 차감 후. gate=+2%)
+
+**규칙**: core 유니버스에서 **hold 1일 패러다임은 발의 금지** — 완벽 예측조차
+elite gate 에 못 미친다. hold 3일 이상만 허용. leveraged 는 1일부터 허용하되
+일간 리밸런싱 경로의존 감쇠를 R-3 에서 반드시 층화할 것.
+
+**4-dim 게이트 동시 충족 구간**: `util = trades/yr × hold / 252 ≥ 30%` 이므로
+hold 3일이면 trades/yr ≥ 25, hold 10일이면 trades/yr ≥ 12 가 필요하다.
+hold 5~10일 × trades/yr 12~25 가 US 트랙의 현실적 표적 구간이다.
+
+### US 전용 Lesson — SHORT 방향 t_excess 인플레이션
+
+주식 ETF 는 장기 우상향 드리프트를 갖는다. `fee_aware_perm_test` 의 SHORT 후보 풀
+(`-fwd`)은 평균이 구조적으로 음수 → `null_mean_t` 가 크게 음수 → 관측치가 "덜
+나쁘기만" 해도 `signal_t_excess` 가 부풀려진다.
+
+실측(paradigm `us_premarket_gap_reversion_etf_daily` R-1): core/3d/short 에서
+`signal_t_excess = +8.36` 인데 `net_mean = -27.9bp`, `ci_lower = -46.2bp`.
+
+**규칙**: US SHORT 패러다임 판정은 `ci_lower > 0` 을 필수 선행 조건으로 둔다.
+`signal_t_excess` 는 보조 지표로만 읽는다. (Lesson #76 의 주식시장 변종)
+
+### 리그·큐 경로
+
+R-4 PASS 시 US 는 별도 큐/리그로 간다:
+- 승격 큐: `backend/configs/tier_promotion_queue_us.json`
+- 리그: `tier_governor --market us` (12석, state_us.json)
+- paper spec: `backend/configs/paper_sessions/us/{paradigm}_{symbol}.json`,
+  `fee_rate: 0.0025`, `eval_freq_minutes: 1440`
+
 ## Behavior Rules
 
 ### CRITICAL: No live trading

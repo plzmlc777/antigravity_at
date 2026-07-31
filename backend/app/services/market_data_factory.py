@@ -30,6 +30,11 @@ def get_market_data_service(exchange_name: str = DEFAULT_EXCHANGE):
         from .binance_market_data import BinanceMarketDataService
         return BinanceMarketDataService(is_futures=True)
 
+    elif exchange in ("kiwoomus", "kiwoom_us", "kiwoom-us"):
+        # 미국주식: ET naive 타임스탬프 + 정규장 분봉만 저장 (모듈 docstring 참조)
+        from .us_market_data_service import USMarketDataService
+        return USMarketDataService()
+
     else:
         # Default: Kiwoom/KIS (both use the same MarketDataService)
         from .market_data import MarketDataService

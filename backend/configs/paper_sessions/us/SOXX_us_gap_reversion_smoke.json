@@ -1,0 +1,18 @@
+{
+ "name": "SOXX_us_gap_reversion_smoke",
+ "symbol": "SOXX",
+ "mode": "paper",
+ "initial_capital": 10000,
+ "refit_interval_days": 30,
+ "fee_rate": 0.0025,
+ "notes": "US 트랙 배관 점검용 스모크 세션 (2026-07-31). 알파 주장 아님 — us_daily/us_rs 소스, 일봉 eval, KiwoomUS fee_rate 0.0025(온라인 0.25% 편도) 경로가 끝까지 도는지 확인하는 용도. gap_z 역방향(scale -1) 진입, 3봉 보유.",
+ "pipeline_spec": {
+  "sources": [
+   {"type": "us_daily", "kwargs": {"z_lookback": 60, "high_low_window": 252}},
+   {"type": "us_rs", "kwargs": {"benchmark_symbol": "SPY"}}
+  ],
+  "composer": {"type": "passthrough", "kwargs": {"feature_col": "usd_gap_z", "scale": -1.0}},
+  "policy": {"type": "long_short_threshold", "kwargs": {"entry_threshold": 1.5, "sl_pct": 0.04, "tp_pct": 0.04, "max_hold_bars": 3}},
+  "config": {"eval_freq_minutes": 1440, "forward_bars": 3}
+ }
+}

@@ -367,6 +367,31 @@ def _build_bn_alt_volume_burst_neg_reversion_short(kwargs: dict, runtime: dict) 
     )
 
 
+@register_source("us_daily")
+def _build_us_daily(kwargs: dict, runtime: dict) -> SignalSource:
+    """미국 ETF 일봉 파생 피처 (갭·52주 위치·거래량 z·연속일).
+
+    이 일봉의 갭은 통상적 야간 갭이 아니라 오버나이트(Blue Ocean) 종료가 대비
+    정규장 시가 괴리다 — us_daily_source docstring 참조."""
+    from .sources import USDailySource
+    return USDailySource(
+        z_lookback=int(kwargs.get("z_lookback", 60)),
+        high_low_window=int(kwargs.get("high_low_window", 252)),
+    )
+
+
+@register_source("us_rs")
+def _build_us_rs(kwargs: dict, runtime: dict) -> SignalSource:
+    """벤치마크(기본 SPY) 대비 상대강도. 벤치마크 일봉은 runtime 에서 받는다."""
+    from .sources import USRelativeStrengthSource
+    return USRelativeStrengthSource(
+        benchmark_df=runtime.get("leader_ohlcv_eval"),
+        benchmark_symbol=str(kwargs.get("benchmark_symbol", "SPY")),
+        z_lookback=int(kwargs.get("z_lookback", 60)),
+        beta_window=int(kwargs.get("beta_window", 60)),
+    )
+
+
 @register_composer("lgbm")
 def _build_lgbm(kwargs: dict) -> Composer:
     from .composers import LGBMComposerAdapter
