@@ -510,6 +510,18 @@ def run(args) -> int:
             # would churn the real position (close→re-short daily = fee drag).
             # The position is held through oscillation and closed once, for good,
             # at the hold-window backstop.
+            # REAL transient flat (source oscillated to flat but NOT retired):
+            # hold the position through it. Do NOT route to the engine (its close
+            # is a no-op for external-qty → 'No position to close') which would
+            # both flip link_state and fire a FALSE '🟢 REAL 청산' telegram while
+            # the exchange short stays open (incident 2026-07-30: spurious DATAIP
+            # close notice). Keep intended=short; real exits only at Day-31.
+            if track == "real" and desired == "flat" and not link_state.get("retired"):
+                log.info("%s real (%s): transient flat (not retired) — holding, no action",
+                         s2_id, symbol)
+                n_actions -= 1  # not a real action
+                continue
+
             if track == "real" and desired == "flat" and link_state.get("retired"):
                 acc_id = link.get("real_account_id")
                 realized = _real_direct_close(int(acc_id), symbol, live_id) if acc_id is not None else None
