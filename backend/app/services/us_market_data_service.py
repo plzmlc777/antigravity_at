@@ -393,9 +393,13 @@ class USMarketDataService:
 
         db = SessionLocal()
         try:
+            # 제약조건 이름이 아니라 인덱스 컬럼으로 arbiter 를 지정한다.
+            # 로컬은 uix_symbol_timestamp_tf(제약), 민트는 ohlcv_symbol_tf_ts_uniq
+            # (유니크 인덱스)로 이름이 다르다 — 컬럼 집합은 동일하므로
+            # index_elements 로 지정해야 양쪽에서 모두 동작한다.
             stmt = insert(OHLCV).values(batch)
             stmt = stmt.on_conflict_do_update(
-                constraint="uix_symbol_timestamp_tf",
+                index_elements=["symbol", "timestamp", "time_frame"],
                 set_={
                     "open": stmt.excluded.open,
                     "high": stmt.excluded.high,
