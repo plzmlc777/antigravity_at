@@ -106,34 +106,6 @@ const agentApps = [
         max_restarts: 10,
         restart_delay: 5000
     },
-    // ─── per-symbol dedicated strategies (v1.1 철학: 종목별 1:1) ───
-    // S60 (005930): daily 외인+기관 consensus (ka10059 → investor_flow_daily).
-    // Walk-forward IS sharpe 4.32 / OOS 4.10 / win 78%.
-    // 1m candles 위에서 09:00 entry / 15:20 exit 운용. Requires investor_flow_daily.
-    {
-        name: "kr-paper-cycle-s60-005930",
-        script: SAS_WRAPPER,
-        args: `'35 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_PAPER_SESSION: "005930_s60_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
-    // S61 (122630, 레버리지 ETF): daily 외국인 5일 누적 trend.
-    // Walk-forward IS sharpe 10.36 / OOS 7.83 / win 80%.
-    {
-        name: "kr-paper-cycle-s61-122630",
-        script: SAS_WRAPPER,
-        args: `'40 8 * * 1-5' ./scripts/kr/run_kr_paper_cycle.sh`,
-        interpreter: "bash",
-        cwd: ".",
-        env: { KR_PAPER_SESSION: "122630_s61_seed" },
-        autorestart: true,
-        max_restarts: 10,
-        restart_delay: 5000
-    },
     // ─── Composer framework (Phase 6, 2026-05-02) ───
     // Pattern + KR investor flow + LightGBM combination, validated OOS:
     //   122630 sharpe 2.20 PF 2.21 +30pts vs BH
