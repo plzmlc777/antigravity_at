@@ -1,0 +1,234 @@
+{
+ "paradigm": "us_new_etf_listing_cohort",
+ "phase": "R-0",
+ "generated_at": "2026-07-31T17:54:59",
+ "config": {
+  "fee_round_trip": 0.0050206,
+  "entry_offsets": [
+   1,
+   3,
+   5,
+   10
+  ],
+  "holds": [
+   5,
+   10,
+   20,
+   30,
+   60
+  ],
+  "min_bars": 40,
+  "min_cell_n": 20
+ },
+ "cohort": {
+  "n_probed_new": 1393,
+  "n_with_data": 1305,
+  "n_non_leveraged": 1305,
+  "n_leveraged": 0,
+  "listing_year": {
+   "2024": 424,
+   "2025": 606,
+   "2026": 275
+  }
+ },
+ "performance": {
+  "non_leveraged": {
+   "d1_h5": {
+    "n": 1305,
+    "net_mean_pct": -0.383,
+    "net_median_pct": -0.392,
+    "win_rate": 0.379,
+    "t_stat": -3.966,
+    "p10_pct": -3.41,
+    "p90_pct": 2.61
+   },
+   "d1_h10": {
+    "n": 1305,
+    "net_mean_pct": -0.184,
+    "net_median_pct": -0.247,
+    "win_rate": 0.441,
+    "t_stat": -1.291,
+    "p10_pct": -4.42,
+    "p90_pct": 3.85
+   },
+   "d1_h20": {
+    "n": 1305,
+    "net_mean_pct": 0.132,
+    "net_median_pct": 0.0,
+    "win_rate": 0.5,
+    "t_stat": 0.73,
+    "p10_pct": -5.08,
+    "p90_pct": 5.5
+   },
+   "d1_h30": {
+    "n": 1305,
+    "net_mean_pct": 0.514,
+    "net_median_pct": 0.359,
+    "win_rate": 0.559,
+    "t_stat": 2.289,
+    "p10_pct": -5.78,
+    "p90_pct": 7.0
+   },
+   "d1_h60": {
+    "n": 1242,
+    "net_mean_pct": 0.884,
+    "net_median_pct": 0.816,
+    "win_rate": 0.584,
+    "t_stat": 2.739,
+    "p10_pct": -8.37,
+    "p90_pct": 10.59
+   },
+   "d3_h5": {
+    "n": 1305,
+    "net_mean_pct": -0.363,
+    "net_median_pct": -0.382,
+    "win_rate": 0.368,
+    "t_stat": -3.887,
+    "p10_pct": -3.25,
+    "p90_pct": 2.43
+   },
+   "d3_h10": {
+    "n": 1305,
+    "net_mean_pct": -0.235,
+    "net_median_pct": -0.285,
+    "win_rate": 0.43,
+    "t_stat": -1.631,
+    "p10_pct": -3.97,
+    "p90_pct": 3.7
+   },
+   "d3_h20": {
+    "n": 1305,
+    "net_mean_pct": 0.164,
+    "net_median_pct": -0.042,
+    "win_rate": 0.495,
+    "t_stat": 0.872,
+    "p10_pct": -4.95,
+    "p90_pct": 5.73
+   },
+   "d3_h30": {
+    "n": 1305,
+    "net_mean_pct": 0.551,
+    "net_median_pct": 0.202,
+    "win_rate": 0.537,
+    "t_stat": 2.402,
+    "p10_pct": -5.27,
+    "p90_pct": 6.95
+   },
+   "d3_h60": {
+    "n": 1237,
+    "net_mean_pct": 0.824,
+    "net_median_pct": 0.666,
+    "win_rate": 0.566,
+    "t_stat": 2.597,
+    "p10_pct": -8.77,
+    "p90_pct": 10.88
+   },
+   "d5_h5": {
+    "n": 1305,
+    "net_mean_pct": -0.288,
+    "net_median_pct": -0.375,
+    "win_rate": 0.39,
+    "t_stat": -2.817,
+    "p10_pct": -3.2,
+    "p90_pct": 2.6
+   },
+   "d5_h10": {
+    "n": 1305,
+    "net_mean_pct": -0.221,
+    "net_median_pct": -0.23,
+    "win_rate": 0.438,
+    "t_stat": -1.623,
+    "p10_pct": -4.01,
+    "p90_pct": 3.5
+   },
+   "d5_h20": {
+    "n": 1305,
+    "net_mean_pct": 0.13,
+    "net_median_pct": 0.002,
+    "win_rate": 0.5,
+    "t_stat": 0.715,
+    "p10_pct": -5.4,
+    "p90_pct": 5.64
+   },
+   "d5_h30": {
+    "n": 1305,
+    "net_mean_pct": 0.445,
+    "net_median_pct": 0.216,
+    "win_rate": 0.53,
+    "t_stat": 1.918,
+    "p10_pct": -6.29,
+    "p90_pct": 7.68
+   },
+   "d5_h60": {
+    "n": 1236,
+    "net_mean_pct": 0.694,
+    "net_median_pct": 0.571,
+    "win_rate": 0.555,
+    "t_stat": 2.193,
+    "p10_pct": -8.65,
+    "p90_pct": 10.48
+   },
+   "d10_h5": {
+    "n": 1305,
+    "net_mean_pct": -0.43,
+    "net_median_pct": -0.382,
+    "win_rate": 0.374,
+    "t_stat": -4.745,
+    "p10_pct": -3.12,
+    "p90_pct": 2.34
+   },
+   "d10_h10": {
+    "n": 1305,
+    "net_mean_pct": -0.251,
+    "net_median_pct": -0.241,
+    "win_rate": 0.431,
+    "t_stat": -2.082,
+    "p10_pct": -3.82,
+    "p90_pct": 3.8
+   },
+   "d10_h20": {
+    "n": 1305,
+    "net_mean_pct": 0.195,
+    "net_median_pct": 0.06,
+    "win_rate": 0.508,
+    "t_stat": 1.104,
+    "p10_pct": -5.02,
+    "p90_pct": 5.77
+   },
+   "d10_h30": {
+    "n": 1296,
+    "net_mean_pct": 0.372,
+    "net_median_pct": 0.336,
+    "win_rate": 0.543,
+    "t_stat": 1.583,
+    "p10_pct": -6.36,
+    "p90_pct": 7.33
+   },
+   "d10_h60": {
+    "n": 1228,
+    "net_mean_pct": 0.595,
+    "net_median_pct": 0.646,
+    "win_rate": 0.557,
+    "t_stat": 1.936,
+    "p10_pct": -8.36,
+    "p90_pct": 10.89
+   }
+  }
+ },
+ "verdict": {
+  "positive_cells": {
+   "non_leveraged": [
+    "d1_h30",
+    "d1_h60",
+    "d3_h30",
+    "d3_h60",
+    "d5_h30",
+    "d5_h60",
+    "d10_h20",
+    "d10_h30",
+    "d10_h60"
+   ]
+  },
+  "conclusion": "LONG_EXPRESSIBLE_EDGE_FOUND"
+ }
+}

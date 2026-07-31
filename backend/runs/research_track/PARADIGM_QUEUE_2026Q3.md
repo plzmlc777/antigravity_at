@@ -6972,3 +6972,72 @@ This paradigm 177 attempt confirms that BOTH paradigm 22/24 R-5 expansion lane (
 **4순위 (META, future)**: META session crystallize Lesson #70 corollary CONFIRMED + Lesson #71 CONFIRMED + 5m microstructure single-domain Tier 4 formal retire. Lightweight skill amendment, no R-1 dispatch.
 
 **END 2026-05-21 23:18 KST paradigm 177 R-0 HALT** — autonomous SELF-RECOMMEND MODE 7 viable paths all blocked at R-0 prescreen (3 freemium/substrate + 2 family-proxy + 2 defer). **Lesson #71 candidate registered (1st dogfood)** — agent SELF-RECOMMEND without user candidate post-R-5 expansion lane closure + axis saturation should default to substrate-pivot or forward-collection wait. **5m microstructure single-domain family near-retire** (11+ graveyards). 1순위 권고: paradigm 178 = user hypothesis-provided dispatch OR defer until substrate pivot 2026-07-15+.
+
+---
+
+## 2026-07-31 — US ETF 트랙 신설 + 상장 이벤트 축 3갈래 종결
+
+미국 ETF 일봉 스윙 트랙이 신설되면서(바이낸스와 분리된 2군 리그 12석,
+`tier_governor --market us`) 첫 패러다임 3건을 발의·종결했다.
+
+### 트랙 제약 (전부 실측·공식 확인)
+
+| 항목 | 값 |
+|---|---|
+| 분봉 깊이 | 2026-01-01 이후 약 7개월뿐 → intraday 패러다임 봉인 |
+| 일봉 깊이 | 6.7년 (2019-10-23~) |
+| 수수료 | 온라인 0.25% 편도 + SEC Fee 0.00206% → **왕복 0.502%** (바이낸스의 6.3배) |
+| 공매도 | **불가** (키움 공식: 증거금 매수·매도 100%, REST API 는 옵션·선물 미지원) |
+| 도달 가능 구간 | core 1일 보유는 구조적 불가(+1.78% < gate 2%). hold 5~10일 × trades/yr 12~25 |
+
+### 종결된 패러다임 3건
+
+1. **`us_premarket_gap_reversion_etf_daily`** — R-1 graveyard, 0/12 셀.
+   프리마켓 갭(ET 04:00~09:30) 반전. 양방향 모두 수수료 미달.
+2. **`us_leveraged_etf_listing_cohort`** — R-0 HALT.
+   신규 상장 레버리지 ETF 인버스 쌍 매수. 12/12 셀 음수 + 쌍 이벤트 25건.
+3. **`us_new_etf_listing_selection`** — R-1 graveyard, 0/48 셀.
+   비레버리지 신규 ETF 선별 매수. 엣지가 유동성 아티팩트, 선별 축 4종 무신호.
+
+**미국 ETF 신규 상장 축 폐기** — ETF 상장은 자산의 탄생이 아니라 래퍼의 등장이라
+가격 발견 이벤트가 아니라는 점이 3경로에서 반복 확인.
+
+### Lesson #78 candidate (NEW, 1st dogfood — paradigm `us_new_etf_listing_selection`)
+
+**이벤트 코호트 R-0 에는 유동성 게이트가 필수다.**
+
+신규 상장·신규 편입처럼 코호트가 **자동 구성**되는 패러다임은 거래 불가능한
+초저유동성 종목이 대량 포함되고, 이들이 코호트 평균 엣지를 통째로 만들어낸다.
+
+실측: 미국 신규 ETF 1,228종 hold 60일 **+0.60%** → 일 거래대금 $1M 필터 시
+**-0.25% 로 부호 반전**. 코호트의 35%가 $100k 미만, 75%가 $1M 미만.
+
+**적용 규칙**: 이벤트 기반 코호트는 R-0 판정 **이전에** 유동성 필터를 적용하고
+필터 전/후 엣지를 병기한다. 필터 후 엣지가 게이트 미달이면 R-1 을 발의하지 않는다.
+Lesson #35(fee-trap vs pool-drift triage)의 인접 개념이나, #35 는 수수료 드래그를,
+#78 은 **코호트 구성 자체의 편향**을 다룬다.
+
+### Lesson #79 candidate (NEW, 1st dogfood — paradigm `us_premarket_gap_reversion_etf_daily`)
+
+**long-drift 자산군의 SHORT 방향 `signal_t_excess` 인플레이션.**
+
+주식 ETF 처럼 장기 우상향 드리프트가 있는 자산군에서 SHORT 후보 풀(`-fwd`)은
+평균이 구조적으로 음수 → `null_mean_t` 가 크게 음수 → 관측치가 "덜 나쁘기만"
+해도 t_excess 가 부풀려진다.
+
+실측: core/3d/short `signal_t_excess = +8.36` 인데 `net_mean = -27.9bp`,
+`ci_lower = -46.2bp` — 실제로는 손실.
+
+**적용 규칙**: 주식 트랙 SHORT 패러다임은 `ci_lower > 0` 을 필수 선행 조건으로
+두고 t_excess 는 보조 지표로만 읽는다. Lesson #76 의 주식시장 변종.
+
+### 부산물 — US 유니버스 필터 규칙
+
+"신규 상장 레버리지 ETF 는 상장 후 부진"은 n=261, t=-3.03 으로 단단하다.
+숏 불가로 수익화는 못 하나 **회피 규칙**으로 유효: US 롱 패러다임은
+**상장 30일 이내 레버리지 ETF 를 유니버스에서 제외**한다.
+
+**END 2026-07-31 US 트랙 상장 이벤트 축 종결** — 남은 축: (a) 일봉 6.7년으로 즉시
+검증 가능(섹터 상대강도 / 52주 신고가 근접 / 변동성 압축), (b) 축적 대기
+(키움 거래상위 = 한국 개인 수급, 주간거래 괴리율 = Blue Ocean vs 정규장, 2026-07-31 수집 개시).
+어느 축이든 **Lesson #78 에 따라 R-0 첫 단계에 유동성 필터를 건다.**

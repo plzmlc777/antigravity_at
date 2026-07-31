@@ -129,7 +129,19 @@ elite gate 에 못 미친다. hold 3일 이상만 허용. leveraged 는 1일부�
 hold 3일이면 trades/yr ≥ 25, hold 10일이면 trades/yr ≥ 12 가 필요하다.
 hold 5~10일 × trades/yr 12~25 가 US 트랙의 현실적 표적 구간이다.
 
-### US 전용 Lesson — SHORT 방향 t_excess 인플레이션
+### Lesson #78 — 이벤트 코호트 유동성 게이트 (R-0 필수, 시장 무관)
+
+신규 상장·신규 편입처럼 **코호트가 자동 구성**되는 패러다임은 R-0 판정 **이전에**
+유동성 필터를 걸고 필터 전/후 엣지를 병기한다. 필터 후 엣지가 게이트 미달이면
+R-1 을 발의하지 않는다.
+
+실측(`us_new_etf_listing_selection`): 미국 신규 ETF 1,228종 hold 60일 **+0.60%**
+→ 일 거래대금 $1M 필터 시 **-0.25% 로 부호 반전**. 코호트의 35%가 $100k 미만,
+75%가 $1M 미만. 필터 없이 R-0 을 통과시켜 R-1 48셀까지 갔고 전부 FAIL 했다.
+
+필터는 최소 2단(예: $100k / $1M)으로 두어 민감도를 함께 본다.
+
+### US 전용 Lesson #79 — SHORT 방향 t_excess 인플레이션
 
 주식 ETF 는 장기 우상향 드리프트를 갖는다. `fee_aware_perm_test` 의 SHORT 후보 풀
 (`-fwd`)은 평균이 구조적으로 음수 → `null_mean_t` 가 크게 음수 → 관측치가 "덜
@@ -140,6 +152,22 @@ hold 5~10일 × trades/yr 12~25 가 US 트랙의 현실적 표적 구간이다.
 
 **규칙**: US SHORT 패러다임 판정은 `ci_lower > 0` 을 필수 선행 조건으로 둔다.
 `signal_t_excess` 는 보조 지표로만 읽는다. (Lesson #76 의 주식시장 변종)
+
+### US 유니버스 필터 규칙 (확정)
+
+**상장 30일 이내 레버리지 ETF 는 롱 패러다임 유니버스에서 제외한다.**
+근거: 신규 상장 레버리지 ETF 는 상장 후 부진(n=261, t=-3.03). 일간 리밸런싱
+변동성 드래그가 신규 상장 직후 고변동 구간에서 극대화된다. 숏 불가로 수익화는
+못 하지만 회피 규칙으로는 유효하다.
+
+### 종결된 US 축 (재발의 금지 — DNA 중복)
+
+상장 이벤트 축 3갈래 전부 종결(2026-07-31). 재발의 전 graveyard 필독:
+- `graveyard__us_premarket_gap_reversion_etf_daily.md` — 프리마켓 갭 반전, 0/12
+- `graveyard__us_leveraged_etf_listing_cohort.md` — 레버리지 인버스 쌍, R-0 HALT
+- `graveyard__us_new_etf_listing_selection.md` — 비레버리지 선별, 0/48
+
+ETF 상장은 자산의 탄생이 아니라 래퍼의 등장이라 가격 발견 이벤트가 아니다.
 
 ### 리그·큐 경로
 
