@@ -7,7 +7,7 @@
 # history. Idempotent and safe to re-run.
 #
 # Recommended schedule: daily 16:00 KST (07:00 UTC) Mon-Fri — 30 min after
-# market close, before composer-flow-backfill and the KR paper cycles.
+# market close, before kr-flow-backfill and the KR paper cycles.
 
 set -uo pipefail
 

@@ -144,7 +144,7 @@ const agentApps = [
     // automatically picks them up via `run --all`.
     {
         // Daily KR 1m OHLCV backfill (ka10080). 16:00 KST (07:00 UTC) Mon-Fri.
-        // Runs 30 min after market close, BEFORE composer-flow-backfill and
+        // Runs 30 min after market close, BEFORE kr-flow-backfill and
         // the KR paper cycles so candle data is fresh. Idempotent: only
         // inserts rows newer than the table's current max per symbol.
         // Without this, ohlcv stalls and S60/S61/meta sessions fail with
@@ -163,13 +163,15 @@ const agentApps = [
         // Daily KR investor flow backfill (ka10059). 16:30 KST (07:30 UTC) Mon-Fri.
         // Runs ~1 hour after market close, before the KR per-symbol paper cycles
         // read the data — S60 needs 005930 flow, S61 needs 122630 flow.
-        // (Composer/pattern KR paper track retired 2026-07-11 — symbols trimmed.)
-        name: "composer-flow-backfill",
+        // Renamed from composer-flow-backfill 2026-07-31: the composer/pattern KR
+        // track was retired 2026-07-11 and this job was repurposed for S60/S61,
+        // but the stale name made it read as dead-track leftovers.
+        name: "kr-flow-backfill",
         script: SAS_WRAPPER,
-        args: `'30 7 * * 1-5' ./scripts/kr/run_composer_flow_backfill.sh`,
+        args: `'30 7 * * 1-5' ./scripts/kr/run_kr_flow_backfill.sh`,
         interpreter: "bash",
         cwd: ".",
-        env: { COMPOSER_FLOW_SYMBOLS: "005930,122630" },
+        env: { KR_FLOW_SYMBOLS: "005930,122630" },
         autorestart: true,
         max_restarts: 10,
         restart_delay: 5000
