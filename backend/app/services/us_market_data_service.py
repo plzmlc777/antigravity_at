@@ -195,11 +195,17 @@ class USMarketDataService:
 
         for page in range(max_pages):
             try:
-                data = await adapter._request(
-                    "usa06011", "/api/us/chart", body, cont_yn=cont_yn, next_key=next_key
+                data = await self._request_with_retry(
+                    adapter, "usa06011", "/api/us/chart", body, cont_yn, next_key
                 )
             except Exception as e:
-                logger.error(f"[USMarketData] {symbol} 페이지 {page} 조회 실패: {e}")
+                # 재시도까지 실패하면 그 시점 이전 구간은 포기한다. 단일 일시
+                # 오류로 전체 백필이 중단되던 문제를 막기 위해 재시도를 넣었다
+                # (실측: SPY 56,304봉 vs QQQ 2,346봉 — 같은 요청인데 결과가 갈렸다).
+                logger.error(
+                    f"[USMarketData] {symbol} 페이지 {page} 조회 실패(재시도 소진): {e} "
+                    f"— {oldest_seen} 이전 구간 미수집"
+                )
                 break
 
             rows = data.get("result_list") or []
@@ -329,6 +335,25 @@ class USMarketDataService:
         else:
             logger.warning(f"[USMarketData] {symbol} 일봉 수집 결과 없음")
         return saved
+
+    @staticmethod
+    async def _request_with_retry(adapter, api_id: str, path: str, body: dict,
+                                  cont_yn: str, next_key: str, retries: int = 3):
+        """연속조회 1페이지를 재시도와 함께 요청.
+
+        연속조회는 next_key 체인이라 한 페이지가 실패하면 그 이후 과거 구간을
+        통째로 잃는다. 일시적 오류로 백필이 중단되지 않도록 재시도를 둔다.
+        """
+        last_exc = None
+        for attempt in range(retries):
+            try:
+                return await adapter._request(api_id, path, body,
+                                              cont_yn=cont_yn, next_key=next_key)
+            except Exception as e:
+                last_exc = e
+                if attempt < retries - 1:
+                    await asyncio.sleep(1.0 * (attempt + 1))
+        raise last_exc
 
     # ── 내부 유틸 ─────────────────────────────────────────────────
 
