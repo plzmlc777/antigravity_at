@@ -148,7 +148,31 @@
    "status": "pending",
    "added_at": "2026-08-01T22:33:34",
    "notes": "Quantpedia에 학술 근거 다수. SPDR 11 섹터 1998년 이후 일봉으로 충분한 역사 확보. 절대 모멘텀 필터가 Sharpe 1.5+ 달성 핵심."
+  },
+  {
+   "id": "us-008",
+   "title": "iShares 스마트베타 팩터 ETF 모멘텀 로테이션 — 상위 1 팩터 월간 교체",
+   "hypothesis": "유니버스: MTUM(모멘텀)·QUAL(퀄리티)·USMV(저변동성)·IVE(가치)·IVW(성장) iShares 팩터 ETF 5종. 진입: 매월 마지막 거래일 종가 기준 6개월 단순수익률 1위 ETF 100% 매수. 청산: 다음 월말 재평가 후 1위 팩터 교체 시 전액 청산·신규 1위 매수; 동위 시 MTUM 우선. 보유: 최소 1개월(팩터 퍼시스턴스 평균 2~4개월 예상, 연 3~6회 전환). 판정선: 6개월 단순수익률 랭크 1위 유지 시 홀드, 교체 시만 거래.",
+   "source": "Gupta & Kelly (2019) Factor Momentum Everywhere; Quantpedia Factor Rotation strategies; r/algotrading community backtests 2024-2025",
+   "axis_class": "smart_beta_factor_rotation",
+   "data_deps": [
+    "yfinance(MTUM",
+    "QUAL",
+    "USMV",
+    "IVE",
+    "IVW)"
+   ],
+   "constraints": [
+    "LONG 전용 OK",
+    "월말 평가·연 3~6회 전환으로 0.502% 수수료 부담 관리 가능(고빈도 아님)",
+    "일봉 6.7년 충분, 인트라데이 불필요",
+    "yfinance 무료 데이터 충분"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-01T23:21:45",
+   "notes": "us-007 섹터로테이션(XLK·XLF 등 산업섹터)과 달리 팩터(모멘텀·퀄리티·밸류·저변동·성장) 교체로 축 분류 명확히 상이. MTUM 단독 Sharpe ~1.4 → 상위 팩터 교체 시 개선 여부 실증 대상."
   }
  ],
- "updated_at": "2026-08-01T22:33:34"
+ "updated_at": "2026-08-01T23:21:45"
 }
