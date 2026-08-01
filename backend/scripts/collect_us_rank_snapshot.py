@@ -57,13 +57,20 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
 RK_URL = "/api/us/rkinfo"
 
 # (rank_type, api_id, 페이지수, 설명)
+# (rank_type, api_id, 페이지수, 설명, 수집창)
+#
+# 수집창이 갈리는 이유 (2026-08-01 실측):
+#   usa24291(주간거래 괴리율)은 **한국 주간거래 세션(09:00~16:45 KST) 중에만**
+#   데이터를 반환한다. 16:07 KST 수집 시 100건, 06:10 KST 수집 시 0건.
+#   Blue Ocean 오버나이트 세션의 실시간 괴리를 재는 지표라 세션이 닫히면 값이 없다.
+#   → "daytime" 창은 별도 cron(16:30 KST)에서, 나머지는 미국 마감 후 수집한다.
 TARGETS = [
-    ("kiwoom_trade",  "usa20881", 1, "키움 거래 상위(ETF) — 한국 개인 수급"),
-    ("day_disparity", "usa24291", 4, "주간거래 괴리율 상위(ETF)"),
-    ("consecutive",   "usa24161", 4, "연속 상승/하락(ETF)"),
-    ("trade_value",   "usa20541", 5, "당일 거래대금 상위(ETF)"),
-    ("market_cap",    "usa20551", 5, "시가총액 상위(ETF)"),
-    ("turnover",      "usa24151", 4, "회전율 상위(ETF)"),
+    ("kiwoom_trade",  "usa20881", 1, "키움 거래 상위(ETF) — 한국 개인 수급", "both"),
+    ("day_disparity", "usa24291", 4, "주간거래 괴리율 상위(ETF)", "daytime"),
+    ("consecutive",   "usa24161", 4, "연속 상승/하락(ETF)", "postclose"),
+    ("trade_value",   "usa20541", 5, "당일 거래대금 상위(ETF)", "postclose"),
+    ("market_cap",    "usa20551", 5, "시가총액 상위(ETF)", "postclose"),
+    ("turnover",      "usa24151", 4, "회전율 상위(ETF)", "postclose"),
 ]
 
 
@@ -184,18 +191,25 @@ def upsert(rows: list) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--window", choices=("all", "daytime", "postclose"), default="all",
+                    help="daytime=한국 주간거래 세션 중에만 나오는 지표, "
+                         "postclose=미국 마감 후 수집, all=전부")
     args = ap.parse_args()
+
+    targets = [t for t in TARGETS
+               if args.window == "all" or t[4] in (args.window, "both")]
 
     bdate = target_business_date()
     et = now_et()
-    print(f"스냅샷 영업일 {bdate} (ET {et:%Y-%m-%d %H:%M})")
+    print(f"스냅샷 영업일 {bdate} (ET {et:%Y-%m-%d %H:%M}) window={args.window} "
+          f"대상 {len(targets)}종")
 
     async def run():
         await HttpClientManager.get_instance().start()
         try:
             adapter = await build_adapter()
             summary = {}
-            for rank_type, api_id, pages, label in TARGETS:
+            for rank_type, api_id, pages, label, _win in targets:
                 rows = await collect(adapter, rank_type, api_id, pages, bdate)
                 n = len(rows) if args.dry_run else upsert(rows)
                 summary[rank_type] = n
@@ -207,9 +221,11 @@ def main() -> int:
     summary = asyncio.run(run())
     total = sum(summary.values())
     print(f"\n{'[DRY-RUN] ' if args.dry_run else ''}총 {total}건")
-    print(json.dumps({"business_date": str(bdate), "dry_run": args.dry_run,
-                      "counts": summary, "total": total}, ensure_ascii=False))
-    return 0 if total else 1
+    print(json.dumps({"business_date": str(bdate), "window": args.window,
+                      "dry_run": args.dry_run, "counts": summary, "total": total},
+                     ensure_ascii=False))
+    # daytime 창은 세션 밖이면 0건이 정상이므로 실패로 보지 않는다
+    return 0 if (total or args.window == "daytime") else 1
 
 
 if __name__ == "__main__":

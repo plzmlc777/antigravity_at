@@ -28,7 +28,7 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
-PYTHONPATH=. python3 -m scripts.collect_us_rank_snapshot 2>&1 | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 -m scripts.collect_us_rank_snapshot --window postclose 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[us-rank-snapshot] exit_code=${EC}" | tee -a "${LOG_FILE}"
 

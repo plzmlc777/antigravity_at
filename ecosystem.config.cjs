@@ -260,14 +260,32 @@ const agentApps = [
         restart_delay: 5000
     },
     {
-        // 미국 ETF 순위 스냅샷 — 매일 21:10 UTC (서머타임 06:10 KST / 표준시 07:10 KST).
+        // 미국 ETF 순위 스냅샷(마감 후) — 매일 21:10 UTC (서머타임 06:10 KST).
         // 키움 순위 API 는 과거 시계열이 없어 오늘 안 받으면 영영 못 쓴다.
-        // 고유 substrate 3종(키움 거래상위=한국 개인 수급, 주간거래 괴리율=Blue
-        // Ocean vs 정규장, 연속 상승/하락) + 유동성 유지용 3종을 us_rank_snapshot
-        // 에 적재하고, 이어서 코어 60종 일봉을 갱신한다. 2026-07-31 신설.
+        // 마감 후에 유효한 지표(키움 거래상위 / 연속 상승하락 / 거래대금 / 시총 /
+        // 회전율)를 적재하고 이어서 코어 60종 일봉을 갱신한다. 2026-07-31 신설.
+        // 평일만 실행 — 키움 API 는 주말에 닫힌다(토요일 토큰 요청 시 HTTP 302 HTML).
+        //
+        // 주의: 주간거래 괴리율(usa24291)은 이 시각에 항상 0건이다 —
+        // us-daytime-snapshot 으로 분리했다 (2026-08-01 실측).
         name: "us-rank-snapshot",
         script: SAS_WRAPPER,
-        args: `'10 21 * * *' ./scripts/us/run_us_rank_snapshot.sh`,
+        args: `'10 21 * * 1-5' ./scripts/us/run_us_rank_snapshot.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
+        // 한국 주간거래(Blue Ocean) 세션 중에만 얻는 순위 지표 — 평일 07:30 UTC
+        // (16:30 KST), 주간거래 종료(16:45 KST) 직전.
+        // 실측 2026-08-01: usa24291(주간거래 괴리율)을 16:07 KST 수집 시 100건,
+        // 06:10 KST 수집 시 0건. 오버나이트 세션의 실시간 괴리라 세션이 닫히면
+        // 값이 없다. 미국 현지 데이터로 복제 불가능한 고유 substrate 라 창을 분리.
+        name: "us-daytime-snapshot",
+        script: SAS_WRAPPER,
+        args: `'30 7 * * 1-5' ./scripts/us/run_us_daytime_snapshot.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
@@ -281,7 +299,7 @@ const agentApps = [
         // --market us) — 일봉 스윙과 분봉 intraday 를 같은 순위표에 둘 수 없다.
         name: "us-paper-cycle",
         script: SAS_WRAPPER,
-        args: `'40 21 * * *' ./scripts/us/run_us_paper_cycle.sh`,
+        args: `'40 21 * * 1-5' ./scripts/us/run_us_paper_cycle.sh`,
         interpreter: "bash",
         cwd: ".",
         autorestart: true,
