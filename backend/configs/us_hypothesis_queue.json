@@ -196,7 +196,34 @@
    "status": "pending",
    "added_at": "2026-08-02T00:19:58",
    "notes": "가격 모멘텀이 아닌 신용시장 펀더멘털 레짐 신호 — VIX/RSI/모멘텀 축과 직교하는 독립 신호. 레짐전환 빈도 부족 시 주간 평가 또는 OAS MA 교차 신호로 전환 검토."
+  },
+  {
+   "id": "us-010",
+   "title": "멀티자산 10개월 SMA 트렌드 필터 — 자산군별 이진 노출 월간 교체",
+   "hypothesis": "Universe: SPY, EFA, EEM, IEF, TLT, GLD, GSG (7 ETFs via yfinance). Entry condition: end-of-month close > 10-month SMA (210-day) for each ETF → allocate equal weight among qualifying ETFs. Exit/cash condition: any ETF whose close falls below its 10-month SMA is replaced by SHY (1-3yr Treasury cash proxy) for that slot. Decision threshold: 210-day SMA computed on daily bars, evaluated on last trading day of each month. Holding period: 1 month. Rebalancing: monthly, all positions re-evaluated simultaneously. No leverage.",
+   "source": "Quantpedia Strategy #129 Asset Class Trend-Following (Faber 2007 GTAA); also discussed on Bogleheads and allocatesmartly.com",
+   "axis_class": "asset_class_trend_sma",
+   "data_deps": [
+    "yfinance:SPY",
+    "EFA",
+    "EEM",
+    "IEF",
+    "TLT",
+    "GLD",
+    "GSG",
+    "SHY"
+   ],
+   "constraints": [
+    "Monthly rebalance → ~7 trades/yr per ETF slot, aggregate ~12-20 round-trips/yr across portfolio; commission 0.502% per RT manageable at monthly cadence",
+    "Edge depends on trend persistence; drawdowns in sideways markets may compress Sharpe below 1.5 — mitigation: 6.7yr backtest window covers 2020 crash and 2022 bear",
+    "All-cash scenario (all ETFs below SMA) possible in severe bear — util could dip; 7-slot equal weighting mitigates concentration",
+    "No intraday; daily bars for SMA calculation, monthly decision — compliant"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T01:18:41",
+   "notes": "Classic Faber GTAA 10-month SMA applied to 7 broad asset classes. Distinct from letf_single_asset_ma_tim (single LETF) — this is multi-asset class binary filter with cash substitute per slot. Distinct from sector_momentum_rotation (rank-based selection) — this is threshold-based inclusion/exclusion. Expected Sharpe ~1.2-1.8 in literature, trades/yr ~15-25 total round-trips. Free data only: all tickers on yfinance."
   }
  ],
- "updated_at": "2026-08-02T00:19:58"
+ "updated_at": "2026-08-02T01:18:41"
 }
