@@ -267,7 +267,30 @@
    "status": "pending",
    "added_at": "2026-08-02T03:22:14",
    "notes": "QuantPedia 2024 실증: Inflation UP+Trend UP→GLD, DOWN+UP→IEF, Trend DOWN→SHY 3-상태 스위치. 2022년 인플레이션 급등기 GLD/SHY 우위 실측됨. 기존 yield_curve·credit_spread 레짐과 직교하는 물가 축."
+  },
+  {
+   "id": "us-013",
+   "title": "듀얼 모멘텀 GEM 확장판 — 미국·선진국·신흥국 상대+절대 모멘텀 3-way 로테이션",
+   "hypothesis": "매월 말 SPY(미국)·EFA(선진국)·EEM(신흥국) 12개월 수익률 비교 → 상대 모멘텀 1위 ETF 선택. 선택 ETF의 12개월 수익률 < 0(절대 모멘텀 음수)이면 AGG(채권) 100% 대피. 양수이면 1위 ETF 100% 진입. 월말 리밸런싱 12회/년. Antonacci 원형 GEM(SPY vs EFA 2-way)을 EEM 추가 3-way로 확장하며 절대 모멘텀 필터로 베어마켓 대피 내장.",
+   "source": "QuantConnect Forum discussion/5501 Dual Momentum GEM; Antonacci 2014 Dual Momentum Investing; quantifiedstrategies.com/dual-momentum-trading-strategy; quantpedia.com/robustness-testing-of-country-and-asset-etf-momentum-strategies",
+   "axis_class": "dual_momentum_gem_intl",
+   "data_deps": [
+    "yfinance:SPY",
+    "EFA",
+    "EEM",
+    "AGG(EEM 2003년~무료)"
+   ],
+   "constraints": [
+    "EFA·EEM 상관관계 상승기 동일 ETF 연속 보유 → 실거래 12회/년 경계",
+    "12M 룩백 추세 반응 지연 — 2022년 베어마켓 조기 대피 실패 가능성",
+    "0.502% 왕복 수수료 → 거래당 2% 엣지 필요 (원형 CAGR~15%에서 충족 가능)",
+    "Sharpe 1.0~1.5 구간 — 엘리트 게이트 1.5 달성 위해 6M 룩백 또는 멀티 룩백 평균 변형 검토 필요"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T04:21:31",
+   "notes": "Antonacci 원형 GEM Sharpe 1.0~1.5. ADM(Accelerating Dual Momentum) 변형(1M+3M+6M+12M 평균) 시 Sharpe 향상 실증. BlackRock 국제 국가 로테이션 액티브 ETF 상용화(2024-12)로 전략 실효성 외부 검증. QuantConnect 커뮤니티 다수 오픈소스 구현 존재."
   }
  ],
- "updated_at": "2026-08-02T03:22:14"
+ "updated_at": "2026-08-02T04:21:31"
 }
