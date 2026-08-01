@@ -245,7 +245,29 @@
    "status": "pending",
    "added_at": "2026-08-02T02:18:33",
    "notes": "2s10s 역전 → SPY 수익률 저하 패턴은 1980~2024 44년 데이터에서 일관됨. 역전 해제 후 SPY 복귀 타이밍도 포착 가능. 기존 asset_class_trend_sma(us-010)와 상보적: 저 쪽은 SMA로 각 자산 추세 필터, 이쪽은 매크로 레짐(금리 기울기)으로 자산군 자체를 스위치."
+  },
+  {
+   "id": "us-012",
+   "title": "CPI 인플레이션 레짐 스위치 — 물가방향·자산트렌드 매트릭스로 GLD/IEF/SHY 월간 교체",
+   "hypothesis": "유니버스: GLD(SPDR 금), IEF(iShares 7-10년 국채), SHY(1-3년 단기채). 레짐 판정(매월 말 수행): 인플레이션방향=직전 3개월 CPI 변화율 부호(FRED CPIAUCSL, 1개월 지연 적용해 look-ahead 방지), 자산트렌드=당월 종가가 10개월 SMA 위이면 UP. 배분 2x2 매트릭스: (Inflation UP + Trend UP)→GLD 100%; (Inflation DOWN + Trend UP)→IEF 100%; (Trend DOWN, 임의 인플레이션)→SHY 100%. 진입: 레짐 변경 판정 다음 거래일 시가에 기존 ETF 전량 청산, 신규 ETF 전량 매수(왕복 0.502% 수수료). 보유: 레짐 동일이면 무거래 유지. 판정선: Sharpe≥1.5, trades/yr≥12(backtest 실측), edge≥+2%/건, util≥30%.",
+   "source": "QuantPedia: Using Inflation Data for Systematic Gold and Treasury Investment Strategies (2024); 검색어: inflation regime GLD IEF SHY rotation FRED CPI",
+   "axis_class": "inflation_cpi_regime",
+   "data_deps": [
+    "yfinance(GLD",
+    "IEF",
+    "SHY 일봉)",
+    " FRED CPIAUCSL(월별 무료)"
+   ],
+   "constraints": [
+    "CPI 발표 1개월 지연→look-ahead bias 방지 필수(t-2월 CPI 사용)",
+    "레짐 안정 구간에서 trades/yr<12 우려→R-1 실측 필수",
+    "수수료 0.502% 누적 드래그→교체 횟수 적어야 edge 실현"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T03:22:14",
+   "notes": "QuantPedia 2024 실증: Inflation UP+Trend UP→GLD, DOWN+UP→IEF, Trend DOWN→SHY 3-상태 스위치. 2022년 인플레이션 급등기 GLD/SHY 우위 실측됨. 기존 yield_curve·credit_spread 레짐과 직교하는 물가 축."
   }
  ],
- "updated_at": "2026-08-02T02:18:33"
+ "updated_at": "2026-08-02T03:22:14"
 }
