@@ -1,0 +1,98 @@
+{
+ "queue": [
+  {
+   "id": "us-001",
+   "title": "VIX 기간구조 레짐(IVTS)으로 레버리지 ETF 노출 스위칭",
+   "hypothesis": "VIX/VIX3M 비율(IVTS)이 1.0 미만(콘탱고, 평온)일 때만 레버리지 롱 노출을 켜고, 1.0 이상(백워데이션, 스트레스)이면 현금/단기채로 회피한다. 커뮤니티 실측에 따르면 VIX 선물은 약 80% 기간을 콘탱고에 머물고, 백워데이션 전환은 급락과 동행한다. 우리 R-2에서 무너진 것이 Sharpe(0.75)와 MDD(-36%)였으므로, 가격 파생이 아닌 변동성 기간구조로 레짐을 잡으면 낙폭이 줄어드는지 검증한다. 레짐 전환 빈도가 낮아 왕복 50.2bp 수수료 부담도 작다.",
+   "source": "Quantpedia / thetrading.tools / options.cafe (VIX term structure)",
+   "axis_class": "vix_term_structure_regime",
+   "data_deps": [
+    "yfinance ^VIX",
+    "yfinance ^VIX3M",
+    "기존 US 일봉"
+   ],
+   "constraints": [
+    "yfinance 무료 범위 내 (paradigm-architect 허용 목록)",
+    "VIX3M 히스토리 깊이 확인 필요",
+    "레짐 전환 빈도가 높으면 수수료로 사망"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-01T22:12:01",
+   "notes": "Lesson #77(non-OHLCV substrate 전환 필요)에 정확히 부합. 지금까지 US 축은 전부 가격 파생이었다."
+  },
+  {
+   "id": "us-002",
+   "title": "위험분산 레버리지 배분(HFEA류) — 주식·장기채 3배 리밸런싱",
+   "hypothesis": "UPRO(3x S&P) + TMF(3x 장기국채)를 고정 비율(55/45 또는 위험균형 40/60)로 보유하고 분기 리밸런싱한다. 주식-채권 음의 상관이 완충 역할을 해 단일 레버리지 대비 MDD가 낮아진다는 것이 커뮤니티의 주장. 우리 R-2 실패가 정확히 위험조정이었으므로(Sharpe 0.75), Lesson #81이 요구하는 '사이징으로 Sharpe를 올린다'의 직접 검증이다. 분기 리밸런싱은 연 4회전이라 수수료가 사실상 무의미하다.",
+   "source": "Bogleheads HEDGEFUNDIE / optimizedportfolio.com / r/LETFs",
+   "axis_class": "letf_risk_parity_allocation",
+   "data_deps": [
+    "기존 US 일봉(UPRO/TMF/TQQQ/TLT)"
+   ],
+   "constraints": [
+    "2022년 주식-채권 상관이 양으로 전환된 구간이 최대 위험 — 반드시 분리 검증",
+    "패널 시작 2019-03이라 2008/2013 금리충격 미포함(Lesson #30 데이터창 주의)"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-01T22:12:01",
+   "notes": "Lesson #81 재설계 방향 (a) 변동성 타겟팅/사이징의 커뮤니티 원형."
+  },
+  {
+   "id": "us-003",
+   "title": "단일자산 레버리지 ETF 200일선 타이밍 (종목선택 제거 통제군)",
+   "hypothesis": "TQQQ 또는 UPRO 한 종목만 대상으로, 기초지수가 200일 이동평균 위일 때 보유하고 아래면 현금. 우리가 R-2에서 실패한 축(레버리지 횡단면 RS 모멘텀)과 유일한 차이는 '종목선택이 없다'는 것. 실패 원인이 신호가 아니라 종목선택 분산(승률 50%, 소수 대박 구조)이었는지를 가르는 통제군이다. 신호가 같은데 이쪽 Sharpe가 유의하게 높으면 원인이 종목선택으로 특정된다.",
+   "source": "Bogleheads / Alvarez Quant Trading / r/LETFs 정석",
+   "axis_class": "letf_single_asset_ma_timing",
+   "data_deps": [
+    "기존 US 일봉"
+   ],
+   "constraints": [
+    "연 2~6회전으로 수수료 부담 낮음",
+    "널리 알려진 축이라 alpha decay 가능성 — 연도별 감쇠 확인 필수"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-01T22:12:01",
+   "notes": "graveyard__us_leveraged_rs_momentum_bull 의 직접 후속. 진단용 가치가 커서 결과가 음수여도 정보가 남는다."
+  },
+  {
+   "id": "us-004",
+   "title": "Composer FTLT류 RSI 스위칭 룰셋 재현",
+   "hypothesis": "공개된 Composer 심포니(TQQQ FTLT 계열)의 규칙을 그대로 재현한다. 골자는 RSI(TQQQ,10)>79면 과열로 보고 회피/헤지, RSI(SPY,10)<30이면 침체 반등을 노려 레버리지 진입, 그 외에는 추세선 기준 분기. 커뮤니티가 수년간 검증·개량해온 룰셋이라 출발점 품질이 높다.",
+   "source": "composer.trade 공개 심포니 (TQQQ FTLT / FTLTO)",
+   "axis_class": "rsi_switching_ruleset",
+   "data_deps": [
+    "기존 US 일봉"
+   ],
+   "constraints": [
+    "일간 스위칭이라 회전율이 높을 수 있음 — 왕복 50.2bp 부담 직격. R-0에서 연간 회전수부터 측정할 것",
+    "공개 백테스트 수치는 과최적화 의심(발행자 자기보고)"
+   ],
+   "priority": 3,
+   "status": "pending",
+   "added_at": "2026-08-01T22:12:01",
+   "notes": "Lesson #80 관점: 공개 성과는 미국 현지 수수료(무료~1bp) 기준일 가능성이 높다. 우리 50.2bp로 재계산하면 붕괴할 수 있어 회전율 측정이 1순위."
+  },
+  {
+   "id": "us-005",
+   "title": "월말·월초 계절성(turn-of-month) 레버리지 노출",
+   "hypothesis": "월말 마지막 며칠~월초 며칠 구간에 수익률이 집중된다는 오래된 아노말리를 레버리지 ETF로 표현한다. 진입/청산 일자가 고정이라 거래 빈도가 연 12회로 낮고, 보유일이 짧아 레버리지 감쇠 노출도 작다.",
+   "source": "학계 turn-of-month anomaly / 리테일 커뮤니티 상시 언급",
+   "axis_class": "calendar_seasonality",
+   "data_deps": [
+    "기존 US 일봉"
+   ],
+   "constraints": [
+    "보유 3~5일이면 왕복 50.2bp를 넘길 엣지가 필요 — 첫 R-0에서 core 1일 보유가 구조적 불가였음을 상기",
+    "알려진 지 오래된 아노말리라 감쇠 가능성 높음"
+   ],
+   "priority": 4,
+   "status": "pending",
+   "added_at": "2026-08-01T22:12:01",
+   "notes": "저비용 검증이 가능해 우선순위는 낮아도 큐에 둘 가치가 있다."
+  }
+ ],
+ "updated_at": "2026-08-01T22:12:01"
+}
