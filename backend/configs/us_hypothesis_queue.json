@@ -333,7 +333,29 @@
    "status": "pending",
    "added_at": "2026-08-02T06:20:51",
    "notes": "SMA 트렌드 필터(asset_class_trend_sma)와 달리 변동성 연속 스케일링으로 포지션 크기를 동적 조정. 이진(on/off)이 아닌 비례 노출 메커니즘으로 차별화. yfinance 무료 데이터만 사용."
+  },
+  {
+   "id": "us-016",
+   "title": "ERP 밸류에이션 레짐 스위치 — 이익수익률·10Y 금리 스프레드 4단계 SPY/IEF/GLD 배분",
+   "hypothesis": "월말 ERP = SPY trailing earnings yield(yfinance) - FRED GS10(10Y 국채수익률) 계산. 4단계 레짐: ①ERP>+2% → SPY 100%; ②0%<ERP<=+2% → SPY 60%+IEF 40%; ③-1%<=ERP<=0% → SPY 40%+IEF 40%+GLD 20%; ④ERP<-1% → IEF 60%+GLD 40%. 매월 마지막 거래일 종가로 신호 산출, 익 영업일 장 개시 집행(전향편향 제거). 전환 시 전 포지션 청산 후 목표 배분 매수. 보유 유지 조건: 레짐 불변 시 리밸런싱 없음(연 6~14회 전환 추정).",
+   "source": "Fed Model / ERP 실증 연구: NY Fed 2015, Morningstar ERP 리뷰, Charles Schwab ERP 지표 활용 가이드; 데이터: FRED GS10(무료), yfinance SPY P/E 역수 또는 FRED CAPE10YO",
+   "axis_class": "equity_risk_premium_spread",
+   "data_deps": [
+    "yfinance:SPY",
+    "IEF",
+    "GLD|FRED:GS10",
+    "CAPE10YO"
+   ],
+   "constraints": [
+    "ERP 음수 전환 빈도가 낮으면 trades/yr<12 가능 → CAPE 대신 trailing P/E 사용 시 민감도 증가로 보완",
+    "GS10 월평균 발표 시차 1~2영업일 → 집행일 표준화 필수",
+    "CAGR/Sharpe는 2000~2024 전 구간 검증 필요(2022년 ERP 음전환 회피 효과 핵심 검증 포인트)"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T07:20:41",
+   "notes": "기존 15개 가설 중 주식 밸류에이션 스프레드 기반 레짐 축 전무 — 완전 신규 정보 축. 2022~2023년 고금리 구간(ERP<-1%)에서 IEF/GLD 피신 효과가 핵심 검증 포인트. 구현 시 yfinance SPY .info['trailingPE'] 역수로 earnings yield 근사, FRED pdr.get_data_fred('GS10') 무료 사용 가능."
   }
  ],
- "updated_at": "2026-08-02T06:20:51"
+ "updated_at": "2026-08-02T07:20:41"
 }
