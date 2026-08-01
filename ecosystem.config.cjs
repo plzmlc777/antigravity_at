@@ -298,6 +298,21 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // [임시] 미국 가설 큐 시더 — 매시 17분. 2026-08-01 대표님 지시로 신설.
+        // 초기 큐를 빠르게 채우기 위한 일회성 조치이며 상시 운영용이 아니다.
+        // 스크립트 안에 자동 만료(2026-08-02 23:59 KST)가 들어 있어 그 뒤로는
+        // 호출돼도 no-op 이다. 만료 후 정리:
+        //   pm2 delete us-hypothesis-seeder && pm2 save
+        name: "us-hypothesis-seeder",
+        script: SAS_WRAPPER,
+        args: `'17 * * * *' ./scripts/us/run_us_hypothesis_seeder.sh`,
+        interpreter: "bash",
+        cwd: ".",
+        autorestart: true,
+        max_restarts: 10,
+        restart_delay: 5000
+    },
+    {
         // 미국 ETF 페이퍼 사이클 + US 리그 거버너 — 매일 21:40 UTC.
         // us-rank-snapshot(21:10)이 일봉·순위를 갱신한 뒤 실행. 미국은 일봉
         // 기준이라 하루 1사이클이면 충분하다. 리그는 바이낸스와 분리(12석,
