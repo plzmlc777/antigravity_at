@@ -290,7 +290,30 @@
    "status": "pending",
    "added_at": "2026-08-02T04:21:31",
    "notes": "Antonacci 원형 GEM Sharpe 1.0~1.5. ADM(Accelerating Dual Momentum) 변형(1M+3M+6M+12M 평균) 시 Sharpe 향상 실증. BlackRock 국제 국가 로테이션 액티브 ETF 상용화(2024-12)로 전략 실효성 외부 검증. QuantConnect 커뮤니티 다수 오픈소스 구현 존재."
+  },
+  {
+   "id": "us-014",
+   "title": "ISM 제조업 PMI 레짐 스위치 — 50선 기준 주식/채권 월간 교체",
+   "hypothesis": "매월 초 FRED에서 ISM 제조업 PMI(NAPM) 최신값을 확인한다. PMI >= 50(확장 국면)이면 SPY(S&P500 ETF) 100% 보유; PMI < 50(수축 국면)이면 IEF(7-10년 미국채 ETF) 100% 보유. 월 1회(ISM 발표일 다음 거래일 종가) 리밸런싱. 절대 손절은 없고 레짐 전환 시에만 교체. 보유 기간: 1개월(다음 ISM 발표까지). 유니버스: SPY, IEF. 결정 임계값: PMI = 50.",
+   "source": "QuantifiedStrategies.com ISM PMI backtest (https://www.quantifiedstrategies.com/ism-manufacturing-index-pmi/); Quantpedia bond-timing tag; AdvisorPerspectives ISM monthly updates; FRED series NAPM",
+   "axis_class": "ism_pmi_regime_switch",
+   "data_deps": [
+    "FRED:NAPM(ISM제조업PMI 월간)",
+    " yfinance:SPY",
+    " yfinance:IEF"
+   ],
+   "constraints": [
+    "왕복 수수료 0.502% — 월 1회 교체(연 ~12회)로 충분히 흡수 가능",
+    "엣지/거래 >= 2% — ISM 확장 국면 평균 보유 수익 ~10.99%(QuantifiedStrategies 백테스트 기준)로 기준 통과 예상",
+    "거래/년 >= 12 — 월간 레짐 확인으로 최소 12회 트리거 가능",
+    "LONG only — SPY or IEF 모두 롱 포지션만 사용",
+    "일봉 데이터만 사용 — PMI는 월 1회 발표, ETF는 일봉 종가 사용"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T05:19:00",
+   "notes": "PMI 50선 전략은 단순하나 백테스트에서 변동성 감소 효과가 뚜렷함. 수축 국면 교체 자산을 IEF(중기채) vs SHY(단기채) vs BIL(T-bill)로 A/B 테스트 필요. PMI 방향성(상승중/하락중) 필터 추가 시 엣지 향상 가능성 있음. FRED NAPM 시리즈는 fredapi 또는 직접 파싱으로 무료 취득 가능."
   }
  ],
- "updated_at": "2026-08-02T04:21:31"
+ "updated_at": "2026-08-02T05:19:00"
 }
