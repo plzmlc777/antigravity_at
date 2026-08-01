@@ -96,6 +96,35 @@ echo "[us-seeder] claude exit=${EXIT_CODE}" | tee -a "${LOG_FILE}"
 RESULT_LINE=$(grep -E "^US_SEED_RESULT:" "${LOG_FILE}" 2>/dev/null | tail -1 || true)
 echo "[us-seeder] ${RESULT_LINE:-no result line}" | tee -a "${LOG_FILE}"
 
+# ── 큐 파일만 커밋·푸시 ──────────────────────────────────────────────
+# 시더는 민트에서 돌면서 민트 워킹트리의 큐 JSON 만 고친다. 그대로 두면 하루치
+# ~25건이 민트에만 쌓이고 GitHub·로컬과 갈라진다(배포 시 pull 충돌의 원인).
+#
+# 스테이징 범위를 큐 파일 하나로 못박는다 — 민트에는 연구 산출물 등 커밋되지
+# 않은 로컬 변경이 다수 있어, 범위를 넓히면 의도치 않은 파일을 쓸어담는다.
+#
+# push 실패(로컬에서 먼저 푸시해 non-fast-forward 등)는 경고만 남기고 넘어간다.
+# 커밋 자체는 민트에 남으므로 유실되지 않고, 다음 성공 시 함께 올라간다.
+QUEUE_REL="backend/configs/us_hypothesis_queue.json"
+cd "${PROJECT_ROOT}" || exit 1
+
+if git diff --quiet -- "${QUEUE_REL}" 2>/dev/null; then
+  echo "[us-seeder] 큐 변경 없음 — 커밋 생략" | tee -a "${LOG_FILE}"
+else
+  SEED_ID=$(echo "${RESULT_LINE}" | grep -oE '"id": *"[^"]*"' | head -1 | cut -d'"' -f4)
+  SEED_TITLE=$(echo "${RESULT_LINE}" | grep -oE '"title": *"[^"]*"' | head -1 | cut -d'"' -f4)
+  git add -- "${QUEUE_REL}"
+  git commit -q -m "chore(us): 가설 큐 시딩 ${SEED_ID:-?} — ${SEED_TITLE:-untitled}
+
+us-hypothesis-seeder 자동 커밋 (매시 1건, 2026-08-02 만료 예정).
+스테이징 범위는 큐 JSON 한 파일로 고정." 2>&1 | tee -a "${LOG_FILE}"
+  if git push -q origin master 2>>"${LOG_FILE}"; then
+    echo "[us-seeder] 큐 커밋·푸시 완료 (${SEED_ID:-?})" | tee -a "${LOG_FILE}"
+  else
+    echo "[us-seeder] WARN: push 실패 — 커밋은 민트에 남아 있음. 다음 회차나 수동 푸시로 반영됨" | tee -a "${LOG_FILE}"
+  fi
+fi
+
 find "${LOG_DIR}" -name '*_us_seeder.log' -mtime +14 -delete 2>/dev/null || true
 
 exit "${EXIT_CODE}"
