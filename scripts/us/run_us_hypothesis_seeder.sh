@@ -12,6 +12,12 @@
 
 set -uo pipefail
 
+# ── 인증 ─────────────────────────────────────────────────────────────
+# headless claude 는 대화형 로그인을 못 하므로 독립 grant 장기 토큰을 주입한다.
+# 없으면 "Not logged in · Please run /login" 로 exit 1 (실측 2026-08-01).
+# run_paradigm_dispatch.sh 와 동일 패턴.
+[ -f "${HOME}/.claude/oauth_token.env" ] && source "${HOME}/.claude/oauth_token.env"
+
 # ── 자동 만료 ────────────────────────────────────────────────────────
 # 2026-08-02(일) 23:59 KST 까지만 동작. 이후 호출은 즉시 no-op.
 DEADLINE_EPOCH=$(date -d '2026-08-02 23:59:00' +%s 2>/dev/null || echo 0)
