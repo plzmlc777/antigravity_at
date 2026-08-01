@@ -313,7 +313,27 @@
    "status": "pending",
    "added_at": "2026-08-02T05:19:00",
    "notes": "PMI 50선 전략은 단순하나 백테스트에서 변동성 감소 효과가 뚜렷함. 수축 국면 교체 자산을 IEF(중기채) vs SHY(단기채) vs BIL(T-bill)로 A/B 테스트 필요. PMI 방향성(상승중/하락중) 필터 추가 시 엣지 향상 가능성 있음. FRED NAPM 시리즈는 fredapi 또는 직접 파싱으로 무료 취득 가능."
+  },
+  {
+   "id": "us-015",
+   "title": "실현변동성 타겟팅 레짐 스위치 — 목표변동성 대비 SPY/BIL 비중 월간 조정",
+   "hypothesis": "유니버스: SPY, BIL. 매월 1일 SPY 일봉 20일 실현변동성(연환산) 계산. 목표변동성 T=15%. SPY 편입 비중 = min(1, T/RealizedVol). 잔여는 BIL. 극단 리스크오프(RealizedVol > 2×T=30%): SPY 0%, BIL 100%. 정상 환경(RealizedVol < T): SPY 100%, BIL 0%. 월 1회 리밸런싱 → 연 12회 거래 보장. 판정선: Sharpe >= 1.5, MDD <= 20%, trades/yr >= 12.",
+   "source": "QuantPedia — An Introduction to Volatility Targeting; QuantifiedStrategies realized vol targeting backtest (Sharpe 1.02~1.34 vs 60/40 baseline)",
+   "axis_class": "realized_vol_targeting_regime",
+   "data_deps": [
+    "yfinance:SPY:daily",
+    "yfinance:BIL:daily"
+   ],
+   "constraints": [
+    "수수료 0.502%: 월 1회 리밸런싱으로 엣지 보존 가능",
+    "목표변동성 T 파라미터 과적합 리스크: R-2에서 T=10%~20% 민감도 검증 필수",
+    "6.7년 백테스트 기간 내 2020 코로나 변동성 스파이크 1회 포함 — 샘플 수 제한"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T06:20:51",
+   "notes": "SMA 트렌드 필터(asset_class_trend_sma)와 달리 변동성 연속 스케일링으로 포지션 크기를 동적 조정. 이진(on/off)이 아닌 비례 노출 메커니즘으로 차별화. yfinance 무료 데이터만 사용."
   }
  ],
- "updated_at": "2026-08-02T05:19:00"
+ "updated_at": "2026-08-02T06:20:51"
 }
