@@ -45,7 +45,19 @@ fi
 source venv/bin/activate
 
 # ── 현재 큐 상태를 프롬프트에 주입 (중복 발의 차단) ──────────────────
+# 제목만 주면 axis_class 이름만 바꾼 같은 메커니즘이 반복된다(실측 2026-08-02:
+# 15건 중 10건이 "거시지표 레짐 → 월간 자산배분"으로 수렴). 최근 건은 가설
+# 본문 일부까지 주입해 **메커니즘 클래스** 수준에서 중복을 판정하게 한다.
 QUEUE_SNAPSHOT=$(PYTHONPATH=. python3 -m scripts.us_hypothesis_queue list 2>/dev/null | tail -30)
+RECENT_DETAIL=$(PYTHONPATH=. python3 - <<'PYEOF' 2>/dev/null
+import json
+from pathlib import Path
+q = json.loads(Path("configs/us_hypothesis_queue.json").read_text(encoding="utf-8"))["queue"]
+for e in q[-6:]:
+    print(f"- [{e['id']}] axis_class={e['axis_class']}")
+    print(f"  {e['hypothesis'][:220]}")
+PYEOF
+)
 echo "[us-seeder] 현재 큐:" | tee -a "${LOG_FILE}"
 echo "${QUEUE_SNAPSHOT}" | tee -a "${LOG_FILE}"
 
@@ -56,13 +68,35 @@ PROMPT=$(cat <<PROMPT_EOF
 
 목표: **새로운 미국 시장 전략 축 1건**을 조사해 큐에 추가한다.
 
-현재 큐 (axis_class 중복 금지):
+현재 큐:
 ${QUEUE_SNAPSHOT}
+
+최근 등록분 상세 (메커니즘 클래스 판정용):
+${RECENT_DETAIL}
+
+## 포화된 클래스 — 이 방향은 더 넣지 말 것 (2026-08-02 중간분석)
+큐 15건 중 10건이 **"거시지표 하나로 레짐 판정 → 월간 자산배분 교체"** 로 수렴했다
+(OAS / 2s10s / CPI / ISM PMI / 실현변동성 / 10개월 SMA / 듀얼모멘텀 / 섹터·팩터
+로테이션). axis_class 이름만 다를 뿐 DNA 가 같아 하나가 실패하면 대체로 함께
+실패한다. **이 클래스는 금지.** 지표만 바꾼 변형도 금지.
+
+## 우선 탐색할 미개척 영역 (이 중에서 고르면 가산점)
+- **한국 개인 수급** — us_rank_snapshot.rank_type='kiwoom_trade' 로 매일 적재 중.
+  키움 고객(한국 개인)의 미국 ETF 거래 집중 순위. 미국 현지 데이터로 복제 불가.
+- **주간거래 괴리율** — rank_type='day_disparity'. Blue Ocean 오버나이트 세션과
+  정규장 종가의 괴리. 역시 우리만 가진 축.
+- **오버나이트 vs 정규장 분리 수익률** — 키움 일봉 종가는 오버나이트 포함,
+  시가는 정규장 시가. 두 구간을 분리해 각각의 수익 구조를 보는 축.
+- **ETF 내부 구조** — NAV 괴리, 자금유출입, 구성종목 집중도
+- **옵션 만기·분기 리밸런싱 수급** — 만기주 전후, 분기말 리밸런싱 압력
+- **개별주 이벤트** — 실적 발표, 지수 편입/제외 (단 공매도 불가 제약 유의)
+- **일중 구조** — 단 분봉은 2026-01 이후 7개월뿐이므로 R-0 advisory 한정
 
 절차:
 1. WebSearch 로 미국 트레이딩 커뮤니티(r/algotrading, r/LETFs, r/thetagang,
-   Bogleheads, composer.trade, QuantConnect, Quantpedia, EliteTrader 등)에서
-   실제로 논의되는 규칙 기반 전략을 조사한다. 매번 다른 검색어를 쓸 것.
+   r/options, Bogleheads, composer.trade, QuantConnect, Quantpedia, EliteTrader,
+   SeekingAlpha, TradingView 아이디어 등)에서 실제로 논의되는 규칙 기반 전략을
+   조사한다. 매번 다른 검색어를 쓰고, 위 미개척 영역과 연결되는 것을 우선 찾는다.
 2. 아래 **미국 트랙 확정 제약**에 비추어 사용 가능한지 판정한다:
    - 공매도 불가 (키움 증거금 매수·매도 100%) → LONG 표현만 허용
    - 왕복 수수료 0.502% 고정 → 고빈도·소폭엣지는 자동 탈락 (Lesson #80)
@@ -70,6 +104,14 @@ ${QUEUE_SNAPSHOT}
    - elite gate: 거래당 edge >= +2%, trades/yr >= 12, util >= 30%, Sharpe >= 1.5
    - Lesson #78 유동성 게이트 / #81 위험조정(Sharpe·MDD) 필수
    - 데이터는 무료만 (yfinance, FRED, 키움 API). 유료 API 금지.
+2-1. **우선순위 규율** (지금까지 P2 남발로 변별력이 사라졌다):
+   - P1 = 기존 데이터(일봉 60 코어 + 567 레버리지 + 1,393 신규, 분봉 8종,
+          us_rank_snapshot)만으로 **즉시 검증 가능** AND 위 미개척 영역에 해당
+   - P2 = 기존 데이터로 즉시 검증 가능하나 미개척 영역은 아님
+   - P3 = yfinance/FRED 등 **외부 데이터 확보가 선행**돼야 함
+   - P4 = 그 외 / 감쇠 가능성이 높은 잘 알려진 아노말리
+   외부 데이터가 필요하면 P3 을 넘길 수 없다.
+
 3. 제약을 통과하는 축 1건을 골라 다음 명령으로 추가한다:
    cd backend && PYTHONPATH=. python3 -m scripts.us_hypothesis_queue add \\
      --title "..." --hypothesis "..." --source "..." \\
@@ -77,8 +119,10 @@ ${QUEUE_SNAPSHOT}
      --priority N --notes "..."
    hypothesis 는 R-0 프리스크린이 바로 읽을 수 있게 구체적으로(진입/청산/보유/
    유니버스/판정선) 쓴다. constraints 에는 이 가설이 우리 제약에 걸리는 지점을 적는다.
-4. 기존 axis_class 와 겹치면 다른 축을 고른다. 겹치는 것밖에 없으면 추가하지 말고
-   그 사실을 결과 줄에 적는다.
+4. 중복 판정은 **axis_class 이름이 아니라 메커니즘**으로 한다. 위 "최근 등록분
+   상세"와 같은 방식으로 작동하면 이름이 달라도 중복이다. 겹치지 않는 축을 못
+   찾으면 **추가하지 말고** 결과 줄에 id "none" 과 사유를 적는다 — 억지로 채우는
+   것보다 비우는 편이 낫다.
 
 절대 금지: 실거래/라이브 세션 접근, 백테스트 실행(여기서는 큐 등록만), 유료 API.
 
