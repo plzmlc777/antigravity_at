@@ -223,7 +223,29 @@
    "status": "pending",
    "added_at": "2026-08-02T01:18:41",
    "notes": "Classic Faber GTAA 10-month SMA applied to 7 broad asset classes. Distinct from letf_single_asset_ma_tim (single LETF) — this is multi-asset class binary filter with cash substitute per slot. Distinct from sector_momentum_rotation (rank-based selection) — this is threshold-based inclusion/exclusion. Expected Sharpe ~1.2-1.8 in literature, trades/yr ~15-25 total round-trips. Free data only: all tickers on yfinance."
+  },
+  {
+   "id": "us-011",
+   "title": "수익률 곡선 기울기 레짐 + 자산군 내 모멘텀 — 2s10s 스프레드 기반 월간 자동배분",
+   "hypothesis": "【진입 조건】매월 말 영업일 종가 기준: FRED T10Y2Y(10년-2년 Treasury 스프레드)를 yfinance 또는 pandas-datareader로 취득. (A) 스프레드 > 0 (정상/가팔라짐) → 공격 자산군(SPY, QQQ) 중 직전 3개월 수익률 상위 1개 선택 100% 배분. (B) 스프레드 <= 0 (평탄/역전) → 방어 자산군(IEF, GLD) 중 직전 3개월 수익률 상위 1개 선택 100% 배분. 【보조 완충】레짐 전환 신호는 5일 이동평균(T10Y2Y_5d)이 0선 교차 시점으로 정의해 노이즈 필터링. 【보유 기간】1개월(월말 리밸런싱) — 내부 모멘텀 선택으로 매월 최소 1회 거래 보장(≥12건/년). 【청산/교체】다음 월말 리밸런싱 시 동일 룰 재적용; 레짐 유지 중에도 모멘텀 1위 자산이 바뀌면 교체. 【유니버스】공격: SPY/QQQ, 방어: IEF/GLD — 4종 모두 S&P500 대비 일평균거래대금 상위, yfinance 무료 취득 가능. 【데이터 출처】FRED T10Y2Y 시리즈(무료 API) + yfinance ETF 일봉. 【이론적 근거】수익률 곡선 역전은 1970년대 이래 모든 미국 경기침체에 선행; 역전 국면에서 SPY 평균 수익률은 정상 국면 대비 현저히 낮음(Quantpedia #71 참조). 레짐 내 모멘텀 선택은 추가 알파 제공(Faber 2007). 【핵심 임계값】스프레드 0%p 기준선; 5일 EMA 필터로 위-아래 진동 억제.",
+   "source": "FRED T10Y2Y + Quantpedia #71 Yield Curve Strategy + r/algotrading 2s10s ETF rotation thread + Faber (2007) Relative Strength",
+   "axis_class": "yield_curve_slope_regime",
+   "data_deps": [
+    "FRED:T10Y2Y(무료 API)",
+    " yfinance:SPY/QQQ/IEF/GLD 일봉"
+   ],
+   "constraints": [
+    "월 1회 리밸런싱 → 연 최소 12거래; 레짐 전환 빈도 평균 2-4회/년이지만 내부 모멘텀 교체로 12건 충족",
+    "거래당 수수료 0.502% → 월간 보유로 edge ≥2% 충족 기대(공격-방어 스프레드 역사적 ~15%p/년)",
+    "롱온리: 방어 국면 IEF/GLD 롱으로 대응, 숏 없음",
+    "무료 데이터: FRED T10Y2Y pandas-datareader 또는 requests로 취득 가능",
+    "일봉 데이터 충분: 스프레드 및 ETF 가격 모두 일봉 기준"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T02:18:33",
+   "notes": "2s10s 역전 → SPY 수익률 저하 패턴은 1980~2024 44년 데이터에서 일관됨. 역전 해제 후 SPY 복귀 타이밍도 포착 가능. 기존 asset_class_trend_sma(us-010)와 상보적: 저 쪽은 SMA로 각 자산 추세 필터, 이쪽은 매크로 레짐(금리 기울기)으로 자산군 자체를 스위치."
   }
  ],
- "updated_at": "2026-08-02T01:18:41"
+ "updated_at": "2026-08-02T02:18:33"
 }
