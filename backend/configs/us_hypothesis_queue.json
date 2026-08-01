@@ -376,7 +376,27 @@
    "status": "pending",
    "added_at": "2026-08-02T07:23:26",
    "notes": "미개척 영역 오버나이트vs정규장 분리 수익률 직접 공략. 기존 16건은 레짐판정 또는 모멘텀 메커니즘이나 본 전략은 수익률 시간분해(오버나이트/장중)를 크로스섹셔널 팩터로 사용하는 근본적으로 다른 메커니즘. 키움 일봉이 이미 시가(정규장)·종가(오버나이트포함) 분리 제공하므로 즉시 R-0 검증 가능 P1."
+  },
+  {
+   "id": "us-018",
+   "title": "오버나이트-정규장 수익률 분리 기관수급 신호 — 야간 순매수 우세 ETF 월간 선택",
+   "hypothesis": "유니버스: SPY, QQQ, IWM, EFA, EEM, TLT, IEF, GLD, HYG(9개). 매월 마지막 영업일, 직전 21영업일 기준 각 ETF의 ONscore=Σ[(open[t]/close[t-1])-1](야간 수익률 합산)과 IDscore=Σ[(close[t]/open[t])-1](정규장 수익률 합산)을 계산. 분리점수=ONscore-IDscore. 분리점수 최고 ETF(기관 야간 매수>소매 정규장 매도 구도)를 다음 달 100% 보유. 진입: 매월 마지막 영업일 종가. 청산: 다음 달 마지막 영업일 종가(동시에 다음 달 교체). 키움 일봉 open=정규장 시가·close=오버나이트 포함 종가 구조를 활용해 두 구간 분리. 연 12회 리밸런싱.",
+   "source": "Lou, Polk & Skouras(2019) 'A tug of war: Overnight versus intraday expected returns', Review of Financial Studies; 키움 일봉 open/close 분리 구조(미개척 영역 #3)",
+   "axis_class": "overnight_intraday_split_signal",
+   "data_deps": [
+    "기존 60코어 ETF 일봉 open/close(이미 보유) — 외부 데이터 불필요"
+   ],
+   "constraints": [
+    "분리점수 신호가 ETF 수준에서 유의한지 R-1 검증 필요(원 논문은 개별주 수준)",
+    "키움 close=Blue Ocean 포함 종가이므로 US 정규장 close와 정의 차이 확인 필요",
+    "수수료 0.502% 대비 월평균 엣지 목표 +2% 이상 달성 여부 R-1 확인 필요",
+    "유니버스 9개 중 분리점수 1위 선택 시 특정 자산군 편중 위험(ex: 항상 TLT)"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T08:29:53",
+   "notes": "미개척 영역 #3 직접 해당. us-017(overnight_premium_factor_rank)과 메커니즘 상이: us-017은 순수 야간 모멘텀, 본건은 야간-정규장 수익률 분리도(기관 vs 소매 대립 구도). Lou et al. 실증: 야간·정규장 수익률은 반대 예측력 보유. 60코어 일봉 데이터로 즉시 백테스트 가능(P1)."
   }
  ],
- "updated_at": "2026-08-02T07:23:26"
+ "updated_at": "2026-08-02T08:29:53"
 }
