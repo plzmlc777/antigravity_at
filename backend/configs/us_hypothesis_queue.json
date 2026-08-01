@@ -172,7 +172,31 @@
    "status": "pending",
    "added_at": "2026-08-01T23:21:45",
    "notes": "us-007 섹터로테이션(XLK·XLF 등 산업섹터)과 달리 팩터(모멘텀·퀄리티·밸류·저변동·성장) 교체로 축 분류 명확히 상이. MTUM 단독 Sharpe ~1.4 → 상위 팩터 교체 시 개선 여부 실증 대상."
+  },
+  {
+   "id": "us-009",
+   "title": "하이일드 OAS 레짐 스위치 — 신용스프레드 임계선 SPY/AGG 월간 교체",
+   "hypothesis": "Universe: SPY(주식노출), AGG(채권피신처). Signal: FRED BAMLH0A0HYM2(ICE BofA US HY OAS) 월말 값(1일 지연, 무료). 진입: 전월말 OAS < 400bp → SPY 100% 보유; OAS >= 400bp → AGG 100% 보유. 옵션 필터: OAS 3개월 MA 방향으로 레짐 전환 지연/조기 조정. 리밸런싱: 매월 마지막 영업일 시그널 평가 → 익일 시가 집행. 보유: 1개월. 청산: 차기 월말 재평가 시 반대포지션 교체. 판정선: OAS 임계선 조정(350/400/450bp 그리드)으로 연간 레짐전환 6~12회 목표.",
+   "source": "Quantpedia Strategy #67 Credit Stress and Equity Markets; FRED BAMLH0A0HYM2 (ICE BofA US HY OAS); SystemTrader credit-spreads dashboard; r/algotrading credit regime discussion",
+   "axis_class": "credit_spread_regime_switch",
+   "data_deps": [
+    "yfinance(SPY",
+    "AGG",
+    "HYG",
+    "LQD)",
+    " FRED API free(BAMLH0A0HYM2)"
+   ],
+   "constraints": [
+    "수수료 0.502% — 레짐전환 빈도 낮을 시 trades/yr 12 미달 위험: OAS 임계선 그리드 탐색 필수",
+    "공매도 없음 — SPY/AGG LONG 전용 ✓",
+    "FRED OAS 1일 지연 — 월말 close 기준 진입, 실시간 불가 ✓",
+    "일봉 6.7년 이상 충분, intraday 불필요 ✓"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T00:19:58",
+   "notes": "가격 모멘텀이 아닌 신용시장 펀더멘털 레짐 신호 — VIX/RSI/모멘텀 축과 직교하는 독립 신호. 레짐전환 빈도 부족 시 주간 평가 또는 OAS MA 교차 신호로 전환 검토."
   }
  ],
- "updated_at": "2026-08-01T23:21:45"
+ "updated_at": "2026-08-02T00:19:58"
 }
