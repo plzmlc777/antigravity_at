@@ -208,6 +208,16 @@ def main() -> int:
         await HttpClientManager.get_instance().start()
         try:
             adapter = await build_adapter()
+
+            # 정기 점검 중이면 토큰부터 발급되지 않는다(/oauth2/token 이 302 →
+            # start.html 안내페이지). 이 경우 "데이터 없음"이 아니라 "조회 불가"이므로
+            # 하드 실패로 보고하지 않고 조용히 종료한다 — 로그 오탐 방지.
+            # (실측 2026-08-01: 13:00~익일 01:00 전체 서비스 중단 공지)
+            await adapter._ensure_token()
+            if not adapter.access_token:
+                print("토큰 발급 불가 — 키움 정기 점검 가능성. 이번 회차 건너뜀")
+                return None
+
             summary = {}
             for rank_type, api_id, pages, label, _win in targets:
                 rows = await collect(adapter, rank_type, api_id, pages, bdate)
@@ -219,6 +229,10 @@ def main() -> int:
             await HttpClientManager.get_instance().stop()
 
     summary = asyncio.run(run())
+    if summary is None:
+        print(json.dumps({"business_date": str(bdate), "window": args.window,
+                          "skipped": "token_unavailable_maintenance"}, ensure_ascii=False))
+        return 0
     total = sum(summary.values())
     print(f"\n{'[DRY-RUN] ' if args.dry_run else ''}총 {total}건")
     print(json.dumps({"business_date": str(bdate), "window": args.window,
