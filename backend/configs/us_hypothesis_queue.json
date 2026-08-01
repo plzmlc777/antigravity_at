@@ -117,7 +117,38 @@
    "status": "pending",
    "added_at": "2026-08-01T22:22:56",
    "notes": "Keller VAA-G4 기준: AR 17.7%, MDD 16.1%, Sharpe ~1.07. HAA(Hybrid AA) 변형에서 금리필터 추가 시 Sharpe 상향 보고됨. 방어 유니버스 최고모멘텀 선택이 BIL 고정 대비 추가 엣지 제공. R-0에서 HAA 변형도 함께 스크리닝 권장."
+  },
+  {
+   "id": "us-007",
+   "title": "SPDR 섹터 ETF 상대강도 로테이션 — 상위 2 섹터 월간 교체",
+   "hypothesis": "매월 말일 11개 SPDR 섹터 ETF(XLK·XLF·XLE·XLV·XLU·XLP·XLI·XLB·XLY·XLRE·XLC) 중 과거 3개월 수익률 상위 2개를 동일 가중 매수. 절대 모멘텀 필터: 상위 2 ETF 평균 3M 수익률 > 0이면 진입, 아니면 전액 SHY 대기. 익월 말일 리밸런싱 시 동일 로직으로 교체. 유니버스 고정(레버리지 없음, 롱 온리). 판정선: 거래당 edge >= 2%, trades/yr >= 12, util >= 30%, Sharpe >= 1.5.",
+   "source": "Quantpedia #46 Sector Momentum Rotational System; QuantConnect 섹터 로테이션 구현체; Meb Faber GTAA 실증연구(2007)",
+   "axis_class": "sector_momentum_rotation",
+   "data_deps": [
+    "yfinance:XLK",
+    "XLF",
+    "XLE",
+    "XLV",
+    "XLU",
+    "XLP",
+    "XLI",
+    "XLB",
+    "XLY",
+    "XLRE",
+    "XLC",
+    "SHY",
+    "SPY"
+   ],
+   "constraints": [
+    "왕복수수료 0.502% — 월 1~4회 교체로 소화 가능",
+    "절대 모멘텀 필터로 베어장 SHY 대피(롱 온리 제약 충족)",
+    "yfinance 무료 데이터만 사용"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-01T22:33:34",
+   "notes": "Quantpedia에 학술 근거 다수. SPDR 11 섹터 1998년 이후 일봉으로 충분한 역사 확보. 절대 모멘텀 필터가 Sharpe 1.5+ 달성 핵심."
   }
  ],
- "updated_at": "2026-08-01T22:22:56"
+ "updated_at": "2026-08-01T22:33:34"
 }
