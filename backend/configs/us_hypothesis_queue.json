@@ -92,7 +92,32 @@
    "status": "pending",
    "added_at": "2026-08-01T22:12:01",
    "notes": "저비용 검증이 가능해 우선순위는 낮아도 큐에 둘 가치가 있다."
+  },
+  {
+   "id": "us-006",
+   "title": "VAA 캐너리 폭원모멘텀 — 공격/방어 ETF 월간 자동배분",
+   "hypothesis": "진입: 매월 말 영업일, 공격 유니버스(SPY·QQQ·EFA·EEM) 4종목의 13612W 모멘텀 점수(12M수익×12+4M수익×4+1M수익×1) 계산. 4종목 전부 점수 양수 → 최고점수 1종목에 100% 집중(공격 모드). 1종목 이상 음수 → 방어 유니버스(SHY·IEF·BIL) 중 13612W 최고점수 1종목에 100% 전환(방어 모드). 청산: 다음 월말 영업일 무조건 재평가·종목교체. 보유: 항상 단일자산 100%. 유니버스: 공격4+방어3=7 ETF 전부 yfinance 무료. 판정선: 엣지≥+2%/거래, 연거래≥12건, 유틸≥30%, Sharpe≥1.5, MDD≤25%.",
+   "source": "Keller & Keuning 2017 SSRN:3002624 (Vigilant Asset Allocation); allocatesmartly.com VAA 실증; QuantConnect forum #3164; r/LETFs VAA/DAA/HAA 스레드",
+   "axis_class": "canary_breadth_momentum",
+   "data_deps": [
+    "yfinance:SPY",
+    "QQQ",
+    "EFA",
+    "EEM",
+    "SHY",
+    "IEF",
+    "BIL (월봉·일봉 모두 무료)"
+   ],
+   "constraints": [
+    "문헌 VAA-G4 Sharpe~1.07 → 커미션 0.502% 반영 후 1.5 달성 불확실(HAA 변형 필요)",
+    "방어 전환 빈도 낮으면 연거래 12건 미달 위험 → 방어 내 종목교체 포함 시 충족 가능",
+    "EFA/EEM 장기 데이터 yfinance 6.7년(일봉) 충분"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-01T22:22:56",
+   "notes": "Keller VAA-G4 기준: AR 17.7%, MDD 16.1%, Sharpe ~1.07. HAA(Hybrid AA) 변형에서 금리필터 추가 시 Sharpe 상향 보고됨. 방어 유니버스 최고모멘텀 선택이 BIL 고정 대비 추가 엣지 제공. R-0에서 HAA 변형도 함께 스크리닝 권장."
   }
  ],
- "updated_at": "2026-08-01T22:12:01"
+ "updated_at": "2026-08-01T22:22:56"
 }
