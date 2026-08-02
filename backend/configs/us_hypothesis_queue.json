@@ -600,7 +600,28 @@
    "status": "pending",
    "added_at": "2026-08-02T17:25:14",
    "notes": "실행형태: 이벤트트리거+조건부보유(월간 로테이션 아님). kiwoom rank 속도(velocity) 축은 현재 큐 미등록—us-019(레벨 기반 월간 역발상)·us-026(레벨 3중필터)와 신호 축·실행형태 모두 상이. R-0에서 ΔRank5 분포 및 가격 동반 하락 발생 빈도 검증 필요."
+  },
+  {
+   "id": "us-028",
+   "title": "Day Disparity 부호 전환 진입 — 오버나이트 디스카운트 소진 후 기관 재매집 포착",
+   "hypothesis": "유니버스: SPY, QQQ, IWM, EFA, EEM, TLT, GLD, HYG, XLK, XLF(10개 ETF). 매 거래일 종가 기준 us_rank_snapshot rank_type='day_disparity'에서 각 ETF의 day_disparity 추적. 진입 조건(AND): (1) 직전 3영업일 day_disparity 모두 음수(연속 오버나이트 디스카운트), (2) 당일 day_disparity > 0(부호 전환 확인), (3) 3일 전환폭 ΔD3 = 당일 - 3일 누적평균 ≥ +0.6%(실질 방향 전환 임계). 복수 종목 동시 충족 시 ΔD3 최대값 1개 선택. 다음 거래일 시가 진입. 조건부 보유: 이후 매일 day_disparity ≥ -0.3% 유지하는 동안 보유 지속. 청산: (1) day_disparity < -0.3% 재전환 당일 종가, (2) 진입 후 10영업일 경과 종가. 무포지션 기간: 이벤트 미발생시 현금.",
+   "source": "MDPI Risk 2025 'Comparative Analysis of Overnight vs Daytime Static and Momentum Strategies Across Sector ETFs' — CO-OC reversal Sharpe 4.44 확인; r/algotrading overnight gap reversion 논의; 자체 us_rank_snapshot day_disparity 데이터 미개척 활용",
+   "axis_class": "day_disparity_sign_flip_reversion",
+   "data_deps": [
+    "us_rank_snapshot(rank_type=day_disparity 일별 적재)",
+    " yfinance daily OHLCV"
+   ],
+   "constraints": [
+    "왕복수수료 0.502% → ΔD3 ≥ 0.6% 임계로 소폭 신호 차단",
+    "3일 연속 음수 조건이 과하면 연간 거래수 12 미달 위험 → 임계 완화로 조정 가능",
+    "공매도 불가(ETF 매수만)",
+    "day_disparity 스냅샷 가용 기간이 백테스트 기간 제약 가능"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T18:22:32",
+   "notes": "실행형태=이벤트트리거형+조건부보유형. 기존 us-018/020/024/026과 달리 LEVEL이 아닌 DIRECTION CHANGE(연속 음수→양수 부호 전환)를 신호로 사용. 학술 근거: MDPI 2025 섹터 ETF CO-OC 반전 효과 실증(바이오텍 평균일수익 0.29%, Sharpe 4.44). 3일 연속 오버나이트 매도 소진 후 반전 = 기관 포지션 재구축 신호. 기존 어느 가설도 미사용 SIGN FLIP 트리거."
   }
  ],
- "updated_at": "2026-08-02T17:25:14"
+ "updated_at": "2026-08-02T18:22:32"
 }
