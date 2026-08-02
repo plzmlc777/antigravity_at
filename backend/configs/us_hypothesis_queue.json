@@ -621,7 +621,26 @@
    "status": "pending",
    "added_at": "2026-08-02T18:22:32",
    "notes": "실행형태=이벤트트리거형+조건부보유형. 기존 us-018/020/024/026과 달리 LEVEL이 아닌 DIRECTION CHANGE(연속 음수→양수 부호 전환)를 신호로 사용. 학술 근거: MDPI 2025 섹터 ETF CO-OC 반전 효과 실증(바이오텍 평균일수익 0.29%, Sharpe 4.44). 3일 연속 오버나이트 매도 소진 후 반전 = 기관 포지션 재구축 신호. 기존 어느 가설도 미사용 SIGN FLIP 트리거."
+  },
+  {
+   "id": "us-029",
+   "title": "SPDR 섹터 ETF 개별충격 평균회귀 — 섹터 고유 -2% 이탈 시 이벤트 트리거 조건부 보유",
+   "hypothesis": "유니버스: 11개 SPDR 섹터 ETF(XLK, XLF, XLE, XLV, XLU, XLI, XLY, XLP, XLRE, XLC, XLB). 매 거래일 종가 기준 각 섹터 ETF의 당일 수익률에서 SPY 당일 수익률을 차감한 초과수익률 계산. 진입 조건(AND): (1) 섹터ETF_수익률 - SPY_수익률 ≤ -2.0%(섹터 고유 급락), (2) SPY 당일 수익률 -1.5% 이상 +1.5% 이하(광역 시장 충격이 아닌 섹터 특이 이벤트 확인). 진입: 조건 충족일 다음 거래일 시가 매수. 복수 시그널 동시 발생 시 초과수익률이 가장 낮은 1개 선택. 청산: (1) 진입 이후 섹터ETF 누적 초과수익률(vs SPY)이 -0.2% 이내로 회복, 또는 (2) 최대 15영업일 보유 후 종가 청산. 근거: 섹터 고유 뉴스(규제·원자재·지정학 등)에 의한 단기 이탈은 광역 시장과 무관하므로 평균회귀 경향이 강하고, ETF 특성상 개별종목 고유위험 없이 노이즈가 작다. 실행 형태: 이벤트 트리거 + 조건부 보유(고정 주기 교체 아님).",
+   "source": "Concretum Group '11 SPDR Sector ETFs active mean-reversion framework' 18.5% CAGR 2018-2026; TradeQuantix ETF Mean Reversion Methods; QuantConnect forum Mean-Reversion effect in ETF price series; IOSR Journal Sectoral Momentum and Mean Reversion Empirical",
+   "axis_class": "sector_etf_idiosyncratic_shock_reversion",
+   "data_deps": [
+    "yfinance OHLCV daily: XLK XLF XLE XLV XLU XLI XLY XLP XLRE XLC XLB SPY"
+   ],
+   "constraints": [
+    "0.502% 왕복 수수료로 최소 net edge +1% 필요(2% 초과수익 기준 충족 예상)",
+    "섹터 충격이 구조적 하락으로 이어질 경우 손절 없이 최대 15일 노출",
+    "복수 시그널 동시 발생 시 최악 1개만 진입하므로 분산 제한"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T19:21:53",
+   "notes": "Concretum Group 2018-2026 실증 18.5% CAGR after costs. 실행 형태: 이벤트 트리거 + 조건부 보유 — 월간 순위 로테이션과 완전 구별. P2: yfinance 일봉만 필요 즉시 R-0 검증 가능. 연간 약 25-40 시그널 예상(11섹터 연 2-4회 임계 이탈)."
   }
  ],
- "updated_at": "2026-08-02T18:22:32"
+ "updated_at": "2026-08-02T19:21:53"
 }
