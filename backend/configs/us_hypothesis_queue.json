@@ -509,7 +509,29 @@
    "status": "pending",
    "added_at": "2026-08-02T13:25:13",
    "notes": "ETF 내부구조 미개척 영역(NAV 괴리). AP 차익거래가 수렴을 구조적으로 강제하는 엣지. 22개 기존 항목 모두와 메커니즘 완전 상이(거시레짐·캘린더·수급신호·오버나이트 분리 아님). 스트레스 이벤트 집중 발동 구조 — 방어적 성격."
+  },
+  {
+   "id": "us-024",
+   "title": "미국 기관 야간 선취매 × 한국 개인 소외 동시충족 ETF 월간 선택",
+   "hypothesis": "유니버스: us_rank_snapshot에 kiwoom_trade와 day_disparity 양쪽으로 등장하는 ETF 교집합(SPY·QQQ·IWM·TLT·GLD·HYG 등 10~15개 예상). 매월 마지막 영업일, 최신 스냅샷 2종을 JOIN. (1) kiwoom_rank: kiwoom_trade rank_value가 높을수록(한국 개인 無관심) 높은 점수. (2) overnight_rank: day_disparity rank_value가 높을수록(US 야간 세션 프리미엄 강함, 기관 야간 매수 우세) 높은 점수. joint_score = kiwoom_rank + overnight_rank. joint_score 최고 ETF 1종을 다음 달 첫 영업일 시가에 롱 진입. 청산: 다음 월말 리밸런싱 시 교체. 메커니즘: 미국 기관이 야간(한국 오버나이트 세션)에 조용히 매수(높은 overnight premium)하는 동시에 한국 개인이 외면(낮은 kiwoom 관심)하는 ETF를 교집합 필터로 선별 — 두 독립 수급 신호가 같은 방향(기관 매수 + 소매 소외)으로 정렬될 때 포지션 확신도가 높아진다는 가설.",
+   "source": "us_rank_snapshot 자체 시스템 데이터(kiwoom_trade + day_disparity 교집합); 이론적 배경: smart money vs retail divergence (Kaniel, Saar & Titman 2008 RFS; Da, Engelberg & Gao 2011 JF 개인 수급 역발상 연구)",
+   "axis_class": "kiwoom_overnight_joint_accumulation",
+   "data_deps": [
+    "us_rank_snapshot.rank_type IN ('kiwoom_trade'",
+    "'day_disparity')",
+    " 일봉 ETF 가격 DB"
+   ],
+   "constraints": [
+    "월간 리밸런싱 연 12회 수수료 적음",
+    "교집합 ETF 수가 월별로 변동 가능(신호 없는 달 현금 보유)",
+    "day_disparity 방향 us-020과 반대(본 가설은 야간 프리미엄=추세, us-020은 야간 할인=역발상)",
+    "kiwoom 스냅샷 미적재 월 전월 대체"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T14:27:18",
+   "notes": "us-019(kiwoom 단독 역발상)·us-020(day_disparity 단독 야간 할인 역발상)·us-018(ONscore-IDscore 가격 계산 방식)과 메커니즘 상이. 본 가설은 BOTH 신호 동시충족 AND-게이트: 기관 야간 프리미엄 순방향+소매 소외 순방향. us_rank_snapshot 기존 데이터만으로 즉시 R-1 검증 가능(P1)."
   }
  ],
- "updated_at": "2026-08-02T13:25:13"
+ "updated_at": "2026-08-02T14:27:18"
 }
