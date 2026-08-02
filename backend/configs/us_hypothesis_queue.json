@@ -417,7 +417,29 @@
    "status": "pending",
    "added_at": "2026-08-02T09:23:03",
    "notes": "P1 우선순위: 기존 us_rank_snapshot(kiwoom_trade) 데이터로 즉시 검증 가능. 미개척 영역 해당(한국 개인수급). 미국 현지 데이터 복제 불가 독점축. us-017/018 오버나이트 축과 메커니즘 상이(수급 집중도 vs 수익률 분리). 포화 클래스(거시지표 레짐) 해당 없음."
+  },
+  {
+   "id": "us-020",
+   "title": "Blue Ocean 괴리율 역발상 ETF 선택 — 야간 할인 ETF 월간 매수",
+   "hypothesis": "유니버스: SPY, QQQ, IWM, EFA, EEM, TLT, IEF, GLD, HYG, XLK, XLF (11개 유동성 ETF). 매월 마지막 거래일, us_rank_snapshot에서 rank_type='day_disparity' 최신 스냅샷 조회. 각 ETF의 Blue Ocean 야간 세션(한국 시간 오버나이트) vs 미국 정규 종가 괴리율(rank_value)을 확인. 괴리율 최하위 2개 ETF(Blue Ocean 세션에서 가장 할인 거래된 종목 — 한국 야간 수요가 없거나 약한 ETF)를 균등 매수. 진입: 매월 마지막 거래일 종가. 청산: 익월 마지막 거래일 종가(다음 리밸런싱 시). 보유 기간: 1개월. 리밸런싱 빈도: 월 1회(연 12회). 절대 손절 없음, 레짐 조건 없음. 한국 야간 세션 할인은 글로벌 수요 대비 한국 개인의 무관심 또는 패닉 리커버리 포지션을 의미할 수 있으며, 정규 세션에서 평균 회귀(mean reversion) 또는 글로벌 기관 수급 유입으로 반전될 수 있다는 가설.",
+   "source": "us_rank_snapshot 내부 데이터(rank_type='day_disparity'). Blue Ocean(키움 야간 서비스) 야간 세션 체결가 vs 미국 정규 종가 괴리율 — 키움 독점 데이터, 외부 재현 불가. 메커니즘 착상: 키움 고객 야간 행동 분석 내부 연구.",
+   "axis_class": "blueocean_disparity_contrarian",
+   "data_deps": [
+    "us_rank_snapshot(rank_type='day_disparity') — 이미 일별 적재 중. 추가 외부 데이터 불필요."
+   ],
+   "constraints": [
+    "Long only(공매도 불가)→할인 ETF 매수로 충족",
+    "수수료 0.502% 왕복→월 1회 리밸런싱 연 12회, edge >= 2% 필요",
+    "intraday 금지→월 1회 종가 기준 충족",
+    "데이터: us_rank_snapshot 기존 인프라 활용(P1)",
+    "us-019(거래집중도)와 다른 신호: day_disparity는 가격 괴리율, kiwoom_trade는 거래량 순위",
+    "us-017/018과 다른 신호: 표준 시가·종가 비율이 아닌 Blue Ocean 전용 세션 체결가 기준"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T10:21:24",
+   "notes": "P1 근거: us_rank_snapshot(day_disparity) 이미 일별 적재 중, 추가 데이터 수집 불필요. 미개척 영역: Blue Ocean 야간 세션 괴리율은 키움 독점 데이터로 외부 재현 불가. us-017/018(표준 오버나이트 수익률 = open/prev_close)과 가격 시리즈 자체가 다름. us-019(거래 집중 순위)와는 신호 종류 자체가 다름(가격 괴리율 vs 거래량 순위). 역발상 방향성: 한국 개인이 야간에 외면하는(할인 방치) ETF가 정규 세션 글로벌 수요로 회귀 또는 초과 수익 가능성. 2026-08-02 us-020으로 등록."
   }
  ],
- "updated_at": "2026-08-02T09:23:03"
+ "updated_at": "2026-08-02T10:21:24"
 }
