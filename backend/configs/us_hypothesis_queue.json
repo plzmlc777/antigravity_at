@@ -439,7 +439,32 @@
    "status": "pending",
    "added_at": "2026-08-02T10:21:24",
    "notes": "P1 근거: us_rank_snapshot(day_disparity) 이미 일별 적재 중, 추가 데이터 수집 불필요. 미개척 영역: Blue Ocean 야간 세션 괴리율은 키움 독점 데이터로 외부 재현 불가. us-017/018(표준 오버나이트 수익률 = open/prev_close)과 가격 시리즈 자체가 다름. us-019(거래 집중 순위)와는 신호 종류 자체가 다름(가격 괴리율 vs 거래량 순위). 역발상 방향성: 한국 개인이 야간에 외면하는(할인 방치) ETF가 정규 세션 글로벌 수요로 회귀 또는 초과 수익 가능성. 2026-08-02 us-020으로 등록."
+  },
+  {
+   "id": "us-021",
+   "title": "SPY·TLT 롤링 상관 레짐 스위치 — 주식-채권 헤지 붕괴 시 실물자산 월간 교체",
+   "hypothesis": "유니버스: SPY, IEF, GLD, SHY. 매월 마지막 거래일, 직전 63영업일 SPY·TLT 일봉 로그수익률의 피어슨 상관계수(ρ) 계산. TLT는 신호 계산 전용(포트폴리오 미편입). 레짐 A(ρ < −0.2): 주식-채권 음의 상관 정상 → SPY 100%. 레짐 B(−0.2 ≤ ρ < +0.2): 상관 전환·붕괴 징후 → SPY 50% + IEF 50%. 레짐 C(ρ ≥ +0.2): 스태그플레이션 동반 하락 → GLD 60% + SHY 40%. 월 1회 마지막 거래일 종가 리밸런싱(연 12회). 핵심 테스트 케이스: 2022년 SPY-TLT 상관 +0.88 국면에서 레짐 C 조기 식별 후 GLD 이동 검증.",
+   "source": "Baele et al.(2010) 'On the flight-to-safety'; 2022 스태그플레이션 실증(TLT-SPX 상관 최고+0.88); QuantJourney Substack 'Long-Term ETF Strategies Using Negative Beta and Correlation Heatmaps'(2024); QuantifiedStrategies.com SPY-TLT 분석(2026 corr=0.24 확인)",
+   "axis_class": "spy_tlt_correlation_regime",
+   "data_deps": [
+    "SPY일봉(DB)",
+    "TLT일봉(DB/yfinance)",
+    "IEF일봉(DB)",
+    "GLD일봉(yfinance)",
+    "SHY일봉(yfinance)"
+   ],
+   "constraints": [
+    "공매도불가(SPY·IEF·GLD·SHY 롱전환으로 해소)",
+    "수수료0.502%(월12회내외 적합)",
+    "일봉전용(63일롤링)",
+    "GLD·SHY DB미적재시yfinance추가수집선행필요",
+    "임계선±0.2 R-0 sensitivity검증필요"
+   ],
+   "priority": 2,
+   "status": "pending",
+   "added_at": "2026-08-02T11:24:23",
+   "notes": "거시경제지표(CPI/PMI/OAS) 아닌 시장구조신호(SPY·TLT 일봉 상관)로 레짐 판정 → 포화클래스 제외. Logical-Invest UIS(최적배분비율 연속변수)와 다름: 본 가설은 상관 임계선 3단계 이진 레짐 분기. 2022 레짐C 사례가 핵심 out-of-sample 검증구간"
   }
  ],
- "updated_at": "2026-08-02T10:21:24"
+ "updated_at": "2026-08-02T11:24:23"
 }
