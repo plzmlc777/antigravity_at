@@ -464,7 +464,26 @@
    "status": "pending",
    "added_at": "2026-08-02T11:24:23",
    "notes": "거시경제지표(CPI/PMI/OAS) 아닌 시장구조신호(SPY·TLT 일봉 상관)로 레짐 판정 → 포화클래스 제외. Logical-Invest UIS(최적배분비율 연속변수)와 다름: 본 가설은 상관 임계선 3단계 이진 레짐 분기. 2022 레짐C 사례가 핵심 out-of-sample 검증구간"
+  },
+  {
+   "id": "us-022",
+   "title": "분기말 연기금 리밸런싱 압력 선취 — 분기 성과 방향 기반 SPY↔TLT 5일 스위칭",
+   "hypothesis": "유니버스: SPY, TLT, IEF, SHY. 판정일: 분기 마지막 거래일로부터 5영업일 전(진입일). 신호: 해당 분기 첫 거래일 종가→판정일 종가 기준 SPY 분기 수익률(Q_ret). 조건A(Q_ret>0%): 주식 비중 과다→연기금 주식 매도·채권 매수 강제 리밸런싱 예상→TLT 100% 진입(채권 수요 선취). 조건B(Q_ret<=0%): 주식 비중 부족→연기금 주식 매수 압력→SPY 그대로 유지(포지션 변경 없음). 청산: 신분기 첫 거래일+3영업일(총 보유 약 8영업일). 대조군: 조건A에서 IEF 대체로 왕복수수료 충격 비교. 연4회 이벤트=연8트레이드.",
+   "source": "CFA Institute Enterprising Investor 2025-04: Rebalancings Hidden Cost - How Predictable Trades Cost Pension Funds Billions; PyQuantNews: Trading the Monthly Window Dressing Effect TLT-SPY Long-Short Swap; AQR-Vanguard 내부 리서치(PyQuantNews 인용)",
+   "axis_class": "quarter_end_rebalancing_flow",
+   "data_deps": [
+    "SPY/TLT/IEF 일봉(yfinance/기존 60-core); pandas BQuarterEnd 캘린더"
+   ],
+   "constraints": [
+    "연8트레이드<elite_gate_12/yr→R-0에서_월말_확장_검토",
+    "왕복수수료_0.502%×4회=연2.0%비용→edge>=2%/트레이드_필수",
+    "LONG_ONLY:기관_매도_국면_공매도_불가→TLT_대피"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T12:24:53",
+   "notes": "CFA2025:연기금_리밸런싱으로_연160억달러(8bp)비용_확인→반대편_포지셔너_수익원천. 분기말5일전TLT선취→기관채권매수압력_앞지르기. 미개척영역:옵션만기·분기리밸런싱수급. trades/yr제약주의"
   }
  ],
- "updated_at": "2026-08-02T11:24:23"
+ "updated_at": "2026-08-02T12:24:53"
 }
