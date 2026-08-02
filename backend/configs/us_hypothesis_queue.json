@@ -553,7 +553,32 @@
    "status": "pending",
    "added_at": "2026-08-02T15:28:35",
    "notes": "실행 형태=이벤트 트리거형(경매 결과 발생 시에만 진입, 평소 무포지션). 기존 큐와 축 완전 비중복: 신호 축(국채 1차 경매 Tail) + 실행 형태(이벤트 트리거+조건부 고정보유) 모두 신규. 월간 순위 로테이션 아님. 미개척 영역 — 옵션만기·분기 리밸런싱 수급 섹션의 '경매 수급' 세부 축. P3 — fiscaldata.treasury.gov 외부 데이터 선행 필요(무료이나 코드 구현 필요). 백테스트용 과거 경매 데이터는 fiscaldata에서 수년치 무료 다운로드 가능."
+  },
+  {
+   "id": "us-026",
+   "title": "키움 소외 × 야간 디스카운트 × 200SMA 3단계 필터 조건부 매수 — 극단 역발상 이벤트 포착",
+   "hypothesis": "유니버스: SPY, QQQ, IWM, EFA, EEM, TLT, GLD, HYG, XLK, XLF (10개 ETF). 매 거래일 종가 기준 3단계 필터 동시 충족(AND) 시 다음 거래일 시가 진입. 필터①: us_rank_snapshot rank_type='day_disparity'에서 해당 ETF의 rank_value < -1.0%(절대 임계 — 야간 세션이 미국 정규장 대비 1.0% 이상 할인). 필터②: us_rank_snapshot rank_type='kiwoom_trade'에서 해당 ETF의 rank_value가 해당 ETF 역대 rank_value 하위 20번째 백분위 이하(한국 개인 극단적 소외, 절대 임계, 순위 비교 아님). 필터③: 해당 ETF 일봉 종가 > 200일 단순이동평균(장기 추세 유지 확인). 청산은 선행 조건 도달 시 즉시: (A) day_disparity rank_value > -0.3%로 회복(디스카운트 해소), (B) 종가가 200일 SMA 하향 이탈, (C) 최대 15거래일 경과 후 당일 종가 청산, (D) 진입 대비 -4% 손절. 복수 ETF 동시 신호 발생 시 각각 독립 포지션(총 자본의 각 10% 이내, 동시 최대 3개 보유). 실행형태=다단계필터형+조건부보유형: 월간 달력 기준 없음, ETF 간 상대 순위 비교 없음, 3개 절대 임계 동시 충족 시에만 진입·조건 해소 시 즉시 청산.",
+   "source": "QuantifiedStrategies / Quantpedia OPEX week 조사 과정에서 식별된 유사 극단값 역발상 패턴; us_rank_snapshot 자체 데이터(kiwoom_trade + day_disparity) 기반 독자적 축; Jegadeesh(1990) 단기 과잉반응 평균회귀 이론 적용",
+   "axis_class": "kiwoom_disparity_trend_triple_filter",
+   "data_deps": [
+    "us_rank_snapshot:kiwoom_trade",
+    "us_rank_snapshot:day_disparity",
+    "daily_ohlcv:SPY_QQQ_IWM_EFA_EEM_TLT_GLD_HYG_XLK_XLF"
+   ],
+   "constraints": [
+    "day_disparity < -1.0% 절대 임계 — 충분한 역사적 발동 빈도 R-1 검증 필요",
+    "kiwoom_trade 하위 20th percentile 계산 위해 최소 6개월 이상 rank_value 누적 데이터 필요",
+    "round-trip 0.502% 대비 기대 엣지 +2~4%(15일 보유, 극단 할인 해소 기대) — R-1 검증 필수",
+    "공매도 불필요(long only)✓",
+    "분봉 불필요(일봉만)✓",
+    "util 25~45% 예상(10개 ETF × 연 2~3회 신호)",
+    "유료 데이터 불필요(us_rank_snapshot + 기존 일봉)✓"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T16:24:18",
+   "notes": "실행형태=다단계필터형+조건부보유형. 기존 us-019/020/024(월간 순위 로테이션)와 신호 축 유사하나 실행 구조 전혀 다름: 절대 임계 AND 조건 3개 동시 충족 진입, 조건 해소 시 즉시 청산(캘린더 무관). 미개척 영역 kiwoom_trade + day_disparity 동시 활용 P1. kiwoom_trade 하위 20th percentile 기준은 ETF별 개별 산출(전체 순위 아님)."
   }
  ],
- "updated_at": "2026-08-02T15:28:35"
+ "updated_at": "2026-08-02T16:24:18"
 }
