@@ -531,7 +531,29 @@
    "status": "pending",
    "added_at": "2026-08-02T14:27:18",
    "notes": "us-019(kiwoom 단독 역발상)·us-020(day_disparity 단독 야간 할인 역발상)·us-018(ONscore-IDscore 가격 계산 방식)과 메커니즘 상이. 본 가설은 BOTH 신호 동시충족 AND-게이트: 기관 야간 프리미엄 순방향+소매 소외 순방향. us_rank_snapshot 기존 데이터만으로 즉시 R-1 검증 가능(P1)."
+  },
+  {
+   "id": "us-025",
+   "title": "국채 경매 꼬리(Tail) 이벤트 → TLT 당일 과잉반응 평균회귀",
+   "hypothesis": "유니버스: TLT(iShares 20+년 미국 국채 ETF) 단일 종목. 판정 이벤트: 매월 10년물 또는 30년물 미국 국채 1차 경매(재무부 fiscaldata.treasury.gov API, 무료) 결과 발표 후 당일. 진입 조건: (1) 경매 Tail(낙찰수익률 - when-issued수익률) ≥ +1.5bp — 수요 부진 신호, (2) 당일 TLT 종가 낙폭 ≤ -0.6% — 가격 과잉반응 확인, 두 조건 동시 충족 시에만 진입. 진입: 경매 결과 확인 다음 거래일 시가 TLT 매수 (이벤트 트리거형 즉시 진입). 청산: 고정 5거래일 종가 청산 OR 진입 후 누적 수익률 +2.0% 도달 시 조기 청산(둘 중 먼저). 포지션 중복 허용 안 함(동시 1건만). 조건 미충족 경매(Tail < 1.5bp 또는 TLT 낙폭 미달)는 무포지션 유지. 메커니즘: 1차 딜러는 경매 전 when-issued 시장에서 숏 헤지를 쌓고 경매 후 포지션 청산(ショートカバー). Tail이 크면 수요 부진이 과대 해석돼 TLT가 펀더멘털 이상 하락. 5영업일 이내 딜러 숏커버+실수요 유입으로 과잉반응의 상당 부분이 되돌려짐.",
+   "source": "fiscaldata.treasury.gov/datasets/treasury-securities-auctions-data/ (경매 Tail·낙찰수익률 무료 JSON API); AcidCapitalist 'Bond Auction Tail' 메커니즘 설명; r/algotrading 국채 경매 전후 패턴 토론",
+   "axis_class": "treasury_auction_tail_reversion",
+   "data_deps": [
+    "fiscaldata.treasury.gov(무료 REST API",
+    " 경매당일 오후 발표)",
+    " yfinance TLT 일봉 OHLCV"
+   ],
+   "constraints": [
+    "공매도 불가(TLT 롱 방향만, 금리 추가 급등 시 손실 제한 없음)",
+    "수수료 0.502% round-trip — 진입 조건 Tail+낙폭 동시 충족 시에만 진입해 엣지 확보",
+    "10년/30년물 경매 연 12~14회이나 조건 충족은 연 6~12회 예상 — trades/yr 12 최저선 근접 리스크, Tail 임계 1.5bp로 조정 검토 가능",
+    "외부 API(fiscaldata) 의존: API 변경·지연 시 신호 누락 위험"
+   ],
+   "priority": 3,
+   "status": "pending",
+   "added_at": "2026-08-02T15:28:35",
+   "notes": "실행 형태=이벤트 트리거형(경매 결과 발생 시에만 진입, 평소 무포지션). 기존 큐와 축 완전 비중복: 신호 축(국채 1차 경매 Tail) + 실행 형태(이벤트 트리거+조건부 고정보유) 모두 신규. 월간 순위 로테이션 아님. 미개척 영역 — 옵션만기·분기 리밸런싱 수급 섹션의 '경매 수급' 세부 축. P3 — fiscaldata.treasury.gov 외부 데이터 선행 필요(무료이나 코드 구현 필요). 백테스트용 과거 경매 데이터는 fiscaldata에서 수년치 무료 다운로드 가능."
   }
  ],
- "updated_at": "2026-08-02T14:27:18"
+ "updated_at": "2026-08-02T15:28:35"
 }
