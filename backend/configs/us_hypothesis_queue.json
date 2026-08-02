@@ -640,7 +640,28 @@
    "status": "pending",
    "added_at": "2026-08-02T19:21:53",
    "notes": "Concretum Group 2018-2026 실증 18.5% CAGR after costs. 실행 형태: 이벤트 트리거 + 조건부 보유 — 월간 순위 로테이션과 완전 구별. P2: yfinance 일봉만 필요 즉시 R-0 검증 가능. 연간 약 25-40 시그널 예상(11섹터 연 2-4회 임계 이탈)."
+  },
+  {
+   "id": "us-030",
+   "title": "QQQ-SPY 상대 오버나이트 프리미엄 괴리 페어 스위치 — 기관 야간 선호도 이동 포착",
+   "hypothesis": "유니버스: SPY, QQQ (롱온리 페어). 신호: us_rank_snapshot rank_type='day_disparity'에서 QQQ와 SPY의 rank_value 일별 차이(Δdisp = QQQ_rank_value - SPY_rank_value), 3영업일 누적 합산. 진입 조건(조건부 보유형): (1) Δdisp_3d ≥ +0.6%p → QQQ 롱 진입(기관이 테크/성장주를 야간 세션에서 집중 선취매). (2) Δdisp_3d ≤ -0.6%p → SPY 롱 진입(기관이 광범위 시장으로 야간 매집 이동). 보유: 조건 유지 동안 포지션 유지(고정 만료일 없음). 청산 조건: Δdisp가 반대 방향 -0.3%p 이하로 교차 시(신호 역전), 또는 두 ETF 모두 day_disparity < -0.5%로 동반 하락(리스크 오프 전환). 기대 거래 빈도: 연간 15-25회(프리미엄 방향 전환 주기 기준). 데이터: us_rank_snapshot(day_disparity) 기존 적재분.",
+   "source": "자체 day_disparity 데이터 고유 활용 + Quantpedia Pairs Trading with Country ETFs + r/algotrading relative overnight ETF premium divergence",
+   "axis_class": "cross_etf_relative_disparity_pair_switch",
+   "data_deps": [
+    "us_rank_snapshot(rank_type='day_disparity'",
+    " symbols: SPY QQQ)"
+   ],
+   "constraints": [
+    "롱온리(QQQ 또는 SPY 중 하나만 보유)",
+    "0.502% 왕복수수료(종목 전환 시 비용 발생)",
+    "분봉 불필요 — 일봉 종가 기준",
+    "day_disparity 적재 시작일 이후 기간만 검증 가능"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T20:21:56",
+   "notes": "기존 us-017/018/020과 차별점: 절대 프리미엄이 아닌 SPY-QQQ 간 상대 프리미엄 괴리 사용; 월간 교체 아닌 조건부 보유(신호 유지 동안 보유); 페어 스위치 구조로 실행 형태 완전 차별화. 기관이 야간 세션에서 테크 집중 매집(QQQ 우세)과 시장 전반 집중 매집(SPY 우세) 간 로테이션 포착. P1 — us_rank_snapshot 기존 데이터 즉시 검증 가능, 미개척 페어/스프레드 형태."
   }
  ],
- "updated_at": "2026-08-02T19:21:53"
+ "updated_at": "2026-08-02T20:21:56"
 }
