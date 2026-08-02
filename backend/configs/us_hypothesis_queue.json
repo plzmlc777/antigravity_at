@@ -578,7 +578,29 @@
    "status": "pending",
    "added_at": "2026-08-02T16:24:18",
    "notes": "실행형태=다단계필터형+조건부보유형. 기존 us-019/020/024(월간 순위 로테이션)와 신호 축 유사하나 실행 구조 전혀 다름: 절대 임계 AND 조건 3개 동시 충족 진입, 조건 해소 시 즉시 청산(캘린더 무관). 미개척 영역 kiwoom_trade + day_disparity 동시 활용 P1. kiwoom_trade 하위 20th percentile 기준은 ETF별 개별 산출(전체 순위 아님)."
+  },
+  {
+   "id": "us-027",
+   "title": "키움 한국 개인 5일 급이탈 역발상 — 수급 속도 소멸 후 단기 평균회귀",
+   "hypothesis": "유니버스: SPY, QQQ, IWM, EFA, EEM, TLT, GLD, HYG, XLK, XLF(10개 ETF). 매 거래일 종가, us_rank_snapshot rank_type='kiwoom_trade'에서 각 ETF의 5영업일 rank_value 변화량(ΔRank5=현재 rank_value-5영업일 전 rank_value) 계산. 진입 조건(AND): (1) ΔRank5≤-5(한국 개인 투자자 5일간 순위 5단계 이상 급락—급격한 관심 이탈), (2) 해당 ETF 5일 가격수익률≤-1.5%(가격 동반 하락으로 수급 소멸 확인), (3) 200일 이동평균 위(추세 필터). 다음 거래일 시가 매수. 청산(조건부): (A) ΔRank5가 -2 이내로 회복(수급 안정화 확인) 또는 (B) 최대 10영업일 경과 시 종가 청산—둘 중 먼저 발생한 조건. 복수 ETF 동시 발동 시 ΔRank5 가장 낮은 1종목만 선택. 엣지: 한국 개인 패닉 이탈→일시 수급 공백→과매도→수급 회복 후 평균회귀 2%+. 실행형태: 이벤트트리거형+조건부보유형(고정 주기 없음). 예상 발동 빈도: 연 15-30건.",
+   "source": "us_rank_snapshot kiwoom_trade 내부 데이터 기반 자체 분석; 유사 개념: Barber & Odean(2000) 개인투자자 역발상 문헌, r/algotrading 'retail flow reversal' 커뮤니티 논의; 기존 큐 us-019(레벨 역발상)와 달리 속도(ΔRank) 신호 활용",
+   "axis_class": "kiwoom_retail_exodus_reversal",
+   "data_deps": [
+    "us_rank_snapshot(kiwoom_trade 일봉)",
+    " yfinance ETF 일봉(가격·200일선)"
+   ],
+   "constraints": [
+    "5일 ΔRank 계산 위해 최소 5일치 스냅샷 적재 필요(현재 일봉 적재 중)",
+    "왕복 수수료 0.502% 대비 평균 10일 보유로 edge≥2% 요구",
+    "분봉 불필요(일봉만)",
+    "공매도 불가(매수 포지션만)",
+    "유료 외부 API 불필요"
+   ],
+   "priority": 1,
+   "status": "pending",
+   "added_at": "2026-08-02T17:25:14",
+   "notes": "실행형태: 이벤트트리거+조건부보유(월간 로테이션 아님). kiwoom rank 속도(velocity) 축은 현재 큐 미등록—us-019(레벨 기반 월간 역발상)·us-026(레벨 3중필터)와 신호 축·실행형태 모두 상이. R-0에서 ΔRank5 분포 및 가격 동반 하락 발생 빈도 검증 필요."
   }
  ],
- "updated_at": "2026-08-02T16:24:18"
+ "updated_at": "2026-08-02T17:25:14"
 }
