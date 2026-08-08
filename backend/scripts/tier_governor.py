@@ -80,7 +80,20 @@ def market_of(symbol: str) -> str:
         return "us"
     return "binance"
 
-VALID_FROM_FLOOR = datetime(2026, 7, 1)
+# 유효구간 시작. 이 시점 이전 기록은 판정에서 제외한다.
+#
+# 2026-07-01: 1-bar/run 평가 버그 무효구간 제외 (project_vb_127_128_substrate_stall_fix)
+# 2026-08-09: volume_burst / btc_rv 소스의 lookahead 무효구간 제외 (커밋 cd0ca27f).
+#   트리거를 포함하는 봉에 신호를 붙여 실행기가 그 봉 시가 = 트리거보다 과거
+#   가격에 체결했다. 2군 13세션 재시뮬레이션 결과 누적 +245.55% → +11.32% 로
+#   성과의 95.4% 가 그 편향에서 나온 것으로 확인됐다. 수정본이 처음 적용되는
+#   사이클이 2026-08-09 02:30 UTC 이므로 그 이후 기록만 유효하다.
+VALID_FROM_FLOOR = datetime(2026, 8, 9)
+
+# floor 를 올리면 표본이 리셋된다. 가드가 없으면 decide() 의
+# `n_trades < 5 and alpha <= 0` 분기에 전 세션이 걸려 즉시 TERMINATE 된다
+# (거래 0건이면 sess_ret=0 → alpha=0). 관측이 쌓일 때까지 판정을 보류한다.
+MIN_OBSERVATION_DAYS = 14
 LEAGUE_DEMOTE = 3
 LEAGUE_PROMOTE = 3
 CHECKPOINT_DAYS = 30
@@ -239,6 +252,12 @@ def decide(m: dict, baseline):
     """절대 안전선 판정 (day30_decision_protocol §0)."""
     alpha = m["alpha_pct"]
     a = alpha if alpha is not None else m["sess_ret_pct"]
+
+    # 표본이 쌓이기 전에는 판정하지 않는다. floor 상향 직후 전 세션이
+    # INSUFFICIENT_SAMPLE 로 몰살되는 것을 막는다 (2026-08-08).
+    if m["age_days"] < MIN_OBSERVATION_DAYS or m["n_trades"] == 0:
+        return "CONTINUE", (f"관측 {m['age_days']}일 / {m['n_trades']}거래 — "
+                            f"{MIN_OBSERVATION_DAYS}일 미만이라 판정 보류")
 
     if m["n_trades"] < 5:
         if a <= 0:
