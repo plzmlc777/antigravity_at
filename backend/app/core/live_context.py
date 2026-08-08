@@ -730,12 +730,29 @@ class LiveContext:
                     LiveTradeExecution.status == ExecutionStatus.FILLED
                 ).order_by(LiveTradeExecution.signal_timestamp).all()
 
+            def _first_num(*vals):
+                """첫 번째 non-None 값을 float으로. `or` 체인과 달리 0.0을
+                '미설정'으로 오인하지 않는다 — 0은 기록된 값이므로 그대로 쓴다.
+                (2026-08-08: `or` 폴백이 미체결 0을 요청수량으로, 청산가 0을
+                이론가로 바꿔치기해 실계좌 회계를 왜곡했다.)"""
+                for v in vals:
+                    if v is not None:
+                        return float(v)
+                return 0.0
+
+            def _pos_side(ex, metadata: dict) -> str:
+                """metadata 우선, 없으면 컬럼. 두 출처가 서로 다르게 틀려 있다:
+                엔진 기록 행은 컬럼이 항상 'LONG'(무의미)이고 metadata가 정확하며,
+                드라이버 직접청산 행은 그 반대다. metadata→컬럼 순이면 양쪽 다 맞다."""
+                return str(metadata.get("position_side")
+                           or getattr(ex, "position_side", "") or "").lower()
+
             for ex in executions:
                 trade = {
                     "type": ex.signal_type.lower(),
                     "symbol": ex.symbol,
-                    "price": ex.executed_price or ex.theoretical_price,
-                    "quantity": ex.filled_quantity or ex.requested_quantity,
+                    "price": _first_num(ex.executed_price, ex.theoretical_price),
+                    "quantity": _first_num(ex.filled_quantity, ex.requested_quantity),
                     "time": ex.order_filled_at.isoformat() if ex.order_filled_at else ex.signal_timestamp.isoformat(),
                     "order_id": ex.id,
                     "status": "filled",
@@ -760,7 +777,9 @@ class LiveContext:
                 if self.is_paper:
                     holdings: Dict[str, float] = {}
                     for ex in executions:
-                        q = ex.filled_quantity or ex.requested_quantity or 0
+                        # filled_quantity == 0.0 은 "한 주도 안 채워짐"이라는 기록이다.
+                        # requested_quantity로 갈아끼우면 없는 포지션이 생긴다.
+                        q = _first_num(ex.filled_quantity, ex.requested_quantity)
                         if ex.signal_type == Signal.BUY:
                             holdings[ex.symbol] = holdings.get(ex.symbol, 0) + q
                         else:  # SELL
@@ -772,11 +791,46 @@ class LiveContext:
                 # Recalculate cash from initial_capital and trade history
                 if self.initial_capital > 0:
                     cash = self.initial_capital
+                    # 심볼별 마지막 진입가. 청산가가 0으로 기록된 결함 데이터에서
+                    # 증거금을 환원하는 근거로 쓴다 (아래 주석 참조).
+                    entry_px: Dict[str, float] = {}
                     for ex in executions:
-                        price = ex.executed_price or ex.theoretical_price or 0
-                        qty = ex.filled_quantity or ex.requested_quantity or 0
-                        metadata = ex.trade_metadata or {}
-                        pnl = ex.realized_pnl or 0
+                        price = _first_num(ex.executed_price, ex.theoretical_price)
+                        qty = _first_num(ex.filled_quantity, ex.requested_quantity)
+                        metadata = dict(ex.trade_metadata or {})
+                        pnl = _first_num(ex.realized_pnl)
+                        # calc_cash_delta는 position_side를 metadata에서만 읽는다.
+                        # 드라이버 직접청산 행은 metadata에 그게 없어서 pos=""가 되고,
+                        # BUY+"" = LONG 진입으로 오분류돼 청산이 -margin으로 잡혔다
+                        # (실현손익이 통째로 누락). 컬럼까지 보고 넘겨준다.
+                        metadata["position_side"] = _pos_side(ex, metadata)
+                        sig = str(ex.signal_type).upper()
+                        is_entry = ((sig == "SELL" and metadata["position_side"] == "short")
+                                    or (sig == "BUY" and metadata["position_side"] in ("long", "")))
+                        if self.is_futures:
+                            if is_entry and price > 0:
+                                entry_px[ex.symbol] = price
+                            elif not is_entry:
+                                # 청산 시 반환할 증거금은 **진입 때 잠근 금액**이다.
+                                # calc_cash_delta는 `margin + pnl`을 돌려주는데 margin을
+                                # 넘겨준 price로 계산하므로, 청산가를 그대로 주면
+                                # 1x에서 (진입notional - 청산notional) = pnl 이 되어
+                                # 반환 증거금이 pnl만큼 어긋나고 결국 pnl이 상쇄돼
+                                # 사라진다 (SLXUSDT: 실현 +5.27인데 현금 100.00 그대로).
+                                # 청산가가 0으로 기록된 결함 데이터까지 여기서 함께 처리된다.
+                                entry = entry_px.get(ex.symbol, 0.0)
+                                if entry > 0:
+                                    if price <= 0:
+                                        logger.warning(
+                                            f"Context {self.session_id}: {ex.symbol} 청산가가 0으로 "
+                                            f"기록됨 (execution {ex.id}) — 원본 데이터 결함"
+                                        )
+                                    price = entry
+                                else:
+                                    logger.error(
+                                        f"Context {self.session_id}: {ex.symbol} 진입가 불명 "
+                                        f"(execution {ex.id}) — 증거금 환원 불가, cash 과소계상"
+                                    )
                         delta = self._calc_cash_delta(
                             ex.signal_type, price, qty, metadata, pnl)
                         cash += delta

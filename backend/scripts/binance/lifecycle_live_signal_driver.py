@@ -315,6 +315,31 @@ def _real_realized_since(adapter, symbol: str, minutes: int = 15) -> float:
         return 0.0
 
 
+def _real_close_fills(adapter, symbol: str, start_ms: int) -> tuple[float, float, float]:
+    """start_ms 이후 체결(userTrades)에서 (평균체결가, 실현손익합, 수량합).
+
+    close_position()이 체결가를 안 돌려주는 경우가 있고(그때 executed_price에 0이
+    박혀 회계가 깨진다), income 엔드포인트는 반영이 몇 초 늦어서 청산 직후 조회하면
+    0이 나온다 — GRAMUSDT 2026-08-03 청산이 realized_pnl=0.0으로 기록된 원인
+    (거래소 원장은 +19.38). userTrades는 즉시 반영되므로 이쪽을 1순위로 쓴다.
+    실패하거나 체결이 없으면 (0,0,0) → 호출측이 income 폴백을 쓴다.
+    """
+    try:
+        from app.adapters.binance_futures import FAPI
+        fills = _run_async(adapter._signed_get(
+            f"{FAPI}/userTrades", {"symbol": symbol, "startTime": int(start_ms), "limit": 500}))
+        if not fills:
+            return (0.0, 0.0, 0.0)
+        qty = sum(float(f.get("qty") or 0) for f in fills)
+        notional = sum(float(f.get("qty") or 0) * float(f.get("price") or 0) for f in fills)
+        realized = sum(float(f.get("realizedPnl") or 0) for f in fills)
+        vwap = (notional / qty) if qty > 0 else 0.0
+        return (vwap, realized, qty)
+    except Exception as exc:
+        log.warning("userTrades lookup failed for %s: %s", symbol, exc)
+        return (0.0, 0.0, 0.0)
+
+
 def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optional[float]:
     """Close a REAL position DIRECTLY on the exchange (engine-independent) and
     record the fill into live_trade_executions so reports stay accurate.
@@ -342,22 +367,39 @@ def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optiona
         qty = float((pos or {}).get("quantity") or 0.0)
         if qty == 0:
             return 0.0  # already flat on the exchange
+        import time as _time
+        close_started_ms = int(_time.time() * 1000) - 2000  # 2s 여유
         res = _run_async(adapter.close_position(symbol))
         if res.get("status") != "success":
             log.error("direct close failed %s: %s", symbol, res)
             return None
-        exec_price = float(res.get("price") or 0.0)
-        fqty = float(res.get("quantity") or abs(qty))
-        realized = _real_realized_since(adapter, symbol)
+
+        # 체결가·실현손익은 거래소 체결내역이 1순위. close_position 반환값은
+        # 가격을 비워 보내는 경우가 있고, income은 몇 초 늦어 0이 잡힌다.
+        fill_px, fill_realized, fill_qty = _real_close_fills(adapter, symbol, close_started_ms)
+        exec_price = float(res.get("price") or 0.0) or fill_px
+        fqty = float(res.get("quantity") or 0.0) or fill_qty or abs(qty)
+        realized = fill_realized if fill_qty > 0 else _real_realized_since(adapter, symbol)
+        if exec_price <= 0:
+            log.error("%s: 체결가를 확보하지 못했다 (close_position·userTrades 모두 미제공) "
+                      "— executed_price 0으로 기록되면 세션 현금 재계산이 증거금을 잃는다",
+                      symbol)
+        pos_side = "SHORT" if qty < 0 else "LONG"
         row = LiveTradeExecution(
             session_id=session_id, symbol=symbol,
             signal_type="BUY" if qty < 0 else "SELL",  # cover a short = BUY
-            signal_timestamp=_dt.utcnow(), theoretical_price=exec_price or 0.0,
+            signal_timestamp=_dt.utcnow(), theoretical_price=exec_price,
             requested_quantity=fqty, order_submitted_at=_dt.utcnow(),
             order_filled_at=_dt.utcnow(), executed_price=exec_price,
             filled_quantity=fqty, realized_pnl=realized, status="FILLED",
-            is_paper=False, position_side="SHORT" if qty < 0 else "LONG",
-            trade_metadata={"driver": "lifecycle_direct_close", "source": "adapter_close_position"},
+            is_paper=False, position_side=pos_side,
+            # position_side를 metadata에도 넣는다 — calc_cash_delta가 metadata에서만
+            # 읽어서, 없으면 이 청산이 LONG 진입으로 오분류돼 실현손익이 누락된다.
+            trade_metadata={"driver": "lifecycle_direct_close",
+                            "source": "adapter_close_position",
+                            "position_side": pos_side.lower(),
+                            "price_source": "close_position" if float(res.get("price") or 0) > 0
+                                            else ("userTrades" if fill_px > 0 else "none")},
         )
         db.add(row)
         db.commit()
