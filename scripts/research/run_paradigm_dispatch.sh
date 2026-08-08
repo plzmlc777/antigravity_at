@@ -81,13 +81,27 @@ Paradigm dispatch (daily cron, 3군 자동 발굴. No user present — never ask
 ${HYPO_BLOCK}
 
 Dispatch Agent(subagent_type="paradigm-architect") with a prompt to:
-1. Run the full Research Track pipeline per research_track_master.md:
-   R-0 inventory + lesson prescreen -> R-1 PoC -> R-2 multi-symbol -> R-3 robustness -> R-4 elite gate.
-2. On R-4 PASS: follow Step 7.1 (promotion_graveyard.md skill) — write per-symbol
-   paper specs and enqueue top-3 symbols into backend/configs/tier_promotion_queue.json.
+1. Run the 3군 pipeline per .claude/plans/tier3_redesign.md (2026-08-08 재설계 —
+   R-2/R-3/R-4 elite gate 는 폐기됐다. 자금 위험이 0인 3군에 실전급 기준을 세운 것이
+   79일 무배출의 원인이었고, 과적합 판별은 2군 forward 가 담당한다):
+     G0  기존 R-0 prescreen 유지 (DNA 중복 / 무정보 / 수수료 하한 / 표본 밀도)
+     G1  시간가중 성과 — **단일 종목·단일 스펙으로 판정한다. 다종목 요구는 폐기됐다.**
+     G2  실행가능성 — lookahead / 지연 후 마찰여유 / 실행주기 정합
+2. G1·G2 판정은 **직접 하지 말고 반드시 코드로 실행**한다:
+     python3 scripts/research/tier3_gate.py --trades <backtest_trades.json> \
+       --lookahead-clean true|false --edge-after-1bar <x> --friction <x> \
+       --hold-min <x> --cycle-min <x> --out runs/research_track/<paradigm>/tier3_gate__<sym>.json
+   거래 JSON 은 [{"entry_ts","exit_ts","net_ret"}] 형식이다. G2 인자를 생략하면
+   UNKNOWN 으로 차단된다 — 측정하지 않았으면 통과시키지 않는다.
+   현재 실행 인프라의 사이클 주기는 **1440분(하루 1회)** 이다.
+3. 게이트 PASS 시에만 승격 큐에 올린다. 이때도 손으로 JSON 을 편집하지 말고
+   같은 CLI 의 --enqueue 를 쓴다 (게이트 결과가 큐 엔트리에 함께 기록되고,
+   governor 가 시드 직전에 그 값을 다시 확인한다):
+     ... --enqueue --name <name> --spec configs/paper_sessions/<f>.json \
+         --paradigm <paradigm> --symbol <SYM>
    Paper specs ONLY. NEVER create live/real sessions, never touch live_bot_sessions or exchange accounts.
-3. On any FAIL: graveyard document per convention, update INDEX.
-4. Respect backfill discipline (archive-first, <10GB, no parallel downloaders).
+4. 게이트 FAIL 시: graveyard document per convention, update INDEX.
+5. Respect backfill discipline (archive-first, <10GB, no parallel downloaders).
 
 After the subagent returns, print exactly one line starting with:
 PARADIGM_RESULT: {"paradigm": "<name>", "final_phase": "<R-x|GRAVEYARD|R5_ENQUEUED>", "verdict": "<one-line summary>"}

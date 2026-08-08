@@ -309,6 +309,7 @@ def promote_from_queue(n: int, dry: bool, queue_path: str):
     queue.sort(key=lambda e: -float(e.get("gate_score", 0)))
     promoted = []
     remain = []
+    actions_gate_rejected = []
     for entry in queue:
         if len(promoted) >= n:
             remain.append(entry)
@@ -318,6 +319,19 @@ def promote_from_queue(n: int, dry: bool, queue_path: str):
             logger.error("queue entry missing spec: %s", entry.get("name"))
             remain.append(entry)
             continue
+
+        # 3군 게이트를 거치지 않은 항목은 시드하지 않는다 (2026-08-08 신설).
+        # 그날 사고가 정확히 "R-4 판정은 났는데 2군에 이식된 스펙은 lookahead 로
+        # 성과의 95% 가 허수" 인 경우였다. 판정 결과를 큐 엔트리에 박아 두고
+        # 시드 직전에 다시 확인해, 게이트를 우회한 유입 경로를 막는다.
+        gate = entry.get("gate") or {}
+        if not gate.get("passed"):
+            logger.error("게이트 미통과/미기록 항목 — 시드 거부: %s (blocked_by=%s)",
+                         entry.get("name"), gate.get("blocked_by") or "gate 필드 없음")
+            actions_gate_rejected.append(entry.get("name"))
+            remain.append(entry)
+            continue
+
         if dry:
             promoted.append(entry["name"])
             continue
@@ -333,6 +347,9 @@ def promote_from_queue(n: int, dry: bool, queue_path: str):
             remain.append(entry)
     qdata["queue"] = remain
     save_json(queue_path, qdata, dry)
+    if actions_gate_rejected:
+        logger.error("게이트 미통과로 시드 거부된 항목 %d개: %s",
+                     len(actions_gate_rejected), actions_gate_rejected)
     return promoted
 
 

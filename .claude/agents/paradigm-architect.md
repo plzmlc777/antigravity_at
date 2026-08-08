@@ -79,9 +79,27 @@ Skill: `.claude/agents/paradigm-architect/skills/r4_elite_gate.md`
 ### Step 7 — R-5 AUTO-SEED + Graveyard Report
 Skill: `.claude/agents/paradigm-architect/skills/promotion_graveyard.md`
 
-**Fallback inline (2026-07-11 리그 모델)**: On R-4 PASS, **enqueue into the 2군 promotion queue** — no user halt, no direct seeding:
-1. Pick top 3 symbols by R-3 per-symbol metrics. Write one paper spec JSON per symbol to `backend/configs/paper_sessions/{paradigm}_{symbol}.json` (paper mode ONLY, SL/hold from R-3 optimum, paradigm 127/128 spec pattern).
-2. Append entries to `backend/configs/tier_promotion_queue.json` `.queue`: {"name", "spec" (backend-relative path), "paradigm", "symbol", "gate_score" (R-4 gate composite), "enqueued_at"}.
+**2026-08-08 재설계 (.claude/plans/tier3_redesign.md)** — R-2/R-3/R-4 elite gate 폐기.
+판정은 `G0 prescreen → G1 시간가중 성과 → G2 실행가능성` 이고, **단일 종목 단일 스펙으로
+통과할 수 있다**(다종목 concentration 요구 폐기). 과적합 판별은 2군 forward 가 맡는다.
+
+On gate PASS, **enqueue into the 2군 promotion queue** — no user halt, no direct seeding:
+1. Write one paper spec JSON to `backend/configs/paper_sessions/{paradigm}_{symbol}.json`
+   (paper mode ONLY, SL/hold from the swept optimum).
+2. **판정과 등록을 손으로 하지 않는다.** 반드시 코드로 실행한다 — 에이전트가 "PASS" 라고
+   말하는 것에 의존하면 2026-08-08 사고가 반복된다(그날 R-4 판정은 났지만 이식된 스펙은
+   lookahead 로 성과의 95% 가 허수였다):
+   ```
+   python3 scripts/research/tier3_gate.py --trades <trades.json> \
+     --lookahead-clean true|false --edge-after-1bar <x> --friction <x> \
+     --hold-min <x> --cycle-min 1440 \
+     --out runs/research_track/{paradigm}/tier3_gate__{symbol}.json \
+     --enqueue --name {name} --spec configs/paper_sessions/{f}.json \
+     --paradigm {paradigm} --symbol {SYM}
+   ```
+   G2 인자를 생략하면 UNKNOWN 으로 **차단**된다. 측정하지 않았으면 통과시키지 않는다.
+   CLI 가 게이트 결과를 큐 엔트리에 함께 기록하고, governor 가 시드 직전에 그 값을
+   다시 확인한다(미통과·미기록이면 시드 거부).
 3. Report one-line "R-5 ENQUEUED — {name}, {n} symbols, queue depth {q}". tier-governor 리그(24석)가 매달 1일 3↑ 또는 공석 발생 시 즉시 시드하고, 이후 판정/강등도 governor가 자동 집행한다.
 4. **1군(live/real) 진입은 절대 금지** — tier-governor의 PROMOTE 통보 후 대표님 수동 승인 영역.
 
@@ -291,7 +309,7 @@ PM2 cron `paradigm-dispatch-daily` (Mint, 03:30 KST daily) runs
    (empty queue → SELF-RECOMMEND mode: architect proposes a novel hypothesis
    itself, non-OHLCV substrate preferred per Lesson #77)
 2. Invokes this agent headless (claude -p, long-lived token auth)
-3. R-4 PASS → tier_promotion_queue.json enqueue (2군 리그가 시드)
+3. G1+G2 게이트 PASS → tier3_gate.py --enqueue (2군 리그가 시드)
 4. PARADIGM_RESULT line → Telegram
 
 ## Self-evaluation gate (run before each promotion)

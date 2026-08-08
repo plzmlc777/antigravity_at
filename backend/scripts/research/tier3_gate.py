@@ -227,3 +227,117 @@ def render(r: GateResult) -> str:
     L.append(f"  최종: {'PASS → 2군 승격 큐 등록' if r.passed else 'FAIL'}")
     L.append(f"{'='*66}")
     return "\n".join(L)
+
+
+# ─────────────────────────────────────────────────────── CLI / enqueue ───
+# 판정과 큐 등록을 **코드 경로**로 강제한다. 에이전트가 "PASS" 라고 말하는 것에
+# 의존하면 2026-08-08 같은 일이 반복된다 — 그날 R-4 PASS 판정은 났지만 이식된
+# 스펙은 lookahead 로 성과의 95% 가 허수였다. 등록은 게이트를 통과한 경우에만,
+# 그리고 판정 결과 전체를 큐 엔트리에 박아 넣어 governor 가 시드 직전에 다시
+# 확인할 수 있게 한다.
+
+def _load_trades(path: str) -> list:
+    """[{"entry_ts","exit_ts","net_ret"}, ...] JSON → Trade 목록."""
+    import json as _json
+    raw = _json.loads(open(path).read())
+    rows = raw["trades"] if isinstance(raw, dict) and "trades" in raw else raw
+    out = []
+    for r in rows:
+        out.append(Trade(
+            entry_ts=datetime.fromisoformat(str(r["entry_ts"]).replace("Z", "")),
+            exit_ts=datetime.fromisoformat(str(r["exit_ts"]).replace("Z", "")),
+            net_ret=float(r["net_ret"]),
+        ))
+    return out
+
+
+def enqueue(entry: dict, queue_path: str) -> int:
+    """승격 큐에 등록. 게이트 결과가 없거나 미통과면 거부한다."""
+    import json as _json
+    import os as _os
+    gate = entry.get("gate") or {}
+    if not gate.get("passed"):
+        raise ValueError("게이트 미통과 항목은 큐에 등록할 수 없다")
+    for k in ("name", "spec", "paradigm", "symbol"):
+        if not entry.get(k):
+            raise ValueError(f"큐 엔트리에 '{k}' 가 없다")
+    if not _os.path.exists(_os.path.join(_os.path.dirname(_os.path.dirname(
+            _os.path.dirname(_os.path.abspath(__file__)))), entry["spec"])):
+        raise ValueError(f"spec 파일이 없다: {entry['spec']}")
+    data = {"queue": []}
+    if _os.path.exists(queue_path):
+        try:
+            data = _json.loads(open(queue_path).read()) or {"queue": []}
+        except Exception:
+            data = {"queue": []}
+    q = data.setdefault("queue", [])
+    if any(e.get("name") == entry["name"] for e in q):
+        return len(q)  # 멱등
+    entry.setdefault("enqueued_at", datetime.utcnow().isoformat(timespec="seconds"))
+    q.append(entry)
+    tmp = queue_path + ".tmp"
+    with open(tmp, "w") as f:
+        _json.dump(data, f, indent=2, ensure_ascii=False)
+    _os.replace(tmp, queue_path)
+    return len(q)
+
+
+def main() -> int:
+    import argparse
+    import json as _json
+    import os as _os
+
+    ap = argparse.ArgumentParser(description="3군 판정 게이트 (G1 시간가중 + G2 실행가능성)")
+    ap.add_argument("--trades", required=True, help="거래 JSON (entry_ts/exit_ts/net_ret)")
+    ap.add_argument("--label", default="")
+    # G2 입력 — 미지정은 UNKNOWN 으로 차단된다
+    ap.add_argument("--lookahead-clean", choices=["true", "false"])
+    ap.add_argument("--edge-after-1bar", type=float, help="1바 지연 후 거래당 엣지 (0.01=1%%)")
+    ap.add_argument("--friction", type=float, help="왕복 마찰 (0.0007=7bp)")
+    ap.add_argument("--hold-min", type=float, help="평균 보유(분)")
+    ap.add_argument("--cycle-min", type=float, help="실행 사이클 주기(분)")
+    ap.add_argument("--out", help="판정 결과 JSON 저장 경로")
+    # 통과 시 큐 등록
+    ap.add_argument("--enqueue", action="store_true")
+    ap.add_argument("--name")
+    ap.add_argument("--spec", help="backend 기준 상대경로")
+    ap.add_argument("--paradigm")
+    ap.add_argument("--symbol")
+    ap.add_argument("--queue", default="configs/tier_promotion_queue.json")
+    args = ap.parse_args()
+
+    ctx = ExecContext(
+        lookahead_clean=(None if args.lookahead_clean is None
+                         else args.lookahead_clean == "true"),
+        edge_after_1bar_delay=args.edge_after_1bar,
+        roundtrip_friction=args.friction,
+        hold_minutes=args.hold_min,
+        cycle_minutes=args.cycle_min,
+    )
+    r = evaluate(_load_trades(args.trades), ctx, label=args.label or args.name or "")
+    print(render(r))
+
+    payload = {"passed": r.passed, "blocked_by": r.blocked_by, **r.metrics}
+    if args.out:
+        _os.makedirs(_os.path.dirname(args.out) or ".", exist_ok=True)
+        with open(args.out, "w") as f:
+            _json.dump(payload, f, indent=2, ensure_ascii=False)
+        print(f"판정 저장: {args.out}")
+
+    if args.enqueue:
+        if not r.passed:
+            print("게이트 미통과 — 큐 등록하지 않는다.")
+            return 1
+        depth = enqueue({
+            "name": args.name, "spec": args.spec, "paradigm": args.paradigm,
+            "symbol": args.symbol,
+            "gate_score": r.metrics["G1"].get("wt_t") or 0.0,
+            "gate": payload,
+        }, args.queue)
+        print(f"승격 큐 등록 완료 — depth {depth}")
+    return 0 if r.passed else 1
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.exit(main())
