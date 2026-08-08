@@ -226,7 +226,17 @@ class BinanceAltVolumeBurstPosContinuationLongSource(SignalSource):
         # Map 1m trigger timestamps -> eval bar (asof backward).
         eval_sorted = pd.DatetimeIndex(eval_idx).sort_values()
         for ts, row in triggers.iterrows():
-            pos = eval_sorted.searchsorted(ts, side="right") - 1
+            # 트리거를 **포함하는** 봉이 아니라 **다음** 봉에 부착한다.
+            # 실행기는 봉 시가에 체결하므로(backtester `entry_price = o`,
+            # orchestrator `_open_short(..., bar["open"], ...)`), 트리거를 포함하는
+            # 봉에 부착하면 트리거보다 과거인 그 봉 시가에 체결된다 = lookahead.
+            # 2026-08-08 실측(FILUSDT 7/1~, 43건): 트리거의 67.4%가 봉 시작 이후에
+            # 발생하고 평균 1.47분 과거 가격에 체결됐다. 그 편향을 제거하면 거래당
+            # 엣지가 0.7203% → 0.0175%, 승률 88.4% → 41.9% 로 무너진다 — 즉 성과
+            # 전량이 이 한 줄에서 나왔다.
+            # 정확히는: ts 는 1m 봉의 open_time 이라 그 봉이 닫히는 ts+1m 이후에야
+            # 트리거를 알 수 있고, 체결 가능한 가장 이른 시점이 다음 eval 봉 시가다.
+            pos = eval_sorted.searchsorted(ts, side="right")
             if pos < 0 or pos >= len(eval_sorted):
                 continue
             bar_ts = eval_sorted[pos]
