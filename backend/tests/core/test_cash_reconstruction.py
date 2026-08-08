@@ -130,6 +130,38 @@ class TestNumericFallbackSemantics(unittest.TestCase):
         self.assertEqual(self._first_num(filled, requested), 0.0)  # 수정
 
 
+class TestExecutedPriceFallbackGate(unittest.TestCase):
+    """체결가 폴백은 '값이 없을 때'가 아니라 '유효하지 않을 때'만이어야 한다.
+
+    `res.get("price") or theoretical` 는 거래소가 avgPrice=0을 줄 때(주문이
+    아직 NEW) 조용히 이론가로 대체했다. 실계좌 39건 중 23건이 그렇게 System-2
+    바 종가로 기록됐고, 그 값이 손익 계산에 그대로 들어가 거래소 원장 대비
+    +0.71 USDT 오차를 만들었다. 대체 자체는 불가피하지만 **조용하면 안 된다**.
+    """
+
+    @staticmethod
+    def _resolve(fill_px, theoretical):
+        """live_context 의 판정 규칙."""
+        if fill_px is not None and float(fill_px) > 0:
+            return float(fill_px), None
+        return float(theoretical), "theoretical_fallback"
+
+    def test_valid_fill_price_wins(self):
+        px, src = self._resolve(0.253152, 0.253)
+        self.assertAlmostEqual(px, 0.253152, places=9)
+        self.assertIsNone(src)
+
+    def test_zero_fill_price_falls_back_and_is_marked(self):
+        px, src = self._resolve(0.0, 0.253)
+        self.assertAlmostEqual(px, 0.253, places=9)
+        self.assertEqual(src, "theoretical_fallback", "폴백은 흔적을 남겨야 한다")
+
+    def test_missing_fill_price_falls_back_and_is_marked(self):
+        px, src = self._resolve(None, 0.253)
+        self.assertAlmostEqual(px, 0.253, places=9)
+        self.assertEqual(src, "theoretical_fallback")
+
+
 class TestSpotUnaffected(unittest.TestCase):
     """현물은 전액 notional이 오가므로 체결가를 그대로 써야 한다 (진입가 환원 금지)."""
 

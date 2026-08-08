@@ -982,7 +982,23 @@ class LiveContext:
                         p.exchange_order_no = res.get("order_id")
                         # 시장가 주문은 Kiwoom이 체결가를 즉시 반환하지 않으므로 theoretical_price를 추정치로 사용
                         # WebSocket 체결 콜백에서 실제 체결가로 업데이트됨
-                        p.executed_price = res.get("price") or p.theoretical_price
+                        # 체결가를 못 받으면 이론가로 대체하되 **조용히 넘어가지 않는다**.
+                        # 이 `or` 폴백이 실계좌 39건 중 23건을 System-2 바 종가로
+                        # 기록시켰고(2026-08-08 확인), 그 값이 손익·현금 회계에
+                        # 그대로 들어가 거래소 원장 대비 +0.71 USDT 오차를 만들었다.
+                        # 폴백 행은 가격이 tick 배수로 딱 떨어져 육안으로도 구분된다.
+                        _fill_px = res.get("price")
+                        if _fill_px is not None and float(_fill_px) > 0:
+                            p.executed_price = float(_fill_px)
+                        else:
+                            p.executed_price = p.theoretical_price
+                            p.trade_metadata = {**(p.trade_metadata or {}),
+                                                "price_source": "theoretical_fallback"}
+                            logger.warning(
+                                f"{self.session_id}/{p.symbol}: 거래소가 체결가를 주지 않아 "
+                                f"이론가 {p.theoretical_price} 로 기록한다 — 손익이 부정확해진다"
+                            )
+                            self.log(f"WARN {p.symbol}: 체결가 미수신 → 이론가 기록")
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
 
                         # 선물 청산에서 반환할 증거금의 기준가. 진입 때 잠근 금액이

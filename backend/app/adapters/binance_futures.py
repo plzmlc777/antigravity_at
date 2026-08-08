@@ -241,13 +241,17 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
             result = await self._signed_post(f"{FAPI}/order", params)
             logger.info(f"Position closed: {symbol} {side} {adj_qty}")
 
+            px, qty_filled = await self._confirm_fill(
+                symbol, str(result.get("orderId", "")),
+                float(result.get("avgPrice", 0)),
+                float(result.get("executedQty", 0)))
             return {
                 "status": "success",
                 "order_id": str(result.get("orderId", "")),
                 "symbol": symbol,
                 "side": side.lower(),
-                "quantity": float(result.get("executedQty", adj_qty)),
-                "price": float(result.get("avgPrice", 0)),
+                "quantity": qty_filled or adj_qty,
+                "price": px,
             }
 
         except Exception as e:
@@ -336,6 +340,40 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
 
     # ── Internal Order Logic ──
 
+    async def _confirm_fill(self, symbol: str, order_id: str,
+                            avg_price: float, executed_qty: float) -> tuple:
+        """avgPrice가 0으로 온 주문의 실제 체결가·수량을 재조회로 확정한다.
+
+        newOrderRespType=RESULT를 줘도 MARKET 주문이 아직 NEW 상태면 응답의
+        avgPrice가 "0"으로 온다. 그 0을 그대로 올려보내면 상위(live_context)가
+        조용히 이론가로 대체해 손익·현금 회계가 어긋난다 — 실계좌 39건 중 23건이
+        이렇게 System-2 바 종가로 기록됐다(2026-08-08 확인). 여기서 확정해
+        내보내면 모든 호출자가 정확한 값을 받는다.
+
+        짧게 두 번만 재시도하고, 끝내 못 구하면 받은 값을 그대로 돌려준다
+        (상위에서 0을 보고 판단할 수 있게 — 조용한 대체는 하지 않는다).
+        """
+        if avg_price > 0 or not order_id:
+            return (avg_price, executed_qty)
+        for delay in (0.0, 0.3):
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                o = await self._signed_get(f"{FAPI}/order",
+                                           {"symbol": symbol, "orderId": order_id})
+                px = float(o.get("avgPrice") or 0)
+                qty = float(o.get("executedQty") or 0)
+                if px > 0:
+                    logger.info(f"{symbol} order {order_id}: avgPrice 재조회로 확정 "
+                                f"px={px} qty={qty} status={o.get('status')}")
+                    return (px, qty or executed_qty)
+            except Exception as e:
+                logger.warning(f"{symbol} order {order_id} 재조회 실패: {e}")
+                break
+        logger.error(f"{symbol} order {order_id}: 체결가를 확정하지 못했다 (avgPrice=0) "
+                     f"— 상위에서 이론가로 대체되면 손익이 부정확해진다")
+        return (avg_price, executed_qty)
+
     async def _place_order(self, symbol: str, side: str, price: float, quantity: float) -> Dict[str, Any]:
         """Place a futures order."""
         await self._ensure_time_sync()
@@ -366,6 +404,8 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
             avg_price = float(result.get("avgPrice", 0)) or float(result.get("price", 0))
             executed_qty = float(result.get("executedQty", 0))
             order_status = result.get("status", "NEW")
+            avg_price, executed_qty = await self._confirm_fill(
+                symbol, str(result.get("orderId", "")), avg_price, executed_qty)
 
             logger.info(f"Futures {side} {symbol}: qty={adj_qty}, price={avg_price:.2f}, status={order_status}")
 
