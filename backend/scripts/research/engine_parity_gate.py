@@ -10,18 +10,25 @@
       backtester : tp_price = action.tp_price or 0.0          → 익절 없음
       orchestrator: tp_price = action.tp_price or price*0.90  → 익절 10%
   같은 policy, 다른 실행기, 다른 전략. 실자금이 43일간 미검증 규칙으로 돌았다.
+  이 게이트는 그 뒤 bars_held off-by-one(Day-30 전략이 Day-31 청산)도 잡아냈다.
 
-이 게이트가 검사하는 것:
+무엇을 검사하나:
   **동일한 바 + 동일한 예측값**을 두 실행기에 넣었을 때 거래 시퀀스가 같은가.
-  source/composer/policy는 양쪽이 공유하므로 변수에서 제거되고, 순수하게
-  체결·포지션·브래킷 로직만 대조된다.
+  예측은 orchestrator를 먼저 돌려 그 세션이 실제로 쓴 값을 뽑아 backtester에
+  주입한다 — 각자 fit/predict하게 두면 ML 컴포저에서 예측 자체가 갈려
+  실행기 결함과 구분되지 않는다. 이렇게 하면 source/composer/policy가 변수에서
+  빠지고 체결·포지션·브래킷 로직만 남는다.
+
+  런타임 데이터는 운영과 같은 `build_runtime_bundle`로 만든다. 게이트가
+  실제로 도는 것과 다른 데이터를 쓰면 검사 의미가 없다.
 
 사용:
+  python -m scripts.research.engine_parity_gate --all-lifecycle
+  python -m scripts.research.engine_parity_gate --all-sessions        # 전 스펙
   python -m scripts.research.engine_parity_gate --session <session_id>
-  python -m scripts.research.engine_parity_gate --spec <spec.json> --symbol GRVTUSDT
-  python -m scripts.research.engine_parity_gate --all-lifecycle      # 회귀 스위트
 
 종료코드 0 = 일치, 1 = 불일치(게이트 실패). CI/배포 전 훅으로 쓸 것.
+SKIP 사유는 전부 출력한다 — 조용히 건너뛰면 "전부 통과"로 오독된다.
 """
 from __future__ import annotations
 
@@ -30,101 +37,53 @@ import json
 import logging
 import sys
 import tempfile
+from collections import Counter
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
-from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[2]
 if not (ROOT / "app").exists():
     ROOT = Path("/home/mint/auto_trading/backend")
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from app.composer_framework import build_pipeline  # noqa: E402
 from app.composer_framework.backtester import GenericBacktester  # noqa: E402
-from app.composer_framework.orchestrator import PaperOrchestrator, RuntimeBundle  # noqa: E402
+from app.composer_framework.orchestrator import PaperOrchestrator  # noqa: E402
 from app.composer_framework.paper_session import PaperSession, SessionStore  # noqa: E402
 from app.composer_framework.signal_source import SourceContext  # noqa: E402
-from app.db.session import SessionLocal  # noqa: E402
+
+from paper_session_cli import build_runtime_bundle  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("engine_parity")
-logging.getLogger("app.composer_framework.orchestrator").setLevel(logging.ERROR)
+for noisy in ("app.composer_framework.orchestrator", "paper_session_cli",
+              "app.microstructure.kr_investor_flow"):
+    logging.getLogger(noisy).setLevel(logging.ERROR)
 
 STORE_ROOT = ROOT / "runs" / "paper_sessions"
-
-# 비교 필드. qty/cash는 initial_capital 스케일이 달라질 수 있어 제외하고,
-# 전략 동일성을 결정하는 값만 본다.
-TRADE_KEYS = ("entry_ts", "exit_ts", "side", "entry_price", "exit_price",
-              "return_pct", "exit_reason")
-PRICE_TOL = 1e-9
-RET_TOL = 1e-9
-
-
-def load_ohlcv(db, symbol: str, eval_freq_minutes: int):
-    rows = db.execute(text(
-        "SELECT timestamp, open, high, low, close, volume FROM ohlcv "
-        "WHERE symbol=:s AND time_frame='1m' ORDER BY timestamp"
-    ), {"s": symbol}).fetchall()
-    if not rows:
-        return None, None
-    df = pd.DataFrame(rows, columns=["timestamp", "open", "high", "low", "close", "volume"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.set_index("timestamp").sort_index()
-    for c in ["open", "high", "low", "close", "volume"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    rule = f"{eval_freq_minutes}min"
-    ev = pd.DataFrame({
-        "open": df["open"].resample(rule).first(),
-        "high": df["high"].resample(rule).max(),
-        "low": df["low"].resample(rule).min(),
-        "close": df["close"].resample(rule).last(),
-        "volume": df["volume"].resample(rule).sum(),
-    }).dropna()
-    return df, ev
 
 
 def _norm(t: dict) -> tuple:
     return (
         str(pd.Timestamp(t["entry_ts"])), str(pd.Timestamp(t["exit_ts"])), t["side"],
-        round(float(t["entry_price"]), 12), round(float(t["exit_price"]), 12),
-        round(float(t["return_pct"]), 12), t["exit_reason"],
+        round(float(t["entry_price"]), 10), round(float(t["exit_price"]), 10),
+        round(float(t["return_pct"]), 10), t["exit_reason"],
     )
 
 
 def compare(spec: dict, symbol: str, initial_capital: float, fee_rate: float) -> dict:
     eval_freq = int(spec.get("config", {}).get("eval_freq_minutes", 1440))
-    db = SessionLocal()
+    sources_used = [s.get("type") for s in (spec.get("sources") or [])]
     try:
-        df_1m, df_eval = load_ohlcv(db, symbol, eval_freq)
-    finally:
-        db.close()
+        bundle = build_runtime_bundle(symbol, eval_freq, sources_used)
+    except Exception as exc:
+        return {"skipped": f"런타임 데이터 구성 실패: {type(exc).__name__}: {exc}"}
+    df_eval = bundle.ohlcv_eval
     if df_eval is None or len(df_eval) < 5:
-        return {"symbol": symbol, "skipped": "ohlcv 부족"}
-
-    runtime = {"symbol": symbol, "ohlcv_1m": df_1m, "ohlcv_eval": df_eval}
-    ctx = SourceContext(symbol=symbol, eval_freq_minutes=eval_freq,
-                        ohlcv_1m=df_1m, ohlcv_eval=df_eval)
-
-    # ── 공통: 피처 + 예측을 한 번만 만들어 두 실행기에 동일하게 투입 ──
-    pipeline = build_pipeline(spec, runtime)
-    feat = pipeline.build_features(ctx)
-    try:
-        pipeline.fit(feat.iloc[:0])
-    except Exception:
-        pass
-    positions = list(range(1, len(df_eval)))   # orchestrator가 replay할 구간과 동일
-    preds = pd.Series(pipeline.predict(feat.iloc[positions]), index=df_eval.index[positions])
-    bars = df_eval.iloc[positions]
-
-    # ── Engine A: backtester ──
-    bt = GenericBacktester(initial_capital=initial_capital, size_pct=0.95, fee_rate=fee_rate)
-    kpis = bt._simulate(symbol=symbol, bars=bars, predictions=preds, policy=pipeline.policy)
-    a_trades = [{
-        "entry_ts": t.entry_ts, "exit_ts": t.exit_ts, "side": t.side,
-        "entry_price": t.entry_price, "exit_price": t.exit_price,
-        "return_pct": t.return_pct, "exit_reason": t.exit_reason,
-    } for t in kpis.trades]
+        return {"skipped": "eval 바 부족"}
 
     # ── Engine B: orchestrator (전 구간 catch-up replay) ──
     with tempfile.TemporaryDirectory() as td:
@@ -135,45 +94,84 @@ def compare(spec: dict, symbol: str, initial_capital: float, fee_rate: float) ->
             last_cycle_ts=pd.Timestamp(df_eval.index[0]).isoformat(),
         )
         store.save(sess)
-        PaperOrchestrator(store).run_cycle(sess, RuntimeBundle(ohlcv_1m=df_1m, ohlcv_eval=df_eval))
+        try:
+            PaperOrchestrator(store).run_cycle(sess, bundle)
+        except Exception as exc:
+            return {"skipped": f"orchestrator 실행 실패: {type(exc).__name__}: {exc}"}
         b_trades = store.read_trades("parity")
+        cyc_path = Path(td) / "parity" / "predictions.jsonl"
+        cycles = [json.loads(l) for l in cyc_path.read_text().splitlines()] if cyc_path.exists() else []
 
-    # backtester는 데이터 끝에서 잔여 포지션을 강제 청산해 `eod` 거래로 남긴다.
-    # orchestrator는 라이브 세션이라 열어 둔다 — 정당한 설계 차이이므로 비교에서 제외.
+    # orchestrator가 실제로 쓴 예측을 뽑아 backtester에 그대로 주입
+    pairs = [(pd.Timestamp(c["timestamp"]), c.get("prediction"))
+             for c in cycles if c.get("prediction") is not None
+             and not (isinstance(c["prediction"], float) and np.isnan(c["prediction"]))]
+    if len(pairs) < 2:
+        reason = cycles[0].get("action_note") if cycles else "사이클 없음"
+        return {"skipped": f"유효 예측 부족 ({reason})"}
+    idx = [t for t, _ in pairs]
+    preds = pd.Series([v for _, v in pairs], index=pd.DatetimeIndex(idx))
+    try:
+        bars = df_eval.loc[preds.index]
+    except KeyError:
+        return {"skipped": "예측 타임스탬프가 바 인덱스와 불일치"}
+
+    # ── Engine A: backtester (동일 바 + 동일 예측) ──
+    # runtime_data는 orchestrator.run_cycle이 조립하는 것과 **동일하게** 채운다.
+    # 일부만 넘기면 소스가 KeyError를 내고 케이스가 통째로 SKIP된다 — 검사하지
+    # 못한 것을 통과로 오독하게 만드는, 게이트 자신의 사각지대였다.
+    runtime_data = {"symbol": symbol, "ohlcv_1m": bundle.ohlcv_1m, "ohlcv_eval": df_eval}
+    for fld in ("signals_df", "flow_df", "binance_metrics_5m", "binance_funding_df",
+                "binance_oi_df", "binance_funding_universe_df", "leader_ohlcv_eval",
+                "leader_ohlcv_1m", "book_depth_daily", "premium_df", "eth_ohlcv_eval"):
+        v = getattr(bundle, fld, None)
+        if v is not None:
+            runtime_data[fld] = v
+    pipeline = build_pipeline(spec, runtime_data)
+    bt = GenericBacktester(initial_capital=initial_capital, size_pct=0.95, fee_rate=fee_rate)
+    try:
+        kpis = bt._simulate(symbol=symbol, bars=bars, predictions=preds, policy=pipeline.policy)
+    except Exception as exc:
+        return {"skipped": f"backtester 실행 실패: {type(exc).__name__}: {exc}"}
+    a_trades = [{"entry_ts": t.entry_ts, "exit_ts": t.exit_ts, "side": t.side,
+                 "entry_price": t.entry_price, "exit_price": t.exit_price,
+                 "return_pct": t.return_pct, "exit_reason": t.exit_reason}
+                for t in kpis.trades]
+
+    # backtester는 데이터 끝에서 잔여 포지션을 강제청산해 `eod` 거래로 남긴다.
+    # orchestrator는 라이브 세션이라 열어 둔다 — 정당한 설계 차이이므로 제외.
     a_norm = [_norm(t) for t in a_trades if t["exit_reason"] != "eod"]
     b_norm = [_norm(t) for t in b_trades if t["exit_reason"] != "eod"]
-    match = a_norm == b_norm
-
     diffs = []
     for i in range(max(len(a_norm), len(b_norm))):
         x = a_norm[i] if i < len(a_norm) else None
         y = b_norm[i] if i < len(b_norm) else None
         if x != y:
             diffs.append({"idx": i, "backtester": x, "orchestrator": y})
-    return {
-        "symbol": symbol, "match": match,
-        "n_backtester": len(a_norm), "n_orchestrator": len(b_norm),
-        "n_bars": len(bars), "diffs": diffs[:6],
-    }
+    return {"match": a_norm == b_norm, "n_backtester": len(a_norm),
+            "n_orchestrator": len(b_norm), "n_bars": len(bars), "diffs": diffs[:4]}
 
 
-def lifecycle_specs(limit: int | None) -> list[tuple[str, dict, float, float]]:
-    """활성 lifecycle 세션에서 (symbol, spec, capital, fee) 추출. 심볼×스펙 중복 제거."""
+def collect(only_lifecycle: bool, limit: int | None):
+    """세션 스펙 수집. (symbol, spec) 중복 제거."""
     out, seen = [], set()
     for p in sorted(STORE_ROOT.glob("*/session.json")):
         try:
             s = json.loads(p.read_text())
         except Exception:
             continue
-        if "lifecycle" not in (s.get("name") or ""):
+        if only_lifecycle and "lifecycle" not in (s.get("name") or ""):
             continue
         spec = s.get("pipeline_spec") or {}
+        if not spec:
+            continue
         key = (s["symbol"], json.dumps(spec, sort_keys=True))
         if key in seen:
             continue
         seen.add(key)
         out.append((s["symbol"], spec, float(s.get("initial_capital") or 1e6),
-                    float(s.get("fee_rate") or 0.0004)))
+                    float(s.get("fee_rate") or 0.0004),
+                    (spec.get("policy") or {}).get("type", "?")))
         if limit and len(out) >= limit:
             break
     return out
@@ -182,52 +180,55 @@ def lifecycle_specs(limit: int | None) -> list[tuple[str, dict, float, float]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--session")
-    ap.add_argument("--spec")
-    ap.add_argument("--symbol")
     ap.add_argument("--all-lifecycle", action="store_true")
-    ap.add_argument("--limit", type=int, default=12)
+    ap.add_argument("--all-sessions", action="store_true")
+    ap.add_argument("--limit", type=int)
     args = ap.parse_args()
 
-    cases: list[tuple[str, dict, float, float]] = []
-    if args.all_lifecycle:
-        cases = lifecycle_specs(args.limit)
-    elif args.session:
+    if args.session:
         s = json.loads((STORE_ROOT / args.session / "session.json").read_text())
         cases = [(s["symbol"], s["pipeline_spec"], float(s.get("initial_capital") or 1e6),
-                  float(s.get("fee_rate") or 0.0004))]
-    elif args.spec and args.symbol:
-        cases = [(args.symbol, json.loads(Path(args.spec).read_text()), 1e6, 0.0004)]
+                  float(s.get("fee_rate") or 0.0004),
+                  (s["pipeline_spec"].get("policy") or {}).get("type", "?"))]
+    elif args.all_lifecycle or args.all_sessions:
+        cases = collect(only_lifecycle=args.all_lifecycle, limit=args.limit)
     else:
-        ap.error("--session / --spec+--symbol / --all-lifecycle 중 하나 필요")
+        ap.error("--session / --all-lifecycle / --all-sessions 중 하나 필요")
 
     log.info("정합성 게이트: %d 케이스", len(cases))
-    failed, skipped = [], []
-    for symbol, spec, cap, fee in cases:
+    failed, skipped, passed = [], [], 0
+    pol_pass, pol_fail = Counter(), Counter()
+    for symbol, spec, cap, fee, pol in cases:
         try:
             r = compare(spec, symbol, cap, fee)
         except Exception as exc:
-            log.error("%-13s 실행 오류: %s", symbol, exc)
-            failed.append({"symbol": symbol, "error": str(exc)})
-            continue
+            r = {"skipped": f"예외: {type(exc).__name__}: {exc}"}
         if r.get("skipped"):
-            log.info("%-13s SKIP (%s)", symbol, r["skipped"])
-            skipped.append(r)
+            log.info("%-13s %-26s SKIP — %s", symbol, pol, r["skipped"])
+            skipped.append((symbol, pol, r["skipped"]))
             continue
-        tag = "PASS" if r["match"] else "FAIL"
-        log.info("%-13s %s  거래 bt=%d orch=%d  (바 %d)",
-                 symbol, tag, r["n_backtester"], r["n_orchestrator"], r["n_bars"])
-        if not r["match"]:
-            failed.append(r)
+        if r["match"]:
+            passed += 1
+            pol_pass[pol] += 1
+            log.info("%-13s %-26s PASS  거래 %d (바 %d)", symbol, pol, r["n_backtester"], r["n_bars"])
+        else:
+            failed.append((symbol, pol, r))
+            pol_fail[pol] += 1
+            log.error("%-13s %-26s FAIL  bt=%d orch=%d (바 %d)",
+                      symbol, pol, r["n_backtester"], r["n_orchestrator"], r["n_bars"])
             for d in r["diffs"]:
-                log.info("      #%d bt=%s", d["idx"], d["backtester"])
-                log.info("         orch=%s", d["orchestrator"])
+                log.error("      #%d bt  =%s", d["idx"], d["backtester"])
+                log.error("         orch=%s", d["orchestrator"])
 
-    n_run = len(cases) - len(skipped)
-    if failed:
-        log.error("게이트 실패: %d/%d 케이스 불일치", len(failed), n_run)
-        return 1
-    log.info("게이트 통과: %d/%d 케이스 일치", n_run, n_run)
-    return 0
+    print()
+    log.info("결과: PASS %d / FAIL %d / SKIP %d (총 %d)",
+             passed, len(failed), len(skipped), len(cases))
+    log.info("폴리시별 PASS: %s", dict(pol_pass))
+    if pol_fail:
+        log.error("폴리시별 FAIL: %s", dict(pol_fail))
+    if skipped:
+        log.info("SKIP 사유 분포: %s", dict(Counter(s[2].split(":")[0] for s in skipped)))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
