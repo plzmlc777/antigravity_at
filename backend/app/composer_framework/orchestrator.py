@@ -270,16 +270,19 @@ class PaperOrchestrator:
     def _check_forced_exit(self, session: PaperSession, bar: pd.Series) -> Optional[dict]:
         if session.side == "flat":
             return None
+        # A bracket price of 0.0 means "disabled" — never treat it as a level,
+        # or `high >= 0` / `low <= 0` would fire an instant bogus exit at price 0.
+        sl, tp = session.sl_price, session.tp_price
         if session.side == "long":
-            if float(bar["low"]) <= session.sl_price:
-                return {"price": session.sl_price, "reason": "sl"}
-            if float(bar["high"]) >= session.tp_price:
-                return {"price": session.tp_price, "reason": "tp"}
+            if sl > 0 and float(bar["low"]) <= sl:
+                return {"price": sl, "reason": "sl"}
+            if tp > 0 and float(bar["high"]) >= tp:
+                return {"price": tp, "reason": "tp"}
         else:  # short
-            if float(bar["high"]) >= session.sl_price:
-                return {"price": session.sl_price, "reason": "sl"}
-            if float(bar["low"]) <= session.tp_price:
-                return {"price": session.tp_price, "reason": "tp"}
+            if sl > 0 and float(bar["high"]) >= sl:
+                return {"price": sl, "reason": "sl"}
+            if tp > 0 and float(bar["low"]) <= tp:
+                return {"price": tp, "reason": "tp"}
         return None
 
     def _open_long(self, session: PaperSession, price: float, ts: pd.Timestamp,
@@ -294,8 +297,14 @@ class PaperOrchestrator:
         session.side = "long"
         session.entry_price = price
         session.entry_ts = pd.Timestamp(ts).isoformat()
-        session.sl_price = action.sl_price or price * 0.96
-        session.tp_price = action.tp_price or price * 1.10
+        # None = policy left the bracket unset → apply the generic default.
+        # 0.0 = policy explicitly disabled that bracket (e.g. lifecycle_decay
+        # with tp_pct>=1.0 returns tp_price=0.0 meaning "no take-profit").
+        # `or` conflated the two and silently armed a 10% TP the strategy never
+        # declared, diverging System-2 forward sessions from the R-3 validated
+        # SL-only design (incident 2026-08-08, GRVTUSDT).
+        session.sl_price = price * 0.96 if action.sl_price is None else float(action.sl_price)
+        session.tp_price = price * 1.10 if action.tp_price is None else float(action.tp_price)
         session.bars_held = 0
 
     def _open_short(self, session: PaperSession, price: float, ts: pd.Timestamp,
@@ -308,8 +317,9 @@ class PaperOrchestrator:
         session.side = "short"
         session.entry_price = price
         session.entry_ts = pd.Timestamp(ts).isoformat()
-        session.sl_price = action.sl_price or price * 1.04
-        session.tp_price = action.tp_price or price * 0.90
+        # See _open_long: None = unset (use default), 0.0 = explicitly disabled.
+        session.sl_price = price * 1.04 if action.sl_price is None else float(action.sl_price)
+        session.tp_price = price * 0.90 if action.tp_price is None else float(action.tp_price)
         session.bars_held = 0
 
     def _close_position(self, session: PaperSession, exit_price: float,

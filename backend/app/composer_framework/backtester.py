@@ -183,15 +183,17 @@ class GenericBacktester:
             # 1) Forced exits (SL/TP intrabar) — checked BEFORE policy.decide for fairness
             forced_exit_reason: Optional[str] = None
             forced_exit_price: Optional[float] = None
+            # 0.0 = bracket disabled (policy returned None/0) — must not be read
+            # as a level, else `h >= 0` / `l <= 0` fires an instant exit at 0.
             if side == "long":
-                if l <= sl_price:
+                if sl_price > 0 and l <= sl_price:
                     forced_exit_reason, forced_exit_price = "sl", sl_price
-                elif h >= tp_price:
+                elif tp_price > 0 and h >= tp_price:
                     forced_exit_reason, forced_exit_price = "tp", tp_price
             elif side == "short":
-                if h >= sl_price:
+                if sl_price > 0 and h >= sl_price:
                     forced_exit_reason, forced_exit_price = "sl", sl_price
-                elif l <= tp_price:
+                elif tp_price > 0 and l <= tp_price:
                     forced_exit_reason, forced_exit_price = "tp", tp_price
 
             # 2) Policy decision (sees current bar)
