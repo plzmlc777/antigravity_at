@@ -403,6 +403,26 @@ def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optiona
         )
         db.add(row)
         db.commit()
+
+        # current_capital 재동기화. 엔진은 체결마다 이 값을 갱신하지만
+        # (live_context.py, `initial + Σrealized_pnl`) 이 경로는 엔진을 우회하므로
+        # 갱신이 돌지 않아 세션 수익이 영구히 과소 표시된다 — 2026-08-08 확인 시
+        # 실계좌 11개 세션 합계 137 USDT가 어긋나 있었다.
+        try:
+            from app.models.live_trading import LiveBotSession
+            from sqlalchemy import func as _func
+            sess_row = db.query(LiveBotSession).filter(LiveBotSession.id == session_id).first()
+            if sess_row:
+                total = db.query(_func.coalesce(_func.sum(LiveTradeExecution.realized_pnl), 0)).filter(
+                    LiveTradeExecution.session_id == session_id,
+                    LiveTradeExecution.status == "FILLED",
+                ).scalar() or 0
+                sess_row.current_capital = float(sess_row.initial_capital or 0) + float(total)
+                db.commit()
+                log.info("[DIRECT-CLOSE] %s current_capital → %.2f", session_id, sess_row.current_capital)
+        except Exception as cap_err:
+            log.error("current_capital 재동기화 실패 (%s): %s", session_id, cap_err)
+
         log.info("[DIRECT-CLOSE] real %s closed on exchange qty=%.6f realized=%.2f (recorded)",
                  symbol, fqty, realized)
         return realized
