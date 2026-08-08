@@ -63,6 +63,31 @@ SIGNAL_SOURCE = "skill:lifecycle_decay_d14"
 MIN_REAL_NOTIONAL = 5.0  # Binance Futures min notional (~$5); skip below this
 REAL_MARGIN_FRACTION = 0.97  # deploy 97% of available margin (3% buffer: taker fee + price drift between size-time and fill)
 
+# Per-symbol margin cap, as a fraction of TOTAL WALLET BALANCE (not available
+# margin — available shrinks as positions open, so capping off it lets the first
+# entry take everything and starve every later listing).
+#
+# Why: full-compound sizing put 86% of the account into a single name
+# (GRVTUSDT 2026-08-02, 654 of 758 USDT) and drove availableBalance to 0, so no
+# new listing could be entered for the rest of that position's 30-day hold. The
+# paradigm's edge is diversification across many Day-1 listings — R-3 measures
+# it per-listing on a 129-symbol cohort — and a single-name all-in throws that
+# away while adding a fat left tail.
+#
+# Value from notional_cap_portfolio_sim.py (129-listing calendar, 1x, SL 50%,
+# 30d hold, $593 seed). Return is NOT usable for choosing the cap — the best
+# cap by return flips between 100% / 30% / 25% across time splits (single path,
+# heavy overlap). These three axes are monotone in every split:
+#   cap    포착률   MDD      최악 단일거래
+#   100%    27.9%  -66.1%   -372.50   ← 129개 중 93개를 자본이 없어 못 잡음
+#    30%    48.8%  -52.8%    -89.16
+#    20%    60.5%  -37.7%    -73.67   ← MDD 플래토 진입점
+#    15%    68.2%  -36.4%    -61.91
+#    10%    82.9%  -41.0%    -33.82   ← MDD 다시 악화
+# 15~20%가 MDD 플래토다. R-3 방법론(단일 최적 대신 플래토 채택)을 따라 20%.
+# 잔여 -37.7% MDD는 상한으로 못 없앤다 — 패러다임 고유의 두꺼운 왼쪽 꼬리다.
+REAL_MAX_SYMBOL_FRACTION = 0.20
+
 # Hard final-exit after the lifecycle hold window. The decay source oscillates
 # short↔flat every bar (vol_cliff early-exit fires then re-enters); the daily
 # reconcile only sees the LAST bar, so a position whose last bar is short reads
@@ -110,6 +135,41 @@ def _real_available_usdt(account_id: int) -> float:
         return float((bal or {}).get("cash", {}).get("USDT", 0.0))
     except Exception as exc:
         log.error("REAL balance query failed for account %s: %s", account_id, exc)
+        return 0.0
+    finally:
+        db.close()
+
+
+def _real_equity_usdt(account_id: int) -> float:
+    """Total wallet balance (USD) for a real futures account.
+
+    This is the base for REAL_MAX_SYMBOL_FRACTION. get_balance() only surfaces
+    availableBalance, which drops toward 0 as positions open — useless as a cap
+    denominator. Reads totalWalletBalance off /fapi/v2/account directly.
+    Returns 0.0 on any failure so the caller can fall back to the uncapped path.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.models.account import ExchangeAccount
+        from app.api.endpoints import create_adapter_from_account
+    except Exception as exc:
+        log.error("REAL equity import failed (%s)", exc)
+        return 0.0
+    db = SessionLocal()
+    try:
+        acc = db.query(ExchangeAccount).filter(ExchangeAccount.id == int(account_id)).first()
+        if not acc:
+            log.error("REAL account_id=%s not found", account_id)
+            return 0.0
+        adapter = create_adapter_from_account(acc)
+        if not hasattr(adapter, "_signed_get"):
+            log.warning("adapter for account %s exposes no _signed_get — equity unavailable", account_id)
+            return 0.0
+        _run_async(adapter._ensure_time_sync())
+        data = _run_async(adapter._signed_get("/fapi/v2/account"))
+        return float((data or {}).get("totalWalletBalance") or 0.0)
+    except Exception as exc:
+        log.error("REAL equity query failed for account %s: %s", account_id, exc)
         return 0.0
     finally:
         db.close()
@@ -399,6 +459,7 @@ def run(args) -> int:
     # Fetched once per account per run; decremented as we fund REAL shorts so
     # concurrent entries in one cycle don't over-allocate the shared pool.
     real_budget: dict[int, float] = {}
+    real_equity: dict[int, float] = {}  # totalWalletBalance — cap denominator
 
     n_actions = 0
     for s2_id, link in links.items():
@@ -471,7 +532,9 @@ def run(args) -> int:
                         continue
                     if acc_id not in real_budget:
                         real_budget[acc_id] = _real_available_usdt(int(acc_id))
-                        log.info("REAL account %s available margin: %.2f USDT", acc_id, real_budget[acc_id])
+                        real_equity[acc_id] = _real_equity_usdt(int(acc_id))
+                        log.info("REAL account %s: available %.2f / wallet %.2f USDT",
+                                 acc_id, real_budget[acc_id], real_equity[acc_id])
                     avail = real_budget[acc_id]
                     if avail < MIN_REAL_NOTIONAL:
                         log.info("%s real (%s): available %.2f < min %.2f — skip, retry next cycle",
@@ -480,6 +543,24 @@ def run(args) -> int:
                     # max purchasable on LIVE mark price: deploy (almost all) margin × lev.
                     # 3% buffer absorbs taker fee + ms-scale fill drift from mark.
                     margin_used = avail * REAL_MARGIN_FRACTION
+                    # Per-symbol cap off total wallet balance. equity 0.0 means the
+                    # query failed — fall back to uncapped rather than sizing to 0.
+                    equity = real_equity.get(acc_id, 0.0)
+                    if equity > 0:
+                        cap = equity * REAL_MAX_SYMBOL_FRACTION
+                        if margin_used > cap:
+                            log.info("%s real (%s): margin %.2f capped to %.2f "
+                                     "(%.0f%% of wallet %.2f)",
+                                     s2_id, symbol, margin_used, cap,
+                                     REAL_MAX_SYMBOL_FRACTION * 100, equity)
+                            margin_used = cap
+                    else:
+                        log.warning("%s real (%s): wallet balance unavailable — "
+                                    "per-symbol cap NOT applied", s2_id, symbol)
+                    if margin_used < MIN_REAL_NOTIONAL:
+                        log.info("%s real (%s): capped margin %.2f < min %.2f — skip",
+                                 s2_id, symbol, margin_used, MIN_REAL_NOTIONAL)
+                        continue
                     qty = (margin_used * lev) / mark_price
                 else:  # paper: fixed notional from link
                     qty = (notional / ref_price) if ref_price > 0 else 0.0
