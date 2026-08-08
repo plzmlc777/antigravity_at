@@ -378,6 +378,9 @@ def _real_direct_close(account_id: int, symbol: str, session_id: str) -> Optiona
         # 가격을 비워 보내는 경우가 있고, income은 몇 초 늦어 0이 잡힌다.
         fill_px, fill_realized, fill_qty = _real_close_fills(adapter, symbol, close_started_ms)
         exec_price = float(res.get("price") or 0.0) or fill_px
+        # or-audit: safe — 다단 폴백의 최종값이 거래소에서 직접 읽은 포지션
+        # 수량(abs(qty))이다. close_position 이 success 를 반환한 뒤이고 그
+        # 수량만큼 청산된 것이 확정이므로, 지어낸 값이 아니다.
         fqty = float(res.get("quantity") or 0.0) or fill_qty or abs(qty)
         realized = fill_realized if fill_qty > 0 else _real_realized_since(adapter, symbol)
         if exec_price <= 0:

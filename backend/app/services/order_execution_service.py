@@ -96,6 +96,8 @@ class OrderExecutionService:
                     symbol=symbol,
                     side=side,
                     quantity=quantity,
+                    # or-audit: safe — 여기서 0은 '이론가 미제공'(시장가 주문)이지
+                    # '가격이 0원'이 아니다. 기록용 필드이고 손익 계산에 쓰이지 않는다.
                     theoretical_price=theoretical_price or price,
                     is_paper=is_paper,
                     metadata=metadata,
@@ -108,6 +110,7 @@ class OrderExecutionService:
                 result = {
                     "status": "success",
                     "order_id": f"PAPER-{datetime.now().strftime('%H%M%S')}",
+                    # or-audit: safe — 위와 동일 (페이퍼 시뮬 응답의 표시 가격)
                     "price": theoretical_price or price,
                     "quantity": quantity,
                     "message": "Paper Execution (Simulated)"
@@ -226,7 +229,18 @@ class OrderExecutionService:
             execution.order_submitted_at = datetime.now()
             execution.order_filled_at = datetime.now()
             execution.exchange_order_no = result.get("order_id")
-            execution.executed_price = result.get("price") or theoretical_price
+            # `result.get("price") or theoretical_price` 였다. 거래소가 체결가를
+            # 0으로 주면(주문이 아직 NEW) 조용히 이론가로 대체돼 손익·현금 회계가
+            # 원장과 어긋난다 — 2026-08-08 실계좌 23건이 이 유형이었다.
+            from app.core.position_math import resolve_fill_price
+            execution.executed_price, _fellback = resolve_fill_price(
+                result.get("price"), theoretical_price)
+            if _fellback:
+                execution.trade_metadata = {**(execution.trade_metadata or {}),
+                                            "price_source": "theoretical_fallback"}
+                logger.warning(
+                    f"{symbol}: 거래소가 체결가를 주지 않아 이론가 {theoretical_price} 로 "
+                    f"기록한다 — 손익이 부정확해진다")
             execution.filled_quantity = result.get("quantity", execution.requested_quantity)
 
             # Calculate slippage if we have theoretical price

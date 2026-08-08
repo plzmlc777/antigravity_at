@@ -141,10 +141,11 @@ class TestExecutedPriceFallbackGate(unittest.TestCase):
 
     @staticmethod
     def _resolve(fill_px, theoretical):
-        """live_context 의 판정 규칙."""
-        if fill_px is not None and float(fill_px) > 0:
-            return float(fill_px), None
-        return float(theoretical), "theoretical_fallback"
+        """실제 공용 헬퍼를 그대로 검증한다 (규칙 복제 금지 — 복제하면
+        구현이 바뀌어도 테스트가 통과해 버린다)."""
+        from app.core.position_math import resolve_fill_price
+        px, fellback = resolve_fill_price(fill_px, theoretical)
+        return px, ("theoretical_fallback" if fellback else None)
 
     def test_valid_fill_price_wins(self):
         px, src = self._resolve(0.253152, 0.253)

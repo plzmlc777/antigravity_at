@@ -858,7 +858,12 @@ class LiveContext:
             bal = await self.adapter.get_balance()
             if bal:
                 cash_dict = bal.get('cash', {})
-                fetched_cash = cash_dict.get('USDT') or cash_dict.get('KRW', 0)
+                # USDT 잔고가 정확히 0인 것과 USDT 계좌가 아닌 것은 다르다.
+                # `or` 로 쓰면 잔고 0인 선물계좌가 KRW 분기로 넘어간다 —
+                # 2026-08-08 GRVT 진입 직후 availableBalance 가 실제로 0.00 이었다.
+                # 결과값은 어차피 0이라 사고로 이어지진 않았지만 판정이 틀렸다.
+                fetched_cash = (cash_dict['USDT'] if 'USDT' in cash_dict
+                                else cash_dict.get('KRW', 0))
 
                 if self.initial_capital > 0:
                     # Session has allocated capital (parallel mode) — track cash internally.
@@ -987,11 +992,10 @@ class LiveContext:
                         # 기록시켰고(2026-08-08 확인), 그 값이 손익·현금 회계에
                         # 그대로 들어가 거래소 원장 대비 +0.71 USDT 오차를 만들었다.
                         # 폴백 행은 가격이 tick 배수로 딱 떨어져 육안으로도 구분된다.
-                        _fill_px = res.get("price")
-                        if _fill_px is not None and float(_fill_px) > 0:
-                            p.executed_price = float(_fill_px)
-                        else:
-                            p.executed_price = p.theoretical_price
+                        from .position_math import resolve_fill_price
+                        p.executed_price, _fellback = resolve_fill_price(
+                            res.get("price"), p.theoretical_price)
+                        if _fellback:
                             p.trade_metadata = {**(p.trade_metadata or {}),
                                                 "price_source": "theoretical_fallback"}
                             logger.warning(
@@ -1223,7 +1227,15 @@ class LiveContext:
                                     if ex["filled_qty"] > 0:
                                         p.status = ExecutionStatus.FILLED
                                         p.order_filled_at = self.get_time()
-                                        p.executed_price = ex["filled_price"] or p.theoretical_price
+                                        from .position_math import resolve_fill_price
+                                        p.executed_price, _fb = resolve_fill_price(
+                                            ex["filled_price"], p.theoretical_price)
+                                        if _fb:
+                                            p.trade_metadata = {**(p.trade_metadata or {}),
+                                                                "price_source": "theoretical_fallback"}
+                                            logger.warning(
+                                                f"{self.session_id}/{p.symbol}: ka10076 체결가가 비어 "
+                                                f"이론가로 기록한다 — 손익이 부정확해진다")
                                         p.filled_quantity = ex["filled_qty"]
                                         p.fees = ex.get("commission", 0) + ex.get("tax", 0)
                                         fill_verified = True
@@ -1263,7 +1275,15 @@ class LiveContext:
                                         actual_price = actual_holdings.get(p.symbol, {}).get("avg_price", 0)
                                         p.status = ExecutionStatus.FILLED
                                         p.order_filled_at = self.get_time()
-                                        p.executed_price = actual_price or p.theoretical_price
+                                        from .position_math import resolve_fill_price
+                                        p.executed_price, _fb = resolve_fill_price(
+                                            actual_price, p.theoretical_price)
+                                        if _fb:
+                                            p.trade_metadata = {**(p.trade_metadata or {}),
+                                                                "price_source": "theoretical_fallback"}
+                                            logger.warning(
+                                                f"{self.session_id}/{p.symbol}: 잔고 평균단가를 못 읽어 "
+                                                f"이론가로 기록한다 — 손익이 부정확해진다")
                                         p.filled_quantity = filled_qty
                                         self.log(f"FILLED (balance-fallback): BUY {filled_qty} {p.symbol} @ {p.executed_price}")
                                     else:

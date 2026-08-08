@@ -245,11 +245,18 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
                 symbol, str(result.get("orderId", "")),
                 float(result.get("avgPrice", 0)),
                 float(result.get("executedQty", 0)))
+            if qty_filled <= 0:
+                # 체결수량 0을 요청수량으로 올려보낸다. reduceOnly 시장가 청산은
+                # 거의 전량 체결되고 위에서 포지션 수량을 이미 확인했으므로 실용적
+                # 근사지만, 0이 "정말 미체결"인 경우 상위가 체결로 기록한다.
+                logger.warning(f"{symbol}: 청산 체결수량을 확인하지 못해 요청수량 "
+                               f"{adj_qty} 로 보고한다 — 미체결이면 기록이 부정확해진다")
             return {
                 "status": "success",
                 "order_id": str(result.get("orderId", "")),
                 "symbol": symbol,
                 "side": side.lower(),
+                # or-audit: safe — 바로 위에서 0을 경고로 드러낸다
                 "quantity": qty_filled or adj_qty,
                 "price": px,
             }
@@ -366,6 +373,9 @@ class BinanceFuturesAdapter(BinanceBaseAdapter, FuturesInterface):
                 if px > 0:
                     logger.info(f"{symbol} order {order_id}: avgPrice 재조회로 확정 "
                                 f"px={px} qty={qty} status={o.get('status')}")
+                    # or-audit: safe — 재조회에서 px>0 인데 qty=0 이면 응답 시점
+                    # 차이일 뿐이므로 원 응답의 executedQty 를 쓴다. 둘 다 같은
+                    # '체결수량' 후보이고, 최종 0 은 호출측이 경고로 드러낸다.
                     return (px, qty or executed_qty)
             except Exception as e:
                 logger.warning(f"{symbol} order {order_id} 재조회 실패: {e}")

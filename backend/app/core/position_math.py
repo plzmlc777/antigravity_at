@@ -128,3 +128,31 @@ def realized_pnl_simple(
     if str(side).lower() == SIDE_SHORT:
         return (avg_cost - exit_price) * qty
     return (exit_price - avg_cost) * qty
+
+
+def resolve_fill_price(fill_price, theoretical_price) -> tuple:
+    """체결가를 확정한다. → (가격, 폴백여부)
+
+    `fill_price or theoretical_price` 관용구를 대체한다. `or` 는 0.0 과 None 을
+    구분하지 못하는데, 이 코드베이스에서 0은 "거래소가 체결가를 주지 않음"이라는
+    **기록된 사실**이고 None 은 "값 없음"이다. 둘 다 이론가로 대체할 수밖에 없지만
+    **조용히 넘어가면 안 된다** — 이론가는 전략이 의도한 가격일 뿐 실제 체결가가
+    아니어서, 그대로 손익·현금 회계에 들어가면 거래소 원장과 어긋난다.
+
+    2026-08-08 확인: 실계좌 39건 중 23건이 이 경로로 System-2 바 종가로 기록돼
+    실현손익이 원장 대비 +0.71 USDT(0.30%) 부풀려져 있었다. 호출측은 두 번째
+    반환값이 True 면 경고 로그와 metadata 표식을 남겨야 한다.
+
+    반환 가격이 0일 수도 있다(이론가마저 없을 때). 지어내지 않는다.
+    """
+    try:
+        px = float(fill_price) if fill_price is not None else 0.0
+    except (TypeError, ValueError):
+        px = 0.0
+    if px > 0:
+        return (px, False)
+    try:
+        fallback = float(theoretical_price) if theoretical_price is not None else 0.0
+    except (TypeError, ValueError):
+        fallback = 0.0
+    return (fallback, True)
