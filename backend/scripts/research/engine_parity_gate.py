@@ -74,6 +74,88 @@ def _norm(t: dict) -> tuple:
     )
 
 
+def lookahead_check(spec: dict, symbol: str, bundle, eval_freq: int,
+                    sample: int = 4) -> dict:
+    """신호 봉의 신호가 **그 봉 자체의 데이터**에 의존하는지 검사한다.
+
+    왜 실행기 대조로는 못 잡는가: 두 실행기가 같은 소스를 쓰므로 편향을
+    공유하면 나란히 틀리고 게이트는 PASS 한다. 실제로 2026-08-08 게이트는
+    131/144 PASS 였는데 volume_burst 계열 전체가 lookahead 상태였다.
+
+    검사 원리: 실행기는 봉 **시가**에 체결한다. 따라서 봉 t 의 신호는 t 시작
+    시점까지의 정보만으로 만들어져야 한다. t 구간 안에서 벌어진 일(고가/저가/
+    종가/거래량)에 신호가 의존하면, 아직 오지 않은 정보로 과거 가격에 체결하는
+    셈이다.
+
+    방법(섭동): 신호가 붙은 봉을 골라 그 봉에 해당하는 1m 구간을 "아무 일도
+    없었던 상태"로 평탄화(close=open=high=low, volume=0)한 뒤 피처를 다시
+    만든다. 그래도 신호가 그대로면 안전, 신호가 사라지거나 바뀌면 그 봉 안의
+    사건에 의존한 것이므로 lookahead 다.
+    """
+    try:
+        ohlcv_1m = bundle.ohlcv_1m
+        if ohlcv_1m is None or len(ohlcv_1m) == 0:
+            return {"skipped": "1m 데이터 없음 — 섭동 불가"}
+        rt = _runtime_data(symbol, bundle, bundle.ohlcv_eval)
+        pipe = build_pipeline(spec, rt)
+        ctx = SourceContext(symbol=symbol, eval_freq_minutes=eval_freq,
+                            ohlcv_1m=ohlcv_1m, ohlcv_eval=bundle.ohlcv_eval)
+        base = pipe.build_features(ctx)
+    except Exception as exc:
+        return {"skipped": f"피처 생성 실패: {type(exc).__name__}: {exc}"}
+
+    sig_cols = [c for c in base.columns if c.endswith("_signal")]
+    if not sig_cols:
+        return {"skipped": "signal 컬럼 없음"}
+    col = sig_cols[0]
+    fired = base.index[base[col].abs() > 1e-9]
+    if len(fired) == 0:
+        return {"skipped": "신호 발생 없음"}
+
+    step = max(len(fired) // sample, 1)
+    picks = list(fired[::step])[:sample]
+    leaks = []
+    for t in picks:
+        t0 = pd.Timestamp(t)
+        t1 = t0 + pd.Timedelta(minutes=eval_freq)
+        m = (ohlcv_1m.index >= t0) & (ohlcv_1m.index < t1)
+        if not m.any():
+            continue
+        pert = ohlcv_1m.copy()
+        o = pert.loc[m, "open"]
+        for c in ("high", "low", "close"):
+            if c in pert.columns:
+                pert.loc[m, c] = o
+        if "volume" in pert.columns:
+            pert.loc[m, "volume"] = 0.0
+        try:
+            rt2 = _runtime_data(symbol, bundle, bundle.ohlcv_eval)
+            rt2["ohlcv_1m"] = pert
+            p2 = build_pipeline(spec, rt2)
+            f2 = p2.build_features(SourceContext(
+                symbol=symbol, eval_freq_minutes=eval_freq,
+                ohlcv_1m=pert, ohlcv_eval=bundle.ohlcv_eval))
+        except Exception as exc:
+            return {"skipped": f"섭동 재계산 실패: {type(exc).__name__}: {exc}"}
+        before = float(base.loc[t0, col])
+        after = float(f2.loc[t0, col]) if t0 in f2.index else 0.0
+        if abs(before - after) > 1e-9:
+            leaks.append({"bar": str(t0), "before": before, "after": after})
+    return {"checked": len(picks), "leaks": leaks, "clean": not leaks}
+
+
+def _runtime_data(symbol: str, bundle, df_eval) -> dict:
+    """orchestrator.run_cycle 이 조립하는 것과 동일한 runtime_data."""
+    rt = {"symbol": symbol, "ohlcv_1m": bundle.ohlcv_1m, "ohlcv_eval": df_eval}
+    for fld in ("signals_df", "flow_df", "binance_metrics_5m", "binance_funding_df",
+                "binance_oi_df", "binance_funding_universe_df", "leader_ohlcv_eval",
+                "leader_ohlcv_1m", "book_depth_daily", "premium_df", "eth_ohlcv_eval"):
+        v = getattr(bundle, fld, None)
+        if v is not None:
+            rt[fld] = v
+    return rt
+
+
 def compare(spec: dict, symbol: str, initial_capital: float, fee_rate: float) -> dict:
     eval_freq = int(spec.get("config", {}).get("eval_freq_minutes", 1440))
     sources_used = [s.get("type") for s in (spec.get("sources") or [])]
@@ -120,13 +202,7 @@ def compare(spec: dict, symbol: str, initial_capital: float, fee_rate: float) ->
     # runtime_data는 orchestrator.run_cycle이 조립하는 것과 **동일하게** 채운다.
     # 일부만 넘기면 소스가 KeyError를 내고 케이스가 통째로 SKIP된다 — 검사하지
     # 못한 것을 통과로 오독하게 만드는, 게이트 자신의 사각지대였다.
-    runtime_data = {"symbol": symbol, "ohlcv_1m": bundle.ohlcv_1m, "ohlcv_eval": df_eval}
-    for fld in ("signals_df", "flow_df", "binance_metrics_5m", "binance_funding_df",
-                "binance_oi_df", "binance_funding_universe_df", "leader_ohlcv_eval",
-                "leader_ohlcv_1m", "book_depth_daily", "premium_df", "eth_ohlcv_eval"):
-        v = getattr(bundle, fld, None)
-        if v is not None:
-            runtime_data[fld] = v
+    runtime_data = _runtime_data(symbol, bundle, df_eval)
     pipeline = build_pipeline(spec, runtime_data)
     bt = GenericBacktester(initial_capital=initial_capital, size_pct=0.95, fee_rate=fee_rate)
     try:
@@ -148,8 +224,10 @@ def compare(spec: dict, symbol: str, initial_capital: float, fee_rate: float) ->
         y = b_norm[i] if i < len(b_norm) else None
         if x != y:
             diffs.append({"idx": i, "backtester": x, "orchestrator": y})
+    la = lookahead_check(spec, symbol, bundle, eval_freq)
     return {"match": a_norm == b_norm, "n_backtester": len(a_norm),
-            "n_orchestrator": len(b_norm), "n_bars": len(bars), "diffs": diffs[:4]}
+            "n_orchestrator": len(b_norm), "n_bars": len(bars), "diffs": diffs[:4],
+            "lookahead": la}
 
 
 def collect(only_lifecycle: bool, limit: int | None):
@@ -196,7 +274,7 @@ def main() -> int:
         ap.error("--session / --all-lifecycle / --all-sessions 중 하나 필요")
 
     log.info("정합성 게이트: %d 케이스", len(cases))
-    failed, skipped, passed = [], [], 0
+    failed, skipped, passed, leaked = [], [], 0, []
     pol_pass, pol_fail = Counter(), Counter()
     for symbol, spec, cap, fee, pol in cases:
         try:
@@ -207,10 +285,19 @@ def main() -> int:
             log.info("%-13s %-26s SKIP — %s", symbol, pol, r["skipped"])
             skipped.append((symbol, pol, r["skipped"]))
             continue
+        la = r.get("lookahead") or {}
+        if la.get("leaks"):
+            leaked.append((symbol, pol, la))
+            log.error("%-13s %-26s LOOKAHEAD  신호 %d개 중 %d개가 자기 봉 데이터에 의존",
+                      symbol, pol, la.get("checked", 0), len(la["leaks"]))
+            for lk in la["leaks"][:2]:
+                log.error("      %s  신호 %.3g → 섭동 후 %.3g", lk["bar"], lk["before"], lk["after"])
         if r["match"]:
             passed += 1
             pol_pass[pol] += 1
-            log.info("%-13s %-26s PASS  거래 %d (바 %d)", symbol, pol, r["n_backtester"], r["n_bars"])
+            tag = "PASS" if not la.get("leaks") else "PASS(대조) / LOOKAHEAD"
+            log.info("%-13s %-26s %s  거래 %d (바 %d)", symbol, pol, tag,
+                     r["n_backtester"], r["n_bars"])
         else:
             failed.append((symbol, pol, r))
             pol_fail[pol] += 1
@@ -223,12 +310,18 @@ def main() -> int:
     print()
     log.info("결과: PASS %d / FAIL %d / SKIP %d (총 %d)",
              passed, len(failed), len(skipped), len(cases))
+    if leaked:
+        log.error("LOOKAHEAD 검출: %d 케이스 — 신호가 자기 봉 데이터에 의존한다. "
+                  "실행기 대조는 통과해도(둘이 같은 편향을 공유) 실전 재현 불가.",
+                  len(leaked))
+        for sym, pol, la in leaked:
+            log.error("   %-13s %-26s %d/%d 신호 누출", sym, pol, len(la["leaks"]), la.get("checked", 0))
     log.info("폴리시별 PASS: %s", dict(pol_pass))
     if pol_fail:
         log.error("폴리시별 FAIL: %s", dict(pol_fail))
     if skipped:
         log.info("SKIP 사유 분포: %s", dict(Counter(s[2].split(":")[0] for s in skipped)))
-    return 1 if failed else 0
+    return 1 if (failed or leaked) else 0
 
 
 if __name__ == "__main__":
