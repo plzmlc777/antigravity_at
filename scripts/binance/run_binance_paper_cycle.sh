@@ -69,20 +69,26 @@ PYTHONPATH=. python3 -m scripts.paper_session_cli run --all --exchange binance 2
 EC="${PIPESTATUS[0]}"
 echo "[binance-paper] exit_code=${EC}" | tee -a "${LOG_FILE}"
 
-# 3-track lifecycle short deploy (.claude/plans/lifecycle_short_real_deploy.md §3.5).
-# (1) auto-link: provision+link a PAPER v2 session for any new lifecycle earlyexit_d14
-#     System-2 session not yet tracked (idempotent; account 12 = paper, REAL never auto).
-# BRAND-NEW listings get PAPER (account 12) + REAL (account 8) sessions. Already-tracked
-# listings (in-flight positions) are skipped → REAL never catches up into an existing short,
-# only enters fresh listings at Day-1.
-echo "[binance-paper] lifecycle auto-link new listings (paper+real)..." | tee -a "${LOG_FILE}"
+# lifecycle short — PAPER 전용 (2026-08-08 대표님 지시로 1군 → 2군 강등).
+#
+# REAL 트랙을 끈 이유: 3개월 실계좌 운용에서 수익의 138%가 상위 4건에 몰렸고,
+# 그 4건조차 진입이 38시간 지연된 우연에 크게 기대고 있었다(최대이득 ARX는 지연
+# 덕에 +10%→+20%, 최대손실 REU는 지연 덕에 -50%→-13.7%). GRVTUSDT 마지막
+# 포지션을 2026-08-08 17:42 청산(realized -37.92)하고 REAL 트랙을 정지한다.
+# 페이퍼 트랙은 그대로 두어 계속 검증한다.
+#
+# 두 곳을 함께 꺼야 완전히 멈춘다:
+#   (1) auto-link 의 --real-account-id  → 신규 상장마다 REAL 세션을 자동 생성
+#   (2) reconcile 의 --include-real     → REAL 주문 실행
+# 하나만 끄면 세션은 계속 생기거나(1 누락), 주문이 계속 나간다(2 누락).
+# REAL 재개 시 두 플래그를 같이 되살릴 것.
+echo "[binance-paper] lifecycle auto-link new listings (paper only)..." | tee -a "${LOG_FILE}"
 PYTHONPATH=. python3 scripts/binance/lifecycle_live_provision.py \
   --auto-link --account-id 12 --notional 200 --initial-capital 10000 \
-  --real-account-id 8 --real-initial-capital 100 --commit 2>&1 | tee -a "${LOG_FILE}"
-# (2) reconcile: drive linked v2 live sessions to System-2's current side via /submit-signal.
-#     PAPER = fixed notional; REAL = full-compound (account 8 available margin, 전체 금액 복리).
-echo "[binance-paper] lifecycle live signal reconcile (paper+real)..." | tee -a "${LOG_FILE}"
-PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit --include-real 2>&1 | tee -a "${LOG_FILE}"
+  --commit 2>&1 | tee -a "${LOG_FILE}"
+# reconcile: System-2 의 현재 side 를 링크된 PAPER 세션에 미러링.
+echo "[binance-paper] lifecycle live signal reconcile (paper only)..." | tee -a "${LOG_FILE}"
+PYTHONPATH=. python3 scripts/binance/lifecycle_live_signal_driver.py --submit 2>&1 | tee -a "${LOG_FILE}"
 
 # Append a status snapshot for monitoring
 echo "" | tee -a "${LOG_FILE}"
