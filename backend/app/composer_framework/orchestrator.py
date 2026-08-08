@@ -189,6 +189,15 @@ class PaperOrchestrator:
             bar = df_eval.iloc[pos]
             bar_ts = eval_index[pos]
             ts_iso = pd.Timestamp(bar_ts).isoformat()
+            # bars_held는 policy가 읽기 전에 증가해야 한다. backtester는
+            # `bars_held = i - entry_idx`(진입 다음 바에서 1)를 넘기는데, 여기서는
+            # 진입 시 0으로 두고 policy 호출 *뒤에* 증가시켜서 policy가 항상 1 적은
+            # 값을 봤다 → max_hold_bars가 정확히 1바 늦게 발동(= Day-30 전략이
+            # Day-31에 청산). R-3 검증 기준은 `entry_idx + hold_days`이므로
+            # backtester가 맞고 여기가 틀렸다 (2026-08-08 정합성 게이트로 발견).
+            if session.side != "flat":
+                session.bars_held += 1
+
             policy_ctx = PolicyContext(
                 timestamp=bar_ts.to_pydatetime() if hasattr(bar_ts, "to_pydatetime") else bar_ts,
                 prediction=prediction,
@@ -224,8 +233,8 @@ class PaperOrchestrator:
                 self._open_long(session, float(bar["open"]), bar_ts, action, prediction)
             elif session.side == "flat" and action.kind == "enter_short":
                 self._open_short(session, float(bar["open"]), bar_ts, action, prediction)
-            elif session.side != "flat" and action.kind == "hold":
-                session.bars_held += 1
+            # bars_held 증가는 위 policy 호출 전으로 옮겼다 — 여기서 hold일 때만
+            # 올리면 policy가 1 적은 값을 보고 청산이 1바 밀린다.
 
             # Mark equity
             if session.side == "long":
