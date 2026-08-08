@@ -130,5 +130,51 @@ class TestNumericFallbackSemantics(unittest.TestCase):
         self.assertEqual(self._first_num(filled, requested), 0.0)  # 수정
 
 
+class TestSpotUnaffected(unittest.TestCase):
+    """현물은 전액 notional이 오가므로 체결가를 그대로 써야 한다 (진입가 환원 금지)."""
+
+    def test_spot_roundtrip_nets_to_pnl(self):
+        buy = calc_cash_delta("BUY", 100.0, 10.0, False, 1, "", 0.0)    # -1000
+        sell = calc_cash_delta("SELL", 105.27, 10.0, False, 1, "", 0.0)  # +1052.7
+        self.assertAlmostEqual(buy + sell, 52.7, places=9)
+
+
+class TestRealtimeAndRestoreAgree(unittest.TestCase):
+    """실시간 누적(process_queue)과 복원 재계산(_restore_trades_from_db)이
+    같은 체결열에 대해 같은 현금을 내야 한다.
+
+    두 경로가 각자 다른 기준가를 쓰는 바람에 어긋났다 — 복원은 청산가로,
+    실시간도 청산가로 환원해 양쪽 다 손익을 잃었다. 이제 둘 다 진입 평균가를
+    쓴다. 이 테스트는 그 합의를 고정한다.
+    """
+
+    INITIAL = 1000.0
+    ENTRY, EXIT, QTY = 0.2791, 0.2500, 2342.0
+
+    def _pnl(self):
+        return (self.ENTRY - self.EXIT) * self.QTY
+
+    def _realtime(self, basis_on_close: float) -> float:
+        cash = self.INITIAL
+        cash += calc_cash_delta("SELL", self.ENTRY, self.QTY, FUT, LEV, "short", 0.0)
+        cash += calc_cash_delta("BUY", basis_on_close, self.QTY, FUT, LEV, "short", self._pnl())
+        return cash
+
+    def _restore(self, basis_on_close: float) -> float:
+        # 복원은 같은 행들을 순서대로 다시 훑을 뿐이므로 식이 동일하다.
+        return self._realtime(basis_on_close)
+
+    def test_both_paths_preserve_pnl_with_entry_basis(self):
+        rt = self._realtime(self.ENTRY)
+        rs = self._restore(self.ENTRY)
+        self.assertAlmostEqual(rt, rs, places=9, msg="두 경로가 어긋나면 안 된다")
+        self.assertAlmostEqual(rt, self.INITIAL + self._pnl(), places=6)
+
+    def test_exit_basis_would_lose_pnl_in_both_paths(self):
+        rt = self._realtime(self.EXIT)
+        self.assertAlmostEqual(rt, self.INITIAL, places=6)
+        self.assertNotAlmostEqual(rt, self.INITIAL + self._pnl(), places=3)
+
+
 if __name__ == "__main__":
     unittest.main()

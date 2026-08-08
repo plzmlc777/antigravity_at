@@ -985,6 +985,16 @@ class LiveContext:
                         p.executed_price = res.get("price") or p.theoretical_price
                         p.filled_quantity = res.get("quantity", p.requested_quantity)
 
+                        # 선물 청산에서 반환할 증거금의 기준가. 진입 때 잠근 금액이
+                        # 돌아와야 하므로 **진입 평균가**여야 한다. 체결가를 그대로
+                        # 쓰면 (진입notional − 청산notional) = 실현손익 이라 반환액이
+                        # 그만큼 어긋나고 결국 손익이 상쇄돼 사라진다 (2026-08-08 확인:
+                        # SLXUSDT 실현 +5.27인데 세션 현금이 초기값 그대로였다).
+                        # 진입 주문에서는 체결가가 곧 진입가이므로 초기값이 맞고,
+                        # 아래 두 청산 블록이 산출하는 진입 평균가로 덮어쓴다.
+                        # 예외로 블록이 실패하면 기존 동작(체결가)으로 남는다.
+                        margin_basis_px = p.executed_price
+
                         # 2. Calculate realized_pnl for SELL orders.
                         #    Exclude SHORT-entry SELLs (position_side=="short") — those
                         #    open a position and have no realized P&L; letting this
@@ -1015,6 +1025,7 @@ class LiveContext:
                                 total_buy_fees = sum(b.fees or 0 for b in buys)
                                 if total_buy_qty > 0:
                                     avg_buy_price = total_buy_cost / total_buy_qty
+                                    margin_basis_px = avg_buy_price  # 롱 청산 → 진입 평균가로 증거금 환원
                                     sell_qty = p.filled_quantity or 0
                                     sell_proceeds = (p.executed_price or 0) * sell_qty
                                     total_fees = total_buy_fees + (p.fees or 0)
@@ -1055,6 +1066,7 @@ class LiveContext:
                                 total_sell_fees = sum(s.fees or 0 for s in sells)
                                 if total_sell_qty > 0:
                                     avg_sell_price = total_sell_proceeds / total_sell_qty
+                                    margin_basis_px = avg_sell_price  # 숏 청산 → 진입 평균가로 증거금 환원
                                     buy_qty = p.filled_quantity or 0
                                     total_fees = total_sell_fees + (p.fees or 0)
                                     # SHORT P&L: (avg short-entry price − cover price) × qty − fees
@@ -1067,8 +1079,11 @@ class LiveContext:
 
                         # 3. Update Local Context State (In-Memory for Strategy)
                         # This ensures the bot's internal view is based on its OWN actions
+                        # 현물은 체결가 그대로(전액 notional 이동), 선물만 진입가 기준
+                        # 증거금 환원을 적용한다.
+                        basis_px = margin_basis_px if self.is_futures else p.executed_price
                         cash_delta = self._calc_cash_delta(
-                            p.signal_type, p.executed_price, p.filled_quantity,
+                            p.signal_type, basis_px, p.filled_quantity,
                             p.trade_metadata, p.realized_pnl or 0)
                         self.cash += cash_delta
                         if p.signal_type == Signal.BUY:
