@@ -342,6 +342,22 @@ def _build_bn_btc_rv_highvol_long(kwargs: dict, runtime: dict) -> SignalSource:
     )
 
 
+@register_source("bn_stablecoin_supply_flow")
+def _build_bn_stablecoin_supply_flow(kwargs: dict, runtime: dict) -> SignalSource:
+    """paradigm 251 — 3군 게이트 PASS 2026-08-09. USDT+USDC 7일 순증감 z (DefiLlama).
+
+    substrate 는 외부 무료 API 라 OHLCV 주입이 필요 없다. 캐시가 낡고 네트워크가
+    막히면 InsufficientSourceDataError 로 실패한다 — 조용한 0 신호를 내지 않는다.
+    """
+    from .sources import BinanceStablecoinSupplyFlowSource
+    return BinanceStablecoinSupplyFlowSource(
+        cache_path=kwargs.get("cache_path"),
+        z_thresh=float(kwargs.get("z_thresh", 1.0)),
+        refresh_hours=float(kwargs.get("refresh_hours", 12.0)),
+        allow_network=bool(kwargs.get("allow_network", True)),
+    )
+
+
 @register_source("bn_alt_volume_burst_pos_continuation_long")
 def _build_bn_alt_volume_burst_pos_continuation_long(kwargs: dict, runtime: dict) -> SignalSource:
     """paradigm 127 R-4 PASS 2026-05-21 — 1m volume burst positive continuation LONG."""

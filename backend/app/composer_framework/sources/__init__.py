@@ -31,6 +31,7 @@ from .binance_lifecycle_decay_source import BinanceLifecycleDecaySource
 from .binance_lifecycle_decay_early_exit_source import BinanceLifecycleDecayEarlyExitSource
 from .binance_lifecycle_decay_bear_skip_source import BinanceLifecycleDecayBearSkipSource
 from .binance_btc_rv_highvol_long_source import BinanceBTCRVHighvolLongSource
+from .binance_stablecoin_supply_flow_source import BinanceStablecoinSupplyFlowSource
 from .binance_alt_volume_burst_pos_continuation_long_source import (
     BinanceAltVolumeBurstPosContinuationLongSource,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "BinanceLifecycleDecayEarlyExitSource",
     "BinanceLifecycleDecayBearSkipSource",
     "BinanceBTCRVHighvolLongSource",
+    "BinanceStablecoinSupplyFlowSource",
     "BinanceAltVolumeBurstPosContinuationLongSource",
     "BinanceAltVolumeBurstNegReversionShortSource",
     "USDailySource",
