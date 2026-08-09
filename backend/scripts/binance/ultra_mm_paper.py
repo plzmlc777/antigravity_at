@@ -28,6 +28,18 @@
   역선택       : 체결 시점 중간가 − Δ분 뒤 중간가 (내 포지션 방향 기준)
   수수료       : 메이커 2bp/체결, 재고 청산 시 테이커 5bp
   재고 청산     : |재고| 가 한도 초과 시 시장가로 평탄화 (실제 운영 제약)
+  **펀딩비**    : 정산 시각에 보유 재고 명목 x 펀딩률. 롱이면 rate>0 일 때 지불.
+
+펀딩을 왜 넣는가 (2026-08-09 대표님 지적)
+  perp 은 정산 시각마다 **포지션 명목금액** 기준으로 펀딩을 주고받는다. 메이킹은
+  평균 재고가 0 에 가까우면 대체로 상쇄되지만, 재고가 한쪽으로 오래 쏠리면 실비용이다.
+  크기가 작지도 않다 — 실측 AKEUSDT +6.59bp/8h = **일 환산 +19.77bp** 로, 거래
+  손익(-8bp 대)보다 크다. 빼놓으면 양수 후보를 과대평가하게 된다.
+
+  출처는 REST `/fapi/v1/premiumIndex` 다(857종목 1회 호출). WS `@markPrice` 는
+  `@kline_1m`·`@aggTrade` 와 마찬가지로 **데이터가 오지 않는다**(2026-08-09 실측).
+  정산 주기는 종목마다 다르므로(8h 가 대부분이나 NFPUSDT 는 4h) 고정하지 않고
+  응답의 `nextFundingTime` 을 따른다.
 
 출력: runs/ultra_mm_paper/{날짜}/{SYMBOL}.jsonl (체결·상태) + 주기적 요약 로그
 
@@ -57,6 +69,8 @@ log = logging.getLogger("ultra_mm_paper")
 WS_BASE = "wss://fstream.binance.com/ws"
 MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
+PREMIUM_INDEX = "https://fapi.binance.com/fapi/v1/premiumIndex"
+FUNDING_POLL_SEC = 300
 MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
 
 # ── 가설 2: 흐름 회피형 편향 호가 (2026-08-09 신설) ──────────────────────
@@ -108,6 +122,11 @@ class SymState:
     flow: deque = field(default_factory=deque)   # (ts, +buy_usd, -sell_usd) 최근 흐름
     flow_buy: float = 0.0
     flow_sell: float = 0.0
+    funding_rate: float = 0.0
+    next_funding_ms: int = 0
+    applied_funding_ms: int = 0
+    funding_usd: float = 0.0        # 양수 = 지불
+    n_funding: int = 0
     n_skip_bid: int = 0
     n_skip_ask: int = 0
     pending_markout: deque = field(default_factory=deque)   # (t_due, side, mid_at_fill, notional)
@@ -248,6 +267,24 @@ class PaperMM:
         s.inv_usd -= (1 if s.inv_usd > 0 else -1) * excess
         s.n_flat += 1
 
+    def settle_funding(self) -> int:
+        """정산 시각을 지난 종목에 보유 재고 기준 펀딩을 적용한다.
+        rate>0 이면 롱이 지불하므로 cost = 재고 x rate 로 부호가 자연히 맞는다."""
+        now_ms = int(time.time() * 1000)
+        n = 0
+        for s in self.st.values():
+            if (s.next_funding_ms and now_ms >= s.next_funding_ms
+                    and s.next_funding_ms > s.applied_funding_ms):
+                cost = s.inv_usd * s.funding_rate
+                s.funding_usd += cost
+                s.applied_funding_ms = s.next_funding_ms
+                s.n_funding += 1
+                n += 1
+                if abs(cost) > 0.001:
+                    log.info("  [펀딩] %s 재고 $%.0f x %+.4f%% → %+.4f USD",
+                             s.symbol, s.inv_usd, s.funding_rate * 100, -cost)
+        return n
+
     def _settle_markouts(self, s: SymState) -> None:
         now = time.time()
         while s.pending_markout and s.pending_markout[0][0] <= now:
@@ -271,15 +308,18 @@ class PaperMM:
             adverse_bp = (s.markout_bp_sum / mk_vol) if mk_vol > 0 else float("nan")
             fee_bp = s.fee_usd / vol * 1e4
             flat_bp = s.flat_cost_usd / vol * 1e4
+            fund_bp = s.funding_usd / vol * 1e4
             # markout 은 체결 후 5분이 지나야 확정된다. 미확정을 0 으로 취급하면
             # net 이 실제보다 좋아 보인다 — 미정이면 net 도 미정으로 둔다.
             has_mk = adverse_bp == adverse_bp
-            net = (spread_bp + adverse_bp - fee_bp - flat_bp) if has_mk else float("nan")
+            net = (spread_bp + adverse_bp - fee_bp - flat_bp - fund_bp) if has_mk else float("nan")
             out.append({
                 "symbol": s.symbol, "fills": s.n_fills,
                 "spread_bp": round(spread_bp, 3),
                 "markout_bp": round(adverse_bp, 3) if adverse_bp == adverse_bp else None,
                 "fee_bp": round(fee_bp, 3), "flatten_bp": round(flat_bp, 3),
+                "funding_bp": round(fund_bp, 3), "n_funding": s.n_funding,
+                "funding_rate_bp": round(s.funding_rate * 1e4, 3),
                 "net_bp": round(net, 3) if net == net else None,
                 "markout_settled": s.markout_n,
                 "inv_usd": round(s.inv_usd, 1), "n_flat": s.n_flat,
@@ -304,6 +344,41 @@ class PaperMM:
                 "t": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "uptime_h": round((time.time() - self.t0) / 3600, 3),
                 "rows": self.summary()}) + "\n")
+
+
+async def funding_poller(mm: PaperMM, stop: asyncio.Event) -> None:
+    """펀딩률·다음 정산시각을 주기적으로 갱신한다. 857종목이 1회 호출로 온다.
+    WS `@markPrice` 는 데이터가 오지 않아 REST 를 쓴다 (모듈 docstring 참조)."""
+    import aiohttp
+    first = True
+    while not stop.is_set():
+        try:
+            async with aiohttp.ClientSession() as sess:
+                async with sess.get(PREMIUM_INDEX,
+                                    timeout=aiohttp.ClientTimeout(total=45)) as r:
+                    data = await r.json()
+            got = 0
+            for x in data:
+                st = mm.st.get(x.get("symbol"))
+                if st is None:
+                    continue
+                st.funding_rate = float(x.get("lastFundingRate") or 0.0)
+                nxt = int(x.get("nextFundingTime") or 0)
+                if nxt and st.applied_funding_ms == 0:
+                    st.applied_funding_ms = nxt - 1   # 기동 직후 과거분 소급 금지
+                st.next_funding_ms = nxt
+                got += 1
+            if first:
+                log.info("펀딩률 수신 %d/%d종목 — 예: %s", got, len(mm.st),
+                         ", ".join(f"{k} {v.funding_rate*1e4:+.2f}bp"
+                                   for k, v in list(mm.st.items())[:3]))
+                first = False
+        except Exception as e:
+            log.warning("펀딩률 폴링 실패: %s", e)
+        for _ in range(FUNDING_POLL_SEC):
+            if stop.is_set():
+                return
+            await asyncio.sleep(1)
 
 
 async def run(mm: PaperMM, symbols: list[str], stop: asyncio.Event) -> None:
@@ -365,6 +440,7 @@ async def amain(args) -> int:
     async def reporter():
         while not stop.is_set():
             await asyncio.sleep(args.stats_sec)
+            mm.settle_funding()
             mm.persist()
             rows = [r for r in mm.summary() if r.get("fills", 0) > 0]
             if not rows:
@@ -375,13 +451,16 @@ async def amain(args) -> int:
                 mk = "  미정" if r["markout_bp"] is None else f"{r['markout_bp']:+6.2f}"
                 nt = "  미정" if r["net_bp"] is None else f"{r['net_bp']:+6.2f}"
                 log.info("  %-13s 체결 %4d(%.1f/h) 스프 %+6.2f 역선택 %s(%d건) "
-                         "수수료 %.2f 청산 %.2f → net %sbp (재고 $%.0f)",
+                         "수수료 %.2f 청산 %.2f 펀딩 %+.2f(%d회,%+.2fbp) → net %sbp (재고 $%.0f)",
                          r["symbol"], r["fills"], r["fills_per_hour"], r["spread_bp"],
-                         mk, r["markout_settled"], r["fee_bp"], r["flatten_bp"], nt, r["inv_usd"])
+                         mk, r["markout_settled"], r["fee_bp"], r["flatten_bp"],
+                         r["funding_bp"], r["n_funding"], r["funding_rate_bp"],
+                         nt, r["inv_usd"])
     rep = asyncio.create_task(reporter())
+    fund = asyncio.create_task(funding_poller(mm, stop))
 
     await stop.wait()
-    for t in (task, rep):
+    for t in (task, rep, fund):
         t.cancel()
     mm.persist()
     log.info("종료 — 최종 요약")
