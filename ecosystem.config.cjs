@@ -246,6 +246,39 @@ const agentApps = [
         restart_delay: 5000
     },
     {
+        // ── 초단기 트랙 (2026-08-09 신설) ────────────────────────────────
+        // WS 실시간 수집기 — 상주 프로세스(크론 아님).
+        //   kline_1m 전 유니버스 → DB ohlcv (아카이브 배치 T+1일 → T+1분)
+        //   bookTicker 후보 24종목 → runs/ws_quotes/*.jsonl (분 스프레드·큐잔량)
+        // 호가 아카이브가 2026-03-30 에 중단돼 최근 스프레드는 과거로 소급할 방법이
+        // 없다. 오늘부터 쌓지 않으면 그 하루치는 영영 못 얻는다.
+        // 연결은 24시간마다 강제 종료되므로 재연결이 정상 경로다(자체 처리).
+        name: "ultra-ws-collector",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_ws_collector.py",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 2군 페이퍼 마켓메이킹 — 상주 프로세스. 주문은 거래소로 나가지 않는다.
+        // bookTicker(큐 앞 물량) + trade(소진량)로 가격-시간 우선을 모사해
+        // "내 앞 물량이 실제로 빠지는가"를 잰다. 백테스트로 답이 안 나오는 질문이다.
+        // 대상 10종목은 대조군 포함 설계 (configs/ultra_mm_paper_symbols.txt).
+        name: "ultra-mm-paper",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --quote-usd 200 --inv-cap-usd 1000",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
