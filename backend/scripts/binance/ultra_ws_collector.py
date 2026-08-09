@@ -14,9 +14,18 @@
      성과가 1군에서 재현된다 (메모리 `project_two_paper_systems` 의 미해결 간극).
 
 수집 대상
-  · `<sym>@kline_1m`   전 유니버스 → 봉 마감분만 DB `ohlcv` upsert (T+1일 → T+1분)
-  · `<sym>@bookTicker` 초단기 후보만 → 1분 집계(스프레드 bp 통계)를 파일로 적재
+  · `<sym>@bookTicker` 초단기 후보만 → 1분 집계(스프레드·큐잔량)를 파일로 적재
     전 유니버스 bookTicker 는 초당 수천~수만 건이라 낭비다. 후보만 받는다.
+
+  ⚠️ **`@kline_1m` 은 현재 데이터가 오지 않는다 (2026-08-09 Mint 실측).**
+     세 가지 엔드포인트 형태를 모두 시험했다:
+       /ws + SUBSCRIBE            → 75초간 kline 0건 (같은 창 bookTicker 1,778건)
+       /stream?streams=...        → 40초간 0건 (bookTicker 979건)
+       /ws/<stream> 경로형         → 수신 자체가 타임아웃
+     `@aggTrade` 도 같은 증상이고 `@trade` 는 정상이다. 구독은 수락(result:null)되므로
+     **조용히 아무것도 안 하는 상태**가 된다 — 그래서 기본값을 끄고 명시했다.
+     DB 최신화가 필요하면 REST `/fapi/v1/klines` 폴링을 쓴다(동작 확인됨).
+     기존 daily 아카이브 백필이 T+1일로 이미 DB 를 유지하므로 급하지 않다.
 
 거래소 제약 (2026-08-09 공식 문서 확인)
   · 연결당 최대 **1024 스트림** — 288종목 kline + 24종목 bookTicker = 312, 여유 있음
@@ -348,10 +357,11 @@ async def amain(args) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="초단기 트랙 WS 수집기")
-    p.add_argument("--kline-symbols", default=str(ROOT / "configs" / "ultra_universe_full.txt"))
+    p.add_argument("--kline-symbols", default="",
+                   help="비워 두면 kline 수집을 하지 않는다 (기본). 위 docstring 경고 참조")
     p.add_argument("--quote-symbols", default=str(ROOT / "configs" / "ultra_quote_symbols.txt"))
     p.add_argument("--quote-dir", default=str(ROOT / "runs" / "ws_quotes"))
-    p.add_argument("--no-kline", action="store_true", help="호가만 수집")
+    p.add_argument("--no-kline", action="store_true", help="호가만 수집 (기본 동작)")
     args = p.parse_args()
     if args.no_kline:
         args.kline_symbols = ""
