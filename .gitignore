@@ -136,5 +136,6 @@ backend/runs/ws_quotes/
 backend/runs/ultra_mm_paper/
 backend/runs/ultra_mm_paper_flowskew/
 backend/runs/ultra_mm_paper_queueflee/
+backend/runs/ultra_mm_paper_combo/
 backend/runs/research_track/ultra_*_trades.joblib
 backend/runs/research_track/ultra_trades_cache.joblib

@@ -318,6 +318,26 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 4** — 가설 2 + 가설 3 결합.
+        // 둘은 직교한다. 2는 **어느 쪽**에 설지(방향, 60초 흐름), 3은 **언제 뺄지**
+        // (타이밍, 그 순간 큐 소진 속도). 실측에서도 효과 종목이 갈렸다 —
+        // 가설2 는 SOL(좁은 스프레드 대형), 가설3 은 BANK/TST.
+        // 로컬 시험: 스프레드 획득이 AKE +0.05 / SOL +0.39 / MELANIA +1.96 로
+        // **양수 전환**. 오늘 내내 음수였던 지표다.
+        // 위험은 체결 소멸 — 가설3 단독으로도 90~95% 줄었고 결합은 더 줄인다.
+        // "남은 체결로 사업이 되는가" 가 주 검증 지점이다.
+        name: "ultra-mm-paper-combo",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy combo " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_combo",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후

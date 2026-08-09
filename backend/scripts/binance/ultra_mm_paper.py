@@ -101,6 +101,19 @@ FLOW_SKEW_TH = 0.30         # |OFI| 가 이보다 크면 노출된 쪽을 걷는
 # **속도** 로 판단한다 — 천천히 줄어드는 큐는 그대로 두고 급소진만 피한다.
 FLEE_ETA_SEC = 3.0          # 이 시간 안에 내 차례가 올 속도면 뺀다
 FLEE_MIN_CONSUMED = 0.20    # 속도 추정이 신뢰될 만큼 소진된 뒤에만 판단
+
+# ── 가설 4: 가설 2 + 가설 3 결합 (2026-08-09) ──────────────────────────
+# 둘은 직교한다. 가설 2 는 **어느 쪽**에 설지(방향, 60초 흐름), 가설 3 은
+# **언제 뺄지**(타이밍, 그 순간 큐 소진 속도)를 정한다. 서로 다른 실패 모드다.
+#
+# 1.67시간 실측이 합칠 근거를 준다 — 효과가 나타난 종목이 갈렸다:
+#   가설 2 : SOLUSDT (스프레드 좁은 대형) net -2.90 → -1.81
+#   가설 3 : BANKUSDT net -5.96 → -2.74 / TSTUSDT -11.88 → +1.85
+#   그리고 가설 3 의 스프레드 획득 개선은 4종목 전부에서 나타났다(예외 없음).
+#
+# 위험: 둘 다 체결을 줄이는 규칙이라 합치면 체결이 거의 사라질 수 있다. 가설 3
+# 단독으로도 이미 90~95% 가 줄었다. **"남은 체결로 사업이 되는가"** 가 이 가설의
+# 주 검증 지점이고, 체결이 0 에 수렴하면 그 자체가 반증이다.
 SUB_BATCH = 50
 SUB_INTERVAL = 0.4
 STATS_SEC = 600
@@ -168,7 +181,7 @@ class PaperMM:
 
     def _sides_allowed(self, s: SymState) -> tuple:
         """(매수호가를 댈까, 매도호가를 댈까). 가설 1 은 항상 양방향."""
-        if self.strategy != "flow_skew":
+        if self.strategy not in ("flow_skew", "combo"):
             return True, True
         tot = s.flow_buy + s.flow_sell
         if tot <= 0:
@@ -262,7 +275,7 @@ class PaperMM:
 
     def _should_flee(self, o: Order) -> bool:
         """큐가 급소진 중이면 체결 직전에 뺀다 (가설 3). 상세는 상단 상수 주석."""
-        if self.strategy != "queue_flee" or o.queue0 <= 0:
+        if self.strategy not in ("queue_flee", "combo") or o.queue0 <= 0:
             return False
         consumed = o.queue0 - o.queue_ahead
         if consumed / o.queue0 < FLEE_MIN_CONSUMED:
@@ -468,7 +481,9 @@ async def amain(args) -> int:
              args.strategy, len(syms), args.quote_usd, args.inv_cap_usd, MAKER_FEE_BP,
              (f" | 흐름창 {FLOW_WIN_SEC:.0f}초 임계 {FLOW_SKEW_TH}" if args.strategy == "flow_skew"
               else f" | 회피 ETA {FLEE_ETA_SEC:.0f}초, 최소소진 {FLEE_MIN_CONSUMED:.0%}"
-              if args.strategy == "queue_flee" else ""))
+              if args.strategy == "queue_flee"
+              else f" | 흐름 {FLOW_WIN_SEC:.0f}초/{FLOW_SKEW_TH} + 회피 ETA {FLEE_ETA_SEC:.0f}초"
+              if args.strategy == "combo" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -515,10 +530,10 @@ def main() -> int:
     p.add_argument("--quote-usd", type=float, default=200.0, help="한쪽 호가 명목금액")
     p.add_argument("--inv-cap-usd", type=float, default=1000.0, help="종목별 재고 한도")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
-    p.add_argument("--strategy", choices=["touch", "flow_skew", "queue_flee"],
+    p.add_argument("--strategy", choices=["touch", "flow_skew", "queue_flee", "combo"],
                    default="touch",
                    help="touch=가설1 양방향 고정 / flow_skew=가설2 흐름 회피 / "
-                        "queue_flee=가설3 큐 급소진 회피")
+                        "queue_flee=가설3 큐 급소진 회피 / combo=가설4 (2+3)")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
     args = p.parse_args()
     try:
