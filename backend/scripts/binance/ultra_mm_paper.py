@@ -58,6 +58,18 @@ WS_BASE = "wss://fstream.binance.com/ws"
 MAKER_FEE_BP = 2.0
 TAKER_FEE_BP = 5.0
 MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
+
+# ── 가설 2: 흐름 회피형 편향 호가 (2026-08-09 신설) ──────────────────────
+# 가설 1(양방향 최우선 고정)의 실측 실패 지점은 **스프레드 획득이 음수**라는 것이다
+# (라이브 -0.16 ~ -3.29bp). 최우선에 대고도 체결되는 순간엔 중간가가 이미 내 가격을
+# 지나쳐 있다 = 매번 당하는 쪽에 서 있다.
+#   그런데 어느 쪽에서 당할지는 미리 보인다. 공격적 매수가 몰리는 국면에선 내
+#   **매도호가**가 정보 있는 매수자에게 쓸린다. 그 순간 매도호가를 걷으면 그 손실이
+#   사라진다. 방향을 맞히는 게 아니라 **노출을 피하는** 것이다.
+#   OFI 는 수익률 예측엔 쓸모없었으나(ultra_signal_scan 283종목 실측) 여기서는
+#   예측이 아니라 "지금 어느 쪽이 맞고 있나"를 보는 용도라 성격이 다르다.
+FLOW_WIN_SEC = 60.0         # 주문흐름 관측 창
+FLOW_SKEW_TH = 0.30         # |OFI| 가 이보다 크면 노출된 쪽을 걷는다
 SUB_BATCH = 50
 SUB_INTERVAL = 0.4
 STATS_SEC = 600
@@ -93,6 +105,11 @@ class SymState:
     flat_cost_usd: float = 0.0
     n_fills: int = 0
     n_flat: int = 0
+    flow: deque = field(default_factory=deque)   # (ts, +buy_usd, -sell_usd) 최근 흐름
+    flow_buy: float = 0.0
+    flow_sell: float = 0.0
+    n_skip_bid: int = 0
+    n_skip_ask: int = 0
     pending_markout: deque = field(default_factory=deque)   # (t_due, side, mid_at_fill, notional)
     markout_bp_sum: float = 0.0
     markout_n: int = 0
@@ -105,10 +122,25 @@ class SymState:
 
 class PaperMM:
     def __init__(self, symbols: list[str], quote_usd: float, inv_cap_usd: float,
-                 out_dir: Path):
+                 out_dir: Path, strategy: str = "touch"):
         self.st = {s: SymState(s, quote_usd, inv_cap_usd) for s in symbols}
         self.out_dir = out_dir
+        self.strategy = strategy          # "touch" = 가설1 / "flow_skew" = 가설2
         self.t0 = time.time()
+
+    def _sides_allowed(self, s: SymState) -> tuple:
+        """(매수호가를 댈까, 매도호가를 댈까). 가설 1 은 항상 양방향."""
+        if self.strategy != "flow_skew":
+            return True, True
+        tot = s.flow_buy + s.flow_sell
+        if tot <= 0:
+            return True, True
+        ofi = (s.flow_buy - s.flow_sell) / tot
+        if ofi > FLOW_SKEW_TH:            # 공격적 매수 우위 → 내 매도호가가 쓸린다
+            return True, False
+        if ofi < -FLOW_SKEW_TH:           # 공격적 매도 우위 → 내 매수호가가 쓸린다
+            return False, True
+        return True, True
 
     # ── 호가 갱신 ──────────────────────────────────────────────
     def on_book(self, sym: str, bid: float, ask: float, bq: float, aq: float) -> None:
@@ -137,10 +169,17 @@ class PaperMM:
         """양쪽 최우선에 호가를 댄다. 재고 한도에 걸린 쪽은 대지 않는다."""
         if s.bid <= 0 or s.ask <= 0:
             return
-        if s.buy_order is None and s.inv_usd < s.inv_cap_usd:
+        ok_bid, ok_ask = self._sides_allowed(s)
+        if not ok_bid and s.buy_order is not None:
+            s.buy_order = None
+            s.n_skip_bid += 1
+        if not ok_ask and s.sell_order is not None:
+            s.sell_order = None
+            s.n_skip_ask += 1
+        if ok_bid and s.buy_order is None and s.inv_usd < s.inv_cap_usd:
             s.buy_order = Order("buy", s.bid, s.quote_usd,
                                 s.bid_qty_usd + s.quote_usd, time.time())
-        if s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
+        if ok_ask and s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
             s.sell_order = Order("sell", s.ask, s.quote_usd,
                                  s.ask_qty_usd + s.quote_usd, time.time())
 
@@ -151,6 +190,16 @@ class PaperMM:
         if s is None:
             return
         notional = price * qty
+        # 흐름 창 갱신 (가설 2 의 입력). 가설 1 에서도 계산은 하되 쓰지 않는다.
+        now = time.time()
+        if buyer_maker:
+            s.flow.append((now, 0.0, notional)); s.flow_sell += notional
+        else:
+            s.flow.append((now, notional, 0.0)); s.flow_buy += notional
+        cut = now - FLOW_WIN_SEC
+        while s.flow and s.flow[0][0] < cut:
+            _, b, sl = s.flow.popleft()
+            s.flow_buy -= b; s.flow_sell -= sl
         if buyer_maker:                      # 테이커 매도 → 매수 큐 소진
             o = s.buy_order
             if o and price <= o.price:
@@ -234,6 +283,7 @@ class PaperMM:
                 "net_bp": round(net, 3) if net == net else None,
                 "markout_settled": s.markout_n,
                 "inv_usd": round(s.inv_usd, 1), "n_flat": s.n_flat,
+                "skip_bid": s.n_skip_bid, "skip_ask": s.n_skip_ask,
                 "fills_per_hour": round(s.n_fills / max((time.time() - self.t0) / 3600, 1e-6), 1),
             })
         return out
@@ -299,9 +349,11 @@ async def amain(args) -> int:
     if not syms:
         log.error("종목 없음")
         return 1
-    mm = PaperMM(syms, args.quote_usd, args.inv_cap_usd, Path(args.out_dir))
-    log.info("페이퍼 MM 시작 — %d종목 | 호가 $%.0f | 재고한도 $%.0f | 메이커 %.1fbp",
-             len(syms), args.quote_usd, args.inv_cap_usd, MAKER_FEE_BP)
+    mm = PaperMM(syms, args.quote_usd, args.inv_cap_usd, Path(args.out_dir),
+                 strategy=args.strategy)
+    log.info("페이퍼 MM 시작 [%s] — %d종목 | 호가 $%.0f | 재고한도 $%.0f | 메이커 %.1fbp%s",
+             args.strategy, len(syms), args.quote_usd, args.inv_cap_usd, MAKER_FEE_BP,
+             f" | 흐름창 {FLOW_WIN_SEC:.0f}초 임계 {FLOW_SKEW_TH}" if args.strategy == "flow_skew" else "")
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -344,6 +396,8 @@ def main() -> int:
     p.add_argument("--quote-usd", type=float, default=200.0, help="한쪽 호가 명목금액")
     p.add_argument("--inv-cap-usd", type=float, default=1000.0, help="종목별 재고 한도")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
+    p.add_argument("--strategy", choices=["touch", "flow_skew"], default="touch",
+                   help="touch=가설1 양방향 고정 / flow_skew=가설2 흐름 회피형")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
     args = p.parse_args()
     try:

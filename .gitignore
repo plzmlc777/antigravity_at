@@ -134,5 +134,6 @@ backend/runs/research_track/INDEX.json.bak_*
 backend/runs/aggtrade_1m/
 backend/runs/ws_quotes/
 backend/runs/ultra_mm_paper/
+backend/runs/ultra_mm_paper_flowskew/
 backend/runs/research_track/ultra_*_trades.joblib
 backend/runs/research_track/ultra_trades_cache.joblib

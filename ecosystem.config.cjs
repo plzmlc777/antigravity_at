@@ -280,6 +280,24 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 2** — 흐름 회피형 편향 호가.
+        // 가설 1(양방향 최우선 고정)의 실패 지점이 "스프레드 획득이 음수"였다.
+        // 최우선에 대고도 체결 순간엔 중간가가 이미 내 가격을 지나쳐 있다 =
+        // 매번 당하는 쪽에 서 있다. 최근 60초 주문흐름이 한쪽으로 쏠리면 그 쪽
+        // 호가를 걷어 노출을 피한다. 방향 예측이 아니라 노출 회피다.
+        // **가설 1 과 같은 10종목**을 쓴다 — 규칙만 바꿔야 A/B 대조가 성립한다.
+        name: "ultra-mm-paper-flowskew",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy flow_skew " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_flowskew",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
