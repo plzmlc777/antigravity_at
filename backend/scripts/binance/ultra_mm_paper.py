@@ -84,6 +84,23 @@ MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
 #   예측이 아니라 "지금 어느 쪽이 맞고 있나"를 보는 용도라 성격이 다르다.
 FLOW_WIN_SEC = 60.0         # 주문흐름 관측 창
 FLOW_SKEW_TH = 0.30         # |OFI| 가 이보다 크면 노출된 쪽을 걷는다
+
+# ── 가설 3: 큐 소진 임박 회피 (2026-08-09 신설) ────────────────────────
+# 역선택이 어디서 생기는지는 실측에 이미 나와 있다 — **체결 순간에 이미 밀려 있다**
+# (스프레드 획득이 음수). 메커니즘은 큐다. 내 주문은 큐 뒤에 서고, 앞 물량이 다
+# 소진돼야 차례가 온다. 그런데 앞이 다 소진된다는 건 한 방향으로 체결이 몰렸다는
+# 뜻이고, 곧 가격이 그 방향으로 가고 있다는 뜻이다.
+#   **나를 체결시켜 주는 조건이 곧 나를 당하게 하는 조건이다.**
+#
+# 가설 2 는 60초 평균 흐름을 봤다 — 느린 신호라 개선이 0.6~2.6bp 에 그쳤다.
+# 가설 3 은 **그 순간의 큐 소진 속도**를 본다. 빠르게 비면 쓸림, 느리게 비면 정상
+# 양방향 거래다. 소진 속도로 도달 시각(ETA)을 추정해 임박하면 호가를 뺀다.
+# "내 차례가 임박했다"를 기회가 아니라 **위험 신호로 읽는 것**이다.
+#
+# 되물을 지점: 늘 도망가면 체결이 0 이 되어 사업이 없다. 그래서 절대 잔량이 아니라
+# **속도** 로 판단한다 — 천천히 줄어드는 큐는 그대로 두고 급소진만 피한다.
+FLEE_ETA_SEC = 3.0          # 이 시간 안에 내 차례가 올 속도면 뺀다
+FLEE_MIN_CONSUMED = 0.20    # 속도 추정이 신뢰될 만큼 소진된 뒤에만 판단
 SUB_BATCH = 50
 SUB_INTERVAL = 0.4
 STATS_SEC = 600
@@ -99,6 +116,7 @@ class Order:
                              # 거래량이 공짜가 된다 — CYSUSDT 가 하루 거래대금의
                              # 1.8배를 한 시간에 체결하는 값이 나왔다 (2026-08-09).
     posted_at: float
+    queue0: float = 0.0      # 게시 시점 큐 (소진 속도 계산용, 가설 3)
 
 
 @dataclass
@@ -129,6 +147,7 @@ class SymState:
     n_funding: int = 0
     n_skip_bid: int = 0
     n_skip_ask: int = 0
+    n_flee: int = 0
     pending_markout: deque = field(default_factory=deque)   # (t_due, side, mid_at_fill, notional)
     markout_bp_sum: float = 0.0
     markout_n: int = 0
@@ -196,11 +215,11 @@ class PaperMM:
             s.sell_order = None
             s.n_skip_ask += 1
         if ok_bid and s.buy_order is None and s.inv_usd < s.inv_cap_usd:
-            s.buy_order = Order("buy", s.bid, s.quote_usd,
-                                s.bid_qty_usd + s.quote_usd, time.time())
+            q = s.bid_qty_usd + s.quote_usd
+            s.buy_order = Order("buy", s.bid, s.quote_usd, q, time.time(), q)
         if ok_ask and s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
-            s.sell_order = Order("sell", s.ask, s.quote_usd,
-                                 s.ask_qty_usd + s.quote_usd, time.time())
+            q = s.ask_qty_usd + s.quote_usd
+            s.sell_order = Order("sell", s.ask, s.quote_usd, q, time.time(), q)
 
     # ── 체결 스트림 ────────────────────────────────────────────
     def on_trade(self, sym: str, price: float, qty: float, buyer_maker: bool) -> None:
@@ -223,17 +242,36 @@ class PaperMM:
             o = s.buy_order
             if o and price <= o.price:
                 o.queue_ahead -= notional
-                if o.queue_ahead <= 0:
+                if o.queue_ahead > 0 and self._should_flee(o):
+                    s.buy_order = None        # 급소진 감지 → 체결 전에 뺀다
+                    s.n_flee += 1
+                elif o.queue_ahead <= 0:
                     self._fill(s, o, adverse=False)
                     s.buy_order = None
         else:                                # 테이커 매수 → 매도 큐 소진
             o = s.sell_order
             if o and price >= o.price:
                 o.queue_ahead -= notional
-                if o.queue_ahead <= 0:
+                if o.queue_ahead > 0 and self._should_flee(o):
+                    s.sell_order = None
+                    s.n_flee += 1
+                elif o.queue_ahead <= 0:
                     self._fill(s, o, adverse=False)
                     s.sell_order = None
         self._settle_markouts(s)
+
+    def _should_flee(self, o: Order) -> bool:
+        """큐가 급소진 중이면 체결 직전에 뺀다 (가설 3). 상세는 상단 상수 주석."""
+        if self.strategy != "queue_flee" or o.queue0 <= 0:
+            return False
+        consumed = o.queue0 - o.queue_ahead
+        if consumed / o.queue0 < FLEE_MIN_CONSUMED:
+            return False                      # 속도 추정이 아직 못 미덥다
+        elapsed = max(time.time() - o.posted_at, 1e-3)
+        rate = consumed / elapsed             # USD/초
+        if rate <= 0:
+            return False
+        return (o.queue_ahead / rate) < FLEE_ETA_SEC
 
     def _fill(self, s: SymState, o: Order, adverse: bool = False) -> None:
         mid = s.mid or o.price
@@ -323,7 +361,7 @@ class PaperMM:
                 "net_bp": round(net, 3) if net == net else None,
                 "markout_settled": s.markout_n,
                 "inv_usd": round(s.inv_usd, 1), "n_flat": s.n_flat,
-                "skip_bid": s.n_skip_bid, "skip_ask": s.n_skip_ask,
+                "skip_bid": s.n_skip_bid, "skip_ask": s.n_skip_ask, "flee": s.n_flee,
                 "fills_per_hour": round(s.n_fills / max((time.time() - self.t0) / 3600, 1e-6), 1),
             })
         return out
@@ -428,7 +466,9 @@ async def amain(args) -> int:
                  strategy=args.strategy)
     log.info("페이퍼 MM 시작 [%s] — %d종목 | 호가 $%.0f | 재고한도 $%.0f | 메이커 %.1fbp%s",
              args.strategy, len(syms), args.quote_usd, args.inv_cap_usd, MAKER_FEE_BP,
-             f" | 흐름창 {FLOW_WIN_SEC:.0f}초 임계 {FLOW_SKEW_TH}" if args.strategy == "flow_skew" else "")
+             (f" | 흐름창 {FLOW_WIN_SEC:.0f}초 임계 {FLOW_SKEW_TH}" if args.strategy == "flow_skew"
+              else f" | 회피 ETA {FLEE_ETA_SEC:.0f}초, 최소소진 {FLEE_MIN_CONSUMED:.0%}"
+              if args.strategy == "queue_flee" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -475,8 +515,10 @@ def main() -> int:
     p.add_argument("--quote-usd", type=float, default=200.0, help="한쪽 호가 명목금액")
     p.add_argument("--inv-cap-usd", type=float, default=1000.0, help="종목별 재고 한도")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
-    p.add_argument("--strategy", choices=["touch", "flow_skew"], default="touch",
-                   help="touch=가설1 양방향 고정 / flow_skew=가설2 흐름 회피형")
+    p.add_argument("--strategy", choices=["touch", "flow_skew", "queue_flee"],
+                   default="touch",
+                   help="touch=가설1 양방향 고정 / flow_skew=가설2 흐름 회피 / "
+                        "queue_flee=가설3 큐 급소진 회피")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
     args = p.parse_args()
     try:

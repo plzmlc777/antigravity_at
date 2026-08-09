@@ -298,6 +298,26 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 3** — 큐 급소진 회피.
+        // 역선택의 실체는 큐다. 내 앞 물량이 다 소진돼야 차례가 오는데, 그건 한
+        // 방향으로 체결이 몰렸다는 뜻이고 곧 가격이 그 방향으로 가는 중이라는 뜻이다.
+        // **나를 체결시켜 주는 조건이 곧 나를 당하게 하는 조건이다.**
+        // 가설 2 는 60초 평균 흐름(느린 신호)이라 개선이 0.6~2.6bp 였다. 가설 3 은
+        // 그 순간의 소진 **속도**로 도달시각을 추정해 임박하면 뺀다. 절대 잔량이
+        // 아니라 속도로 판단해야 "늘 도망가서 체결 0" 이 되지 않는다.
+        // 로컬 시험: 스프레드 획득 적자가 약 60% 감소, 체결은 약 90% 감소.
+        name: "ultra-mm-paper-queueflee",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy queue_flee " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_queueflee",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
