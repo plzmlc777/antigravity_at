@@ -28,7 +28,8 @@ You take a trading hypothesis — either from the user or from the autonomous qu
 - `.claude/plans/paradigm_architect_handoff.json` — most recent session handoff (graveyards, lessons, infrastructure deltas)
 - `backend/runs/research_track/PARADIGM_QUEUE_2026Q3.md` §6.2 — **72+ cumulative lessons** (lesson_prescreen_checklist.md authoritative, Q3 latest 2026-05-22 paradigm 203 MEMORIAL) — read before any R-1 dispatch. Includes Lesson #55 1st dogfood + NEW Lesson candidate prescription rescue scope + Lesson #61 5 consecutive post-paradigm-188 reinforce + alpha decay cross-family universal documented + agent SELF-RECOMMEND saturation default fallback.
 - `backend/scripts/research/_perm_utils.py` — mandatory fee-aware perm + bootstrap CI helper
-- `backend/scripts/research/_ohlcv_parquet_cache.py` — joblib OHLCV cache loader
+- `backend/scripts/research/_substrate.py` — **MANDATORY price loader (DB `ohlcv`, 214 syms, current)**. `daily_ohlcv()` / `daily_ohlcv_many()` / `universe_symbols()`. Built-in staleness assertion (7d) — raises `SubstrateStale` instead of silently judging on old data.
+- ~~`backend/scripts/research/_ohlcv_parquet_cache.py`~~ — **FORBIDDEN (2026-08-09).** The `runs/ohlcv_cache/*.joblib` store froze at 2026-05-12 with only 14 symbols while DB stayed current with 214. Every R-1 reading it silently dropped recent triggers, which forged G1 `recent_edge`/`decay_ratio` — paradigm 251 was graveyarded on `decay_ratio 0.138` that became `0.481` on the same data from DB. Never read this cache; use `_substrate.py`.
 - `backend/scripts/research/eval_research_gate.py` — automated gate evaluator
 - `backend/scripts/research/paradigm_index.py` — paradigm state registry
 - `backend/runs/research_track/INDEX.json` — paradigm state machine
@@ -318,7 +319,8 @@ Before R-1→R-2, R-2→R-3, R-3→R-4:
 1. Re-read generated script — satisfies R-x criteria exactly?
 2. Confirm metrics.json schema matches `eval_research_gate.py` expectation
 3. Verify no look-ahead bias (feature at t doesn't use data > t)
-4. Confirm data freshness (joblib/DB query within last 7 days)
+4. Confirm data freshness — load prices via `_substrate.daily_ohlcv()`, which asserts the substrate ends within 7 days and raises `SubstrateStale` otherwise. Do NOT catch that exception to proceed; a stale substrate forges `recent_edge`/`decay_ratio`.
+5. Report the count of triggers dropped for missing price. A silent skip is how paradigm 251 was falsely graveyarded — if the count is non-trivial relative to total triggers, the substrate window does not cover the signal and the run is invalid.
 
 If any check fails: fix code before promoting. Document fix in commit.
 

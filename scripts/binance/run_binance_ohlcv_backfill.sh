@@ -12,9 +12,8 @@
 # the prior UTC day is reliably published by ~01:00 UTC, so 02:00 is safe.
 # Runs before binance-paper-cycle (02:30 UTC) so the cycle sees fresh data.
 #
-# --days 3 gives 2-day overlap (idempotent via ON CONFLICT DO NOTHING) for
-# robustness against archive late-publication. For first run / catch-up
-# scenarios use a larger --days value manually.
+# 겹침 2일(ON CONFLICT DO NOTHING 으로 멱등)로 아카이브 늦은 게시에 대비한다.
+# catch-up 은 --auto-gap 이 종목별로 알아서 한다 — 수동 --days 지정 불필요.
 
 set -uo pipefail
 
@@ -33,20 +32,37 @@ fi
 # shellcheck disable=SC1091
 source venv/bin/activate
 
-# Paper-pool universe (14 alts) + BTCUSDT/ETHUSDT used as cross-symbol leaders
-# (bn_cross_lead_lag / bn_cross_eth sources). Without BTC/ETH fresh, leader
-# bars stall and cross paradigms emit pred=0 indefinitely.
-# + paradigm 127/128 volume_burst universe (13 alts, deployed 2026-05-21):
-# ADA/BCH/BNB/FIL/LTC/NEAR/WIF/XRP were missing here, so their 1m bars froze
-# at 2026-05-12 and 16/26 sessions stalled (found 2026-07-11 — same failure
-# mode as the 2026-05-13 incident above).
-SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-BTCUSDT,ETHUSDT,SOLUSDT,HBARUSDT,AXSUSDT,DOGEUSDT,UNIUSDT,PYTHUSDT,TONUSDT,ICPUSDT,ETCUSDT,JUPUSDT,COMPUSDT,WLDUSDT,LDOUSDT,1000LUNCUSDT,AVAXUSDT,LINKUSDT,ADAUSDT,BCHUSDT,BNBUSDT,FILUSDT,LTCUSDT,NEARUSDT,WIFUSDT,XRPUSDT}"
-DAYS="${BINANCE_OHLCV_DAYS:-3}"
+# 자기치유 모드 (2026-08-09). 하드코딩 목록 + 고정 일수를 버렸다.
+#
+# 왜 — 이 목록이 **세 번 연속 같은 사고**를 냈다:
+#   2026-05-13  14개 세션이 마지막 봉에서 정지 (목록에 없던 종목)
+#   2026-07-11  16/26 세션 정지 — ADA/BCH/BNB/FIL/LTC/NEAR/WIF/XRP 누락
+#   2026-08-09  DB 1m 214종목 중 168개가 2026-05-12 에 정지. 유동성 통과
+#               132종목 중 과거 온전+최신인 종목이 12개뿐이었고, 그 substrate
+#               로 내린 3군 판정이 위조됐다 (paradigm 251: decay_ratio 0.138
+#               GRAVEYARD → DB 재판정 0.481 PASS 반전).
+# 목록을 손으로 늘리는 건 매번 사후 대응이고 신규 상장이 생기면 또 뚫린다.
+#
+# 이제:
+#   --universe-min-vol  거래소 exchangeInfo + 24h 거래대금에서 매번 새로 받는다
+#                       (DB 상태에 의존하지 않음, 신규 상장 자동 포함)
+#   --auto-gap          종목별 DB 마지막 봉부터 채운다 (며칠 밀려도 스스로 복구)
+#   --max-days          종목당 상한 — 초과분은 다음 실행이 이어받는다
+#
+# BINANCE_OHLCV_SYMBOLS 를 주면 유니버스에 **추가**된다 (대체가 아니라 합집합).
+MIN_VOL="${BINANCE_OHLCV_MIN_VOL:-5000000}"
+MAX_DAYS="${BINANCE_OHLCV_MAX_DAYS:-150}"
+EXTRA_SYMBOLS="${BINANCE_OHLCV_SYMBOLS:-}"
 
-echo "[binance-ohlcv] symbols=${SYMBOLS} days=${DAYS}" | tee -a "${LOG_FILE}"
+ARGS=(--universe-min-vol "${MIN_VOL}" --auto-gap --max-days "${MAX_DAYS}")
+if [ -n "${EXTRA_SYMBOLS}" ]; then
+  ARGS+=(--symbols "${EXTRA_SYMBOLS}")
+fi
+
+echo "[binance-ohlcv] min_vol=${MIN_VOL} max_days=${MAX_DAYS} extra=${EXTRA_SYMBOLS:-없음}" | tee -a "${LOG_FILE}"
 
 PYTHONPATH=. python3 -m scripts.backfill_ohlcv_archive \
-  --symbols "${SYMBOLS}" --days "${DAYS}" 2>&1 | tee -a "${LOG_FILE}"
+  "${ARGS[@]}" 2>&1 | tee -a "${LOG_FILE}"
 EC="${PIPESTATUS[0]}"
 echo "[binance-ohlcv] exit_code=${EC}" | tee -a "${LOG_FILE}"
 
