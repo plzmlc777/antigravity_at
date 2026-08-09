@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""3군 판정 엔진 — 시간가중 성과(G1) + 실행가능성(G2).
+"""3군 판정 엔진 — 성과(G1) + 실행가능성(G2).
 
 설계 근거: .claude/plans/tier3_redesign.md (2026-08-08 대표님 지시 재설계)
 
@@ -9,9 +9,13 @@
 과적합 판별은 2군 forward(alpha<0 → TERMINATE)에 위임하고, 3군은
 **"실전에서 재현될 수 있는 후보인가"** 만 책임진다.
 
-G1 — 시간가중 성과 (단일 종목·단일 스펙으로 판정. 다종목 요구 폐기)
-  과거 균등가중 대신 최근에 가중한다: w_i = exp(-ln2 · age_i / H), H=반감기.
+G1 — 성과 (단일 종목·단일 스펙으로 판정. 다종목 요구 폐기)
+  유의성과 최근성을 **분리해서** 본다 (2026-08-09 수정, T_MIN 주석 참조):
+    유의성  max(전구간 t, 최근가중 t) >= 1.5
+    최근성  최근 1/3 엣지 > 0  AND  decay_ratio >= 0.3
   핵심은 decay_ratio — 과거에만 좋고 최근에 죽은 전략을 거른다.
+  유의성은 두 t 중 하나만 넘으면 된다 — 고르게 유의한 알파와 최근에 되살아난
+  알파는 서로 다른 지표에 잡히고, 둘 다 실재한다(대조군 실측은 T_MIN 주석).
 
 G2 — 실행가능성 (2026-08-08 하루에 세 번 데인 지점)
   lookahead / 지연 후 마찰여유 / 실행주기 정합.
@@ -33,10 +37,53 @@ import numpy as np
 
 # ── G1 임계값 ────────────────────────────────────────────────────────
 HALFLIFE_DAYS = 90.0     # 시간가중 반감기
-WT_T_MIN = 1.5           # 시간가중 t-stat (기존 2.0 에서 완화 — 뒤에 2군 forward 가 있다)
 RECENT_FRAC = 1.0 / 3.0  # "최근 구간" 비율
 DECAY_RATIO_MIN = 0.30   # 최근/과거 엣지 비율
 N_TRADES_MIN = 20
+
+# 유의성 판정 (2026-08-09 대표님 승인 수정 + 대조군 검증 반영).
+#
+# 왜 wt_t 를 관문에서 뺐는가 —
+#   반감기 90일 고정이면 가중 합이 90/ln2 ≈ 130일분으로 수렴하므로, wt_t 의
+#   유효 표본은 **구간 길이와 무관하게 130일분에 상한**을 갖는다. 즉 데이터를
+#   더 주면 wt_t 는 커지지 않고 최근 130일이 약하면 오히려 떨어진다.
+#   표본을 늘릴수록 판정이 나빠지는 지표였다.
+#
+#   실측 (paradigm 251 스테이블코인 공급):
+#     DOGE h3d   299일 창  n=117  raw_t 3.80  wt_t 2.574 → 통과
+#     DOGE h3d   880일 창  n=375  raw_t 1.75  wt_t 0.776 → 탈락
+#     132종목 동일가중 포트폴리오 h3d 880일  raw_t 2.645  wt_t 0.567 → 탈락
+#   짧은 창에서 wt_t 가 크게 나온 건 그 창에서 최근 130일이 표본의 43% 를
+#   차지했기 때문이고, 게이트가 의도한 방향과 정반대다.
+#
+#   그리고 역할이 중복이었다. "최근에 죽었나" 는 이미 recent_edge>0 과
+#   decay_ratio>=0.3 두 항목이 담당한다. wt_t 는 유의성과 최근성을 한 지표에
+#   섞어 놓고 그 대가로 구간길이 의존성을 얻은 셈이었다. 그래서 분리한다 —
+#   유의성은 t, 최근성은 recent_edge / decay_ratio 로 나눠 담당한다.
+#
+# 관문은 **둘 중 하나라도** 넘으면 통과다: max(raw_t, wt_t) >= T_MIN.
+#
+#   처음에는 raw_t >= 2.0 단독으로 바꿨는데 **양성 대조가 탈락했다** —
+#   lifecycle pump-decay(실계좌 3개월 +240.17 USDT)가 n=129, 거래당 +6.4309%,
+#   raw_t **1.469** 로 falsify 됐다. 거래당 표준편차가 약 50% 인 초고분산
+#   전략이라(신규상장 숏, SL +50%, 30일 보유) t 기반 2.0 기준을 구조적으로
+#   넘지 못한다. tier3_redesign 이 ci_lower 를 폐기한 사유와 같은 함정이다 —
+#   "고분산 전략을 구조적으로 배제. 실제로 돈 번 lifecycle 이 여기서 falsify".
+#
+#   그래서 두 t 를 **선택지**로 둔다. 실재하는 알파는 두 모습 중 하나다:
+#     · 전 구간에 고르게 유의     → raw_t 가 잡는다 (p251 포트폴리오 2.645)
+#     · 최근 레짐에서 되살아남    → wt_t 가 잡는다 (lifecycle 1.652,
+#                                    과거 1/3 -17.14% / 최근 1/3 +10.75%)
+#   raw_t 를 넣은 목적(구간 길이 의존성 제거)은 유지되고, wt_t 는 의무 관문이
+#   아니라 대안 경로가 되므로 "표본을 늘리면 탈락" 하는 결함이 사라진다.
+#
+#   임계값 1.5 는 대표님이 2026-08-08 에 이미 정한 값이다(기존 WT_T_MIN,
+#   "뒤에 2군 forward 가 있으니 3군에서 과하게 조일 이유가 없다").
+#
+#   대조군 검증 (2026-08-09):
+#     양성 lifecycle    max(1.469, 1.652) = 1.652 >= 1.5  → PASS  (의도대로)
+#     음성 volume_burst max(1.024, 0.573) = 1.024 <  1.5  → FAIL  (의도대로)
+T_MIN = 1.5              # max(raw_t, wt_t) 기준 (유의성)
 
 # ── G2 임계값 ────────────────────────────────────────────────────────
 # 지연 후 엣지가 마찰을 넘는 배수. **비율(잔존율) 기준을 쓰지 않는다** —
@@ -81,6 +128,16 @@ def _weights(exit_ts: Sequence[datetime], now: datetime, halflife: float) -> np.
     return np.exp(-math.log(2.0) * ages / halflife)
 
 
+def _raw_t(x: np.ndarray) -> float:
+    """전체 표본 t-stat. 유의성 관문의 한쪽 경로 (T_MIN 주석 참조)."""
+    if len(x) < 2:
+        return float("nan")
+    sd = float(np.std(x, ddof=1))
+    if sd <= 0:
+        return float("nan")
+    return float(np.mean(x) / (sd / math.sqrt(len(x))))
+
+
 def _weighted_t(x: np.ndarray, w: np.ndarray) -> float:
     """가중 평균의 t-stat. 유효표본 n_eff = (Σw)²/Σw² 로 보정한다 —
     가중을 주면 실질 표본이 줄어드는데 이를 무시하면 t 가 부풀려진다."""
@@ -120,13 +177,20 @@ def evaluate_g1(trades: Sequence[Trade], now: Optional[datetime] = None,
     else:
         decay_ratio = float("inf") if recent_edge > 0 else 0.0
 
+    raw_tstat = _raw_t(x)
+
+    # 유의성: 전 구간 t 와 최근가중 t 중 **하나라도** 넘으면 통과 (T_MIN 주석 참조)
+    cands = [t for t in (raw_tstat, wt_t) if not math.isnan(t)]
+    best_t = max(cands) if cands else float("nan")
+    carried_by = ("raw_t" if cands and best_t == raw_tstat else
+                  "wt_t" if cands else None)
+
     fails = []
     if len(x) < N_TRADES_MIN:
         fails.append(f"표본 {len(x)} < {N_TRADES_MIN}")
-    if not (wt_edge > 0):
-        fails.append(f"시간가중 엣지 {wt_edge*100:+.3f}% <= 0")
-    if not (wt_t >= WT_T_MIN) or math.isnan(wt_t):
-        fails.append(f"시간가중 t {wt_t:.2f} < {WT_T_MIN}")
+    if math.isnan(best_t) or not (best_t >= T_MIN):
+        fails.append(f"t {best_t:.2f} < {T_MIN} "
+                     f"(전구간 {raw_tstat:.2f} / 최근가중 {wt_t:.2f} 둘 다 미달)")
     if not (recent_edge > 0):
         fails.append(f"최근 1/3 엣지 {recent_edge*100:+.3f}% <= 0")
     if not (decay_ratio >= DECAY_RATIO_MIN):
@@ -134,12 +198,15 @@ def evaluate_g1(trades: Sequence[Trade], now: Optional[datetime] = None,
 
     return {
         "n_trades": int(len(x)),
-        "wt_edge_pct": round(wt_edge * 100, 4),
+        "raw_edge_pct": round(float(x.mean()) * 100, 4),
+        "raw_t": None if math.isnan(raw_tstat) else round(raw_tstat, 3),
         "wt_t": None if math.isnan(wt_t) else round(wt_t, 3),
+        "t_used": None if math.isnan(best_t) else round(best_t, 3),
+        "t_carried_by": carried_by,
         "recent_edge_pct": round(recent_edge * 100, 4),
         "older_edge_pct": round(older_edge * 100, 4),
         "decay_ratio": None if math.isinf(decay_ratio) else round(decay_ratio, 3),
-        "raw_edge_pct": round(float(x.mean()) * 100, 4),
+        "wt_edge_pct": round(wt_edge * 100, 4),
         "ok": not fails, "fail": fails,
     }
 
@@ -204,16 +271,18 @@ def render(r: GateResult) -> str:
     L.append(f"{'='*66}")
     L.append(f"3군 판정 — {r.metrics.get('label','')}")
     L.append(f"{'='*66}")
-    L.append("  [G1] 시간가중 성과")
-    L.append(f"    표본                {g1['n_trades']}")
-    L.append(f"    단순 엣지           {g1['raw_edge_pct']:+.4f}%")
-    L.append(f"    시간가중 엣지       {g1['wt_edge_pct']:+.4f}%   (반감기 {HALFLIFE_DAYS:.0f}일)")
-    L.append(f"    시간가중 t          {g1['wt_t']}          기준 >= {WT_T_MIN}")
+    L.append("  [G1] 성과 — 유의성(t) + 최근성(recent/decay)")
+    L.append(f"    표본                {g1['n_trades']}          기준 >= {N_TRADES_MIN}")
+    L.append(f"    거래당 엣지         {g1['raw_edge_pct']:+.4f}%")
+    L.append(f"    t (전구간/최근가중)  {g1['raw_t']} / {g1['wt_t']}"
+             f"   → 채택 {g1['t_used']} ({g1['t_carried_by']})  기준 >= {T_MIN}")
     L.append(f"    최근 1/3 엣지       {g1['recent_edge_pct']:+.4f}%   기준 > 0")
     L.append(f"    과거 1/3 엣지       {g1['older_edge_pct']:+.4f}%")
     dr = g1['decay_ratio']
     dr_s = "N/A (과거 음수·최근 양수 → 통과)" if dr is None else f"{dr}"
     L.append(f"    decay_ratio         {dr_s}   기준 >= {DECAY_RATIO_MIN}")
+    L.append(f"    [진단] 시간가중 엣지 {g1['wt_edge_pct']:+.4f}%"
+             f"   (반감기 {HALFLIFE_DAYS:.0f}일, 관문 아님)")
     L.append(f"    → G1 {'PASS' if g1['ok'] else 'FAIL'}")
     for f in g1.get("fail", []):
         L.append(f"       · {f}")
@@ -331,7 +400,7 @@ def main() -> int:
         depth = enqueue({
             "name": args.name, "spec": args.spec, "paradigm": args.paradigm,
             "symbol": args.symbol,
-            "gate_score": r.metrics["G1"].get("wt_t") or 0.0,
+            "gate_score": r.metrics["G1"].get("raw_t") or 0.0,
             "gate": payload,
         }, args.queue)
         print(f"승격 큐 등록 완료 — depth {depth}")
