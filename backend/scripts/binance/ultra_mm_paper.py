@@ -76,6 +76,26 @@ FUNDING_POLL_SEC = 300
 # 초판은 판정이 10분 주기라 폴러가 먼저 덮어써서 **정산이 영영 0회**였다(2026-08-10 발견).
 # 15초면 정산 시각과 재고 측정 시점의 어긋남도 그 안으로 묶인다.
 FUNDING_SETTLE_SEC = 15
+
+# ── 가설 5: 물러선 호가 (2026-08-10 신설) ──────────────────────────────
+# 가설 1~4 는 전부 **최우선 호가에 선다**는 같은 전제 위에 있었고, "언제 뺄까"만
+# 달리했다. 11.67시간 실측의 결론은 그 전제 안에서는 답이 없다는 것이었다 —
+# 이론 반스프레드를 **완벽히** 다 받아내도 5종목 전부 적자였다(수수료 2bp 때문).
+#
+#   AKE +2.80 − 1.22 − 2.00 = −0.42   BANK +1.52 − 0.98 − 2.00 = −1.46
+#   SOL +0.68 − 0.76 − 2.00 = −2.08   TST +4.53 − 5.24 − 2.00 = −2.71
+#
+# 그 계산이 깨지는 유일한 축이 **호가 거리**다. 중간가에서 멀수록 체결당 획득이
+# 커진다. SOL 기준 최우선 +0.68bp / 3틱 물러서면 +4.60bp — 수수료를 넘긴다.
+# 대가는 빈도다. 3틱을 쓸어야 체결되므로 훨씬 드물다.
+#
+# ※ 폐기한 가설: "물러서면 큐 앞에 선다". 실측이 반증했다 —
+#   SOL 매수 최우선 $86k / 1틱 아래 $200k / 2틱 아래 $254k 로 **깊을수록 더 쌓인다.**
+#   따라서 이 가설의 근거는 큐 위치가 아니라 오직 **획득 크기**다.
+#
+# 큐를 정확히 알아야 하므로 `@depth20@100ms`(20단계 스냅샷, 초당 약 9회)를 쓴다.
+# `@bookTicker` 는 1단계뿐이라 물러선 가격의 대기 물량을 모른다.
+DEPTH_TICKS = 3             # 최우선에서 몇 틱 물러설까
 MARKOUT_SEC = 300           # 역선택 측정 지평 (5분)
 
 # ── 가설 2: 흐름 회피형 편향 호가 (2026-08-09 신설) ──────────────────────
@@ -146,6 +166,9 @@ class SymState:
     ask: float = 0.0
     bid_qty_usd: float = 0.0
     ask_qty_usd: float = 0.0
+    book_bids: list = field(default_factory=list)   # [(가격, USD), ...] 가설5
+    book_asks: list = field(default_factory=list)
+    tick: float = 0.0
     buy_order: Order | None = None
     sell_order: Order | None = None
     inv_usd: float = 0.0            # 양수 = 롱
@@ -215,15 +238,46 @@ class PaperMM:
         #
         # 시장이 **나에게서 멀어지면**(매수호가가 내 가격 위로) 더는 최우선이 아니므로
         # 취소하고 새 최우선에 다시 선다 — 큐는 처음부터다.
-        if s.buy_order and bid > s.buy_order.price:
-            s.buy_order = None
-        if s.sell_order and ask < s.sell_order.price:
-            s.sell_order = None
+        if self.strategy == "depth":
+            # 물러선 호가는 중간가를 따라 움직여야 한다 — 목표 가격이 바뀌면 재게시.
+            tb, _ = self._depth_target(s, "buy")
+            ta, _ = self._depth_target(s, "sell")
+            if s.buy_order and tb > 0 and s.buy_order.price != tb:
+                s.buy_order = None
+            if s.sell_order and ta > 0 and s.sell_order.price != ta:
+                s.sell_order = None
+        else:
+            if s.buy_order and bid > s.buy_order.price:
+                s.buy_order = None
+            if s.sell_order and ask < s.sell_order.price:
+                s.sell_order = None
         self._repost(s)
 
+    def _depth_target(self, s: SymState, side: str) -> tuple:
+        """가설 5 — 최우선에서 DEPTH_TICKS 만큼 물러선 가격과 그 단계의 대기 물량.
+        호가창 스냅샷에서 직접 읽는다. 해당 단계가 없으면 (0,0) 을 돌려 게시하지 않는다."""
+        book = s.book_bids if side == "buy" else s.book_asks
+        if len(book) <= DEPTH_TICKS or s.tick <= 0:
+            return 0.0, 0.0
+        px, usd = book[DEPTH_TICKS]
+        return px, usd
+
     def _repost(self, s: SymState) -> None:
-        """양쪽 최우선에 호가를 댄다. 재고 한도에 걸린 쪽은 대지 않는다."""
+        """호가를 댄다. 재고 한도에 걸린 쪽은 대지 않는다."""
         if s.bid <= 0 or s.ask <= 0:
+            return
+        if self.strategy == "depth":
+            ok_bid, ok_ask = True, True
+            if s.buy_order is None and s.inv_usd < s.inv_cap_usd:
+                px, q = self._depth_target(s, "buy")
+                if px > 0:
+                    s.buy_order = Order("buy", px, s.quote_usd, q + s.quote_usd,
+                                        time.time(), q + s.quote_usd)
+            if s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
+                px, q = self._depth_target(s, "sell")
+                if px > 0:
+                    s.sell_order = Order("sell", px, s.quote_usd, q + s.quote_usd,
+                                         time.time(), q + s.quote_usd)
             return
         ok_bid, ok_ask = self._sides_allowed(s)
         if not ok_bid and s.buy_order is not None:
@@ -238,6 +292,24 @@ class PaperMM:
         if ok_ask and s.sell_order is None and s.inv_usd > -s.inv_cap_usd:
             q = s.ask_qty_usd + s.quote_usd
             s.sell_order = Order("sell", s.ask, s.quote_usd, q, time.time(), q)
+
+    def on_depth(self, sym: str, bids: list, asks: list) -> None:
+        """20단계 스냅샷 (가설 5). 최우선도 여기서 갱신하므로 bookTicker 없이 돈다."""
+        s = self.st.get(sym)
+        if s is None or not bids or not asks:
+            return
+        try:
+            bb = [(float(p), float(p) * float(q)) for p, q in bids if float(q) > 0]
+            aa = [(float(p), float(p) * float(q)) for p, q in asks if float(q) > 0]
+        except (TypeError, ValueError):
+            return
+        if not bb or not aa:
+            return
+        s.book_bids, s.book_asks = bb, aa
+        if s.tick <= 0 and len(bb) > 1:
+            s.tick = round(abs(bb[0][0] - bb[1][0]), 12)
+        self.on_book(sym, bb[0][0], aa[0][0],
+                     bb[0][1] / bb[0][0], aa[0][1] / aa[0][0])
 
     # ── 체결 스트림 ────────────────────────────────────────────
     def on_trade(self, sym: str, price: float, qty: float, buyer_maker: bool) -> None:
@@ -442,8 +514,13 @@ async def funding_poller(mm: PaperMM, stop: asyncio.Event) -> None:
 
 async def run(mm: PaperMM, symbols: list[str], stop: asyncio.Event) -> None:
     import websockets
-    streams = [f"{s.lower()}@bookTicker" for s in symbols] + \
-              [f"{s.lower()}@trade" for s in symbols]
+    if mm.strategy == "depth":
+        # 물러선 가격의 대기 물량을 알아야 하므로 20단계 스냅샷을 받는다.
+        streams = [f"{s.lower()}@depth20@100ms" for s in symbols] + \
+                  [f"{s.lower()}@trade" for s in symbols]
+    else:
+        streams = [f"{s.lower()}@bookTicker" for s in symbols] + \
+                  [f"{s.lower()}@trade" for s in symbols]
     delay = 1.0
     while not stop.is_set():
         opened = time.time()
@@ -460,7 +537,9 @@ async def run(mm: PaperMM, symbols: list[str], stop: asyncio.Event) -> None:
                 while not stop.is_set():
                     d = json.loads(await asyncio.wait_for(ws.recv(), timeout=120))
                     e = d.get("e")
-                    if e == "bookTicker":
+                    if e == "depthUpdate":
+                        mm.on_depth(d["s"], d.get("b") or [], d.get("a") or [])
+                    elif e == "bookTicker":
                         mm.on_book(d["s"], float(d["b"]), float(d["a"]),
                                    float(d["B"]), float(d["A"]))
                     elif e == "trade":
@@ -483,6 +562,8 @@ async def amain(args) -> int:
     if not syms:
         log.error("종목 없음")
         return 1
+    global DEPTH_TICKS
+    DEPTH_TICKS = args.depth_ticks
     mm = PaperMM(syms, args.quote_usd, args.inv_cap_usd, Path(args.out_dir),
                  strategy=args.strategy)
     log.info("페이퍼 MM 시작 [%s] — %d종목 | 호가 $%.0f | 재고한도 $%.0f | 메이커 %.1fbp%s",
@@ -491,7 +572,9 @@ async def amain(args) -> int:
               else f" | 회피 ETA {FLEE_ETA_SEC:.0f}초, 최소소진 {FLEE_MIN_CONSUMED:.0%}"
               if args.strategy == "queue_flee"
               else f" | 흐름 {FLOW_WIN_SEC:.0f}초/{FLOW_SKEW_TH} + 회피 ETA {FLEE_ETA_SEC:.0f}초"
-              if args.strategy == "combo" else ""))
+              if args.strategy == "combo"
+              else f" | 최우선에서 {DEPTH_TICKS}틱 물러섬"
+              if args.strategy == "depth" else ""))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -548,10 +631,13 @@ def main() -> int:
     p.add_argument("--quote-usd", type=float, default=200.0, help="한쪽 호가 명목금액")
     p.add_argument("--inv-cap-usd", type=float, default=1000.0, help="종목별 재고 한도")
     p.add_argument("--out-dir", default=str(ROOT / "runs" / "ultra_mm_paper"))
-    p.add_argument("--strategy", choices=["touch", "flow_skew", "queue_flee", "combo"],
+    p.add_argument("--strategy",
+                   choices=["touch", "flow_skew", "queue_flee", "combo", "depth"],
                    default="touch",
-                   help="touch=가설1 양방향 고정 / flow_skew=가설2 흐름 회피 / "
-                        "queue_flee=가설3 큐 급소진 회피 / combo=가설4 (2+3)")
+                   help="touch=가설1 / flow_skew=가설2 / queue_flee=가설3 / "
+                        "combo=가설4(2+3) / depth=가설5 물러선 호가")
+    p.add_argument("--depth-ticks", type=int, default=DEPTH_TICKS,
+                   help="가설5 — 최우선에서 몇 틱 물러설까")
     p.add_argument("--stats-sec", type=int, default=STATS_SEC, help="요약 보고 주기(초)")
     args = p.parse_args()
     try:

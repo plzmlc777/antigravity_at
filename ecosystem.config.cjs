@@ -338,6 +338,29 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 2군 페이퍼 MM **가설 5** — 물러선 호가. 앞 네 가설과 축이 다르다.
+        // 1~4 는 전부 "최우선에 서서 언제 뺄까" 였고, 11.67시간 실측 결론은 그 전제
+        // 안에서는 답이 없다는 것이었다 — 이론 반스프레드를 완벽히 다 받아내도
+        // 수수료 2bp 때문에 5종목 전부 적자였다.
+        // 그 계산이 깨지는 유일한 축이 **호가 거리**다. 중간가에서 멀수록 체결당
+        // 획득이 커진다 (SOL 최우선 +0.68bp / 3틱 +4.60bp).
+        // 물러선 가격의 대기 물량을 알아야 하므로 @depth20@100ms(20단계 스냅샷)를 쓴다.
+        // 로컬 시험: 스프레드 획득이 처음으로 전 종목 양수(TST +18.36, BANK +8.93).
+        // 그러나 역선택이 폭발했다(TST -93.86) — 물러선 호가는 가격이 쓸고 갈 때만
+        // 체결되고 그 움직임은 거기서 멈추지 않는다. **역선택을 피하는 게 아니라
+        // 농축한다.** 표본이 필요하다.
+        name: "ultra-mm-paper-depth",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth --depth-ticks 3 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depth",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
