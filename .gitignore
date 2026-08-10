@@ -140,5 +140,7 @@ backend/runs/ultra_mm_paper_combo/
 backend/runs/ultra_mm_paper_depth/
 backend/runs/ultra_mm_paper_depth1/
 backend/runs/ultra_mm_paper_depth5/
+backend/runs/ultra_mm_paper_depth7/
+backend/runs/ultra_mm_paper_depth10/
 backend/runs/research_track/ultra_*_trades.joblib
 backend/runs/research_track/ultra_trades_cache.joblib

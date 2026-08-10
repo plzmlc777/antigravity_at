@@ -393,6 +393,36 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // 가설 5 깊이 곡선 확장 — 7단계.
+        // 1시간 실측에서 net 이 최우선 대비 9/9 개선됐고 5단계가 대체로 최고였다
+        // (AKE -1.26 / CYS -3.21). 곡선이 계속 좋아지는지, 어디서 꺾이는지 본다.
+        name: "ultra-mm-paper-depth7",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth --depth-ticks 7 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depth7",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
+        // 가설 5 깊이 곡선 확장 — 10단계. 20단계 스냅샷의 절반 지점.
+        // 1시간 실측에서 net 이 최우선 대비 9/9 개선됐고 5단계가 대체로 최고였다
+        // (AKE -1.26 / CYS -3.21). 곡선이 계속 좋아지는지, 어디서 꺾이는지 본다.
+        name: "ultra-mm-paper-depth10",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/ultra_mm_paper.py --strategy depth --depth-ticks 10 " +
+              "--quote-usd 200 --inv-cap-usd 1000 --out-dir runs/ultra_mm_paper_depth10",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
