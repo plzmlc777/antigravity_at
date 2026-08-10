@@ -564,56 +564,14 @@ const agentApps = [
         // 예정된 시각이라 쫓아갈 이유가 없다. 15분 전에 지정가를 건다.
         // 그러니 **그 지정가가 실제 체결되는지가 이 전략의 생사**이고,
         // 백테스트로는 답이 안 나온다. 그래서 페이퍼로 잰다.
-        // 상시 구독하지 않는다 — 사건 창(하루 3회 x 40분)에만 붙는다.
+        // 상시 구독하지 않는다 — 사건 창(하루 3회)에만 붙는다.
+        // **10팔을 한 프로세스에서 돌린다.** 사건이 하루 세 번뿐이라 팔을 늘려도
+        // 추가 비용이 없지만, 팔마다 프로세스를 띄우면 522스트림 x 팔수가 된다.
+        // 첫 사건에서 한 팔만으로도 연결이 두 번 끊겼다 — 팔들이 같은 종목·같은
+        // 데이터를 보므로 스트림을 공유하는 게 맞다.
         name: "daytrade-funding-paper",
         script: "./venv/bin/python3",
-        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200 " +
-              "--entry-min -15 --exit-min 15 --side long --tag base",
-        cwd: "./backend",
-        interpreter: "none",
-        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
-        autorestart: true,
-        max_restarts: 50,
-        restart_delay: 15000
-    },
-    {
-        // 단타 트랙 — **되돌림 숏**. 정산 후 진입(+15분/60분 보유)에서 -5.4~-19.1bp 로 부호가
-        // 반대다. "정산 향해 쌓고 정산 후 푼다" 는 메커니즘과 대칭이라
-        // 기본 팔(롱)과 짝을 이룬다. 숏이므로 매도호가에 먼저 건다.
-        name: "daytrade-funding-reversal",
-        script: "./venv/bin/python3",
-        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200 " +
-              "--entry-min 15 --exit-min 75 --side short --tag reversal --out-dir runs/daytrade_funding_reversal",
-        cwd: "./backend",
-        interpreter: "none",
-        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
-        autorestart: true,
-        max_restarts: 50,
-        restart_delay: 15000
-    },
-    {
-        // 단타 트랙 — **고펀딩 필터**. 백테스트에서 |펀딩률| 3~10bp 구간이 +24.39bp 로 전체
-        // 평균(+9.97)의 2.4배였다. 다만 그 초과분의 상당 부분은 모멘텀
-        // 성분이다(같은 구간 대조 시각 +11.83bp) — 페이퍼가 갈라준다.
-        name: "daytrade-funding-hifr",
-        script: "./venv/bin/python3",
-        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200 " +
-              "--entry-min -15 --exit-min 15 --side long --min-funding-bp 3 --tag hifr --out-dir runs/daytrade_funding_hifr",
-        cwd: "./backend",
-        interpreter: "none",
-        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
-        autorestart: true,
-        max_restarts: 50,
-        restart_delay: 15000
-    },
-    {
-        // 단타 트랙 — **조기 진입**. -30분/60분 보유 +5.39bp. 기본(-15분)보다 효과는 작지만
-        // 지정가를 걸 시간이 두 배라 **체결률이 높을 것**이다. 효과 대
-        // 체결률의 절충을 실측한다 — 이게 이 팔의 존재 이유다.
-        name: "daytrade-funding-early",
-        script: "./venv/bin/python3",
-        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200 " +
-              "--entry-min -30 --exit-min 30 --side long --tag early --out-dir runs/daytrade_funding_early",
+        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200",
         cwd: "./backend",
         interpreter: "none",
         env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },

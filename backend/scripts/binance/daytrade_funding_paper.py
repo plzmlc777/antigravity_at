@@ -75,8 +75,29 @@ ENTRY_MIN = -15             # 진입 시점 (사건 대비 분. 음수=이전)
 EXIT_MIN = 15               # 청산 시점 (사건 대비 분)
 POST_MIN = 20               # 구독 해제 (청산보다 뒤여야)
 EXIT_GRACE_MIN = 3          # 청산 지정가를 이만큼 기다린 뒤 시장가
-SIDE = "long"               # long | short
+SIDE = "long"               # long | short (단일 팔 모드 기본값)
 MIN_FUNDING_BP = 0.0        # |펀딩률| 이 이보다 작은 종목은 건너뛴다
+
+# ── 다중 팔 (2026-08-10) ──────────────────────────────────────────────
+# 사건은 하루 세 번뿐이라 팔을 늘려도 추가 비용이 없다 — 시간을 놀릴 이유가 없다.
+# 다만 팔마다 별도 프로세스로 522스트림씩 구독하면 자원이 배로 든다. 첫 사건에서
+# **한 팔만으로도 연결이 두 번 끊겼다.** 팔들이 같은 종목·같은 데이터를 보므로
+# **한 프로세스가 여러 팔을 함께 돌린다** — 팔이 몇 개든 스트림은 522개 그대로다.
+#
+# 각 팔은 ultra_event_scan 이 짚어준 지점이다 (279종목 60일, 정산−대조 차이):
+ARMS_DEFAULT = [
+    # (태그,        진입, 청산, 방향,    펀딩필터, 백테스트 차이)
+    ("base",        -15,  15,  "long",   0.0,  "+10.56bp 최대"),
+    ("early",       -30,  30,  "long",   0.0,  "+5.39bp, 지정가 걸 시간 2배"),
+    ("hifr",        -15,  15,  "long",   3.0,  "+24.39bp (모멘텀 성분 포함)"),
+    ("reversal",     15,  75,  "short",  0.0,  "-7.77bp 되돌림"),
+    ("late5",        -5,  10,  "long",   0.0,  "+7.02bp, 노출 15분으로 최소"),
+    ("late1",        -1,  14,  "long",   0.0,  "+7.25bp, 정산 직전 진입"),
+    ("pre60",       -60,   0,  "long",   0.0,  "+4.44bp, 정산 전 구간만 (관통 안 함)"),
+    ("post1",         1,  16,  "long",   0.0,  "+4.77bp, 정산 직후 롱"),
+    ("rev30",        15,  45,  "short",  0.0,  "-5.39bp 되돌림 짧은 버전"),
+    ("wide",        -15,  45,  "long",   0.0,  "+5.44bp, 되돌림까지 관통"),
+]
 
 
 @dataclass
@@ -109,20 +130,35 @@ class Book:
         return (self.bid + self.ask) / 2.0 if self.bid > 0 and self.ask > 0 else 0.0
 
 
+@dataclass
+class Arm:
+    """팔 하나. 같은 호가·체결 스트림을 공유하되 포지션과 기록은 독립이다."""
+    tag: str
+    entry_min: int
+    exit_min: int
+    side: str
+    min_fr: float
+    note: str = ""
+    pos: dict = field(default_factory=dict)
+    records: list = field(default_factory=list)
+    done_arm: bool = False
+    done_exit: bool = False
+    done_force: bool = False
+
+
 class FundingPaper:
-    def __init__(self, symbols: list[str], notional: float, out_dir: Path):
+    def __init__(self, symbols: list[str], notional: float, out_dir: Path,
+                 arms: list | None = None):
         self.symbols = symbols
         self.notional = notional
         self.out_dir = out_dir
         self.book: dict[str, Book] = {s: Book() for s in symbols}
-        self.pos: dict[str, Pos] = {}
-        self.funding: dict[str, float] = {}     # 종목 → 펀딩률 (MIN_FUNDING_BP 용)
-        self.phase = "idle"          # idle | armed | holding | closing
-        self.records: list = []
-        self.stats = {"events": 0, "armed": 0, "filled": 0, "closed": 0,
-                      "exit_taker": 0}
+        self.funding: dict[str, float] = {}     # 종목 → 펀딩률 (팔별 필터용)
+        self.arms: list[Arm] = arms or [Arm("base", ENTRY_MIN, EXIT_MIN, SIDE,
+                                            MIN_FUNDING_BP)]
+        self.stats = {"events": 0}
 
-    # ── 스트림 ────────────────────────────────────────────────
+    # ── 스트림 (모든 팔이 공유) ──────────────────────────────
     def on_book(self, sym: str, bid: float, ask: float, bq: float, aq: float) -> None:
         b = self.book.get(sym)
         if b is None or not (bid > 0 and ask > bid):
@@ -131,63 +167,57 @@ class FundingPaper:
         b.bid_usd, b.ask_usd = bq * bid, aq * ask
 
     def on_trade(self, sym: str, price: float, qty: float, buyer_maker: bool) -> None:
-        p = self.pos.get(sym)
-        if p is None:
-            return
         n = price * qty
-        if not p.filled:
-            # 진입 체결: 롱(매수 지정가)은 테이커 **매도**가, 숏(매도 지정가)은
-            # 테이커 **매수**가 큐를 소진해야 한다.
-            hit = ((buyer_maker and price <= p.entry_px) if SIDE == "long"
-                   else ((not buyer_maker) and price >= p.entry_px))
-            if hit:
-                p.queue_ahead -= n
-                if p.queue_ahead <= 0:
-                    b = self.book[sym]
-                    p.filled = True
-                    p.entry_mid = b.mid or p.entry_px
-                    p.entry_ts = time.time()
-                    self.stats["filled"] += 1
-        elif p.exit_px > 0 and not p.closed:
-            # 청산은 진입의 반대편이다.
-            hit = (((not buyer_maker) and price >= p.exit_px) if SIDE == "long"
-                   else (buyer_maker and price <= p.exit_px))
-            if hit:
-                p.exit_queue -= n
-                if p.exit_queue <= 0:
-                    self._close(sym, p, taker=False)
+        for arm in self.arms:
+            p = arm.pos.get(sym)
+            if p is None:
+                continue
+            if not p.filled:
+                # 롱(매수 지정가)은 테이커 **매도**가, 숏(매도 지정가)은 테이커
+                # **매수**가 큐를 소진해야 체결된다.
+                hit = ((buyer_maker and price <= p.entry_px) if arm.side == "long"
+                       else ((not buyer_maker) and price >= p.entry_px))
+                if hit:
+                    p.queue_ahead -= n
+                    if p.queue_ahead <= 0:
+                        b = self.book[sym]
+                        p.filled = True
+                        p.entry_mid = b.mid or p.entry_px
+                        p.entry_ts = time.time()
+            elif p.exit_px > 0 and not p.closed:
+                hit = (((not buyer_maker) and price >= p.exit_px) if arm.side == "long"
+                       else (buyer_maker and price <= p.exit_px))
+                if hit:
+                    p.exit_queue -= n
+                    if p.exit_queue <= 0:
+                        self._close(arm, sym, p, taker=False)
 
-    def _close(self, sym: str, p: Pos, taker: bool) -> None:
+    def _close(self, arm: Arm, sym: str, p: Pos, taker: bool) -> None:
         b = self.book[sym]
+        sign = 1.0 if arm.side == "long" else -1.0
         if taker:
             # 시장가 청산은 반대편 호가를 친다 (롱→매수호가, 숏→매도호가)
-            p.exit_px = (b.bid if SIDE == "long" else b.ask) or p.entry_px
+            p.exit_px = (b.bid if arm.side == "long" else b.ask) or p.entry_px
             p.exit_taker = True
-            self.stats["exit_taker"] += 1
         p.exit_mid = b.mid or p.exit_px
         p.closed = True
-        self.stats["closed"] += 1
-        sign = 1.0 if SIDE == "long" else -1.0
         gross = ((p.exit_px / p.entry_px - 1.0) * sign) if p.entry_px > 0 else 0.0
         fee = (MAKER_FEE_BP + (TAKER_FEE_BP if taker else MAKER_FEE_BP)) / 1e4
-        # 지정가 이점 = 중간가 대비 얼마나 유리하게 샀나
         edge_in = (((p.entry_mid - p.entry_px) / p.entry_mid * 1e4 * sign)
                    if p.entry_mid else 0.0)
-        edge_out = (((p.exit_px - p.exit_mid) / p.exit_mid * 1e4 * sign)
-                    if p.exit_mid else 0.0)
-        self.records.append({
+        arm.records.append({
             "t": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "symbol": sym, "entry_px": p.entry_px, "exit_px": p.exit_px,
+            "arm": arm.tag, "symbol": sym, "side": arm.side,
+            "entry_px": p.entry_px, "exit_px": p.exit_px,
             "gross_bp": round(gross * 1e4, 3), "fee_bp": round(fee * 1e4, 3),
             "net_bp": round((gross - fee) * 1e4, 3),
-            "edge_in_bp": round(edge_in, 3), "edge_out_bp": round(edge_out, 3),
-            "exit_taker": taker, "side": SIDE,
+            "edge_in_bp": round(edge_in, 3), "exit_taker": taker,
             "queue_wait_sec": round(p.entry_ts - p.posted_at, 1) if p.entry_ts else None,
         })
 
     async def refresh_funding(self) -> None:
-        """펀딩률 갱신. MIN_FUNDING_BP 필터의 입력이다."""
-        if MIN_FUNDING_BP <= 0:
+        """펀딩률 갱신. 팔별 필터의 입력이다."""
+        if not any(a.min_fr > 0 for a in self.arms):
             return
         try:
             import aiohttp
@@ -197,98 +227,100 @@ class FundingPaper:
                     data = await r.json()
             self.funding = {x["symbol"]: float(x.get("lastFundingRate") or 0.0)
                             for x in data}
-            hi = sum(1 for v in self.funding.values()
-                     if abs(v) * 1e4 >= MIN_FUNDING_BP)
-            log.info("펀딩률 갱신 %d종목 — |rate| >= %.1fbp 인 종목 %d개",
-                     len(self.funding), MIN_FUNDING_BP, hi)
+            log.info("펀딩률 갱신 %d종목", len(self.funding))
         except Exception as e:
-            log.warning("펀딩률 갱신 실패: %s — 필터를 적용하지 않는다", e)
+            log.warning("펀딩률 갱신 실패: %s — 필터 미적용", e)
             self.funding = {}
 
-    # ── 사건 진행 ─────────────────────────────────────────────
-    def arm(self) -> None:
-        """진입 시점: 롱이면 매수호가에, 숏이면 매도호가에 지정가를 건다."""
-        self.pos.clear()
+    # ── 팔별 진행 ─────────────────────────────────────────────
+    def arm_open(self, arm: Arm) -> None:
+        arm.pos.clear()
         n = skipped = 0
         for s in self.symbols:
-            if MIN_FUNDING_BP > 0:
-                fr = abs(self.funding.get(s, 0.0)) * 1e4
-                if fr < MIN_FUNDING_BP:
-                    skipped += 1
-                    continue
+            if arm.min_fr > 0 and abs(self.funding.get(s, 0.0)) * 1e4 < arm.min_fr:
+                skipped += 1
+                continue
             b = self.book[s]
-            px = b.bid if SIDE == "long" else b.ask
-            q0 = b.bid_usd if SIDE == "long" else b.ask_usd
+            px = b.bid if arm.side == "long" else b.ask
+            q0 = b.bid_usd if arm.side == "long" else b.ask_usd
             if px <= 0:
                 continue
-            q = q0 + self.notional             # 내 앞 물량 + 내 주문
-            self.pos[s] = Pos(symbol=s, entry_px=px, queue_ahead=q, queue0=q,
-                              posted_at=time.time())
+            q = q0 + self.notional          # 내 앞 물량 + 내 주문
+            arm.pos[s] = Pos(symbol=s, entry_px=px, queue_ahead=q, queue0=q,
+                             posted_at=time.time())
             n += 1
-        self.stats["armed"] += n
-        self.phase = "holding"
-        log.info("[진입] %s 지정가 게시 %d종목%s", "매수" if SIDE == "long" else "매도",
-                 n, f" (펀딩률 미달 {skipped}종목 제외)" if skipped else "")
+        arm.done_arm = True
+        log.info("  [%s] %s 지정가 %d종목%s", arm.tag,
+                 "매수" if arm.side == "long" else "매도", n,
+                 f" (펀딩 미달 {skipped} 제외)" if skipped else "")
 
-    def start_exit(self) -> None:
-        """청산 시점: 진입의 반대편 호가에 지정가."""
+    def arm_exit(self, arm: Arm) -> None:
         n = 0
-        for s, p in self.pos.items():
+        for s, p in arm.pos.items():
             if p.filled and not p.closed:
                 b = self.book[s]
-                px = b.ask if SIDE == "long" else b.bid
-                q0 = b.ask_usd if SIDE == "long" else b.bid_usd
+                px = b.ask if arm.side == "long" else b.bid
+                q0 = b.ask_usd if arm.side == "long" else b.bid_usd
                 if px <= 0:
                     continue
-                p.exit_px = px
-                p.exit_queue = q0 + self.notional
-                p.exit_posted = time.time()
+                p.exit_px, p.exit_queue = px, q0 + self.notional
                 n += 1
-        self.phase = "closing"
-        log.info("[청산] 지정가 매도 %d종목", n)
+        arm.done_exit = True
+        log.info("  [%s] 청산 지정가 %d종목", arm.tag, n)
 
-    def force_exit(self) -> None:
-        """유예 후에도 미체결이면 시장가. 그 비용도 기록한다."""
+    def arm_force(self, arm: Arm) -> None:
         n = 0
-        for s, p in self.pos.items():
+        for s, p in arm.pos.items():
             if p.filled and not p.closed:
-                self._close(s, p, taker=True)
+                self._close(arm, s, p, taker=True)
                 n += 1
+        arm.done_force = True
         if n:
-            log.info("[강제청산] 시장가 %d종목", n)
+            log.info("  [%s] 강제청산 시장가 %d종목", arm.tag, n)
 
-    def finish(self) -> dict:
-        armed = sum(1 for p in self.pos.values())
-        filled = sum(1 for p in self.pos.values() if p.filled)
-        rec = [r for r in self.records]
-        fill_rate = filled / armed if armed else 0.0
-        summ = {"armed": armed, "filled": filled, "fill_rate": round(fill_rate, 4),
-                "closed": len(rec)}
+    def arm_summary(self, arm: Arm) -> dict:
+        armed = len(arm.pos)
+        filled = sum(1 for p in arm.pos.values() if p.filled)
+        rec = arm.records
+        out = {"arm": arm.tag, "side": arm.side,
+               "entry_min": arm.entry_min, "exit_min": arm.exit_min,
+               "armed": armed, "filled": filled,
+               "fill_rate": round(filled / armed, 4) if armed else 0.0,
+               "closed": len(rec)}
         if rec:
             import statistics as st
-            summ.update({
-                "net_bp_mean": round(st.mean(r["net_bp"] for r in rec), 3),
-                "gross_bp_mean": round(st.mean(r["gross_bp"] for r in rec), 3),
-                "edge_in_bp_mean": round(st.mean(r["edge_in_bp"] for r in rec), 3),
+            out.update({
+                "net_bp": round(st.mean(r["net_bp"] for r in rec), 3),
+                "gross_bp": round(st.mean(r["gross_bp"] for r in rec), 3),
+                "edge_in_bp": round(st.mean(r["edge_in_bp"] for r in rec), 3),
                 "taker_exit_frac": round(
                     sum(1 for r in rec if r["exit_taker"]) / len(rec), 3),
                 "queue_wait_med": round(st.median(
                     [r["queue_wait_sec"] for r in rec
                      if r["queue_wait_sec"] is not None] or [0]), 1),
             })
-        return summ
+        return out
 
-    def persist(self, tag: str) -> None:
+    def persist(self, tag: str, gaps: list) -> None:
         day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         d = self.out_dir / day
         d.mkdir(parents=True, exist_ok=True)
-        if self.records:
-            with open(d / "fills.jsonl", "a") as fh:
-                for r in self.records:
-                    fh.write(json.dumps(r) + "\n")
+        rows = []
+        for arm in self.arms:
+            if arm.records:
+                with open(d / f"fills_{arm.tag}.jsonl", "a") as fh:
+                    for r in arm.records:
+                        fh.write(json.dumps(r) + "\n")
+            rows.append(self.arm_summary(arm))
+            arm.records.clear()
         with open(d / "_events.jsonl", "a") as fh:
-            fh.write(json.dumps({"event": tag, **self.finish()}) + "\n")
-        self.records.clear()
+            fh.write(json.dumps({"event": tag, "conn_gaps": len(gaps),
+                                 "arms": rows}, ensure_ascii=False) + "\n")
+
+    def reset(self) -> None:
+        for a in self.arms:
+            a.pos.clear(); a.records.clear()
+            a.done_arm = a.done_exit = a.done_force = False
 
 
 async def next_funding_time() -> datetime:
@@ -356,13 +388,14 @@ async def _conn(fp: "FundingPaper", streams: list, name: str,
 
 
 async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> None:
-    """한 사건 창. **타임라인은 연결 상태와 무관하게 흐른다.**"""
-    t_arm = T + timedelta(minutes=ENTRY_MIN)
-    t_exit = T + timedelta(minutes=EXIT_MIN)
-    t_force = t_exit + timedelta(minutes=EXIT_GRACE_MIN)
-    t_end = t_force + timedelta(minutes=2)
+    """한 사건 창. **타임라인은 연결 상태와 무관하게 흐르고, 모든 팔이 한 스트림을
+    공유한다.** 팔이 몇 개든 구독은 그대로다 — 팔마다 프로세스를 띄우면 첫 사건에서
+    겪은 연결 끊김이 배로 늘어난다."""
+    fp.reset()
+    t_start = min(T + timedelta(minutes=a.entry_min) for a in fp.arms)
+    t_end = max(T + timedelta(minutes=a.exit_min + EXIT_GRACE_MIN)
+                for a in fp.arms) + timedelta(minutes=2)
 
-    # 부하 분산 — 522스트림 한 연결이 정산 순간에 밀렸다. 종목을 나눠 두 연결로.
     half = (len(fp.symbols) + 1) // 2
     groups = [fp.symbols[:half], fp.symbols[half:]]
     gaps: list = []
@@ -371,35 +404,45 @@ async def event_cycle(fp: FundingPaper, T: datetime, stop: asyncio.Event) -> Non
         f"conn{i}", t_end, stop, gaps)) for i, g in enumerate(groups) if g]
 
     await fp.refresh_funding()
-    done_arm = done_exit = done_force = False
+    log.info("사건 %s UTC — 팔 %d개 / 창 %s ~ %s", T.strftime("%m-%d %H:%M"),
+             len(fp.arms), t_start.strftime("%H:%M"), t_end.strftime("%H:%M"))
     while not stop.is_set():
         now = datetime.now(timezone.utc)
         if now >= t_end:
             break
-        if not done_arm and now >= t_arm:
-            fp.arm(); done_arm = True
-        if not done_exit and now >= t_exit:
-            fp.start_exit(); done_exit = True
-        if not done_force and done_exit and now >= t_force:
-            fp.force_exit(); done_force = True
+        for arm in fp.arms:
+            if not arm.done_arm and now >= T + timedelta(minutes=arm.entry_min):
+                fp.arm_open(arm)
+            if (not arm.done_exit and arm.done_arm
+                    and now >= T + timedelta(minutes=arm.exit_min)):
+                fp.arm_exit(arm)
+            if (not arm.done_force and arm.done_exit
+                    and now >= T + timedelta(minutes=arm.exit_min + EXIT_GRACE_MIN)):
+                fp.arm_force(arm)
         await asyncio.sleep(0.5)
 
     for t in tasks:
         t.cancel()
-    # 창이 실제로 끝난 뒤에만 정리한다 (초판은 연결 끊길 때마다 여기로 왔다)
-    fp.force_exit()
-    s = fp.finish()
-    s["conn_gaps"] = len(gaps)
-    log.info("[사건 종료 %s] 게시 %d / 체결 %d (체결률 %.1f%%) | net %s bp | "
-             "지정가이점 %s bp | 큐대기 %s초 | 시장가청산 %s | 연결끊김 %d회",
-             T.strftime("%m-%d %H:%M"), s.get("armed", 0), s.get("filled", 0),
-             s.get("fill_rate", 0) * 100, s.get("net_bp_mean", "--"),
-             s.get("edge_in_bp_mean", "--"), s.get("queue_wait_med", "--"),
-             f"{s.get('taker_exit_frac', 0) * 100:.0f}%", len(gaps))
+    # 창이 실제로 끝난 뒤에만 정리한다
+    for arm in fp.arms:
+        if not arm.done_force:
+            fp.arm_force(arm)
+
+    log.info("[사건 종료 %s] 연결끊김 %d회", T.strftime("%m-%d %H:%M"), len(gaps))
+    log.info("  %-9s %-6s %7s %7s %8s %9s %9s %8s %7s",
+             "팔", "방향", "게시", "체결", "체결률", "net bp", "지정가이점",
+             "큐대기", "시장가")
+    for arm in fp.arms:
+        r = fp.arm_summary(arm)
+        log.info("  %-9s %-6s %7d %7d %7.1f%% %+9s %+9s %8s %6s%%",
+                 r["arm"], "롱" if r["side"] == "long" else "숏",
+                 r["armed"], r["filled"], r["fill_rate"] * 100,
+                 r.get("net_bp", "--"), r.get("edge_in_bp", "--"),
+                 r.get("queue_wait_med", "--"),
+                 f"{r.get('taker_exit_frac', 0) * 100:.0f}")
     if gaps:
-        # 조용한 결손 금지 — 끊긴 동안 놓친 체결이 있다.
         log.warning("  연결 끊김 상세: %s", json.dumps(gaps[:4], ensure_ascii=False))
-    fp.persist(T.strftime("%Y-%m-%dT%H:%MZ"))
+    fp.persist(T.strftime("%Y-%m-%dT%H:%MZ"), gaps)
     fp.stats["events"] += 1
 
 
@@ -409,13 +452,15 @@ async def amain(args) -> int:
     if not syms:
         log.error("종목 없음")
         return 1
-    fp = FundingPaper(syms, args.notional, Path(args.out_dir))
-    log.info("단타 페이퍼 [펀딩 정산 · %s] — %d종목 | 주문 $%.0f | %s | "
-             "진입 T%+d분 / 청산 T%+d분 (보유 %d분)%s",
-             args.tag, len(syms), args.notional,
-             "롱" if SIDE == "long" else "숏", ENTRY_MIN, EXIT_MIN,
-             EXIT_MIN - ENTRY_MIN,
-             f" | 펀딩 >= {MIN_FUNDING_BP:.1f}bp" if MIN_FUNDING_BP > 0 else "")
+    arms = [Arm(t, e, x, sd, fr, note) for t, e, x, sd, fr, note in ARMS_DEFAULT]
+    fp = FundingPaper(syms, args.notional, Path(args.out_dir), arms)
+    log.info("단타 페이퍼 [펀딩 정산] — %d종목 | 주문 $%.0f | 팔 %d개",
+             len(syms), args.notional, len(arms))
+    for a in arms:
+        log.info("  %-9s %-4s T%+d → T%+d (보유 %d분)%s  — %s", a.tag,
+                 "롱" if a.side == "long" else "숏", a.entry_min, a.exit_min,
+                 a.exit_min - a.entry_min,
+                 f" 펀딩>={a.min_fr:.0f}bp" if a.min_fr > 0 else "", a.note)
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -426,16 +471,12 @@ async def amain(args) -> int:
     while not stop.is_set():
         T = await next_funding_time()
         if last_T is not None and T <= last_T:
-            # 같은 사건 재진입 방지. 초판은 연결이 끊길 때마다 사건을 다시
-            # 시작해 같은 창에서 두 번 게시했다 (2026-08-10 첫 사건).
-            log.info("사건 %s 는 이미 처리했다 — 60초 후 재확인",
-                     T.strftime("%m-%d %H:%M"))
             await asyncio.sleep(60)
             continue
-        wake = T + timedelta(minutes=ENTRY_MIN - 5)
+        wake = T + timedelta(minutes=min(a.entry_min for a in fp.arms) - 5)
         wait = (wake - datetime.now(timezone.utc)).total_seconds()
         if wait > 0:
-            log.info("다음 사건 %s UTC — %.1f분 대기 (그동안 구독 없음)",
+            log.info("다음 사건 %s UTC — %.1f분 대기 (구독 없음)",
                      T.strftime("%m-%d %H:%M"), wait / 60)
             try:
                 await asyncio.wait_for(stop.wait(), timeout=wait)
@@ -444,8 +485,7 @@ async def amain(args) -> int:
                 pass
         await event_cycle(fp, T, stop)
         last_T = T
-    log.info("종료 — 사건 %d회 / 게시 %d / 체결 %d",
-             fp.stats["events"], fp.stats["armed"], fp.stats["filled"])
+    log.info("종료 — 사건 %d회", fp.stats["events"])
     return 0
 
 
