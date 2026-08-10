@@ -445,6 +445,26 @@ const agentApps = [
         restart_delay: 15000
     },
     {
+        // ── 단타 트랙 (2026-08-10 신설) ──────────────────────────────────
+        // 펀딩 정산 사건 페이퍼. **지정가 체결률을 실측한다.**
+        // ultra_event_scan 이 279종목 60일에서 정산 고유 효과 +9.6~15.3bp 를
+        // 찾았다(2겹 대조 검증). 그런데 마찰이 갈림길이다 —
+        //   시장가 11−12.2 = −1.2bp 미달 / 지정가 11−2.0 = +9.0bp 넘음
+        // 예정된 시각이라 쫓아갈 이유가 없다. 15분 전에 지정가를 건다.
+        // 그러니 **그 지정가가 실제 체결되는지가 이 전략의 생사**이고,
+        // 백테스트로는 답이 안 나온다. 그래서 페이퍼로 잰다.
+        // 상시 구독하지 않는다 — 사건 창(하루 3회 x 40분)에만 붙는다.
+        name: "daytrade-funding-paper",
+        script: "./venv/bin/python3",
+        args: "-u scripts/binance/daytrade_funding_paper.py --notional 200",
+        cwd: "./backend",
+        interpreter: "none",
+        env: { PYTHONPATH: ".", PYTHONDONTWRITEBYTECODE: "1" },
+        autorestart: true,
+        max_restarts: 50,
+        restart_delay: 15000
+    },
+    {
         // 2군 tier governor — day30_decision_protocol 결정 트리 매일 자동 집행.
         // TERMINATE 자동 / PROMOTE·RESEED는 Telegram 통보 (1군 진입은 수동 승인).
         // Daily 03:40 UTC (12:40 KST) — paper-cycle(02:30) + spawner(03:00) 이후
